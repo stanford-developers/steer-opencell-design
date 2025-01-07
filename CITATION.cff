@@ -1,0 +1,16 @@
+cff-version: 0.0.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: Siemons
+    given-names: Nicholas
+    orcid: https://orcid.org/0000-0002-0755-3981
+  - family-names: Yao
+    given-names: Adrian
+title: "SteerEnergyStorage"
+version: 0.0.0
+doi: 
+date-released:
+
+
+
+
