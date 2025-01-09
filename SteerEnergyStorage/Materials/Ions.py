@@ -1,0 +1,66 @@
+from SteerEnergyStorage.Materials.core import Material
+
+
+class Ion(Material):
+
+    def __init__(self, name: str, formula: str, cost: float = None, charge: int = None):
+        """
+        Initialize an object that represents an ion
+        :param name: str: name of the material
+        :param formula: str: chemical formula of the material
+        :param cost: float: cost of the material per kg
+        :charge: int: charge of the ion
+        """
+        super().__init__(name, formula, cost)
+        self._charge = charge
+    
+    @property
+    def charge(self):
+        return self._charge
+
+    def __str__(self):
+        return f"Ion {self.name}"
+    
+    def __repr__(self):
+        return f"Ion {self.name}"
+    
+
+class Cation(Ion):
+
+    def __init__(self, name: str, formula: str, cost: float = None, charge: int = None):
+        """
+        Initialize an object that represents a cation
+        :param name: str: name of the material
+        :param formula: str: chemical formula of the material
+        :param cost: float: cost of the material per kg
+        """
+        super().__init__(name, formula, cost)
+        self._charge = charge
+
+    def __str__(self):
+        return f"Cation {self.name}"
+    
+    def __repr__(self):
+        return f"Cation {self.name}"
+    
+
+class Anion():
+
+    def __init__(self, name: str, formula: str, cost: float = None):
+        """
+        Initialize an object that represents an anion
+        :param name: str: name of the material
+        :param formula: str: chemical formula of the material
+        :param cost: float: cost of the material per kg
+        """
+        self._formula = formula
+
+    @property
+    def formula(self):
+        return self._formula
+
+    def __str__(self):
+        return f"Anion {self.name}"
+    
+    def __repr__(self):
+        return f"Anion {self.name}"
