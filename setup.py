@@ -3,7 +3,7 @@ from setuptools import find_packages
 
 setup(
     name='SteerEnergyStorage',
-    version="0.0.1", 
+    version="0.0.2", 
     description='Modelling energy storage from cell to site',
     author='Nicholas Siemons',
     author_email='nsiemons@stanford.edu',
