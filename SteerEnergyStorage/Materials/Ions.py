@@ -35,7 +35,6 @@ class Cation(Ion):
         :param cost: float: cost of the material per kg
         """
         super().__init__(name, formula, cost)
-        self._charge = charge
 
     def __str__(self):
         return f"Cation {self.name}"
@@ -44,7 +43,7 @@ class Cation(Ion):
         return f"Cation {self.name}"
     
 
-class Anion():
+class Anion(Ion):
 
     def __init__(self, name: str, formula: str, cost: float = None):
         """
@@ -53,14 +52,11 @@ class Anion():
         :param formula: str: chemical formula of the material
         :param cost: float: cost of the material per kg
         """
-        self._formula = formula
-
-    @property
-    def formula(self):
-        return self._formula
+        super().__init__(name, formula, cost)
 
     def __str__(self):
         return f"Anion {self.name}"
     
     def __repr__(self):
         return f"Anion {self.name}"
+    
