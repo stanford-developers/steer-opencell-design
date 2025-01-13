@@ -17,3 +17,4 @@ class Solvent(Material):
     
     def __repr__(self):
         return f"Solvent {self.name}"
+    

@@ -35,3 +35,4 @@ class CurrentCollector(Material):
     
     def __repr__(self):
         return f"Current collector {self.name}"
+
