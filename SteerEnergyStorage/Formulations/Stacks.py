@@ -28,6 +28,15 @@ class Stack():
         self._cathode_mass_loading = cathode_mass_loading
         self._n_p_ratio = n_p_ratio
 
+        # get anode area
+        self._anode._single_sided_area = self._cathode._single_sided_area * (1 + self._anode._overhang / 100)
+        self._anode._coat_mass_per_sheet = self._anode.calculate_coat_mass_per_sheet()
+        self._anode._current_collector._mass = self._anode.calculate_foil_mass_per_sheet()
+
+        # get cathode properties
+        self._cathode._coat_mass_per_sheet = self._cathode.calculate_coat_mass_per_sheet()
+        self._cathode._current_collector._mass = self._cathode.calculate_foil_mass_per_sheet()
+
     @property
     def anode(self):
         return self._anode
