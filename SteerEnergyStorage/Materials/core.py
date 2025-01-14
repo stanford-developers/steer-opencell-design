@@ -2,20 +2,20 @@
 
 class Material():
 
-    def __init__(self, name: str, formula: str, cost: float = None):
+    def __init__(self, name: str, formula: str, specific_cost: float = None):
         """
         Initialize an object that represents a general material
         :param name: str: name of the material
         :param formula: str: chemical formula of the material
-        :param cost: float: cost of the material per kg
+        :param specific_cost: float: specific cost of the material per kg
         """
         self._name = name
-        self._formula = formula.lower()
-        self._cost = cost
+        self._formula = formula.lower() if formula is not None else None
+        self._specific_cost = specific_cost
 
     @property
-    def cost(self):
-        return self._cost
+    def specific_cost(self):
+        return self._specific_cost
 
     @property
     def name(self):
