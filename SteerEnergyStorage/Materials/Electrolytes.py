@@ -9,7 +9,7 @@ class Electrolyte(Material):
     def __init__(self, 
                  name: str, 
                  formula: str, 
-                 cost: float = 8.94, 
+                 specific_cost: float = 8.94, 
                  solvent: Solvent = None, 
                  cation: dict[Cation, float] = None,
                  anion: dict[Anion, float] = None,
@@ -18,13 +18,13 @@ class Electrolyte(Material):
         Initialize an object that represents an electrolyte
         :param name: str: name of the material
         :param formula: str: chemical formula of the material
-        :param cost: float: cost of the material $/kg
+        :param specific_cost: float: specific cost of the material $/kg
         :param solvent: Solvent: solvent used in the electrolyte
         :param cation: dict: cation used in the electrolyte and its concentration in mol/L
         :param anion: dict: anion used in the electrolyte and its concentration in mol/L
         :param density: float: density of the material in g/cm^3
         """
-        super().__init__(name, formula, cost)
+        super().__init__(name, formula, specific_cost)
         self._cation = cation
         self._anion = anion
         self._solvent = solvent

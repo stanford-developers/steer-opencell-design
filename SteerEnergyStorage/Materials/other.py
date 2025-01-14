@@ -6,17 +6,17 @@ class Laminate():
     def __init__(self, 
                  thickness: float = 113, 
                  areal_mass: float = 18,
-                 cost: float = 4.64
+                 specific_cost: float = 4.64
                  ):
         """
         Laminate object for encapsulation of the cell
         :param thickness: float: thickness of the laminate in um
         :param areal_mass: float: the areal mass of the laminate in mg/cm^2
-        :param cost: float: cost of the laminate $/kg
+        :param specific_cost: float: specific cost of the laminate $/kg
         """
         self._thickness = thickness
         self._areal_mass = areal_mass
-        self._cost = cost
+        self._specific_cost = specific_cost
 
     @property
     def thickness(self):
@@ -27,8 +27,8 @@ class Laminate():
         return self._areal_mass
     
     @property
-    def cost(self):
-        return self._cost
+    def specific_cost(self):
+        return self._specific_cost
     
     def __str__(self):
         return f"Laminate with a thickness of {self.thickness} um and an areal mass of {self.areal_mass} mg/cm^2"
@@ -41,7 +41,7 @@ class Terminal():
 
     def __init__(self, 
                  mass: float = 1,
-                 cost: float = 16
+                 specific_cost: float = 16
                  ):
         """
         Terminal object for a cell
@@ -49,15 +49,15 @@ class Terminal():
         :param cost: float: cost of the terminal $/kg
         """
         self._mass = mass
-        self._cost = cost
+        self._specific_cost = specific_cost
 
     @property
     def mass(self):
         return self._mass
     
     @property
-    def cost(self):
-        return self._cost
+    def specific_cost(self):
+        return self._specific_cost
     
     def __str__(self):
         return f"Terminal with a mass of {self.mass} g"
