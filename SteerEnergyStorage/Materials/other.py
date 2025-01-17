@@ -12,7 +12,7 @@ class Laminate():
         Laminate object for encapsulation of the cell
         :param thickness: float: thickness of the laminate in um
         :param areal_mass: float: the areal mass of the laminate in mg/cm^2
-        :param specific_cost: float: specific cost of the laminate $/kg
+        :param specific_cost: float: specific cost of the laminate $/m^2
         """
         self._thickness = thickness
         self._areal_mass = areal_mass
@@ -50,6 +50,7 @@ class Terminal():
         """
         self._mass = mass
         self._specific_cost = specific_cost
+        self._cost = self._mass/1000 * self._specific_cost
 
     @property
     def mass(self):
@@ -68,9 +69,7 @@ class Terminal():
 
 class Seal():
 
-    def __init__(self,
-                 length: float = 22
-                 ):
+    def __init__(self, length: float):
         """
         Seal object for a cell
         :param length: float: length of the seal in mm
