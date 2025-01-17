@@ -31,6 +31,27 @@ class Electrolyte(Material):
         self._density = density
 
     @property
+    def mass(self):
+        try:
+            return self._mass
+        except AttributeError:
+            return AttributeError("Mass not calculated yet")
+
+    @property
+    def volume(self):
+        try:
+            return self._volume
+        except AttributeError:
+            return AttributeError("Volume not calculated yet")
+        
+    @property
+    def cost(self):
+        try:
+            return self._cost
+        except AttributeError:
+            return AttributeError("Cost not calculated yet")
+
+    @property
     def solvent(self):
         return self._solvent
     
