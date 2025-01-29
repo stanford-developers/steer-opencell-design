@@ -1,182 +1,257 @@
-import numpy as np
 from SteerEnergyStorage.Formulations.Stacks import Stack
 from SteerEnergyStorage.Materials.Electrolytes import Electrolyte
 from SteerEnergyStorage.Materials.other import Terminal
-from SteerEnergyStorage.Constructions.other import Pouch
+from SteerEnergyStorage.Constructions.Containers import Pouch
 
+KG_TO_G = 1e3
+M_TO_CM = 1e2
+M_TO_MM = 1e3
 
-class Cell():
-
+class Cell:
     def __init__(self,
-                 stack: Stack,
                  electrolyte: Electrolyte,
-                 electrolyte_overfill:float,
+                 electrolyte_overfill: float,
                  voltage_upper_cut_off: float,
                  voltage_lower_cut_off: float,
                  reversible_capacity: float,
                  irreversible_capacity: float,
                  positive_terminal: Terminal,
-                 negative_terminal: Terminal
-                 ):
+                 negative_terminal: Terminal,
+                 name: str = 'Cell'):
         """
-        Initiate an object that represents an electrochemical cell
-        :param stack: Stack: stack within the cell
-        :param electrolyte: Electrolyte: electrolyte used in the cell
-        :param electrolyte_overfill: float: overfill of the electrolyte in the cell %
-        :param voltage_upper_cut_off: float: upper cut-off voltage of the cell
-        :param voltage_lower_cut_off: float: lower cut-off voltage of the cell
-        :param reversible_capacity: float: reversible capacity of the cell in mAh
-        :param irreversible_capacity: float: irreversible capacity of the cell in mAh,
-        :param positive_terminal: Terminal: positive terminal of the cell
-        :param negative_terminal: Terminal: negative terminal of the cell
+        Initiate an object that represents an electrochemical cell.
+
+        :param electrolyte: Electrolyte used in the cell
+        :param electrolyte_overfill: Overfill of the electrolyte in the cell (%)
+        :param voltage_upper_cut_off: Upper cut-off voltage of the cell
+        :param voltage_lower_cut_off: Lower cut-off voltage of the cell
+        :param reversible_capacity: Reversible capacity of the cell in mAh
+        :param irreversible_capacity: Irreversible capacity of the cell in mAh
+        :param positive_terminal: Positive terminal of the cell
+        :param negative_terminal: Negative terminal of the cell
+        :param name: Name of the cell
         """
-        self._stack = stack
-        self._electrolyte = electrolyte
-        self._electrolyte_overfill = electrolyte_overfill
+        self._electrolyte = self._validate_electrolyte(electrolyte)
+        self._electrolyte_overfill = self._validate_percentage(electrolyte_overfill) / 100
         self._voltage_upper_cut_off = voltage_upper_cut_off
         self._voltage_lower_cut_off = voltage_lower_cut_off
         self._reversible_capacity = reversible_capacity
         self._irreversible_capacity = irreversible_capacity
         self._positive_terminal = positive_terminal
         self._negative_terminal = negative_terminal
+        self._name = name
 
-        self._effective_areal_capacity = self._reversible_capacity / self._stack.active_geometric_area
+    def _validate_electrolyte(self, value: Electrolyte) -> Electrolyte:
+        if not isinstance(value, Electrolyte):
+            raise ValueError("Electrolyte must be an instance of Electrolyte")
+        return value
 
-        # calculate electrolyte quantities
-        self._electrolyte._volume = self._stack._pore_volume * (1 + self._electrolyte_overfill/100)
-        self._electrolyte._mass = self._electrolyte.volume * self._electrolyte.density
-        self._electrolyte._cost = (self._electrolyte.mass/1000) * self._electrolyte.specific_cost                     
+    def _validate_percentage(self, value: float) -> float:
+        if not (0 <= value <= 100):
+            raise ValueError("Percentage must be between 0 and 100")
+        return value
 
     @property
-    def positive_terminal(self):
+    def positive_terminal(self) -> Terminal:
         return self._positive_terminal
     
     @property
-    def negative_terminal(self):
+    def negative_terminal(self) -> Terminal:
         return self._negative_terminal
 
     @property
-    def effective_areal_capacity(self):
-        return np.round(self._effective_areal_capacity, 2)
+    def electrolyte_overfill(self) -> float:
+        return self._electrolyte_overfill * 100
 
     @property
-    def electrolyte_overfill(self):
-        return self._electrolyte_overfill
-
-    @property
-    def reversible_capacity(self):
+    def reversible_capacity(self) -> float:
         return self._reversible_capacity
     
     @property
-    def irreversible_capacity(self):
+    def irreversible_capacity(self) -> float:
         return self._irreversible_capacity
 
     @property
-    def stack(self):
-        return self._stack
-
-    @property
-    def electrolyte(self):
+    def electrolyte(self) -> Electrolyte:
         return self._electrolyte
     
     @property
-    def voltage_upper_cut_off(self):
+    def voltage_upper_cut_off(self) -> float:
         return self._voltage_upper_cut_off
     
     @property
-    def voltage_lower_cut_off(self):
+    def voltage_lower_cut_off(self) -> float:
         return self._voltage_lower_cut_off
     
-    def __str__(self):
-        return f"Cell with a n/p ratio of {self.n_p_ratio}"
+    @property
+    def name(self) -> str:
+        return self._name
     
-    def __repr__(self):
-        return f"Cell with a n/p ratio of {self.n_p_ratio}"
+    def __str__(self) -> str:
+        return self._name
+    
+    def __repr__(self) -> str:
+        return self.__str__()
     
 
-class StackedPouchCell(Cell):
-
+class PouchCell(Cell):
     def __init__(self,
-                 stack: Stack,
                  pouch: Pouch,
-                 width: float,
-                 length: float,
                  electrolyte: Electrolyte,
-                 electrolyte_overfill:float,
+                 electrolyte_overfill: float,
                  voltage_upper_cut_off: float,
                  voltage_lower_cut_off: float,
                  reversible_capacity: float,
                  irreversible_capacity: float,
                  positive_terminal: Terminal,
-                 negative_terminal: Terminal
-                 ):
+                 negative_terminal: Terminal,
+                 name: str = 'Pouch cell'):
         """
-        A class that represents a pouch cell
-        :param stack: Stack: stack within the cell
-        :param width: float: width of the cell in cm
-        :param length: float: length of the cell in cm
-        :param electrolyte: Electrolyte: electrolyte used in the cell
-        :param electrolyte_overfill: float: overfill of the electrolyte in the cell %
-        :param voltage_upper_cut_off: float: upper cut-off voltage of the cell
-        :param voltage_lower_cut_off: float: lower cut-off voltage of the cell
-        :param reversible_capacity: float: reversible capacity of the cell in mAh
-        :param irreversible_capacity: float: irreversible capacity of the cell in mAh,
-        :param positive_terminal: Terminal: positive terminal of the cell
-        :param negative_terminal: Terminal: negative terminal of the cell
+        Class to represent a pouch cell.
+
+        :param pouch: Pouch used in the cell
+        :param electrolyte: Electrolyte used in the cell
+        :param electrolyte_overfill: Overfill of the electrolyte in the cell (%)
+        :param voltage_upper_cut_off: Upper cut-off voltage of the cell
+        :param voltage_lower_cut_off: Lower cut-off voltage of the cell
+        :param reversible_capacity: Reversible capacity of the cell in mAh
+        :param irreversible_capacity: Irreversible capacity of the cell in mAh
+        :param positive_terminal: Positive terminal of the cell
+        :param negative_terminal: Negative terminal of the cell
+        :param name: Name of the cell
         """
-        super().__init__(stack = stack, 
-                         electrolyte = electrolyte, 
-                         electrolyte_overfill = electrolyte_overfill, 
-                         voltage_upper_cut_off = voltage_upper_cut_off, 
-                         voltage_lower_cut_off = voltage_lower_cut_off, 
-                         reversible_capacity = reversible_capacity, 
-                         irreversible_capacity = irreversible_capacity,
-                         positive_terminal = positive_terminal,
-                         negative_terminal = negative_terminal
-                         )
+        super().__init__(electrolyte=electrolyte, 
+                         electrolyte_overfill=electrolyte_overfill, 
+                         voltage_upper_cut_off=voltage_upper_cut_off, 
+                         voltage_lower_cut_off=voltage_lower_cut_off, 
+                         reversible_capacity=reversible_capacity, 
+                         irreversible_capacity=irreversible_capacity,
+                         positive_terminal=positive_terminal,
+                         negative_terminal=negative_terminal,
+                         name=name)
         
-        self._length = length
-        self._width = width
-        self._pouch = pouch
+        self._pouch = self._validate_pouch(pouch)
 
-        self._mass = self._stack._total_cathode_mass + \
-                     self._stack._total_anode_mass + \
-                     self._stack._seperator._mass + \
-                     self._electrolyte._mass + \
-                     self._pouch._mass + \
-                     self._positive_terminal._mass + \
-                     self._negative_terminal._mass
-        
-        self._thickness = self._stack._thickness + (self._pouch._laminate._thickness * 2)/1000
-        self._volume = (self._length/10 * self._width/10 * self._thickness/10)/1000 # in Liters
+    def _validate_pouch(self, value: Pouch) -> Pouch:
+        if not isinstance(value, Pouch):
+            raise ValueError("Pouch must be an instance of Pouch")
+        return value
 
     @property
-    def mass(self):
-        return np.round(self._mass, 2)
-    
-    @property
-    def thickness(self):
-        return np.round(self._thickness, 2)
-    
-    @property
-    def volume(self):
-        return np.rounc(self._volume, 2)
-
-    @property
-    def pouch(self):
+    def pouch(self) -> Pouch:
         return self._pouch
+    
+
+class StackedPouchCell(PouchCell):
+
+    def __init__(self,
+                 stack: Stack,
+                 pouch: Pouch,
+                 electrolyte: Electrolyte,
+                 electrolyte_overfill: float,
+                 voltage_upper_cut_off: float,
+                 voltage_lower_cut_off: float,
+                 reversible_capacity: float,
+                 irreversible_capacity: float,
+                 positive_terminal: Terminal,
+                 negative_terminal: Terminal,
+                 name: str = None):
+        """
+        A class that represents a stacked pouch cell.
+
+        :param stack: Stack within the cell
+        :param pouch: Pouch used in the cell
+        :param electrolyte: Electrolyte used in the cell
+        :param electrolyte_overfill: Overfill of the electrolyte in the cell (%)
+        :param voltage_upper_cut_off: Upper cut-off voltage of the cell
+        :param voltage_lower_cut_off: Lower cut-off voltage of the cell
+        :param reversible_capacity: Reversible capacity of the cell in mAh
+        :param irreversible_capacity: Irreversible capacity of the cell in mAh
+        :param positive_terminal: Positive terminal of the cell
+        :param negative_terminal: Negative terminal of the cell
+        :param name: Name of the cell
+        """
+        super().__init__(pouch=pouch,
+                         electrolyte=electrolyte,
+                         electrolyte_overfill=electrolyte_overfill,
+                         voltage_upper_cut_off=voltage_upper_cut_off,
+                         voltage_lower_cut_off=voltage_lower_cut_off,
+                         reversible_capacity=reversible_capacity,
+                         irreversible_capacity=irreversible_capacity,
+                         positive_terminal=positive_terminal,
+                         negative_terminal=negative_terminal,
+                         name=name)
+        
+        self._stack = self._validate_stack(stack)
+
+        # calculate pouch properties
+        self._pouch._width = self._stack._anode._current_collector._width + 2 * self._pouch._heat_seal_size_sides
+        self._pouch._length = self._stack._anode._current_collector._length + self._pouch._heat_seal_size_top
+        self._pouch._area = self._pouch._width * self._pouch._length
+        self._pouch._mass = 2 * self._pouch._area * self._pouch._laminate._areal_mass
+        self._pouch._cost = self._pouch._area * self._pouch._laminate._areal_cost
+
+        # calculate electrolyte quantities
+        self._electrolyte._volume = self._stack._pore_volume * (1 + self._electrolyte_overfill)
+        self._electrolyte._mass = self._electrolyte._volume * self._electrolyte._density
+        self._electrolyte._cost = (self._electrolyte._mass) * self._electrolyte._specific_cost  
+
+        # calculate mass of cell
+        self._mass_breakdown = {self._stack: self._stack._mass,
+                                self._electrolyte: self._electrolyte._mass,
+                                self._pouch: self._pouch._mass,
+                                self._positive_terminal: self._positive_terminal._mass,
+                                self._negative_terminal: self._negative_terminal._mass}
+
+        self._mass = sum(self._mass_breakdown.values())
+        
+        # calculate geometric properties of the cell
+        self._thickness = (self._stack._thickness + self._pouch._laminate._thickness * 2)
+        self._volume = self._pouch._length * self._pouch._width * self._thickness
+        self._effective_areal_capacity = self._reversible_capacity / self._stack.active_geometric_area   
+
+        # calculate cost of the cell
+        self._cost_breakdown = {self._stack: self._stack._cost,
+                                self._pouch: self._pouch._cost,
+                                self._electrolyte: self._electrolyte._cost,
+                                self._positive_terminal: self._positive_terminal._cost,
+                                self._negative_terminal: self._negative_terminal._cost}
+
+        self._cost = sum(self._cost_breakdown.values())
+
+    def _validate_stack(self, value: Stack) -> Stack:
+        if not isinstance(value, Stack):
+            raise ValueError("Stack must be an instance of Stack")
+        return value
 
     @property
-    def length(self):
-        return self._length
+    def cost_breakdown(self) -> dict:
+        return {item: round(value, 3) for item, value in self._cost_breakdown.items()}
     
     @property
-    def width(self):
-        return self._width
+    def cost(self) -> float:
+        return round(self._cost, 2)
+
+    @property
+    def stack(self) -> Stack:
+        return self._stack
+
+    @property
+    def mass(self) -> float:
+        return round(self._mass * KG_TO_G, 2)
     
-    def __str__(self):
-        return f"Pouch cell with a width of {self.width} cm and a length of {self.length} cm"
+    @property
+    def mass_breakdown(self) -> dict:
+        return {item: round(value * KG_TO_G, 3) for item, value in self._mass_breakdown.items()}
     
-    def __repr__(self):
-        return f"Pouch cell with a width of {self.width} cm and a length of {self.length} cm"
+    @property
+    def thickness(self) -> float:
+        return round(self._thickness * M_TO_MM, 2)
     
+    @property
+    def volume(self) -> float:
+        return round(self._volume * M_TO_CM**3, 2)
+    
+    @property
+    def effective_areal_capacity(self) -> float:
+        return round(self._effective_areal_capacity, 2)
