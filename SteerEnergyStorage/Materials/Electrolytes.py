@@ -1,46 +1,53 @@
-from SteerEnergyStorage.Materials.core import Material
-from SteerEnergyStorage.Materials.Ions import Cation
-from SteerEnergyStorage.Materials.Ions import Anion
+from SteerEnergyStorage.Materials.Salts import Salt
 from SteerEnergyStorage.Materials.Solvents import Solvent
 
+G_TO_KG = 0.001
+CM_TO_M = 0.01
+KG_TO_G = 1000
+M_TO_CM = 100
 
-class Electrolyte(Material):
+class Electrolyte:
 
     def __init__(self, 
                  name: str, 
                  formula: str, 
-                 specific_cost: float = 8.94, 
-                 solvent: Solvent = None, 
-                 cation: dict[Cation, float] = None,
-                 anion: dict[Anion, float] = None,
-                 density: float = 1.2):
+                 specific_cost: float, 
+                 density: float):   
         """
         Initialize an object that represents an electrolyte
         :param name: str: name of the material
         :param formula: str: chemical formula of the material
         :param specific_cost: float: specific cost of the material $/kg
-        :param solvent: Solvent: solvent used in the electrolyte
-        :param cation: dict: cation used in the electrolyte and its concentration in mol/L
-        :param anion: dict: anion used in the electrolyte and its concentration in mol/L
         :param density: float: density of the material in g/cm^3
         """
-        super().__init__(name, formula, specific_cost)
-        self._cation = cation
-        self._anion = anion
-        self._solvent = solvent
-        self._density = density
+        self._name = name
+        self._formula = formula
+        self._specific_cost = specific_cost
+        self._density = density * (G_TO_KG / CM_TO_M**3)
+
+    @property
+    def name(self):
+        return self._name
+    
+    @property
+    def formula(self):
+        return self._formula
+    
+    @property
+    def specific_cost(self):
+        return self._specific_cost
 
     @property
     def mass(self):
         try:
-            return self._mass
+            return round(self._mass, 2)
         except AttributeError:
             return AttributeError("Mass not calculated yet")
 
     @property
     def volume(self):
         try:
-            return self._volume
+            return round(self._volume, 2)
         except AttributeError:
             return AttributeError("Volume not calculated yet")
         
@@ -50,25 +57,14 @@ class Electrolyte(Material):
             return self._cost
         except AttributeError:
             return AttributeError("Cost not calculated yet")
-
-    @property
-    def solvent(self):
-        return self._solvent
-    
-    @property
-    def cation(self):
-        return self._cation
-    
-    @property
-    def anion(self):
-        return self._anion
     
     @property
     def density(self):
-        return self._density
+        return round(self._density * (KG_TO_G/M_TO_CM**3), 2)
 
     def __str__(self):
-        return f"Electrolyte {self.name}"
+        return f"{self.name}"
     
     def __repr__(self):
-        return f"Electrolyte {self.name}"
+        return self.__str__()
+    
