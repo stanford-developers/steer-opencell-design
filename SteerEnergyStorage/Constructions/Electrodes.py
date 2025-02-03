@@ -167,6 +167,10 @@ class Anode(Electrode):
                          calender_density=calender_density,
                          swell_factor=swell_factor,
                          name=name)
+        
+        # determine the directions for the active material half curves
+        for am in self.formulation._active_materials.keys():
+            am._half_cell_curve = am._determine_half_cell_direction('anode')
 
     @property
     def overhang(self):
@@ -200,4 +204,7 @@ class Cathode(Electrode):
                          calender_density=calender_density,
                          swell_factor=swell_factor,
                          name=name)
-
+        
+        # determine the directions for the active material half curves
+        for am in self.formulation._active_materials.keys():
+            am._half_cell_curve = am._determine_half_cell_direction('cathode')
