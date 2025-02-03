@@ -7,7 +7,7 @@ M_TO_CM = 1e2
 MM_TO_M = 1e-3
 M_TO_MM = 1e3
 
-class Separator():
+class Separator:
 
     def __init__(self,  
                  areal_cost: float, 
