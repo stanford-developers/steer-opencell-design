@@ -24,6 +24,15 @@ class ElectrodeFormulation():
         if round(sum(active_materials.values()) + sum(conductive_additive.values()) + sum(binder.values()), 0) != 100:
             raise ValueError("The mass fractions of the active materials must sum to 100%")
         
+        if len([am.name for am in active_materials.keys()]) != len(set([am.name for am in active_materials.keys()])):
+            raise ValueError("The active materials must have unique names unique")
+        
+        if len([b.name for b in binder.keys()]) != len(set([b.name for b in binder.keys()])):
+            raise ValueError("The binders must have unique names unique")
+
+        if len([ca.name for ca in conductive_additive.keys()]) != len(set([ca.name for ca in conductive_additive.keys()])):
+            raise ValueError("The conductive additives must have unique names unique")
+        
     @property
     def name(self):
         return self._name

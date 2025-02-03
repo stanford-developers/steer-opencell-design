@@ -1,4 +1,5 @@
 import unittest
+import plotly.express as px
 from SteerEnergyStorage.Formulations.ElectrodeFormulations import ElectrodeFormulation
 from SteerEnergyStorage.Constructions.Electrodes import Cathode, Anode
 from SteerEnergyStorage.Formulations.Stacks import Stack
@@ -10,6 +11,7 @@ from SteerEnergyStorage.Materials.Electrolytes import Electrolyte
 from SteerEnergyStorage.Constructions.Containers import Pouch
 from SteerEnergyStorage.Materials.other import Laminate, Tape, Terminal
 
+import datetime as dt
 
 class TestCellsSingleAM(unittest.TestCase):
 
@@ -23,7 +25,8 @@ class TestCellsSingleAM(unittest.TestCase):
                                                  specific_cost=11.26, 
                                                  density=4, 
                                                  irreversible_capacity_scaling=1, 
-                                                 reversible_capacity_scaling=1)
+                                                 reversible_capacity_scaling=1,
+                                                 half_cell_path='./Data/Cathode_Faradion_Gen2_4.25V.csv')
         
         cathode_conductive_additive = ConductiveAdditive(specific_cost=9, density=1.9)
 
@@ -54,7 +57,8 @@ class TestCellsSingleAM(unittest.TestCase):
                                                specific_cost=14.27,
                                                density=1.50,
                                                irreversible_capacity_scaling=1,
-                                               reversible_capacity_scaling=1)
+                                               reversible_capacity_scaling=1,
+                                               half_cell_path='./Data/Anode_Faradion_HC.csv')
         
         anode_conductive_additive = ConductiveAdditive(specific_cost=9, density=1.9)
 
@@ -119,16 +123,15 @@ class TestCellsSingleAM(unittest.TestCase):
                                      electrolyte_overfill=10,
                                      voltage_upper_cut_off=4.2,
                                      voltage_lower_cut_off=1.0,
+                                     positive_terminal=pos_terminal,
+                                     negative_terminal=neg_terminal,
                                      reversible_capacity=11934,
                                      irreversible_capacity=1215,
-                                     positive_terminal=pos_terminal,
-                                     negative_terminal=neg_terminal)
+                                     grid_n=200)
     
     def test_cell(self):
         self.assertEqual(self.cell.voltage_upper_cut_off, 4.2)
         self.assertEqual(self.cell.voltage_lower_cut_off, 1.0)
-        self.assertEqual(self.cell.reversible_capacity, 11934)
-        self.assertEqual(self.cell.irreversible_capacity, 1215)
         self.assertEqual(self.cell.electrolyte_overfill, 10)
         self.assertEqual(round(self.cell._electrolyte_overfill, 4), 0.1)
         self.assertEqual(self.cell.cost, 3.56)
@@ -137,7 +140,32 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(round(self.cell._mass, 3), 0.257)
         self.assertEqual(self.cell.thickness, 7.37)
         self.assertEqual(round(self.cell._thickness, 4), 0.0074)
-   
+
+        self.assertEqual(self.cell.reversible_capacity, 11934)
+        self.assertEqual(self.cell.irreversible_capacity, 1215)
+
+        self.assertTrue('Capacity (mAh)' in self.cell.half_cell_curves.columns)
+        self.assertTrue('Voltage (V)' in self.cell.half_cell_curves.columns)
+
+        self.assertEqual(round(self.cell.full_cell_curves
+                               .query('Direction == "discharge"')['Capacity (mAh)']
+                               .reset_index(drop=True)
+                               .iloc[100]), 9759)
+        
+        self.assertEqual(round(self.cell.full_cell_curves
+                               .query('Direction == "charge"')['Capacity (mAh)']
+                               .reset_index(drop=True)
+                               .iloc[100]), 3139)
+        
+        self.assertEqual(self.cell.cathode_areal_capacity, 1.40)
+        figure = self.cell.get_capacity_voltage_plot(markers=True)
+        # figure.show()
+
+        self.assertEqual(self.cell.energy, 35.84)
+        self.assertEqual(self.cell.energy_density, 218.97)
+        self.assertEqual(self.cell.specific_energy, 139.38)
+        self.assertEqual(self.cell.normalized_cost, 99.42)
+
     def test_terminals(self):
         self.assertEqual(self.cell.positive_terminal.mass, 1)
         self.assertEqual(self.cell.positive_terminal.specific_cost, 16)
@@ -197,7 +225,7 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(self.cell.stack.pore_volume, 43.11)
         self.assertEqual(round(self.cell.stack._pore_volume, 6), 0.000043)
         self.assertEqual(self.cell.stack.thickness, 7.15)
-        
+   
     def test_seperator(self):
         self.assertEqual(self.cell.stack.seperator.thickness, 16)
         self.assertEqual(self.cell.stack.seperator._thickness, 0.000016)
@@ -294,6 +322,10 @@ class TestCellsSingleAM(unittest.TestCase):
         cathode_am = next(iter(self.cell.stack.cathode.formulation.active_materials))
         self.assertEqual(cathode_am.density, 4.00)
         self.assertEqual(round(cathode_am._density), 4000)
+        self.assertTrue(type(cathode_am._time_stamp) == dt.datetime)
+        self.assertTrue(type(cathode_am.time_stamp == str))
+        self.assertEqual(round(cathode_am.half_cell_curve['Specific Capacity (mAh/g)'].iloc[10], 3), 28.103)
+        self.assertEqual(round(cathode_am.half_cell_curve['Voltage (V)'].iloc[10], 3), 3.033)
 
         # test the anode active materials
         anode_am = next(iter(self.cell.stack.anode.formulation.active_materials))

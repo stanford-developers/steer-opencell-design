@@ -1,10 +1,15 @@
-from SteerEnergyStorage.Constructions.Electrodes import Anode
-from SteerEnergyStorage.Constructions.Electrodes import Cathode
+from SteerEnergyStorage.Constructions.Electrodes import Anode, Cathode
 from SteerEnergyStorage.Materials.Separators import Separator
+import pandas as pd
+import numpy as np
 
 KG_TO_G = 1e3
 M_TO_CM = 1e2
 M_TO_MM = 1e3
+A_TO_mA = 1e3
+mA_TO_A = 1e-3
+S_TO_H = 1/3600
+H_TO_S = 3600
 
 class Stack():
 
@@ -35,7 +40,7 @@ class Stack():
         self._n_anode = n_stacks + 1
         self._n_seperator = self._n_cathode + self._n_anode + 2
 
-        self._active_geometric_area = self._cathode._single_sided_area * 2 * self._n_stacks
+        self._active_geometric_area = self._cathode._single_sided_area * 2 * self._n_stacks  
 
         # calculate anode properties
         self._anode._overhang = (self._anode._single_sided_area/self._cathode._single_sided_area) - 1
@@ -56,9 +61,9 @@ class Stack():
 
         # calculate the cathode mass breakdown
         self._cathode_mass_breakdown = {
-            "Active Material": {active_material: mass * self._n_cathode for active_material, mass in self._cathode._active_masses.items()},
-            "Binder": {binder: mass * self._n_cathode for binder, mass in self._cathode._binder_masses.items()},
-            "Conductive Additive": {conductive_additive: mass * self._n_cathode for conductive_additive, mass in self._cathode._conductive_additive_masses.items()},
+            "Active Materials": {active_material: mass * self._n_cathode for active_material, mass in self._cathode._active_masses.items()},
+            "Binders": {binder: mass * self._n_cathode for binder, mass in self._cathode._binder_masses.items()},
+            "Conductive Additives": {conductive_additive: mass * self._n_cathode for conductive_additive, mass in self._cathode._conductive_additive_masses.items()},
             "Current Collector": self._cathode._current_collector.mass * self._n_cathode
         }
 
@@ -117,7 +122,23 @@ class Stack():
             raise ValueError("Anode width must be greater or equal to cathode width")
 
         return anode
-        
+    
+    @property
+    def cathode_charge_curve(self):
+        return self.half_cell_curves.query("electrode == 'cathode' and direction == 'charge'")
+    
+    @property
+    def cathode_discharge_curve(self):
+        return self.half_cell_curves.query("electrode == 'cathode' and direction == 'discharge'")
+    
+    @property
+    def anode_charge_curve(self):
+        return self.half_cell_curves.query("electrode == 'anode' and direction == 'charge'")
+    
+    @property
+    def anode_discharge_curve(self):
+        return self.half_cell_curves.query("electrode == 'anode' and direction == 'discharge'")
+    
     @property
     def name(self):
         return self._name
