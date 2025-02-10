@@ -25,16 +25,16 @@ class Separator:
         :param thickness: float: thickness of the separator in um
         :param density: float: density of the material in g/cm^3
         :param porosity: float: porosity of the separator in %
-        :param slit_width: float: width of the slit in the separator in mm,
-        :param fold_length: float: length of the fold in the separator in mm
+        :param slit_width: float: width of the slit in the separator in cm,
+        :param fold_length: float: length of the fold in the separator in cm
         """
         self._name = name
         self._areal_cost = areal_cost
         self._thickness = thickness * UM_TO_M
         self._density = density * (G_TO_KG / CM_TO_M**3)
         self._porosity = porosity / 100
-        self._slit_width = slit_width * MM_TO_M
-        self._fold_length = fold_length * MM_TO_M
+        self._slit_width = slit_width * CM_TO_M
+        self._fold_length = fold_length * CM_TO_M
 
     @property
     def pore_volume(self):
@@ -66,11 +66,11 @@ class Separator:
 
     @property
     def slit_width(self):
-        return round(self._slit_width * M_TO_MM, 2)
+        return round(self._slit_width * M_TO_CM, 2)
     
     @property
     def fold_length(self):
-        return round(self._fold_length * M_TO_MM, 2)
+        return round(self._fold_length * M_TO_CM, 2)
 
     @property
     def areal_cost(self):

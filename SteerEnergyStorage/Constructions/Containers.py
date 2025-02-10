@@ -1,4 +1,4 @@
-from SteerEnergyStorage.Materials.other import Laminate, Tape
+from SteerEnergyStorage.Materials.other import Laminate, Tape, CasingSheetMetal
 
 CM_TO_M = 0.01
 M_TO_CM = 100
@@ -84,6 +84,75 @@ class Pouch:
     @property
     def heat_seal_size_top(self) -> float:
         return round(self._heat_seal_size_top * M_TO_MM, 2)
+    
+    def __str__(self) -> str:
+        return self.name
+
+    def __repr__(self):
+        return self.__str__()
+    
+
+class PrismaticCase:
+
+    def __init__(self,
+                 casing_material: CasingSheetMetal,
+                 name: str = 'Casing'
+                 ):
+        """
+        Class representing a casing used for a prismatic cell.
+        """
+        self._casing_material = casing_material
+        self._name = name
+
+    @property
+    def name(self) -> str:
+        return self._name
+    
+    @property
+    def width(self) -> float:
+        if hasattr(self, '_width'):
+            return round(self._width * M_TO_CM, 2)
+        else:
+            raise AttributeError("The casing needs to be used in a prismatic cell to calculate its dimensions")
+        
+    @property
+    def length(self) -> float:
+        if hasattr(self, '_length'):
+            return round(self._length * M_TO_CM, 2)
+        else:
+            raise AttributeError("The casing needs to be used in a prismatic cell to calculate its dimensions")
+        
+    @property
+    def height(self) -> float:
+        if hasattr(self, '_height'):
+            return round(self._height * M_TO_CM, 2)
+        else:
+            raise AttributeError("The casing needs to be used in a prismatic cell to calculate its dimensions")
+        
+    @property
+    def wall_area(self) -> float:
+        if hasattr(self, '_wall_area'):
+            return round(self._wall_area * M_TO_CM**2, 2)
+        else:
+            raise AttributeError("The casing needs to be used in a prismatic cell to calculate its dimensions")
+        
+    @property
+    def mass(self) -> float:
+        if hasattr(self, '_mass'):
+            return round(self._mass * KG_TO_G, 2)
+        else:
+            raise AttributeError("The casing needs to be used in a prismatic cell to calculate its mass")
+        
+    @property
+    def cost(self) -> float:
+        if hasattr(self, '_cost'):
+            return round(self._cost, 2)
+        else:
+            raise AttributeError("The casing needs to be used in a prismatic cell to calculate its cost")
+
+    @property
+    def casing_material(self) -> CasingSheetMetal:
+        return self._casing_material
     
     def __str__(self) -> str:
         return self.name

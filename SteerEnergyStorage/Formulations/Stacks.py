@@ -18,7 +18,7 @@ class Stack():
                  cathode: Cathode,
                  n_stacks: int,
                  seperator: Separator,
-                 n_p_ratio: float,
+                 additional_seperator_wraps: int = 1,
                  name: str = None):
         """
         Initialize an object that represents an electrochemical stack within an electrochemical cell
@@ -26,30 +26,44 @@ class Stack():
         :param cathode: Cathode: cathode used in the stack
         :param n_stacks: int: number of stacks in the cell
         :param seperator: Separator: seperator used in the stack
+        :param additional_seperator_wraps: int: number of additional wraps of the seperator in the stack
         :param n_p_ratio: float: n/p ratio of the stack
         :param name: str: name of the stack
         """
         self._cathode = cathode
         self._anode = self._check_anode(anode)
-        self._seperator = seperator
-        self._n_p_ratio = n_p_ratio
+        self._seperator = self._check_seperator(seperator)
+        self._additional_seperator_wraps = additional_seperator_wraps
         self._name = name
 
         self._n_stacks = n_stacks
         self._n_cathode = n_stacks
-        self._n_anode = n_stacks + 1
-        self._n_seperator = self._n_cathode + self._n_anode + 2
 
         self._active_geometric_area = self._cathode._single_sided_area * 2 * self._n_stacks  
 
         # calculate anode properties
+        self._n_anode = n_stacks + 1
+        self._total_anode_thickness = self._anode._double_sided_thickness * self._n_anode
+        self._total_anode_pore_volume = self._anode._pore_volume * self._n_anode
         self._anode._overhang = (self._anode._single_sided_area/self._cathode._single_sided_area) - 1
 
+        # calculate cathode properties
+        self._total_cathode_thickness = self._cathode._double_sided_thickness * self._n_cathode
+        self._total_cathode_pore_volume = self._cathode._pore_volume * self._n_cathode
+
         # calculate separator properties
-        self._seperator._area = self._seperator._slit_width * self._seperator._fold_length * self._n_seperator
+        self._n_seperator = self._n_cathode + self._n_anode + 1 + 2 * self._additional_seperator_wraps
+        self._seperator._area, self._thickness = self._calculate_sperarator_area()
         self._seperator._mass = self._seperator._thickness * self._seperator._area * self._seperator._density
         self._seperator._cost = self._seperator._area * self._seperator._areal_cost
         self._seperator._pore_volume = self._seperator._thickness * self._seperator._area * self._seperator._porosity
+
+        # calculate pore volume
+        self._pore_volume = self._total_anode_pore_volume + self._total_cathode_pore_volume + self._seperator._pore_volume
+
+        # calculate stack dimensions
+        self._length = self._seperator._fold_length + (self._seperator._thickness * self._additional_seperator_wraps * 2)
+        self._width = self._seperator._slit_width
 
         # calculate the mass breakdown
         self._mass_breakdown = {
@@ -74,18 +88,6 @@ class Stack():
             "Conductive Additives": {conductive_additive: mass * self._n_anode for conductive_additive, mass in self._anode._conductive_additive_masses.items()},
             "Current Collector": self._anode._current_collector.mass * self._n_anode
         }
-
-        # calculate pore volume
-        total_cathode_pore_volume = self._cathode._pore_volume * self._n_cathode
-        total_anode_pore_volume = self._anode._pore_volume * self._n_anode
-        total_seperator_pore_volume = self._seperator._pore_volume
-        self._pore_volume = total_anode_pore_volume + total_cathode_pore_volume + total_seperator_pore_volume
-
-        # calculate the thickness of the stack
-        total_cathode_thickness = self._cathode._double_sided_thickness * self._n_cathode
-        total_anode_thickness = self._anode._double_sided_thickness * self._n_anode
-        total_seperator_thickness = self._seperator._thickness * self._n_seperator
-        self._thickness = total_anode_thickness + total_cathode_thickness + total_seperator_thickness
 
         # calcualte the cost breakdown
         self._cost_breakdown = {
@@ -113,6 +115,32 @@ class Stack():
             "Current Collector": self._anode._current_collector._cost * (self._n_stacks + 1)
         }
 
+    def _calculate_sperarator_area(self):
+        """
+        Function to calculate the area of the seperator used in the stack
+        """
+        # get the seperator area between the electrodes
+        area_between_stacks = self._seperator._slit_width * self._seperator._fold_length * self._n_seperator
+
+        # get the additional area that wraps around the edge of the cathode
+        n_cathode_caps = self._n_cathode
+        area_per_cathode_cap = np.pi * (self._cathode._double_sided_thickness + self._seperator._thickness) * self._seperator._slit_width
+
+        # get the additional area that wraps around the edge of the anode
+        n_anode_caps = self._n_anode
+        area_per_anode_cap = np.pi * (self._anode._double_sided_thickness + self._seperator._thickness) * self._seperator._slit_width
+
+        # get the area of the sides of the stack from the additional seperator wraps. thickness changes with each wrap
+        stack_thickness = self._total_anode_thickness + self._total_cathode_thickness + self._seperator._thickness*self._n_seperator
+        for w in range(self._additional_seperator_wraps):
+            stack_thickness += self._seperator._thickness * 2
+        side_area = stack_thickness * self._seperator._slit_width * 2
+
+        # get the total area
+        total_area = area_between_stacks + (n_cathode_caps * area_per_cathode_cap) + (n_anode_caps * area_per_anode_cap) + side_area
+
+        return total_area, stack_thickness
+
     def _check_anode(self, anode: Anode):
 
         if anode._current_collector._length < self._cathode._current_collector._length:
@@ -122,6 +150,24 @@ class Stack():
             raise ValueError("Anode width must be greater or equal to cathode width")
 
         return anode
+    
+    def _check_seperator(self, seperator: Separator):
+
+        cathode_length = self._cathode._current_collector._length
+        anode_length = self._anode._current_collector._length
+        seperator_length = seperator._fold_length
+
+        if seperator_length < cathode_length or seperator_length < anode_length:
+            raise ValueError("Seperator length must be greater or equal to cathode and anode length")
+        
+        cathode_width = self._cathode._current_collector._width
+        anode_width = self._anode._current_collector._width
+        seperator_width = seperator._slit_width
+
+        if seperator_width < cathode_width or seperator_width < anode_width:
+            raise ValueError("Seperator width must be greater or equal to cathode and anode width")
+
+        return seperator
     
     @property
     def cathode_charge_curve(self):
@@ -242,11 +288,7 @@ class Stack():
     @property
     def cathode(self):
         return self._cathode
-
-    @property
-    def n_p_ratio(self):
-        return self._n_p_ratio
-
+    
     @property
     def seperator(self):
         return self._seperator
