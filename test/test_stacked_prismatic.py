@@ -8,8 +8,7 @@ from SteerEnergyStorage.Materials.ElectrodeMaterials import ActiveMaterial, Bind
 from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector
 from SteerEnergyStorage.Materials.Separators import Separator
 from SteerEnergyStorage.Materials.Electrolytes import Electrolyte
-from SteerEnergyStorage.Constructions.Containers import PrismaticCase
-from SteerEnergyStorage.Materials.other import CasingSheetMetal, Terminal
+from SteerEnergyStorage.Constructions.Containers import PrismaticCase, PrismaticLid, PrismaticShell
 
 import datetime as dt
 
@@ -83,8 +82,8 @@ class TestCellsSingleAM(unittest.TestCase):
                       swell_factor=1.0,
                       calender_density=0.85)
 
-        # construct seperator
-        seperator = Separator(thickness=16, 
+        # construct separator
+        separator = Separator(thickness=16, 
                               areal_cost=0.9, 
                               density=0.4, 
                               slit_width=11.0, 
@@ -94,7 +93,7 @@ class TestCellsSingleAM(unittest.TestCase):
         # construct the stack
         stack = Stack(anode=anode, 
                       cathode=cathode,
-                      seperator=seperator, 
+                      separator=separator, 
                       n_stacks=60)
 
         # make electrolyte
@@ -104,16 +103,19 @@ class TestCellsSingleAM(unittest.TestCase):
                                   density=1.2)
         
         # make the case
-        casing_material = CasingSheetMetal(name="Aluminium",
-                                           thickness=1.5,
-                                           areal_cost=2.5,
-                                           density=2.7)
+        prismatic_shell = PrismaticShell(cost=0.14,
+                                         mass=220.23,
+                                         internal_width=11.3,
+                                         internal_length=18.9,
+                                         internal_height=1.93,
+                                         wall_thickness=0.8)
         
-        prismatic_case = PrismaticCase(casing_material=casing_material, name="Prismatic Case")
-
-        # Make the cell
-        pos_terminal = Terminal(mass = 1, specific_cost = 16, name="Positive Terminal")
-        neg_terminal = Terminal(mass = 1, specific_cost = 16, name="Negative Terminal")
+        prismatic_lid = PrismaticLid(cost=0.34,
+                                     mass=40.56,
+                                     external_width=1.3, 
+                                     internal_width=0.8)
+        
+        prismatic_case = PrismaticCase(lid=prismatic_lid, shell=prismatic_shell)
 
         self.cell = StackedPrismaticCell(prismatic_case=prismatic_case,
                                          stack=stack,
@@ -121,8 +123,6 @@ class TestCellsSingleAM(unittest.TestCase):
                                          electrolyte_overfill=10,
                                          voltage_upper_cut_off=4.2,
                                          voltage_lower_cut_off=1.0,
-                                         positive_terminal=pos_terminal,
-                                         negative_terminal=neg_terminal,
                                          reversible_capacity=35000,
                                          irreversible_capacity=1215,
                                          grid_n=200)
@@ -133,12 +133,12 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(self.cell.voltage_lower_cut_off, 1.0)
         self.assertEqual(self.cell.electrolyte_overfill, 10)
         self.assertEqual(round(self.cell._electrolyte_overfill, 4), 0.1)
-        self.assertEqual(self.cell.cost, 8.21)
-        self.assertEqual(round(self.cell._cost, 2), 8.21)
-        self.assertEqual(self.cell.mass, 790.71)
-        self.assertEqual(round(self.cell._mass, 3), 0.791)
-        self.assertEqual(self.cell.height, 1.93)
-        self.assertEqual(round(self.cell._height, 4), 0.0193)
+        self.assertEqual(self.cell.cost, 8.52)
+        self.assertEqual(round(self.cell._cost, 2), 8.52)
+        self.assertEqual(self.cell.mass, 829.27)
+        self.assertEqual(round(self.cell._mass, 3), 0.829)
+        self.assertEqual(self.cell.height, 2.09)
+        self.assertEqual(round(self.cell._height, 4), 0.0209)
 
         self.assertEqual(self.cell.reversible_capacity, 35000)
         self.assertEqual(self.cell.irreversible_capacity, 1215)
@@ -147,50 +147,75 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertTrue('Voltage (V)' in self.cell.half_cell_curves.columns)
         
         self.assertEqual(self.cell.cathode_areal_capacity, 1.40)
-        figure = self.cell.get_capacity_voltage_plot()
-        # figure.show()
 
         self.assertEqual(self.cell.energy, 82.49)
-        self.assertEqual(self.cell.energy_density, 200.14)
-        self.assertEqual(self.cell.specific_energy, 104.32)
-        self.assertEqual(self.cell.normalized_cost, 99.54)
+        self.assertEqual(self.cell.energy_density, 162.28)
+        self.assertEqual(self.cell.specific_energy, 99.47)
+        self.assertEqual(self.cell.normalized_cost, 103.32)
 
-    def test_terminals(self):
-        self.assertEqual(self.cell.positive_terminal.mass, 1)
-        self.assertEqual(self.cell.positive_terminal.specific_cost, 16)
-        self.assertEqual(self.cell.positive_terminal.cost, 0.016)
-        self.assertEqual(round(self.cell.positive_terminal._mass, 6), 0.001)
-        self.assertEqual(self.cell.positive_terminal.name, "Positive Terminal")
+        figure = self.cell.get_capacity_voltage_plot()
+        # figure.show()
+        figure = self.cell.get_cost_breakdown_plot()
+        # figure.show()
+        figure = self.cell.get_cost_breakdown_plot()
+        # figure.show()
+
+    def test_prismatic_case(self):
+        self.assertEqual(self.cell.prismatic_case.cost, 0.48)
+        self.assertEqual(self.cell.prismatic_case.mass, 260.79)
+        self.assertEqual(self.cell.prismatic_case.internal_width, 12.1)
+        self.assertEqual(self.cell.prismatic_case.internal_length, 18.9)
+        self.assertEqual(self.cell.prismatic_case.internal_height, 1.93)
+        self.assertEqual(self.cell.prismatic_case.internal_volume, 441.37)
+        self.assertEqual(self.cell.prismatic_case.external_width, 12.76)
+        self.assertEqual(self.cell.prismatic_case.external_length, 19.06)
+        self.assertEqual(self.cell.prismatic_case.external_height, 2.09)
+        self.assertEqual(self.cell.prismatic_case.external_volume, 508.3)
+        self.assertEqual(self.cell.prismatic_case.name, "Prismatic Case")
+
+        self.assertEqual(round(self.cell.prismatic_case._cost, 2), 0.48)
+        self.assertEqual(round(self.cell.prismatic_case._mass, 3), 0.261)
+        self.assertEqual(round(self.cell.prismatic_case._internal_width, 4), 0.121)
+        self.assertEqual(round(self.cell.prismatic_case._internal_length, 4), 0.189)
+        self.assertEqual(round(self.cell.prismatic_case._internal_height, 4), 0.0193)
+        self.assertEqual(round(self.cell.prismatic_case._internal_volume, 6), 0.000441)
+        self.assertEqual(round(self.cell.prismatic_case._external_width, 4), 0.1276)
+        self.assertEqual(round(self.cell.prismatic_case._external_length, 4), 0.1906)
+        self.assertEqual(round(self.cell.prismatic_case._external_height, 4), 0.0209)
+        self.assertEqual(round(self.cell.prismatic_case._external_volume, 6), 0.000508)
+
+    def test_prismatic_lid(self):
+        self.assertEqual(self.cell.prismatic_case.lid.cost, 0.34)
+        self.assertEqual(self.cell.prismatic_case.lid.mass, 40.56)
+        self.assertEqual(self.cell.prismatic_case.lid.internal_width, 0.8)
+        self.assertEqual(self.cell.prismatic_case.lid.external_width, 1.3)
+        self.assertEqual(self.cell.prismatic_case.lid.name, "Prismatic Lid")
+
+        self.assertEqual(round(self.cell.prismatic_case.lid._cost, 2), 0.34)
+        self.assertEqual(round(self.cell.prismatic_case.lid._mass, 3), 0.041)
+        self.assertEqual(round(self.cell.prismatic_case.lid._internal_width, 4), 0.008)
+        self.assertEqual(round(self.cell.prismatic_case.lid._external_width, 4), 0.013)
         
-        self.assertEqual(self.cell.negative_terminal.mass, 1)
-        self.assertEqual(self.cell.negative_terminal.specific_cost, 16)
-        self.assertEqual(self.cell.negative_terminal.cost, 0.016)
-        self.assertEqual(round(self.cell.negative_terminal._mass, 6), 0.001)
-        self.assertEqual(self.cell.negative_terminal.name, "Negative Terminal")
-        
-    def test_case(self):
-        self.assertTrue(self.cell.prismatic_case.casing_material.name, "Aluminium")
-        self.assertEqual(self.cell.prismatic_case.casing_material.thickness, 1.5)
-        self.assertEqual(self.cell.prismatic_case.cost, 0.14)
-        self.assertEqual(round(self.cell.prismatic_case._cost, 2), 0.14)
-        self.assertEqual(self.cell.prismatic_case.height, 1.93)
-        self.assertEqual(round(self.cell.prismatic_case._height, 4), 0.0193)
-        self.assertEqual(self.cell.prismatic_case.length, 18.9)
-        self.assertEqual(round(self.cell.prismatic_case._length, 4), 0.189)
-        self.assertEqual(self.cell.prismatic_case.width, 11.3)
-        self.assertEqual(round(self.cell.prismatic_case._width, 4), 0.113)
-        self.assertEqual(self.cell.prismatic_case.wall_area, 543.77)
-        self.assertEqual(round(self.cell.prismatic_case._wall_area, 4), 0.0544)
-        self.assertEqual(self.cell.prismatic_case.mass, 220.23)
-        self.assertEqual(round(self.cell.prismatic_case._mass, 3), 0.220)
-        
-    def test_prismatic_case_material(self):
-        self.assertEqual(self.cell.prismatic_case.casing_material.thickness, 1.5)
-        self.assertEqual(round(self.cell.prismatic_case.casing_material._thickness, 6), 0.0015)
-        self.assertEqual(self.cell.prismatic_case.casing_material.areal_cost, 2.5)
-        self.assertEqual(round(self.cell.prismatic_case.casing_material._areal_cost, 6), 2.5)
-        self.assertEqual(self.cell.prismatic_case.casing_material.density, 2.7)
-        self.assertEqual(round(self.cell.prismatic_case.casing_material._density, 6), 2700)
+    def test_prismatic_shell(self):
+        self.assertEqual(self.cell.prismatic_case.shell.cost, 0.14)
+        self.assertEqual(self.cell.prismatic_case.shell.mass, 220.23)
+        self.assertEqual(self.cell.prismatic_case.shell.wall_thickness, 0.8)
+        self.assertEqual(self.cell.prismatic_case.shell.external_width, 11.46)
+        self.assertEqual(self.cell.prismatic_case.shell.external_length, 19.06)
+        self.assertEqual(self.cell.prismatic_case.shell.external_height, 2.09)
+        self.assertEqual(self.cell.prismatic_case.shell.internal_volume, 412.19)
+        self.assertEqual(self.cell.prismatic_case.shell.internal_width, 11.3)
+        self.assertEqual(self.cell.prismatic_case.shell.internal_length, 18.9)
+
+        self.assertEqual(round(self.cell.prismatic_case.shell._cost, 2), 0.14)
+        self.assertEqual(round(self.cell.prismatic_case.shell._mass, 3), 0.220)
+        self.assertEqual(round(self.cell.prismatic_case.shell._wall_thickness, 6), 0.0008)
+        self.assertEqual(round(self.cell.prismatic_case.shell._external_width, 4), 0.1146)
+        self.assertEqual(round(self.cell.prismatic_case.shell._external_length, 4), 0.1906)
+        self.assertEqual(round(self.cell.prismatic_case.shell._external_height, 4), 0.0209)
+        self.assertEqual(round(self.cell.prismatic_case.shell._internal_volume, 6), 0.000412)
+        self.assertEqual(round(self.cell.prismatic_case.shell._internal_width, 4), 0.113)
+        self.assertEqual(round(self.cell.prismatic_case.shell._internal_length, 4), 0.189)
         
     def test_electrolyte(self):
         self.assertEqual(round(self.cell.electrolyte._density,), 1200)
@@ -201,37 +226,37 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(self.cell.stack.n_stacks, 60)
         self.assertEqual(self.cell.stack.n_cathode, 60)
         self.assertEqual(self.cell.stack.n_anode, 61)
-        self.assertEqual(self.cell.stack.n_seperator, 124)
+        self.assertEqual(self.cell.stack.n_separator, 124)
         self.assertEqual(round(self.cell.stack._mass_breakdown[self.cell.stack.cathode], 4), 0.2654)
         self.assertEqual(round(self.cell.stack._mass_breakdown[self.cell.stack.anode], 4), 0.1552)
-        self.assertEqual(round(self.cell.stack._mass_breakdown[self.cell.stack.seperator], 4), 0.0163)
+        self.assertEqual(round(self.cell.stack._mass_breakdown[self.cell.stack.separator], 4), 0.0163)
         self.assertEqual(self.cell.stack.mass_breakdown[self.cell.stack.cathode], 265.45)
         self.assertEqual(self.cell.stack.mass_breakdown[self.cell.stack.anode], 155.23)
-        self.assertEqual(self.cell.stack.mass_breakdown[self.cell.stack.seperator], 16.3)
+        self.assertEqual(self.cell.stack.mass_breakdown[self.cell.stack.separator], 16.3)
         self.assertEqual(self.cell.stack.pore_volume, 99.63)
         self.assertEqual(round(self.cell.stack._pore_volume, 6), 0.0001)
         self.assertEqual(self.cell.stack.thickness, 16.3)
    
-    def test_seperator(self):
-        self.assertEqual(self.cell.stack.seperator.thickness, 16)
-        self.assertEqual(self.cell.stack.seperator._thickness, 0.000016)
-        self.assertEqual(self.cell.stack.seperator.density, 0.4)
-        self.assertEqual(round(self.cell.stack.seperator._density), 400)
-        self.assertEqual(self.cell.stack.seperator.porosity, 47)
-        self.assertEqual(round(self.cell.stack.seperator._porosity, 4), 0.47)
-        self.assertEqual(self.cell.stack.seperator.slit_width, 11)
-        self.assertEqual(self.cell.stack.seperator._slit_width, 0.11)
-        self.assertEqual(self.cell.stack.seperator.fold_length, 18.6)
-        self.assertEqual(round(self.cell.stack.seperator._fold_length, 3), 0.186)
+    def test_separator(self):
+        self.assertEqual(self.cell.stack.separator.thickness, 16)
+        self.assertEqual(self.cell.stack.separator._thickness, 0.000016)
+        self.assertEqual(self.cell.stack.separator.density, 0.4)
+        self.assertEqual(round(self.cell.stack.separator._density), 400)
+        self.assertEqual(self.cell.stack.separator.porosity, 47)
+        self.assertEqual(round(self.cell.stack.separator._porosity, 4), 0.47)
+        self.assertEqual(self.cell.stack.separator.slit_width, 11)
+        self.assertEqual(self.cell.stack.separator._slit_width, 0.11)
+        self.assertEqual(self.cell.stack.separator.fold_length, 18.6)
+        self.assertEqual(round(self.cell.stack.separator._fold_length, 3), 0.186)
 
-        self.assertEqual(self.cell.stack.seperator.area, 25462.29)
-        self.assertEqual(round(self.cell.stack.seperator._area, 4), 2.5462)
-        self.assertEqual(self.cell.stack.seperator.mass, 16.3)
-        self.assertEqual(round(self.cell.stack.seperator._mass, 4), 0.0163)
-        self.assertEqual(self.cell.stack.seperator.cost, 2.29)
-        self.assertEqual(round(self.cell.stack.seperator._cost, 2), 2.29)
-        self.assertEqual(self.cell.stack.seperator.pore_volume, 19.15)
-        self.assertEqual(round(self.cell.stack.seperator._pore_volume, 7), 0.0000191)
+        self.assertEqual(self.cell.stack.separator.area, 25462.29)
+        self.assertEqual(round(self.cell.stack.separator._area, 4), 2.5462)
+        self.assertEqual(self.cell.stack.separator.mass, 16.3)
+        self.assertEqual(round(self.cell.stack.separator._mass, 4), 0.0163)
+        self.assertEqual(self.cell.stack.separator.cost, 2.29)
+        self.assertEqual(round(self.cell.stack.separator._cost, 2), 2.29)
+        self.assertEqual(self.cell.stack.separator.pore_volume, 19.15)
+        self.assertEqual(round(self.cell.stack.separator._pore_volume, 7), 0.0000191)
 
     def test_electrodes(self):
         #cathode
