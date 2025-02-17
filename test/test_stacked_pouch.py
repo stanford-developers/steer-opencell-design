@@ -83,8 +83,8 @@ class TestCellsSingleAM(unittest.TestCase):
                       swell_factor=1.0,
                       calender_density=0.85)
 
-        # construct seperator
-        seperator = Separator(thickness=16, 
+        # construct separator
+        separator = Separator(thickness=16, 
                               areal_cost=0.9, 
                               density=0.4, 
                               slit_width=11.0, 
@@ -94,7 +94,8 @@ class TestCellsSingleAM(unittest.TestCase):
         # construct the stack
         stack = Stack(anode=anode, 
                       cathode=cathode,
-                      seperator=seperator, 
+                      separator=separator, 
+                      name="stack",
                       n_stacks=26)
 
         # make electrolyte
@@ -159,7 +160,11 @@ class TestCellsSingleAM(unittest.TestCase):
         
         self.assertEqual(self.cell.cathode_areal_capacity, 1.40)
         figure = self.cell.get_capacity_voltage_plot()
-        figure.show()
+        # figure.show()
+        figure = self.cell.get_cost_breakdown_plot()
+        # figure.show()
+        figure = self.cell.get_mass_breakdown_plot()
+        # figure.show()
 
         self.assertEqual(self.cell.energy, 35.79)
         self.assertEqual(self.cell.energy_density, 186.98)
@@ -215,37 +220,37 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(self.cell.stack.n_stacks, 26)
         self.assertEqual(self.cell.stack.n_cathode, 26)
         self.assertEqual(self.cell.stack.n_anode, 27)
-        self.assertEqual(self.cell.stack.n_seperator, 56)
+        self.assertEqual(self.cell.stack.n_separator, 56)
         self.assertEqual(round(self.cell.stack._mass_breakdown[self.cell.stack.cathode], 4), 0.115)
         self.assertEqual(round(self.cell.stack._mass_breakdown[self.cell.stack.anode], 4), 0.0687)
-        self.assertEqual(round(self.cell.stack._mass_breakdown[self.cell.stack.seperator], 4), 0.0074)
+        self.assertEqual(round(self.cell.stack._mass_breakdown[self.cell.stack.separator], 4), 0.0074)
         self.assertEqual(self.cell.stack.mass_breakdown[self.cell.stack.cathode], 115.03)
         self.assertEqual(self.cell.stack.mass_breakdown[self.cell.stack.anode], 68.71)
-        self.assertEqual(self.cell.stack.mass_breakdown[self.cell.stack.seperator], 7.36)
+        self.assertEqual(self.cell.stack.mass_breakdown[self.cell.stack.separator], 7.36)
         self.assertEqual(self.cell.stack.pore_volume, 44.06)
         self.assertEqual(round(self.cell.stack._pore_volume, 6), 0.000044)
         self.assertEqual(self.cell.stack.thickness, 7.19)
    
-    def test_seperator(self):
-        self.assertEqual(self.cell.stack.seperator.thickness, 16)
-        self.assertEqual(self.cell.stack.seperator._thickness, 0.000016)
-        self.assertEqual(self.cell.stack.seperator.density, 0.4)
-        self.assertEqual(round(self.cell.stack.seperator._density), 400)
-        self.assertEqual(self.cell.stack.seperator.porosity, 47)
-        self.assertEqual(round(self.cell.stack.seperator._porosity, 4), 0.47)
-        self.assertEqual(self.cell.stack.seperator.slit_width, 11)
-        self.assertEqual(self.cell.stack.seperator._slit_width, 0.11)
-        self.assertEqual(self.cell.stack.seperator.fold_length, 18.6)
-        self.assertEqual(round(self.cell.stack.seperator._fold_length, 3), 0.186)
+    def test_separator(self):
+        self.assertEqual(self.cell.stack.separator.thickness, 16)
+        self.assertEqual(self.cell.stack.separator._thickness, 0.000016)
+        self.assertEqual(self.cell.stack.separator.density, 0.4)
+        self.assertEqual(round(self.cell.stack.separator._density), 400)
+        self.assertEqual(self.cell.stack.separator.porosity, 47)
+        self.assertEqual(round(self.cell.stack.separator._porosity, 4), 0.47)
+        self.assertEqual(self.cell.stack.separator.slit_width, 11)
+        self.assertEqual(self.cell.stack.separator._slit_width, 0.11)
+        self.assertEqual(self.cell.stack.separator.fold_length, 18.6)
+        self.assertEqual(round(self.cell.stack.separator._fold_length, 3), 0.186)
 
-        self.assertEqual(self.cell.stack.seperator.area, 11498.01)
-        self.assertEqual(round(self.cell.stack.seperator._area, 4), 1.1498)
-        self.assertEqual(self.cell.stack.seperator.mass, 7.36)
-        self.assertEqual(round(self.cell.stack.seperator._mass, 4), 0.0074)
-        self.assertEqual(self.cell.stack.seperator.cost, 1.03)
-        self.assertEqual(round(self.cell.stack.seperator._cost, 2), 1.03)
-        self.assertEqual(self.cell.stack.seperator.pore_volume, 8.65)
-        self.assertEqual(round(self.cell.stack.seperator._pore_volume, 7), 0.0000086)
+        self.assertEqual(self.cell.stack.separator.area, 11498.01)
+        self.assertEqual(round(self.cell.stack.separator._area, 4), 1.1498)
+        self.assertEqual(self.cell.stack.separator.mass, 7.36)
+        self.assertEqual(round(self.cell.stack.separator._mass, 4), 0.0074)
+        self.assertEqual(self.cell.stack.separator.cost, 1.03)
+        self.assertEqual(round(self.cell.stack.separator._cost, 2), 1.03)
+        self.assertEqual(self.cell.stack.separator.pore_volume, 8.65)
+        self.assertEqual(round(self.cell.stack.separator._pore_volume, 7), 0.0000086)
 
     def test_electrodes(self):
         #cathode
