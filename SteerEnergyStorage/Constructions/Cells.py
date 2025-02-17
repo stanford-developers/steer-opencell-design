@@ -2,6 +2,7 @@ from SteerEnergyStorage.Formulations.Stacks import Stack
 from SteerEnergyStorage.Materials.Electrolytes import Electrolyte
 from SteerEnergyStorage.Materials.other import Terminal
 from SteerEnergyStorage.Constructions.Containers import Pouch, PrismaticCase
+
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -22,8 +23,6 @@ class Cell:
                  electrolyte_overfill: float,
                  voltage_upper_cut_off: float,
                  voltage_lower_cut_off: float,
-                 positive_terminal: Terminal,
-                 negative_terminal: Terminal,
                  reversible_capacity: float,
                  irreversible_capacity: float,
                  grid_n: int = 500,
@@ -35,8 +34,6 @@ class Cell:
         :param electrolyte_overfill: Overfill of the electrolyte in the cell (%)
         :param voltage_upper_cut_off: Upper cut-off voltage of the cell
         :param voltage_lower_cut_off: Lower cut-off voltage of the cell
-        :param positive_terminal: Positive terminal of the cell
-        :param negative_terminal: Negative terminal of the cell
         :param reversible_capacity: Reversible capacity of the cell in mAh
         :param irreversible_capacity: Irreversible capacity of the cell in mAh
         :param grid_n: Number of points to interpolate the half cell curves
@@ -46,8 +43,6 @@ class Cell:
         self._electrolyte_overfill = self._validate_percentage(electrolyte_overfill) / 100
         self._voltage_upper_cut_off = voltage_upper_cut_off
         self._voltage_lower_cut_off = voltage_lower_cut_off
-        self._positive_terminal = positive_terminal
-        self._negative_terminal = negative_terminal
         self._name = name
         self._reversible_capacity = reversible_capacity * mA_TO_A * H_TO_S
         self._irreversible_capacity = irreversible_capacity * mA_TO_A * H_TO_S
@@ -87,14 +82,6 @@ class Cell:
         if not (0 <= value <= 100):
             raise ValueError("Percentage must be between 0 and 100")
         return value
-
-    @property
-    def positive_terminal(self) -> Terminal:
-        return self._positive_terminal
-    
-    @property
-    def negative_terminal(self) -> Terminal:
-        return self._negative_terminal
 
     @property
     def electrolyte_overfill(self) -> float:
@@ -244,14 +231,13 @@ class Cell:
     
 
 class PrismaticCell(Cell):
+
     def __init__(self,
                  prismatic_case: PrismaticCase,
                  electrolyte: Electrolyte,
                  electrolyte_overfill: float,
                  voltage_upper_cut_off: float,
                  voltage_lower_cut_off: float,
-                 positive_terminal: Terminal,
-                 negative_terminal: Terminal,
                  reversible_capacity: float,
                  irreversible_capacity: float,
                  grid_n: int = 500,
@@ -264,8 +250,6 @@ class PrismaticCell(Cell):
         :param electrolyte_overfill: Overfill of the electrolyte in the cell (%)
         :param voltage_upper_cut_off: Upper cut-off voltage of the cell
         :param voltage_lower_cut_off: Lower cut-off voltage of the cell
-        :param positive_terminal: Positive terminal of the cell
-        :param negative_terminal: Negative terminal of the cell
         :param reversible_capacity: Reversible capacity of the cell in mAh
         :param irreversible_capacity: Irreversible capacity of the cell in mAh
         :param grid_n: Number of points to interpolate the half cell curves
@@ -276,14 +260,16 @@ class PrismaticCell(Cell):
                       electrolyte_overfill=electrolyte_overfill, 
                       voltage_upper_cut_off=voltage_upper_cut_off, 
                       voltage_lower_cut_off=voltage_lower_cut_off, 
-                      positive_terminal=positive_terminal,
-                      negative_terminal=negative_terminal,
                       reversible_capacity=reversible_capacity,
                       irreversible_capacity=irreversible_capacity,
                       grid_n=grid_n,
                       name=name)
         
         self._prismatic_case = self._validate_prismatic_case(prismatic_case)
+        self._height = self._prismatic_case._external_height
+        self._width = self._prismatic_case._external_width
+        self._length = self._prismatic_case._external_length
+        self._volume = self._prismatic_case._external_volume
 
     def _validate_prismatic_case(self, value: PrismaticCase) -> PrismaticCase:
         if not isinstance(value, PrismaticCase):
@@ -307,7 +293,7 @@ class PouchCell(Cell):
                  reversible_capacity: float,
                  irreversible_capacity: float,
                  grid_n: int = 500,
-                 name: str = 'Pouch cell'):
+                 name: str = 'Pouch Cell'):
         """
         Class to represent a pouch cell.
 
@@ -327,14 +313,14 @@ class PouchCell(Cell):
                          electrolyte_overfill=electrolyte_overfill, 
                          voltage_upper_cut_off=voltage_upper_cut_off, 
                          voltage_lower_cut_off=voltage_lower_cut_off, 
-                         positive_terminal=positive_terminal,
-                         negative_terminal=negative_terminal,
                          reversible_capacity=reversible_capacity,
                          irreversible_capacity=irreversible_capacity,
                          grid_n=grid_n,
                          name=name)
         
         self._pouch = self._validate_pouch(pouch)
+        self._positive_terminal = positive_terminal
+        self._negative_terminal = negative_terminal
 
     def _validate_pouch(self, value: Pouch) -> Pouch:
         if not isinstance(value, Pouch):
@@ -345,6 +331,14 @@ class PouchCell(Cell):
     def pouch(self) -> Pouch:
         return self._pouch
     
+    @property
+    def positive_terminal(self) -> Terminal:
+        return self._positive_terminal
+    
+    @property
+    def negative_terminal(self) -> Terminal:
+        return self._negative_terminal
+    
 
 class StackedCell(Cell):
 
@@ -354,12 +348,10 @@ class StackedCell(Cell):
                  electrolyte_overfill: float,
                  voltage_upper_cut_off: float,
                  voltage_lower_cut_off: float,
-                 positive_terminal: Terminal,
-                 negative_terminal: Terminal,
                  reversible_capacity: float,
                  irreversible_capacity: float,
                  grid_n: int = 500,
-                 name: str = "stacked cell"):
+                 name: str = "Stacked Cell"):
         """
         A class that represents a stacked cell.
 
@@ -376,16 +368,14 @@ class StackedCell(Cell):
         :param name: Name of the cell
         """
         Cell.__init__(self,
-                         electrolyte=electrolyte, 
-                         electrolyte_overfill=electrolyte_overfill, 
-                         voltage_upper_cut_off=voltage_upper_cut_off, 
-                         voltage_lower_cut_off=voltage_lower_cut_off, 
-                         positive_terminal=positive_terminal,
-                         negative_terminal=negative_terminal,
-                         reversible_capacity=reversible_capacity,
-                         irreversible_capacity=irreversible_capacity,
-                         grid_n=grid_n,
-                         name=name)
+                      electrolyte=electrolyte, 
+                      electrolyte_overfill=electrolyte_overfill, 
+                      voltage_upper_cut_off=voltage_upper_cut_off, 
+                      voltage_lower_cut_off=voltage_lower_cut_off, 
+                      reversible_capacity=reversible_capacity,
+                      irreversible_capacity=irreversible_capacity,
+                      grid_n=grid_n,
+                      name=name)
         
         self._stack = self._validate_stack(stack)
         self._effective_areal_capacity = self._reversible_capacity / self._stack._active_geometric_area
@@ -574,17 +564,43 @@ class StackedCell(Cell):
             else:
                 anode_flattened[key] = value
 
-        data_cell = pd.DataFrame(self.mass_breakdown.items(), columns=['component', 'mass']).assign(component = lambda x: x['component'].apply(lambda y: y.name)).assign(level = 'Cell')
-        data_stack = pd.DataFrame(self.stack.mass_breakdown.items(), columns=['component', 'mass']).assign(component = lambda x: x['component'].apply(lambda y: y.name)).assign(level = 'Stack')
-        data_cathode = pd.DataFrame(cathode_flattened.items(), columns=['component', 'mass']).assign(level = 'Cathode')
-        data_anode = pd.DataFrame(anode_flattened.items(), columns=['component', 'mass']).assign(level = 'Anode')
+        data_cell = (pd
+                     .DataFrame(self.mass_breakdown.items(), columns=['component', 'mass'])
+                     .assign(component = lambda x: x['component'].apply(lambda y: y.name))
+                     .query(f'component != "{self.stack.name}"')
+                     .assign(component = lambda x: ['Other' if c not in [self.stack.name, self.electrolyte.name, self.stack.anode.name, self.stack.cathode.name] else c for c in x['component']])
+                     .assign(level = 'Cell')
+                     )
+
+        data_stack = (pd
+                      .DataFrame(self.stack.mass_breakdown.items(), columns=['component', 'mass'])
+                      .assign(component = lambda x: x['component'].apply(lambda y: y.name))
+                      .assign(level = 'Cell')
+                      )
+
+        data_cathode = (pd
+                        .DataFrame(cathode_flattened.items(), columns=['component', 'mass'])
+                        .assign(level = 'Cathode')
+                        )
+
+        data_anode = (pd
+                      .DataFrame(anode_flattened.items(), columns=['component', 'mass'])
+                      .assign(level = 'Anode')
+                      )
 
         data = pd.concat([data_cell, data_stack, data_cathode, data_anode])
 
-        figure = px.pie(data, values='mass', names='component', title='Mass Breakdown', facet_col='level', **kwargs)
+        #color_dictionary
+        color_map = {self.name: '#2E86AB', 
+                     'Other': '#F6C85F', 
+                     self.stack.anode.name: '#9B59B6', 
+                     self.stack.cathode.name: '#E74C3C', 
+                     self.stack.separator.name: '#27AE60',
+                     self.electrolyte.name: '#F39C12'}
+
+        figure = px.pie(data, values='mass', names='component', title='Mass Breakdown', facet_col='level', color='component', color_discrete_map=color_map, **kwargs)
         figure.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#000000', width=2)))
         figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
-        figure.update_layout(showlegend=False)
         
         return figure
 
@@ -615,16 +631,42 @@ class StackedCell(Cell):
             else:
                 anode_flattened[key] = value
 
-        data_cell = pd.DataFrame(self.cost_breakdown.items(), columns=['component', 'cost']).assign(component = lambda x: x['component'].apply(lambda y: y.name)).assign(level = 'Cell')
-        data_stack = pd.DataFrame(self.stack.cost_breakdown.items(), columns=['component', 'cost']).assign(component = lambda x: x['component'].apply(lambda y: y.name)).assign(level = 'Stack')
-        data_cathode = pd.DataFrame(cathode_flattened.items(), columns=['component', 'cost']).assign(level = 'Cathode')
-        data_anode = pd.DataFrame(anode_flattened.items(), columns=['component', 'cost']).assign(level = 'Anode')
+        data_cell = (pd
+                     .DataFrame(self.cost_breakdown.items(), columns=['component', 'cost'])
+                     .assign(component = lambda x: x['component'].apply(lambda y: y.name))
+                     .query(f'component != "{self.stack.name}"')
+                     .assign(component = lambda x: ['Other' if c not in [self.stack.name, self.electrolyte.name, self.stack.anode.name, self.stack.cathode.name] else c for c in x['component']])
+                     .assign(level = 'Cell')
+                     )
+
+        data_stack = (pd
+                      .DataFrame(self.stack.cost_breakdown.items(), columns=['component', 'cost'])
+                      .assign(component = lambda x: x['component'].apply(lambda y: y.name))
+                      .assign(level = 'Cell')
+                      )
+        
+        data_cathode = (pd
+                        .DataFrame(cathode_flattened.items(), columns=['component', 'cost'])
+                        .assign(level = 'Cathode')
+                        )
+
+        data_anode = (pd
+                      .DataFrame(anode_flattened.items(), columns=['component', 'cost'])
+                      .assign(level = 'Anode')
+                      )
 
         data = pd.concat([data_cell, data_stack, data_cathode, data_anode])
 
-        figure = px.pie(data, values='cost', names='component', title='Cost Breakdown', facet_col='level', **kwargs)
+        #color_dictionary
+        color_map = {self.name: '#2E86AB', 
+                     'Other': '#F6C85F', 
+                     self.stack.anode.name: '#9B59B6', 
+                     self.stack.cathode.name: '#E74C3C', 
+                     self.stack.separator.name: '#27AE60',
+                     self.electrolyte.name: '#F39C12'}
+
+        figure = px.pie(data, values='cost', names='component', title='Cost Breakdown', facet_col='level', color='component', color_discrete_map=color_map, **kwargs)
         figure.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#000000', width=2)))
-        figure.update_layout(showlegend=False)
         figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
 
         return figure
@@ -644,7 +686,7 @@ class StackedPouchCell(PouchCell, StackedCell):
                  reversible_capacity: float,
                  irreversible_capacity: float,
                  grid_n: int = 500,
-                 name: str = None):
+                 name: str = 'Stacked Pouch Cell'):
         """
         A class that represents a stacked pouch cell.
 
@@ -675,17 +717,15 @@ class StackedPouchCell(PouchCell, StackedCell):
                            name=name)
         
         StackedCell.__init__(self,
-                                stack=stack,
-                                electrolyte=electrolyte,
-                                electrolyte_overfill=electrolyte_overfill,
-                                voltage_upper_cut_off=voltage_upper_cut_off,
-                                voltage_lower_cut_off=voltage_lower_cut_off,
-                                positive_terminal=positive_terminal,
-                                negative_terminal=negative_terminal,
-                                reversible_capacity=reversible_capacity,
-                                irreversible_capacity=irreversible_capacity,
-                                grid_n=grid_n,
-                                name=name)
+                             stack=stack,
+                             electrolyte=electrolyte,
+                             electrolyte_overfill=electrolyte_overfill,
+                             voltage_upper_cut_off=voltage_upper_cut_off,
+                             voltage_lower_cut_off=voltage_lower_cut_off,
+                             reversible_capacity=reversible_capacity,
+                             irreversible_capacity=irreversible_capacity,
+                             grid_n=grid_n,
+                             name=name)
 
         # calculate pouch properties
         self._pouch._width = self._stack._width + 2 * self._pouch._heat_seal_size_sides
@@ -731,12 +771,10 @@ class StackedPrismaticCell(PrismaticCell, StackedCell):
                  electrolyte_overfill: float,
                  voltage_upper_cut_off: float,
                  voltage_lower_cut_off: float,
-                 positive_terminal: Terminal,
-                 negative_terminal: Terminal,
                  reversible_capacity: float,
                  irreversible_capacity: float,
                  grid_n: int = 500,
-                 name: str = None):
+                 name: str = 'Stacked Prismatic Cell'):
         """
         A class that represents a stacked prismatic cell.
 
@@ -753,14 +791,21 @@ class StackedPrismaticCell(PrismaticCell, StackedCell):
         :param grid_n: Number of points to interpolate the half cell curves
         :param name: Name of the cell
         """
+
+        # Check stack is small enough to fit in the prismatic case
+        if stack._thickness > prismatic_case._internal_height:
+            raise ValueError("Stack thickness cannot be greater than the internal height of the prismatic case")
+        if stack._width > prismatic_case._internal_width:
+            raise ValueError("Stack width cannot be greater than the internal width of the prismatic case")
+        if stack._length > prismatic_case._internal_length:
+            raise ValueError("Stack length cannot be greater than the internal length of the prismatic case")
+
         PrismaticCell.__init__(self,
                                prismatic_case=prismatic_case,
                                electrolyte=electrolyte,
                                electrolyte_overfill=electrolyte_overfill,
                                voltage_upper_cut_off=voltage_upper_cut_off,
                                voltage_lower_cut_off=voltage_lower_cut_off,
-                               positive_terminal=positive_terminal,
-                               negative_terminal=negative_terminal,
                                reversible_capacity=reversible_capacity,
                                irreversible_capacity=irreversible_capacity,
                                grid_n=grid_n,
@@ -772,44 +817,21 @@ class StackedPrismaticCell(PrismaticCell, StackedCell):
                              electrolyte_overfill=electrolyte_overfill,
                              voltage_upper_cut_off=voltage_upper_cut_off,
                              voltage_lower_cut_off=voltage_lower_cut_off,
-                             positive_terminal=positive_terminal,
-                             negative_terminal=negative_terminal,
                              reversible_capacity=reversible_capacity,
                              irreversible_capacity=irreversible_capacity,
                              grid_n=grid_n,
                              name=name)
 
-        # calculate prismatic case properties
-        self._prismatic_case._width = self._stack._width + 2 * self._prismatic_case._casing_material._thickness
-        self._prismatic_case._length = self._stack._length + 2 * self._prismatic_case._casing_material._thickness
-        self._prismatic_case._height = self._stack._thickness + 2 * self._prismatic_case._casing_material._thickness
-        prismatic_top_area = self._prismatic_case._width * self._prismatic_case._length 
-        prismatic_side_area = self._prismatic_case._width * self._prismatic_case._height
-        prismatic_front_area = self._prismatic_case._length * self._prismatic_case._height
-        self._prismatic_case._wall_area = 2 * prismatic_top_area + 2 * prismatic_side_area + 2 * prismatic_front_area
-        self._prismatic_case._mass = self._prismatic_case._wall_area * self._prismatic_case._casing_material._thickness * self._prismatic_case._casing_material._density
-        self._prismatic_case._cost = self._prismatic_case._wall_area * self._prismatic_case._casing_material._areal_cost
-
         self._mass_breakdown = {self._stack: self._stack._mass,
                                 self._electrolyte: self._electrolyte._mass,
-                                self._prismatic_case: self._prismatic_case._mass,
-                                self._positive_terminal: self._positive_terminal._mass,
-                                self._negative_terminal: self._negative_terminal._mass}
+                                self._prismatic_case: self._prismatic_case._mass}
         
         self._mass = sum(self._mass_breakdown.values())
 
-        # calculate geometric properties of the cell
-        self._height = self._prismatic_case._height
-        self._length = self._prismatic_case._length
-        self._width = self._prismatic_case._width
-        self._volume = self._prismatic_case._length * self._prismatic_case._width * self._prismatic_case._height
-
         # calculate cost of the cell
         self._cost_breakdown = {self._stack: self._stack._cost,
-                                self._prismatic_case: self._prismatic_case._cost,
                                 self._electrolyte: self._electrolyte._cost,
-                                self._positive_terminal: self._positive_terminal._cost,
-                                self._negative_terminal: self._negative_terminal._cost}
+                                self._prismatic_case: self._prismatic_case._cost}
 
         self._cost = sum(self._cost_breakdown.values())
 
