@@ -17,7 +17,7 @@ H_TO_S = 3600
 W_TO_KW = 1e-3
 M_TO_DM = 10
 
-class Cell:
+class _Cell:
     def __init__(self,
                  electrolyte: Electrolyte,
                  electrolyte_overfill: float,
@@ -34,8 +34,8 @@ class Cell:
         :param electrolyte_overfill: Overfill of the electrolyte in the cell (%)
         :param voltage_upper_cut_off: Upper cut-off voltage of the cell
         :param voltage_lower_cut_off: Lower cut-off voltage of the cell
-        :param reversible_capacity: Reversible capacity of the cell in mAh
-        :param irreversible_capacity: Irreversible capacity of the cell in mAh
+        :param reversible_capacity: Reversible capacity of the cell in Ah
+        :param irreversible_capacity: Irreversible capacity of the cell in Ah
         :param grid_n: Number of points to interpolate the half cell curves
         :param name: Name of the cell
         """
@@ -44,8 +44,8 @@ class Cell:
         self._voltage_upper_cut_off = voltage_upper_cut_off
         self._voltage_lower_cut_off = voltage_lower_cut_off
         self._name = name
-        self._reversible_capacity = reversible_capacity * mA_TO_A * H_TO_S
-        self._irreversible_capacity = irreversible_capacity * mA_TO_A * H_TO_S
+        self._reversible_capacity = reversible_capacity * H_TO_S
+        self._irreversible_capacity = irreversible_capacity * H_TO_S
         self._grid_n = grid_n
 
     def get_capacity_voltage_plot(self, **kwargs):
@@ -64,7 +64,7 @@ class Cell:
 
         color_map = {'cathode': 'blue', 'anode': 'red', 'full cell': 'black'}
 
-        figure = px.line(data, x='Capacity (mAh)', y='Voltage (V)', color='Electrode', title='Capacity vs Voltage', 
+        figure = px.line(data, x='Capacity (Ah)', y='Voltage (V)', color='Electrode', title='Capacity vs Voltage', 
                          template='presentation', color_discrete_map=color_map, **kwargs)
         
         figure.update_traces(line=dict(width=4))
@@ -107,8 +107,8 @@ class Cell:
 
         data = (self
                 ._full_cell_curves
-                .assign(capacity = lambda x: x['capacity'] * A_TO_mA * S_TO_H)
-                .rename(columns={'capacity': 'Capacity (mAh)', 
+                .assign(capacity = lambda x: x['capacity'] * S_TO_H)
+                .rename(columns={'capacity': 'Capacity (Ah)', 
                                  'voltage': 'Voltage (V)', 
                                  'direction': 'Direction',
                                  'electrode': 'Electrode'})
@@ -124,8 +124,8 @@ class Cell:
 
         data = (self
                 ._half_cell_curves
-                .assign(capacity = lambda x: x['capacity'] * A_TO_mA * S_TO_H)
-                .rename(columns={'capacity': 'Capacity (mAh)', 
+                .assign(capacity = lambda x: x['capacity'] * S_TO_H)
+                .rename(columns={'capacity': 'Capacity (Ah)', 
                                  'voltage': 'Voltage (V)', 
                                  'direction': 'Direction', 
                                  'electrode': 'Electrode'})
@@ -139,11 +139,11 @@ class Cell:
     
     @property
     def reversible_capacity(self) -> float:
-        return round(self._reversible_capacity * A_TO_mA * S_TO_H, 2)
+        return round(self._reversible_capacity * S_TO_H, 2)
     
     @property
     def irreversible_capacity(self) -> float:
-        return round(self._irreversible_capacity * A_TO_mA * S_TO_H, 2)
+        return round(self._irreversible_capacity * S_TO_H, 2)
     
     @property
     def cost_breakdown(self) -> dict:
@@ -230,7 +230,7 @@ class Cell:
         return self.__str__()
     
 
-class PrismaticCell(Cell):
+class _PrismaticCell(_Cell):
 
     def __init__(self,
                  prismatic_case: PrismaticCase,
@@ -255,7 +255,7 @@ class PrismaticCell(Cell):
         :param grid_n: Number of points to interpolate the half cell curves
         :param name: Name of the cell
         """
-        Cell.__init__(self,
+        _Cell.__init__(self,
                       electrolyte=electrolyte, 
                       electrolyte_overfill=electrolyte_overfill, 
                       voltage_upper_cut_off=voltage_upper_cut_off, 
@@ -281,7 +281,7 @@ class PrismaticCell(Cell):
         return self._prismatic_case
 
 
-class PouchCell(Cell):
+class _PouchCell(_Cell):
     def __init__(self,
                  pouch: Pouch,
                  electrolyte: Electrolyte,
@@ -308,7 +308,7 @@ class PouchCell(Cell):
         :param irreversible_capacity: Irreversible capacity of the cell in mAh
         :param name: Name of the cell
         """
-        Cell.__init__(self,
+        _Cell.__init__(self,
                          electrolyte=electrolyte, 
                          electrolyte_overfill=electrolyte_overfill, 
                          voltage_upper_cut_off=voltage_upper_cut_off, 
@@ -340,7 +340,7 @@ class PouchCell(Cell):
         return self._negative_terminal
     
 
-class StackedCell(Cell):
+class _StackedCell(_Cell):
 
     def __init__(self,
                  stack: Stack,
@@ -367,7 +367,7 @@ class StackedCell(Cell):
         :param grid_n: Number of points to interpolate the half cell curves
         :param name: Name of the cell
         """
-        Cell.__init__(self,
+        _Cell.__init__(self,
                       electrolyte=electrolyte, 
                       electrolyte_overfill=electrolyte_overfill, 
                       voltage_upper_cut_off=voltage_upper_cut_off, 
@@ -672,7 +672,7 @@ class StackedCell(Cell):
         return figure
 
 
-class StackedPouchCell(PouchCell, StackedCell):
+class StackedPouchCell(_PouchCell, _StackedCell):
 
     def __init__(self,
                  stack: Stack,
@@ -703,7 +703,7 @@ class StackedPouchCell(PouchCell, StackedCell):
         :param grid_n: Number of points to interpolate the half cell curves
         :param name: Name of the cell
         """
-        PouchCell.__init__(self,
+        _PouchCell.__init__(self,
                            pouch=pouch,
                            electrolyte=electrolyte,
                            electrolyte_overfill=electrolyte_overfill,
@@ -716,7 +716,7 @@ class StackedPouchCell(PouchCell, StackedCell):
                            grid_n=grid_n,
                            name=name)
         
-        StackedCell.__init__(self,
+        _StackedCell.__init__(self,
                              stack=stack,
                              electrolyte=electrolyte,
                              electrolyte_overfill=electrolyte_overfill,
@@ -762,7 +762,7 @@ class StackedPouchCell(PouchCell, StackedCell):
         self._normalized_cost = self._cost / self._energy
     
 
-class StackedPrismaticCell(PrismaticCell, StackedCell):
+class StackedPrismaticCell(_PrismaticCell, _StackedCell):
 
     def __init__(self,
                  stack: Stack,
@@ -800,7 +800,7 @@ class StackedPrismaticCell(PrismaticCell, StackedCell):
         if stack._length > prismatic_case._internal_length:
             raise ValueError("Stack length cannot be greater than the internal length of the prismatic case")
 
-        PrismaticCell.__init__(self,
+        _PrismaticCell.__init__(self,
                                prismatic_case=prismatic_case,
                                electrolyte=electrolyte,
                                electrolyte_overfill=electrolyte_overfill,
@@ -811,7 +811,7 @@ class StackedPrismaticCell(PrismaticCell, StackedCell):
                                grid_n=grid_n,
                                name=name)
         
-        StackedCell.__init__(self,
+        _StackedCell.__init__(self,
                              stack=stack,
                              electrolyte=electrolyte,
                              electrolyte_overfill=electrolyte_overfill,
@@ -838,4 +838,4 @@ class StackedPrismaticCell(PrismaticCell, StackedCell):
         # energy properties
         self._specific_energy = self._energy / self._mass
         self._energy_density = self._energy / self._volume
-        self._normalized_cost = self._cost / self._energy        
+        self._normalized_cost = self._cost / self._energy
