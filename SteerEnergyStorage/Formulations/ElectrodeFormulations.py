@@ -1,10 +1,10 @@
-from SteerEnergyStorage.Materials.ElectrodeMaterials import ActiveMaterial, Binder, ConductiveAdditive
+from SteerEnergyStorage.Materials.ElectrodeMaterials import _ActiveMaterial, Binder, ConductiveAdditive
 
 
 class ElectrodeFormulation():
     
     def __init__(self, 
-                 active_materials: dict[ActiveMaterial, float], 
+                 active_materials: dict[_ActiveMaterial, float], 
                  binder: dict[Binder, float] = None, 
                  conductive_additive: dict[ConductiveAdditive, float] = None,
                  name: str = None

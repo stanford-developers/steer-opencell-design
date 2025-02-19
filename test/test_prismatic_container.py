@@ -4,7 +4,7 @@ from SteerEnergyStorage.Constructions.Containers import PrismaticCase, Prismatic
 from SteerEnergyStorage.Formulations.ElectrodeFormulations import ElectrodeFormulation
 from SteerEnergyStorage.Constructions.Electrodes import Cathode, Anode
 from SteerEnergyStorage.Formulations.Stacks import Stack
-from SteerEnergyStorage.Materials.ElectrodeMaterials import ActiveMaterial, Binder, ConductiveAdditive
+from SteerEnergyStorage.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
 from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector
 from SteerEnergyStorage.Materials.Separators import Separator
 
@@ -15,13 +15,11 @@ class TestCellsSingleAM(unittest.TestCase):
     def setUp(self):
 
         # construct cathode
-        cathode_active_material = ActiveMaterial(name="Faradion_Gen2_4.25V", 
-                                                 formula="Li2MnSiO4", 
-                                                 specific_cost=11.26, 
-                                                 density=4, 
-                                                 irreversible_capacity_scaling=1, 
-                                                 reversible_capacity_scaling=1,
-                                                 half_cell_path='./Data/Cathode_Faradion_Gen2_4.25V.csv')
+        cathode_active_material = CathodeMaterial(name="Faradion_Gen2_4.25V", 
+                                                  specific_cost=11.26, 
+                                                  density=4, 
+                                                  irreversible_capacity_scaling=1, 
+                                                  reversible_capacity_scaling=1)
         
         cathode_conductive_additive = ConductiveAdditive(specific_cost=9, density=1.9)
 
@@ -31,10 +29,7 @@ class TestCellsSingleAM(unittest.TestCase):
                                                    binder={cathode_binder: 5},
                                                    conductive_additive={cathode_conductive_additive: 6})
 
-        cathode_current_collector = CurrentCollector(name="Aluminium", 
-                                                     formula="Al", 
-                                                     specific_cost=6.30, 
-                                                     density=2.7, 
+        cathode_current_collector = CurrentCollector(formula="Al", 
                                                      thickness=15, 
                                                      length=16.0,
                                                      width=10.8,
@@ -47,13 +42,11 @@ class TestCellsSingleAM(unittest.TestCase):
                           calender_density=2.60)
 
         # construct anode
-        anode_active_material = ActiveMaterial(name="Faradion_HC",
-                                               formula="Na2Ti3O7",
+        anode_active_material = AnodeMaterial(name="Faradion_HC",
                                                specific_cost=14.27,
                                                density=1.50,
                                                irreversible_capacity_scaling=1,
-                                               reversible_capacity_scaling=1,
-                                               half_cell_path='./Data/Anode_Faradion_HC.csv')
+                                               reversible_capacity_scaling=1)
         
         anode_conductive_additive = ConductiveAdditive(specific_cost=9, density=1.9)
 
@@ -63,10 +56,7 @@ class TestCellsSingleAM(unittest.TestCase):
                                                  binder={anode_binder: 3},
                                                  conductive_additive={anode_conductive_additive: 9})
         
-        anode_current_collector = CurrentCollector(name="Copper",
-                                                   formula="Cu",
-                                                   specific_cost=6.30,
-                                                   density=2.70,
+        anode_current_collector = CurrentCollector(formula="Cu",
                                                    thickness=15,
                                                    length=16.0,
                                                    width=10.8,
@@ -131,10 +121,10 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(self.stack.n_anode, 72)
         self.assertEqual(self.stack.n_separator, 146)
         self.assertEqual(round(self.stack._mass_breakdown[self.stack.cathode], 4), 0.3141)
-        self.assertEqual(round(self.stack._mass_breakdown[self.stack.anode], 4), 0.1832)
+        self.assertEqual(round(self.stack._mass_breakdown[self.stack.anode], 4), 0.3052)
         self.assertEqual(round(self.stack._mass_breakdown[self.stack.separator], 4), 0.0192)
         self.assertEqual(self.stack.mass_breakdown[self.stack.cathode], 314.11)
-        self.assertEqual(self.stack.mass_breakdown[self.stack.anode], 183.23)
+        self.assertEqual(self.stack.mass_breakdown[self.stack.anode], 305.16)
         self.assertEqual(self.stack.mass_breakdown[self.stack.separator], 19.19)
         self.assertEqual(self.stack.pore_volume, 117.6)
         self.assertEqual(round(self.stack._pore_volume, 6), 0.000118)

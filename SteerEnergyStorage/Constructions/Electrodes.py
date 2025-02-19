@@ -9,7 +9,7 @@ G_TO_KG = 1e-3
 KG_TO_G = 1e3
 M_TO_UM = 1e6
 
-class Electrode:
+class _Electrode:
     def __init__(self, 
                  formulation: ElectrodeFormulation,
                  mass_loading: float,
@@ -142,7 +142,7 @@ class Electrode:
         return self.__str__()
 
 
-class Anode(Electrode):
+class Anode(_Electrode):
     def __init__(self, 
                  formulation: ElectrodeFormulation,
                  mass_loading: float,
@@ -168,10 +168,6 @@ class Anode(Electrode):
                          swell_factor=swell_factor,
                          name=name)
         
-        # determine the directions for the active material half curves
-        for am in self.formulation._active_materials.keys():
-            am._half_cell_curve = am._determine_half_cell_direction('anode')
-
     @property
     def overhang(self):
         if hasattr(self, '_overhang'):
@@ -180,7 +176,7 @@ class Anode(Electrode):
             return AttributeError("Overhang not calculated yet")
 
 
-class Cathode(Electrode):
+class Cathode(_Electrode):
     def __init__(self, 
                  formulation: ElectrodeFormulation,
                  mass_loading: float,
@@ -205,6 +201,3 @@ class Cathode(Electrode):
                          swell_factor=swell_factor,
                          name=name)
         
-        # determine the directions for the active material half curves
-        for am in self.formulation._active_materials.keys():
-            am._half_cell_curve = am._determine_half_cell_direction('cathode')
