@@ -21,12 +21,12 @@ class TestCellsSingleAM(unittest.TestCase):
         """
         # construct cathode
         cathode_active_material = CathodeMaterial(name="Faradion_Gen2_4.25V", 
-                                                 specific_cost=11.26, 
-                                                 density=4, 
-                                                 irreversible_capacity_scaling=1, 
-                                                 reversible_capacity_scaling=1)
+                                                  specific_cost=11.26, 
+                                                  density=4, 
+                                                  irreversible_capacity_scaling=1, 
+                                                  reversible_capacity_scaling=1)
         
-        cathode_conductive_additive = ConductiveAdditive(specific_cost=9, density=1.9)
+        cathode_conductive_additive = ConductiveAdditive(specific_cost=9, density=1.9, name="Super C65")
 
         cathode_binder = Binder(name="PVDF", specific_cost=15, density=1.7)
 
@@ -41,35 +41,16 @@ class TestCellsSingleAM(unittest.TestCase):
                                                      bare_tab_area=8.22)
 
         cathode = Cathode(formulation=cathode_formulation,
-                          mass_loading=10.68,
-                          current_collector=cathode_current_collector,
-                          calender_density=2.60)
+                           mass_loading=10.68,
+                           current_collector=cathode_current_collector,
+                           calender_density=2.60)
 
         # construct anode
-        anode_active_material = AnodeMaterial(name="Faradion_HC",
-                                               specific_cost=14.27,
-                                               density=1.50,
-                                               irreversible_capacity_scaling=1,
-                                               reversible_capacity_scaling=1)
-        
-        anode_conductive_additive = ConductiveAdditive(specific_cost=9, density=1.9)
-
-        anode_binder = Binder(name="PVDF", specific_cost=10, density=1.7)
-
-        anode_formulation = ElectrodeFormulation(active_materials={anode_active_material: 88},
-                                                 binder={anode_binder: 3},
-                                                 conductive_additive={anode_conductive_additive: 9})
-        
         anode_current_collector = CurrentCollector(formula="Cu",
                                                    thickness=5,
                                                    length=16.0,
                                                    width=10.8,
                                                    bare_tab_area=7.55)
-        
-        anode = Anode(formulation=anode_formulation,
-                      mass_loading=5.25,
-                      current_collector=anode_current_collector,
-                      calender_density=0.85)
 
         # construct separator
         separator = Separator(thickness=16, 
@@ -80,7 +61,7 @@ class TestCellsSingleAM(unittest.TestCase):
                               fold_length=18.6)
 
         # construct the stack
-        stack = Stack(anode=anode, 
+        stack = Stack(anode=anode_current_collector, 
                       cathode=cathode,
                       separator=separator, 
                       name="stack",
@@ -109,19 +90,19 @@ class TestCellsSingleAM(unittest.TestCase):
                                      positive_terminal=pos_terminal,
                                      negative_terminal=neg_terminal,
                                      reversible_capacity=11.934,
-                                     irreversible_capacity=1.22,
-                                     grid_n=2000)
+                                     irreversible_capacity=1.215,
+                                     grid_n=200)
     
     def test_cell(self):
 
         self.assertEqual(self.cell.electrolyte_overfill, 10)
         self.assertEqual(round(self.cell._electrolyte_overfill, 4), 0.1)
-        self.assertEqual(self.cell.cost, 3.73)
-        self.assertEqual(round(self.cell._cost, 2), 3.73)
-        self.assertEqual(self.cell.mass, 262.63)
-        self.assertEqual(round(self.cell._mass, 3), 0.263)
-        self.assertEqual(self.cell.thickness, 7.15)
-        self.assertEqual(round(self.cell._thickness, 4), 0.0072)
+        self.assertEqual(self.cell.cost, 2.76)
+        self.assertEqual(round(self.cell._cost, 2), 2.76)
+        self.assertEqual(self.cell.mass, 179.68)
+        self.assertEqual(round(self.cell._mass, 3), 0.180)
+        self.assertEqual(self.cell.thickness, 3.81)
+        self.assertEqual(round(self.cell._thickness, 4), 0.0038)
 
         self.assertEqual(self.cell.reversible_capacity, 11.93)
         self.assertEqual(self.cell.irreversible_capacity, 1.22)
@@ -132,12 +113,12 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(round(self.cell.full_cell_curves
                                .query('Direction == "discharge"')['Capacity (Ah)']
                                .reset_index(drop=True)
-                               .iloc[100]), 12.0)
+                               .iloc[100]), 6.0)
         
         self.assertEqual(round(self.cell.full_cell_curves
                                .query('Direction == "charge"')['Capacity (Ah)']
                                .reset_index(drop=True)
-                               .iloc[100]), 1)
+                               .iloc[100]), 6.0)
         
         self.assertEqual(self.cell.cathode_areal_capacity, 1.40)
         figure = self.cell.get_capacity_voltage_plot()
@@ -147,10 +128,10 @@ class TestCellsSingleAM(unittest.TestCase):
         figure = self.cell.get_mass_breakdown_plot()
         # figure.show()
 
-        self.assertEqual(self.cell.energy, 35.14)
-        self.assertEqual(self.cell.energy_density, 190.53)
-        self.assertEqual(self.cell.specific_energy, 133.81)
-        self.assertEqual(self.cell.normalized_cost, 106.27)
+        self.assertEqual(self.cell.energy, 39.75)
+        self.assertEqual(self.cell.energy_density, 403.95)
+        self.assertEqual(self.cell.specific_energy, 221.25)
+        self.assertEqual(self.cell.normalized_cost, 69.42)
 
     def test_terminals(self):
         self.assertEqual(self.cell.positive_terminal.mass, 1)
@@ -203,14 +184,14 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(self.cell.stack.n_anode, 27)
         self.assertEqual(self.cell.stack.n_separator, 56)
         self.assertEqual(round(self.cell.stack._mass_breakdown[self.cell.stack.cathode], 4), 0.115)
-        self.assertEqual(round(self.cell.stack._mass_breakdown[self.cell.stack.anode], 4), 0.0708)
-        self.assertEqual(round(self.cell.stack._mass_breakdown[self.cell.stack.separator], 4), 0.0074)
+        self.assertEqual(round(self.cell.stack._mass_breakdown[self.cell.stack.anode], 4), 0.0218)
+        self.assertEqual(round(self.cell.stack._mass_breakdown[self.cell.stack.separator], 4), 0.0073)
         self.assertEqual(self.cell.stack.mass_breakdown[self.cell.stack.cathode], 115.03)
-        self.assertEqual(self.cell.stack.mass_breakdown[self.cell.stack.anode], 70.8)
-        self.assertEqual(self.cell.stack.mass_breakdown[self.cell.stack.separator], 7.36)
-        self.assertEqual(self.cell.stack.pore_volume, 44.06)
-        self.assertEqual(round(self.cell.stack._pore_volume, 6), 0.000044)
-        self.assertEqual(self.cell.stack.thickness, 6.92)
+        self.assertEqual(self.cell.stack.mass_breakdown[self.cell.stack.anode], 21.82)
+        self.assertEqual(self.cell.stack.mass_breakdown[self.cell.stack.separator], 7.35)
+        self.assertEqual(self.cell.stack.pore_volume, 18.34)
+        self.assertEqual(round(self.cell.stack._pore_volume, 6), 0.000018)
+        self.assertEqual(self.cell.stack.thickness, 3.59)
    
     def test_separator(self):
         self.assertEqual(self.cell.stack.separator.thickness, 16)
@@ -224,13 +205,13 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(self.cell.stack.separator.fold_length, 18.6)
         self.assertEqual(round(self.cell.stack.separator._fold_length, 3), 0.186)
 
-        self.assertEqual(self.cell.stack.separator.area, 11496.49)
-        self.assertEqual(round(self.cell.stack.separator._area, 4), 1.1496)
-        self.assertEqual(self.cell.stack.separator.mass, 7.36)
-        self.assertEqual(round(self.cell.stack.separator._mass, 4), 0.0074)
+        self.assertEqual(self.cell.stack.separator.area, 11477.62)
+        self.assertEqual(round(self.cell.stack.separator._area, 4), 1.1478)
+        self.assertEqual(self.cell.stack.separator.mass, 7.35)
+        self.assertEqual(round(self.cell.stack.separator._mass, 4), 0.0073)
         self.assertEqual(self.cell.stack.separator.cost, 1.03)
         self.assertEqual(round(self.cell.stack.separator._cost, 2), 1.03)
-        self.assertEqual(self.cell.stack.separator.pore_volume, 8.65)
+        self.assertEqual(self.cell.stack.separator.pore_volume, 8.63)
         self.assertEqual(round(self.cell.stack.separator._pore_volume, 7), 0.0000086)
 
     def test_electrodes(self):
@@ -253,22 +234,22 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(round(self.cell.stack.cathode._pore_volume, 8), 0.00000037)
 
         #anode
-        self.assertEqual(self.cell.stack.anode.mass_loading, 5.25)
-        self.assertEqual(round(self.cell.stack.anode._mass_loading, 4), 0.0525)
-        self.assertEqual(self.cell.stack.anode.calender_density, 0.85)
-        self.assertEqual(round(self.cell.stack.anode._calender_density), 850)
-        self.assertEqual(self.cell.stack.anode.porosity, 44.61)
-        self.assertEqual(round(self.cell.stack.anode._porosity, 4), 0.4461)
-        self.assertEqual(self.cell.stack.anode.coating_mass, 1.81)
-        self.assertEqual(round(self.cell.stack.anode._coating_mass, 4), 0.0018)
-        self.assertEqual(self.cell.stack.anode.mass, 2.62)
-        self.assertEqual(round(self.cell.stack.anode._mass, 4), 0.0026)
-        self.assertEqual(self.cell.stack.anode.material_thickness, 61.76)
-        self.assertEqual(self.cell.stack.anode.double_sided_thickness, 128.53)
-        self.assertEqual(round(self.cell.stack.anode._material_thickness, 6), 0.000062)
-        self.assertEqual(round(self.cell.stack.anode._double_sided_thickness, 6), 0.000129)
-        self.assertEqual(self.cell.stack.anode.pore_volume, 0.95)
-        self.assertEqual(round(self.cell.stack.anode._pore_volume, 8), 0.00000095)
+        self.assertEqual(self.cell.stack.anode.mass_loading, 0)
+        self.assertEqual(round(self.cell.stack.anode._mass_loading, 4), 0)
+        self.assertEqual(self.cell.stack.anode.calender_density, 1)
+        self.assertEqual(round(self.cell.stack.anode._calender_density), 1000)
+        self.assertEqual(self.cell.stack.anode.porosity, 100)
+        self.assertEqual(round(self.cell.stack.anode._porosity, 4), 1)
+        self.assertEqual(self.cell.stack.anode.coating_mass, 0)
+        self.assertEqual(round(self.cell.stack.anode._coating_mass, 4), 0)
+        self.assertEqual(self.cell.stack.anode.mass, 0.81)
+        self.assertEqual(round(self.cell.stack.anode._mass, 4), 0.0008)
+        self.assertEqual(self.cell.stack.anode.material_thickness, 0)
+        self.assertEqual(self.cell.stack.anode.double_sided_thickness, 5)
+        self.assertEqual(round(self.cell.stack.anode._material_thickness, 6), 0)
+        self.assertEqual(round(self.cell.stack.anode._double_sided_thickness, 6), 0.000005)
+        self.assertEqual(self.cell.stack.anode.pore_volume, 0)
+        self.assertEqual(round(self.cell.stack.anode._pore_volume, 8), 0)
         self.assertEqual(self.cell.stack.anode.overhang, 0)
         
     def test_current_collectors(self):
@@ -313,39 +294,21 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(round(cathode_am.half_cell_curve['Specific Capacity (mAh/g)'].iloc[10], 3), 28.103)
         self.assertEqual(round(cathode_am.half_cell_curve['Voltage (V)'].iloc[10], 3), 3.033)
 
-        # test the anode active materials
-        anode_am = next(iter(self.cell.stack.anode.formulation.active_materials))
-        self.assertEqual(anode_am.density, 1.50)
-        self.assertEqual(round(anode_am._density), 1500)
-
         # test the cathode binder
         cathode_binder = next(iter(self.cell.stack.cathode.formulation.binder))
         self.assertEqual(cathode_binder.density, 1.70)
         self.assertEqual(round(cathode_binder._density), 1700)
-
-        # test the anode binder
-        anode_binder = next(iter(self.cell.stack.anode.formulation.binder))
-        self.assertEqual(anode_binder.density, 1.70)
-        self.assertEqual(round(anode_binder._density), 1700)
 
         # test the cathode conductive additive
         cathode_ca = next(iter(self.cell.stack.cathode.formulation.conductive_additive))
         self.assertEqual(cathode_ca.density, 1.90)
         self.assertEqual(round(cathode_ca._density), 1900)
 
-        # test the anode conductive additive
-        anode_ca = next(iter(self.cell.stack.anode.formulation.conductive_additive))
-        self.assertEqual(anode_ca.density, 1.90)
-        self.assertEqual(round(anode_ca._density), 1900)
-
     def test_formulation_properties(self):
 
         cathode_am = next(iter(self.cell.stack.cathode.formulation.active_materials))
         cathode_binder = next(iter(self.cell.stack.cathode.formulation.binder))
         cathode_ca = next(iter(self.cell.stack.cathode.formulation.conductive_additive))
-        anode_am = next(iter(self.cell.stack.anode.formulation.active_materials))
-        anode_binder = next(iter(self.cell.stack.anode.formulation.binder))
-        anode_ca = next(iter(self.cell.stack.anode.formulation.conductive_additive))
 
         self.cell.stack.cathode.formulation.active_materials[cathode_am] = 89
         self.cell.stack.cathode.formulation._active_materials[cathode_am] = 0.89
@@ -353,10 +316,3 @@ class TestCellsSingleAM(unittest.TestCase):
         self.cell.stack.cathode.formulation._binder[cathode_binder] = 0.05
         self.cell.stack.cathode.formulation.conductive_additive[cathode_ca] = 6
         self.cell.stack.cathode.formulation._conductive_additive[cathode_ca] = 0.06
-        self.cell.stack.anode.formulation.active_materials[anode_am] = 88
-        self.cell.stack.anode.formulation._active_materials[anode_am] = 0.88
-        self.cell.stack.anode.formulation.binder[anode_binder] = 3
-        self.cell.stack.anode.formulation._binder[anode_binder] = 0.03
-        self.cell.stack.anode.formulation.conductive_additive[anode_ca] = 9
-        self.cell.stack.anode.formulation._conductive_additive[anode_ca] = 0.09
-

@@ -9,19 +9,16 @@ M_TO_CM = 100
 class Electrolyte:
 
     def __init__(self, 
-                 name: str, 
-                 formula: str, 
                  specific_cost: float, 
-                 density: float):   
+                 density: float,
+                 name: str = 'Electrolyte'):   
         """
         Initialize an object that represents an electrolyte
         :param name: str: name of the material
-        :param formula: str: chemical formula of the material
         :param specific_cost: float: specific cost of the material $/kg
         :param density: float: density of the material in g/cm^3
         """
         self._name = name
-        self._formula = formula
         self._specific_cost = specific_cost
         self._density = density * (G_TO_KG / CM_TO_M**3)
 

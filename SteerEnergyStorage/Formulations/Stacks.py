@@ -1,7 +1,7 @@
 from SteerEnergyStorage.Constructions.Electrodes import Anode, Cathode
 from SteerEnergyStorage.Materials.Separators import Separator
-import pandas as pd
-import numpy as np
+from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector
+from SteerEnergyStorage.Formulations.ElectrodeFormulations import ElectrodeFormulation
 
 KG_TO_G = 1e3
 M_TO_CM = 1e2
@@ -10,11 +10,12 @@ A_TO_mA = 1e3
 mA_TO_A = 1e-3
 S_TO_H = 1/3600
 H_TO_S = 3600
+PI = 3.14159265359
 
 class Stack():
 
     def __init__(self, 
-                 anode: Anode,
+                 anode: Anode | CurrentCollector,
                  cathode: Cathode,
                  separator: Separator,
                  n_stacks: int,
@@ -133,11 +134,11 @@ class Stack():
 
         # get the additional area that wraps around the edge of the cathode
         n_cathode_caps = self._n_cathode
-        area_per_cathode_cap = np.pi * (self._cathode._double_sided_thickness + self._separator._thickness) * self._separator._slit_width
+        area_per_cathode_cap = PI * (self._cathode._double_sided_thickness + self._separator._thickness) * self._separator._slit_width
 
         # get the additional area that wraps around the edge of the anode
         n_anode_caps = self._n_anode
-        area_per_anode_cap = np.pi * (self._anode._double_sided_thickness + self._separator._thickness) * self._separator._slit_width
+        area_per_anode_cap = PI * (self._anode._double_sided_thickness + self._separator._thickness) * self._separator._slit_width
 
         # get the area of the sides of the stack from the additional separator wraps. thickness changes with each wrap
         stack_thickness = self._total_anode_thickness + self._total_cathode_thickness + self._separator._thickness*self._n_separator
@@ -150,7 +151,11 @@ class Stack():
 
         return total_area, stack_thickness
 
-    def _check_anode(self, anode: Anode):
+    def _check_anode(self, anode: Anode | CurrentCollector):
+
+        if isinstance(anode, CurrentCollector):
+            formulation = ElectrodeFormulation(active_materials={})
+            anode = Anode(formulation=formulation, mass_loading=0, current_collector=anode, calender_density=1)
 
         if anode._current_collector._length < self._cathode._current_collector._length:
             raise ValueError("Anode current collector length must be greater or equal to cathode length")
