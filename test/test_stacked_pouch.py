@@ -43,7 +43,6 @@ class TestCellsSingleAM(unittest.TestCase):
         cathode = Cathode(formulation=cathode_formulation,
                           mass_loading=10.68,
                           current_collector=cathode_current_collector,
-                          swell_factor=1.0,
                           calender_density=2.60)
 
         # construct anode
@@ -70,7 +69,6 @@ class TestCellsSingleAM(unittest.TestCase):
         anode = Anode(formulation=anode_formulation,
                       mass_loading=5.25,
                       current_collector=anode_current_collector,
-                      swell_factor=1.0,
                       calender_density=0.85)
 
         # construct separator
@@ -89,10 +87,7 @@ class TestCellsSingleAM(unittest.TestCase):
                       n_stacks=26)
 
         # make electrolyte
-        electrolyte = Electrolyte(name="LiPF6", 
-                                  formula="LiPF6", 
-                                  specific_cost=8.94, 
-                                  density=1.2)
+        electrolyte = Electrolyte(specific_cost=8.94, density=1.2)
         
         # make the pouch
         laminate = Laminate(thickness=113, areal_mass=18, areal_cost=4.64)
@@ -111,18 +106,14 @@ class TestCellsSingleAM(unittest.TestCase):
                                      stack=stack,
                                      electrolyte=electrolyte,
                                      electrolyte_overfill=10,
-                                     voltage_upper_cut_off=4.2,
-                                     voltage_lower_cut_off=1.0,
                                      positive_terminal=pos_terminal,
                                      negative_terminal=neg_terminal,
                                      reversible_capacity=11.934,
-                                     irreversible_capacity=1.215,
-                                     grid_n=200)
+                                     irreversible_capacity=1.22,
+                                     grid_n=2000)
     
     def test_cell(self):
 
-        self.assertEqual(self.cell.voltage_upper_cut_off, 4.2)
-        self.assertEqual(self.cell.voltage_lower_cut_off, 1.0)
         self.assertEqual(self.cell.electrolyte_overfill, 10)
         self.assertEqual(round(self.cell._electrolyte_overfill, 4), 0.1)
         self.assertEqual(self.cell.cost, 3.73)
@@ -141,12 +132,12 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(round(self.cell.full_cell_curves
                                .query('Direction == "discharge"')['Capacity (Ah)']
                                .reset_index(drop=True)
-                               .iloc[100]), 5.0)
+                               .iloc[100]), 12.0)
         
         self.assertEqual(round(self.cell.full_cell_curves
                                .query('Direction == "charge"')['Capacity (Ah)']
                                .reset_index(drop=True)
-                               .iloc[100]), 8.0)
+                               .iloc[100]), 1)
         
         self.assertEqual(self.cell.cathode_areal_capacity, 1.40)
         figure = self.cell.get_capacity_voltage_plot()
@@ -156,10 +147,10 @@ class TestCellsSingleAM(unittest.TestCase):
         figure = self.cell.get_mass_breakdown_plot()
         # figure.show()
 
-        self.assertEqual(self.cell.energy, 35.79)
-        self.assertEqual(self.cell.energy_density, 194.04)
-        self.assertEqual(self.cell.specific_energy, 136.28)
-        self.assertEqual(self.cell.normalized_cost, 104.34)
+        self.assertEqual(self.cell.energy, 35.14)
+        self.assertEqual(self.cell.energy_density, 190.53)
+        self.assertEqual(self.cell.specific_energy, 133.81)
+        self.assertEqual(self.cell.normalized_cost, 106.27)
 
     def test_terminals(self):
         self.assertEqual(self.cell.positive_terminal.mass, 1)

@@ -2,7 +2,6 @@ from SteerEnergyStorage.DataManager import DataManager
 
 import pandas as pd
 import datetime as dt
-import numpy as np
 import os
 
 G_TO_KG = 1e-3
@@ -151,6 +150,13 @@ class CathodeMaterial(_ActiveMaterial):
                          half_cell_path=half_cell_path)
         
         self._half_cell_curve = self._get_half_cell_curve()
+
+    @staticmethod
+    def get_available_materials() -> list:
+        data_path = os.path.join(os.path.dirname(__file__), '../../Data/materials_properties.db')
+        materials_database = DataManager(data_path)
+        available_materials = materials_database.get_unique_values('cathode_half_cell_curves', 'name')
+        return available_materials
         
     def _get_half_cell_curve(self) -> pd.DataFrame:
         """
@@ -215,6 +221,13 @@ class AnodeMaterial(_ActiveMaterial):
         
         self._half_cell_curve = self._get_half_cell_curve()
 
+    @staticmethod
+    def get_available_materials() -> list:
+        data_path = os.path.join(os.path.dirname(__file__), '../../Data/materials_properties.db')
+        materials_database = DataManager(data_path)
+        available_materials = materials_database.get_unique_values('anode_half_cell_curves', 'name')
+        return available_materials
+
     def _get_half_cell_curve(self) -> pd.DataFrame:
         """
         Function to determine whether the curve is a discharge or charge curve
@@ -253,7 +266,7 @@ class Binder:
     def __init__(self, 
                  specific_cost: float, 
                  density: float,
-                 name: str = None):
+                 name: str = 'Binder'):
         """
         Initialize an object that represents a binder.
         
@@ -292,7 +305,7 @@ class ConductiveAdditive:
     def __init__(self, 
                  specific_cost: float, 
                  density: float,
-                 name: str = None):
+                 name: str = 'Conductive Additive'):
         """
         Initialize an object that represents a conductive additive.
         

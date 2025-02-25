@@ -2,6 +2,8 @@ from SteerEnergyStorage.Formulations.Stacks import Stack
 from SteerEnergyStorage.Materials.Electrolytes import Electrolyte
 from SteerEnergyStorage.Materials.other import Terminal
 from SteerEnergyStorage.Constructions.Containers import Pouch, PrismaticCase
+from scipy.interpolate import interp1d
+import warnings
 
 import pandas as pd
 import numpy as np
@@ -21,8 +23,6 @@ class _Cell:
     def __init__(self,
                  electrolyte: Electrolyte,
                  electrolyte_overfill: float,
-                 voltage_upper_cut_off: float,
-                 voltage_lower_cut_off: float,
                  reversible_capacity: float,
                  irreversible_capacity: float,
                  grid_n: int = 500,
@@ -32,8 +32,6 @@ class _Cell:
 
         :param electrolyte: Electrolyte used in the cell
         :param electrolyte_overfill: Overfill of the electrolyte in the cell (%)
-        :param voltage_upper_cut_off: Upper cut-off voltage of the cell
-        :param voltage_lower_cut_off: Lower cut-off voltage of the cell
         :param reversible_capacity: Reversible capacity of the cell in Ah
         :param irreversible_capacity: Irreversible capacity of the cell in Ah
         :param grid_n: Number of points to interpolate the half cell curves
@@ -41,14 +39,15 @@ class _Cell:
         """
         self._electrolyte = self._validate_electrolyte(electrolyte)
         self._electrolyte_overfill = self._validate_percentage(electrolyte_overfill) / 100
-        self._voltage_upper_cut_off = voltage_upper_cut_off
-        self._voltage_lower_cut_off = voltage_lower_cut_off
         self._name = name
         self._reversible_capacity = reversible_capacity * H_TO_S
         self._irreversible_capacity = irreversible_capacity * H_TO_S
         self._grid_n = grid_n
 
-    def get_capacity_voltage_plot(self, **kwargs):
+    def get_capacity_voltage_plot(self, 
+                                  upper_voltage_cuttoff: float = None, 
+                                  lower_voltage_cutoff: float = None,
+                                  **kwargs):
 
         try:
             half_curves = self.half_cell_curves.copy()
@@ -56,9 +55,14 @@ class _Cell:
         except AttributeError:
             raise AttributeError("The cell curves have not been calculated yet. Make sure you initiated the right cell object")
 
-        half_curves = self.half_cell_curves.copy()
-        full_curves = self.full_cell_curves.copy()
-        data = pd.concat([half_curves, full_curves])
+        data = (pd
+                .concat([half_curves, full_curves])
+                .assign(sort_key_1 = lambda x: [-c if d == 'discharge' else c for c, d in zip(x['Capacity (Ah)'], x['Direction'])])
+                .assign(sort_key_2 = lambda x: [1 if d == 'discharge' else 0 for d in x['Direction']])
+                .sort_values(by=['Electrode', 'sort_key_2', 'sort_key_1'])
+                .drop(columns=['sort_key_2', 'sort_key_1'])
+                )
+
         upper_cap_limit = self.reversible_capacity + self.irreversible_capacity
         lower_cap_limit = self.irreversible_capacity
 
@@ -71,6 +75,11 @@ class _Cell:
         figure.add_vline(x=upper_cap_limit, line_color='black', line_width=2)
         figure.add_vline(x=lower_cap_limit, line_color='black', line_width=2)
 
+        if upper_voltage_cuttoff:
+            figure.add_hline(y=upper_voltage_cuttoff, line_color='black', line_width=2)
+        if lower_voltage_cutoff:
+            figure.add_hline(y=lower_voltage_cutoff, line_color='black', line_width=2)
+
         return figure
 
     def _validate_electrolyte(self, value: Electrolyte) -> Electrolyte:
@@ -82,6 +91,28 @@ class _Cell:
         if not (0 <= value <= 100):
             raise ValueError("Percentage must be between 0 and 100")
         return value
+    
+    def get_cost_breakdown_plot(self, mode='pie', **kwargs):
+        """
+        Function to get the cost breakdown of the cell in a plot
+
+        :param mode: str: mode of the plot. Options are 'pie' and 'bar'
+        """
+        if mode == 'pie':
+            return self._get_cost_breakdown_plot_pie(**kwargs)
+        else:
+            raise ValueError("Only pie plot is supported for now")
+        
+    def get_mass_breakdown_plot(self, mode='pie', **kwargs):
+        """
+        Function to get the mass breakdown of the cell in a plot
+
+        :param mode: str: mode of the plot. Options are 'pie' and 'bar'
+        """
+        if mode == 'pie':
+            return self._get_mass_breakdown_plot_pie(**kwargs)
+        else:
+            return ValueError("Only pie plot is supported for now")
 
     @property
     def electrolyte_overfill(self) -> float:
@@ -90,14 +121,6 @@ class _Cell:
     @property
     def electrolyte(self) -> Electrolyte:
         return self._electrolyte
-    
-    @property
-    def voltage_upper_cut_off(self) -> float:
-        return self._voltage_upper_cut_off
-    
-    @property
-    def voltage_lower_cut_off(self) -> float:
-        return self._voltage_lower_cut_off
     
     @property
     def full_cell_curves(self):
@@ -236,8 +259,6 @@ class _PrismaticCell(_Cell):
                  prismatic_case: PrismaticCase,
                  electrolyte: Electrolyte,
                  electrolyte_overfill: float,
-                 voltage_upper_cut_off: float,
-                 voltage_lower_cut_off: float,
                  reversible_capacity: float,
                  irreversible_capacity: float,
                  grid_n: int = 500,
@@ -248,8 +269,6 @@ class _PrismaticCell(_Cell):
         :param prismatic_case: Prismatic case used in the cell
         :param electrolyte: Electrolyte used in the cell
         :param electrolyte_overfill: Overfill of the electrolyte in the cell (%)
-        :param voltage_upper_cut_off: Upper cut-off voltage of the cell
-        :param voltage_lower_cut_off: Lower cut-off voltage of the cell
         :param reversible_capacity: Reversible capacity of the cell in mAh
         :param irreversible_capacity: Irreversible capacity of the cell in mAh
         :param grid_n: Number of points to interpolate the half cell curves
@@ -258,8 +277,6 @@ class _PrismaticCell(_Cell):
         _Cell.__init__(self,
                       electrolyte=electrolyte, 
                       electrolyte_overfill=electrolyte_overfill, 
-                      voltage_upper_cut_off=voltage_upper_cut_off, 
-                      voltage_lower_cut_off=voltage_lower_cut_off, 
                       reversible_capacity=reversible_capacity,
                       irreversible_capacity=irreversible_capacity,
                       grid_n=grid_n,
@@ -286,8 +303,6 @@ class _PouchCell(_Cell):
                  pouch: Pouch,
                  electrolyte: Electrolyte,
                  electrolyte_overfill: float,
-                 voltage_upper_cut_off: float,
-                 voltage_lower_cut_off: float,
                  positive_terminal: Terminal,
                  negative_terminal: Terminal,
                  reversible_capacity: float,
@@ -300,8 +315,6 @@ class _PouchCell(_Cell):
         :param pouch: Pouch used in the cell
         :param electrolyte: Electrolyte used in the cell
         :param electrolyte_overfill: Overfill of the electrolyte in the cell (%)
-        :param voltage_upper_cut_off: Upper cut-off voltage of the cell
-        :param voltage_lower_cut_off: Lower cut-off voltage of the cell
         :param positive_terminal: Positive terminal of the cell
         :param negative_terminal: Negative terminal of the cell
         :param reversible_capacity: Reversible capacity of the cell in mAh
@@ -311,8 +324,6 @@ class _PouchCell(_Cell):
         _Cell.__init__(self,
                          electrolyte=electrolyte, 
                          electrolyte_overfill=electrolyte_overfill, 
-                         voltage_upper_cut_off=voltage_upper_cut_off, 
-                         voltage_lower_cut_off=voltage_lower_cut_off, 
                          reversible_capacity=reversible_capacity,
                          irreversible_capacity=irreversible_capacity,
                          grid_n=grid_n,
@@ -346,8 +357,6 @@ class _StackedCell(_Cell):
                  stack: Stack,
                  electrolyte: Electrolyte,
                  electrolyte_overfill: float,
-                 voltage_upper_cut_off: float,
-                 voltage_lower_cut_off: float,
                  reversible_capacity: float,
                  irreversible_capacity: float,
                  grid_n: int = 500,
@@ -358,8 +367,6 @@ class _StackedCell(_Cell):
         :param stack: Stack within the cell
         :param electrolyte: Electrolyte used in the cell
         :param electrolyte_overfill: Overfill of the electrolyte in the cell (%)
-        :param voltage_upper_cut_off: Upper cut-off voltage of the cell
-        :param voltage_lower_cut_off: Lower cut-off voltage of the cell
         :param positive_terminal: Positive terminal of the cell
         :param negative_terminal: Negative terminal of the cell
         :param reversible_capacity: Reversible capacity of the cell in mAh
@@ -370,8 +377,6 @@ class _StackedCell(_Cell):
         _Cell.__init__(self,
                       electrolyte=electrolyte, 
                       electrolyte_overfill=electrolyte_overfill, 
-                      voltage_upper_cut_off=voltage_upper_cut_off, 
-                      voltage_lower_cut_off=voltage_lower_cut_off, 
                       reversible_capacity=reversible_capacity,
                       irreversible_capacity=irreversible_capacity,
                       grid_n=grid_n,
@@ -379,36 +384,55 @@ class _StackedCell(_Cell):
         
         self._stack = self._validate_stack(stack)
         self._effective_areal_capacity = self._reversible_capacity / self._stack._active_geometric_area
-
-        # calculate electrolyte quantities
-        self._electrolyte._volume = self._stack._pore_volume * (1 + self._electrolyte_overfill)
-        self._electrolyte._mass = self._electrolyte._volume * self._electrolyte._density
-        self._electrolyte._cost = (self._electrolyte._mass) * self._electrolyte._specific_cost  
-
-        # Get the half cell curves and full cell curves
+        self._calculate_electrolyte_properties()
         self._half_cell_curves, self._cathode_areal_capacity = self._calculate_half_cell_curves()
         self._full_cell_curves = self._calculate_full_cell_curves()
 
         # get storage properties
         self._energy = -np.trapezoid(self._full_cell_curves.query("direction == 'discharge'")['voltage'],
                                      self._full_cell_curves.query("direction == 'discharge'")['capacity'])
+        
+        #color_dictionary
+        self._color_map = {self.name: '#2E86AB', 
+                            'Encapsulation': '#F6C85F', 
+                            self.stack.anode.name: '#9B59B6', 
+                            self.stack.cathode.name: '#E74C3C', 
+                            self.stack.separator.name: '#27AE60',
+                            self.electrolyte.name: '#F39C12'}
+        self._color_map.update(self.stack.cathode.formulation._color_map)
+        self._color_map.update(self.stack.anode.formulation._color_map)   
+
+    def _calculate_electrolyte_properties(self):
+        """
+        Function to calculate the properties of the electrolyte
+        """
+        self._electrolyte._volume = self._stack._pore_volume * (1 + self._electrolyte_overfill)
+        self._electrolyte._mass = self._electrolyte._volume * self._electrolyte._density
+        self._electrolyte._cost = (self._electrolyte._mass) * self._electrolyte._specific_cost      
 
     def _calculate_half_cell_curves(self):
         """
         Function to calculate the half cell curve of the stack from the half cell curves of the anode and cathode active materials
         """
+        # get the cathode data
         cathode_data = (pd
                         .concat([am._half_cell_curve.copy().assign(active_material = am) for am in self.stack._cathode._formulation._active_materials.keys()])
                         .assign(mass = lambda x: [self.stack._cathode_mass_breakdown['Active Materials'][am] for am in x['active_material']])
                         .assign(electrode = 'cathode')
                         )
         
-        anode_data = (pd
-                     .concat([am._half_cell_curve.copy().assign(active_material = am) for am in self.stack._anode._formulation._active_materials.keys()])
-                     .assign(mass = lambda x: [self.stack._anode_mass_breakdown['Active Materials'][am] for am in x['active_material']])
-                     .assign(electrode = 'anode')
-                     )
+        # get the anode data
+        if len(self.stack._anode._formulation._active_materials.keys()) > 0:
+            # if the anode has active materials on it
+            anode_data = (pd
+                          .concat([am._half_cell_curve.copy().assign(active_material = am) for am in self.stack._anode._formulation._active_materials.keys()])
+                          .assign(mass = lambda x: [self.stack._anode_mass_breakdown['Active Materials'][am] for am in x['active_material']])
+                          .assign(electrode = 'anode')
+                          )
+        else:
+            anode_data = pd.DataFrame()
 
+        # calculate the capacity of each active material
         half_cell_curves = (pd
                             .concat([cathode_data, anode_data])
                             .assign(irrev_scaling = lambda x: [am._irreversible_capacity_scaling for am in x['active_material']])
@@ -419,106 +443,118 @@ class _StackedCell(_Cell):
                             .sort_values(by=['electrode', 'direction', 'active_material', 'capacity'])
                             )
         
-        # grid parameters for interpolation
-        self._v_grid = np.linspace(half_cell_curves['voltage'].min(), half_cell_curves['voltage'].max(), self._grid_n)
-        self._c_grid = np.linspace(half_cell_curves['capacity'].min(), half_cell_curves['capacity'].max(), self._grid_n)
+        def order_and_clean_curves(df) -> pd.DataFrame:
+            """
+            Function to order and clean the curves ready for interpolation
+            """
+            electrode = df['electrode'].iloc[0]
+            direction = df['direction'].iloc[0]
+
+            if (electrode == 'cathode' and direction == 'charge') or (electrode == 'anode' and direction == 'discharge'):
+                df = df.groupby(['active_material']).apply(lambda df: df.sort_values('capacity', ascending=True)).reset_index(drop=True)
+            elif (electrode == 'cathode' and direction == 'discharge') or (electrode == 'anode' and direction == 'charge'):
+                df = df.groupby(['active_material']).apply(lambda df: df.sort_values('capacity', ascending=False)).reset_index(drop=True)
+            else:
+                raise ValueError("Invalid direction or electrode in voltage interpolation")
+            
+            df = df.loc[df['voltage'] >= df['voltage'].cummax()].reset_index()
+            return df
+        
+        def linear_interpolate_on_voltage(df) -> pd.DataFrame:
+            """
+            Function to linearly interpolate the curves on voltage
+            """ 
+            v_min = df['voltage'].min()
+            v_max = df['voltage'].max()
+            voltage_grid = np.linspace(v_min, v_max, self._grid_n)
+            new_data = []
+            for am in df['active_material'].unique():
+                am_data = df.query(f"active_material == @am")
+                x = am_data['voltage']
+                y = am_data['capacity']
+                first_cap = y.iloc[0]
+                last_cap = y.iloc[-1]
+
+                interp_func = interp1d(x, y, kind='linear', fill_value=(first_cap, last_cap), bounds_error=False)
+                new_data.append(pd.DataFrame({'voltage': voltage_grid, 'capacity': interp_func(voltage_grid), 'active_material': am}))
+
+            new_data = (pd
+                        .concat(new_data)
+                        .query('capacity != inf')
+                        .query('capacity != -inf')
+                        .sort_values(by=['active_material', 'capacity'])
+                        )
+
+            return new_data
         
         half_cell_curves = (half_cell_curves
                             .groupby(['electrode', 'direction', 'active_material'], group_keys=True)
-                            .apply(lambda df: df.pipe(self._linear_interpolate_on_voltage))
-                            .reset_index()
-                            .drop(columns=['level_3'])
-                            .groupby(['electrode', 'direction', 'voltage'], group_keys=False)
+                            .apply(lambda df: df.pipe(order_and_clean_curves))
+                            .reset_index(drop=True)
+                            .groupby(['electrode', 'direction'], group_keys=True)
+                            .apply(lambda df: df.pipe(linear_interpolate_on_voltage))
+                            .reset_index(drop=False)
+                            .groupby(['electrode', 'direction', 'voltage'], group_keys=True)
+                            .agg({'capacity': 'sum'})
+                            .reset_index(drop=False)
+                            )
+
+        # flip the curves and shift
+        half_cell_curves = (half_cell_curves
+                            .groupby(['electrode'], group_keys=True)
                             .apply(lambda df: (df
-                                                .assign(capacity = lambda x: x['capacity'].sum())
-                                                .drop(columns=['active_material'])
-                                                .drop_duplicates()
-                                                ))
+                                               .assign(max_capacity = lambda x: x['capacity'].max())
+                                               .assign(capacity = lambda x: [-c + m if d == 'discharge' else c for c, d, m in zip(x['capacity'], x['direction'], x['max_capacity'])])
+                                               ))
                             .reset_index(drop=True)
-                            .sort_values(by=['electrode', 'direction', 'capacity'])
-                            .reset_index(drop=True)
+                            .drop(columns=['max_capacity'])
                             )
         
-        cathode_max_capacity = half_cell_curves.query("electrode == 'cathode' and direction == 'charge'")['capacity'].max()
         reversible_cathode_capacity = half_cell_curves.query("electrode == 'cathode' and direction == 'discharge'")['capacity'].max()
         cathode_areal_capacity = reversible_cathode_capacity / self.stack._active_geometric_area
-        anode_max_capacity = half_cell_curves.query("electrode == 'anode' and direction == 'charge'")['capacity'].max()
-
-        half_cell_curves = (half_cell_curves
-                            .assign(capacity = lambda x: [-c + cathode_max_capacity
-                                                          if e == 'cathode' and d == 'discharge' 
-                                                          else -c + anode_max_capacity
-                                                          if e == 'anode' and d == 'discharge'
-                                                          else c
-                                                          for c, d, e in zip(x['capacity'], x['direction'], x['electrode'])])
-                            .groupby(['electrode', 'direction'], group_keys=True)
-                            .apply(lambda df: df.pipe(self._linear_interpolate_on_capacity))
-                            .reset_index()
-                            .drop(columns=['level_2'])
-                            .assign(sort_key = lambda x: [-c if d == 'discharge' else c for c, d in zip(x['capacity'], x['direction'])])
-                            .sort_values(by=['electrode', 'direction', 'sort_key'])
-                            .drop(columns=['sort_key'])
-                            )
-
         return half_cell_curves, cathode_areal_capacity
     
     def _calculate_full_cell_curves(self):
         """
         Function to calculate the full cell curves of the stack
         """
+        def linear_interpolate_on_capacity(df) -> pd.DataFrame:
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            df1 = df.query("electrode == 'cathode'")
+            df2 = df.query("electrode == 'anode'")
+            interp_func = interp1d(df2['capacity'], df2['voltage'], kind='linear', fill_value='extrapolate')
+            df1['voltage'] = df1['voltage'] - interp_func(df1['capacity'])
+            return df1.assign(electrode = 'full cell').query('voltage != inf').query('voltage != -inf')
+
         full_cell_curves = (self
                             ._half_cell_curves
                             .copy()
-                            .pivot(index=['direction', 'capacity'], columns='electrode', values='voltage')
-                            .dropna()
-                            .reset_index()
-                            .rename(columns={"anode": "anode_voltage", "cathode": "cathode_voltage"})
-                            .assign(voltage = lambda x: x['cathode_voltage'] - x['anode_voltage'])
-                            .assign(electrode = 'full cell')
-                            .filter(['direction', 'capacity', 'voltage', 'electrode'])
+                            .groupby(['direction'], group_keys=True)
+                            .apply(lambda df: (df
+                                               .sort_values(by='capacity', ascending=True)
+                                               .pipe(linear_interpolate_on_capacity)
+                                               ))
+                            .reset_index(drop=True)
                             .query('capacity <= (@self._reversible_capacity + @self._irreversible_capacity)')
                             .query('direction == "charge" or (direction == "discharge" and capacity >= @self._irreversible_capacity)')
-                            .assign(sort_key = lambda x: [-c if d == 'discharge' else c for c, d in zip(x['capacity'], x['direction'])])
-                            .sort_values(by=['electrode', 'direction', 'sort_key'])
-                            .drop(columns=['sort_key'])
+                            )
+        
+        cathode_discharge_min = self._half_cell_curves.query("electrode == 'cathode' and direction == 'discharge'")['capacity'].min()
+        anode_discharge_min = self._half_cell_curves.query("electrode == 'anode' and direction == 'discharge'")['capacity'].min()
+
+        full_cell_curves = (full_cell_curves
+                            .query('not (direction == "discharge" and capacity < @cathode_discharge_min)')
+                            .query('not (direction == "discharge" and capacity < @anode_discharge_min)')
+                            )
+        
+        full_cell_curves = (full_cell_curves
+                            .assign(sort_key_1 = lambda x: [-c if d == 'discharge' else c for c, d in zip(x['capacity'], x['direction'])])
+                            .assign(sort_key_2 = lambda x: [1 if d == 'discharge' else 0 for d in x['direction']])
+                            .sort_values(by=['electrode', 'sort_key_2', 'sort_key_1'])
+                            .drop(columns=['sort_key_2', 'sort_key_1'])
                             )
 
         return full_cell_curves
-    
-    def _linear_interpolate_on_voltage(self, df) -> pd.DataFrame:
-
-            direction = df['direction'].iloc[0]
-            electrode = df['electrode'].iloc[0]
-
-            if direction == "discharge" and electrode == "cathode":
-                df = df.sort_values(by='capacity', ascending=False)
-            elif direction == "charge" and electrode == "anode":
-                df = df.sort_values(by='capacity', ascending=False)
-
-            x_max = df['voltage'].max()
-            x_min = df['voltage'].min()
-            x = df['voltage']
-            y = df['capacity']
-            y_new = np.interp(self._v_grid, x, y)
-
-            return (pd
-                    .DataFrame({'capacity': y_new, 'voltage': self._v_grid})
-                    .query("voltage >= @x_min and voltage <= @x_max")
-                    )
-    
-    def _linear_interpolate_on_capacity(self, df) -> pd.DataFrame:
-            
-            df = df.sort_values(by='capacity', ascending=True)
-            x_max = df['capacity'].max()
-            x_min = df['capacity'].min()
-            x = df['capacity']
-            y = df['voltage']
-            y_new = np.interp(self._c_grid, x, y)
-
-            return (pd
-                    .DataFrame({'voltage': y_new, 'capacity': self._c_grid})
-                    .query("capacity >= @x_min and capacity <= @x_max")
-                    )
     
     @property
     def cathode_areal_capacity(self):
@@ -537,16 +573,7 @@ class _StackedCell(_Cell):
             raise ValueError("Stack must be an instance of Stack")
         return value
     
-    def get_mass_breakdown_plot(self, plot_mode: str = 'pie', **kwargs):
-
-        if plot_mode.lower() == 'pie':
-            figure = self._get_mass_breakdown_plot_pie(**kwargs)
-        else:
-            raise ValueError("Plot mode not recognized. Please choose between 'pie'")
-
-        return figure
-    
-    def _get_mass_breakdown_plot_pie(self, **kwargs):
+    def _get_mass_breakdown_data_for_plotting(self, **kwargs):
 
         cathode_flattened = {}
         for key, value in self.stack.cathode_mass_breakdown.items():
@@ -567,8 +594,6 @@ class _StackedCell(_Cell):
         data_cell = (pd
                      .DataFrame(self.mass_breakdown.items(), columns=['component', 'mass'])
                      .assign(component = lambda x: x['component'].apply(lambda y: y.name))
-                     .query(f'component != "{self.stack.name}"')
-                     .assign(component = lambda x: ['Other' if c not in [self.stack.name, self.electrolyte.name, self.stack.anode.name, self.stack.cathode.name] else c for c in x['component']])
                      .assign(level = 'Cell')
                      )
 
@@ -589,31 +614,10 @@ class _StackedCell(_Cell):
                       )
 
         data = pd.concat([data_cell, data_stack, data_cathode, data_anode])
-
-        #color_dictionary
-        color_map = {self.name: '#2E86AB', 
-                     'Other': '#F6C85F', 
-                     self.stack.anode.name: '#9B59B6', 
-                     self.stack.cathode.name: '#E74C3C', 
-                     self.stack.separator.name: '#27AE60',
-                     self.electrolyte.name: '#F39C12'}
-
-        figure = px.pie(data, values='mass', names='component', title='Mass Breakdown', facet_col='level', color='component', color_discrete_map=color_map, **kwargs)
-        figure.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#000000', width=2)))
-        figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
         
-        return figure
+        return data
 
-    def get_cost_breakdown_plot(self, plot_mode: str = 'pie', **kwargs):
-
-        if plot_mode.lower() == 'pie':
-            figure = self._get_cost_breakdown_plot_pie(**kwargs)
-        else:
-            raise ValueError("Plot mode not recognized. Please choose between 'pie'")
-
-        return figure
-
-    def _get_cost_breakdown_plot_pie(self, **kwargs):
+    def _get_cost_breakdown_data_for_plotting(self, **kwargs):
 
         cathode_flattened = {}
         for key, value in self.stack.cathode_cost_breakdown.items():
@@ -634,8 +638,6 @@ class _StackedCell(_Cell):
         data_cell = (pd
                      .DataFrame(self.cost_breakdown.items(), columns=['component', 'cost'])
                      .assign(component = lambda x: x['component'].apply(lambda y: y.name))
-                     .query(f'component != "{self.stack.name}"')
-                     .assign(component = lambda x: ['Other' if c not in [self.stack.name, self.electrolyte.name, self.stack.anode.name, self.stack.cathode.name] else c for c in x['component']])
                      .assign(level = 'Cell')
                      )
 
@@ -657,19 +659,7 @@ class _StackedCell(_Cell):
 
         data = pd.concat([data_cell, data_stack, data_cathode, data_anode])
 
-        #color_dictionary
-        color_map = {self.name: '#2E86AB', 
-                     'Other': '#F6C85F', 
-                     self.stack.anode.name: '#9B59B6', 
-                     self.stack.cathode.name: '#E74C3C', 
-                     self.stack.separator.name: '#27AE60',
-                     self.electrolyte.name: '#F39C12'}
-
-        figure = px.pie(data, values='cost', names='component', title='Cost Breakdown', facet_col='level', color='component', color_discrete_map=color_map, **kwargs)
-        figure.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#000000', width=2)))
-        figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
-
-        return figure
+        return data
 
 
 class StackedPouchCell(_PouchCell, _StackedCell):
@@ -679,13 +669,11 @@ class StackedPouchCell(_PouchCell, _StackedCell):
                  pouch: Pouch,
                  electrolyte: Electrolyte,
                  electrolyte_overfill: float,
-                 voltage_upper_cut_off: float,
-                 voltage_lower_cut_off: float,
                  positive_terminal: Terminal,
                  negative_terminal: Terminal,
                  reversible_capacity: float,
                  irreversible_capacity: float,
-                 grid_n: int = 500,
+                 grid_n: int = 1000,
                  name: str = 'Stacked Pouch Cell'):
         """
         A class that represents a stacked pouch cell.
@@ -694,8 +682,6 @@ class StackedPouchCell(_PouchCell, _StackedCell):
         :param pouch: Pouch used in the cell
         :param electrolyte: Electrolyte used in the cell
         :param electrolyte_overfill: Overfill of the electrolyte in the cell (%)
-        :param voltage_upper_cut_off: Upper cut-off voltage of the cell
-        :param voltage_lower_cut_off: Lower cut-off voltage of the cell
         :param positive_terminal: Positive terminal of the cell
         :param negative_terminal: Negative terminal of the cell
         :param reversible_capacity: Reversible capacity of the cell in mAh
@@ -707,8 +693,6 @@ class StackedPouchCell(_PouchCell, _StackedCell):
                            pouch=pouch,
                            electrolyte=electrolyte,
                            electrolyte_overfill=electrolyte_overfill,
-                           voltage_upper_cut_off=voltage_upper_cut_off,
-                           voltage_lower_cut_off=voltage_lower_cut_off,
                            positive_terminal=positive_terminal,
                            negative_terminal=negative_terminal,
                            reversible_capacity=reversible_capacity,
@@ -720,8 +704,6 @@ class StackedPouchCell(_PouchCell, _StackedCell):
                              stack=stack,
                              electrolyte=electrolyte,
                              electrolyte_overfill=electrolyte_overfill,
-                             voltage_upper_cut_off=voltage_upper_cut_off,
-                             voltage_lower_cut_off=voltage_lower_cut_off,
                              reversible_capacity=reversible_capacity,
                              irreversible_capacity=irreversible_capacity,
                              grid_n=grid_n,
@@ -760,6 +742,40 @@ class StackedPouchCell(_PouchCell, _StackedCell):
         self._specific_energy = self._energy / self._mass
         self._energy_density = self._energy / self._volume
         self._normalized_cost = self._cost / self._energy
+
+    def _get_mass_breakdown_plot_pie(self, **kwargs):
+
+        data = (self
+                ._get_mass_breakdown_data_for_plotting()
+                .assign(component = lambda x: ['Encapsulation' 
+                                               if c == self.pouch.name or c == self.positive_terminal.name or c == self.negative_terminal.name
+                                               else c 
+                                               for c in x['component']])
+                .query(f'not (component == "{self.stack.name}" and level == "Cell")')
+                )
+        
+        figure = px.pie(data, values='mass', names='component', title='Mass Breakdown', facet_col='level', color='component', color_discrete_map=self._color_map, **kwargs)
+        figure.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#000000', width=2)))
+        figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
+
+        return figure
+    
+    def _get_cost_breakdown_plot_pie(self, **kwargs):
+
+        data = (self
+                ._get_cost_breakdown_data_for_plotting()
+                .assign(component = lambda x: ['Encapsulation' 
+                                               if c == self.pouch.name or c == self.positive_terminal.name or c == self.negative_terminal.name
+                                               else c 
+                                               for c in x['component']])
+                .query(f'not (component == "{self.stack.name}" and level == "Cell")')
+                )
+
+        figure = px.pie(data, values='cost', names='component', title='Cost Breakdown', facet_col='level', color='component', color_discrete_map=self._color_map, **kwargs)
+        figure.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#000000', width=2)))
+        figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
+
+        return figure
     
 
 class StackedPrismaticCell(_PrismaticCell, _StackedCell):
@@ -769,8 +785,6 @@ class StackedPrismaticCell(_PrismaticCell, _StackedCell):
                  prismatic_case: PrismaticCase,
                  electrolyte: Electrolyte,
                  electrolyte_overfill: float,
-                 voltage_upper_cut_off: float,
-                 voltage_lower_cut_off: float,
                  reversible_capacity: float,
                  irreversible_capacity: float,
                  grid_n: int = 500,
@@ -782,8 +796,6 @@ class StackedPrismaticCell(_PrismaticCell, _StackedCell):
         :param prismatic_case: Prismatic case used in the cell
         :param electrolyte: Electrolyte used in the cell
         :param electrolyte_overfill: Overfill of the electrolyte in the cell (%)
-        :param voltage_upper_cut_off: Upper cut-off voltage of the cell
-        :param voltage_lower_cut_off: Lower cut-off voltage of the cell
         :param positive_terminal: Positive terminal of the cell
         :param negative_terminal: Negative terminal of the cell
         :param reversible_capacity: Reversible capacity of the cell in mAh
@@ -804,8 +816,6 @@ class StackedPrismaticCell(_PrismaticCell, _StackedCell):
                                prismatic_case=prismatic_case,
                                electrolyte=electrolyte,
                                electrolyte_overfill=electrolyte_overfill,
-                               voltage_upper_cut_off=voltage_upper_cut_off,
-                               voltage_lower_cut_off=voltage_lower_cut_off,
                                reversible_capacity=reversible_capacity,
                                irreversible_capacity=irreversible_capacity,
                                grid_n=grid_n,
@@ -815,8 +825,6 @@ class StackedPrismaticCell(_PrismaticCell, _StackedCell):
                              stack=stack,
                              electrolyte=electrolyte,
                              electrolyte_overfill=electrolyte_overfill,
-                             voltage_upper_cut_off=voltage_upper_cut_off,
-                             voltage_lower_cut_off=voltage_lower_cut_off,
                              reversible_capacity=reversible_capacity,
                              irreversible_capacity=irreversible_capacity,
                              grid_n=grid_n,
@@ -839,3 +847,37 @@ class StackedPrismaticCell(_PrismaticCell, _StackedCell):
         self._specific_energy = self._energy / self._mass
         self._energy_density = self._energy / self._volume
         self._normalized_cost = self._cost / self._energy
+
+    def _get_mass_breakdown_plot_pie(self, **kwargs):
+
+        data = (self
+                ._get_mass_breakdown_data_for_plotting()
+                .assign(component = lambda x: ['Encapsulation' 
+                                               if c == self.prismatic_case.name
+                                               else c 
+                                               for c in x['component']])
+                .query(f'not (component == "{self.stack.name}" and level == "Cell")')
+                )
+
+        figure = px.pie(data, values='mass', names='component', title='Mass Breakdown', facet_col='level', color='component', color_discrete_map=self._color_map, **kwargs)
+        figure.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#000000', width=2)))
+        figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
+
+        return figure
+    
+    def _get_cost_breakdown_plot_pie(self, **kwargs):
+
+        data = (self
+                ._get_cost_breakdown_data_for_plotting()
+                .assign(component = lambda x: ['Encapsulation' 
+                                               if c == self.prismatic_case.name
+                                               else c 
+                                               for c in x['component']])
+                .query(f'not (component == "{self.stack.name}" and level == "Cell")')
+                )
+
+        figure = px.pie(data, values='cost', names='component', title='Cost Breakdown', facet_col='level', color='component', color_discrete_map=self._color_map, **kwargs)
+        figure.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#000000', width=2)))
+        figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
+
+        return figure

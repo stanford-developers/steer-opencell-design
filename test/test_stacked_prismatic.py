@@ -42,7 +42,6 @@ class TestCellsSingleAM(unittest.TestCase):
         cathode = Cathode(formulation=cathode_formulation,
                           mass_loading=10.68,
                           current_collector=cathode_current_collector,
-                          swell_factor=1.0,
                           calender_density=2.60)
 
         # construct anode
@@ -69,7 +68,6 @@ class TestCellsSingleAM(unittest.TestCase):
         anode = Anode(formulation=anode_formulation,
                       mass_loading=5.25,
                       current_collector=anode_current_collector,
-                      swell_factor=1.0,
                       calender_density=0.85)
 
         # construct separator
@@ -87,10 +85,7 @@ class TestCellsSingleAM(unittest.TestCase):
                       n_stacks=60)
 
         # make electrolyte
-        electrolyte = Electrolyte(name="LiPF6", 
-                                  formula="LiPF6", 
-                                  specific_cost=8.94, 
-                                  density=1.2)
+        electrolyte = Electrolyte(specific_cost=8.94, density=1.2)
         
         # make the case
         prismatic_shell = PrismaticShell(cost=0.14,
@@ -111,16 +106,12 @@ class TestCellsSingleAM(unittest.TestCase):
                                          stack=stack,
                                          electrolyte=electrolyte,
                                          electrolyte_overfill=10,
-                                         voltage_upper_cut_off=4.2,
-                                         voltage_lower_cut_off=1.0,
                                          reversible_capacity=35.000,
                                          irreversible_capacity=1.215,
-                                         grid_n=200)
+                                         grid_n=1000)
     
     def test_cell(self):
 
-        self.assertEqual(self.cell.voltage_upper_cut_off, 4.2)
-        self.assertEqual(self.cell.voltage_lower_cut_off, 1.0)
         self.assertEqual(self.cell.electrolyte_overfill, 10)
         self.assertEqual(round(self.cell._electrolyte_overfill, 4), 0.1)
         self.assertEqual(self.cell.cost, 8.58)
@@ -138,17 +129,17 @@ class TestCellsSingleAM(unittest.TestCase):
         
         self.assertEqual(self.cell.cathode_areal_capacity, 1.40)
 
-        self.assertEqual(self.cell.energy, 82.49)
-        self.assertEqual(self.cell.energy_density, 162.28)
-        self.assertEqual(self.cell.specific_energy, 98.91)
-        self.assertEqual(self.cell.normalized_cost, 104.06)
-
         figure = self.cell.get_capacity_voltage_plot()
         # figure.show()
         figure = self.cell.get_cost_breakdown_plot()
         # figure.show()
-        figure = self.cell.get_cost_breakdown_plot()
+        figure = self.cell.get_mass_breakdown_plot()
         # figure.show()
+
+        self.assertEqual(self.cell.energy, 81.39)
+        self.assertEqual(self.cell.energy_density, 160.12)
+        self.assertEqual(self.cell.specific_energy, 97.59)
+        self.assertEqual(self.cell.normalized_cost, 105.47)
 
     def test_prismatic_case(self):
         self.assertEqual(self.cell.prismatic_case.cost, 0.48)
