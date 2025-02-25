@@ -7,6 +7,7 @@ mA_TO_A = 1e-3
 G_TO_KG = 1e-3
 
 class DataManager:
+    
     def __init__(self, db_path: str):
         self._db_path = db_path
         self._connection = sql.connect(db_path)

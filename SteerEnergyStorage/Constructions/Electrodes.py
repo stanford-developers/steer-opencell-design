@@ -15,7 +15,6 @@ class _Electrode:
                  mass_loading: float,
                  current_collector: CurrentCollector,
                  calender_density: float,
-                 swell_factor: float,
                  name: str = 'Electrode'):
         """
         Initialize an object that represents an electrode
@@ -25,7 +24,6 @@ class _Electrode:
         :param length: float: length of the electrode in mm
         :param width: float: width of the electrode in mm
         :param calender_density: float: density of the electrode after calendering in g/cm^3
-        :param swell_factor: float: factor by which the electrode swells
         :param name: str: name of the electrode
         """
         self._name = name
@@ -33,7 +31,6 @@ class _Electrode:
         self._current_collector = current_collector
         self._mass_loading = mass_loading * (MG_TO_KG / CM_TO_M**2)
         self._calender_density = calender_density * (G_TO_KG / CM_TO_M**3)
-        self._swell_factor = swell_factor
         self._single_sided_area = self._current_collector._coated_area
         self._porosity = self._calculate_porosity()
         self._coating_mass = self._single_sided_area * self._mass_loading * 2
@@ -42,7 +39,7 @@ class _Electrode:
         # calculate the thickness of the electrode
         self._material_thickness = self._mass_loading / self._calender_density
         self._double_sided_thickness = self._material_thickness * 2 + self._current_collector._thickness
-        self._pore_volume = self._single_sided_area * self._material_thickness * self._swell_factor * 2 * self._porosity
+        self._pore_volume = self._single_sided_area * self._material_thickness * 2 * self._porosity
 
         # get the mass of each component in the electrode
         self._active_masses = {am: (mf * self._coating_mass) for am, mf in self._formulation._active_materials.items()}
@@ -104,10 +101,6 @@ class _Electrode:
         return round(self._single_sided_area, 2)
 
     @property
-    def swell_factor(self):
-        return self._swell_factor
-
-    @property
     def name(self):
         return self._name
 
@@ -143,12 +136,12 @@ class _Electrode:
 
 
 class Anode(_Electrode):
+    
     def __init__(self, 
                  formulation: ElectrodeFormulation,
                  mass_loading: float,
                  current_collector: CurrentCollector,
                  calender_density: float,
-                 swell_factor: float = 1.0,
                  name: str = 'Anode'):
         """
         Initialize an object that represents an anode
@@ -158,14 +151,12 @@ class Anode(_Electrode):
         :param length: float: length of the anode in mm
         :param width: float: width of the anode in mm
         :param calender_density: float: density of the anode after calendering in g/cm^3
-        :param swell_factor: float: factor by which the anode swells
         :param overhang: float: overhang of the anode in %
         """
         super().__init__(formulation=formulation,
                          mass_loading=mass_loading,
                          current_collector=current_collector,
                          calender_density=calender_density,
-                         swell_factor=swell_factor,
                          name=name)
         
     @property
@@ -182,7 +173,6 @@ class Cathode(_Electrode):
                  mass_loading: float,
                  current_collector: CurrentCollector,
                  calender_density: float,
-                 swell_factor: float = 1.0,
                  name: str = 'Cathode'):
         """
         Initialize an object that represents a cathode
@@ -192,12 +182,10 @@ class Cathode(_Electrode):
         :param length: float: length of the cathode in mm
         :param width: float: width of the cathode in mm
         :param calender_density: float: density of the cathode after calendering in g/cm^3
-        :param swell_factor: float: factor by which the cathode swells
         """
         super().__init__(formulation=formulation,
                          mass_loading=mass_loading,
                          current_collector=current_collector,
                          calender_density=calender_density,
-                         swell_factor=swell_factor,
                          name=name)
         
