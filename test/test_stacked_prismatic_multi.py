@@ -19,17 +19,19 @@ class TestCellsSingleAM(unittest.TestCase):
         Set up
         """
         # construct cathode
-        cathode_active_material = CathodeMaterial(name="Faradion_Gen2_4.25V", 
-                                                 specific_cost=11.26, 
-                                                 density=4, 
-                                                 irreversible_capacity_scaling=1, 
-                                                 reversible_capacity_scaling=1)
+        cathode_active_material_1 = CathodeMaterial(name="Faradion_Gen2_4.25V", 
+                                                   specific_cost=11.26, 
+                                                   density=4)
+        
+        cathode_active_material_2 = CathodeMaterial(name="Faradion_Gen2_4.1V",
+                                                    specific_cost=9.1,
+                                                    density=4)
         
         cathode_conductive_additive = ConductiveAdditive(specific_cost=9, density=1.9)
 
         cathode_binder = Binder(name="PVDF", specific_cost=15, density=1.7)
 
-        cathode_formulation = ElectrodeFormulation(active_materials={cathode_active_material: 89},
+        cathode_formulation = ElectrodeFormulation(active_materials={cathode_active_material_1: 69, cathode_active_material_2: 20},
                                                    binder={cathode_binder: 5},
                                                    conductive_additive={cathode_conductive_additive: 6})
 
@@ -45,17 +47,19 @@ class TestCellsSingleAM(unittest.TestCase):
                           calender_density=2.60)
 
         # construct anode
-        anode_active_material = AnodeMaterial(name="Faradion_HC",
-                                               specific_cost=14.27,
-                                               density=1.50,
-                                               irreversible_capacity_scaling=1,
-                                               reversible_capacity_scaling=1)
+        anode_active_material_1 = AnodeMaterial(name="Faradion_HC",
+                                                specific_cost=14.27,
+                                                density=1.50)
+        
+        anode_active_material_2 = AnodeMaterial(name="Faradion_HC_commercial",
+                                                specific_cost=9.1,
+                                                density=1.50)
         
         anode_conductive_additive = ConductiveAdditive(specific_cost=9, density=1.9)
 
         anode_binder = Binder(name="PVDF", specific_cost=10, density=1.7)
 
-        anode_formulation = ElectrodeFormulation(active_materials={anode_active_material: 88},
+        anode_formulation = ElectrodeFormulation(active_materials={anode_active_material_1: 68, anode_active_material_2: 20},
                                                  binder={anode_binder: 3},
                                                  conductive_additive={anode_conductive_additive: 9})
         
@@ -114,8 +118,8 @@ class TestCellsSingleAM(unittest.TestCase):
 
         self.assertEqual(self.cell.electrolyte_overfill, 10)
         self.assertEqual(round(self.cell._electrolyte_overfill, 4), 0.1)
-        self.assertEqual(self.cell.cost, 8.58)
-        self.assertEqual(round(self.cell._cost, 2), 8.58)
+        self.assertEqual(self.cell.cost, 8.37)
+        self.assertEqual(round(self.cell._cost, 2), 8.37)
         self.assertEqual(self.cell.mass, 834.0)
         self.assertEqual(round(self.cell._mass, 3), 0.834)
         self.assertEqual(self.cell.height, 2.09)
@@ -127,19 +131,19 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertTrue('Capacity (Ah)' in self.cell.half_cell_curves.columns)
         self.assertTrue('Voltage (V)' in self.cell.half_cell_curves.columns)
         
-        self.assertEqual(self.cell.cathode_areal_capacity, 1.40)
+        self.assertEqual(self.cell.cathode_areal_capacity, 1.35)
 
         figure = self.cell.get_capacity_voltage_plot()
         # figure.show()
         figure = self.cell.get_cost_breakdown_plot()
-        # figure.show()
+        figure.show()
         figure = self.cell.get_mass_breakdown_plot()
         # figure.show()
 
-        self.assertEqual(self.cell.energy, 81.39)
-        self.assertEqual(self.cell.energy_density, 160.12)
-        self.assertEqual(self.cell.specific_energy, 97.59)
-        self.assertEqual(self.cell.normalized_cost, 105.47)
+        self.assertEqual(self.cell.energy, 76.81)
+        self.assertEqual(self.cell.energy_density, 151.1)
+        self.assertEqual(self.cell.specific_energy, 92.09)
+        self.assertEqual(self.cell.normalized_cost, 109.03)
 
     def test_prismatic_case(self):
         self.assertEqual(self.cell.prismatic_case.cost, 0.48)

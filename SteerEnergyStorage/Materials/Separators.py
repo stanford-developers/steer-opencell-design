@@ -16,7 +16,7 @@ class Separator:
                  porosity: float,
                  slit_width: float,
                  fold_length: float,
-                 name: str = None
+                 name: str = 'Seperator'
                  ):
         """
         Initialize an object that represents a separator

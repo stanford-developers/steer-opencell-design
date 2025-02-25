@@ -38,7 +38,6 @@ class TestCellsSingleAM(unittest.TestCase):
         cathode1 = Cathode(formulation=cathode_formulation1,
                           mass_loading=10.68,
                           current_collector=cathode_current_collector1,
-                          swell_factor=1.0,
                           calender_density=2.60)
 
         # construct anode
@@ -65,7 +64,6 @@ class TestCellsSingleAM(unittest.TestCase):
         anode1 = Anode(formulation=anode_formulation1,
                       mass_loading=5.25,
                       current_collector=anode_current_collector1,
-                      swell_factor=1.0,
                       calender_density=0.85)
 
         # construct separator
@@ -108,7 +106,6 @@ class TestCellsSingleAM(unittest.TestCase):
         cathode2 = Cathode(formulation=cathode_formulation2,
                           mass_loading=10.68,
                           current_collector=cathode_current_collector2,
-                          swell_factor=1.0,
                           calender_density=2.60)
 
         # construct anode
@@ -135,7 +132,6 @@ class TestCellsSingleAM(unittest.TestCase):
         anode2 = Anode(formulation=anode_formulation2,
                       mass_loading=5.25,
                       current_collector=anode_current_collector2,
-                      swell_factor=1.0,
                       calender_density=0.85)
 
         # construct separator
