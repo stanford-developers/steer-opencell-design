@@ -146,7 +146,7 @@ class Anode(_Electrode):
         """
         Initialize an object that represents an anode
         :param formulation: ElectrodeFormulation: formulation of the anode
-        :param mass_loading: float: mass loading of the anode in mg/cm^3
+        :param mass_loading: float: mass loading of the anode in mg/cm^2
         :param current_collector: CurrentCollector: current collector used in the anode
         :param length: float: length of the anode in mm
         :param width: float: width of the anode in mm
@@ -177,7 +177,7 @@ class Cathode(_Electrode):
         """
         Initialize an object that represents a cathode
         :param formulation: ElectrodeFormulation: formulation of the cathode
-        :param mass_loading: float: mass loading of the cathode in mg/cm^3
+        :param mass_loading: float: mass loading of the cathode in mg/cm^2
         :param current_collector: CurrentCollector: current collector used in the cathode
         :param length: float: length of the cathode in mm
         :param width: float: width of the cathode in mm

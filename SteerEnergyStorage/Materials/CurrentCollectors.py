@@ -22,7 +22,7 @@ class CurrentCollector:
         
         :param name: str: name of the material
         :param formula: str: chemical formula of the material
-        :param specific_cost: float: specific cost of the material $/kg
+        :param specific_cost: float: specific cost of the material $/kg. By default it will pull this from the database
         :param length: float: length of the current collector in cm
         :param width: float: width of the current collector in cm
         :param bare_tab_area: float: area of the current collector that is not coated with the electrode material in cm^2
