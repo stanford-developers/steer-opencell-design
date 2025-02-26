@@ -299,6 +299,7 @@ class _PrismaticCell(_Cell):
 
 
 class _PouchCell(_Cell):
+    
     def __init__(self,
                  pouch: Pouch,
                  electrolyte: Electrolyte,
