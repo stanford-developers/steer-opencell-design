@@ -12,6 +12,7 @@ class ElectrodeFormulation():
                  ):
         """
         Initialize an object that represents an electrode formulation
+        
         :param active_materials: dict[ActiveMaterial, float]: dictionary containing the active materials and their mass fractions in percent
         :param binder: Binder: binder used in the formulation
         :param conductive_additive: ConductiveAdditive: conductive additive used in the formulation
