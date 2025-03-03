@@ -3,8 +3,9 @@ from SteerEnergyStorage.Materials.Electrolytes import Electrolyte
 from SteerEnergyStorage.Materials.other import Terminal
 from SteerEnergyStorage.Constructions.Containers import Pouch, PrismaticCase
 from scipy.interpolate import interp1d
-import warnings
 
+import warnings
+import copy
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -82,10 +83,10 @@ class _Cell:
 
         return figure
 
-    def _validate_electrolyte(self, value: Electrolyte) -> Electrolyte:
-        if not isinstance(value, Electrolyte):
+    def _validate_electrolyte(self, electrolyte: Electrolyte) -> Electrolyte:
+        if not isinstance(electrolyte, Electrolyte):
             raise ValueError("Electrolyte must be an instance of Electrolyte")
-        return value
+        return copy.deepcopy(electrolyte)
 
     def _validate_percentage(self, value: float) -> float:
         if not (0 <= value <= 100):
