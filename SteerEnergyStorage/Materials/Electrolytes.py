@@ -14,6 +14,7 @@ class Electrolyte:
                  name: str = 'Electrolyte'):   
         """
         Initialize an object that represents an electrolyte
+        
         :param name: str: name of the material
         :param specific_cost: float: specific cost of the material $/kg
         :param density: float: density of the material in g/cm^3

@@ -107,6 +107,7 @@ class PrismaticShell:
                  name: str = 'Prismatic Shell'):
         """
         Class representing a shell used for a prismatic cell.
+
         :param cost: float: cost of the shell in $
         :param mass: float: mass of the shell in g
         :param internal_width: float: internal width of the shell in cm
@@ -193,6 +194,7 @@ class PrismaticLid:
                  ):
         """
         Class representing a lid used for a prismatic cell.
+
         :param cost: float: cost of the lid in $
         :param mass: float: mass of the lid in g
         :param height: float: height of the lid in cm
@@ -240,6 +242,7 @@ class PrismaticCase:
                  ):
         """
         Class representing a casing used for a prismatic cell.
+
         :param shell: PrismaticShell: shell of the case
         :param lid: PrismaticLid: lid of the case
         :param name: str: name of the case
@@ -268,6 +271,7 @@ class PrismaticCase:
                             **kwargs) -> Stack:
         """
         Function to get the optimized stack for the prismatic case.
+        
         :param anode: Anode: anode used in the cell
         :param cathode: Cathode: cathode used in the cell
         :param separator: Separator: separator used in the cell
