@@ -16,6 +16,9 @@ class DataManager:
     def create_table(self, table_name: str, columns: dict):
         """
         Function to create a table in the database.
+
+        :param table_name: Name of the table.
+        :param columns: Dictionary of columns and their types.
         """
         columns_str = ', '.join([f'{k} {v}' for k, v in columns.items()])
         self._cursor.execute(f'CREATE TABLE IF NOT EXISTS {table_name} ({columns_str})')
@@ -24,6 +27,8 @@ class DataManager:
     def drop_table(self, table_name: str):
         """
         Function to drop a table from the database.
+
+        :param table_name: Name of the table.
         """
         self._cursor.execute(f'DROP TABLE IF EXISTS {table_name}')
         self._connection.commit()
@@ -31,6 +36,8 @@ class DataManager:
     def get_table_names(self):
         """
         Function to get the names of all tables in the database.
+
+        :return: List of table names.
         """
         self._cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
         return [row[0] for row in self._cursor.fetchall()]
@@ -38,6 +45,9 @@ class DataManager:
     def insert_data(self, table_name: str, data: pd.DataFrame):
         """
         Inserts data into the database only if it doesn’t already exist.
+
+        :param table_name: Name of the table.
+        :param data: DataFrame containing the data to insert.
         """
         for _, row in data.iterrows():
             conditions = ' AND '.join([f"{col} = ?" for col in data.columns])
@@ -104,6 +114,9 @@ class DataManager:
     def read_half_cell_curve(half_cell_path) -> pd.DataFrame:
         """
         Function to read in a half cell curve for this active material
+
+        :param half_cell_path: Path to the half cell data file.
+        :return: DataFrame with the specific capacity and voltage.
         """
         try:
             data = pd.read_csv(half_cell_path)
@@ -133,6 +146,9 @@ class DataManager:
     def remove_data(self, table_name: str, condition: str):
         """
         Function to remove data from the database.
+
+        :param table_name: Name of the table.
+        :param condition: Condition to remove rows.
         """
         self._cursor.execute(f"DELETE FROM {table_name} WHERE {condition}")
         self._connection.commit()
