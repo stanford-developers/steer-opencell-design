@@ -50,10 +50,6 @@ class CurrentCollector:
     def set_properties_from_database(self):
         """
         Retrieve the properties of the current collector from the database.
-        
-        :param name: str: name of the material
-        :param specific_cost: float: specific cost of the material $/kg
-        :param density: float: density of the material in g/cm^3
         """
         data_path = os.path.join(os.path.dirname(__file__), '../../Data/materials_properties.db')
         materials_database = DataManager(data_path)
