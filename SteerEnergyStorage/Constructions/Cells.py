@@ -138,7 +138,7 @@ class _Cell:
             raise AttributeError("Anode cost breakdown has not been calculated yet")
         
         cost_breakdown = {
-            key.replace('_', ' ').title(): {obj: round(value, 3) for obj, value in inner.items()}
+            key.replace('_', ' ').title(): {obj: round(value * KG_TO_G, 3) for obj, value in inner.items()}
             for key, inner in self._anode_cost_breakdown.items()
         }
 
@@ -151,7 +151,7 @@ class _Cell:
             raise AttributeError("Cathode cost breakdown has not been calculated yet")
         
         cost_breakdown = {
-            key.replace('_', ' ').title(): {obj: round(value, 3) for obj, value in inner.items()}
+            key.replace('_', ' ').title(): {obj: round(value * KG_TO_G, 3) for obj, value in inner.items()}
             for key, inner in self._cathode_cost_breakdown.items()
         }
 
@@ -188,7 +188,7 @@ class _Cell:
             raise AttributeError("Anode mass breakdown has not been calculated yet")
         
         mass_breakdown = {
-            key.replace('_', ' ').title(): {obj: round(value, 3) for obj, value in inner.items()}
+            key.replace('_', ' ').title(): {obj: round(value * KG_TO_G, 3) for obj, value in inner.items()}
             for key, inner in self._anode_mass_breakdown.items()
         }
 
@@ -201,7 +201,7 @@ class _Cell:
             raise AttributeError("Cathode mass breakdown has not been calculated yet")
         
         mass_breakdown = {
-            key.replace('_', ' ').title(): {obj: round(value, 3) for obj, value in inner.items()}
+            key.replace('_', ' ').title(): {obj: round(value * KG_TO_G, 3) for obj, value in inner.items()}
             for key, inner in self._cathode_mass_breakdown.items()
         }
 
@@ -592,60 +592,26 @@ class _StackedCell(_Cell):
     
     def _get_mass_breakdown_plot_pie(self, **kwargs):
 
-        cathode_flattened = {}
-        for key, value in self.stack.cathode_mass_breakdown.items():
-            if isinstance(value, dict):
-                for obj, cost in value.items():
-                    cathode_flattened[obj.name] = cost
-            else:
-                cathode_flattened[key] = value
+        mass_breakdown = self.mass_breakdown
+        stack_mass_breakdown = self.stacks_mass_breakdown
+        mass_breakdown.pop('Stacks')
+        mass_breakdown.update(stack_mass_breakdown)
+        mass_breakdown = pd.DataFrame(mass_breakdown.items(), columns=['component', 'mass']).assign(level = 'Cell')
 
-        anode_flattened = {}
-        for key, value in self.stack.anode_mass_breakdown.items():
-            if isinstance(value, dict):
-                for obj, cost in value.items():
-                    anode_flattened[obj.name] = cost
-            else:
-                anode_flattened[key] = value
+        anode_mass_breakdown = self.anode_mass_breakdown
+        anode_mass_breakdown = {obj: value for innder_dict in anode_mass_breakdown.values() for obj, value in innder_dict.items()}
+        anode_mass_breakdown = pd.DataFrame(anode_mass_breakdown.items(), columns=['component', 'mass']).assign(level = 'Anode').assign(component = lambda x: x['component'].apply(lambda y: y.name))
 
-        data_cell = (pd
-                     .DataFrame(self.mass_breakdown.items(), columns=['component', 'mass'])
-                     .assign(component = lambda x: x['component'].apply(lambda y: y.name))
-                     .query(f'component != "{self.stack.name}"')
-                     .assign(component = lambda x: ['Other' if c not in [self.stack.name, self.electrolyte.name, self.stack.anode.name, self.stack.cathode.name] else c for c in x['component']])
-                     .assign(level = 'Cell')
-                     )
+        cathode_mass_breakdown = self.cathode_mass_breakdown
+        cathode_mass_breakdown = {obj: value for innder_dict in cathode_mass_breakdown.values() for obj, value in innder_dict.items()}
+        cathode_mass_breakdown = pd.DataFrame(cathode_mass_breakdown.items(), columns=['component', 'mass']).assign(level = 'Cathode').assign(component = lambda x: x['component'].apply(lambda y: y.name))
 
-        data_stack = (pd
-                      .DataFrame(self.stack.mass_breakdown.items(), columns=['component', 'mass'])
-                      .assign(component = lambda x: x['component'].apply(lambda y: y.name))
-                      .assign(level = 'Cell')
-                      )
+        data = pd.concat([mass_breakdown, anode_mass_breakdown, cathode_mass_breakdown])
 
-        data_cathode = (pd
-                        .DataFrame(cathode_flattened.items(), columns=['component', 'mass'])
-                        .assign(level = 'Cathode')
-                        )
-
-        data_anode = (pd
-                      .DataFrame(anode_flattened.items(), columns=['component', 'mass'])
-                      .assign(level = 'Anode')
-                      )
-
-        data = pd.concat([data_cell, data_stack, data_cathode, data_anode])
-
-        #color_dictionary
-        color_map = {self.name: '#2E86AB', 
-                     'Other': '#F6C85F', 
-                     self.stack.anode.name: '#9B59B6', 
-                     self.stack.cathode.name: '#E74C3C', 
-                     self.stack.separator.name: '#27AE60',
-                     self.electrolyte.name: '#F39C12'}
-
-        figure = px.pie(data, values='mass', names='component', title='Mass Breakdown', facet_col='level', color='component', color_discrete_map=color_map, **kwargs)
+        figure = px.pie(data, values='mass', names='component', title='Mass Breakdown', facet_col='level', color='component')
         figure.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#000000', width=2)))
         figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
-        
+
         return figure
 
     def _get_cost_breakdown_plot_pie(self, **kwargs):
