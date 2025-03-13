@@ -35,6 +35,7 @@ class Separator:
         self._porosity = porosity / 100
         self._slit_width = slit_width * CM_TO_M
         self._fold_length = fold_length * CM_TO_M
+        self._used = False
 
     @property
     def pore_volume(self):
