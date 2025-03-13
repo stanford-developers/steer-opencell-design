@@ -38,14 +38,14 @@ class Electrolyte:
     @property
     def mass(self):
         try:
-            return round(self._mass, 2)
+            return round(self._mass * KG_TO_G, 2)
         except AttributeError:
             return AttributeError("Mass not calculated yet")
 
     @property
     def volume(self):
         try:
-            return round(self._volume, 2)
+            return round(self._volume * M_TO_CM**3, 2)
         except AttributeError:
             return AttributeError("Volume not calculated yet")
         
