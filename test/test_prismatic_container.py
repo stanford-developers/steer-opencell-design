@@ -114,7 +114,7 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(round(self.prismatic_case._external_height, 4), 0.0209)
         self.assertEqual(round(self.prismatic_case._external_volume, 6), 0.000508)
 
-        self.assertEqual(self.stack.n_stacks, 71)
+        self.assertEqual(self.stack.n_layers, 71)
         self.assertEqual(self.stack.n_cathode, 71)
         self.assertEqual(self.stack.n_anode, 72)
         self.assertEqual(self.stack.n_separator, 146)
