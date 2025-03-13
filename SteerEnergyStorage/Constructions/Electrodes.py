@@ -1,6 +1,10 @@
 from SteerEnergyStorage.Formulations.ElectrodeFormulations import ElectrodeFormulation
 from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector
 
+import pandas as pd
+import numpy as np
+from typing import Dict, Any
+
 MG_TO_KG = 1e-6
 CM_TO_M = 1e-2
 KG_TO_MG = 1e6
@@ -8,8 +12,10 @@ M_TO_CM = 1e2
 G_TO_KG = 1e-3
 KG_TO_G = 1e3
 M_TO_UM = 1e6
+S_TO_H = 1/3600
 
 class _Electrode:
+
     def __init__(self, 
                  formulation: ElectrodeFormulation,
                  mass_loading: float,
@@ -17,121 +23,359 @@ class _Electrode:
                  calender_density: float,
                  name: str = 'Electrode'):
         """
-        Initialize an object that represents an electrode
-        :param formulation: ElectrodeFormulation: formulation of the electrode
-        :param mass_loading: float: mass loading of the electrode in mg/cm^2
-        :param current_collector: CurrentCollector: current collector used in the electrode
-        :param length: float: length of the electrode in mm
-        :param width: float: width of the electrode in mm
-        :param calender_density: float: density of the electrode after calendering in g/cm^3
-        :param name: str: name of the electrode
+        Initialize an object that represents an electrode.
+
+        :param formulation: Formulation of the electrode.
+        :param mass_loading: Mass loading of the electrode in mg/cm^2.
+        :param current_collector: Current collector used in the electrode.
+        :param calender_density: Density of the electrode after calendering in g/cm^3.
+        :param name: Name of the electrode.
         """
         self._name = name
         self._formulation = formulation
         self._current_collector = current_collector
         self._mass_loading = mass_loading * (MG_TO_KG / CM_TO_M**2)
         self._calender_density = calender_density * (G_TO_KG / CM_TO_M**3)
+
+        self._calculate_porosity()
+        self._calculate_mass_properties()
+        self._calculate_thickness_properties()
+        self._calculate_mass_breakdown()
+        self._calculate_cost_breakdown()
+        self._calculate_cost()
+
+    def _calculate_mass_properties(self) -> None:
+        """
+        Calculate the mass properties of the electrode.
+        """
         self._single_sided_area = self._current_collector._coated_area
-        self._porosity = self._calculate_porosity()
         self._coating_mass = self._single_sided_area * self._mass_loading * 2
         self._mass = self._coating_mass + self._current_collector._mass
 
-        # calculate the thickness of the electrode
+    def _calculate_thickness_properties(self) -> None:
+        """
+        Calculate the thickness properties of the electrode.
+        """
         self._material_thickness = self._mass_loading / self._calender_density
         self._double_sided_thickness = self._material_thickness * 2 + self._current_collector._thickness
         self._pore_volume = self._single_sided_area * self._material_thickness * 2 * self._porosity
 
-        # get the mass of each component in the electrode
-        self._active_masses = {am: (mf * self._coating_mass) for am, mf in self._formulation._active_materials.items()}
-        self._binder_masses = {bi: (mf * self._coating_mass) for bi, mf in self._formulation._binder.items()}
-        self._conductive_additive_masses = {ca: (mf * self._coating_mass) for ca, mf in self._formulation._conductive_additive.items()}
-
-        # get the cost of each component in the electrode
-        self._active_material_costs = {am: m * am._specific_cost for am, m in self._active_masses.items()}
-        self._binder_costs = {bi: m * bi._specific_cost for bi, m in self._binder_masses.items()}
-        self._conductive_additive_costs = {ca: m * ca._specific_cost for ca, m in self._conductive_additive_masses.items()}
-        
-        # calculate the total cost of the electrode
-        self._cost = (sum(self._active_material_costs.values()) + 
-                      sum(self._binder_costs.values()) + 
-                      sum(self._conductive_additive_costs.values()) + 
-                      self._current_collector._cost)
-        
-    def _calculate_porosity(self):
+    def _calculate_mass_breakdown(self) -> None:
         """
-        Function to calculate the overall porisity of the electrode formulation
+        Calculate the mass breakdown of the electrode.
+        """
+        self._mass_breakdown = self._calculate_component_breakdown(self._formulation._active_materials, 'active_materials')
+        self._mass_breakdown.update(self._calculate_component_breakdown(self._formulation._binders, 'binders'))
+        self._mass_breakdown.update(self._calculate_component_breakdown(self._formulation._conductive_additives, 'conductive_additives'))
+
+    def _calculate_cost_breakdown(self) -> None:
+        """
+        Calculate the cost breakdown of the electrode.
+        """
+        self._cost_breakdown = self._calculate_component_cost_breakdown(self._formulation._active_materials, 'active_materials')
+        self._cost_breakdown.update(self._calculate_component_cost_breakdown(self._formulation._binders, 'binders'))
+        self._cost_breakdown.update(self._calculate_component_cost_breakdown(self._formulation._conductive_additives, 'conductive_additives'))
+
+    def _calculate_component_breakdown(self, components: Dict[Any, float], component_type: str) -> Dict[str, Dict[Any, float]]:
+        """
+        Calculate the mass breakdown for a given component type.
+
+        :param components: Dictionary of components and their mass fractions.
+        :param component_type: Type of component (e.g., 'active_materials').
+        :return: Dictionary of mass breakdown for the given component type.
+        """
+        return {component_type: {component: fraction * self._coating_mass for component, fraction in components.items()}}
+
+    def _calculate_component_cost_breakdown(self, components: Dict[Any, float], component_type: str) -> Dict[str, Dict[Any, float]]:
+        """
+        Calculate the cost breakdown for a given component type.
+
+        :param components: Dictionary of components and their mass fractions.
+        :param component_type: Type of component (e.g., 'active_materials').
+        :return: Dictionary of cost breakdown for the given component type.
+        """
+        return {component_type: {component: fraction * self._coating_mass * component._specific_cost for component, fraction in components.items()}}
+
+    def _calculate_cost(self) -> None:
+        """
+        Calculate the total cost of the electrode.
+        """
+        active_material_cost = sum(self._cost_breakdown['active_materials'].values())
+        binder_cost = sum(self._cost_breakdown['binders'].values())
+        conductive_additive_cost = sum(self._cost_breakdown['conductive_additives'].values())
+        current_collector_cost = self._current_collector._cost
+        self._cost = active_material_cost + binder_cost + conductive_additive_cost + current_collector_cost
+
+    def _calculate_porosity(self) -> None:
+        """
+        Calculate the overall porosity of the electrode formulation.
         """
         active_mass_fractions = [v for v in self._formulation._active_materials.values()]
         active_mass_densities = [am._density for am in self._formulation._active_materials.keys()]
         
-        conductive_aids_fractions = [v for v in self._formulation._conductive_additive.values()]
-        conductive_aids_densities = [ca._density for ca in self._formulation._conductive_additive.keys()]
+        conductive_aids_fractions = [v for v in self._formulation._conductive_additives.values()]
+        conductive_aids_densities = [ca._density for ca in self._formulation._conductive_additives.keys()]
 
-        binder_fractions = [v for v in self._formulation._binder.values()]
-        binder_densities = [b._density for b in self._formulation._binder.keys()]
+        binder_fractions = [v for v in self._formulation._binders.values()]
+        binder_densities = [b._density for b in self._formulation._binders.keys()]
 
-        theoretical_specific_volume = sum(amf/amd for amf, amd in zip(active_mass_fractions, active_mass_densities)) + \
-                                      sum(caf/cad for caf, cad in zip(conductive_aids_fractions, conductive_aids_densities)) + \
-                                      sum(bf/bd for bf, bd in zip(binder_fractions, binder_densities))
+        theoretical_specific_volume = sum(amf / amd for amf, amd in zip(active_mass_fractions, active_mass_densities)) + \
+                                      sum(caf / cad for caf, cad in zip(conductive_aids_fractions, conductive_aids_densities)) + \
+                                      sum(bf / bd for bf, bd in zip(binder_fractions, binder_densities))
         
-        return (1 - (theoretical_specific_volume * self._calender_density))
+        self._porosity = 1 - (theoretical_specific_volume * self._calender_density)
     
+    def _calculate_half_cell_curve(self, grid_n: int) -> None:
+        """
+        Calculate the half cell curve of the electrode.
+
+        :param grid_n: Number of points to interpolate the curve on.
+        """
+        data = self._calculate_capacity_curves()
+        data = data.groupby('active_material', group_keys=True).apply(lambda df: df.pipe(self._order_and_clean_curves)).reset_index(drop=True)
+        data = data.groupby('direction', group_keys=True).apply(lambda df: df.pipe(self._linear_interpolate_on_voltage, grid_n)).reset_index(drop=False)
+        data = data.groupby(['direction', 'voltage'], group_keys=True).agg({'capacity': 'sum'}).reset_index(drop=False)
+        data = self._flip_and_shift_curves(data)
+        self._half_cell_curve = data
+        reversible_capacity = self._half_cell_curve.query("direction == 'discharge'")['capacity'].max()
+        self._areal_capacity = reversible_capacity / (self._single_sided_area * 2)
+
+    def _calculate_capacity_curves(self) -> pd.DataFrame:
+        """
+        Calculate the capacity curves of the electrode.
+
+        :return: DataFrame containing the capacity curves.
+        """
+        half_cell_curve = []
+        for am in self._formulation._active_materials.keys():
+            am_mass = self._coating_mass * self._formulation._active_materials[am]
+            irrev_scale = am._irreversible_capacity_scaling
+            rev_scaling = am._reversible_capacity_scaling
+            data = am._half_cell_curve.copy()
+            data['capacity'] = data['specific_capacity'] * am_mass
+
+            data['capacity'] = [c * irrev_scale if d == 'charge' 
+                                           else c * irrev_scale * rev_scaling
+                                           for c, d in zip(data['capacity'], data['direction'])]
+            
+            data = (data
+                    .filter(['voltage', 'capacity', 'direction'])
+                    .sort_values(by=['direction', 'capacity'])
+                    .assign(active_material=am)
+                    )
+
+            half_cell_curve.append(data)
+
+        return pd.concat(half_cell_curve).reset_index(drop=True)
+
+    def _linear_interpolate_on_voltage(self, data: pd.DataFrame, grid_n: int) -> pd.DataFrame:
+        """
+        Cubic spline interpolate the curves on voltage.
+
+        :param data: DataFrame containing the capacity curves.
+        :param grid_n: Number of points to interpolate the curve on.
+        :return: DataFrame containing the interpolated curves.
+        """
+        data = data.sort_values('voltage')
+        interpolated_curves = []
+        v_min = data['voltage'].min()
+        v_max = data['voltage'].max()
+        voltage_grid = np.linspace(v_min, v_max, grid_n)
+        for am, df in data.groupby('active_material'):
+            x = df['voltage']
+            y = df['capacity']
+            new_y = np.interp(voltage_grid, x, y)
+            new_data = pd.DataFrame({'voltage': voltage_grid, 'capacity': new_y, 'active_material': am})
+            interpolated_curves.append(new_data)
+
+        new_data = pd.concat(interpolated_curves)
+
+        return new_data
+
+    def _flip_and_shift_curves(self, data: pd.DataFrame) -> pd.DataFrame:
+        """
+        Flip and shift the curves.
+
+        :param data: DataFrame containing the interpolated curves.
+        :return: DataFrame containing the flipped and shifted curves.
+        """
+        data = (data
+                .assign(max_capacity=lambda x: x['capacity'].max())
+                .assign(capacity=lambda x: [-c + m if d == 'discharge' else c for c, d, m in zip(x['capacity'], x['direction'], x['max_capacity'])])
+                .reset_index(drop=True)
+                .drop(columns=['max_capacity'])
+                )
+                
+        charge_curve = data.query("direction == 'charge'").sort_values('capacity', ascending=True)
+        discharge_curve = data.query("direction == 'discharge'").sort_values('capacity', ascending=False)
+        return pd.concat([charge_curve, discharge_curve]).reset_index(drop=True)
+
     @property
-    def porosity(self):
+    def cost_breakdown(self) -> Dict[str, Any]:
+        """
+        Get the cost breakdown of the electrode.
+
+        :return: Dictionary containing the cost breakdown.
+        """
+        return self._format_breakdown(self._cost_breakdown)
+
+    @property
+    def mass_breakdown(self) -> Dict[str, Any]:
+        """
+        Get the mass breakdown of the electrode.
+
+        :return: Dictionary containing the mass breakdown.
+        """
+        return self._format_breakdown(self._mass_breakdown)
+
+    def _format_breakdown(self, breakdown: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Format the breakdown dictionary.
+
+        :param breakdown: Dictionary containing the breakdown.
+        :return: Formatted breakdown dictionary.
+        """
+        formatted_breakdown = {}
+        for key, value in breakdown.items():
+            if isinstance(value, dict):
+                value = {k: round(v, 5) for k, v in value.items()}
+            else:
+                value = round(value, 5)
+            key = key.replace('_', ' ').title()
+            formatted_breakdown[key] = value
+
+        return formatted_breakdown
+
+    @property
+    def half_cell_curve(self) -> pd.DataFrame:
+        """
+        Get the half cell curve of the electrode.
+
+        :return: DataFrame containing the half cell curve.
+        """
+        if not hasattr(self, '_half_cell_curve'):
+            raise AttributeError("Half cell curves have not been calculated yet")
+
+        return (self
+                ._half_cell_curve
+                .assign(capacity=lambda x: x['capacity'] * S_TO_H)
+                .rename(columns={'capacity': 'Capacity (Ah)', 
+                                 'voltage': 'Voltage (V)', 
+                                 'direction': 'Direction'})
+                )
+
+    @property
+    def porosity(self) -> float:
+        """
+        Get the porosity of the electrode.
+
+        :return: Porosity of the electrode.
+        """
         return round(self._porosity * 100, 2)
     
     @property
-    def calender_density(self):
+    def calender_density(self) -> float:
+        """
+        Get the calender density of the electrode.
+
+        :return: Calender density of the electrode.
+        """
         return round(self._calender_density * (KG_TO_G / M_TO_CM**3), 2)
 
     @property
-    def formulation(self):
+    def formulation(self) -> ElectrodeFormulation:
+        """
+        Get the formulation of the electrode.
+
+        :return: Formulation of the electrode.
+        """
         return self._formulation
 
     @property
-    def mass_loading(self):
+    def mass_loading(self) -> float:
+        """
+        Get the mass loading of the electrode.
+
+        :return: Mass loading of the electrode.
+        """
         return round(self._mass_loading * (KG_TO_MG / M_TO_CM**2), 2)
 
     @property
-    def current_collector(self):
+    def current_collector(self) -> CurrentCollector:
+        """
+        Get the current collector of the electrode.
+
+        :return: Current collector of the electrode.
+        """
         return self._current_collector
 
     @property
-    def single_sided_area(self):
+    def single_sided_area(self) -> float:
+        """
+        Get the single-sided area of the electrode.
+
+        :return: Single-sided area of the electrode.
+        """
         return round(self._single_sided_area, 2)
 
     @property
-    def name(self):
+    def name(self) -> str:
+        """
+        Get the name of the electrode.
+
+        :return: Name of the electrode.
+        """
         return self._name
 
     @property
-    def coating_mass(self):
+    def coating_mass(self) -> float:
+        """
+        Get the coating mass of the electrode.
+
+        :return: Coating mass of the electrode.
+        """
         return round(self._coating_mass * KG_TO_G, 2)
 
     @property
-    def mass(self):
+    def mass(self) -> float:
+        """
+        Get the mass of the electrode.
+
+        :return: Mass of the electrode.
+        """
         return round(self._mass * KG_TO_G, 2)
     
     @property
-    def material_thickness(self):
+    def material_thickness(self) -> float:
+        """
+        Get the material thickness of the electrode.
+
+        :return: Material thickness of the electrode.
+        """
         return round(self._material_thickness * M_TO_UM, 2)
 
     @property
-    def double_sided_thickness(self):
+    def thickness(self) -> float:
+        """
+        Get the thickness of the electrode.
+
+        :return: Thickness of the electrode.
+        """
         return round(self._double_sided_thickness * M_TO_UM, 2)
 
     @property
-    def pore_volume(self):
-        return round(self._pore_volume * M_TO_CM**3, 2)
+    def cost(self) -> float:
+        """
+        Get the cost of the electrode.
 
-    @property
-    def cost(self):
+        :return: Cost of the electrode.
+        """
         return round(self._cost, 2)
 
-    def __str__(self):
-        return self.name
+    def __str__(self) -> str:
+        return self._name
     
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
 
 
@@ -144,14 +388,13 @@ class Anode(_Electrode):
                  calender_density: float,
                  name: str = 'Anode'):
         """
-        Initialize an object that represents an anode
-        :param formulation: ElectrodeFormulation: formulation of the anode
-        :param mass_loading: float: mass loading of the anode in mg/cm^2
-        :param current_collector: CurrentCollector: current collector used in the anode
-        :param length: float: length of the anode in mm
-        :param width: float: width of the anode in mm
-        :param calender_density: float: density of the anode after calendering in g/cm^3
-        :param overhang: float: overhang of the anode in %
+        Initialize an object that represents an anode.
+
+        :param formulation: Formulation of the anode.
+        :param mass_loading: Mass loading of the anode in mg/cm^2.
+        :param current_collector: Current collector used in the anode.
+        :param calender_density: Density of the anode after calendering in g/cm^3.
+        :param name: Name of the anode.
         """
         super().__init__(formulation=formulation,
                          mass_loading=mass_loading,
@@ -159,12 +402,40 @@ class Anode(_Electrode):
                          calender_density=calender_density,
                          name=name)
         
+    def _order_and_clean_curves(self, data: pd.DataFrame) -> pd.DataFrame:
+        """
+        Order and clean the curves ready for interpolation.
+
+        :param data: DataFrame containing the capacity curves.
+        :return: DataFrame containing the ordered and cleaned curves.
+        """
+        charge_data = (data
+                       .query("direction == 'charge'")
+                       .sort_values('capacity', ascending=True)
+                       .assign(min_vol=lambda x: x['voltage'].cummin())
+                       .query("voltage >= min_vol")
+                       )
+        
+        discharge_data = (data
+                          .query("direction == 'discharge'")
+                          .sort_values('capacity', ascending=False)
+                          .assign(min_vol=lambda x: x['voltage'].cummin())
+                          .query("voltage <= min_vol")
+                          )
+
+        return pd.concat([charge_data, discharge_data]).reset_index(drop=True)
+        
     @property
-    def overhang(self):
+    def overhang(self) -> float:
+        """
+        Get the overhang of the anode.
+
+        :return: Overhang of the anode.
+        """
         if hasattr(self, '_overhang'):
             return self._overhang
         else:
-            return AttributeError("Overhang not calculated yet")
+            raise AttributeError("Overhang not calculated yet")
 
 
 class Cathode(_Electrode):
@@ -175,13 +446,13 @@ class Cathode(_Electrode):
                  calender_density: float,
                  name: str = 'Cathode'):
         """
-        Initialize an object that represents a cathode
-        :param formulation: ElectrodeFormulation: formulation of the cathode
-        :param mass_loading: float: mass loading of the cathode in mg/cm^2
-        :param current_collector: CurrentCollector: current collector used in the cathode
-        :param length: float: length of the cathode in mm
-        :param width: float: width of the cathode in mm
-        :param calender_density: float: density of the cathode after calendering in g/cm^3
+        Initialize an object that represents a cathode.
+
+        :param formulation: Formulation of the cathode.
+        :param mass_loading: Mass loading of the cathode in mg/cm^2.
+        :param current_collector: Current collector used in the cathode.
+        :param calender_density: Density of the cathode after calendering in g/cm^3.
+        :param name: Name of the cathode.
         """
         super().__init__(formulation=formulation,
                          mass_loading=mass_loading,
@@ -189,3 +460,25 @@ class Cathode(_Electrode):
                          calender_density=calender_density,
                          name=name)
         
+    def _order_and_clean_curves(self, data: pd.DataFrame) -> pd.DataFrame:
+        """
+        Order and clean the curves ready for interpolation.
+
+        :param data: DataFrame containing the capacity curves.
+        :return: DataFrame containing the ordered and cleaned curves.
+        """
+        charge_data = (data
+                       .query("direction == 'charge'")
+                       .sort_values('capacity', ascending=True)
+                       .assign(max_vol=lambda x: x['voltage'].cummax())
+                       .query("voltage >= max_vol")
+                       )
+        
+        discharge_data = (data
+                          .query("direction == 'discharge'")
+                          .sort_values('capacity', ascending=False)
+                          .assign(max_vol=lambda x: x['voltage'].cummax())
+                          .query("voltage <= max_vol")
+                          )
+
+        return pd.concat([charge_data, discharge_data]).reset_index(drop=True).drop(columns=['max_vol'])

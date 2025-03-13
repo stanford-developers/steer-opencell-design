@@ -2,13 +2,12 @@ from SteerEnergyStorage.Formulations.Stacks import Stack
 from SteerEnergyStorage.Materials.Electrolytes import Electrolyte
 from SteerEnergyStorage.Materials.other import Terminal
 from SteerEnergyStorage.Constructions.Containers import Pouch, PrismaticCase
-from scipy.interpolate import interp1d
 
-import warnings
-import copy
 import pandas as pd
 import numpy as np
 import plotly.express as px
+from copy import deepcopy, copy
+from scipy.interpolate import CubicSpline
 
 KG_TO_G = 1e3
 M_TO_CM = 1e2
@@ -26,7 +25,7 @@ class _Cell:
                  electrolyte_overfill: float,
                  reversible_capacity: float,
                  irreversible_capacity: float,
-                 grid_n: int = 500,
+                 grid_n: int = 100,
                  name: str = 'Cell'):
         """
         Initiate an object that represents an electrochemical cell.
@@ -38,36 +37,43 @@ class _Cell:
         :param grid_n: Number of points to interpolate the half cell curves
         :param name: Name of the cell
         """
-        self._electrolyte = self._validate_electrolyte(electrolyte)
-        self._electrolyte_overfill = self._validate_percentage(electrolyte_overfill) / 100
+        self._validate_and_copy_electrolyte(electrolyte, electrolyte_overfill)
         self._name = name
         self._reversible_capacity = reversible_capacity * H_TO_S
         self._irreversible_capacity = irreversible_capacity * H_TO_S
         self._grid_n = grid_n
 
-    def get_capacity_voltage_plot(self, 
-                                  upper_voltage_cuttoff: float = None, 
-                                  lower_voltage_cutoff: float = None,
-                                  **kwargs):
+    def _validate_and_copy_electrolyte(self, electrolyte: Electrolyte, electrolyte_overfill: float) -> Electrolyte:
+        """
+        Function to validate and copy electrolyte
+        """
+        if not isinstance(electrolyte, Electrolyte):
+            raise ValueError("Electrolyte must be an instance of Electrolyte")
+        
+        if not (0 <= electrolyte_overfill <= 100):
+            raise ValueError("Electrolyte_overfill percentage must be between 0 and 100")
+        
+        self._electrolyte = deepcopy(electrolyte)
+        self._electrolyte_overfill = electrolyte_overfill
+
+    def get_capacity_voltage_plot(self, **kwargs):
 
         try:
-            half_curves = self.half_cell_curves.copy()
-            full_curves = self.full_cell_curves.copy()
+            cathode_curve = self.cathode_half_cell_curve.copy()
+            anode_curve = self.anode_half_cell_curve.copy()
+            full_curves = self.full_cell_curve.copy()
         except AttributeError:
             raise AttributeError("The cell curves have not been calculated yet. Make sure you initiated the right cell object")
 
-        data = (pd
-                .concat([half_curves, full_curves])
-                .assign(sort_key_1 = lambda x: [-c if d == 'discharge' else c for c, d in zip(x['Capacity (Ah)'], x['Direction'])])
-                .assign(sort_key_2 = lambda x: [1 if d == 'discharge' else 0 for d in x['Direction']])
-                .sort_values(by=['Electrode', 'sort_key_2', 'sort_key_1'])
-                .drop(columns=['sort_key_2', 'sort_key_1'])
-                )
+        cathode_curve = self.cathode_half_cell_curve.copy().assign(Electrode='Cathode')
+        anode_curve = self.anode_half_cell_curve.copy().assign(Electrode='Anode')
+        full_curves = self.full_cell_curve.copy().assign(Electrode='Full Cell')
 
+        data = pd.concat([cathode_curve, anode_curve, full_curves])
         upper_cap_limit = self.reversible_capacity + self.irreversible_capacity
         lower_cap_limit = self.irreversible_capacity
 
-        color_map = {'cathode': 'blue', 'anode': 'red', 'full cell': 'black'}
+        color_map = {'Cathode': 'blue', 'Anode': 'red', 'Full Cell': 'black'}
 
         figure = px.line(data, x='Capacity (Ah)', y='Voltage (V)', color='Electrode', title='Capacity vs Voltage', 
                          template='presentation', color_discrete_map=color_map, **kwargs)
@@ -75,45 +81,7 @@ class _Cell:
         figure.update_traces(line=dict(width=4))
         figure.add_vline(x=upper_cap_limit, line_color='black', line_width=2)
         figure.add_vline(x=lower_cap_limit, line_color='black', line_width=2)
-
-        if upper_voltage_cuttoff:
-            figure.add_hline(y=upper_voltage_cuttoff, line_color='black', line_width=2)
-        if lower_voltage_cutoff:
-            figure.add_hline(y=lower_voltage_cutoff, line_color='black', line_width=2)
-
         return figure
-
-    def _validate_electrolyte(self, electrolyte: Electrolyte) -> Electrolyte:
-        if not isinstance(electrolyte, Electrolyte):
-            raise ValueError("Electrolyte must be an instance of Electrolyte")
-        return copy.deepcopy(electrolyte)
-
-    def _validate_percentage(self, value: float) -> float:
-        if not (0 <= value <= 100):
-            raise ValueError("Percentage must be between 0 and 100")
-        return value
-    
-    def get_cost_breakdown_plot(self, mode='pie', **kwargs):
-        """
-        Function to get the cost breakdown of the cell in a plot
-
-        :param mode: str: mode of the plot. Options are 'pie' and 'bar'
-        """
-        if mode == 'pie':
-            return self._get_cost_breakdown_plot_pie(**kwargs)
-        else:
-            raise ValueError("Only pie plot is supported for now")
-        
-    def get_mass_breakdown_plot(self, mode='pie', **kwargs):
-        """
-        Function to get the mass breakdown of the cell in a plot
-
-        :param mode: str: mode of the plot. Options are 'pie' and 'bar'
-        """
-        if mode == 'pie':
-            return self._get_mass_breakdown_plot_pie(**kwargs)
-        else:
-            return ValueError("Only pie plot is supported for now")
 
     @property
     def electrolyte_overfill(self) -> float:
@@ -124,35 +92,17 @@ class _Cell:
         return self._electrolyte
     
     @property
-    def full_cell_curves(self):
+    def full_cell_curve(self):
 
-        if not hasattr(self, '_full_cell_curves'):
+        if not hasattr(self, '_full_cell_curve'):
             raise AttributeError("Full cell curves have not been calculated yet")
 
         data = (self
-                ._full_cell_curves
+                ._full_cell_curve
                 .assign(capacity = lambda x: x['capacity'] * S_TO_H)
                 .rename(columns={'capacity': 'Capacity (Ah)', 
                                  'voltage': 'Voltage (V)', 
-                                 'direction': 'Direction',
-                                 'electrode': 'Electrode'})
-                )
-        
-        return data
-    
-    @property
-    def half_cell_curves(self):
-
-        if not hasattr(self, '_half_cell_curves'):
-            raise AttributeError("Half cell curves have not been calculated yet")
-
-        data = (self
-                ._half_cell_curves
-                .assign(capacity = lambda x: x['capacity'] * S_TO_H)
-                .rename(columns={'capacity': 'Capacity (Ah)', 
-                                 'voltage': 'Voltage (V)', 
-                                 'direction': 'Direction', 
-                                 'electrode': 'Electrode'})
+                                 'direction': 'Direction'})
                 )
         
         return data
@@ -173,7 +123,39 @@ class _Cell:
     def cost_breakdown(self) -> dict:
         if not hasattr(self, '_cost_breakdown'):
             raise AttributeError("Cost breakdown has not been calculated yet")
-        return {item: round(value, 3) for item, value in self._cost_breakdown.items()}
+        return {item.replace('_', ' ').title(): round(value, 3) for item, value in self._cost_breakdown.items()}
+    
+    @property
+    def stacks_cost_breakdown(self) -> dict:
+        if not hasattr(self, '_stacks_cost_breakdown'):
+            raise AttributeError("Stacks cost breakdown has not been calculated yet")
+        return {item.replace('_', ' ').title(): round(value, 3) for item, value in self._stacks_cost_breakdown.items()}
+    
+    @property
+    def anode_cost_breakdown(self) -> dict:
+        
+        if not hasattr(self, '_anode_cost_breakdown'):
+            raise AttributeError("Anode cost breakdown has not been calculated yet")
+        
+        cost_breakdown = {
+            key.replace('_', ' ').title(): {obj: round(value, 3) for obj, value in inner.items()}
+            for key, inner in self._anode_cost_breakdown.items()
+        }
+
+        return cost_breakdown
+    
+    @property
+    def cathode_cost_breakdown(self) -> dict:
+
+        if not hasattr(self, '_cathode_cost_breakdown'):
+            raise AttributeError("Cathode cost breakdown has not been calculated yet")
+        
+        cost_breakdown = {
+            key.replace('_', ' ').title(): {obj: round(value, 3) for obj, value in inner.items()}
+            for key, inner in self._cathode_cost_breakdown.items()
+        }
+
+        return cost_breakdown
     
     @property
     def cost(self) -> float:
@@ -191,8 +173,40 @@ class _Cell:
     def mass_breakdown(self) -> dict:
         if not hasattr(self, '_mass_breakdown'):
             raise AttributeError("Mass breakdown has not been calculated yet")
-        return {item: round(value * KG_TO_G, 3) for item, value in self._mass_breakdown.items()}
+        return {item.replace('_', ' ').title(): round(value * KG_TO_G, 3) for item, value in self._mass_breakdown.items()}
     
+    @property
+    def stacks_mass_breakdown(self) -> dict:
+        if not hasattr(self, '_stacks_mass_breakdown'):
+            raise AttributeError("Stacks mass breakdown has not been calculated yet")
+        return {item.replace('_', ' ').title(): round(value * KG_TO_G, 3) for item, value in self._stacks_mass_breakdown.items()}
+
+    @property
+    def anode_mass_breakdown(self) -> dict:
+        
+        if not hasattr(self, '_anode_mass_breakdown'):
+            raise AttributeError("Anode mass breakdown has not been calculated yet")
+        
+        mass_breakdown = {
+            key.replace('_', ' ').title(): {obj: round(value, 3) for obj, value in inner.items()}
+            for key, inner in self._anode_mass_breakdown.items()
+        }
+
+        return mass_breakdown
+    
+    @property
+    def cathode_mass_breakdown(self) -> dict:
+        
+        if not hasattr(self, '_cathode_mass_breakdown'):
+            raise AttributeError("Cathode mass breakdown has not been calculated yet")
+        
+        mass_breakdown = {
+            key.replace('_', ' ').title(): {obj: round(value, 3) for obj, value in inner.items()}
+            for key, inner in self._cathode_mass_breakdown.items()
+        }
+
+        return mass_breakdown
+
     @property
     def thickness(self) -> float:
         if not hasattr(self, '_thickness'):
@@ -247,6 +261,42 @@ class _Cell:
             raise AttributeError("Normalized cost has not been calculated yet")
         return round(self._normalized_cost /  (S_TO_H * W_TO_KW), 2)
     
+    @property
+    def cathode_half_cell_curve(self) -> pd.DataFrame:
+        """
+        Get the half cell curve of the electrode.
+
+        :return: DataFrame containing the half cell curve.
+        """
+        if not hasattr(self, '_cathode_half_cell_curve'):
+            raise AttributeError("Half cell curves have not been calculated yet")
+
+        return (self
+                ._cathode_half_cell_curve
+                .assign(capacity=lambda x: x['capacity'] * S_TO_H)
+                .rename(columns={'capacity': 'Capacity (Ah)', 
+                                 'voltage': 'Voltage (V)', 
+                                 'direction': 'Direction'})
+                )
+    
+    @property
+    def anode_half_cell_curve(self) -> pd.DataFrame:
+        """
+        Get the half cell curve of the electrode.
+
+        :return: DataFrame containing the half cell curve.
+        """
+        if not hasattr(self, '_anode_half_cell_curve'):
+            raise AttributeError("Half cell curves have not been calculated yet")
+
+        return (self
+                ._anode_half_cell_curve
+                .assign(capacity=lambda x: x['capacity'] * S_TO_H)
+                .rename(columns={'capacity': 'Capacity (Ah)', 
+                                 'voltage': 'Voltage (V)', 
+                                 'direction': 'Direction'})
+                )
+
     def __str__(self) -> str:
         return self._name
     
@@ -262,7 +312,7 @@ class _PrismaticCell(_Cell):
                  electrolyte_overfill: float,
                  reversible_capacity: float,
                  irreversible_capacity: float,
-                 grid_n: int = 500,
+                 grid_n: int = 100,
                  name: str = 'Prismatic cell'):
         """
         Class to represent a prismatic cell.
@@ -283,16 +333,21 @@ class _PrismaticCell(_Cell):
                       grid_n=grid_n,
                       name=name)
         
-        self._prismatic_case = self._validate_prismatic_case(prismatic_case)
+        self._validate_and_copy_prismatic_case(prismatic_case)
+        self._set_prismatic_case_properties()
+
+    def _set_prismatic_case_properties(self):
         self._height = self._prismatic_case._external_height
         self._width = self._prismatic_case._external_width
         self._length = self._prismatic_case._external_length
         self._volume = self._prismatic_case._external_volume
 
-    def _validate_prismatic_case(self, value: PrismaticCase) -> PrismaticCase:
-        if not isinstance(value, PrismaticCase):
+    def _validate_and_copy_prismatic_case(self, prismatic_case: PrismaticCase) -> PrismaticCase:
+
+        if not isinstance(prismatic_case, PrismaticCase):
             raise ValueError("Prismatic case must be an instance of PrismaticCase")
-        return value
+        
+        self._prismatic_case = copy(prismatic_case)
     
     @property
     def prismatic_case(self) -> PrismaticCase:
@@ -300,7 +355,7 @@ class _PrismaticCell(_Cell):
 
 
 class _PouchCell(_Cell):
-    
+
     def __init__(self,
                  pouch: Pouch,
                  electrolyte: Electrolyte,
@@ -309,7 +364,7 @@ class _PouchCell(_Cell):
                  negative_terminal: Terminal,
                  reversible_capacity: float,
                  irreversible_capacity: float,
-                 grid_n: int = 500,
+                 grid_n: int = 100,
                  name: str = 'Pouch Cell'):
         """
         Class to represent a pouch cell.
@@ -331,14 +386,22 @@ class _PouchCell(_Cell):
                          grid_n=grid_n,
                          name=name)
         
-        self._pouch = self._validate_pouch(pouch)
+        self._validate_and_copy_pouch(pouch, positive_terminal, negative_terminal)
+
+    def _validate_and_copy_pouch(self, pouch: Pouch, positive_terminal: Terminal, negative_terminal: Terminal) -> Pouch:
+
+        if not isinstance(pouch, Pouch):
+            raise ValueError("Pouch must be an instance of Pouch")
+        
+        if not isinstance(positive_terminal, Terminal):
+            raise ValueError("Positive terminal must be an instance of Terminal")
+        
+        if not isinstance(negative_terminal, Terminal):
+            raise ValueError("Negative terminal must be an instance of Terminal")
+        
+        self._pouch = copy(pouch)
         self._positive_terminal = positive_terminal
         self._negative_terminal = negative_terminal
-
-    def _validate_pouch(self, value: Pouch) -> Pouch:
-        if not isinstance(value, Pouch):
-            raise ValueError("Pouch must be an instance of Pouch")
-        return value
 
     @property
     def pouch(self) -> Pouch:
@@ -361,7 +424,8 @@ class _StackedCell(_Cell):
                  electrolyte_overfill: float,
                  reversible_capacity: float,
                  irreversible_capacity: float,
-                 grid_n: int = 500,
+                 n_stacks: int = 1,
+                 grid_n: int = 100,
                  name: str = "Stacked Cell"):
         """
         A class that represents a stacked cell.
@@ -373,6 +437,7 @@ class _StackedCell(_Cell):
         :param negative_terminal: Negative terminal of the cell
         :param reversible_capacity: Reversible capacity of the cell in mAh
         :param irreversible_capacity: Irreversible capacity of the cell in mAh
+        :param n_stacks: Number of stacks in the cell
         :param grid_n: Number of points to interpolate the half cell curves
         :param name: Name of the cell
         """
@@ -384,198 +449,148 @@ class _StackedCell(_Cell):
                       grid_n=grid_n,
                       name=name)
         
-        self._stack = self._validate_stack(stack)
-        self._effective_areal_capacity = self._reversible_capacity / self._stack._active_geometric_area
-        self._calculate_electrolyte_properties()
-        self._half_cell_curves, self._cathode_areal_capacity = self._calculate_half_cell_curves()
-        self._full_cell_curves = self._calculate_full_cell_curves()
+        self._validate_and_copy_stack(stack, n_stacks)
+        self._calculate_electrolyte_quantities()
+        self._calculate_half_cell_curves()
+        self._calculate_full_cell_curve()
+        self._get_effective_areal_capacity() #TODO 
+        self._calculate_energy() 
 
-        # get storage properties
-        self._energy = -np.trapezoid(self._full_cell_curves.query("direction == 'discharge'")['voltage'],
-                                     self._full_cell_curves.query("direction == 'discharge'")['capacity'])
+    def _validate_and_copy_stack(self, stack: Stack, n_stacks: int) -> None:
+        """
+        Function to validate the stack and copy it n times
+
+        :param stack: Stack to validate
+        :param n_stacks: Number of times to copy the stack
+        """
+        if not isinstance(stack, Stack):
+            raise ValueError("Stack must be an instance of Stack")
         
-        #color_dictionary
-        self._color_map = {self.name: '#2E86AB', 
-                            'Encapsulation': '#F6C85F', 
-                            self.stack.anode.name: '#9B59B6', 
-                            self.stack.cathode.name: '#E74C3C', 
-                            self.stack.separator.name: '#27AE60',
-                            self.electrolyte.name: '#F39C12'}
-        self._color_map.update(self.stack.cathode.formulation._color_map)
-        self._color_map.update(self.stack.anode.formulation._color_map)   
+        self._stacks = [deepcopy(stack) for _ in range(n_stacks)]
+        if n_stacks > 1:
+            for i, stack in enumerate(self._stacks):
+                stack._name = f"{stack._name}_{i + 1}"
 
-    def _calculate_electrolyte_properties(self):
+    def _get_effective_areal_capacity(self) -> None:
         """
-        Function to calculate the properties of the electrolyte
+        Function to calculate the effective areal capacity of the stacks
         """
-        self._electrolyte._volume = self._stack._pore_volume * (1 + self._electrolyte_overfill)
+        self._effective_areal_capacity = self._reversible_capacity / sum([s._areal_capacity for s in self._stacks])
+
+    def _calculate_electrolyte_quantities(self):
+        """
+        Function to calculate the electrolyte quantities in the cell
+        """
+        self._electrolyte._volume = sum([s._pore_volume for s in self._stacks]) * (1 + self._electrolyte_overfill)
         self._electrolyte._mass = self._electrolyte._volume * self._electrolyte._density
-        self._electrolyte._cost = (self._electrolyte._mass) * self._electrolyte._specific_cost      
+        self._electrolyte._cost = (self._electrolyte._mass) * self._electrolyte._specific_cost  
 
     def _calculate_half_cell_curves(self):
         """
         Function to calculate the half cell curve of the stack from the half cell curves of the anode and cathode active materials
         """
-        # get the cathode data
-        cathode_data = (pd
-                        .concat([am._half_cell_curve.copy().assign(active_material = am) for am in self.stack._cathode._formulation._active_materials.keys()])
-                        .assign(mass = lambda x: [self.stack._cathode_mass_breakdown['Active Materials'][am] for am in x['active_material']])
-                        .assign(electrode = 'cathode')
-                        )
+        for s in self._stacks:
+            s._calculate_half_cell_curves(grid_n=self._grid_n)
+
+        cathode_half_cell = (pd
+                             .concat([s._cathode_half_cell_curve for c in self._stacks])
+                             .groupby(['direction', 'voltage'], as_index=False)['capacity']
+                             .sum()
+                             .groupby('direction', as_index=False)
+                             .apply(lambda x: x.sort_values('capacity', ascending=True if x['direction'].values[0] == 'charge' else False))
+                             )
+
+        anode_half_cell = (pd
+                           .concat([s._anode_half_cell_curve for a in self._stacks])
+                           .groupby(['direction', 'voltage'], as_index=False)['capacity']
+                           .sum()
+                           .groupby('direction', as_index=False)
+                           .apply(lambda x: x.sort_values('capacity', ascending=True if x['direction'].values[0] == 'charge' else False))
+                           )
         
-        # get the anode data
-        if len(self.stack._anode._formulation._active_materials.keys()) > 0:
-            # if the anode has active materials on it
-            anode_data = (pd
-                          .concat([am._half_cell_curve.copy().assign(active_material = am) for am in self.stack._anode._formulation._active_materials.keys()])
-                          .assign(mass = lambda x: [self.stack._anode_mass_breakdown['Active Materials'][am] for am in x['active_material']])
-                          .assign(electrode = 'anode')
-                          )
-        else:
-            anode_data = pd.DataFrame()
-
-        # calculate the capacity of each active material
-        half_cell_curves = (pd
-                            .concat([cathode_data, anode_data])
-                            .assign(irrev_scaling = lambda x: [am._irreversible_capacity_scaling for am in x['active_material']])
-                            .assign(rev_scaling = lambda x: [am._reversible_capacity_scaling for am in x['active_material']])
-                            .assign(capacity = lambda x: x['mass'] * x['specific_capacity'])
-                            .assign(capacity = lambda x: [c * i if d == "charge" else c * i * r for c, i, d, r in zip(x['capacity'], x['irrev_scaling'], x['direction'], x['rev_scaling'])])
-                            .filter(['voltage', 'capacity', 'direction', 'active_material', 'electrode'])
-                            .sort_values(by=['electrode', 'direction', 'active_material', 'capacity'])
-                            )
-        
-        def order_and_clean_curves(df) -> pd.DataFrame:
-            """
-            Function to order and clean the curves ready for interpolation
-            """
-            electrode = df['electrode'].iloc[0]
-            direction = df['direction'].iloc[0]
-
-            if (electrode == 'cathode' and direction == 'charge') or (electrode == 'anode' and direction == 'discharge'):
-                df = df.groupby(['active_material']).apply(lambda df: df.sort_values('capacity', ascending=True)).reset_index(drop=True)
-            elif (electrode == 'cathode' and direction == 'discharge') or (electrode == 'anode' and direction == 'charge'):
-                df = df.groupby(['active_material']).apply(lambda df: df.sort_values('capacity', ascending=False)).reset_index(drop=True)
-            else:
-                raise ValueError("Invalid direction or electrode in voltage interpolation")
-            
-            df = df.loc[df['voltage'] >= df['voltage'].cummax()].reset_index()
-            return df
-        
-        def linear_interpolate_on_voltage(df) -> pd.DataFrame:
-            """
-            Function to linearly interpolate the curves on voltage
-            """ 
-            v_min = df['voltage'].min()
-            v_max = df['voltage'].max()
-            voltage_grid = np.linspace(v_min, v_max, self._grid_n)
-            new_data = []
-            for am in df['active_material'].unique():
-                am_data = df.query(f"active_material == @am")
-                x = am_data['voltage']
-                y = am_data['capacity']
-                first_cap = y.iloc[0]
-                last_cap = y.iloc[-1]
-
-                interp_func = interp1d(x, y, kind='linear', fill_value=(first_cap, last_cap), bounds_error=False)
-                new_data.append(pd.DataFrame({'voltage': voltage_grid, 'capacity': interp_func(voltage_grid), 'active_material': am}))
-
-            new_data = (pd
-                        .concat(new_data)
-                        .query('capacity != inf')
-                        .query('capacity != -inf')
-                        .sort_values(by=['active_material', 'capacity'])
-                        )
-
-            return new_data
-        
-        half_cell_curves = (half_cell_curves
-                            .groupby(['electrode', 'direction', 'active_material'], group_keys=True)
-                            .apply(lambda df: df.pipe(order_and_clean_curves))
-                            .reset_index(drop=True)
-                            .groupby(['electrode', 'direction'], group_keys=True)
-                            .apply(lambda df: df.pipe(linear_interpolate_on_voltage))
-                            .reset_index(drop=False)
-                            .groupby(['electrode', 'direction', 'voltage'], group_keys=True)
-                            .agg({'capacity': 'sum'})
-                            .reset_index(drop=False)
-                            )
-
-        # flip the curves and shift
-        half_cell_curves = (half_cell_curves
-                            .groupby(['electrode'], group_keys=True)
-                            .apply(lambda df: (df
-                                               .assign(max_capacity = lambda x: x['capacity'].max())
-                                               .assign(capacity = lambda x: [-c + m if d == 'discharge' else c for c, d, m in zip(x['capacity'], x['direction'], x['max_capacity'])])
-                                               ))
-                            .reset_index(drop=True)
-                            .drop(columns=['max_capacity'])
-                            )
-        
-        reversible_cathode_capacity = half_cell_curves.query("electrode == 'cathode' and direction == 'discharge'")['capacity'].max()
-        cathode_areal_capacity = reversible_cathode_capacity / self.stack._active_geometric_area
-        return half_cell_curves, cathode_areal_capacity
+        self._cathode_half_cell_curve = cathode_half_cell
+        self._anode_half_cell_curve = anode_half_cell
     
-    def _calculate_full_cell_curves(self):
+    def _calculate_full_cell_curve(self):
         """
         Function to calculate the full cell curves of the stack
         """
-        def linear_interpolate_on_capacity(df) -> pd.DataFrame:
-            warnings.simplefilter("ignore", category=RuntimeWarning)
-            df1 = df.query("electrode == 'cathode'")
-            df2 = df.query("electrode == 'anode'")
-            interp_func = interp1d(df2['capacity'], df2['voltage'], kind='linear', fill_value='extrapolate')
-            df1['voltage'] = df1['voltage'] - interp_func(df1['capacity'])
-            return df1.assign(electrode = 'full cell').query('voltage != inf').query('voltage != -inf')
+        for s in self._stacks:
+            s._calculate_full_cell_curve()
 
-        full_cell_curves = (self
-                            ._half_cell_curves
-                            .copy()
-                            .groupby(['direction'], group_keys=True)
-                            .apply(lambda df: (df
-                                               .sort_values(by='capacity', ascending=True)
-                                               .pipe(linear_interpolate_on_capacity)
-                                               ))
-                            .reset_index(drop=True)
-                            .query('capacity <= (@self._reversible_capacity + @self._irreversible_capacity)')
-                            .query('direction == "charge" or (direction == "discharge" and capacity >= @self._irreversible_capacity)')
+        full_cell_curve = (pd
+                            .concat([s._full_cell_curve for s in self._stacks])
+                            .groupby(['direction', 'voltage'], as_index=False)['capacity']
+                            .sum()
+                            .sort_values(['direction', 'capacity'])
                             )
         
-        cathode_discharge_min = self._half_cell_curves.query("electrode == 'cathode' and direction == 'discharge'")['capacity'].min()
-        anode_discharge_min = self._half_cell_curves.query("electrode == 'anode' and direction == 'discharge'")['capacity'].min()
+        charge_curve = full_cell_curve.query("direction == 'charge'")
+        discharge_curve = full_cell_curve.query("direction == 'discharge'")
 
-        full_cell_curves = (full_cell_curves
-                            .query('not (direction == "discharge" and capacity < @cathode_discharge_min)')
-                            .query('not (direction == "discharge" and capacity < @anode_discharge_min)')
-                            )
-        
-        full_cell_curves = (full_cell_curves
-                            .assign(sort_key_1 = lambda x: [-c if d == 'discharge' else c for c, d in zip(x['capacity'], x['direction'])])
-                            .assign(sort_key_2 = lambda x: [1 if d == 'discharge' else 0 for d in x['direction']])
-                            .sort_values(by=['electrode', 'sort_key_2', 'sort_key_1'])
-                            .drop(columns=['sort_key_2', 'sort_key_1'])
-                            )
+        # interpolate charge_curve on capacity
+        min_cap = charge_curve['capacity'].min()
+        top_cap = self._reversible_capacity + self._irreversible_capacity
+        max_cap = top_cap if top_cap < charge_curve['capacity'].max() else charge_curve['capacity'].max()
+        cap_grid = np.linspace(min_cap, max_cap, self._grid_n)
+        cs = CubicSpline(charge_curve['capacity'], charge_curve['voltage'])
+        new_voltage = cs(cap_grid)
+        charge_curve = pd.DataFrame({'capacity': cap_grid, 'voltage': new_voltage, 'direction': 'charge'})
 
-        return full_cell_curves
+        # interpolate discharge_curve on capacity
+        max_cap = top_cap if top_cap < charge_curve['capacity'].max() else charge_curve['capacity'].max()
+        min_cap = self._irreversible_capacity if self._irreversible_capacity > discharge_curve['capacity'].min() else discharge_curve['capacity'].min()
+        cap_grid = np.linspace(min_cap, max_cap, self._grid_n)
+        cs = CubicSpline(discharge_curve['capacity'], discharge_curve['voltage'])
+        new_voltage = cs(cap_grid)
+        discharge_curve = pd.DataFrame({'capacity': cap_grid, 'voltage': new_voltage, 'direction': 'discharge'})
+
+        self._full_cell_curve = (pd
+                                 .concat([charge_curve, discharge_curve])
+                                 .groupby('direction', as_index=False)
+                                 .apply(lambda x: x.sort_values('capacity', ascending=True if x['direction'].values[0] == 'charge' else False))
+                                 )
     
-    @property
-    def cathode_areal_capacity(self):
-        return round(self._cathode_areal_capacity * (S_TO_H * A_TO_mA / M_TO_CM**2), 2)
+    def _linear_interpolate_on_voltage(self, df) -> pd.DataFrame:
 
-    @property
-    def stack(self) -> Stack:
-        return self._stack
-    
-    @property
-    def effective_areal_capacity(self) -> float:
-        return round(self._effective_areal_capacity, 2)
+            direction = df['direction'].iloc[0]
+            electrode = df['electrode'].iloc[0]
 
-    def _validate_stack(self, value: Stack) -> Stack:
-        if not isinstance(value, Stack):
-            raise ValueError("Stack must be an instance of Stack")
-        return value
+            if direction == "discharge" and electrode == "cathode":
+                df = df.sort_values(by='capacity', ascending=False)
+            elif direction == "charge" and electrode == "anode":
+                df = df.sort_values(by='capacity', ascending=False)
+
+            x_max = df['voltage'].max()
+            x_min = df['voltage'].min()
+            x = df['voltage']
+            y = df['capacity']
+            y_new = np.interp(self._v_grid, x, y)
+
+            return (pd
+                    .DataFrame({'capacity': y_new, 'voltage': self._v_grid})
+                    .query("voltage >= @x_min and voltage <= @x_max")
+                    )
     
-    def _get_mass_breakdown_data_for_plotting(self, **kwargs):
+    def _linear_interpolate_on_capacity(self, df) -> pd.DataFrame:
+            
+            df = df.sort_values(by='capacity', ascending=True)
+            x_max = df['capacity'].max()
+            x_min = df['capacity'].min()
+            x = df['capacity']
+            y = df['voltage']
+            y_new = np.interp(self._c_grid, x, y)
+
+            return (pd
+                    .DataFrame({'voltage': y_new, 'capacity': self._c_grid})
+                    .query("capacity >= @x_min and capacity <= @x_max")
+                    )
+    
+    def _calculate_energy(self):
+        self._energy = -np.trapezoid(self._full_cell_curve.query("direction == 'discharge'")['voltage'],
+                                     self._full_cell_curve.query("direction == 'discharge'")['capacity'])
+    
+    def _get_mass_breakdown_plot_pie(self, **kwargs):
 
         cathode_flattened = {}
         for key, value in self.stack.cathode_mass_breakdown.items():
@@ -596,6 +611,8 @@ class _StackedCell(_Cell):
         data_cell = (pd
                      .DataFrame(self.mass_breakdown.items(), columns=['component', 'mass'])
                      .assign(component = lambda x: x['component'].apply(lambda y: y.name))
+                     .query(f'component != "{self.stack.name}"')
+                     .assign(component = lambda x: ['Other' if c not in [self.stack.name, self.electrolyte.name, self.stack.anode.name, self.stack.cathode.name] else c for c in x['component']])
                      .assign(level = 'Cell')
                      )
 
@@ -616,52 +633,74 @@ class _StackedCell(_Cell):
                       )
 
         data = pd.concat([data_cell, data_stack, data_cathode, data_anode])
+
+        #color_dictionary
+        color_map = {self.name: '#2E86AB', 
+                     'Other': '#F6C85F', 
+                     self.stack.anode.name: '#9B59B6', 
+                     self.stack.cathode.name: '#E74C3C', 
+                     self.stack.separator.name: '#27AE60',
+                     self.electrolyte.name: '#F39C12'}
+
+        figure = px.pie(data, values='mass', names='component', title='Mass Breakdown', facet_col='level', color='component', color_discrete_map=color_map, **kwargs)
+        figure.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#000000', width=2)))
+        figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
         
-        return data
+        return figure
 
-    def _get_cost_breakdown_data_for_plotting(self, **kwargs):
+    def _get_cost_breakdown_plot_pie(self, **kwargs):
 
-        cathode_flattened = {}
-        for key, value in self.stack.cathode_cost_breakdown.items():
-            if isinstance(value, dict):
-                for obj, cost in value.items():
-                    cathode_flattened[obj.name] = cost
-            else:
-                cathode_flattened[key] = value
+        cost_breakdown = self.cost_breakdown
+        stack_cost_breakdown = self.stacks_cost_breakdown
+        cost_breakdown.pop('Stacks')
+        cost_breakdown.update(stack_cost_breakdown)
+        cost_breakdown = pd.DataFrame(cost_breakdown.items(), columns=['component', 'cost']).assign(level = 'Cell')
 
-        anode_flattened = {}
-        for key, value in self.stack.anode_cost_breakdown.items():
-            if isinstance(value, dict):
-                for obj, cost in value.items():
-                    anode_flattened[obj.name] = cost
-            else:
-                anode_flattened[key] = value
+        anode_cost_breakdown = self.anode_cost_breakdown
+        anode_cost_breakdown = {obj: value for innder_dict in anode_cost_breakdown.values() for obj, value in innder_dict.items()}
+        anode_cost_breakdown = pd.DataFrame(anode_cost_breakdown.items(), columns=['component', 'cost']).assign(level = 'Anode').assign(component = lambda x: x['component'].apply(lambda y: y.name))
 
-        data_cell = (pd
-                     .DataFrame(self.cost_breakdown.items(), columns=['component', 'cost'])
-                     .assign(component = lambda x: x['component'].apply(lambda y: y.name))
-                     .assign(level = 'Cell')
-                     )
+        cathode_cost_breakdown = self.cathode_cost_breakdown
+        cathode_cost_breakdown = {obj: value for innder_dict in cathode_cost_breakdown.values() for obj, value in innder_dict.items()}
+        cathode_cost_breakdown = pd.DataFrame(cathode_cost_breakdown.items(), columns=['component', 'cost']).assign(level = 'Cathode').assign(component = lambda x: x['component'].apply(lambda y: y.name))
 
-        data_stack = (pd
-                      .DataFrame(self.stack.cost_breakdown.items(), columns=['component', 'cost'])
-                      .assign(component = lambda x: x['component'].apply(lambda y: y.name))
-                      .assign(level = 'Cell')
-                      )
-        
-        data_cathode = (pd
-                        .DataFrame(cathode_flattened.items(), columns=['component', 'cost'])
-                        .assign(level = 'Cathode')
-                        )
+        data = pd.concat([cost_breakdown, anode_cost_breakdown, cathode_cost_breakdown])
 
-        data_anode = (pd
-                      .DataFrame(anode_flattened.items(), columns=['component', 'cost'])
-                      .assign(level = 'Anode')
-                      )
+        figure = px.pie(data, values='cost', names='component', title='Cost Breakdown', facet_col='level', color='component')
+        figure.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#000000', width=2)))
+        figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
 
-        data = pd.concat([data_cell, data_stack, data_cathode, data_anode])
+        return figure
 
-        return data
+    def get_mass_breakdown_plot(self, plot_mode: str = 'pie', **kwargs):
+
+        if plot_mode.lower() == 'pie':
+            figure = self._get_mass_breakdown_plot_pie(**kwargs)
+        else:
+            raise ValueError("Plot mode not recognized. Please choose between 'pie'")
+
+        return figure
+    
+    def get_cost_breakdown_plot(self, plot_mode: str = 'pie', **kwargs):
+
+        if plot_mode.lower() == 'pie':
+            figure = self._get_cost_breakdown_plot_pie(**kwargs)
+        else:
+            raise ValueError("Plot mode not recognized. Please choose between 'pie'")
+
+        return figure
+
+    @property
+    def cathode_areal_capacity(self):
+        return round(self._cathode_areal_capacity * (S_TO_H * A_TO_mA / M_TO_CM**2), 2)
+
+    @property
+    def stacks(self) -> Stack:
+        return self._stacks
+    
+    @property
+    def effective_areal_capacity(self) -> float:
+        return round(self._effective_areal_capacity, 2) 
 
 
 class StackedPouchCell(_PouchCell, _StackedCell):
@@ -675,7 +714,8 @@ class StackedPouchCell(_PouchCell, _StackedCell):
                  negative_terminal: Terminal,
                  reversible_capacity: float,
                  irreversible_capacity: float,
-                 grid_n: int = 1000,
+                 n_stacks: int = 1,
+                 grid_n: int = 100,
                  name: str = 'Stacked Pouch Cell'):
         """
         A class that represents a stacked pouch cell.
@@ -703,82 +743,95 @@ class StackedPouchCell(_PouchCell, _StackedCell):
                            name=name)
         
         _StackedCell.__init__(self,
-                             stack=stack,
-                             electrolyte=electrolyte,
-                             electrolyte_overfill=electrolyte_overfill,
-                             reversible_capacity=reversible_capacity,
-                             irreversible_capacity=irreversible_capacity,
-                             grid_n=grid_n,
-                             name=name)
+                              stack=stack,
+                              electrolyte=electrolyte,
+                              electrolyte_overfill=electrolyte_overfill,
+                              reversible_capacity=reversible_capacity,
+                              irreversible_capacity=irreversible_capacity,
+                              n_stacks=n_stacks,
+                              grid_n=grid_n,
+                              name=name)
 
-        # calculate pouch properties
-        self._pouch._width = self._stack._width + 2 * self._pouch._heat_seal_size_sides
-        self._pouch._length = self._stack._length + self._pouch._heat_seal_size_top
+        self._calculate_pouch_properties()
+        self._calculate_mass_breakdown()
+        self._calculate_cost_breakdown()
+        self._calculate_geometry_properties()
+        self._calculate_energy_properties()
+
+    def _calculate_pouch_properties(self):
+        self._pouch._width = max([s._width for s in self._stacks]) + 2 * self._pouch._heat_seal_size_sides
+        self._pouch._length = max([s._length for s in self._stacks]) + self._pouch._heat_seal_size_top
         self._pouch._area = self._pouch._width * self._pouch._length
         self._pouch._mass = 2 * self._pouch._area * self._pouch._laminate._areal_mass
         self._pouch._cost = self._pouch._area * self._pouch._laminate._areal_cost
 
-        # calculate mass of cell
-        self._mass_breakdown = {self._stack: self._stack._mass,
-                                self._electrolyte: self._electrolyte._mass,
-                                self._pouch: self._pouch._mass,
-                                self._positive_terminal: self._positive_terminal._mass,
-                                self._negative_terminal: self._negative_terminal._mass}
-
-        self._mass = sum(self._mass_breakdown.values())
+    def _add_to_dict(self, dictionary_1: dict, dictionary_2: dict):
         
-        # calculate geometric properties of the cell
-        self._thickness = (self._stack._thickness + self._pouch._laminate._thickness * 2)
-        self._volume = self._pouch._length * self._pouch._width * self._thickness
+        for key, value in dictionary_2.items():
+            if key in dictionary_1:
+                dictionary_1[key] += value
+            else:
+                dictionary_1[key] = value
 
-        # calculate cost of the cell
-        self._cost_breakdown = {self._stack: self._stack._cost,
-                                self._pouch: self._pouch._cost,
-                                self._electrolyte: self._electrolyte._cost,
-                                self._positive_terminal: self._positive_terminal._cost,
-                                self._negative_terminal: self._negative_terminal._cost}
+        return dictionary_1
+
+    def _calculate_cost_breakdown(self):
+
+        self._cost_breakdown = {'stacks': sum([s._cost for s in self._stacks]),
+                                'electrolyte': self._electrolyte._cost,
+                                'encapsulation': self._pouch._cost + self._positive_terminal._cost + self._negative_terminal._cost}
+        
+        self._stacks_cost_breakdown = {'cathode': sum([s._cost_breakdown['cathode'] for s in self._stacks]),
+                                       'anode': sum([s._cost_breakdown['anode'] for s in self._stacks]),
+                                       'separator': sum([s._cost_breakdown['separator'] for s in self._stacks])}
+        
+        anode_cost_breakdown = {'active_materials': {}, 'binders': {}, 'conductive_additives': {}, 'current_collectors': {}}
+        cathode_cost_breakdown = {'active_materials': {}, 'binders': {}, 'conductive_additives': {}, 'current_collectors': {}}
+
+        for s in self._stacks:
+            for key in anode_cost_breakdown.keys():
+                anode_cost_breakdown[key] = self._add_to_dict(anode_cost_breakdown[key], s._anode_cost_breakdown[key])
+            for key in cathode_cost_breakdown.keys():
+                cathode_cost_breakdown[key] = self._add_to_dict(cathode_cost_breakdown[key], s._cathode_cost_breakdown[key])
+
+        self._anode_cost_breakdown = anode_cost_breakdown
+        self._cathode_cost_breakdown = cathode_cost_breakdown
 
         self._cost = sum(self._cost_breakdown.values())
 
-        # energy properties
+    def _calculate_mass_breakdown(self):
+        
+        self._mass_breakdown = {'stacks': sum([s._mass for s in self._stacks]),
+                                'electrolyte': self._electrolyte._mass,
+                                'encapsulation': self._pouch._mass + self._positive_terminal._mass + self._positive_terminal._mass}
+        
+        self._stacks_mass_breakdown = {'cathode': sum([s._mass_breakdown['cathode'] for s in self._stacks]),
+                                       'anode': sum([s._mass_breakdown['anode'] for s in self._stacks]),
+                                       'separator': sum([s._mass_breakdown['separator'] for s in self._stacks])}
+        
+        anode_mass_breakdown = {'active_materials': {}, 'binders': {}, 'conductive_additives': {}, 'current_collectors': {}}
+        cathode_mass_breakdown = {'active_materials': {}, 'binders': {}, 'conductive_additives': {}, 'current_collectors': {}}
+
+        for s in self._stacks:
+            for key in anode_mass_breakdown.keys():
+                anode_mass_breakdown[key] = self._add_to_dict(anode_mass_breakdown[key], s._anode_mass_breakdown[key])
+            for key in cathode_mass_breakdown.keys():
+                cathode_mass_breakdown[key] = self._add_to_dict(cathode_mass_breakdown[key], s._cathode_mass_breakdown[key])
+
+        self._anode_mass_breakdown = anode_mass_breakdown
+        self._cathode_mass_breakdown = cathode_mass_breakdown
+
+        self._mass = sum(self._mass_breakdown.values())
+    
+    def _calculate_geometry_properties(self):
+        self._thickness = sum([s._thickness for s in self._stacks]) + self._pouch._laminate._thickness * 2
+        self._volume = self._pouch._length * self._pouch._width * self._thickness
+
+    def _calculate_energy_properties(self):
         self._specific_energy = self._energy / self._mass
         self._energy_density = self._energy / self._volume
         self._normalized_cost = self._cost / self._energy
 
-    def _get_mass_breakdown_plot_pie(self, **kwargs):
-
-        data = (self
-                ._get_mass_breakdown_data_for_plotting()
-                .assign(component = lambda x: ['Encapsulation' 
-                                               if c == self.pouch.name or c == self.positive_terminal.name or c == self.negative_terminal.name
-                                               else c 
-                                               for c in x['component']])
-                .query(f'not (component == "{self.stack.name}" and level == "Cell")')
-                )
-        
-        figure = px.pie(data, values='mass', names='component', title='Mass Breakdown', facet_col='level', color='component', color_discrete_map=self._color_map, **kwargs)
-        figure.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#000000', width=2)))
-        figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
-
-        return figure
-    
-    def _get_cost_breakdown_plot_pie(self, **kwargs):
-
-        data = (self
-                ._get_cost_breakdown_data_for_plotting()
-                .assign(component = lambda x: ['Encapsulation' 
-                                               if c == self.pouch.name or c == self.positive_terminal.name or c == self.negative_terminal.name
-                                               else c 
-                                               for c in x['component']])
-                .query(f'not (component == "{self.stack.name}" and level == "Cell")')
-                )
-
-        figure = px.pie(data, values='cost', names='component', title='Cost Breakdown', facet_col='level', color='component', color_discrete_map=self._color_map, **kwargs)
-        figure.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#000000', width=2)))
-        figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
-
-        return figure
-    
 
 class StackedPrismaticCell(_PrismaticCell, _StackedCell):
 
@@ -789,7 +842,7 @@ class StackedPrismaticCell(_PrismaticCell, _StackedCell):
                  electrolyte_overfill: float,
                  reversible_capacity: float,
                  irreversible_capacity: float,
-                 grid_n: int = 500,
+                 grid_n: int = 100,
                  name: str = 'Stacked Prismatic Cell'):
         """
         A class that represents a stacked prismatic cell.
@@ -849,37 +902,3 @@ class StackedPrismaticCell(_PrismaticCell, _StackedCell):
         self._specific_energy = self._energy / self._mass
         self._energy_density = self._energy / self._volume
         self._normalized_cost = self._cost / self._energy
-
-    def _get_mass_breakdown_plot_pie(self, **kwargs):
-
-        data = (self
-                ._get_mass_breakdown_data_for_plotting()
-                .assign(component = lambda x: ['Encapsulation' 
-                                               if c == self.prismatic_case.name
-                                               else c 
-                                               for c in x['component']])
-                .query(f'not (component == "{self.stack.name}" and level == "Cell")')
-                )
-
-        figure = px.pie(data, values='mass', names='component', title='Mass Breakdown', facet_col='level', color='component', color_discrete_map=self._color_map, **kwargs)
-        figure.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#000000', width=2)))
-        figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
-
-        return figure
-    
-    def _get_cost_breakdown_plot_pie(self, **kwargs):
-
-        data = (self
-                ._get_cost_breakdown_data_for_plotting()
-                .assign(component = lambda x: ['Encapsulation' 
-                                               if c == self.prismatic_case.name
-                                               else c 
-                                               for c in x['component']])
-                .query(f'not (component == "{self.stack.name}" and level == "Cell")')
-                )
-
-        figure = px.pie(data, values='cost', names='component', title='Cost Breakdown', facet_col='level', color='component', color_discrete_map=self._color_map, **kwargs)
-        figure.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#000000', width=2)))
-        figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
-
-        return figure

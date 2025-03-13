@@ -47,6 +47,8 @@ class CurrentCollector:
         self._mass = (self._coated_area + self._bare_tab_area) * self._thickness * self._density
         self._cost = self._mass * self._specific_cost
 
+        self._used = False
+
     def set_properties_from_database(self):
         """
         Retrieve the properties of the current collector from the database.
