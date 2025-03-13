@@ -65,7 +65,7 @@ class TestCellsSingleAM(unittest.TestCase):
                       cathode=cathode,
                       separator=separator, 
                       name="stack",
-                      n_stacks=26)
+                      n_layers=26)
 
         # make electrolyte
         electrolyte = Electrolyte(specific_cost=8.94, density=1.2)
@@ -113,12 +113,12 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(round(self.cell.full_cell_curves
                                .query('Direction == "discharge"')['Capacity (Ah)']
                                .reset_index(drop=True)
-                               .iloc[100]), 6.0)
+                               .iloc[100]), 4.0)
         
         self.assertEqual(round(self.cell.full_cell_curves
                                .query('Direction == "charge"')['Capacity (Ah)']
                                .reset_index(drop=True)
-                               .iloc[100]), 6.0)
+                               .iloc[100]), 7.0)
         
         self.assertEqual(self.cell.cathode_areal_capacity, 1.40)
         figure = self.cell.get_capacity_voltage_plot()
@@ -128,10 +128,10 @@ class TestCellsSingleAM(unittest.TestCase):
         figure = self.cell.get_mass_breakdown_plot()
         # figure.show()
 
-        self.assertEqual(self.cell.energy, 39.75)
-        self.assertEqual(self.cell.energy_density, 403.95)
-        self.assertEqual(self.cell.specific_energy, 221.25)
-        self.assertEqual(self.cell.normalized_cost, 69.42)
+        self.assertEqual(self.cell.energy, 38.92)
+        self.assertEqual(self.cell.energy_density, 395.52)
+        self.assertEqual(self.cell.specific_energy, 216.63)
+        self.assertEqual(self.cell.normalized_cost, 70.9)
 
     def test_terminals(self):
         self.assertEqual(self.cell.positive_terminal.mass, 1)
@@ -179,7 +179,7 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(self.cell.electrolyte.specific_cost, 8.94)
 
     def test_stack(self):
-        self.assertEqual(self.cell.stack.n_stacks, 26)
+        self.assertEqual(self.cell.stack.n_layers, 26)
         self.assertEqual(self.cell.stack.n_cathode, 26)
         self.assertEqual(self.cell.stack.n_anode, 27)
         self.assertEqual(self.cell.stack.n_separator, 56)

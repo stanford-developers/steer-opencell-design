@@ -86,7 +86,7 @@ class TestCellsSingleAM(unittest.TestCase):
         stack = Stack(anode=anode, 
                       cathode=cathode,
                       separator=separator, 
-                      n_stacks=60)
+                      n_layers=60)
 
         # make electrolyte
         electrolyte = Electrolyte(specific_cost=8.94, density=1.2)
@@ -136,7 +136,7 @@ class TestCellsSingleAM(unittest.TestCase):
         figure = self.cell.get_capacity_voltage_plot()
         # figure.show()
         figure = self.cell.get_cost_breakdown_plot()
-        figure.show()
+        # figure.show()
         figure = self.cell.get_mass_breakdown_plot()
         # figure.show()
 
@@ -208,7 +208,7 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(self.cell.electrolyte.specific_cost, 8.94)
 
     def test_stack(self):
-        self.assertEqual(self.cell.stack.n_stacks, 60)
+        self.assertEqual(self.cell.stack.n_layers, 60)
         self.assertEqual(self.cell.stack.n_cathode, 60)
         self.assertEqual(self.cell.stack.n_anode, 61)
         self.assertEqual(self.cell.stack.n_separator, 124)

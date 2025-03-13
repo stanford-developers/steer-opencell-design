@@ -79,7 +79,7 @@ class TestCellsSingleAM(unittest.TestCase):
                            cathode=cathode1,
                            separator=separator1, 
                            name="stack",
-                           n_stacks=26)
+                           n_layers=26)
         
         #### stack 2 ####
         # construct cathode
@@ -147,10 +147,10 @@ class TestCellsSingleAM(unittest.TestCase):
                             cathode=cathode2,
                             separator=separator2, 
                             name="stack",
-                            n_stacks=50)
+                            n_layers=50)
         
     def test_stack1(self):
-        self.assertEqual(self.stack1.n_stacks, 26)
+        self.assertEqual(self.stack1.n_layers, 26)
         self.assertEqual(self.stack1.n_cathode, 26)
         self.assertEqual(self.stack1.n_anode, 27)
         self.assertEqual(self.stack1.n_separator, 56)
@@ -165,7 +165,7 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(self.stack1.thickness, 7.19)
 
     def test_stack2(self):
-        self.assertEqual(self.stack2.n_stacks, 50)
+        self.assertEqual(self.stack2.n_layers, 50)
         self.assertEqual(self.stack2.n_cathode, 50)
         self.assertEqual(self.stack2.n_anode, 51)
         self.assertEqual(self.stack2.n_separator, 104)
@@ -180,7 +180,7 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(self.stack2.thickness, 13.62)
 
     def test_stack1_n_setter(self):
-        self.stack1.n_stacks = 50
+        self.stack1.n_layers = 50
         self.assertEqual(self.stack1.n_cathode, 50)
         self.assertEqual(self.stack1.n_anode, 51)
         self.assertEqual(self.stack1.n_separator, 104)
