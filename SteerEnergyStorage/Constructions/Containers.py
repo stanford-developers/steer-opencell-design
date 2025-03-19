@@ -3,6 +3,8 @@ from SteerEnergyStorage.Constructions.Electrodes import Cathode, Anode
 from SteerEnergyStorage.Materials.Separators import Separator
 from SteerEnergyStorage.Formulations.Stacks import Stack
 
+from copy import deepcopy
+
 CM_TO_M = 0.01
 M_TO_CM = 100
 G_TO_KG = 0.001
@@ -32,6 +34,7 @@ class Pouch:
         self._laminate = laminate
         self._tape = tape
         self._name = name
+        self._used = False
 
     @property
     def name(self) -> str:
@@ -268,6 +271,7 @@ class PrismaticCase:
                             anode: Anode,
                             cathode: Cathode,
                             separator: Separator,
+                            n_stacks: int = 1,
                             **kwargs) -> Stack:
         """
         Function to get the optimized stack for the prismatic case.
@@ -283,18 +287,29 @@ class PrismaticCase:
         if anode.current_collector._length > self._internal_length:
             raise ValueError("Anode current collector length is too large for the prismatic case")
         
-        stack = Stack(anode=anode, cathode=cathode, separator=separator, n_stacks=1, **kwargs)
+        target_stack_height = self._internal_height / n_stacks
+        stack_layers = 2
+        stack = Stack(anode=anode, cathode=cathode, separator=separator, n_layers=stack_layers, **kwargs)
 
         if stack._length > self._internal_length:
             raise ValueError("Stack length is too large for the prismatic case. Reduce your current collector lengths.")
         if stack._width > self._internal_width:
             raise ValueError("Stack width is too large for the prismatic case. Reduce your current collector widths.")
-        if stack._thickness > self._internal_height:
+        if stack._thickness > target_stack_height:
             raise ValueError("Stack is too thick for the prismatic case even with one layer. Check your inputs.")
         
-        while stack._thickness < self._internal_height:
-            stack.n_stacks += 1
-        stack.n_stacks -= 1
+        initial_layer_guess = int(target_stack_height // (stack._thickness/2))
+        stack = Stack(anode=anode, cathode=cathode, separator=separator, n_layers=initial_layer_guess, **kwargs)
+
+        if stack._thickness > target_stack_height:
+            while stack._thickness > target_stack_height:
+                initial_layer_guess -= 1
+                stack = Stack(anode=anode, cathode=cathode, separator=separator, n_layers=initial_layer_guess, **kwargs)
+        elif stack._thickness < target_stack_height:
+            while stack._thickness < target_stack_height:
+                initial_layer_guess += 1
+                stack = Stack(anode=anode, cathode=cathode, separator=separator, n_layers=initial_layer_guess, **kwargs)
+            stack = Stack(anode=anode, cathode=cathode, separator=separator, n_layers=initial_layer_guess-1, **kwargs)
 
         return stack
     
