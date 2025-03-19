@@ -83,8 +83,8 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertTrue(isinstance(self.cathode.formulation, ElectrodeFormulation))
         self.assertTrue(isinstance(self.anode.formulation, ElectrodeFormulation))
 
-        self.assertEqual(len(self.cathode.mass_breakdown), 3)
-        self.assertEqual(len(self.anode.mass_breakdown), 3)
+        self.assertEqual(len(self.cathode.mass_breakdown), 4)
+        self.assertEqual(len(self.anode.mass_breakdown), 4)
         self.assertEqual(len(self.cathode._mass_breakdown['active_materials']), 2)
         self.assertEqual(len(self.cathode._mass_breakdown['binders']), 2)
         self.assertEqual(len(self.cathode._mass_breakdown['conductive_additives']), 2)

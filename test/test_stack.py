@@ -154,7 +154,7 @@ class TestCellsSingleAM(unittest.TestCase):
         single_cathode_capacity = self.stack.cathodes[0].half_cell_curve['Capacity (Ah)'].max()
         single_anode_capacity = self.stack.anodes[0].half_cell_curve['Capacity (Ah)'].max()
         self.assertEqual(round(cathode_max_capacity, 5), round(single_cathode_capacity * 26, 5))
-        self.assertEqual(round(anode_max_capacity, 5), round(single_anode_capacity * 27, 5))
+        self.assertEqual(round(anode_max_capacity, 5), round(single_anode_capacity * 26, 5))
 
     def test_full_cell_curve(self):
         """

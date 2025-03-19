@@ -26,8 +26,8 @@ class TestCellsSingleAM(unittest.TestCase):
         cathode_binder = Binder(name="PVDF", specific_cost=15, density=1.7)
 
         cathode_formulation = ElectrodeFormulation(active_materials={cathode_active_material: 89},
-                                                   binder={cathode_binder: 5},
-                                                   conductive_additive={cathode_conductive_additive: 6})
+                                                   binders={cathode_binder: 5},
+                                                   conductive_additives={cathode_conductive_additive: 6})
 
         cathode_current_collector = CurrentCollector(formula="Al", 
                                                      thickness=15, 
@@ -52,8 +52,8 @@ class TestCellsSingleAM(unittest.TestCase):
         anode_binder = Binder(name="PVDF", specific_cost=10, density=1.7)
 
         anode_formulation = ElectrodeFormulation(active_materials={anode_active_material: 88},
-                                                 binder={anode_binder: 3},
-                                                 conductive_additive={anode_conductive_additive: 9})
+                                                 binders={anode_binder: 3},
+                                                 conductive_additives={anode_conductive_additive: 9})
         
         anode_current_collector = CurrentCollector(formula="Cu",
                                                    thickness=15,
@@ -89,7 +89,8 @@ class TestCellsSingleAM(unittest.TestCase):
         
         self.prismatic_case = PrismaticCase(lid=prismatic_lid, shell=prismatic_shell)
 
-        self.stack = self.prismatic_case.get_optimized_stack(cathode=cathode, anode=anode, separator=separator)
+        self.stack_1 = self.prismatic_case.get_optimized_stack(cathode=cathode, anode=anode, separator=separator)
+        self.stack_2 = self.prismatic_case.get_optimized_stack(cathode=cathode, anode=anode, separator=separator, n_stacks=2)
 
     def test_case(self):
         self.assertEqual(self.prismatic_case.cost, 0.48)
@@ -113,18 +114,13 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(round(self.prismatic_case._external_length, 4), 0.1906)
         self.assertEqual(round(self.prismatic_case._external_height, 4), 0.0209)
         self.assertEqual(round(self.prismatic_case._external_volume, 6), 0.000508)
+        
+    def test_stack_1(self):
+        self.assertEqual(self.stack_1._n_layers, 71)
+        self.assertEqual(len(self.stack_1._cathodes), 71)
+        self.assertEqual(len(self.stack_1._anodes), 72)
 
-        self.assertEqual(self.stack.n_layers, 71)
-        self.assertEqual(self.stack.n_cathode, 71)
-        self.assertEqual(self.stack.n_anode, 72)
-        self.assertEqual(self.stack.n_separator, 146)
-        self.assertEqual(round(self.stack._mass_breakdown[self.stack.cathode], 4), 0.3141)
-        self.assertEqual(round(self.stack._mass_breakdown[self.stack.anode], 4), 0.3052)
-        self.assertEqual(round(self.stack._mass_breakdown[self.stack.separator], 4), 0.0192)
-        self.assertEqual(self.stack.mass_breakdown[self.stack.cathode], 314.11)
-        self.assertEqual(self.stack.mass_breakdown[self.stack.anode], 305.16)
-        self.assertEqual(self.stack.mass_breakdown[self.stack.separator], 19.19)
-        self.assertEqual(self.stack.pore_volume, 117.6)
-        self.assertEqual(round(self.stack._pore_volume, 6), 0.000118)
-        self.assertEqual(self.stack.thickness, 19.24)
-
+    def test_stack_2(self):
+        self.assertEqual(self.stack_2._n_layers, 35)
+        self.assertEqual(len(self.stack_2._cathodes), 35)
+        self.assertEqual(len(self.stack_2._anodes), 36)

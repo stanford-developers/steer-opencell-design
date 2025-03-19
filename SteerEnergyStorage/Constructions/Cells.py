@@ -2,6 +2,7 @@ from SteerEnergyStorage.Formulations.Stacks import Stack
 from SteerEnergyStorage.Materials.Electrolytes import Electrolyte
 from SteerEnergyStorage.Materials.other import Terminal
 from SteerEnergyStorage.Constructions.Containers import Pouch, PrismaticCase
+from SteerEnergyStorage.Utils import get_colorway
 
 import pandas as pd
 import numpy as np
@@ -54,19 +55,12 @@ class _Cell:
             raise ValueError("Electrolyte_overfill percentage must be between 0 and 100")
         
         self._electrolyte = deepcopy(electrolyte)
-        self._electrolyte_overfill = electrolyte_overfill
+        self._electrolyte_overfill = electrolyte_overfill / 100
 
     def get_capacity_voltage_plot(self, **kwargs):
 
-        try:
-            cathode_curve = self.cathode_half_cell_curve.copy()
-            anode_curve = self.anode_half_cell_curve.copy()
-            full_curves = self.full_cell_curve.copy()
-        except AttributeError:
-            raise AttributeError("The cell curves have not been calculated yet. Make sure you initiated the right cell object")
-
         cathode_curve = self.cathode_half_cell_curve.copy().assign(Electrode='Cathode')
-        anode_curve = self.anode_half_cell_curve.copy().assign(Electrode='Anode')
+        anode_curve = self.anode_half_cell_curve.copy().assign(Electrode='Anode') if not self._anode_free else None
         full_curves = self.full_cell_curve.copy().assign(Electrode='Full Cell')
 
         data = pd.concat([cathode_curve, anode_curve, full_curves])
@@ -82,6 +76,16 @@ class _Cell:
         figure.add_vline(x=upper_cap_limit, line_color='black', line_width=2)
         figure.add_vline(x=lower_cap_limit, line_color='black', line_width=2)
         return figure
+    
+    def _add_to_dict(self, dictionary_1: dict, dictionary_2: dict):
+        
+        for key, value in dictionary_2.items():
+            if key in dictionary_1:
+                dictionary_1[key] += value
+            else:
+                dictionary_1[key] = value
+
+        return dictionary_1
 
     @property
     def electrolyte_overfill(self) -> float:
@@ -138,7 +142,7 @@ class _Cell:
             raise AttributeError("Anode cost breakdown has not been calculated yet")
         
         cost_breakdown = {
-            key.replace('_', ' ').title(): {obj: round(value * KG_TO_G, 3) for obj, value in inner.items()}
+            key.replace('_', ' ').title(): {obj: round(value, 3) for obj, value in inner.items()}
             for key, inner in self._anode_cost_breakdown.items()
         }
 
@@ -151,7 +155,7 @@ class _Cell:
             raise AttributeError("Cathode cost breakdown has not been calculated yet")
         
         cost_breakdown = {
-            key.replace('_', ' ').title(): {obj: round(value * KG_TO_G, 3) for obj, value in inner.items()}
+            key.replace('_', ' ').title(): {obj: round(value, 3) for obj, value in inner.items()}
             for key, inner in self._cathode_cost_breakdown.items()
         }
 
@@ -471,6 +475,11 @@ class _StackedCell(_Cell):
             for i, stack in enumerate(self._stacks):
                 stack._name = f"{stack._name}_{i + 1}"
 
+        if set([s._anode_free for s in self._stacks]) == {True}:
+            self._anode_free = True
+        else:
+            self._anode_free = False
+
     def _get_effective_areal_capacity(self) -> None:
         """
         Function to calculate the effective areal capacity of the stacks
@@ -499,17 +508,21 @@ class _StackedCell(_Cell):
                              .groupby('direction', as_index=False)
                              .apply(lambda x: x.sort_values('capacity', ascending=True if x['direction'].values[0] == 'charge' else False))
                              )
-
-        anode_half_cell = (pd
-                           .concat([s._anode_half_cell_curve for a in self._stacks])
-                           .groupby(['direction', 'voltage'], as_index=False)['capacity']
-                           .sum()
-                           .groupby('direction', as_index=False)
-                           .apply(lambda x: x.sort_values('capacity', ascending=True if x['direction'].values[0] == 'charge' else False))
-                           )
         
         self._cathode_half_cell_curve = cathode_half_cell
-        self._anode_half_cell_curve = anode_half_cell
+
+        if not self._anode_free:
+
+            anode_half_cell = (pd
+                            .concat([s._anode_half_cell_curve for s in self._stacks])
+                            .groupby(['direction', 'voltage'], as_index=False)['capacity']
+                            .sum()
+                            .groupby('direction', as_index=False)
+                            .apply(lambda x: x.sort_values('capacity', ascending=True if x['direction'].values[0] == 'charge' else False))
+                            )
+            
+            self._anode_half_cell_curve = anode_half_cell
+        
     
     def _calculate_full_cell_curve(self):
         """
@@ -606,9 +619,10 @@ class _StackedCell(_Cell):
         cathode_mass_breakdown = {obj: value for innder_dict in cathode_mass_breakdown.values() for obj, value in innder_dict.items()}
         cathode_mass_breakdown = pd.DataFrame(cathode_mass_breakdown.items(), columns=['component', 'mass']).assign(level = 'Cathode').assign(component = lambda x: x['component'].apply(lambda y: y.name))
 
+        color_map = self._get_color_map()
         data = pd.concat([mass_breakdown, anode_mass_breakdown, cathode_mass_breakdown])
 
-        figure = px.pie(data, values='mass', names='component', title='Mass Breakdown', facet_col='level', color='component')
+        figure = px.pie(data, values='mass', names='component', title='Mass Breakdown', facet_col='level', color='component', color_discrete_map=color_map)
         figure.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#000000', width=2)))
         figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
 
@@ -630,29 +644,140 @@ class _StackedCell(_Cell):
         cathode_cost_breakdown = {obj: value for innder_dict in cathode_cost_breakdown.values() for obj, value in innder_dict.items()}
         cathode_cost_breakdown = pd.DataFrame(cathode_cost_breakdown.items(), columns=['component', 'cost']).assign(level = 'Cathode').assign(component = lambda x: x['component'].apply(lambda y: y.name))
 
+        color_map = self._get_color_map()
         data = pd.concat([cost_breakdown, anode_cost_breakdown, cathode_cost_breakdown])
 
-        figure = px.pie(data, values='cost', names='component', title='Cost Breakdown', facet_col='level', color='component')
+        figure = px.pie(data, values='cost', names='component', title='Cost Breakdown', facet_col='level', color='component', color_discrete_map=color_map)
         figure.update_traces(textposition='inside', textinfo='percent+label', marker=dict(line=dict(color='#000000', width=2)))
         figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
 
         return figure
+    
+    def _get_cost_breakdown_plot_sunburst(self, **kwargs):
 
-    def get_mass_breakdown_plot(self, plot_mode: str = 'pie', **kwargs):
+        cost_breakdown = (pd
+                          .DataFrame(self.cost_breakdown.items(), columns=['level_1', 'cost'])
+                          .query('level_1 != "Stacks"')
+                          .assign(level_2 = None).assign(level_0 = 'Cell')
+                          )
+        
+        stack_cost_breakdown = (pd
+                                .DataFrame(self.stacks_cost_breakdown.items(), columns=['level_1', 'cost'])
+                                .query('level_1 != "Anode" and level_1 != "Cathode"')
+                                .assign(level_0 = 'Cell').assign(level_2 = None)
+                                )
 
-        if plot_mode.lower() == 'pie':
-            figure = self._get_mass_breakdown_plot_pie(**kwargs)
-        else:
-            raise ValueError("Plot mode not recognized. Please choose between 'pie'")
+        anode_cost_breakdown = self.anode_cost_breakdown
+        anode_cost_breakdown = {obj: value for innder_dict in anode_cost_breakdown.values() for obj, value in innder_dict.items()}
+        anode_cost_breakdown = (pd
+                                .DataFrame(anode_cost_breakdown.items(), columns=['level_2', 'cost'])
+                                .assign(level_1 = 'Anode').assign(level_0 = 'Cell')
+                                .assign(level_2 = lambda x: x['level_2'].apply(lambda y: y.name))
+                                )
+
+        cathode_cost_breakdown = self.cathode_cost_breakdown
+        cathode_cost_breakdown = {obj: value for innder_dict in cathode_cost_breakdown.values() for obj, value in innder_dict.items()}
+        cathode_cost_breakdown = (pd
+                                  .DataFrame(cathode_cost_breakdown.items(), columns=['level_2', 'cost'])
+                                  .assign(level_1 = 'Cathode').assign(level_0 = 'Cell')
+                                  .assign(level_2 = lambda x: x['level_2'].apply(lambda y: y.name))
+                                  )
+
+        color_map = self._get_color_map()
+
+        data = pd.concat([cost_breakdown, anode_cost_breakdown, cathode_cost_breakdown, stack_cost_breakdown])
+
+        figure = px.sunburst(data, path=['level_0', 'level_1', 'level_2'], values='cost', title='Cost Breakdown', color='level_1', color_discrete_map=color_map, **kwargs)
+        figure.update_traces(textinfo='percent parent+label')
+        figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
 
         return figure
     
-    def get_cost_breakdown_plot(self, plot_mode: str = 'pie', **kwargs):
+    def _get_mass_breakdown_plot_sunburst(self, **kwargs):
 
-        if plot_mode.lower() == 'pie':
-            figure = self._get_cost_breakdown_plot_pie(**kwargs)
+        mass_breakdown = (pd
+                          .DataFrame(self.mass_breakdown.items(), columns=['level_1', 'mass'])
+                          .query('level_1 != "Stacks"')
+                          .assign(level_2 = None).assign(level_0 = 'Cell')
+                          )
+        
+        stack_mass_breakdown = (pd
+                                .DataFrame(self.stacks_mass_breakdown.items(), columns=['level_1', 'mass'])
+                                .query('level_1 != "Anode" and level_1 != "Cathode"')
+                                .assign(level_0 = 'Cell').assign(level_2 = None)
+                                )
+
+        anode_mass_breakdown = self.anode_mass_breakdown
+        anode_mass_breakdown = {obj: value for innder_dict in anode_mass_breakdown.values() for obj, value in innder_dict.items()}
+        anode_mass_breakdown = (pd
+                                .DataFrame(anode_mass_breakdown.items(), columns=['level_2', 'mass'])
+                                .assign(level_1 = 'Anode').assign(level_0 = 'Cell')
+                                .assign(level_2 = lambda x: x['level_2'].apply(lambda y: y.name))
+                                )
+
+        cathode_mass_breakdown = self.cathode_mass_breakdown
+        cathode_mass_breakdown = {obj: value for innder_dict in cathode_mass_breakdown.values() for obj, value in innder_dict.items()}
+        cathode_mass_breakdown = (pd
+                                  .DataFrame(cathode_mass_breakdown.items(), columns=['level_2', 'mass'])
+                                  .assign(level_1 = 'Cathode').assign(level_0 = 'Cell')
+                                  .assign(level_2 = lambda x: x['level_2'].apply(lambda y: y.name))
+                                  )
+
+        color_map = self._get_color_map()
+
+        data = pd.concat([mass_breakdown, anode_mass_breakdown, cathode_mass_breakdown, stack_mass_breakdown])
+
+        figure = px.sunburst(data, path=['level_0', 'level_1', 'level_2'], values='mass', title='Mass Breakdown', color='level_1', color_discrete_map=color_map, **kwargs)
+        figure.update_traces(textinfo='percent parent+label')
+        figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
+
+        return figure
+    
+    def _get_color_map(self):
+
+        color_map = {
+            'Electrolyte': '#3465A4',
+            'Encapsulation': '#E86E1C',
+            'Stacks': '#4DAF4A',
+            'Cathode': '#F6BE00',
+            'Anode': '#9558B2'
+        }
+
+        items = ['active_materials', 'binders', 'conductive_additives', 'current_collectors']
+        color_tups = [('#D7263D', '#FF758F'), ('#007F5F', '#2BB673'), ('#F49D37', '#FFD166'), ('#3A86FF', '#A0C4FF')]
+
+        for item, color_tup in zip(items, color_tups):
+            anode_items = [a.name for a in list(self._anode_mass_breakdown[item].keys())]
+            anode_colors = get_colorway(color_tup[0], color_tup[1], len(anode_items))
+            anode_map = {item: color for item, color in zip(anode_items, anode_colors)}
+            color_map.update(anode_map)
+
+            cathode_items = [c.name for c in list(self._cathode_mass_breakdown[item].keys())]
+            cathode_colors = get_colorway(color_tup[0], color_tup[1], len(cathode_items))
+            cathode_map = {item: color for item, color in zip(cathode_items, cathode_colors)}
+            color_map.update(cathode_map)
+
+        return color_map
+
+    def get_mass_breakdown_plot(self, mode: str = 'sunburst', **kwargs):
+
+        if mode.lower() == 'pie':
+            figure = self._get_mass_breakdown_plot_pie(**kwargs)
+        elif mode.lower() == 'sunburst':
+            figure = self._get_mass_breakdown_plot_sunburst(**kwargs)
         else:
-            raise ValueError("Plot mode not recognized. Please choose between 'pie'")
+            raise ValueError("Plot mode not recognized. Please choose between ['pie', 'sunburst']")
+
+        return figure
+    
+    def get_cost_breakdown_plot(self, mode: str = 'sunburst', **kwargs):
+
+        if mode.lower() == 'pie':
+            figure = self._get_cost_breakdown_plot_pie(**kwargs)
+        elif mode.lower() == 'sunburst':
+            figure = self._get_cost_breakdown_plot_sunburst(**kwargs)
+        else:
+            raise ValueError("Plot mode not recognized. Please choose between ['pie', 'sunburst']")
 
         return figure
 
@@ -731,16 +856,6 @@ class StackedPouchCell(_PouchCell, _StackedCell):
         self._pouch._mass = 2 * self._pouch._area * self._pouch._laminate._areal_mass
         self._pouch._cost = self._pouch._area * self._pouch._laminate._areal_cost
 
-    def _add_to_dict(self, dictionary_1: dict, dictionary_2: dict):
-        
-        for key, value in dictionary_2.items():
-            if key in dictionary_1:
-                dictionary_1[key] += value
-            else:
-                dictionary_1[key] = value
-
-        return dictionary_1
-
     def _calculate_cost_breakdown(self):
 
         self._cost_breakdown = {'stacks': sum([s._cost for s in self._stacks]),
@@ -808,6 +923,7 @@ class StackedPrismaticCell(_PrismaticCell, _StackedCell):
                  electrolyte_overfill: float,
                  reversible_capacity: float,
                  irreversible_capacity: float,
+                 n_stacks: int = 1,
                  grid_n: int = 100,
                  name: str = 'Stacked Prismatic Cell'):
         """
@@ -821,6 +937,7 @@ class StackedPrismaticCell(_PrismaticCell, _StackedCell):
         :param negative_terminal: Negative terminal of the cell
         :param reversible_capacity: Reversible capacity of the cell in mAh
         :param irreversible_capacity: Irreversible capacity of the cell in mAh
+        :param n_stacks: Number of stacks in the cell
         :param grid_n: Number of points to interpolate the half cell curves
         :param name: Name of the cell
         """
@@ -848,23 +965,63 @@ class StackedPrismaticCell(_PrismaticCell, _StackedCell):
                              electrolyte_overfill=electrolyte_overfill,
                              reversible_capacity=reversible_capacity,
                              irreversible_capacity=irreversible_capacity,
+                             n_stacks=n_stacks,
                              grid_n=grid_n,
                              name=name)
 
-        self._mass_breakdown = {self._stack: self._stack._mass,
-                                self._electrolyte: self._electrolyte._mass,
-                                self._prismatic_case: self._prismatic_case._mass}
-        
-        self._mass = sum(self._mass_breakdown.values())
+        self._calculate_cost_breakdown()
+        self._calculate_mass_breakdown()
+        self._calculate_energy_properties()
 
-        # calculate cost of the cell
-        self._cost_breakdown = {self._stack: self._stack._cost,
-                                self._electrolyte: self._electrolyte._cost,
-                                self._prismatic_case: self._prismatic_case._cost}
-
-        self._cost = sum(self._cost_breakdown.values())
-
-        # energy properties
+    def _calculate_energy_properties(self):
         self._specific_energy = self._energy / self._mass
         self._energy_density = self._energy / self._volume
         self._normalized_cost = self._cost / self._energy
+
+    def _calculate_cost_breakdown(self):
+
+        self._cost_breakdown = {'stacks': sum([s._cost for s in self._stacks]),
+                                'electrolyte': self._electrolyte._cost,
+                                'encapsulation': self._prismatic_case._cost}
+        
+        self._stacks_cost_breakdown = {'cathode': sum([s._cost_breakdown['cathode'] for s in self._stacks]),
+                                       'anode': sum([s._cost_breakdown['anode'] for s in self._stacks]),
+                                       'separator': sum([s._cost_breakdown['separator'] for s in self._stacks])}
+        
+        anode_cost_breakdown = {'active_materials': {}, 'binders': {}, 'conductive_additives': {}, 'current_collectors': {}}
+        cathode_cost_breakdown = {'active_materials': {}, 'binders': {}, 'conductive_additives': {}, 'current_collectors': {}}
+
+        for s in self._stacks:
+            for key in anode_cost_breakdown.keys():
+                anode_cost_breakdown[key] = self._add_to_dict(anode_cost_breakdown[key], s._anode_cost_breakdown[key])
+            for key in cathode_cost_breakdown.keys():
+                cathode_cost_breakdown[key] = self._add_to_dict(cathode_cost_breakdown[key], s._cathode_cost_breakdown[key])
+
+        self._anode_cost_breakdown = anode_cost_breakdown
+        self._cathode_cost_breakdown = cathode_cost_breakdown
+
+        self._cost = sum(self._cost_breakdown.values())
+
+    def _calculate_mass_breakdown(self):
+        
+        self._mass_breakdown = {'stacks': sum([s._mass for s in self._stacks]),
+                                'electrolyte': self._electrolyte._mass,
+                                'encapsulation': self._prismatic_case._mass}
+        
+        self._stacks_mass_breakdown = {'cathode': sum([s._mass_breakdown['cathode'] for s in self._stacks]),
+                                       'anode': sum([s._mass_breakdown['anode'] for s in self._stacks]),
+                                       'separator': sum([s._mass_breakdown['separator'] for s in self._stacks])}
+        
+        anode_mass_breakdown = {'active_materials': {}, 'binders': {}, 'conductive_additives': {}, 'current_collectors': {}}
+        cathode_mass_breakdown = {'active_materials': {}, 'binders': {}, 'conductive_additives': {}, 'current_collectors': {}}
+
+        for s in self._stacks:
+            for key in anode_mass_breakdown.keys():
+                anode_mass_breakdown[key] = self._add_to_dict(anode_mass_breakdown[key], s._anode_mass_breakdown[key])
+            for key in cathode_mass_breakdown.keys():
+                cathode_mass_breakdown[key] = self._add_to_dict(cathode_mass_breakdown[key], s._cathode_mass_breakdown[key])
+
+        self._anode_mass_breakdown = anode_mass_breakdown
+        self._cathode_mass_breakdown = cathode_mass_breakdown
+
+        self._mass = sum(self._mass_breakdown.values())

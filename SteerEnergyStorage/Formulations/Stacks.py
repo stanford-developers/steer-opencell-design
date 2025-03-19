@@ -107,7 +107,8 @@ class Stack():
             c._calculate_half_cell_curve(grid_n=grid_n)
 
         for a in self._anodes:
-            a._calculate_half_cell_curve(grid_n=grid_n)
+            if not a._anode_free:
+                a._calculate_half_cell_curve(grid_n=grid_n)
 
         cathode_half_cell = (pd
                              .concat([c._half_cell_curve for c in self._cathodes])
@@ -117,8 +118,9 @@ class Stack():
                              .apply(lambda x: x.sort_values('capacity', ascending=True if x['direction'].values[0] == 'charge' else False))
                              )
 
+        dummy = pd.DataFrame(columns=['direction', 'voltage', 'capacity'])
         anode_half_cell = (pd
-                           .concat([a._half_cell_curve for a in self._anodes])
+                           .concat([a._half_cell_curve if not a._anode_free else dummy for a in self._anodes[:-1]]) # one anode's worth of material is not used on the outsides of the stack
                            .groupby(['direction', 'voltage'], as_index=False)['capacity']
                            .sum()
                            .groupby('direction', as_index=False)
@@ -127,7 +129,9 @@ class Stack():
         
         self._areal_capacity = sum([c._areal_capacity for c in self._cathodes])
         self._cathode_half_cell_curve = cathode_half_cell
-        self._anode_half_cell_curve = anode_half_cell
+
+        if len(anode_half_cell) > 0:
+            self._anode_half_cell_curve = anode_half_cell
 
     @staticmethod
     def _cubic_interpolate_on_capacity(df) -> pd.DataFrame:
@@ -150,7 +154,11 @@ class Stack():
         Function to calculate the full cell curves of the stack
         """
         cathode_half_cell = self._cathode_half_cell_curve.copy().assign(electrode = 'cathode')
-        anode_half_cell = self._anode_half_cell_curve.copy().assign(electrode = 'anode')
+
+        if not self._anode_free:
+            anode_half_cell = self._anode_half_cell_curve.copy().assign(electrode = 'anode')
+        else:
+            anode_half_cell = cathode_half_cell.copy().assign(electrode = 'anode').assign(voltage = 0)
 
         full_cell_curve = (pd
                             .concat([cathode_half_cell, anode_half_cell])
@@ -162,8 +170,8 @@ class Stack():
                             .reset_index(drop=True)
                             )
         
-        cathode_discharge_min = self._cathode_half_cell_curve.query("direction == 'discharge'")['capacity'].min()
-        anode_discharge_min = self._anode_half_cell_curve.query("direction == 'discharge'")['capacity'].min()
+        cathode_discharge_min = cathode_half_cell.query("direction == 'discharge'")['capacity'].min()
+        anode_discharge_min = anode_half_cell.query("direction == 'discharge'")['capacity'].min()
 
         full_cell_curve = (full_cell_curve
                             .query('not (direction == "discharge" and capacity < @cathode_discharge_min)')
@@ -427,7 +435,7 @@ class Stack():
         """
         if isinstance(anode, CurrentCollector):
             formulation = ElectrodeFormulation(active_materials={})
-            anode = Anode(formulation=formulation, mass_loading=0, current_collector=anode, calender_density=1)
+            anode = Anode(formulation=formulation, mass_loading=0, current_collector=anode, calender_density=1, anode_free=True)
 
         for c in self._cathodes:
             if c._current_collector._length > anode._current_collector._length:
@@ -440,6 +448,11 @@ class Stack():
 
         for i in range(n_layers + 1):
             self._anodes[i]._name = f"{anode._name}_{i}"
+
+        if set([a._anode_free for a in self._anodes]) == {True}:
+            self._anode_free = True
+        else:
+            self._anode_free = False
 
     def _check_and_copy_separator(self, separator: Separator):
         """

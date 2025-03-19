@@ -44,7 +44,8 @@ class CurrentCollector:
 
         # Calculated values
         self._coated_area = self._length * self._width
-        self._mass = (self._coated_area + self._bare_tab_area) * self._thickness * self._density
+        self._volume = (self._coated_area + self._bare_tab_area) * self._thickness
+        self._mass = self._volume * self._density
         self._cost = self._mass * self._specific_cost
 
         self._used = False
