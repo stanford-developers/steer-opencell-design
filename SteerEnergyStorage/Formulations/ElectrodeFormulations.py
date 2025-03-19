@@ -52,12 +52,10 @@ class ElectrodeFormulation:
         """
         Validate the electrode formulation to ensure it meets the required criteria.
         """
-        if not (self._active_materials or self._binders or self._conductive_additives):
-            raise ValueError("The formulation must contain at least one component.")
-
-        total_fraction = sum(self._active_materials.values()) + sum(self._binders.values()) + sum(self._conductive_additives.values())
-        if not (0.99 <= total_fraction <= 1.01):
-            raise ValueError("The mass fractions of the components must sum to 100%.")
+        if (self._active_materials or self._binders or self._conductive_additives):
+            total_fraction = sum(self._active_materials.values()) + sum(self._binders.values()) + sum(self._conductive_additives.values())
+            if not (0.99 <= total_fraction <= 1.01):
+                raise ValueError("The mass fractions of the components must sum to 100%.")
 
         self._validate_unique_names(self._active_materials, "active materials")
         self._validate_unique_names(self._binders, "binders")

@@ -42,7 +42,6 @@ class _Electrode:
         self._calculate_thickness_properties()
         self._calculate_mass_breakdown()
         self._calculate_cost_breakdown()
-        self._calculate_cost()
 
     def _calculate_mass_properties(self) -> None:
         """
@@ -57,24 +56,39 @@ class _Electrode:
         Calculate the thickness properties of the electrode.
         """
         self._material_thickness = self._mass_loading / self._calender_density
+        self._material_volume = self._single_sided_area * self._material_thickness * 2
         self._double_sided_thickness = self._material_thickness * 2 + self._current_collector._thickness
-        self._pore_volume = self._single_sided_area * self._material_thickness * 2 * self._porosity
+        self._pore_volume = self._material_volume * self._porosity
 
     def _calculate_mass_breakdown(self) -> None:
         """
         Calculate the mass breakdown of the electrode.
         """
-        self._mass_breakdown = self._calculate_component_breakdown(self._formulation._active_materials, 'active_materials')
+        self._mass_breakdown = {'current_collector': self._current_collector._mass}
+        self._mass_breakdown.update(self._calculate_component_breakdown(self._formulation._active_materials, 'active_materials'))
         self._mass_breakdown.update(self._calculate_component_breakdown(self._formulation._binders, 'binders'))
         self._mass_breakdown.update(self._calculate_component_breakdown(self._formulation._conductive_additives, 'conductive_additives'))
+
+        active_material_mass = sum(self._mass_breakdown['active_materials'].values())
+        binder_mass = sum(self._mass_breakdown['binders'].values())
+        conductive_additive_mass = sum(self._mass_breakdown['conductive_additives'].values())
+        current_collector_mass = self._current_collector._mass
+        self._mass = active_material_mass + binder_mass + conductive_additive_mass + current_collector_mass
 
     def _calculate_cost_breakdown(self) -> None:
         """
         Calculate the cost breakdown of the electrode.
         """
-        self._cost_breakdown = self._calculate_component_cost_breakdown(self._formulation._active_materials, 'active_materials')
+        self._cost_breakdown = {'current_collector': self._current_collector._cost}
+        self._cost_breakdown.update(self._calculate_component_cost_breakdown(self._formulation._active_materials, 'active_materials'))
         self._cost_breakdown.update(self._calculate_component_cost_breakdown(self._formulation._binders, 'binders'))
         self._cost_breakdown.update(self._calculate_component_cost_breakdown(self._formulation._conductive_additives, 'conductive_additives'))
+        
+        active_material_cost = sum(self._cost_breakdown['active_materials'].values())
+        binder_cost = sum(self._cost_breakdown['binders'].values())
+        conductive_additive_cost = sum(self._cost_breakdown['conductive_additives'].values())
+        current_collector_cost = self._current_collector._cost
+        self._cost = active_material_cost + binder_cost + conductive_additive_cost + current_collector_cost
 
     def _calculate_component_breakdown(self, components: Dict[Any, float], component_type: str) -> Dict[str, Dict[Any, float]]:
         """
@@ -95,16 +109,6 @@ class _Electrode:
         :return: Dictionary of cost breakdown for the given component type.
         """
         return {component_type: {component: fraction * self._coating_mass * component._specific_cost for component, fraction in components.items()}}
-
-    def _calculate_cost(self) -> None:
-        """
-        Calculate the total cost of the electrode.
-        """
-        active_material_cost = sum(self._cost_breakdown['active_materials'].values())
-        binder_cost = sum(self._cost_breakdown['binders'].values())
-        conductive_additive_cost = sum(self._cost_breakdown['conductive_additives'].values())
-        current_collector_cost = self._current_collector._cost
-        self._cost = active_material_cost + binder_cost + conductive_additive_cost + current_collector_cost
 
     def _calculate_porosity(self) -> None:
         """
@@ -166,7 +170,7 @@ class _Electrode:
 
             half_cell_curve.append(data)
 
-        return pd.concat(half_cell_curve).reset_index(drop=True)
+        return pd.concat(half_cell_curve)
 
     def _linear_interpolate_on_voltage(self, data: pd.DataFrame, grid_n: int) -> pd.DataFrame:
         """
@@ -386,7 +390,8 @@ class Anode(_Electrode):
                  mass_loading: float,
                  current_collector: CurrentCollector,
                  calender_density: float,
-                 name: str = 'Anode'):
+                 name: str = 'Anode',
+                 anode_free = False):
         """
         Initialize an object that represents an anode.
 
@@ -401,6 +406,8 @@ class Anode(_Electrode):
                          current_collector=current_collector,
                          calender_density=calender_density,
                          name=name)
+        
+        self._anode_free = anode_free
         
     def _order_and_clean_curves(self, data: pd.DataFrame) -> pd.DataFrame:
         """
