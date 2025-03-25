@@ -1,4 +1,4 @@
-from SteerEnergyStorage.Formulations.Stacks import Stack
+from SteerEnergyStorage.Formulations.ElectrodeAssemblies import Stack
 from SteerEnergyStorage.Materials.Electrolytes import Electrolyte
 from SteerEnergyStorage.Materials.other import Terminal
 from SteerEnergyStorage.Constructions.Containers import Pouch, PrismaticCase

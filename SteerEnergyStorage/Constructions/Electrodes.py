@@ -57,7 +57,7 @@ class _Electrode:
         """
         self._material_thickness = self._mass_loading / self._calender_density
         self._material_volume = self._single_sided_area * self._material_thickness * 2
-        self._double_sided_thickness = self._material_thickness * 2 + self._current_collector._thickness
+        self._thickness = self._material_thickness * 2 + self._current_collector._thickness
         self._pore_volume = self._material_volume * self._porosity
 
     def _calculate_mass_breakdown(self) -> None:
@@ -365,7 +365,7 @@ class _Electrode:
 
         :return: Thickness of the electrode.
         """
-        return round(self._double_sided_thickness * M_TO_UM, 2)
+        return round(self._thickness * M_TO_UM, 2)
 
     @property
     def cost(self) -> float:

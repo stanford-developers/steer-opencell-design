@@ -11,6 +11,7 @@ from scipy.interpolate import CubicSpline
 
 KG_TO_G = 1e3
 M_TO_CM = 1e2
+CM_TO_M = 1e-2
 M_TO_MM = 1e3
 A_TO_mA = 1e3
 mA_TO_A = 1e-3
@@ -18,7 +19,310 @@ S_TO_H = 1/3600
 H_TO_S = 3600
 PI = 3.14159265359
 
-class Stack():
+
+class _ElectrodeAssembly():
+
+    def __init__(self,
+                 anode: Anode | CurrentCollector,
+                 cathode: Cathode | None,
+                 separator: Separator | None,
+                 name: str) -> None:
+        
+        self._check_cathode(cathode)
+        self._check_anode(anode)
+        self._check_separator(separator)
+        self._name = name
+
+    def _check_cathode(self, cathode: Cathode):
+        """
+        Function to check the cathode properties
+
+        :param cathode: Cathode: cathode used in the stack
+        """
+        if not isinstance(cathode, Cathode):
+            raise ValueError("Cathode must be an instance of the Cathode class")
+        
+        self._cathode = deepcopy(cathode)
+
+    def _check_anode(self, anode: Anode):
+        """
+        Function to check the anode properties
+
+        :param anode: Anode: anode used in the stack
+        """
+        if not isinstance(anode, Anode) and not isinstance(anode, CurrentCollector):
+            raise ValueError("Anode must be an instance of the Anode class")
+        
+        if isinstance(anode, CurrentCollector):
+            self._anode_free = True
+            anode = Anode(formulation={}, mass_loading=0, current_collector=anode, calender_density=0)
+        else:
+            self._anode_free = False
+            self._anode = deepcopy(anode)
+
+    def _check_separator(self, separator: Separator):
+        """
+        Function to check the separator properties
+
+        :param separator: Separator: separator used in the stack
+        """
+        if hasattr(separator, '_fold_length'):
+            if separator._fold_length < self._cathode._current_collector._length or separator._fold_length < self._anode._current_collector._length:
+                raise ValueError("separator length must be greater or equal to cathode and anode length")
+            
+        if hasattr(separator, '_length'):
+            if separator._length < self._cathode._current_collector._length or separator._length < self._anode._current_collector._length:
+                raise ValueError("separator length must be greater or equal to cathode and anode length")
+        
+        if separator._width < self._cathode._current_collector._width or separator._width < self._anode._current_collector._width:
+            raise ValueError("separator width must be greater or equal to cathode and anode width")
+        
+        self._separator = deepcopy(separator)
+
+    @staticmethod
+    def _cubic_interpolate_on_capacity(df) -> pd.DataFrame:
+
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            df1 = df.query("electrode == 'cathode'")
+            df2 = df.query("electrode == 'anode'")
+
+            interp_func = CubicSpline(df2['capacity'], df2['voltage'])
+            df1['voltage'] = df1['voltage'] - interp_func(df1['capacity'])
+
+            return (df1
+                    .assign(electrode = 'full cell')
+                    .query('voltage != inf')
+                    .query('voltage != -inf')
+                    )
+
+    def _calculate_full_cell_curve(self):
+        """
+        Function to calculate the full cell curves of the stack
+        """
+        cathode_half_cell = self._cathode_half_cell_curve.copy().assign(electrode = 'cathode')
+
+        if not self._anode_free:
+            anode_half_cell = self._anode_half_cell_curve.copy().assign(electrode = 'anode')
+        else:
+            anode_half_cell = cathode_half_cell.copy().assign(electrode = 'anode').assign(voltage = 0)
+
+        full_cell_curve = (pd
+                            .concat([cathode_half_cell, anode_half_cell])
+                            .groupby(['direction'], group_keys=True)
+                            .apply(lambda df: (df
+                                               .sort_values(by='capacity', ascending=True)
+                                               .pipe(self._cubic_interpolate_on_capacity)
+                                               ))
+                            .reset_index(drop=True)
+                            )
+        
+        cathode_discharge_min = cathode_half_cell.query("direction == 'discharge'")['capacity'].min()
+        anode_discharge_min = anode_half_cell.query("direction == 'discharge'")['capacity'].min()
+
+        full_cell_curve = (full_cell_curve
+                            .query('not (direction == "discharge" and capacity < @cathode_discharge_min)')
+                            .query('not (direction == "discharge" and capacity < @anode_discharge_min)')
+                            )
+        
+        full_cell_curve = (full_cell_curve
+                            .assign(sort_key_1 = lambda x: [-c if d == 'discharge' else c for c, d in zip(x['capacity'], x['direction'])])
+                            .assign(sort_key_2 = lambda x: [1 if d == 'discharge' else 0 for d in x['direction']])
+                            .sort_values(by=['electrode', 'sort_key_2', 'sort_key_1'])
+                            .drop(columns=['sort_key_2', 'sort_key_1'])
+                            )
+
+        self._full_cell_curve = full_cell_curve
+
+    @property
+    def anode(self):
+        return self._anode
+    
+    @property
+    def cathode(self):
+        return self._cathode
+    
+    @property
+    def separator(self):
+        return self._separator
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def length(self):
+        if hasattr(self, '_length'):
+            return round(self._length * M_TO_CM, 2)
+        else:
+            return AttributeError("Length not calculated yet.")
+
+    @property
+    def width(self):
+        if hasattr(self, '_width'):
+            return round(self._width * M_TO_CM, 2)
+        else:
+            return AttributeError("Width not calculated yet.")
+
+    @property
+    def thickness(self):
+        if hasattr(self, '_thickness'):
+            return round(self._thickness * M_TO_CM, 2)
+        else:
+            return AttributeError("Thickness not calculated yet.")
+
+
+class _JellyRoll(_ElectrodeAssembly):
+
+    def __init__(self, 
+                 anode: Anode | CurrentCollector, 
+                 cathode: Cathode, 
+                 separator: Separator, 
+                 name: str = 'jelly_roll') -> None:
+        """
+        Initialize an object that represents an electrochemical jelly roll within an electrochemical cell
+        """
+        super().__init__(anode=anode, cathode=cathode, separator=separator, name=name)
+
+        self._calculate_active_area()
+        self._calculate_anode_properties()
+        self._calculate_separator_properties()
+        self._calculate_roll_properties()
+        self._calculate_components()
+        self._calculate_mass_breakdown()
+        self._calculate_cost_breakdown()
+
+    def _calculate_active_area(self):
+        self._active_geometric_area = self._cathode._single_sided_area * 2
+
+    def _calculate_anode_properties(self):
+        anode_overhang = (self._anode._single_sided_area/self._cathode._single_sided_area) - 1
+        self._anode._overhang = anode_overhang
+
+    def _calculate_separator_properties(self):
+        self._separator._length = (self._separator._fold_length * 2) + ((self._cathode._thickness + self._separator._thickness) * PI)
+        self._separator._calculate_area_properties()
+
+    def _calculate_roll_properties(self):
+        self._pore_volume = self._anode._pore_volume + self._cathode._pore_volume + self._separator._pore_volume
+        self._width = self._separator._width
+        self._electrode_thickness = self._separator._thickness * 2 + self._anode._thickness + self._cathode._thickness
+
+    def _calculate_components(self):
+        self._cathode_active_materials = list(self._cathode._formulation._active_materials.keys())
+        self._cathode_binders = list(self._cathode._formulation._binders.keys())
+        self._cathode_conductive_additives = list(self._cathode._formulation._conductive_additives.keys())
+        self._cathode_current_collectors = [self._cathode._current_collector]
+
+        self._anode_active_materials = list(self._anode._formulation._active_materials.keys())
+        self._anode_binders = list(self._anode._formulation._binders.keys())
+        self._anode_conductive_additives = list(self._anode._formulation._conductive_additives.keys())
+        self._anode_current_collectors = [self._anode._current_collector]
+
+    def _calculate_mass_breakdown(self):
+
+        self._mass_breakdown = {
+            'cathode': self._cathode._mass,
+            'anode': self._anode._mass,
+            'separator': self._separator._mass
+        }
+        self._mass = sum(self._mass_breakdown.values())
+
+    def _calculate_cost_breakdown(self):
+
+        self._cost_breakdown = {
+            'cathode': self._cathode._cost,
+            'anode': self._anode._cost,
+            'separator': self._separator._cost
+        }
+
+        self._cost = sum(self._cost_breakdown.values())
+
+    def _calculate_half_cell_curve(self):
+
+        self._cathode._calculate_half_cell_curve()
+        self._anode._calculate_half_cell_curve()
+
+        self._cathode_half_cell_curve = (self
+                                         ._cathode
+                                         ._half_cell_curve
+                                         .groupby('direction', as_index=False)
+                                         .apply(lambda x: x.sort_values('capacity', ascending=True if x['direction'].values[0] == 'charge' else False))
+                                         )
+        
+        if not self._anode_free:
+            self._anode_half_cell_curve = (self
+                                        ._anode
+                                        ._half_cell_curve
+                                        .groupby('direction', as_index=False)
+                                        .apply(lambda x: x.sort_values('capacity', ascending=True if x['direction'].values[0] == 'charge' else False))
+                                        )
+
+    @property
+    def electrode_thickness(self):
+        return round(self._electrode_thickness * M_TO_MM, 2)
+
+
+class FlatJellyRoll(_JellyRoll):
+
+    def __init__(self, 
+                 anode: Anode | CurrentCollector, 
+                 cathode: Cathode, 
+                 separator: Separator, 
+                 focal_length: float,
+                 name: str = 'flat_jelly_roll') -> None:
+        """
+        Initialize an object that represents an electrochemical flat jelly roll within an electrochemical cell
+
+        :param anode: Anode: anode used in the stack
+        :param cathode: Cathode: cathode used in the stack
+        :param separator: Separator: separator used in the stack
+        :param focal_length: float: focal length of the flat jelly roll in cm
+        :param name: str: name of the flat jelly roll
+        """
+        super().__init__(anode=anode, cathode=cathode, separator=separator, name=name)
+
+        self._focal_length = focal_length * CM_TO_M
+        self._calculate_flat_roll_properties()
+
+    def _calculate_flat_roll_properties(self):
+        """
+        Function to calculate the geometry of the flat jelly roll after it has been wound
+        """
+        remaining_length = self._separator._fold_length
+        top_layers = 0
+        bottom_layers = 0
+        left_turns = 0
+        right_turns = 0
+        left_radius = self._electrode_thickness / 2
+        right_radius = self._electrode_thickness / 2
+
+        while remaining_length > 0:
+            top_layers += 1
+            remaining_length = remaining_length - self._focal_length
+            if remaining_length < 0:
+                break
+            right_turns += 1
+            remaining_length = remaining_length - (PI * right_radius)
+            right_radius = right_radius + self._electrode_thickness
+            if remaining_length < 0:
+                break
+            bottom_layers += 1
+            remaining_length = remaining_length - self._focal_length
+            if remaining_length < 0:
+                break
+            left_turns += 1
+            remaining_length = remaining_length - (PI * left_radius)
+            left_radius = left_radius + self._electrode_thickness
+
+        self._thickness = self._electrode_thickness * (top_layers + bottom_layers)
+        self._length = self._focal_length + (left_turns * self._electrode_thickness) + (right_turns * self._electrode_thickness)
+            
+    @property
+    def focal_length(self):
+        return self._focal_length * M_TO_CM
+
+
+class Stack(_ElectrodeAssembly):
 
     def __init__(self, 
                  anode: Anode | CurrentCollector,
@@ -26,7 +330,7 @@ class Stack():
                  separator: Separator,
                  n_layers: int,
                  additional_separator_wraps: int = 1,
-                 name: str = 'stack'):
+                 name: str = 'stack') -> None:
         """
         Initialize an object that represents an electrochemical stack within an electrochemical cell
 
@@ -37,13 +341,13 @@ class Stack():
         :param additional_separator_wraps: int: number of additional wraps of the separator in the stack
         :param name: str: name of the stack
         """
+        super().__init__(anode=anode, cathode=cathode, separator=separator, name=name)
+
         self._check_n_layers(n_layers)
-        self._check_and_copy_cathode(cathode, n_layers)
-        self._check_and_copy_anode(anode, n_layers)
-        self._check_and_copy_separator(separator)
+        self._copy_cathode(cathode, n_layers)
+        self._copy_anode(anode, n_layers + 1)
 
         self._additional_separator_wraps = additional_separator_wraps
-        self._name = name
 
         self._calculate_active_area()
         self._calculate_anode_properties()
@@ -132,60 +436,6 @@ class Stack():
 
         if len(anode_half_cell) > 0:
             self._anode_half_cell_curve = anode_half_cell
-
-    @staticmethod
-    def _cubic_interpolate_on_capacity(df) -> pd.DataFrame:
-
-            warnings.simplefilter("ignore", category=RuntimeWarning)
-            df1 = df.query("electrode == 'cathode'")
-            df2 = df.query("electrode == 'anode'")
-
-            interp_func = CubicSpline(df2['capacity'], df2['voltage'])
-            df1['voltage'] = df1['voltage'] - interp_func(df1['capacity'])
-
-            return (df1
-                    .assign(electrode = 'full cell')
-                    .query('voltage != inf')
-                    .query('voltage != -inf')
-                    )
-
-    def _calculate_full_cell_curve(self):
-        """
-        Function to calculate the full cell curves of the stack
-        """
-        cathode_half_cell = self._cathode_half_cell_curve.copy().assign(electrode = 'cathode')
-
-        if not self._anode_free:
-            anode_half_cell = self._anode_half_cell_curve.copy().assign(electrode = 'anode')
-        else:
-            anode_half_cell = cathode_half_cell.copy().assign(electrode = 'anode').assign(voltage = 0)
-
-        full_cell_curve = (pd
-                            .concat([cathode_half_cell, anode_half_cell])
-                            .groupby(['direction'], group_keys=True)
-                            .apply(lambda df: (df
-                                               .sort_values(by='capacity', ascending=True)
-                                               .pipe(self._cubic_interpolate_on_capacity)
-                                               ))
-                            .reset_index(drop=True)
-                            )
-        
-        cathode_discharge_min = cathode_half_cell.query("direction == 'discharge'")['capacity'].min()
-        anode_discharge_min = anode_half_cell.query("direction == 'discharge'")['capacity'].min()
-
-        full_cell_curve = (full_cell_curve
-                            .query('not (direction == "discharge" and capacity < @cathode_discharge_min)')
-                            .query('not (direction == "discharge" and capacity < @anode_discharge_min)')
-                            )
-        
-        full_cell_curve = (full_cell_curve
-                            .assign(sort_key_1 = lambda x: [-c if d == 'discharge' else c for c, d in zip(x['capacity'], x['direction'])])
-                            .assign(sort_key_2 = lambda x: [1 if d == 'discharge' else 0 for d in x['direction']])
-                            .sort_values(by=['electrode', 'sort_key_2', 'sort_key_1'])
-                            .drop(columns=['sort_key_2', 'sort_key_1'])
-                            )
-
-        self._full_cell_curve = full_cell_curve
 
     def _check_n_layers(self, n_layers: int):
 
@@ -362,20 +612,48 @@ class Stack():
     def _calculate_stack_properties(self):
         self._pore_volume = self._total_anode_pore_volume + self._total_cathode_pore_volume + self._separator._pore_volume
         self._length = self._separator._fold_length + (self._separator._thickness * self._additional_separator_wraps * 2)
-        self._width = self._separator._slit_width
+        self._width = self._separator._width
 
     def _calculate_active_area(self):
         self._active_geometric_area = sum([c._single_sided_area * 2 for c in self._cathodes])
 
     def _calculate_separator_properties(self):
-        self._n_separator = len(self._cathodes) + len(self._anodes) + 1 + 2 * self._additional_separator_wraps
-        self._separator._area, self._thickness = self._calculate_sperarator_area()
-        self._separator._mass = self._separator._thickness * self._separator._area * self._separator._density
-        self._separator._cost = self._separator._area * self._separator._areal_cost
-        self._separator._pore_volume = self._separator._thickness * self._separator._area * self._separator._porosity
+        self._n_separator_folds = len(self._cathodes) + len(self._anodes) + 1 + 2 * self._additional_separator_wraps
+        self._calculate_separator_length()
+        self._separator._calculate_area_properties()
+
+    def _calculate_separator_length(self):
+        """
+        Function to calculate the length of the separator needed in the stack
+        """
+        # length of separator between layers
+        length_between_layers = self._separator._fold_length * self._n_separator_folds
+
+        # get the additional length that wraps around the edge of the cathode
+        cathode_cap_len = 0
+        for c in self._cathodes:
+            cathode_cap_len += PI * (c._thickness + self._separator._thickness)
+
+        # get the additional length that wraps around the edge of the anode
+        anode_cap_len = 0
+        for a in self._anodes[1:]:
+            anode_cap_len += PI * (a._thickness + self._separator._thickness)
+
+        # get the area of the sides of the stack from the additional separator wraps. thickness changes with each wrap
+        stack_thickness = self._total_anode_thickness + self._total_cathode_thickness + (self._separator._thickness * self._n_separator_folds)
+
+        for w in range(self._additional_separator_wraps):
+            stack_thickness += self._separator._thickness * 2
+        side_length = stack_thickness * 2
+
+        # get the total length
+        total_length = length_between_layers + cathode_cap_len + anode_cap_len + side_length
+
+        self._separator._length = total_length
+        self._thickness = stack_thickness
 
     def _calculate_anode_properties(self):
-        self._total_anode_thickness = sum([a._double_sided_thickness for a in self._anodes])
+        self._total_anode_thickness = sum([a._thickness for a in self._anodes])
         self._total_anode_pore_volume = sum([a._pore_volume for a in self._anodes])
         
         anode_overhang = (self._anodes[0]._single_sided_area/self._cathodes[0]._single_sided_area) - 1
@@ -383,60 +661,27 @@ class Stack():
             a._overhang = anode_overhang
 
     def _calculate_cathode_properties(self):
-        self._total_cathode_thickness = sum([c._double_sided_thickness for c in self._cathodes])
+        self._total_cathode_thickness = sum([c._thickness for c in self._cathodes])
         self._total_cathode_pore_volume = sum([c._pore_volume for c in self._cathodes])
-
-    def _calculate_sperarator_area(self):
-        """
-        Function to calculate the area of the separator used in the stack
-        """
-        # get the separator area between the electrodes
-        area_between_stacks = self._separator._slit_width * self._separator._fold_length * self._n_separator
-
-        # get the additional area that wraps around the edge of the cathode
-        cathode_cap_area = 0
-        for c in self._cathodes:
-            cathode_cap_area += PI * (c._double_sided_thickness + self._separator._thickness) * self._separator._slit_width
-
-        # get the additional area that wraps around the edge of the anode
-        anode_cap_area = 0
-        for a in self._anodes:
-            anode_cap_area += PI * (a._double_sided_thickness + self._separator._thickness) * self._separator._slit_width
-
-        # get the area of the sides of the stack from the additional separator wraps. thickness changes with each wrap
-        stack_thickness = self._total_anode_thickness + self._total_cathode_thickness + (self._separator._thickness * self._n_separator)
-        for w in range(self._additional_separator_wraps):
-            stack_thickness += self._separator._thickness * 2
-        side_area = stack_thickness * self._separator._slit_width * 2
-
-        # get the total area
-        total_area = area_between_stacks + cathode_cap_area + anode_cap_area + side_area
-
-        return total_area, stack_thickness
     
-    def _check_and_copy_cathode(self, cathode: Cathode, n_layers: int):
+    def _copy_cathode(self, cathode: Cathode, n_layers: int):
         """
         Function to check the cathode properties and copy them into a list
 
         :param cathode: Cathode: cathode used in the stack
         """
-        if not isinstance(cathode, Cathode):
-            raise ValueError("Cathode must be an instance of the Cathode class")
-        
         self._cathodes = [copy(cathode) for _ in range(n_layers)]
         for i, c in enumerate(self._cathodes):
             c._name = f"{cathode._name}_{i+1}"
 
-    def _check_and_copy_anode(self, anode: Anode | CurrentCollector, n_layers: int):
+        del self._cathode
+
+    def _copy_anode(self, anode: Anode | CurrentCollector, n_layers: int):
         """
         Function to check the anode properties and copy them into a list
         
         :param anode: Anode: anode used in the stack
         """
-        if isinstance(anode, CurrentCollector):
-            formulation = ElectrodeFormulation(active_materials={})
-            anode = Anode(formulation=formulation, mass_loading=0, current_collector=anode, calender_density=1, anode_free=True)
-
         for c in self._cathodes:
             if c._current_collector._length > anode._current_collector._length:
                 raise ValueError("Cathode current collector length must be greater or equal to anode length")
@@ -444,41 +689,12 @@ class Stack():
             if c._current_collector._width > anode._current_collector._width:
                 raise ValueError("Cathode current collector width must be greater or equal to anode width")
             
-        self._anodes = [copy(anode) for _ in range(n_layers + 1)]
+        self._anodes = [copy(anode) for _ in range(n_layers)]
 
-        for i in range(n_layers + 1):
+        for i in range(n_layers):
             self._anodes[i]._name = f"{anode._name}_{i}"
 
-        if set([a._anode_free for a in self._anodes]) == {True}:
-            self._anode_free = True
-        else:
-            self._anode_free = False
-
-    def _check_and_copy_separator(self, separator: Separator):
-        """
-        Function to check the separator properties
-
-        :param separator: Separator: separator used in the stack
-        """
-        max_cathode_length = max([c._current_collector._length for c in self._cathodes])
-        max_anode_length = max([a._current_collector._length for a in self._anodes])
-        separator_length = separator._fold_length
-
-        if separator_length < max_cathode_length or separator_length < max_anode_length:
-            raise ValueError("separator length must be greater or equal to cathode and anode length")
-        
-        max_cathode_width = max([c._current_collector._width for c in self._cathodes])
-        max_anode_width = max([a._current_collector._width for a in self._anodes])
-        separator_width = separator._slit_width
-
-        if separator_width < max_cathode_width or separator_width < max_anode_width:
-            raise ValueError("separator width must be greater or equal to cathode and anode width")
-        
-        self._separator = deepcopy(separator)
-
-    @property
-    def name(self):
-        return self._name
+        del self._anode
 
     @property
     def cost_breakdown(self):
@@ -537,10 +753,6 @@ class Stack():
         return round(self._cost, 2)
 
     @property
-    def thickness(self):
-        return round(self._thickness * M_TO_MM, 2)
-
-    @property
     def active_geometric_area(self):
         return round(self._active_geometric_area * M_TO_CM**2, 2)
 
@@ -563,11 +775,7 @@ class Stack():
     @property
     def cathodes(self):
         return self._cathodes
-    
-    @property
-    def separator(self):
-        return self._separator
-    
+
     @property
     def cathode_half_cell_curve(self) -> pd.DataFrame:
         """

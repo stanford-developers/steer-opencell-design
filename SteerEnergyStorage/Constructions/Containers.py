@@ -1,7 +1,7 @@
 from SteerEnergyStorage.Materials.other import Laminate, Tape
 from SteerEnergyStorage.Constructions.Electrodes import Cathode, Anode
 from SteerEnergyStorage.Materials.Separators import Separator
-from SteerEnergyStorage.Formulations.Stacks import Stack
+from SteerEnergyStorage.Formulations.ElectrodeAssemblies import Stack
 
 from copy import deepcopy
 
