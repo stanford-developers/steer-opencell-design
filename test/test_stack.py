@@ -2,7 +2,7 @@ import unittest
 import plotly.express as px
 from SteerEnergyStorage.Formulations.ElectrodeFormulations import ElectrodeFormulation
 from SteerEnergyStorage.Constructions.Electrodes import Cathode, Anode
-from SteerEnergyStorage.Formulations.Stacks import Stack
+from SteerEnergyStorage.Formulations.ElectrodeAssemblies import Stack
 from SteerEnergyStorage.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
 from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector
 from SteerEnergyStorage.Materials.Separators import Separator
@@ -34,7 +34,7 @@ class TestCellsSingleAM(unittest.TestCase):
                                                      thickness=15, 
                                                      length=16.0,
                                                      width=10.8,
-                                                     bare_tab_area=8.22)
+                                                     bare_area=8.22)
 
         cathode = Cathode(formulation=cathode_formulation,
                           mass_loading=10.68,
@@ -60,7 +60,7 @@ class TestCellsSingleAM(unittest.TestCase):
                                                    thickness=5,
                                                    length=16.0,
                                                    width=10.8,
-                                                   bare_tab_area=7.55)
+                                                   bare_area=7.55)
         
         anode = Anode(formulation=anode_formulation,
                       mass_loading=5.25,
@@ -71,7 +71,7 @@ class TestCellsSingleAM(unittest.TestCase):
         separator = Separator(thickness=16, 
                                    areal_cost=0.9, 
                                    density=0.4, 
-                                   slit_width=11.0, 
+                                   width=11.0, 
                                    porosity=47, 
                                    fold_length=18.6)
 

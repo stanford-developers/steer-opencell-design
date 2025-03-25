@@ -41,7 +41,7 @@ class TestCellsSingleAM(unittest.TestCase):
                                                       thickness=15, 
                                                       length=16.0,
                                                       width=10.8,
-                                                      bare_tab_area=8.22)
+                                                      bare_area=8.22)
 
         self.cathode = Cathode(formulation=cathode_formulation,
                                mass_loading=10.68,
@@ -67,7 +67,7 @@ class TestCellsSingleAM(unittest.TestCase):
                                                    thickness=15,
                                                    length=16.0,
                                                    width=10.8,
-                                                   bare_tab_area=7.55)
+                                                   bare_area=7.55)
         
         self.anode = Anode(formulation=anode_formulation,
                            mass_loading=10.68,

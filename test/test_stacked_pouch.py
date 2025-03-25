@@ -2,7 +2,7 @@ import unittest
 import plotly.express as px
 from SteerEnergyStorage.Formulations.ElectrodeFormulations import ElectrodeFormulation
 from SteerEnergyStorage.Constructions.Electrodes import Cathode, Anode
-from SteerEnergyStorage.Formulations.Stacks import Stack
+from SteerEnergyStorage.Formulations.ElectrodeAssemblies import Stack
 from SteerEnergyStorage.Constructions.Cells import StackedPouchCell
 from SteerEnergyStorage.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
 from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector
@@ -34,7 +34,7 @@ class TestCellsSingleAM(unittest.TestCase):
                                                      thickness=15, 
                                                      length=16.0,
                                                      width=10.8,
-                                                     bare_tab_area=8.22)
+                                                     bare_area=8.22)
 
         cathode = Cathode(formulation=cathode_formulation,
                           mass_loading=10.68,
@@ -56,7 +56,7 @@ class TestCellsSingleAM(unittest.TestCase):
                                                    thickness=5,
                                                    length=16.0,
                                                    width=10.8,
-                                                   bare_tab_area=7.55)
+                                                   bare_area=7.55)
         
         anode = Anode(formulation=anode_formulation,
                             mass_loading=5.25,
@@ -67,7 +67,7 @@ class TestCellsSingleAM(unittest.TestCase):
         separator = Separator(thickness=16, 
                               areal_cost=0.9, 
                               density=0.4, 
-                              slit_width=11.0, 
+                              width=11.0, 
                               porosity=47, 
                               fold_length=18.6)
 
@@ -159,7 +159,7 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(self.cell_double.energy, 70.35)
         self.assertEqual(self.cell_double.energy_density, 193.76)
         self.assertEqual(self.cell_double.specific_energy, 136.87)
-        self.assertEqual(self.cell_double.normalized_cost, 104.02)
+        self.assertEqual(self.cell_double.normalized_cost, 104.01)
 
     def test_plots(self):
 
@@ -235,16 +235,16 @@ class TestCellsSingleAM(unittest.TestCase):
             self.assertEqual(round(s.separator._density), 400)
             self.assertEqual(s.separator.porosity, 47)
             self.assertEqual(round(s.separator._porosity, 4), 0.47)
-            self.assertEqual(s.separator.slit_width, 11)
-            self.assertEqual(s.separator._slit_width, 0.11)
+            self.assertEqual(s.separator.width, 11)
+            self.assertEqual(s.separator._width, 0.11)
             self.assertEqual(s.separator.fold_length, 18.6)
             self.assertEqual(round(s.separator._fold_length, 3), 0.186)
 
-            self.assertEqual(s.separator.area, 11496.49)
+            self.assertEqual(s.separator.area, 11495.99)
             self.assertEqual(round(s.separator._area, 4), 1.1496)
             self.assertEqual(s.separator.mass, 7.36)
             self.assertEqual(round(s.separator._mass, 4), 0.0074)
             self.assertEqual(s.separator.cost, 1.03)
             self.assertEqual(round(s.separator._cost, 2), 1.03)
-            self.assertEqual(s.separator.pore_volume, 8.65)
+            self.assertEqual(s.separator.pore_volume, 8.64)
             self.assertEqual(round(s.separator._pore_volume, 7), 0.0000086)
