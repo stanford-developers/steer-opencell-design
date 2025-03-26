@@ -6,8 +6,8 @@ from SteerEnergyStorage.Formulations.ElectrodeFormulations import ElectrodeFormu
 from copy import deepcopy
 from copy import copy
 import pandas as pd
+import numpy as np
 import warnings
-from scipy.interpolate import CubicSpline
 
 KG_TO_G = 1e3
 M_TO_CM = 1e2
@@ -134,20 +134,26 @@ class Stack():
             self._anode_half_cell_curve = anode_half_cell
 
     @staticmethod
-    def _cubic_interpolate_on_capacity(df) -> pd.DataFrame:
+    def _linear_interpolate_on_capacity(df) -> pd.DataFrame:
 
             warnings.simplefilter("ignore", category=RuntimeWarning)
             df1 = df.query("electrode == 'cathode'")
             df2 = df.query("electrode == 'anode'")
 
-            interp_func = CubicSpline(df2['capacity'], df2['voltage'])
-            df1['voltage'] = df1['voltage'] - interp_func(df1['capacity'])
+            min_cap = max(df1['capacity'].min(), df2['capacity'].min())
+            max_cap = min(df1['capacity'].max(), df2['capacity'].max())
+            cap_grid = np.linspace(min_cap, max_cap, 100)
 
-            return (df1
-                    .assign(electrode = 'full cell')
-                    .query('voltage != inf')
-                    .query('voltage != -inf')
-                    )
+            new_cathode_v = np.interp(cap_grid, df1['capacity'], df1['voltage'])
+            new_anode_v = np.interp(cap_grid, df2['capacity'], df2['voltage'])
+
+            full_cell = pd.DataFrame({
+                'capacity': cap_grid,
+                'voltage': new_cathode_v - new_anode_v,
+                'electrode': 'full cell'
+            })
+
+            return full_cell
 
     def _calculate_full_cell_curve(self):
         """
@@ -165,9 +171,9 @@ class Stack():
                             .groupby(['direction'], group_keys=True)
                             .apply(lambda df: (df
                                                .sort_values(by='capacity', ascending=True)
-                                               .pipe(self._cubic_interpolate_on_capacity)
+                                               .pipe(self._linear_interpolate_on_capacity)
                                                ))
-                            .reset_index(drop=True)
+                            .reset_index(drop=False)
                             )
         
         cathode_discharge_min = cathode_half_cell.query("direction == 'discharge'")['capacity'].min()
