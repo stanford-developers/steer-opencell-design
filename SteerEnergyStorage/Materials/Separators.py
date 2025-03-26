@@ -20,6 +20,7 @@ class Separator:
                  ):
         """
         Initialize an object that represents a separator
+        
         :param name: str: name of the material
         :param areal_cost: float: areal cost of the material per m^2
         :param thickness: float: thickness of the separator in um
