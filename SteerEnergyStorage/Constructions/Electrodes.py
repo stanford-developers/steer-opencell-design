@@ -31,17 +31,58 @@ class _Electrode:
         :param calender_density: Density of the electrode after calendering in g/cm^3.
         :param name: Name of the electrode.
         """
-        self._name = name
-        self._formulation = formulation
-        self._current_collector = current_collector
-        self._mass_loading = mass_loading * (MG_TO_KG / CM_TO_M**2)
-        self._calender_density = calender_density * (G_TO_KG / CM_TO_M**3)
+        self._check_name(name)
+        self._check_formulation(formulation)
+        self._check_current_collector(current_collector)
+        self._check_mass_loading(mass_loading)
+        self._check_calender_density(calender_density)
 
         self._calculate_porosity()
         self._calculate_mass_properties()
         self._calculate_thickness_properties()
         self._calculate_mass_breakdown()
         self._calculate_cost_breakdown()
+
+    def _check_name(self, name: str) -> None:
+
+        if not isinstance(name, str):
+            raise TypeError("Name must be a string")
+        
+        self._name = name
+
+    def _check_formulation(self, formulation: ElectrodeFormulation) -> None:
+
+        if not isinstance(formulation, ElectrodeFormulation):
+            raise TypeError("Formulation must be an ElectrodeFormulation object")
+
+        self._formulation = formulation
+
+    def _check_current_collector(self, current_collector: CurrentCollector) -> None:
+
+        if not isinstance(current_collector, CurrentCollector):
+            raise TypeError("Current collector must be a CurrentCollector object")
+
+        self._current_collector = current_collector
+
+    def _check_mass_loading(self, mass_loading: float) -> None:
+
+        if not isinstance(mass_loading, (int, float)):
+            raise TypeError("Mass loading must be a number")
+
+        if mass_loading <= 0:
+            raise ValueError("Mass loading must be greater than zero")
+        
+        self._mass_loading = mass_loading * (MG_TO_KG / CM_TO_M**2)
+
+    def _check_calender_density(self, calender_density: float) -> None:
+
+        if not isinstance(calender_density, (int, float)):
+            raise TypeError("Calender density must be a number")
+
+        if calender_density <= 0:
+            raise ValueError("Calender density must be greater than zero")
+
+        self._calender_density = calender_density * (G_TO_KG / CM_TO_M**3)
 
     def _calculate_mass_properties(self) -> None:
         """
