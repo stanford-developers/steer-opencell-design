@@ -1,13 +1,17 @@
 from SteerEnergyStorage.Constructions.Electrodes import Anode, Cathode
 from SteerEnergyStorage.Materials.Separators import Separator
-from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector
+from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector, TabWeldedCurrentCollector, NotchedCurrentCollector
 from SteerEnergyStorage.Formulations.ElectrodeFormulations import ElectrodeFormulation
 
 from copy import deepcopy
 from copy import copy
 import pandas as pd
+import numpy as np
 import warnings
+import plotly.express as px
 from scipy.interpolate import CubicSpline
+from scipy.integrate import quad
+from scipy.optimize import root_scalar
 
 KG_TO_G = 1e3
 M_TO_CM = 1e2
@@ -17,6 +21,7 @@ A_TO_mA = 1e3
 mA_TO_A = 1e-3
 S_TO_H = 1/3600
 H_TO_S = 3600
+MM_TO_M = 1e-3
 PI = 3.14159265359
 
 
@@ -170,6 +175,84 @@ class _ElectrodeAssembly():
         else:
             return AttributeError("Thickness not calculated yet.")
 
+    @property
+    def cost(self):
+        return round(self._cost, 2)
+
+    @property
+    def mass(self):
+        return round(self._mass * KG_TO_G, 2)
+
+    @property
+    def pore_volume(self):
+        return round(self._pore_volume * M_TO_CM**3, 2)
+
+    @property
+    def cathode_half_cell_curve(self) -> pd.DataFrame:
+        """
+        Get the half cell curve of the electrode.
+
+        :return: DataFrame containing the half cell curve.
+        """
+        if not hasattr(self, '_cathode_half_cell_curve'):
+            raise AttributeError("Half cell curves have not been calculated yet")
+
+        return (self
+                ._cathode_half_cell_curve
+                .assign(capacity=lambda x: x['capacity'] * S_TO_H)
+                .rename(columns={'capacity': 'Capacity (Ah)', 
+                                 'voltage': 'Voltage (V)', 
+                                 'direction': 'Direction'})
+                )
+    
+    @property
+    def anode_half_cell_curve(self) -> pd.DataFrame:
+        """
+        Get the half cell curve of the electrode.
+
+        :return: DataFrame containing the half cell curve.
+        """
+        if not hasattr(self, '_anode_half_cell_curve'):
+            raise AttributeError("Half cell curves have not been calculated yet")
+
+        return (self
+                ._anode_half_cell_curve
+                .assign(capacity=lambda x: x['capacity'] * S_TO_H)
+                .rename(columns={'capacity': 'Capacity (Ah)', 
+                                 'voltage': 'Voltage (V)', 
+                                 'direction': 'Direction'})
+                )
+    
+    @property
+    def full_cell_curve(self) -> pd.DataFrame:
+        """
+        Get the full cell curve of the electrode.
+
+        :return: DataFrame containing the full cell curve.
+        """
+        if not hasattr(self, '_full_cell_curve'):
+            raise AttributeError("Full cell curves have not been calculated yet")
+
+        return (self
+                ._full_cell_curve
+                .assign(capacity=lambda x: x['capacity'] * S_TO_H)
+                .rename(columns={'capacity': 'Capacity (Ah)', 
+                                 'voltage': 'Voltage (V)', 
+                                 'direction': 'Direction'})
+                )
+
+    @property
+    def mass_breakdown(self):
+        return {item.replace('_', ' ').capitalize(): round(value * KG_TO_G, 2) for item, value in self._mass_breakdown.items()}
+
+    @property
+    def active_geometric_area(self):
+        return round(self._active_geometric_area * M_TO_CM**2, 2)
+    
+    @property
+    def cost_breakdown(self):
+        return {key.replace('_', ' ').capitalize(): round(value, 2) for key, value in self._cost_breakdown.items()}
+
 
 class _JellyRoll(_ElectrodeAssembly):
 
@@ -190,6 +273,39 @@ class _JellyRoll(_ElectrodeAssembly):
         self._calculate_components()
         self._calculate_mass_breakdown()
         self._calculate_cost_breakdown()
+
+    def _check_anode(self, anode: Anode):
+        """
+        Function to check the anode properties
+
+        :param anode: Anode: anode used in the stack
+        """
+        if not isinstance(anode, Anode) and not isinstance(anode, CurrentCollector):
+            raise ValueError("Anode must be an instance of the Anode class or CurrentCollector class")
+        
+        if not isinstance(anode._current_collector, TabWeldedCurrentCollector) and not isinstance(anode._current_collector, NotchedCurrentCollector):
+            raise ValueError("Anode current collector must be an instance of the TabWeldedCurrentCollector or NotchedCurrentCollector class")
+        
+        if isinstance(anode, CurrentCollector):
+            self._anode_free = True
+            anode = Anode(formulation={}, mass_loading=0, current_collector=anode, calender_density=0)
+        else:
+            self._anode_free = False
+            self._anode = deepcopy(anode)
+
+    def _check_cathode(self, cathode: Cathode):
+        """
+        Function to check the cathode properties
+
+        :param cathode: Cathode: cathode used in the stack
+        """
+        if not isinstance(cathode, Cathode):
+            raise ValueError("Cathode must be an instance of the Cathode class")
+        
+        if not isinstance(cathode._current_collector, TabWeldedCurrentCollector) and not isinstance(cathode._current_collector, NotchedCurrentCollector):
+            raise ValueError("Cathode current collector must be an instance of the TabWeldedCurrentCollector or NotchedCurrentCollector class")
+        
+        self._cathode = deepcopy(cathode)
 
     def _calculate_active_area(self):
         self._active_geometric_area = self._cathode._single_sided_area * 2
@@ -260,6 +376,119 @@ class _JellyRoll(_ElectrodeAssembly):
     @property
     def electrode_thickness(self):
         return round(self._electrode_thickness * M_TO_MM, 2)
+
+
+class CylindricalJellyRoll(_JellyRoll):
+
+    def __init__(self, 
+                 anode: Anode | CurrentCollector, 
+                 cathode: Cathode, 
+                 separator: Separator, 
+                 internal_die_diameter: float,
+                 name: str = 'cylindrical_jelly_roll') -> None:
+        """
+        Initialize an object that represents an electrochemical cylindrical jelly roll within an electrochemical cell
+
+        :param anode: Anode: anode used in the stack
+        :param cathode: Cathode: cathode used in the stack
+        :param separator: Separator: separator used in the stack
+        :param radius: float: radius of the cylindrical jelly roll in cm
+        :param internal_die_diameter: float: internal die diameter of the cylindrical jelly roll in mm
+        :param name: str: name of the cylindrical jelly roll
+        """
+        super().__init__(anode=anode, cathode=cathode, separator=separator, name=name)
+
+        self._check_internal_die_diameter(internal_die_diameter)
+        self._calculate_radius()
+
+    def _check_internal_die_diameter(self, internal_die_diameter: float):
+        """
+        Function to check the internal die diameter
+
+        :param internal_die_diameter: float: internal die diameter of the cylindrical jelly roll in mm
+        """
+        if not isinstance(internal_die_diameter, (int, float)):
+            raise ValueError("Internal die diameter must be a number")
+        
+        if internal_die_diameter < 0:
+            raise ValueError("Internal die diameter must be greater than 0")
+        
+        self._internal_die_diameter = internal_die_diameter * MM_TO_M
+
+    def _calculate_radius(self, dtheta: float = 0.001):
+        """
+        Function to calculate the radius of the cylindrical jelly roll using the archemdyan spiral solved numerically
+
+        :param dtheta: float: step size for the theta angle in radians
+        """
+        length = self._separator._fold_length
+        b = self._electrode_thickness / (2*np.pi)
+        a = (self._internal_die_diameter / 2) + (self._electrode_thickness / 2)
+        
+        total_length = 0
+        theta = 0
+
+        theta_list = []
+        r_list = []
+
+        while total_length < length:
+            r = a + b * theta
+            r_list.append(r)
+            ds = np.sqrt(r**2 + b**2) * dtheta
+            total_length += ds
+            theta += dtheta
+            theta_list.append(theta)
+        
+        self._polar_spiral = pd.DataFrame({'theta': theta_list, 'r': r_list})
+        self._cart_spiral = pd.DataFrame({'x': r_list * np.cos(theta_list), 'y': r_list * np.sin(theta_list)})
+        self._radius = a + b * theta + self._electrode_thickness/2
+        self._n_turns = theta / (2 * np.pi)
+
+    def show(self):
+        """
+        Function to show the jelly roll wrapped up 
+        """
+        data = self.cart_spiral.copy()
+        n_turns = self.n_turns
+
+        fig = px.line(data, x='X (cm)', y='Y (cm)', title='Cylindrical Jelly Roll with ' + str(n_turns) + ' turns')
+
+        fig.update_layout(xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="y"),
+                          yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                          paper_bgcolor='white',
+                          plot_bgcolor='white',
+                          showlegend=False)
+        
+        fig.show()        
+
+    @property
+    def internal_die_diameter(self):
+        return round(self._internal_die_diameter * M_TO_MM, 2)
+    
+    @property
+    def radius(self):
+        return round(self._radius * M_TO_CM, 2)
+    
+    @property
+    def n_turns(self):
+        return round(self._n_turns, 2)
+    
+    @property
+    def polar_spiral(self):
+        return (self
+                ._polar_spiral
+                .assign(r = lambda x: x['r']*M_TO_CM)
+                .rename(columns={'theta': 'Theta (rad)', 'r': 'Radius (cm)'})
+                )
+    
+    @property
+    def cart_spiral(self):
+        return (self
+                ._cart_spiral
+                .assign(x = lambda x: x['x']*M_TO_CM)
+                .assign(y = lambda x: x['y']*M_TO_CM)
+                .rename(columns={'x': 'X (cm)', 'y': 'Y (cm)'})
+                )
 
 
 class FlatJellyRoll(_JellyRoll):
@@ -407,12 +636,17 @@ class Stack(_ElectrodeAssembly):
 
         :param grid_n: int: number of points to use in the half cell curve
         """
-        for c in self._cathodes:
-            c._calculate_half_cell_curve(grid_n=grid_n)
+        # NOTE: Not explicitly calculating the half cell curve for each anode/cathode. Just the first and then copying. 
+        self._cathodes[0]._calculate_half_cell_curve(grid_n=grid_n)
+        for c in self._cathodes[1:]:
+            c._half_cell_curve = self._cathodes[0]._half_cell_curve.copy()
+            c._areal_capacity = self._cathodes[0]._areal_capacity
 
-        for a in self._anodes:
-            if not a._anode_free:
-                a._calculate_half_cell_curve(grid_n=grid_n)
+        # NOTE: Not explicitly calculating the half cell curve for each anode/cathode. Just the first and then copying. 
+        if not self._anode_free:
+            self._anodes[0]._calculate_half_cell_curve(grid_n=grid_n)
+            for a in self._anodes[1:]:
+                a._half_cell_curve = self._anodes[0]._half_cell_curve.copy()
 
         cathode_half_cell = (pd
                              .concat([c._half_cell_curve for c in self._cathodes])
@@ -695,10 +929,6 @@ class Stack(_ElectrodeAssembly):
             self._anodes[i]._name = f"{anode._name}_{i}"
 
         del self._anode
-
-    @property
-    def cost_breakdown(self):
-        return {key.replace('_', ' ').capitalize(): round(value, 2) for key, value in self._cost_breakdown.items()}
     
     @property
     def cathode_cost_breakdown(self):
@@ -723,10 +953,6 @@ class Stack(_ElectrodeAssembly):
         return rounded_dict
     
     @property
-    def mass_breakdown(self):
-        return {item: round(value * KG_TO_G, 2) for item, value in self._mass_breakdown.items()}
-    
-    @property
     def cathode_mass_breakdown(self):
         rounded_dict = {
             item.replace('_', ' ').capitalize(): (
@@ -747,27 +973,7 @@ class Stack(_ElectrodeAssembly):
             for item, value in self._anode_mass_breakdown.items()
         }
         return rounded_dict
-
-    @property
-    def cost(self):
-        return round(self._cost, 2)
-
-    @property
-    def active_geometric_area(self):
-        return round(self._active_geometric_area * M_TO_CM**2, 2)
-
-    @property
-    def pore_volume(self):
-        return round(self._pore_volume * M_TO_CM**3, 2)
-
-    @property
-    def mass(self):
-        return round(self._mass * KG_TO_G, 2)
     
-    @property
-    def mass_breakdown(self):
-        return {item.replace('_', ' ').capitalize(): round(value * KG_TO_G, 2) for item, value in self._mass_breakdown.items()}
-
     @property
     def anodes(self):
         return self._anodes
@@ -775,60 +981,6 @@ class Stack(_ElectrodeAssembly):
     @property
     def cathodes(self):
         return self._cathodes
-
-    @property
-    def cathode_half_cell_curve(self) -> pd.DataFrame:
-        """
-        Get the half cell curve of the electrode.
-
-        :return: DataFrame containing the half cell curve.
-        """
-        if not hasattr(self, '_cathode_half_cell_curve'):
-            raise AttributeError("Half cell curves have not been calculated yet")
-
-        return (self
-                ._cathode_half_cell_curve
-                .assign(capacity=lambda x: x['capacity'] * S_TO_H)
-                .rename(columns={'capacity': 'Capacity (Ah)', 
-                                 'voltage': 'Voltage (V)', 
-                                 'direction': 'Direction'})
-                )
-    
-    @property
-    def anode_half_cell_curve(self) -> pd.DataFrame:
-        """
-        Get the half cell curve of the electrode.
-
-        :return: DataFrame containing the half cell curve.
-        """
-        if not hasattr(self, '_anode_half_cell_curve'):
-            raise AttributeError("Half cell curves have not been calculated yet")
-
-        return (self
-                ._anode_half_cell_curve
-                .assign(capacity=lambda x: x['capacity'] * S_TO_H)
-                .rename(columns={'capacity': 'Capacity (Ah)', 
-                                 'voltage': 'Voltage (V)', 
-                                 'direction': 'Direction'})
-                )
-    
-    @property
-    def full_cell_curve(self) -> pd.DataFrame:
-        """
-        Get the full cell curve of the electrode.
-
-        :return: DataFrame containing the full cell curve.
-        """
-        if not hasattr(self, '_full_cell_curve'):
-            raise AttributeError("Full cell curves have not been calculated yet")
-
-        return (self
-                ._full_cell_curve
-                .assign(capacity=lambda x: x['capacity'] * S_TO_H)
-                .rename(columns={'capacity': 'Capacity (Ah)', 
-                                 'voltage': 'Voltage (V)', 
-                                 'direction': 'Direction'})
-                )
 
     def __str__(self):
         return f"{self.name}"

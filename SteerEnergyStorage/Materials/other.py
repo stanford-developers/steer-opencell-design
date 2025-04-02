@@ -50,17 +50,71 @@ class Terminal():
     def __init__(self, 
                  mass: float,
                  specific_cost: float,
-                 name: str = None
+                 name: str = None,
+                 thickness: float = None,
                  ):
         """
         Terminal object for a cell
         :param mass: float: mass of the terminal in g
         :param specific_cost: float: specific cost of the terminal $/kg
         :param name: str: name of the terminal
+        :param thickness: float: thickness of the terminal in mm
         """
+        self._check_mass(mass)
+        self._check_specific_cost(specific_cost)
+        self._check_thickness(thickness)
+        self._check_name(name)
+        self._check_mass(mass)
+        self._calculate_properties()
+
+    def _check_mass(self, mass):
+        
+        if not isinstance(mass, (int, float)):
+            raise TypeError("Mass must be a number")
+
+        if mass <= 0:
+            raise ValueError("Mass must be greater than 0")
+        
         self._mass = mass * G_TO_KG
+        
+    def _check_specific_cost(self, specific_cost):
+        
+        if not isinstance(specific_cost, (int, float)):
+            raise TypeError("Specific cost must be a number")
+
+        if specific_cost <= 0:
+            raise ValueError("Specific cost must be greater than 0")
+        
         self._specific_cost = specific_cost
+
+    def _check_thickness(self, thickness):
+
+        if thickness is not None:
+            if not isinstance(thickness, (int, float)):
+                raise TypeError("Thickness must be a number")
+
+            if thickness <= 0:
+                raise ValueError("Thickness must be greater than 0")
+        
+        self._thickness = thickness * MM_TO_M if thickness else None
+
+    def _check_name(self, name):
+        
+        if name is not None:
+            if not isinstance(name, str):
+                raise TypeError("Name must be a string")
+        
         self._name = name
+
+    def _calculate_properties(self):
+
+        if self._thickness is not None:
+            self._volume = self._mass / self._thickness
+            self._area = self._volume / self._thickness
+        else:
+            self._volume = None
+            self._area = None
+
         self._cost = self._mass * self._specific_cost
 
     @property
