@@ -9,7 +9,7 @@ import numpy as np
 
 import plotly.express as px
 import plotly.graph_objects as go
-from copy import deepcopy, copy
+from copy import deepcopy
 from scipy.interpolate import CubicSpline
 
 KG_TO_G = 1e3
