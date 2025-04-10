@@ -113,7 +113,7 @@ class Separator:
         if fold_length < 0:
             raise ValueError("Fold length cannot be negative.")
         
-        if fold_length > 100:
+        if fold_length > 1000:
             raise ValueError("This fold length is too high. Check the units, it should be in cm.")
         
         self._fold_length = float(fold_length) * CM_TO_M

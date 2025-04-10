@@ -1,12 +1,14 @@
-from SteerEnergyStorage.Formulations.ElectrodeAssemblies import Stack, CylindricalJellyRoll, FlatJellyRoll
+from SteerEnergyStorage.Formulations.ElectrodeAssemblies import Stack, CylindricalJellyRoll, FlatJellyRoll, _JellyRoll
 from SteerEnergyStorage.Materials.Electrolytes import Electrolyte
 from SteerEnergyStorage.Materials.other import Terminal
-from SteerEnergyStorage.Constructions.Containers import Pouch, PrismaticCase, CylindricalShell
+from SteerEnergyStorage.Constructions.Containers import Pouch, PrismaticCase, CylindricalCase
 from SteerEnergyStorage.Utils import get_colorway
 
 import pandas as pd
 import numpy as np
+
 import plotly.express as px
+import plotly.graph_objects as go
 from copy import deepcopy, copy
 from scipy.interpolate import CubicSpline
 
@@ -27,7 +29,7 @@ class _Cell:
                  n_electrode_assembly: int,
                  electrolyte: Electrolyte,
                  electrolyte_overfill: float,
-                 encapsulation: Pouch | PrismaticCase | CylindricalShell,
+                 encapsulation: Pouch | PrismaticCase | CylindricalCase,
                  reversible_capacity: float,
                  irreversible_capacity: float,
                  grid_n: int = 100,
@@ -45,9 +47,9 @@ class _Cell:
         :param grid_n: Number of points to interpolate the half cell curves
         :param name: Name of the cell
         """
+        self._check_and_copy_encapsulation(encapsulation)
         self._check_and_copy_electrode_assembly(electrode_assembly, n_electrode_assembly)
         self._check_and_copy_electrolyte(electrolyte, electrolyte_overfill)
-        self._check_and_copy_encapsulation(encapsulation)
         self._check_anode_free(electrode_assembly)
 
         self._check_name(name)
@@ -56,15 +58,17 @@ class _Cell:
         self._check_grid_n(grid_n)
 
         self._calculate_electrolyte_quantities()
-        self._calculate_half_cell_curves()
+        self._calculate_half_cell_curve()
         self._calculate_full_cell_curve()
         self._get_effective_areal_capacity() #TODO 
-        self._calculate_energy() 
 
         self._calculate_mass_breakdown()
         self._calculate_cost_breakdown()
         self._calculate_geometry_properties()
         self._calculate_energy_properties()
+
+    def _calculate_geometry_properties(self):
+        pass
         
     def _calculate_electrolyte_quantities(self):
         """
@@ -119,14 +123,14 @@ class _Cell:
         self._electrolyte_overfill = electrolyte_overfill / 100
 
     def _check_and_copy_encapsulation(self, 
-                                      encapsulation: Pouch | PrismaticCase | CylindricalShell
+                                      encapsulation: Pouch | PrismaticCase | CylindricalCase
                                       ) -> None:
         """
         Function to validate and copy encapsulation
 
         :param encapsulation: Encapsulation to validate
         """
-        if not isinstance(encapsulation, (Pouch, PrismaticCase, CylindricalShell)):
+        if not isinstance(encapsulation, (Pouch, PrismaticCase, CylindricalCase)):
             raise ValueError("Encapsulation must be an instance of Pouch, PrismaticCase or CylindricalShell")
         
         self._encapsulation = deepcopy(encapsulation)
@@ -196,7 +200,7 @@ class _Cell:
 
         color_map = {'Cathode': 'blue', 'Anode': 'red', 'Full Cell': 'black'}
 
-        figure = px.line(data, x='Capacity (Ah)', y='Voltage (V)', color='Electrode', title='Capacity vs Voltage', 
+        figure = px.line(data, x='Capacity (Ah)', y='Voltage (V)', color='Electrode', title='Capacity vs Voltage', line_shape='spline', 
                          template='presentation', color_discrete_map=color_map, **kwargs)
         
         figure.update_traces(line=dict(width=4))
@@ -204,7 +208,7 @@ class _Cell:
         figure.add_vline(x=lower_cap_limit, line_color='black', line_width=2)
         return figure
     
-    def _add_to_dict(self, dictionary_1: dict, dictionary_2: dict):
+    def _add_to_dict(self, dictionary_1: dict, dictionary_2: dict | float | int):
         
         for key, value in dictionary_2.items():
             if key in dictionary_1:
@@ -214,12 +218,12 @@ class _Cell:
 
         return dictionary_1
 
-    def _calculate_half_cell_curves(self):
+    def _calculate_half_cell_curve(self):
         """
         Function to calculate the half cell curve of the stack from the half cell curves of the anode and cathode active materials
         """
         for s in self._electrode_assemblies:
-            s._calculate_half_cell_curves(grid_n=self._grid_n)
+            s._calculate_half_cell_curve(grid_n=self._grid_n)
 
         cathode_half_cell = (pd
                              .concat([s._cathode_half_cell_curve for c in self._electrode_assemblies])
@@ -324,11 +328,6 @@ class _Cell:
                     .query("capacity >= @x_min and capacity <= @x_max")
                     )
 
-    def _calculate_energy(self):
-
-        self._energy = -np.trapezoid(self._full_cell_curve.query("direction == 'discharge'")['voltage'],
-                                     self._full_cell_curve.query("direction == 'discharge'")['capacity'])
-
     def _get_color_map(self):
 
         color_map = {
@@ -359,9 +358,9 @@ class _Cell:
     def _get_mass_breakdown_plot_pie(self, **kwargs):
 
         mass_breakdown = self.mass_breakdown
-        stack_mass_breakdown = self.stacks_mass_breakdown
-        mass_breakdown.pop('Stacks')
-        mass_breakdown.update(stack_mass_breakdown)
+        electrode_assembly_mass_breakdown = self.electrode_assembly_mass_breakdown
+        mass_breakdown.pop('Electrode Assemblies')
+        mass_breakdown.update(electrode_assembly_mass_breakdown)
         mass_breakdown = pd.DataFrame(mass_breakdown.items(), columns=['component', 'mass']).assign(level = 'Cell')
 
         anode_mass_breakdown = self.anode_mass_breakdown
@@ -384,9 +383,9 @@ class _Cell:
     def _get_cost_breakdown_plot_pie(self, **kwargs):
 
         cost_breakdown = self.cost_breakdown
-        stack_cost_breakdown = self.stacks_cost_breakdown
-        cost_breakdown.pop('Stacks')
-        cost_breakdown.update(stack_cost_breakdown)
+        electrode_assembly_cost_breakdown = self.electrode_assembly_cost_breakdown
+        cost_breakdown.pop('Electrode Assemblies')
+        cost_breakdown.update(electrode_assembly_cost_breakdown)
         cost_breakdown = pd.DataFrame(cost_breakdown.items(), columns=['component', 'cost']).assign(level = 'Cell')
 
         anode_cost_breakdown = self.anode_cost_breakdown
@@ -410,15 +409,15 @@ class _Cell:
 
         cost_breakdown = (pd
                           .DataFrame(self.cost_breakdown.items(), columns=['level_1', 'cost'])
-                          .query('level_1 != "Stacks"')
+                          .query('level_1 != "Electrode Assemblies"')
                           .assign(level_2 = None).assign(level_0 = 'Cell')
                           )
         
-        stack_cost_breakdown = (pd
-                                .DataFrame(self.stacks_cost_breakdown.items(), columns=['level_1', 'cost'])
-                                .query('level_1 != "Anode" and level_1 != "Cathode"')
-                                .assign(level_0 = 'Cell').assign(level_2 = None)
-                                )
+        electrode_assembly_cost_breakdown = (pd
+                                             .DataFrame(self.electrode_assembly_cost_breakdown.items(), columns=['level_1', 'cost'])
+                                             .query('level_1 != "Anode" and level_1 != "Cathode"')
+                                             .assign(level_0 = 'Cell').assign(level_2 = None)
+                                             )
 
         anode_cost_breakdown = self.anode_cost_breakdown
         anode_cost_breakdown = {obj: value for innder_dict in anode_cost_breakdown.values() for obj, value in innder_dict.items()}
@@ -438,7 +437,7 @@ class _Cell:
 
         color_map = self._get_color_map()
 
-        data = pd.concat([cost_breakdown, anode_cost_breakdown, cathode_cost_breakdown, stack_cost_breakdown])
+        data = pd.concat([cost_breakdown, anode_cost_breakdown, cathode_cost_breakdown, electrode_assembly_cost_breakdown])
 
         figure = px.sunburst(data, path=['level_0', 'level_1', 'level_2'], values='cost', title='Cost Breakdown', color='level_1', color_discrete_map=color_map, **kwargs)
         figure.update_traces(textinfo='percent parent+label')
@@ -450,15 +449,15 @@ class _Cell:
 
         mass_breakdown = (pd
                           .DataFrame(self.mass_breakdown.items(), columns=['level_1', 'mass'])
-                          .query('level_1 != "Stacks"')
+                          .query('level_1 != "Electrode Assemblies"')
                           .assign(level_2 = None).assign(level_0 = 'Cell')
                           )
         
-        stack_mass_breakdown = (pd
-                                .DataFrame(self.stacks_mass_breakdown.items(), columns=['level_1', 'mass'])
-                                .query('level_1 != "Anode" and level_1 != "Cathode"')
-                                .assign(level_0 = 'Cell').assign(level_2 = None)
-                                )
+        electrode_assembly_mass_breakdown = (pd
+                                             .DataFrame(self.electrode_assembly_mass_breakdown.items(), columns=['level_1', 'mass'])
+                                             .query('level_1 != "Anode" and level_1 != "Cathode"')
+                                             .assign(level_0 = 'Cell').assign(level_2 = None)
+                                             )
 
         anode_mass_breakdown = self.anode_mass_breakdown
         anode_mass_breakdown = {obj: value for innder_dict in anode_mass_breakdown.values() for obj, value in innder_dict.items()}
@@ -478,7 +477,7 @@ class _Cell:
 
         color_map = self._get_color_map()
 
-        data = pd.concat([mass_breakdown, anode_mass_breakdown, cathode_mass_breakdown, stack_mass_breakdown])
+        data = pd.concat([mass_breakdown, anode_mass_breakdown, cathode_mass_breakdown, electrode_assembly_mass_breakdown])
 
         figure = px.sunburst(data, path=['level_0', 'level_1', 'level_2'], values='mass', title='Mass Breakdown', color='level_1', color_discrete_map=color_map, **kwargs)
         figure.update_traces(textinfo='percent parent+label')
@@ -534,13 +533,13 @@ class _Cell:
 
     def _calculate_cost_breakdown(self):
 
-        self._cost_breakdown = {'stacks': sum([s._cost for s in self._electrode_assemblies]),
+        self._cost_breakdown = {'electrode_assemblies': sum([s._cost for s in self._electrode_assemblies]),
                                 'electrolyte': self._electrolyte._cost,
                                 'encapsulation': self._encapsulation._cost}
         
-        self._stacks_cost_breakdown = {'cathode': sum([s._cost_breakdown['cathode'] for s in self._electrode_assemblies]),
-                                       'anode': sum([s._cost_breakdown['anode'] for s in self._electrode_assemblies]),
-                                       'separator': sum([s._cost_breakdown['separator'] for s in self._electrode_assemblies])}
+        self._electrode_assembly_cost_breakdown = {'cathode': sum([s._cost_breakdown['cathode'] for s in self._electrode_assemblies]),
+                                                   'anode': sum([s._cost_breakdown['anode'] for s in self._electrode_assemblies]),
+                                                   'separator': sum([s._cost_breakdown['separator'] for s in self._electrode_assemblies])}
         
         anode_cost_breakdown = {'active_materials': {}, 'binders': {}, 'conductive_additives': {}, 'current_collectors': {}}
         cathode_cost_breakdown = {'active_materials': {}, 'binders': {}, 'conductive_additives': {}, 'current_collectors': {}}
@@ -557,6 +556,10 @@ class _Cell:
         self._cost = sum(self._cost_breakdown.values())
 
     def _calculate_energy_properties(self):
+
+        self._energy = -np.trapezoid(self._full_cell_curve.query("direction == 'discharge'")['voltage'],
+                                     self._full_cell_curve.query("direction == 'discharge'")['capacity'])
+        
         self._specific_energy = self._energy / self._mass
         self._energy_density = self._energy / self._volume
         self._normalized_cost = self._cost / self._energy
@@ -604,10 +607,16 @@ class _Cell:
         return {item.replace('_', ' ').title(): round(value, 3) for item, value in self._cost_breakdown.items()}
     
     @property
-    def stacks_cost_breakdown(self) -> dict:
-        if not hasattr(self, '_stacks_cost_breakdown'):
+    def electrode_assembly_mass_breakdown(self) -> dict:
+        if not hasattr(self, '_electrode_assembly_mass_breakdown'):
             raise AttributeError("Stacks cost breakdown has not been calculated yet")
-        return {item.replace('_', ' ').title(): round(value, 3) for item, value in self._stacks_cost_breakdown.items()}
+        return {item.replace('_', ' ').title(): round(value * KG_TO_G, 3) for item, value in self._electrode_assembly_mass_breakdown.items()}
+        
+    @property
+    def electrode_assembly_cost_breakdown(self) -> dict:
+        if not hasattr(self, '_electrode_assembly_cost_breakdown'):
+            raise AttributeError("Stacks cost breakdown has not been calculated yet")
+        return {item.replace('_', ' ').title(): round(value, 3) for item, value in self._electrode_assembly_cost_breakdown.items()}
     
     @property
     def anode_cost_breakdown(self) -> dict:
@@ -684,12 +693,6 @@ class _Cell:
         }
 
         return mass_breakdown
-
-    @property
-    def thickness(self) -> float:
-        if not hasattr(self, '_thickness'):
-            raise AttributeError("Thickness has not been calculated yet")
-        return round(self._thickness * M_TO_MM, 2)
     
     @property
     def volume(self) -> float:
@@ -777,7 +780,7 @@ class _Cell:
 
     @property
     def effective_areal_capacity(self) -> float:
-        return round(self._effective_areal_capacity * (S_TO_H * A_TO_mA / M_TO_CM**2), 2) 
+        return round(self._effective_areal_capacity * (S_TO_H * A_TO_mA / M_TO_CM**2), 6) 
 
     def __str__(self) -> str:
         return self._name
@@ -836,13 +839,69 @@ class _PouchCell(_Cell):
         return self._encapsulation
 
 
+class _PrismaticCell(_Cell):
+
+    def __init__(self,
+                 electrode_assembly: Stack | CylindricalJellyRoll | FlatJellyRoll,
+                 n_electrode_assembly: int,
+                 electrolyte: Electrolyte,
+                 electrolyte_overfill: float,
+                 encapsulation: Pouch,
+                 reversible_capacity: float,
+                 irreversible_capacity: float,
+                 grid_n: int = 100,
+                 name: str = 'prismatic_cell'):
+        """
+        Class to represent a prismatic cell.
+
+        :param electrode_assembly: Electrode assembly used in the cell
+        :param electrolyte: Electrolyte used in the cell
+        :param electrolyte_overfill: Overfill of the electrolyte in the cell (%)
+        :param encapsulation: Pouch used in the cell
+        :param reversible_capacity: Reversible capacity of the cell in mAh
+        :param irreversible_capacity: Irreversible capacity of the cell in mAh
+        :param grid_n: Number of points to interpolate the half and full cell curves
+        :param name: Name of the cell
+        """
+        super().__init__(electrode_assembly=electrode_assembly,
+                         n_electrode_assembly=n_electrode_assembly,
+                         electrolyte=electrolyte,
+                         electrolyte_overfill=electrolyte_overfill,
+                         encapsulation=encapsulation,
+                         reversible_capacity=reversible_capacity,
+                         irreversible_capacity=irreversible_capacity,
+                         grid_n=grid_n,
+                         name=name)
+        
+    def _check_and_copy_encapsulation(self, encapsulation: Pouch) -> None:
+        """
+        Function to validate and copy encapsulation
+
+        :param encapsulation: Encapsulation to validate
+        """
+        if not isinstance(encapsulation, PrismaticCase):
+            raise ValueError("Encapsulation must be an instance of PrismaticCase")
+        
+        self._encapsulation = deepcopy(encapsulation)
+
+    def _calculate_geometry_properties(self):
+        self._height = self._encapsulation._external_height
+        self._width = self._encapsulation._external_width
+        self._length = self._encapsulation._external_length
+        self._volume = self._encapsulation._external_volume
+    
+    @property
+    def prismatic_case(self) -> PrismaticCase:
+        return self._encapsulation
+
+
 class _StackedCell(_Cell):
 
     def __init__(self,
                  electrode_assembly: Stack,
                  electrolyte: Electrolyte,
                  electrolyte_overfill: float,
-                 encapsulation: Pouch | PrismaticCase | CylindricalShell,
+                 encapsulation: Pouch | PrismaticCase | CylindricalCase,
                  reversible_capacity: float,
                  irreversible_capacity: float,
                  n_electrode_assembly: int = 1,
@@ -896,6 +955,65 @@ class _StackedCell(_Cell):
         return self._electrode_assemblies
 
 
+class _JellyRollCell(_Cell):
+
+    def __init__(self,
+                 electrode_assembly: _JellyRoll,
+                 electrolyte: Electrolyte,
+                 electrolyte_overfill: float,
+                 encapsulation: Pouch | PrismaticCase | CylindricalCase,
+                 reversible_capacity: float,
+                 irreversible_capacity: float,
+                 n_electrode_assembly: int = 1,
+                 grid_n: int = 100,
+                 name: str = "stacked_cell"):
+        """
+        A class that represents a jelly roll cell.
+
+        :param electrode_assembly: Stack within the cell
+        :param electrolyte: Electrolyte used in the cell
+        :param electrolyte_overfill: Overfill of the electrolyte in the cell (%)
+        :param encapsulation: Encapsulation of the cell
+        :param reversible_capacity: Reversible capacity of the cell in mAh
+        :param irreversible_capacity: Irreversible capacity of the cell in mAh
+        :param n_electrode_assembly: Number of stacks in the cell
+        :param grid_n: Number of points to interpolate the half cell curves
+        :param name: Name of the cell
+        """
+        
+        super().__init__(electrode_assembly=electrode_assembly,
+                         n_electrode_assembly=n_electrode_assembly,
+                         electrolyte=electrolyte,
+                         electrolyte_overfill=electrolyte_overfill,
+                         encapsulation=encapsulation,
+                         reversible_capacity=reversible_capacity,
+                         irreversible_capacity=irreversible_capacity,
+                         grid_n=grid_n,
+                         name=name)
+        
+    def _check_and_copy_electrode_assembly(self, electrode_assembly: _JellyRoll, n_electrode_assembly: int) -> None:
+        """
+        Function to validate the electrode assembly and copy it n times
+
+        :param electrode_assembly: Electrode assembly to validate
+        :param n_electrode_assembly: Number of times to copy the electrode assembly
+        """
+        if not isinstance(electrode_assembly, _JellyRoll):
+            raise ValueError("Electrode assembly must be an instance of a Jelly Roll")
+        
+        if not isinstance(n_electrode_assembly, int):
+            raise ValueError("Number of electrode assembly must be an integer")
+        
+        if n_electrode_assembly <= 0:
+            raise ValueError("Number of electrode assembly must be greater than 0")
+        
+        self._electrode_assemblies = [deepcopy(electrode_assembly) for _ in range(n_electrode_assembly)]     
+
+    @property
+    def jelly_roll(self) -> _JellyRoll:
+        return self._electrode_assemblies[0]
+
+
 class StackedPouchCell(_PouchCell, _StackedCell):
 
     def __init__(self,
@@ -935,131 +1053,10 @@ class StackedPouchCell(_PouchCell, _StackedCell):
                          name=name)
                              
     def _calculate_geometry_properties(self):
-        self._thickness = sum([s._thickness for s in self._electrode_assemblies]) + self._encapsulation._laminate._thickness * 2
-        self._volume = self._encapsulation._length * self._encapsulation._width * self._thickness
-
-
-
-
-
-
-class _PrismaticCell(_Cell):
-
-    def __init__(self,
-                 prismatic_case: PrismaticCase,
-                 electrolyte: Electrolyte,
-                 electrolyte_overfill: float,
-                 reversible_capacity: float,
-                 irreversible_capacity: float,
-                 grid_n: int = 100,
-                 name: str = 'Prismatic cell'):
-        """
-        Class to represent a prismatic cell.
-
-        :param prismatic_case: Prismatic case used in the cell
-        :param electrolyte: Electrolyte used in the cell
-        :param electrolyte_overfill: Overfill of the electrolyte in the cell (%)
-        :param reversible_capacity: Reversible capacity of the cell in mAh
-        :param irreversible_capacity: Irreversible capacity of the cell in mAh
-        :param grid_n: Number of points to interpolate the half cell curves
-        :param name: Name of the cell
-        """
-        _Cell.__init__(self,
-                      electrolyte=electrolyte, 
-                      electrolyte_overfill=electrolyte_overfill, 
-                      reversible_capacity=reversible_capacity,
-                      irreversible_capacity=irreversible_capacity,
-                      grid_n=grid_n,
-                      name=name)
-        
-        self._validate_and_copy_prismatic_case(prismatic_case)
-        self._calculate_dimensions()
-
-    def _calculate_dimensions(self):
-        self._height = self._prismatic_case._external_height
-        self._width = self._prismatic_case._external_width
-        self._length = self._prismatic_case._external_length
-        self._volume = self._prismatic_case._external_volume
-
-    def _validate_and_copy_prismatic_case(self, prismatic_case: PrismaticCase) -> PrismaticCase:
-
-        if not isinstance(prismatic_case, PrismaticCase):
-            raise ValueError("Prismatic case must be an instance of PrismaticCase")
-        
-        self._prismatic_case = copy(prismatic_case)
-    
-    @property
-    def prismatic_case(self) -> PrismaticCase:
-        return self._prismatic_case
-
-
-
-
-
-    
-
-
-
-class _JellyRollCell(_Cell):
-
-    def __init__(self,
-                 jelly_roll: CylindricalJellyRoll | FlatJellyRoll,
-                 electrolyte: Electrolyte,
-                 electrolyte_overfill: float,
-                 reversible_capacity: float,
-                 irreversible_capacity: float,
-                 n_jelly_roll: int = 1,
-                 grid_n: int = 100,
-                 name: str = "Stacked Cell"):
-        
-        _Cell.__init__(self,
-                       electrolyte=electrolyte, 
-                       electrolyte_overfill=electrolyte_overfill, 
-                       reversible_capacity=reversible_capacity,
-                       irreversible_capacity=irreversible_capacity,
-                       grid_n=grid_n,
-                       name=name)
-        
-        self._check_n_jelly_roll(n_jelly_roll)
-        self._check_and_copy_jelly_roll(jelly_roll, n_jelly_roll)
-        self._calculate_electrolyte_quantities()
-
-    def _check_n_jelly_roll(self, n_jelly_roll: int) -> None:
-        """
-        Function to check if the number of jelly rolls is valid
-
-        :param n_jelly_roll: Number of jelly rolls to check
-        """
-        if not isinstance(n_jelly_roll, int):
-            raise ValueError("Number of jelly rolls must be an integer")
-        
-        if n_jelly_roll < 1:
-            raise ValueError("Number of jelly rolls must be greater than 0")
-        
-        self._n_jelly_roll = n_jelly_roll
-
-    def _check_and_copy_jelly_roll(self, jelly_roll: CylindricalJellyRoll, n_jelly_roll: int) -> None:
-        """
-        Function to check if the jelly roll is valid
-
-        :param jelly_roll: Jelly roll to check
-        """
-        if not isinstance(jelly_roll, CylindricalJellyRoll):
-            raise ValueError("Jelly roll must be an instance of CylindricalJellyRoll")
-        
-        if jelly_roll._radius > self._cylindrical_shell._internal_radius:
-            raise ValueError("Jelly roll radius cannot be greater than the internal radius of the cylindrical shell")
-
-        self._jelly_rolls = [deepcopy(jelly_roll) for _ in range(n_jelly_roll)]
-
-    def _calculate_electrolyte_quantities(self):
-        """
-        Function to calculate the electrolyte quantities in the cell
-        """
-        self._electrolyte._volume = sum([s._pore_volume for s in self._jelly_rolls]) * (1 + self._electrolyte_overfill)
-        self._electrolyte._mass = self._electrolyte._volume * self._electrolyte._density
-        self._electrolyte._cost = (self._electrolyte._mass) * self._electrolyte._specific_cost  
-
+        self._width = self._encapsulation._width
+        self._length = self._encapsulation._length
+        self._height = sum([s._thickness for s in self._electrode_assemblies]) + self._encapsulation._laminate._thickness * 2
+        self._volume = self._encapsulation._length * self._encapsulation._width * self._height
 
 
 class StackedPrismaticCell(_PrismaticCell, _StackedCell):
@@ -1073,7 +1070,7 @@ class StackedPrismaticCell(_PrismaticCell, _StackedCell):
                  irreversible_capacity: float,
                  n_stacks: int = 1,
                  grid_n: int = 100,
-                 name: str = 'Stacked Prismatic Cell'):
+                 name: str = 'stacked_prismatic_cell'):
         """
         A class that represents a stacked prismatic cell.
 
@@ -1081,8 +1078,6 @@ class StackedPrismaticCell(_PrismaticCell, _StackedCell):
         :param prismatic_case: Prismatic case used in the cell
         :param electrolyte: Electrolyte used in the cell
         :param electrolyte_overfill: Overfill of the electrolyte in the cell (%)
-        :param positive_terminal: Positive terminal of the cell
-        :param negative_terminal: Negative terminal of the cell
         :param reversible_capacity: Reversible capacity of the cell in mAh
         :param irreversible_capacity: Irreversible capacity of the cell in mAh
         :param n_stacks: Number of stacks in the cell
@@ -1098,170 +1093,126 @@ class StackedPrismaticCell(_PrismaticCell, _StackedCell):
         if stack._length > prismatic_case._internal_length:
             raise ValueError("Stack length cannot be greater than the internal length of the prismatic case")
 
-        _PrismaticCell.__init__(self,
-                               prismatic_case=prismatic_case,
-                               electrolyte=electrolyte,
-                               electrolyte_overfill=electrolyte_overfill,
-                               reversible_capacity=reversible_capacity,
-                               irreversible_capacity=irreversible_capacity,
-                               grid_n=grid_n,
-                               name=name)
-        
-        _StackedCell.__init__(self,
-                             stack=stack,
-                             electrolyte=electrolyte,
-                             electrolyte_overfill=electrolyte_overfill,
-                             reversible_capacity=reversible_capacity,
-                             irreversible_capacity=irreversible_capacity,
-                             n_stacks=n_stacks,
-                             grid_n=grid_n,
-                             name=name)
-
-        self._calculate_cost_breakdown()
-        self._calculate_mass_breakdown()
-        self._calculate_energy_properties()
-
-    def _calculate_energy_properties(self):
-        self._specific_energy = self._energy / self._mass
-        self._energy_density = self._energy / self._volume
-        self._normalized_cost = self._cost / self._energy
-
-    def _calculate_cost_breakdown(self):
-
-        self._cost_breakdown = {'stacks': sum([s._cost for s in self._stacks]),
-                                'electrolyte': self._electrolyte._cost,
-                                'encapsulation': self._prismatic_case._cost}
-        
-        self._stacks_cost_breakdown = {'cathode': sum([s._cost_breakdown['cathode'] for s in self._stacks]),
-                                       'anode': sum([s._cost_breakdown['anode'] for s in self._stacks]),
-                                       'separator': sum([s._cost_breakdown['separator'] for s in self._stacks])}
-        
-        anode_cost_breakdown = {'active_materials': {}, 'binders': {}, 'conductive_additives': {}, 'current_collectors': {}}
-        cathode_cost_breakdown = {'active_materials': {}, 'binders': {}, 'conductive_additives': {}, 'current_collectors': {}}
-
-        for s in self._stacks:
-            for key in anode_cost_breakdown.keys():
-                anode_cost_breakdown[key] = self._add_to_dict(anode_cost_breakdown[key], s._anode_cost_breakdown[key])
-            for key in cathode_cost_breakdown.keys():
-                cathode_cost_breakdown[key] = self._add_to_dict(cathode_cost_breakdown[key], s._cathode_cost_breakdown[key])
-
-        self._anode_cost_breakdown = anode_cost_breakdown
-        self._cathode_cost_breakdown = cathode_cost_breakdown
-
-        self._cost = sum(self._cost_breakdown.values())
-
-    def _calculate_mass_breakdown(self):
-        
-        self._mass_breakdown = {'stacks': sum([s._mass for s in self._stacks]),
-                                'electrolyte': self._electrolyte._mass,
-                                'encapsulation': self._prismatic_case._mass}
-        
-        self._stacks_mass_breakdown = {'cathode': sum([s._mass_breakdown['cathode'] for s in self._stacks]),
-                                       'anode': sum([s._mass_breakdown['anode'] for s in self._stacks]),
-                                       'separator': sum([s._mass_breakdown['separator'] for s in self._stacks])}
-        
-        anode_mass_breakdown = {'active_materials': {}, 'binders': {}, 'conductive_additives': {}, 'current_collectors': {}}
-        cathode_mass_breakdown = {'active_materials': {}, 'binders': {}, 'conductive_additives': {}, 'current_collectors': {}}
-
-        for s in self._stacks:
-            for key in anode_mass_breakdown.keys():
-                anode_mass_breakdown[key] = self._add_to_dict(anode_mass_breakdown[key], s._anode_mass_breakdown[key])
-            for key in cathode_mass_breakdown.keys():
-                cathode_mass_breakdown[key] = self._add_to_dict(cathode_mass_breakdown[key], s._cathode_mass_breakdown[key])
-
-        self._anode_mass_breakdown = anode_mass_breakdown
-        self._cathode_mass_breakdown = cathode_mass_breakdown
-
-        self._mass = sum(self._mass_breakdown.values())
+        super().__init__(electrode_assembly=stack,
+                         n_electrode_assembly=n_stacks,
+                         electrolyte=electrolyte,
+                         electrolyte_overfill=electrolyte_overfill,
+                         encapsulation=prismatic_case,
+                         reversible_capacity=reversible_capacity,
+                         irreversible_capacity=irreversible_capacity,
+                         grid_n=grid_n,
+                         name=name)
 
 
 class CylindricalCell(_JellyRollCell):
 
     def __init__(self,
-                 cylindrical_shell: CylindricalShell,
-                 jelly_roll: CylindricalJellyRoll,
+                 electrode_assembly: _JellyRoll,
                  electrolyte: Electrolyte,
                  electrolyte_overfill: float,
+                 encapsulation: CylindricalCase,
                  reversible_capacity: float,
                  irreversible_capacity: float,
-                 positive_terminal: Terminal,
-                 negative_terminal: Terminal,
                  grid_n: int = 100,
-                 name: str = 'Cylindrical Cell'):
+                 name: str = "stacked_cell"):
         """"
         A class that represents a cylindrical cell.
         
-        :param cylindrical_shell: Cylindrical case used in the cell
-        :param jelly_roll: Jelly roll used in the cell
+        :param electrode_assembly: Electrode assembly used in the cell
         :param electrolyte: Electrolyte used in the cell
         :param electrolyte_overfill: Overfill of the electrolyte in the cell (%)
-        :param reversible_capacity: Reversible capacity of the cell in mAh
-        :param irreversible_capacity: Irreversible capacity of the cell in mAh
+        :param encapsulation: Encapsulation of the cell
         :param positive_terminal: Positive terminal of the cell
         :param negative_terminal: Negative terminal of the cell
+        :param reversible_capacity: Reversible capacity of the cell in mAh
+        :param irreversible_capacity: Irreversible capacity of the cell in mAh
         :param grid_n: Number of points to interpolate the half cell curves
         :param name: Name of the cell
         """
+        super().__init__(electrode_assembly=electrode_assembly,
+                         n_electrode_assembly=1,
+                         electrolyte=electrolyte,
+                         electrolyte_overfill=electrolyte_overfill,
+                         encapsulation=encapsulation,
+                         reversible_capacity=reversible_capacity,
+                         irreversible_capacity=irreversible_capacity,
+                         grid_n=grid_n,
+                         name=name)
 
-        _JellyRollCell.__init__(self,
-                                jelly_roll=jelly_roll,
-                                electrolyte=electrolyte, 
-                                electrolyte_overfill=electrolyte_overfill, 
-                                reversible_capacity=reversible_capacity,
-                                irreversible_capacity=irreversible_capacity,
-                                grid_n=grid_n,
-                                name=name)
+    def _check_and_copy_electrode_assembly(self, electrode_assembly: CylindricalJellyRoll, n_electrode_assembly: int) -> None:
+        """
+        Function to validate the electrode assembly and copy it n times
+
+        :param electrode_assembly: Electrode assembly to validate
+        :param n_electrode_assembly: Number of times to copy the electrode assembly
+        """
+        if not isinstance(electrode_assembly, CylindricalJellyRoll):
+            raise ValueError("Electrode assembly must be an instance of a Jelly Roll")
         
-        self._check_cylindrical_shell(cylindrical_shell)
-        self._check_positive_terminal(positive_terminal)
-        self._check_negative_terminal(negative_terminal)
-        self._check_jelly_roll(jelly_roll)
-        self._calculate_dimensions()
-
-    def _check_cylindrical_shell(self, shell: CylindricalShell) -> None:
-        """
-        Function to check if the cylindrical case is valid
-
-        :param shell: Cylindrical case to check
-        """
-        if not isinstance(shell, CylindricalShell):
-            raise ValueError("Cylindrical shell must be an instance of CylindricalShell")
+        if not isinstance(n_electrode_assembly, int):
+            raise ValueError("Number of electrode assembly must be an integer")
         
-        self._cylindrical_shell = copy(shell)
-
-    def _check_positive_terminal(self, terminal: Terminal) -> None:
-        """
-        Function to check if the positive terminal is valid
-
-        :param terminal: Positive terminal to check
-        """
-        if not isinstance(terminal, Terminal):
-            raise ValueError("Positive terminal must be an instance of Terminal")
+        if n_electrode_assembly <= 0:
+            raise ValueError("Number of electrode assembly must be greater than 0")
         
-        if not hasattr(terminal, '_thickness'):
-            raise ValueError("Positive terminal must have a thickness attribute")
+        if electrode_assembly._radius > self._encapsulation._internal_radius:
+            raise ValueError("Electrode assembly radius cannot be greater than the internal radius of the cylindrical case")
         
-        self._positive_terminal = copy(terminal)
+        self._electrode_assemblies = [deepcopy(electrode_assembly) for _ in range(n_electrode_assembly)]  
 
-    def _check_negative_terminal(self, terminal: Terminal) -> None:
+    def _check_and_copy_encapsulation(self, encapsulation: CylindricalCase) -> None:
         """
-        Function to check if the negative terminal is valid
+        Function to validate and copy encapsulation
 
-        :param terminal: Negative terminal to check
+        :param encapsulation: Encapsulation to validate
         """
-        if not isinstance(terminal, Terminal):
-            raise ValueError("Negative terminal must be an instance of Terminal")
+        if not isinstance(encapsulation, CylindricalCase):
+            raise ValueError("Encapsulation must be an instance of CylindricalCase")
         
-        if not hasattr(terminal, '_thickness'):
-            raise ValueError("Negative terminal must have a thickness attribute")
-        
-        self._negative_terminal = copy(terminal)
+        self._encapsulation = deepcopy(encapsulation)
 
-    def _calculate_dimensions(self) -> None:
-        """
-        Function to calculate the dimensions of the cell
-        """
-        self._length = self._cylindrical_shell._length + self._positive_terminal._thickness + self._negative_terminal._thickness
-        self._radius = self._cylindrical_shell._internal_radius + self._cylindrical_shell._wall_thickness
+    def _calculate_geometry_properties(self):
+        self._radius = self._encapsulation._external_radius
         self._diameter = self._radius * 2
+        self._length = self._encapsulation._external_length
         self._volume = np.pi * self._radius**2 * self._length
+
+    def get_top_down_view(self, **kwargs) -> go.Figure:
+        """
+        Function to get a top down view of the cylindrical cell with the jelly roll and the casing
+
+        :param show: Whether to show the plot or not
+        """
+        fig = go.Figure()
+
+        for trace in self._encapsulation.get_top_down_view().data:
+            fig.add_trace(trace)
+
+        for trace in self._electrode_assemblies[0].get_top_down_view().data:
+            fig.add_trace(trace)
+
+        fig.update_layout(xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="y", title="X (cm)"),
+                          yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="Y (cm)"),
+                          paper_bgcolor='white',
+                          plot_bgcolor='white',
+                          showlegend=False,
+                          title=f"Top down view of cylindrical cell",
+                          **kwargs)
+
+        return fig
+
+    @property
+    def cylindrical_case(self) -> CylindricalCase:
+        return self._encapsulation
+    
+    @property
+    def radius(self) -> float:
+        if not hasattr(self, '_radius'):
+            raise AttributeError("Radius has not been calculated yet")
+        return round(self._radius * M_TO_CM, 2)
+    
+    @property
+    def diameter(self) -> float:
+        if not hasattr(self, '_diameter'):
+            raise AttributeError("Diameter has not been calculated yet")
+        return round(self._diameter * M_TO_CM, 2)

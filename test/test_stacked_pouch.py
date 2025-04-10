@@ -11,9 +11,7 @@ from SteerEnergyStorage.Materials.Electrolytes import Electrolyte
 from SteerEnergyStorage.Constructions.Containers import Pouch
 from SteerEnergyStorage.Materials.other import Laminate, Tape, Terminal
 
-import datetime as dt
-
-class TestCellsSingleAM(unittest.TestCase):
+class TestStandard(unittest.TestCase):
 
     def setUp(self):
         """
@@ -84,22 +82,22 @@ class TestCellsSingleAM(unittest.TestCase):
         # make the pouch
         laminate = Laminate(thickness=113, areal_mass=18, areal_cost=4.64)
         tape = Tape(mass=0.3)
+
+        # Make the terminals
+        pos_terminal = Terminal(mass = 1, specific_cost = 16, name="Positive Terminal")
+        neg_terminal = Terminal(mass = 1, specific_cost = 16, name="Negative Terminal")
         
-        pouch = Pouch(laminate=laminate, 
+        pouch = Pouch(positive_terminal=pos_terminal,
+                      negative_terminal=neg_terminal,
+                      laminate=laminate, 
                       heat_seal_size_sides=7, 
                       heat_seal_size_top=22, 
                       tape=tape)
-
-        # Make the cell
-        pos_terminal = Terminal(mass = 1, specific_cost = 16, name="Positive Terminal")
-        neg_terminal = Terminal(mass = 1, specific_cost = 16, name="Negative Terminal")
 
         self.cell = StackedPouchCell(pouch=pouch,
                                      stack=stack,
                                      electrolyte=electrolyte,
                                      electrolyte_overfill=10,
-                                     positive_terminal=pos_terminal,
-                                     negative_terminal=neg_terminal,
                                      reversible_capacity=11.934,
                                      irreversible_capacity=1.22,
                                      n_stacks=1)
@@ -108,8 +106,6 @@ class TestCellsSingleAM(unittest.TestCase):
                                             stack=stack,
                                             electrolyte=electrolyte,
                                             electrolyte_overfill=10,
-                                            positive_terminal=pos_terminal,
-                                            negative_terminal=neg_terminal,
                                             reversible_capacity=25.934,
                                             irreversible_capacity=1.22,
                                             n_stacks=2)
@@ -119,12 +115,12 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertTrue(isinstance(self.cell, StackedPouchCell))
         self.assertEqual(self.cell.electrolyte_overfill, 10)
         self.assertEqual(round(self.cell._electrolyte_overfill, 4), 0.1)
-        self.assertEqual(self.cell.cost, 3.73)
-        self.assertEqual(round(self.cell._cost, 2), 3.73)
+        self.assertEqual(self.cell.cost, 3.85)
+        self.assertEqual(round(self.cell._cost, 2), 3.85)
         self.assertEqual(self.cell.mass, 262.63)
         self.assertEqual(round(self.cell._mass, 3), 0.263)
-        self.assertEqual(self.cell.thickness, 7.15)
-        self.assertEqual(round(self.cell._thickness, 4), 0.0072)
+        self.assertEqual(self.cell.height, 0.72)
+        self.assertEqual(round(self.cell._height, 4), 0.0072)
 
         self.assertEqual(self.cell.reversible_capacity, 11.93)
         self.assertEqual(self.cell.irreversible_capacity, 1.22)
@@ -136,30 +132,30 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertTrue('Capacity (Ah)' in self.cell.anode_half_cell_curve.columns)
         self.assertTrue('Voltage (V)' in self.cell.anode_half_cell_curve.columns)
 
-        self.assertEqual(self.cell.energy, 35.17)
-        self.assertEqual(self.cell.energy_density, 190.7)
-        self.assertEqual(self.cell.specific_energy, 133.93)
-        self.assertEqual(self.cell.normalized_cost, 106.17)      
+        self.assertEqual(self.cell.energy, 35.2)
+        self.assertEqual(self.cell.energy_density, 190.84)
+        self.assertEqual(self.cell.specific_energy, 134.03)
+        self.assertEqual(self.cell.normalized_cost, 109.49)      
 
     def test_cell_double(self):
 
         self.assertTrue(isinstance(self.cell_double, StackedPouchCell))
         self.assertEqual(self.cell_double.electrolyte_overfill, 10)
         self.assertEqual(round(self.cell_double._electrolyte_overfill, 4), 0.1)
-        self.assertEqual(self.cell_double.cost, 7.32)
-        self.assertEqual(round(self.cell_double._cost, 2), 7.32)
+        self.assertEqual(self.cell_double.cost, 7.44)
+        self.assertEqual(round(self.cell_double._cost, 2), 7.44)
         self.assertEqual(self.cell_double.mass, 513.98)
         self.assertEqual(round(self.cell_double._mass, 3), 0.514)
-        self.assertEqual(self.cell_double.thickness, 14.07)
-        self.assertEqual(round(self.cell_double._thickness, 4), 0.0141)
+        self.assertEqual(self.cell_double.height, 1.41)
+        self.assertEqual(round(self.cell_double._height, 4), 0.0141)
 
         self.assertEqual(self.cell_double.reversible_capacity, 25.93)
         self.assertEqual(self.cell_double.irreversible_capacity, 1.22)  
 
-        self.assertEqual(self.cell_double.energy, 70.35)
-        self.assertEqual(self.cell_double.energy_density, 193.76)
-        self.assertEqual(self.cell_double.specific_energy, 136.87)
-        self.assertEqual(self.cell_double.normalized_cost, 104.01)
+        self.assertEqual(self.cell_double.energy, 70.44)
+        self.assertEqual(self.cell_double.energy_density, 194.01)
+        self.assertEqual(self.cell_double.specific_energy, 137.05)
+        self.assertEqual(self.cell_double.normalized_cost, 105.58)
 
     def test_plots(self):
 
@@ -170,8 +166,8 @@ class TestCellsSingleAM(unittest.TestCase):
         fig1e = self.cell.get_mass_breakdown_plot(mode='sunburst')
 
         fig2a = self.cell_double.get_capacity_voltage_plot()
-        fig2b = self.cell_double.get_cost_breakdown_plot(mode='pie')
-        fig2c = self.cell_double.get_mass_breakdown_plot(mode='pie')
+        fig2b = self.cell_double.get_cost_breakdown_plot(mode='sunburst')
+        fig2c = self.cell_double.get_mass_breakdown_plot(mode='sunburst')
 
         # fig1a.show()
         # fig1b.show()
@@ -181,19 +177,6 @@ class TestCellsSingleAM(unittest.TestCase):
         # fig2a.show()
         # fig2b.show()
         # fig2c.show()    
-
-    def test_terminals(self):
-        self.assertEqual(self.cell.positive_terminal.mass, 1)
-        self.assertEqual(self.cell.positive_terminal.specific_cost, 16)
-        self.assertEqual(self.cell.positive_terminal.cost, 0.016)
-        self.assertEqual(round(self.cell.positive_terminal._mass, 6), 0.001)
-        self.assertEqual(self.cell.positive_terminal.name, "Positive Terminal")
-        
-        self.assertEqual(self.cell.negative_terminal.mass, 1)
-        self.assertEqual(self.cell.negative_terminal.specific_cost, 16)
-        self.assertEqual(self.cell.negative_terminal.cost, 0.016)
-        self.assertEqual(round(self.cell.negative_terminal._mass, 6), 0.001)
-        self.assertEqual(self.cell.negative_terminal.name, "Negative Terminal")
         
     def test_tape(self):
         self.assertEqual(self.cell.pouch.tape.mass, 0.3)
@@ -210,10 +193,10 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(round(self.cell.pouch._length, 4), 0.208)
         self.assertEqual(round(self.cell.pouch._width, 4), 0.124)
         self.assertEqual(round(self.cell.pouch._area, 4), 0.0258)
-        self.assertEqual(self.cell.pouch.mass, 9.29)
-        self.assertEqual(round(self.cell.pouch._mass, 5), 0.00929)
-        self.assertEqual(self.cell.pouch.cost, 0.12)
-        self.assertEqual(round(self.cell.pouch._cost, 2), 0.12)
+        self.assertEqual(self.cell.pouch.mass, 11.29)
+        self.assertEqual(round(self.cell.pouch._mass, 5), 0.01129)
+        self.assertEqual(self.cell.pouch.cost, 0.27)
+        self.assertEqual(round(self.cell.pouch._cost, 2), 0.27)
         
     def test_laminate(self):
         self.assertEqual(self.cell.pouch.laminate.thickness, 113)

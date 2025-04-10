@@ -56,7 +56,7 @@ class TestCellsSingleAM(unittest.TestCase):
         separator = Separator(thickness=16, 
                               areal_cost=0.9, 
                               density=0.4, 
-                              slit_width=11.0, 
+                              width=11.0, 
                               porosity=47, 
                               fold_length=18.6)
 

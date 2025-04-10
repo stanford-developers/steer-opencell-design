@@ -139,7 +139,7 @@ class TestCellsSingleAM(unittest.TestCase):
         """
         Test the half cell curve
         """
-        self.stack._calculate_half_cell_curves(grid_n=100)
+        self.stack._calculate_half_cell_curve(grid_n=100)
         data_cathode = self.stack.cathode_half_cell_curve
         data_anode = self.stack.anode_half_cell_curve
 
@@ -160,7 +160,7 @@ class TestCellsSingleAM(unittest.TestCase):
         """
         Test the full cell curve
         """
-        self.stack._calculate_half_cell_curves(grid_n=100)
+        self.stack._calculate_half_cell_curve(grid_n=100)
         self.stack._calculate_full_cell_curve()
         data_cathode = self.stack.cathode_half_cell_curve.assign(Electrode = 'Cathode')
         data_anode = self.stack.anode_half_cell_curve.assign(Electrode = 'Anode')

@@ -7,11 +7,11 @@ from copy import deepcopy
 from copy import copy
 import pandas as pd
 import numpy as np
+from shapely.geometry import Polygon
+from shapely import minimum_bounding_circle
 import warnings
 import plotly.express as px
-from scipy.interpolate import CubicSpline
-from scipy.integrate import quad
-from scipy.optimize import root_scalar
+import plotly.graph_objects as go
 
 KG_TO_G = 1e3
 M_TO_CM = 1e2
@@ -23,6 +23,7 @@ S_TO_H = 1/3600
 H_TO_S = 3600
 MM_TO_M = 1e-3
 PI = 3.14159265359
+DEG_TO_RAD = 0.017453292519943295
 
 
 class _ElectrodeAssembly():
@@ -85,20 +86,24 @@ class _ElectrodeAssembly():
         self._separator = deepcopy(separator)
 
     @staticmethod
-    def _cubic_interpolate_on_capacity(df) -> pd.DataFrame:
+    def _linear_interpolate_on_capacity(df) -> pd.DataFrame:
 
             warnings.simplefilter("ignore", category=RuntimeWarning)
-            df1 = df.query("electrode == 'cathode'")
-            df2 = df.query("electrode == 'anode'")
+            cathode_curve = df.query("electrode == 'cathode'")
+            anode_curve = df.query("electrode == 'anode'")
 
-            interp_func = CubicSpline(df2['capacity'], df2['voltage'])
-            df1['voltage'] = df1['voltage'] - interp_func(df1['capacity'])
+            cap_min = max(cathode_curve['capacity'].min(), anode_curve['capacity'].min())
+            cap_max = min(cathode_curve['capacity'].max(), anode_curve['capacity'].max())
+            cap_grid = np.linspace(cap_min, cap_max, 100)
 
-            return (df1
-                    .assign(electrode = 'full cell')
-                    .query('voltage != inf')
-                    .query('voltage != -inf')
-                    )
+            cathode_voltage = np.interp(cap_grid, cathode_curve['capacity'], cathode_curve['voltage'])
+            anode_voltage = np.interp(cap_grid, anode_curve['capacity'], anode_curve['voltage'])
+
+            full_cell_voltage = cathode_voltage - anode_voltage
+
+            data = pd.DataFrame({'capacity': cap_grid, 'voltage': full_cell_voltage, 'electrode': 'full cell'})
+
+            return data
 
     def _calculate_full_cell_curve(self):
         """
@@ -116,9 +121,9 @@ class _ElectrodeAssembly():
                             .groupby(['direction'], group_keys=True)
                             .apply(lambda df: (df
                                                .sort_values(by='capacity', ascending=True)
-                                               .pipe(self._cubic_interpolate_on_capacity)
+                                               .pipe(self._linear_interpolate_on_capacity)
                                                ))
-                            .reset_index(drop=True)
+                            .reset_index()
                             )
         
         cathode_discharge_min = cathode_half_cell.query("direction == 'discharge'")['capacity'].min()
@@ -253,6 +258,63 @@ class _ElectrodeAssembly():
     def cost_breakdown(self):
         return {key.replace('_', ' ').capitalize(): round(value, 2) for key, value in self._cost_breakdown.items()}
 
+    @property
+    def cathode_cost_breakdown(self):
+
+        if hasattr(self, '_cathode_cost_breakdown'):
+            rounded_dict = {
+                item.replace('_', ' ').capitalize(): (
+                    {key: round(value, 3) for key, value in value.items()}
+                    if isinstance(value, dict) else round(value, 2)
+                )
+                for item, value in self._cathode_cost_breakdown.items()
+            }
+            return rounded_dict
+        else:
+            raise AttributeError("Cathode cost breakdown not calculated yet.")
+    
+    @property
+    def anode_cost_breakdown(self):
+        
+        if hasattr(self, '_anode_cost_breakdown'):
+            rounded_dict = {
+                item.replace('_', ' ').capitalize(): (
+                    {key: round(value, 3) for key, value in value.items()}
+                    if isinstance(value, dict) else round(value, 2)
+                )
+                for item, value in self._anode_cost_breakdown.items()
+            }
+            return rounded_dict
+        else:
+            raise AttributeError("Anode cost breakdown not calculated yet.")
+    
+    @property
+    def cathode_mass_breakdown(self):
+        if hasattr(self, '_cathode_mass_breakdown'):
+            rounded_dict = {
+                item.replace('_', ' ').capitalize(): (
+                    {key: round(value * KG_TO_G, 2) for key, value in value.items()}
+                    if isinstance(value, dict) else round(value, 3)
+                )
+                for item, value in self._cathode_mass_breakdown.items()
+            }
+            return rounded_dict
+        else:
+            raise AttributeError("Cathode mass breakdown not calculated yet.")
+    
+    @property
+    def anode_mass_breakdown(self):
+        if hasattr(self, '_anode_mass_breakdown'):
+            rounded_dict = {
+                item.replace('_', ' ').capitalize(): (
+                    {key: round(value * KG_TO_G, 2) for key, value in value.items()}
+                    if isinstance(value, dict) else round(value, 3)
+                )
+                for item, value in self._anode_mass_breakdown.items()
+            }
+            return rounded_dict
+        else:
+            raise AttributeError("Anode mass breakdown not calculated yet.")
 
 class _JellyRoll(_ElectrodeAssembly):
 
@@ -273,6 +335,10 @@ class _JellyRoll(_ElectrodeAssembly):
         self._calculate_components()
         self._calculate_mass_breakdown()
         self._calculate_cost_breakdown()
+        self._calculate_cathode_cost_breakdown()
+        self._calculate_anode_cost_breakdown()
+        self._calculate_cathode_mass_breakdown()
+        self._calculate_anode_mass_breakdown()
 
     def _check_anode(self, anode: Anode):
         """
@@ -353,10 +419,10 @@ class _JellyRoll(_ElectrodeAssembly):
 
         self._cost = sum(self._cost_breakdown.values())
 
-    def _calculate_half_cell_curve(self):
+    def _calculate_half_cell_curve(self, grid_n: int):
 
-        self._cathode._calculate_half_cell_curve()
-        self._anode._calculate_half_cell_curve()
+        self._cathode._calculate_half_cell_curve(grid_n=grid_n)
+        self._anode._calculate_half_cell_curve(grid_n=grid_n)
 
         self._cathode_half_cell_curve = (self
                                          ._cathode
@@ -367,11 +433,41 @@ class _JellyRoll(_ElectrodeAssembly):
         
         if not self._anode_free:
             self._anode_half_cell_curve = (self
-                                        ._anode
-                                        ._half_cell_curve
-                                        .groupby('direction', as_index=False)
-                                        .apply(lambda x: x.sort_values('capacity', ascending=True if x['direction'].values[0] == 'charge' else False))
-                                        )
+                                           ._anode
+                                           ._half_cell_curve
+                                           .groupby('direction', as_index=False)
+                                           .apply(lambda x: x.sort_values('capacity', ascending=True if x['direction'].values[0] == 'charge' else False))
+                                           )
+            
+        self._areal_capacity = self._cathode._areal_capacity
+
+    def _calculate_cathode_mass_breakdown(self):
+        cathode_mass_breakdown = self._cathode._mass_breakdown.copy()
+        current_collector_value = cathode_mass_breakdown['current_collector']
+        cathode_mass_breakdown.pop('current_collector')
+        cathode_mass_breakdown['current_collectors'] = {self._cathode._current_collector: current_collector_value}
+        self._cathode_mass_breakdown = cathode_mass_breakdown
+
+    def _calculate_anode_mass_breakdown(self):
+        anode_mass_breakdown = self._anode._mass_breakdown.copy()
+        current_collector_value = anode_mass_breakdown['current_collector']
+        anode_mass_breakdown.pop('current_collector')
+        anode_mass_breakdown['current_collectors'] = {self._anode._current_collector: current_collector_value}
+        self._anode_mass_breakdown = anode_mass_breakdown
+
+    def _calculate_cathode_cost_breakdown(self):
+        cathode_cost_breakdown = self._cathode._cost_breakdown.copy()
+        current_collector_value = cathode_cost_breakdown['current_collector']
+        cathode_cost_breakdown.pop('current_collector')
+        cathode_cost_breakdown['current_collectors'] = {self._cathode._current_collector: current_collector_value}
+        self._cathode_cost_breakdown = cathode_cost_breakdown
+
+    def _calculate_anode_cost_breakdown(self):
+        anode_cost_breakdown = self._anode._cost_breakdown.copy()
+        current_collector_value = anode_cost_breakdown['current_collector']
+        anode_cost_breakdown.pop('current_collector')
+        anode_cost_breakdown['current_collectors'] = {self._anode._current_collector: current_collector_value}
+        self._anode_cost_breakdown = anode_cost_breakdown
 
     @property
     def electrode_thickness(self):
@@ -399,7 +495,8 @@ class CylindricalJellyRoll(_JellyRoll):
         super().__init__(anode=anode, cathode=cathode, separator=separator, name=name)
 
         self._check_internal_die_diameter(internal_die_diameter)
-        self._calculate_radius()
+        self._calculate_archimedean_spiral()
+        self._center_and_calculate_radius()
 
     def _check_internal_die_diameter(self, internal_die_diameter: float):
         """
@@ -415,15 +512,15 @@ class CylindricalJellyRoll(_JellyRoll):
         
         self._internal_die_diameter = internal_die_diameter * MM_TO_M
 
-    def _calculate_radius(self, dtheta: float = 0.001):
+    def _calculate_archimedean_spiral(self, dtheta: float = 0.02) -> pd.DataFrame:
         """
-        Function to calculate the radius of the cylindrical jelly roll using the archemdyan spiral solved numerically
+        Function to calculate the Archimedean spiral using the archemdyan spiral solved numerically
 
         :param dtheta: float: step size for the theta angle in radians
         """
         length = self._separator._fold_length
         b = self._electrode_thickness / (2*np.pi)
-        a = (self._internal_die_diameter / 2) + (self._electrode_thickness / 2)
+        a = (self._internal_die_diameter / 2)
         
         total_length = 0
         theta = 0
@@ -438,28 +535,117 @@ class CylindricalJellyRoll(_JellyRoll):
             total_length += ds
             theta += dtheta
             theta_list.append(theta)
-        
-        self._polar_spiral = pd.DataFrame({'theta': theta_list, 'r': r_list})
-        self._cart_spiral = pd.DataFrame({'x': r_list * np.cos(theta_list), 'y': r_list * np.sin(theta_list)})
-        self._radius = a + b * theta + self._electrode_thickness/2
-        self._n_turns = theta / (2 * np.pi)
 
-    def show(self):
+        self._spiral = (pd
+                        .DataFrame({'theta': theta_list, 'r': r_list})
+                        .assign(r_outer = lambda x: x['r'] + self._electrode_thickness)
+                        .assign(x = lambda x: x['r'] * np.cos(x['theta']))
+                        .assign(y = lambda x: x['r'] * np.sin(x['theta']))
+                        .assign(x_outer = lambda x: x['r_outer'] * np.cos(x['theta']))
+                        .assign(y_outer = lambda x: x['r_outer'] * np.sin(x['theta']))
+                        )
+
+    def _center_and_calculate_radius(self):
+        """
+        Function to calculate the radius of the cylindrical jelly roll using the archemdyan spiral solved numerically
+
+        :param dtheta: float: step size for the theta angle in radians
+        """
+        spiral = self._spiral.copy()
+
+        theta_max = spiral['theta'].max()
+        theta_min = theta_max - 2*np.pi
+
+        x_list = spiral.query(f'theta < {theta_max} and theta > {theta_min}')['x_outer']
+        y_list = spiral.query(f'theta < {theta_max} and theta > {theta_min}')['y_outer']
+
+        points = [(x, y) for x, y in zip(x_list, y_list)]
+        polygon = Polygon(points)
+        bounding_circle = minimum_bounding_circle(polygon)
+
+        x_center = bounding_circle.centroid.x
+        y_center = bounding_circle.centroid.y
+
+        spiral = (spiral
+                  .assign(x = lambda x: x['x'] - x_center)
+                  .assign(y = lambda x: x['y'] - y_center)
+                  .assign(x_outer = lambda x: x['x_outer'] - x_center)
+                  .assign(y_outer = lambda x: x['y_outer'] - y_center)
+                  )
+
+        self._shift_vector = np.array([x_center, y_center])
+        self._radius = (bounding_circle.bounds[2] - bounding_circle.bounds[0])/2
+        self._n_turns = theta_max / (2 * np.pi)
+        self._spiral = spiral
+
+    def get_top_down_view(self, **kwargs) -> None:
         """
         Function to show the jelly roll wrapped up 
         """
-        data = self.cart_spiral.copy()
+        data = self._spiral.copy()
         n_turns = self.n_turns
+        diameter = self.radius * 2
+        
+        fig = go.Figure()
+        
+        def get_coil(df, thickness):
 
-        fig = px.line(data, x='X (cm)', y='Y (cm)', title='Cylindrical Jelly Roll with ' + str(n_turns) + ' turns')
+            df1 = df.copy().filter(['r', 'theta']).sort_values(by='theta', ascending=True)
+            df2 = df.copy().filter(['r', 'theta']).sort_values(by='theta', ascending=False).assign(r = lambda x: x['r'] + thickness)
 
-        fig.update_layout(xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="y"),
-                          yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            df = pd.concat([df1, df2])
+
+            df = (df
+                  .assign(x = lambda x: (x['r'] * np.cos(x['theta'])) - self._shift_vector[0])
+                  .assign(y = lambda x: (x['r'] * np.sin(x['theta'])) - self._shift_vector[1])
+                  .assign(x = lambda x: x['x'] * M_TO_CM)
+                  .assign(y = lambda x: x['y'] * M_TO_CM)
+                  .rename(columns={'x': 'X (cm)', 'y': 'Y (cm)'})
+                  )
+            
+            return df, df2
+
+        # first separator
+        plot_data, edge_data = get_coil(data, self._separator._thickness)
+        fig.add_trace(go.Scatter(x=plot_data['X (cm)'], y=plot_data['Y (cm)'], mode='lines', name='Separator', line=dict(width=0, shape='spline'), fillcolor='black', fill='toself'))
+        
+        # anode active layer 1
+        plot_data, edge_data = get_coil(edge_data, self._anode._material_thickness)
+        fig.add_trace(go.Scatter(x=plot_data['X (cm)'], y=plot_data['Y (cm)'], mode='lines', name='Anode', line=dict(width=0, shape='spline'), fillcolor='#9558B2', fill='toself'))
+
+        # anode current collector
+        plot_data, edge_data = get_coil(edge_data, self._anode._current_collector._thickness)
+        fig.add_trace(go.Scatter(x=plot_data['X (cm)'], y=plot_data['Y (cm)'], mode='lines', name='Anode Current Collector', line=dict(width=0, shape='spline'), fillcolor='grey', fill='toself'))
+
+        # anode active layer 2
+        plot_data, edge_data = get_coil(edge_data, self._anode._material_thickness)
+        fig.add_trace(go.Scatter(x=plot_data['X (cm)'], y=plot_data['Y (cm)'], mode='lines', name='Anode', line=dict(width=0, shape='spline'), fillcolor='#9558B2', fill='toself'))
+
+        # separator
+        plot_data, edge_data = get_coil(edge_data, self._separator._thickness)
+        fig.add_trace(go.Scatter(x=plot_data['X (cm)'], y=plot_data['Y (cm)'], mode='lines', name='Separator', line=dict(width=0, shape='spline'), fillcolor='black', fill='toself'))
+
+        # cathode active layer 1
+        plot_data, edge_data = get_coil(edge_data, self._cathode._material_thickness)
+        fig.add_trace(go.Scatter(x=plot_data['X (cm)'], y=plot_data['Y (cm)'], mode='lines', name='Cathode', line=dict(width=0, shape='spline'), fillcolor='#FF6F61', fill='toself'))
+
+        # cathode current collector
+        plot_data, edge_data = get_coil(edge_data, self._cathode._current_collector._thickness)
+        fig.add_trace(go.Scatter(x=plot_data['X (cm)'], y=plot_data['Y (cm)'], mode='lines', name='Cathode Current Collector', line=dict(width=0, shape='spline'), fillcolor='grey', fill='toself'))
+
+        # cathode active layer 2
+        plot_data, edge_data = get_coil(edge_data, self._cathode._material_thickness)
+        fig.add_trace(go.Scatter(x=plot_data['X (cm)'], y=plot_data['Y (cm)'], mode='lines', name='Cathode', line=dict(width=0, shape='spline'), fillcolor='#FF6F61', fill='toself'))
+
+        fig.update_layout(xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="y", title="X (cm)"),
+                          yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="Y (cm)"),
                           paper_bgcolor='white',
                           plot_bgcolor='white',
-                          showlegend=False)
-        
-        fig.show()        
+                          showlegend=False,
+                          title=f"Jelly Roll Top View \n Number of Turns: {n_turns} \n Diameter of {diameter}cm",
+                          **kwargs)
+
+        return fig
 
     @property
     def internal_die_diameter(self):
@@ -474,20 +660,13 @@ class CylindricalJellyRoll(_JellyRoll):
         return round(self._n_turns, 2)
     
     @property
-    def polar_spiral(self):
+    def spiral(self):
+        
         return (self
-                ._polar_spiral
-                .assign(r = lambda x: x['r']*M_TO_CM)
-                .rename(columns={'theta': 'Theta (rad)', 'r': 'Radius (cm)'})
-                )
-    
-    @property
-    def cart_spiral(self):
-        return (self
-                ._cart_spiral
-                .assign(x = lambda x: x['x']*M_TO_CM)
-                .assign(y = lambda x: x['y']*M_TO_CM)
-                .rename(columns={'x': 'X (cm)', 'y': 'Y (cm)'})
+                ._spiral
+                .assign(r = lambda x: x['r'] * M_TO_CM)
+                .assign(theta = lambda x: x['theta'] * DEG_TO_RAD)
+                .rename(columns={'theta': 'Theta (deg)', 'r': 'Radius (cm)'})
                 )
 
 
@@ -630,7 +809,7 @@ class Stack(_ElectrodeAssembly):
         self._anode_conductive_additives = set(anode_conductive_additives)
         self._anode_current_collectors = set(anode_current_collectors)
 
-    def _calculate_half_cell_curves(self, grid_n: int):
+    def _calculate_half_cell_curve(self, grid_n: int):
         """
         Function to calculate the half cell curves for the stack. It will calculate the half cell curves for each electrode first, and then it will add the capacities together. 
 
@@ -839,7 +1018,6 @@ class Stack(_ElectrodeAssembly):
                 anode_mass_breakdown['current_collectors'][current_collector] += current_collector_mass
             else:
                 anode_mass_breakdown['current_collectors'][current_collector] = current_collector_mass
-            
 
         self._anode_mass_breakdown = anode_mass_breakdown
 
@@ -929,51 +1107,7 @@ class Stack(_ElectrodeAssembly):
             self._anodes[i]._name = f"{anode._name}_{i}"
 
         del self._anode
-    
-    @property
-    def cathode_cost_breakdown(self):
-        rounded_dict = {
-            item.replace('_', ' ').capitalize(): (
-                {key: round(value, 3) for key, value in value.items()}
-                if isinstance(value, dict) else round(value, 2)
-            )
-            for item, value in self._cathode_cost_breakdown.items()
-        }
-        return rounded_dict
-    
-    @property
-    def anode_cost_breakdown(self):
-        rounded_dict = {
-            item.replace('_', ' ').capitalize(): (
-                {key: round(value, 3) for key, value in value.items()}
-                if isinstance(value, dict) else round(value, 2)
-            )
-            for item, value in self._anode_cost_breakdown.items()
-        }
-        return rounded_dict
-    
-    @property
-    def cathode_mass_breakdown(self):
-        rounded_dict = {
-            item.replace('_', ' ').capitalize(): (
-                {key: round(value * KG_TO_G, 2) for key, value in value.items()}
-                if isinstance(value, dict) else round(value, 3)
-            )
-            for item, value in self._cathode_mass_breakdown.items()
-        }
-        return rounded_dict
-    
-    @property
-    def anode_mass_breakdown(self):
-        rounded_dict = {
-            item.replace('_', ' ').capitalize(): (
-                {key: round(value * KG_TO_G, 2) for key, value in value.items()}
-                if isinstance(value, dict) else round(value, 3)
-            )
-            for item, value in self._anode_mass_breakdown.items()
-        }
-        return rounded_dict
-    
+        
     @property
     def anodes(self):
         return self._anodes
