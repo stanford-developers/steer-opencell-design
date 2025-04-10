@@ -1,9 +1,13 @@
-from SteerEnergyStorage.Materials.other import Laminate, Tape
+from SteerEnergyStorage.Materials.other import Laminate, Tape, Terminal
 from SteerEnergyStorage.Constructions.Electrodes import Cathode, Anode
 from SteerEnergyStorage.Materials.Separators import Separator
-from SteerEnergyStorage.Formulations.Stacks import Stack
+from SteerEnergyStorage.Formulations.ElectrodeAssemblies import Stack
 
 from copy import deepcopy
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+import pandas as pd
 
 CM_TO_M = 0.01
 M_TO_CM = 100
@@ -15,6 +19,8 @@ M_TO_MM = 1000
 class Pouch:
 
     def __init__(self,
+                 positive_terminal: Terminal,
+                 negative_terminal: Terminal,
                  heat_seal_size_sides: float,
                  heat_seal_size_top: float,
                  laminate: Laminate,
@@ -23,18 +29,86 @@ class Pouch:
         """
         Class representing a pouch used for a pouch cell.
 
+        :param positive_terminal: Terminal: positive terminal of the pouch
+        :param negative_terminal: Terminal: negative terminal of the pouch
         :param heat_seal_size_sides: float: size of the heat seal on the sides of the pouch in mm
         :param heat_seal_size_top: float: size of the heat seal on the top of the pouch in mm
         :param laminate: Laminate: laminate used in the pouch
         :param tape: Tape: tape used in the pouch
         :param name: str: name of the pouch
         """
+        self._check_positive_terminal(positive_terminal)
+        self._check_negative_terminal(negative_terminal)
+        self._check_heat_seal_size_sides(heat_seal_size_sides)
+        self._check_heat_seal_size_top(heat_seal_size_top)
+        self._check_laminate(laminate)
+        self._check_tape(tape)
+        self._check_name(name)
+
+    def _check_positive_terminal(self, positive_terminal: Terminal):
+
+        if not isinstance(positive_terminal, Terminal):
+            raise TypeError("Positive terminal must be a Terminal")
+        
+        self._positive_terminal = deepcopy(positive_terminal)
+
+    def _check_negative_terminal(self, negative_terminal: Terminal):
+
+        if not isinstance(negative_terminal, Terminal):
+            raise TypeError("Negative terminal must be a Terminal")
+        
+        self._negative_terminal = deepcopy(negative_terminal)
+
+    def _check_heat_seal_size_sides(self, heat_seal_size_sides: float):
+
+        if not isinstance(heat_seal_size_sides, (int, float)):
+            raise TypeError("Heat seal size sides must be a number")
+
+        if heat_seal_size_sides <= 0:
+            raise ValueError("Heat seal size sides must be positive")
+        
         self._heat_seal_size_sides = heat_seal_size_sides * MM_TO_M
+
+    def _check_heat_seal_size_top(self, heat_seal_size_top: float):
+
+        if not isinstance(heat_seal_size_top, (int, float)):
+            raise TypeError("Heat seal size top must be a number")
+
+        if heat_seal_size_top <= 0:
+            raise ValueError("Heat seal size top must be positive")
+        
         self._heat_seal_size_top = heat_seal_size_top * MM_TO_M
+
+    def _check_laminate(self, laminate: Laminate):
+
+        if not isinstance(laminate, Laminate):
+            raise TypeError("Laminate must be a Laminate")
+        
         self._laminate = laminate
+
+    def _check_tape(self, tape: Tape):
+
+        if not isinstance(tape, Tape):
+            raise TypeError("Tape must be a Tape")
+        
         self._tape = tape
+
+    def _check_name(self, name: str):
+
+        if not isinstance(name, str):
+            raise TypeError("Name must be a string")
+
+        if len(name) == 0:
+            raise ValueError("Name cannot be empty")
+        
         self._name = name
-        self._used = False
+
+    def _calculate_properties(self, stack: Stack):
+        self._width = stack._width + 2 * self._heat_seal_size_sides
+        self._length = stack._length + self._heat_seal_size_top
+        self._area = self._width * self._length
+        self._mass = self._area * self._laminate._areal_mass * 2 + self._positive_terminal._mass + self._negative_terminal._mass
+        self._cost = self._area * self._laminate._areal_cost * 2 + self._positive_terminal._cost + self._negative_terminal._cost
 
     @property
     def name(self) -> str:
@@ -91,6 +165,14 @@ class Pouch:
     def heat_seal_size_top(self) -> float:
         return round(self._heat_seal_size_top * M_TO_MM, 2)
     
+    @property
+    def positive_terminal(self) -> Terminal:
+        return self._positive_terminal
+    
+    @property
+    def negative_terminal(self) -> Terminal:
+        return self._negative_terminal
+
     def __str__(self) -> str:
         return self.name
 
@@ -98,6 +180,298 @@ class Pouch:
         return self.__str__()
     
 
+class CylindricalShell:
+
+    def __init__(self,
+                 cost: float,
+                 mass: float,
+                 internal_radius: float,
+                 length: float,
+                 wall_thickness: float,
+                 name: str = 'Cylindrical Shell'):
+        """
+        Class representing a shell used for a cylindrical cell.
+
+        :param cost: float: cost of the shell in $
+        :param mass: float: mass of the shell in g
+        :param internal_radius: float: internal radius of the shell in cm
+        :param length: float: internal length of the shell in cm
+        :param wall_thickness: float: thickness of the shell wall in mm
+        """
+        self._check_cost(cost)
+        self._check_mass(mass)
+        self._check_internal_radius(internal_radius)
+        self._check_length(length)
+        self._check_wall_thickness(wall_thickness)
+        self._check_name(name)
+        self._calculate_properties()
+
+    def _check_cost(self, cost: float):
+
+        if not isinstance(cost, (int, float)):
+            raise TypeError("Cost must be a number")
+
+        if cost < 0:
+            raise ValueError("Cost cannot be negative")
+        
+        self._cost = cost
+
+    def _check_mass(self, mass: float):
+
+        if not isinstance(mass, (int, float)):
+            raise TypeError("Mass must be a number")
+
+        if mass < 0:
+            raise ValueError("Mass cannot be negative")
+        
+        self._mass = mass * G_TO_KG
+
+    def _check_internal_radius(self, internal_radius: float):
+
+        if not isinstance(internal_radius, (int, float)):
+            raise TypeError("Internal radius must be a number")
+
+        if internal_radius <= 0:
+            raise ValueError("Internal radius must be positive")
+        
+        self._internal_radius = internal_radius * CM_TO_M
+
+    def _check_length(self, length: float):
+
+        if not isinstance(length, (int, float)):
+            raise TypeError("Internal length must be a number")
+
+        if length <= 0:
+            raise ValueError("Internal length must be positive")
+        
+        self._length = length * CM_TO_M
+
+    def _check_wall_thickness(self, wall_thickness: float):
+
+        if not isinstance(wall_thickness, (int, float)):
+            raise TypeError("Wall thickness must be a number")
+
+        if wall_thickness <= 0:
+            raise ValueError("Wall thickness must be positive")
+        
+        self._wall_thickness = wall_thickness * MM_TO_M
+
+    def _check_name(self, name: str):
+
+        if not isinstance(name, str):
+            raise TypeError("Name must be a string")
+
+        if len(name) == 0:
+            raise ValueError("Name cannot be empty")
+        
+        self._name = name
+
+    def _calculate_properties(self):
+        self._external_radius = self._internal_radius + self._wall_thickness
+
+    @property
+    def external_radius(self) -> float:
+        return round(self._external_radius * M_TO_CM, 2)
+    
+    @property
+    def external_length(self) -> float:
+        return round(self._internal_length * M_TO_CM, 2)
+    
+    @property
+    def internal_volume(self) -> float:
+        return round(3.14 * (self._internal_radius**2) * self._internal_length * M_TO_CM**3, 2)
+    
+    @property
+    def internal_radius(self) -> float:
+        return round(self._internal_radius * M_TO_CM, 2)
+    
+    @property
+    def wall_thickness(self) -> float:
+        return round(self._wall_thickness * M_TO_MM, 2)
+    
+    @property
+    def cost(self) -> float:
+        return round(self._cost, 2)
+    
+    @property
+    def mass(self) -> float:
+        return round(self._mass * KG_TO_G, 2)
+    
+    @property
+    def name(self) -> str:
+        return self._name
+    
+    def __str__(self) -> str:
+        return self.name
+    
+    def __repr__(self):
+        return self.__str__()
+
+
+class CylindricalCase:
+
+    def __init__(self,
+                 shell: CylindricalShell,
+                 positive_terminal: Terminal,
+                 negative_terminal: Terminal,
+                 name: str = 'cylindrical_case'
+                 ):
+        """
+        Class representing a casing used for a cylindrical cell.
+
+        :param shell: CylindricalShell: shell of the case
+        :param positive_terminal: Terminal: positive terminal of the case
+        :param negative_terminal: Terminal: negative terminal of the case
+        :param name: str: name of the case
+        """
+        self._check_shell(shell)
+        self._check_name(name)
+        self._check_positive_terminal(positive_terminal)
+        self._check_negative_terminal(negative_terminal)
+        self._calculate_properties()
+        self._calculate_footprint()
+
+    def _check_shell(self, shell: CylindricalShell):
+
+        if not isinstance(shell, CylindricalShell):
+            raise TypeError("Shell must be a CylindricalShell")
+
+        self._shell = shell
+
+    def _check_positive_terminal(self, positive_terminal: Terminal):
+
+        if not isinstance(positive_terminal, Terminal):
+            raise TypeError("Positive terminal must be a Terminal")
+        
+        self._positive_terminal = deepcopy(positive_terminal)
+
+    def _check_negative_terminal(self, negative_terminal: Terminal):
+
+        if not isinstance(negative_terminal, Terminal):
+            raise TypeError("Negative terminal must be a Terminal")
+        
+        self._negative_terminal = deepcopy(negative_terminal)
+
+    def _check_name(self, name: str):
+
+        if not isinstance(name, str):
+            raise TypeError("Name must be a string")
+
+        if len(name) == 0:
+            raise ValueError("Name cannot be empty")
+        
+        self._name = name
+
+    def _calculate_properties(self):
+        self._cost = self._shell._cost + self._positive_terminal._cost + self._negative_terminal._cost
+        self._mass = self._shell._mass + self._positive_terminal._mass + self._negative_terminal._mass
+        self._internal_radius = self._shell._internal_radius
+        self._internal_length = self._shell._length
+        self._internal_volume = np.pi * (self._internal_radius**2) * self._internal_length
+        self._external_radius = self._shell._external_radius
+        self._external_length = self._shell._length + self._positive_terminal._thickness + self._negative_terminal._thickness
+        self._external_volume = np.pi * (self._external_radius**2) * self._external_length
+
+    def _calculate_footprint(self):
+        
+        self._inner_circle = (pd
+                              .DataFrame({
+                                  'theta': np.linspace(0, 2 * np.pi, 120),
+                                  'radius': self._internal_radius
+                                  })
+                              .assign(x = lambda x: x['radius'] * np.cos(x['theta']))
+                              .assign(y = lambda x: x['radius'] * np.sin(x['theta']))
+                              .sort_values(by='theta', ascending=True)
+                              .drop(columns=['theta', 'radius'])
+                              )
+        
+        self._outer_circle = (pd
+                              .DataFrame({
+                                    'theta': np.linspace(0, 2 * np.pi, 120),
+                                    'radius': self._external_radius
+                                    })
+                               .assign(x = lambda x: x['radius'] * np.cos(x['theta']))
+                               .assign(y = lambda x: x['radius'] * np.sin(x['theta']))
+                               .sort_values(by='theta', ascending=False)
+                               .drop(columns=['theta', 'radius'])
+                               )
+
+    def get_top_down_view(self):
+        """
+        Get a top down view of the cylindrical case
+        """
+        theta = np.linspace(0, 2 * np.pi, 120)
+
+        data = pd.concat([self.outer_circle.copy(), self.inner_circle.copy()])
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=data['X [cm]'], y=data['Y [cm]'], mode='lines', name='Shell', line=dict(width=0, shape='spline'), fillcolor='black', fill='toself'))
+
+        fig.update_layout(title=f'{self.name}',
+                          xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="y", title='X [cm]'),
+                          yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title='Y [cm]'),
+                          paper_bgcolor='white',
+                          plot_bgcolor='white',
+                          showlegend=False)
+        
+        return fig
+    
+    @property
+    def inner_circle(self) -> pd.DataFrame:
+
+        return (self
+                ._inner_circle
+                .assign(x = lambda x: x['x'] * M_TO_CM)
+                .assign(y = lambda x: x['y'] * M_TO_CM)
+                .rename(columns={'x': 'X [cm]', 'y': 'Y [cm]'})
+                )
+    
+    @property
+    def outer_circle(self) -> pd.DataFrame:
+
+        return (self
+                ._outer_circle
+                .assign(x = lambda x: x['x'] * M_TO_CM)
+                .assign(y = lambda x: x['y'] * M_TO_CM)
+                .rename(columns={'x': 'X [cm]', 'y': 'Y [cm]'})
+                )
+
+    @property
+    def cost(self) -> float:
+        return round(self._cost, 2)
+    
+    @property
+    def mass(self) -> float:
+        return round(self._mass * KG_TO_G, 2)
+    
+    @property
+    def internal_radius(self) -> float:
+        return round(self._internal_radius * M_TO_CM, 2)
+    
+    @property
+    def internal_length(self) -> float:
+        return round(self._internal_length * M_TO_CM, 2)
+    
+    @property
+    def external_radius(self) -> float:
+        return round(self._external_radius * M_TO_CM, 2)
+    
+    @property
+    def external_length(self) -> float:
+        return round(self._external_length * M_TO_CM, 2)
+    
+    @property
+    def internal_volume(self) -> float:
+        return round(self._internal_volume * M_TO_CM**3, 2)
+    
+    @property
+    def external_volume(self) -> float:
+        return round(self._external_volume * M_TO_CM**3, 2)
+    
+    @property
+    def name(self) -> str:
+        return self._name.replace('_', ' ').title()
+
+    
 class PrismaticShell:
 
     def __init__(self,
@@ -117,19 +491,91 @@ class PrismaticShell:
         :param internal_length: float: internal length of the shell in cm
         :param wall_thickness: float: thickness of the shell wall in mm
         """
-        self._cost = cost
-        self._mass = mass * G_TO_KG
-        self._internal_width = internal_width * CM_TO_M
-        self._internal_length = internal_length * CM_TO_M
-        self._internal_height = internal_height * CM_TO_M
-        self._wall_thickness = wall_thickness * MM_TO_M
-        self._name = name
+        self._check_cost(cost)
+        self._check_mass(mass)
+        self._check_internal_width(internal_width)
+        self._check_internal_length(internal_length)
+        self._check_internal_height(internal_height)
+        self._check_wall_thickness(wall_thickness)
+        self._check_name(name)
+        self._calculate_properties()
 
+    def _calculate_properties(self):
         self._external_width = self._internal_width + 2 * self._wall_thickness
         self._external_length = self._internal_length + 2 * self._wall_thickness
         self._external_height = self._internal_height + 2 * self._wall_thickness
-
+        self._external_volume = self._external_width * self._external_length * self._external_height
         self._internal_volume = self._internal_width * self._internal_length * self._internal_height
+
+    def _check_cost(self, cost: float):
+
+        if not isinstance(cost, (int, float)):
+            raise TypeError("Cost must be a number")
+
+        if cost < 0:
+            raise ValueError("Cost cannot be negative")
+        
+        self._cost = cost
+
+    def _check_mass(self, mass: float):
+
+        if not isinstance(mass, (int, float)):
+            raise TypeError("Mass must be a number")
+
+        if mass < 0:
+            raise ValueError("Mass cannot be negative")
+        
+        self._mass = mass * G_TO_KG
+
+    def _check_internal_width(self, internal_width: float):
+
+        if not isinstance(internal_width, (int, float)):
+            raise TypeError("Internal width must be a number")
+
+        if internal_width <= 0:
+            raise ValueError("Internal width must be positive")
+        
+        self._internal_width = internal_width * CM_TO_M
+
+    def _check_internal_length(self, internal_length: float):
+
+        if not isinstance(internal_length, (int, float)):
+            raise TypeError("Internal length must be a number")
+
+        if internal_length <= 0:
+            raise ValueError("Internal length must be positive")
+        
+        self._internal_length = internal_length * CM_TO_M
+
+    def _check_internal_height(self, internal_height: float):
+
+        if not isinstance(internal_height, (int, float)):
+            raise TypeError("Internal height must be a number")
+
+        if internal_height <= 0:
+            raise ValueError("Internal height must be positive")
+        
+        self._internal_height = internal_height * CM_TO_M
+
+    def _check_wall_thickness(self, wall_thickness: float):
+
+        if not isinstance(wall_thickness, (int, float)):
+            raise TypeError("Wall thickness must be a number")
+
+        if wall_thickness <= 0:
+            raise ValueError("Wall thickness must be positive")
+        
+        self._wall_thickness = wall_thickness * MM_TO_M
+
+    def _check_name(self, name: str):
+
+        if not isinstance(name, str):
+            raise TypeError("Name must be a string")
+
+        if len(name) == 0:
+            raise ValueError("Name cannot be empty")
+        
+        self._name = name
 
     @property
     def external_width(self) -> float:
@@ -150,6 +596,9 @@ class PrismaticShell:
     @property
     def internal_volume(self) -> float:
         return round(self._internal_volume * M_TO_CM**3, 2)
+
+    def external_volume(self) -> float:
+        return round(self._external_volume * M_TO_CM**3, 2)
 
     @property
     def internal_width(self) -> float:
@@ -203,10 +652,60 @@ class PrismaticLid:
         :param height: float: height of the lid in cm
         :param name: str: name of the lid
         """
+        self._check_cost(cost)
+        self._check_mass(mass)
+        self._check_internal_width(internal_width)
+        self._check_external_width(external_width)
+        self._check_name(name)
+
+    def _check_cost(self, cost: float):
+
+        if not isinstance(cost, (int, float)):
+            raise TypeError("Cost must be a number")
+
+        if cost < 0:
+            raise ValueError("Cost cannot be negative")
+        
         self._cost = cost
+
+    def _check_mass(self, mass: float):
+
+        if not isinstance(mass, (int, float)):
+            raise TypeError("Mass must be a number")
+
+        if mass < 0:
+            raise ValueError("Mass cannot be negative")
+        
         self._mass = mass * G_TO_KG
-        self._external_width = external_width * CM_TO_M
+
+    def _check_internal_width(self, internal_width: float):
+
+        if not isinstance(internal_width, (int, float)):
+            raise TypeError("Internal width must be a number")
+
+        if internal_width <= 0:
+            raise ValueError("Internal width must be positive")
+        
         self._internal_width = internal_width * CM_TO_M
+
+    def _check_external_width(self, external_width: float):
+
+        if not isinstance(external_width, (int, float)):
+            raise TypeError("External width must be a number")
+
+        if external_width <= 0:
+            raise ValueError("External width must be positive")
+        
+        self._external_width = external_width * CM_TO_M
+
+    def _check_name(self, name: str):
+
+        if not isinstance(name, str):
+            raise TypeError("Name must be a string")
+
+        if len(name) == 0:
+            raise ValueError("Name cannot be empty")
+        
         self._name = name
 
     @property
@@ -250,10 +749,12 @@ class PrismaticCase:
         :param lid: PrismaticLid: lid of the case
         :param name: str: name of the case
         """
-        self._shell = shell
-        self._lid = lid
-        self._name = name
+        self._check_shell(shell)
+        self._check_lid(lid)
+        self._check_name(name)
+        self._calculate_properties()
 
+    def _calculate_properties(self):
         self._cost = self._shell._cost + self._lid._cost
         self._mass = self._shell._mass + self._lid._mass
         
@@ -266,6 +767,30 @@ class PrismaticCase:
         self._external_length = self._shell._external_length
         self._external_height = self._shell._external_height
         self._external_volume = self._external_height * self._external_length * self._external_width
+
+    def _check_shell(self, shell: PrismaticShell):
+
+        if not isinstance(shell, PrismaticShell):
+            raise TypeError("Shell must be a PrismaticShell")
+
+        self._shell = shell
+
+    def _check_lid(self, lid: PrismaticLid):
+
+        if not isinstance(lid, PrismaticLid):
+            raise TypeError("Lid must be a PrismaticLid")
+
+        self._lid = lid
+
+    def _check_name(self, name: str):
+
+        if not isinstance(name, str):
+            raise TypeError("Name must be a string")
+
+        if len(name) == 0:
+            raise ValueError("Name cannot be empty")
+        
+        self._name = name
 
     def get_optimized_stack(self, 
                             anode: Anode,

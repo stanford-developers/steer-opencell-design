@@ -12,7 +12,9 @@ setup(
     install_requires=[
         "pandas",
         "numpy",
-        "datetime"
+        "datetime",
+        "scipy",
+        "shapely"
     ],
     scripts=[],
     classifiers=[ 

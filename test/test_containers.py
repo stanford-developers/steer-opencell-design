@@ -1,16 +1,43 @@
 import unittest
 import plotly.express as px
-from SteerEnergyStorage.Constructions.Containers import PrismaticCase, PrismaticLid, PrismaticShell
+from SteerEnergyStorage.Constructions.Containers import PrismaticCase, PrismaticLid, PrismaticShell, CylindricalCase, CylindricalShell
 from SteerEnergyStorage.Formulations.ElectrodeFormulations import ElectrodeFormulation
 from SteerEnergyStorage.Constructions.Electrodes import Cathode, Anode
-from SteerEnergyStorage.Formulations.Stacks import Stack
+from SteerEnergyStorage.Materials.other import Terminal
 from SteerEnergyStorage.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
 from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector
 from SteerEnergyStorage.Materials.Separators import Separator
 
-import datetime as dt
 
-class TestCellsSingleAM(unittest.TestCase):
+class TestCylindricalCase(unittest.TestCase):
+
+    def setUp(self):
+        
+        # build the encapsulation
+        cylindrical_shell = CylindricalShell(cost = 0.04, 
+                                             mass = 3,
+                                             internal_radius=1.1,
+                                             length=11.5,
+                                             wall_thickness=0.3)
+        
+        # build the terminals
+        pos_terminal = Terminal(mass = 1, specific_cost = 16, thickness=2)
+        neg_terminal = Terminal(mass = 1, specific_cost = 16, thickness=2)
+
+        self.case = CylindricalCase(shell=cylindrical_shell,
+                                    positive_terminal=pos_terminal,
+                                    negative_terminal=neg_terminal)
+        
+    def test_attributes(self):
+        self.assertEqual(round(self.case._cost, 4), 0.072)
+        self.assertEqual(self.case.cost, 0.07)
+        self.assertEqual(round(self.case._mass, 4), 0.005)
+        self.assertEqual(self.case.mass, 5)
+        fig = self.case.get_top_down_view()
+        # fig.show()
+
+
+class TestPrismaticCase(unittest.TestCase):
 
     def setUp(self):
 
@@ -33,7 +60,7 @@ class TestCellsSingleAM(unittest.TestCase):
                                                      thickness=15, 
                                                      length=16.0,
                                                      width=10.8,
-                                                     bare_tab_area=8.22)
+                                                     bare_area=8.22)
 
         cathode = Cathode(formulation=cathode_formulation,
                           mass_loading=10.68,
@@ -59,7 +86,7 @@ class TestCellsSingleAM(unittest.TestCase):
                                                    thickness=15,
                                                    length=16.0,
                                                    width=10.8,
-                                                   bare_tab_area=7.55)
+                                                   bare_area=7.55)
         
         anode = Anode(formulation=anode_formulation,
                       mass_loading=5.25,
@@ -70,7 +97,7 @@ class TestCellsSingleAM(unittest.TestCase):
         separator = Separator(thickness=16, 
                               areal_cost=0.9, 
                               density=0.4, 
-                              slit_width=11.0, 
+                              width=11.0, 
                               porosity=47, 
                               fold_length=18.6)
 

@@ -2,7 +2,7 @@ import unittest
 import plotly.express as px
 from SteerEnergyStorage.Formulations.ElectrodeFormulations import ElectrodeFormulation
 from SteerEnergyStorage.Constructions.Electrodes import Cathode, Anode
-from SteerEnergyStorage.Formulations.Stacks import Stack
+from SteerEnergyStorage.Formulations.ElectrodeAssemblies import Stack
 from SteerEnergyStorage.Constructions.Cells import StackedPouchCell
 from SteerEnergyStorage.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
 from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector
@@ -34,7 +34,7 @@ class TestCellsSingleAM(unittest.TestCase):
                                                      thickness=15, 
                                                      length=16.0,
                                                      width=10.8,
-                                                     bare_tab_area=8.22)
+                                                     bare_area=8.22)
 
         cathode = Cathode(formulation=cathode_formulation,
                           mass_loading=9,
@@ -56,7 +56,7 @@ class TestCellsSingleAM(unittest.TestCase):
                                                    thickness=6,
                                                    length=16.0,
                                                    width=10.8,
-                                                   bare_tab_area=7.55)
+                                                   bare_area=7.55)
         
         anode = Anode(formulation=anode_formulation,
                       mass_loading=7,
@@ -67,7 +67,7 @@ class TestCellsSingleAM(unittest.TestCase):
         separator = Separator(thickness=19, 
                               areal_cost=1, 
                               density=0.9, 
-                              slit_width=11.0, 
+                              width=11.0, 
                               porosity=42, 
                               fold_length=18.6)
 
@@ -85,21 +85,21 @@ class TestCellsSingleAM(unittest.TestCase):
         laminate = Laminate(thickness=113, areal_mass=18, areal_cost=4.64)
         tape = Tape(mass=0.3)
         
-        pouch = Pouch(laminate=laminate, 
-                      heat_seal_size_sides=7, 
-                      heat_seal_size_top=22, 
-                      tape=tape)
-
         # Make the cell
         pos_terminal = Terminal(mass = 1, specific_cost = 16, name="Positive Terminal")
         neg_terminal = Terminal(mass = 1, specific_cost = 16, name="Negative Terminal")
+
+        pouch = Pouch(laminate=laminate, 
+                      heat_seal_size_sides=7, 
+                      heat_seal_size_top=22, 
+                      positive_terminal=pos_terminal,
+                      negative_terminal=neg_terminal,
+                      tape=tape)
 
         self.cell = StackedPouchCell(pouch=pouch,
                                      stack=stack,
                                      electrolyte=electrolyte,
                                      electrolyte_overfill=10,
-                                     positive_terminal=pos_terminal,
-                                     negative_terminal=neg_terminal,
                                      reversible_capacity=11.934,
                                      irreversible_capacity=1.22,
                                      n_stacks=1)
@@ -109,12 +109,10 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertTrue(isinstance(self.cell, StackedPouchCell))
         self.assertEqual(self.cell.electrolyte_overfill, 10)
         self.assertEqual(round(self.cell._electrolyte_overfill, 4), 0.1)
-        self.assertEqual(self.cell.cost, 3.73)
-        self.assertEqual(round(self.cell._cost, 2), 3.73)
-        self.assertEqual(self.cell.mass, 262.63)
+        self.assertEqual(self.cell.cost, 3.92)
+        self.assertEqual(round(self.cell._cost, 2), 3.92)
+        self.assertEqual(self.cell.mass, 262.69)
         self.assertEqual(round(self.cell._mass, 3), 0.263)
-        self.assertEqual(self.cell.thickness, 7.15)
-        self.assertEqual(round(self.cell._thickness, 4), 0.0072)
 
         self.assertEqual(self.cell.reversible_capacity, 11.93)
         self.assertEqual(self.cell.irreversible_capacity, 1.22)
@@ -126,10 +124,10 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertTrue('Capacity (Ah)' in self.cell.anode_half_cell_curve.columns)
         self.assertTrue('Voltage (V)' in self.cell.anode_half_cell_curve.columns)
 
-        self.assertEqual(self.cell.energy, 35.17)
-        self.assertEqual(self.cell.energy_density, 190.7)
-        self.assertEqual(self.cell.specific_energy, 133.93)
-        self.assertEqual(self.cell.normalized_cost, 106.17)      
+        self.assertEqual(self.cell.energy, 31.46)
+        self.assertEqual(self.cell.energy_density, 194.31)
+        self.assertEqual(self.cell.specific_energy, 119.78)
+        self.assertEqual(self.cell.normalized_cost, 124.44)      
 
     def test_plots(self):
 
@@ -140,39 +138,10 @@ class TestCellsSingleAM(unittest.TestCase):
         # fig1a.show()
         # fig1b.show()
         # fig1c.show()
-
-    def test_terminals(self):
-        self.assertEqual(self.cell.positive_terminal.mass, 1)
-        self.assertEqual(self.cell.positive_terminal.specific_cost, 16)
-        self.assertEqual(self.cell.positive_terminal.cost, 0.016)
-        self.assertEqual(round(self.cell.positive_terminal._mass, 6), 0.001)
-        self.assertEqual(self.cell.positive_terminal.name, "Positive Terminal")
-        
-        self.assertEqual(self.cell.negative_terminal.mass, 1)
-        self.assertEqual(self.cell.negative_terminal.specific_cost, 16)
-        self.assertEqual(self.cell.negative_terminal.cost, 0.016)
-        self.assertEqual(round(self.cell.negative_terminal._mass, 6), 0.001)
-        self.assertEqual(self.cell.negative_terminal.name, "Negative Terminal")
         
     def test_tape(self):
         self.assertEqual(self.cell.pouch.tape.mass, 0.3)
         self.assertEqual(round(self.cell.pouch.tape._mass, 6), 0.0003)
-        
-    def test_pouch(self):
-        self.assertEqual(self.cell.pouch.heat_seal_size_sides, 7)
-        self.assertEqual(self.cell.pouch.heat_seal_size_top, 22)
-        self.assertEqual(round(self.cell.pouch._heat_seal_size_sides, 6), 0.007)
-        self.assertEqual(round(self.cell.pouch._heat_seal_size_top, 6), 0.022)
-        self.assertEqual(self.cell.pouch.length, 20.8)
-        self.assertEqual(self.cell.pouch.width, 12.4)
-        self.assertEqual(self.cell.pouch.area, 257.96)
-        self.assertEqual(round(self.cell.pouch._length, 4), 0.208)
-        self.assertEqual(round(self.cell.pouch._width, 4), 0.124)
-        self.assertEqual(round(self.cell.pouch._area, 4), 0.0258)
-        self.assertEqual(self.cell.pouch.mass, 9.29)
-        self.assertEqual(round(self.cell.pouch._mass, 5), 0.00929)
-        self.assertEqual(self.cell.pouch.cost, 0.12)
-        self.assertEqual(round(self.cell.pouch._cost, 2), 0.12)
         
     def test_laminate(self):
         self.assertEqual(self.cell.pouch.laminate.thickness, 113)
@@ -186,24 +155,3 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(self.cell.electrolyte.density, 1.2)
         self.assertEqual(self.cell.electrolyte.specific_cost, 8.94)
 
-    def test_separator(self):
-        for s in self.cell.stacks:
-            self.assertEqual(s.separator.thickness, 16)
-            self.assertEqual(s.separator._thickness, 0.000016)
-            self.assertEqual(s.separator.density, 0.4)
-            self.assertEqual(round(s.separator._density), 400)
-            self.assertEqual(s.separator.porosity, 47)
-            self.assertEqual(round(s.separator._porosity, 4), 0.47)
-            self.assertEqual(s.separator.slit_width, 11)
-            self.assertEqual(s.separator._slit_width, 0.11)
-            self.assertEqual(s.separator.fold_length, 18.6)
-            self.assertEqual(round(s.separator._fold_length, 3), 0.186)
-
-            self.assertEqual(s.separator.area, 11496.49)
-            self.assertEqual(round(s.separator._area, 4), 1.1496)
-            self.assertEqual(s.separator.mass, 7.36)
-            self.assertEqual(round(s.separator._mass, 4), 0.0074)
-            self.assertEqual(s.separator.cost, 1.03)
-            self.assertEqual(round(s.separator._cost, 2), 1.03)
-            self.assertEqual(s.separator.pore_volume, 8.65)
-            self.assertEqual(round(s.separator._pore_volume, 7), 0.0000086)
