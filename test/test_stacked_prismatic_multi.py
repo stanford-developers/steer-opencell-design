@@ -82,11 +82,11 @@ class TestCellsSingleAM(unittest.TestCase):
                               porosity=47, 
                               fold_length=18.6)
 
-        # construct the stack
-        stack = Stack(anode=anode, 
-                      cathode=cathode,
-                      separator=separator, 
-                      n_layers=60)
+        # # construct the stack
+        # stack = Stack(anode=anode, 
+        #               cathode=cathode,
+        #               separator=separator, 
+        #               n_layers=60)
 
         # make electrolyte
         electrolyte = Electrolyte(specific_cost=8.94, density=1.2)
@@ -106,22 +106,24 @@ class TestCellsSingleAM(unittest.TestCase):
         
         prismatic_case = PrismaticCase(lid=prismatic_lid, shell=prismatic_shell)
 
-        self.cell = StackedPrismaticCell(prismatic_case=prismatic_case,
-                                         stack=stack,
+        stack = prismatic_case.get_optimized_stack(anode=anode, cathode=cathode, separator=separator)
+
+        self.cell = StackedPrismaticCell(stack=stack,
+                                         prismatic_case=prismatic_case,
                                          electrolyte=electrolyte,
                                          electrolyte_overfill=10,
                                          reversible_capacity=35.000,
-                                         irreversible_capacity=1.215,
-                                         grid_n=1000)
+                                         irreversible_capacity=1.22,
+                                         n_stacks=1)
     
     def test_cell(self):
 
         self.assertEqual(self.cell.electrolyte_overfill, 10)
         self.assertEqual(round(self.cell._electrolyte_overfill, 4), 0.1)
-        self.assertEqual(self.cell.cost, 8.37)
-        self.assertEqual(round(self.cell._cost, 2), 8.37)
-        self.assertEqual(self.cell.mass, 834.0)
-        self.assertEqual(round(self.cell._mass, 3), 0.834)
+        self.assertEqual(self.cell.cost, 10.19)
+        self.assertEqual(round(self.cell._cost, 2), 10.19)
+        self.assertEqual(self.cell.mass, 966.53)
+        self.assertEqual(round(self.cell._mass, 3), 0.967)
         self.assertEqual(self.cell.height, 2.09)
         self.assertEqual(round(self.cell._height, 4), 0.0209)
 
@@ -134,10 +136,10 @@ class TestCellsSingleAM(unittest.TestCase):
         #TODO
         # self.assertEqual(self.cell.effective_areal_capacity, 1.35)
 
-        self.assertEqual(self.cell.energy, 77.05)
-        self.assertEqual(self.cell.energy_density, 151.58)
-        self.assertEqual(self.cell.specific_energy, 92.38)
-        self.assertEqual(self.cell.normalized_cost, 108.68)
+        self.assertEqual(self.cell.energy, 95.01)
+        self.assertEqual(self.cell.energy_density, 186.92)
+        self.assertEqual(self.cell.specific_energy, 98.3)
+        self.assertEqual(self.cell.normalized_cost, 107.22)
 
     def test_plots(self):
         figure1 = self.cell.get_capacity_voltage_plot()

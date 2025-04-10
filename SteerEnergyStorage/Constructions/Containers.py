@@ -4,6 +4,10 @@ from SteerEnergyStorage.Materials.Separators import Separator
 from SteerEnergyStorage.Formulations.ElectrodeAssemblies import Stack
 
 from copy import deepcopy
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+import pandas as pd
 
 CM_TO_M = 0.01
 M_TO_CM = 100
@@ -304,6 +308,170 @@ class CylindricalShell:
         return self.__str__()
 
 
+class CylindricalCase:
+
+    def __init__(self,
+                 shell: CylindricalShell,
+                 positive_terminal: Terminal,
+                 negative_terminal: Terminal,
+                 name: str = 'cylindrical_case'
+                 ):
+        """
+        Class representing a casing used for a cylindrical cell.
+
+        :param shell: CylindricalShell: shell of the case
+        :param positive_terminal: Terminal: positive terminal of the case
+        :param negative_terminal: Terminal: negative terminal of the case
+        :param name: str: name of the case
+        """
+        self._check_shell(shell)
+        self._check_name(name)
+        self._check_positive_terminal(positive_terminal)
+        self._check_negative_terminal(negative_terminal)
+        self._calculate_properties()
+        self._calculate_footprint()
+
+    def _check_shell(self, shell: CylindricalShell):
+
+        if not isinstance(shell, CylindricalShell):
+            raise TypeError("Shell must be a CylindricalShell")
+
+        self._shell = shell
+
+    def _check_positive_terminal(self, positive_terminal: Terminal):
+
+        if not isinstance(positive_terminal, Terminal):
+            raise TypeError("Positive terminal must be a Terminal")
+        
+        self._positive_terminal = deepcopy(positive_terminal)
+
+    def _check_negative_terminal(self, negative_terminal: Terminal):
+
+        if not isinstance(negative_terminal, Terminal):
+            raise TypeError("Negative terminal must be a Terminal")
+        
+        self._negative_terminal = deepcopy(negative_terminal)
+
+    def _check_name(self, name: str):
+
+        if not isinstance(name, str):
+            raise TypeError("Name must be a string")
+
+        if len(name) == 0:
+            raise ValueError("Name cannot be empty")
+        
+        self._name = name
+
+    def _calculate_properties(self):
+        self._cost = self._shell._cost + self._positive_terminal._cost + self._negative_terminal._cost
+        self._mass = self._shell._mass + self._positive_terminal._mass + self._negative_terminal._mass
+        self._internal_radius = self._shell._internal_radius
+        self._internal_length = self._shell._length
+        self._internal_volume = np.pi * (self._internal_radius**2) * self._internal_length
+        self._external_radius = self._shell._external_radius
+        self._external_length = self._shell._length + self._positive_terminal._thickness + self._negative_terminal._thickness
+        self._external_volume = np.pi * (self._external_radius**2) * self._external_length
+
+    def _calculate_footprint(self):
+        
+        self._inner_circle = (pd
+                              .DataFrame({
+                                  'theta': np.linspace(0, 2 * np.pi, 120),
+                                  'radius': self._internal_radius
+                                  })
+                              .assign(x = lambda x: x['radius'] * np.cos(x['theta']))
+                              .assign(y = lambda x: x['radius'] * np.sin(x['theta']))
+                              .sort_values(by='theta', ascending=True)
+                              .drop(columns=['theta', 'radius'])
+                              )
+        
+        self._outer_circle = (pd
+                              .DataFrame({
+                                    'theta': np.linspace(0, 2 * np.pi, 120),
+                                    'radius': self._external_radius
+                                    })
+                               .assign(x = lambda x: x['radius'] * np.cos(x['theta']))
+                               .assign(y = lambda x: x['radius'] * np.sin(x['theta']))
+                               .sort_values(by='theta', ascending=False)
+                               .drop(columns=['theta', 'radius'])
+                               )
+
+    def get_top_down_view(self):
+        """
+        Get a top down view of the cylindrical case
+        """
+        theta = np.linspace(0, 2 * np.pi, 120)
+
+        data = pd.concat([self.outer_circle.copy(), self.inner_circle.copy()])
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=data['X [cm]'], y=data['Y [cm]'], mode='lines', name='Shell', line=dict(width=0, shape='spline'), fillcolor='black', fill='toself'))
+
+        fig.update_layout(title=f'{self.name}',
+                          xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="y", title='X [cm]'),
+                          yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title='Y [cm]'),
+                          paper_bgcolor='white',
+                          plot_bgcolor='white',
+                          showlegend=False)
+        
+        return fig
+    
+    @property
+    def inner_circle(self) -> pd.DataFrame:
+
+        return (self
+                ._inner_circle
+                .assign(x = lambda x: x['x'] * M_TO_CM)
+                .assign(y = lambda x: x['y'] * M_TO_CM)
+                .rename(columns={'x': 'X [cm]', 'y': 'Y [cm]'})
+                )
+    
+    @property
+    def outer_circle(self) -> pd.DataFrame:
+
+        return (self
+                ._outer_circle
+                .assign(x = lambda x: x['x'] * M_TO_CM)
+                .assign(y = lambda x: x['y'] * M_TO_CM)
+                .rename(columns={'x': 'X [cm]', 'y': 'Y [cm]'})
+                )
+
+    @property
+    def cost(self) -> float:
+        return round(self._cost, 2)
+    
+    @property
+    def mass(self) -> float:
+        return round(self._mass * KG_TO_G, 2)
+    
+    @property
+    def internal_radius(self) -> float:
+        return round(self._internal_radius * M_TO_CM, 2)
+    
+    @property
+    def internal_length(self) -> float:
+        return round(self._internal_length * M_TO_CM, 2)
+    
+    @property
+    def external_radius(self) -> float:
+        return round(self._external_radius * M_TO_CM, 2)
+    
+    @property
+    def external_length(self) -> float:
+        return round(self._external_length * M_TO_CM, 2)
+    
+    @property
+    def internal_volume(self) -> float:
+        return round(self._internal_volume * M_TO_CM**3, 2)
+    
+    @property
+    def external_volume(self) -> float:
+        return round(self._external_volume * M_TO_CM**3, 2)
+    
+    @property
+    def name(self) -> str:
+        return self._name.replace('_', ' ').title()
+
+    
 class PrismaticShell:
 
     def __init__(self,

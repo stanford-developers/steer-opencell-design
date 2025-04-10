@@ -293,7 +293,7 @@ class CurrentCollector:
         self._specific_cost = float(data['specific_cost'].values[0])
         self._density = float(data['density'].values[0])
         
-    def show(self):
+    def get_top_down_view(self):
         """
         Visualize the current collector.
         """
@@ -316,14 +316,15 @@ class CurrentCollector:
         
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=main_plot['x'], y=main_plot['y'], mode='lines', name='Main Body', line=dict(color='black'), fillcolor='black', fill='toself'))
-        fig.add_trace(go.Scatter(x=tab_plot['x'], y=tab_plot['y'], mode='lines', name='Tab', line=dict(color='black')))
+        fig.add_trace(go.Scatter(x=tab_plot['x'], y=tab_plot['y'], mode='lines', name='Tab', line=dict(width=0), fillcolor='grey', fill='toself'))
         fig.update_layout(title=f'{self._name} Current Collector',
                           xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="y"),
                           yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
                           paper_bgcolor='white',
                           plot_bgcolor='white',
                           showlegend=False)
-        fig.show()
+        
+        return fig
 
     @property
     def length(self) -> float:
@@ -516,7 +517,7 @@ class NotchedCurrentCollector(CurrentCollector):
         self._mass = self._volume * self._density
         self._cost = self._mass * self._specific_cost
 
-    def show(self):
+    def get_top_down_view(self):
         """
         Visualize the notched current collector.
         """
@@ -556,7 +557,8 @@ class NotchedCurrentCollector(CurrentCollector):
                           paper_bgcolor='white',
                           plot_bgcolor='white',
                           showlegend=False)
-        fig.show()        
+
+        return fig
 
     @property
     def tab_width(self) -> float:
@@ -703,7 +705,7 @@ class TabWeldedCurrentCollector(CurrentCollector):
         self._mass = self._volume * self._density + sum([tab._mass for tab in self._weld_tabs])
         self._cost = self._mass * self._specific_cost + sum([tab._cost for tab in self._weld_tabs])
 
-    def show(self):
+    def get_top_down_view(self):
         """
         Visualize the tab welded current collector.
         """
@@ -744,7 +746,7 @@ class TabWeldedCurrentCollector(CurrentCollector):
                           plot_bgcolor='white',
                           showlegend=False)
 
-        fig.show()
+        return fig
 
     @property
     def weld_tab_spacing(self) -> float:

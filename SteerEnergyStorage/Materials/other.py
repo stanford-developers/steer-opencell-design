@@ -51,7 +51,7 @@ class Terminal():
                  mass: float,
                  specific_cost: float,
                  name: str = None,
-                 thickness: float = None,
+                 thickness: float = 0,
                  ):
         """
         Terminal object for a cell
@@ -93,7 +93,7 @@ class Terminal():
             if not isinstance(thickness, (int, float)):
                 raise TypeError("Thickness must be a number")
 
-            if thickness <= 0:
+            if thickness < 0:
                 raise ValueError("Thickness must be greater than 0")
         
         self._thickness = thickness * MM_TO_M if thickness else None
