@@ -1,6 +1,5 @@
 import sqlite3 as sql
 import pandas as pd
-import numpy as np
 
 H_TO_S = 3600
 mA_TO_A = 1e-3

@@ -31,8 +31,8 @@ class ElectrodeFormulation:
         """
         self._color_map = {}
         self._update_color_map(self._active_materials, "#FFC133", "#FF6833")
-        self._update_color_map(self._binders, "blue", "green")
-        self._update_color_map(self._conductive_additives, "purple", "orange")
+        self._update_color_map(self._binders, "#0000FF", "#008000")
+        self._update_color_map(self._conductive_additives, "#800080", "#FFA500")
 
     def _update_color_map(self, components: Dict, start_color: str, end_color: str) -> None:
         """
