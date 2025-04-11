@@ -14,7 +14,8 @@ setup(
         "numpy",
         "datetime",
         "scipy",
-        "shapely"
+        "shapely",
+        "plotly"
     ],
     scripts=[],
     classifiers=[ 
