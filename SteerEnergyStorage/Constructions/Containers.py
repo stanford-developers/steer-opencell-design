@@ -406,15 +406,50 @@ class CylindricalCase:
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=data['X [cm]'], y=data['Y [cm]'], mode='lines', name='Shell', line=dict(width=0, shape='spline'), fillcolor='black', fill='toself'))
 
-        fig.update_layout(title=f'{self.name}',
-                          xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="y", title='X [cm]'),
-                          yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title='Y [cm]'),
+        fig.update_layout(title=f'{self.name} top down view',
+                          xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='X [cm]'),
+                          yaxis=dict(showgrid=False, zeroline=False, title='Y [cm]'),
                           paper_bgcolor='white',
                           plot_bgcolor='white',
                           showlegend=False)
         
         return fig
     
+    def get_side_view(self):
+        """
+        Get a side view of the cylindrical case
+        """
+        fig = go.Figure()
+
+        # main body left wall
+        x = [-self.external_radius, -self.internal_radius, -self.internal_radius, -self.external_radius]
+        y = [0, 0, self.internal_length, self.internal_length]
+        fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name='Shell', line=dict(width=0), fillcolor='black', fill='toself'))
+
+        # main body right wall
+        x = [self.external_radius, self.internal_radius, self.internal_radius, self.external_radius]
+        y = [0, 0, self.internal_length, self.internal_length]
+        fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name='Shell', line=dict(width=0), fillcolor='black', fill='toself'))
+
+        # positive terminal
+        x = [-self.external_radius, self.external_radius, self.external_radius, -self.external_radius]
+        y = [self.internal_length, self.internal_length, self.internal_length + self._positive_terminal.thickness, self.internal_length + self._positive_terminal.thickness]
+        fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name='Positive Terminal', line=dict(width=0), fillcolor='grey', fill='toself'))
+
+        # negative terminal
+        x = [-self.external_radius, self.external_radius, self.external_radius, -self.external_radius]
+        y = [0, 0, -self._negative_terminal.thickness, -self._negative_terminal.thickness]
+        fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name='Negative Terminal', line=dict(width=0), fillcolor='grey', fill='toself'))
+
+        fig.update_layout(title=f'{self.name} side view',
+                          xaxis=dict(showgrid=False, zeroline=False, title='X [cm]', scaleanchor="y"),
+                          yaxis=dict(showgrid=False, zeroline=False, title='Y [cm]'),
+                          paper_bgcolor='white',
+                          plot_bgcolor='white',
+                          showlegend=False)
+        
+        return fig
+
     @property
     def inner_circle(self) -> pd.DataFrame:
 
