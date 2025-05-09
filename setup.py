@@ -15,7 +15,9 @@ setup(
         "datetime",
         "scipy",
         "shapely",
-        "plotly"
+        "plotly",
+        "dash",
+        "dash_bootstrap_components"
     ],
     scripts=[],
     classifiers=[ 

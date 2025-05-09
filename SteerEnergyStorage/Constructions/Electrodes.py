@@ -4,6 +4,7 @@ from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector
 import pandas as pd
 import numpy as np
 from typing import Dict, Any
+import plotly.express as px
 
 MG_TO_KG = 1e-6
 CM_TO_M = 1e-2
@@ -255,6 +256,20 @@ class _Electrode:
         discharge_curve = data.query("direction == 'discharge'").sort_values('capacity', ascending=False)
         return pd.concat([charge_curve, discharge_curve]).reset_index(drop=True)
 
+    def plot_half_cell_curve(self, grid_n: int = 100, **kwargs) -> None:
+        """
+        Plot the half cell curve of the electrode.
+
+        :param grid_n: Number of points to interpolate the curve on.
+        """
+        if not hasattr(self, '_half_cell_curve'):
+            self._calculate_half_cell_curve(grid_n)
+
+        fig = px.line(self.half_cell_curve, y='Voltage (V)', x='Capacity (Ah)', color='Direction',
+                      title='Capacity vs Voltage', line_shape='spline', template='presentation', **kwargs)
+
+        return fig    
+
     @property
     def cost_breakdown(self) -> Dict[str, Any]:
         """
@@ -299,7 +314,7 @@ class _Electrode:
         :return: DataFrame containing the half cell curve.
         """
         if not hasattr(self, '_half_cell_curve'):
-            raise AttributeError("Half cell curves have not been calculated yet")
+            raise ValueError("Half cell curve not calculated. Call _calculate_half_cell_curve() first.")
 
         return (self
                 ._half_cell_curve
@@ -472,18 +487,6 @@ class Anode(_Electrode):
                           )
 
         return pd.concat([charge_data, discharge_data]).reset_index(drop=True)
-        
-    @property
-    def overhang(self) -> float:
-        """
-        Get the overhang of the anode.
-
-        :return: Overhang of the anode.
-        """
-        if hasattr(self, '_overhang'):
-            return self._overhang
-        else:
-            raise AttributeError("Overhang not calculated yet")
 
 
 class Cathode(_Electrode):
@@ -530,3 +533,6 @@ class Cathode(_Electrode):
                           )
 
         return pd.concat([charge_data, discharge_data]).reset_index(drop=True).drop(columns=['max_vol'])
+
+
+
