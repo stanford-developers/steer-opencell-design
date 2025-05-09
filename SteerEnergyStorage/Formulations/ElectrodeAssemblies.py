@@ -637,12 +637,12 @@ class CylindricalJellyRoll(_JellyRoll):
         plot_data, edge_data = get_coil(edge_data, self._cathode._material_thickness)
         fig.add_trace(go.Scatter(x=plot_data['X (cm)'], y=plot_data['Y (cm)'], mode='lines', name='Cathode', line=dict(width=0, shape='spline'), fillcolor='#FF6F61', fill='toself'))
 
-        fig.update_layout(xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="y", title="X (cm)"),
-                          yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="Y (cm)"),
+        fig.update_layout(xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title="X (cm)"),
+                          yaxis=dict(showgrid=False, zeroline=False, title="Y (cm)"),
                           paper_bgcolor='white',
                           plot_bgcolor='white',
                           showlegend=False,
-                          title=f"Jelly Roll Top View \n Number of Turns: {n_turns} \n Diameter of {diameter}cm",
+                          title=f"Jelly Roll Top View",
                           **kwargs)
 
         return fig

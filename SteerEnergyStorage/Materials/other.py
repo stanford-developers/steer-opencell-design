@@ -55,10 +55,11 @@ class Terminal():
                  ):
         """
         Terminal object for a cell
+
         :param mass: float: mass of the terminal in g
         :param specific_cost: float: specific cost of the terminal $/kg
         :param name: str: name of the terminal
-        :param thickness: float: thickness of the terminal in mm
+        :param thickness: float: thickness of the terminal in cm
         """
         self._check_mass(mass)
         self._check_specific_cost(specific_cost)
@@ -96,7 +97,7 @@ class Terminal():
             if thickness < 0:
                 raise ValueError("Thickness must be greater than 0")
         
-        self._thickness = thickness * MM_TO_M if thickness else None
+        self._thickness = thickness * CM_TO_M if thickness else None
 
     def _check_name(self, name):
         
@@ -118,8 +119,12 @@ class Terminal():
         self._cost = self._mass * self._specific_cost
 
     @property
+    def thickness(self):
+        return round(self._thickness * M_TO_CM, 2) if self._thickness else None
+
+    @property
     def cost(self):
-        return self._cost
+        return round(self._cost, 2)
     
     @property
     def name(self):

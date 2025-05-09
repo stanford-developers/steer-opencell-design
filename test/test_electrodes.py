@@ -33,7 +33,7 @@ class TestWithStandardCurrentCollector(unittest.TestCase):
 
         cathode_binder2 = Binder(name="CMC", specific_cost=10, density=1.5)
 
-        cathode_formulation = ElectrodeFormulation(active_materials={cathode_active_material1: 59, cathode_active_material2: 30},
+        cathode_formulation = ElectrodeFormulation(active_materials={cathode_active_material1: 59, cathode_active_material2: 31},
                                                     binders={cathode_binder1: 3, cathode_binder2: 2},
                                                     conductive_additives={cathode_conductive_additive1: 3, cathode_conductive_additive2: 2})
 

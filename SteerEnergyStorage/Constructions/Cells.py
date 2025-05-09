@@ -188,7 +188,7 @@ class _Cell:
         
         self._grid_n = grid_n
 
-    def get_capacity_voltage_plot(self, **kwargs):
+    def get_capacity_voltage_plot(self, background_color='white', upper_v_limit=None, lower_v_limit=None, **kwargs):
 
         cathode_curve = self.cathode_half_cell_curve.copy().assign(Electrode='Cathode')
         anode_curve = self.anode_half_cell_curve.copy().assign(Electrode='Anode') if not self._anode_free else None
@@ -204,8 +204,13 @@ class _Cell:
                          template='presentation', color_discrete_map=color_map, **kwargs)
         
         figure.update_traces(line=dict(width=4))
-        figure.add_vline(x=upper_cap_limit, line_color='black', line_width=2)
-        figure.add_vline(x=lower_cap_limit, line_color='black', line_width=2)
+        figure.add_vline(x=upper_cap_limit, line_color='black', line_width=1)
+        figure.add_vline(x=lower_cap_limit, line_color='black', line_width=1)
+        if upper_v_limit is not None:
+            figure.add_hline(y=upper_v_limit, line_color='black', line_width=1)
+        if lower_v_limit is not None:
+            figure.add_hline(y=lower_v_limit, line_color='black', line_width=1)
+        figure.update_layout(plot_bgcolor=background_color, paper_bgcolor=background_color)
         return figure
     
     def _add_to_dict(self, dictionary_1: dict, dictionary_2: dict | float | int):
@@ -405,7 +410,7 @@ class _Cell:
 
         return figure
     
-    def _get_cost_breakdown_plot_sunburst(self, **kwargs):
+    def _get_cost_breakdown_plot_sunburst(self, background_color='white',  **kwargs):
 
         cost_breakdown = (pd
                           .DataFrame(self.cost_breakdown.items(), columns=['level_1', 'cost'])
@@ -442,10 +447,11 @@ class _Cell:
         figure = px.sunburst(data, path=['level_0', 'level_1', 'level_2'], values='cost', title='Cost Breakdown', color='level_1', color_discrete_map=color_map, **kwargs)
         figure.update_traces(textinfo='percent parent+label')
         figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
+        figure.update_layout(plot_bgcolor=background_color, paper_bgcolor=background_color)
 
         return figure
     
-    def _get_mass_breakdown_plot_sunburst(self, **kwargs):
+    def _get_mass_breakdown_plot_sunburst(self, background_color='white', **kwargs):
 
         mass_breakdown = (pd
                           .DataFrame(self.mass_breakdown.items(), columns=['level_1', 'mass'])
@@ -482,6 +488,7 @@ class _Cell:
         figure = px.sunburst(data, path=['level_0', 'level_1', 'level_2'], values='mass', title='Mass Breakdown', color='level_1', color_discrete_map=color_map, **kwargs)
         figure.update_traces(textinfo='percent parent+label')
         figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
+        figure.update_layout(plot_bgcolor=background_color, paper_bgcolor=background_color)
 
         return figure
     
@@ -1177,7 +1184,7 @@ class CylindricalCell(_JellyRollCell):
         self._length = self._encapsulation._external_length
         self._volume = np.pi * self._radius**2 * self._length
 
-    def get_top_down_view(self, **kwargs) -> go.Figure:
+    def get_top_down_view(self, background_color='white', **kwargs) -> go.Figure:
         """
         Function to get a top down view of the cylindrical cell with the jelly roll and the casing
 
@@ -1193,8 +1200,8 @@ class CylindricalCell(_JellyRollCell):
 
         fig.update_layout(xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="y", title="X (cm)"),
                           yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="Y (cm)"),
-                          paper_bgcolor='white',
-                          plot_bgcolor='white',
+                          paper_bgcolor=background_color,
+                          plot_bgcolor=background_color,
                           showlegend=False,
                           title=f"Top down view of cylindrical cell",
                           **kwargs)
