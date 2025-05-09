@@ -2,6 +2,8 @@ from SteerEnergyStorage.Materials.ElectrodeMaterials import _ActiveMaterial, Bin
 from SteerEnergyStorage.Utils import get_colorway
 from typing import Dict, Optional
 
+KG_TO_G = 1000
+M_TO_CM = 1e2
 
 class ElectrodeFormulation:
     
@@ -24,6 +26,60 @@ class ElectrodeFormulation:
         self._name = name.replace(" ", "_").lower()
         self._validate_formulation()
         self._get_color_map()
+        self._calculate_density()
+        self._calculate_specific_cost()
+
+    def _calculate_density(self) -> float:
+        """
+        Calculate the density of the electrode formulation.
+        
+        :return: The density of the electrode formulation in g/cm³.
+        """
+        active_materials_list = list(self._active_materials.keys())
+        active_materials_mass_fractions = list(self._active_materials.values())
+        active_material_densities = [material._density for material in active_materials_list]
+
+        binders_list = list(self._binders.keys())
+        binders_mass_fractions = list(self._binders.values())
+        binders_densities = [material._density for material in binders_list]
+
+        conductive_additives_list = list(self._conductive_additives.keys())
+        conductive_additives_mass_fractions = list(self._conductive_additives.values())
+        conductive_additives_densities = [material._density for material in conductive_additives_list]
+
+        all_materials = active_materials_list + binders_list + conductive_additives_list
+        all_mass_fractions = active_materials_mass_fractions + binders_mass_fractions + conductive_additives_mass_fractions
+        all_densities = active_material_densities + binders_densities + conductive_additives_densities
+
+        total_density = sum(mass_fraction * density for mass_fraction, density in zip(all_mass_fractions, all_densities))
+
+        self._density = total_density
+
+    def _calculate_specific_cost(self) -> float:
+        """
+        Calculate the specific cost of the electrode formulation.
+        
+        :return: The specific cost of the electrode formulation in $/kg.
+        """
+        active_materials_list = list(self._active_materials.keys())
+        active_materials_mass_fractions = list(self._active_materials.values())
+        active_material_costs = [material._specific_cost for material in active_materials_list]
+
+        binders_list = list(self._binders.keys())
+        binders_mass_fractions = list(self._binders.values())
+        binders_costs = [material._specific_cost for material in binders_list]
+
+        conductive_additives_list = list(self._conductive_additives.keys())
+        conductive_additives_mass_fractions = list(self._conductive_additives.values())
+        conductive_additives_costs = [material._specific_cost for material in conductive_additives_list]
+
+        all_materials = active_materials_list + binders_list + conductive_additives_list
+        all_mass_fractions = active_materials_mass_fractions + binders_mass_fractions + conductive_additives_mass_fractions
+        all_costs = active_material_costs + binders_costs + conductive_additives_costs
+
+        total_cost = sum(mass_fraction * cost for mass_fraction, cost in zip(all_mass_fractions, all_costs))
+
+        self._specific_cost = total_cost
 
     def _get_color_map(self) -> None:
         """
@@ -52,10 +108,13 @@ class ElectrodeFormulation:
         """
         Validate the electrode formulation to ensure it meets the required criteria.
         """
+        if not self._active_materials:
+            raise ValueError("You must include at least one active material in the formulation.")
+
         if (self._active_materials or self._binders or self._conductive_additives):
             total_fraction = sum(self._active_materials.values()) + sum(self._binders.values()) + sum(self._conductive_additives.values())
-            if not (0.99 <= total_fraction <= 1.01):
-                raise ValueError("The mass fractions of the components must sum to 100%.")
+            if not (0.999 <= total_fraction <= 1.001):
+                raise ValueError(f"Your weight fractions sum to {round(total_fraction * 100, 1)} %. Ensure they sum to 100 %.")
 
         self._validate_unique_names(self._active_materials, "active materials")
         self._validate_unique_names(self._binders, "binders")
@@ -87,6 +146,14 @@ class ElectrodeFormulation:
     @property
     def conductive_additives(self) -> Dict[ConductiveAdditive, float]:
         return {key: value * 100 for key, value in self._conductive_additives.items()}
+    
+    @property
+    def density(self) -> float:
+        return round(self._density * KG_TO_G / (M_TO_CM ** 3), 1)
+    
+    @property
+    def specific_cost(self) -> float:
+        return round(self._specific_cost, 2)
 
     def __str__(self) -> str:
         return self._name if self._name else "Electrode Formulation"

@@ -184,7 +184,8 @@ class CurrentCollector:
                  width: float,
                  bare_area: float,
                  thickness: float,
-                 specific_cost: float = None):
+                 specific_cost: float = None,
+                 density: float = None):
         """
         Initialize an object that represents a current collector.
         
@@ -198,10 +199,11 @@ class CurrentCollector:
         :param density: float: density of the material in g/cm^3
         """
         # Database values
-        self._formula = formula.capitalize()
+        self._formula = formula
         self.set_properties_from_database()
         self._check_formula(formula)
         self._check_specific_cost(specific_cost)
+        self._check_density(density)
         self._check_length(length)
         self._check_width(width)
         self._check_bare_area(bare_area)
@@ -236,13 +238,25 @@ class CurrentCollector:
             
             self._specific_cost = float(specific_cost)
 
+    def _check_density(self, density: float):
+
+        if density is not None:
+
+            if not isinstance(density, (int, float)):
+                raise TypeError("Density must be a number.")
+            
+            if density < 0:
+                raise ValueError("Density cannot be negative.")
+            
+            self._density = float(density) * G_TO_KG / CM_TO_M**3
+
     def _check_length(self, length: float):
 
         if not isinstance(length, (int, float)):
             raise TypeError("Length must be a number.")
         
-        if length < 0:
-            raise ValueError("Length cannot be negative.")
+        if length <= 0:
+            raise ValueError("Length cannot be negative or equal to 0.")
         
         self._length = float(length) * CM_TO_M
 
@@ -251,8 +265,8 @@ class CurrentCollector:
         if not isinstance(width, (int, float)):
             raise TypeError("Width must be a number.")
         
-        if width < 0:
-            raise ValueError("Width cannot be negative.")
+        if width <= 0:
+            raise ValueError("Width cannot be negative or equal to 0.")
         
         self._width = float(width) * CM_TO_M
 
@@ -275,6 +289,13 @@ class CurrentCollector:
             raise ValueError("Thickness cannot be negative.")
         
         self._thickness = float(thickness) * UM_TO_M
+
+    @staticmethod
+    def get_available_materials() -> list:
+        data_path = os.path.join(os.path.dirname(__file__), '../../Data/materials_properties.db')
+        materials_database = DataManager(data_path)
+        available_materials = materials_database.get_unique_values('current_collectors', 'formula')
+        return available_materials
 
     def set_properties_from_database(self):
         """
@@ -395,7 +416,8 @@ class NotchedCurrentCollector(CurrentCollector):
                  tab_length: float,
                  tab_spacing: float,
                  bare_length: float,
-                 specific_cost: float = None
+                 specific_cost: float = None,
+                 density: float = None,
                  ):
         """
         Initialize an object that represents a notched current collector.
@@ -411,6 +433,7 @@ class NotchedCurrentCollector(CurrentCollector):
         :param tab_width: float: width of the notch in cm
         :param tab_length: float: length of the notch in cm
         :param tab_spacing: float: spacing between the notches in cm
+        :param density: float: density of the material in g/cm^3
         """
         self._check_tab_width(tab_width)
         self._check_tab_length(tab_length)
@@ -426,7 +449,8 @@ class NotchedCurrentCollector(CurrentCollector):
                          width=width,
                          bare_area=bare_area,
                          thickness=thickness,
-                         specific_cost=specific_cost)
+                         specific_cost=specific_cost,
+                         density=density)
 
     def _check_tab_width(self, tab_width: float):
 
@@ -450,13 +474,13 @@ class NotchedCurrentCollector(CurrentCollector):
 
     def _check_tab_spacing(self, tab_spacing: float):
 
-            if not isinstance(tab_spacing, (int, float)):
-                raise TypeError("Tab spacing must be a number.")
-            
-            if tab_spacing < 0:
-                raise ValueError("Tab spacing cannot be negative.")
-            
-            self._tab_spacing = float(tab_spacing) * CM_TO_M
+        if not isinstance(tab_spacing, (int, float)):
+            raise TypeError("Tab spacing must be a number.")
+        
+        if tab_spacing < 0:
+            raise ValueError("Tab spacing cannot be negative.")
+        
+        self._tab_spacing = float(tab_spacing) * CM_TO_M
 
     def _check_bare_length(self, bare_length: float):
         
@@ -524,36 +548,38 @@ class NotchedCurrentCollector(CurrentCollector):
         fig = go.Figure()
 
         bottom_left = (0, 0)
-        bottom_right = (self._length, 0)
-        top_right = (self._length, self._width)
-        top_left = (0, self._width)
+        bottom_right = (self.length, 0)
+        top_right = (self.length, self.width)
+        top_left = (0, self.width)
         x = [bottom_left[0], bottom_right[0], top_right[0], top_left[0], bottom_left[0]]
         y = [bottom_left[1], bottom_right[1], top_right[1], top_left[1], bottom_left[1]]
         main_body = pd.DataFrame({'x': x, 'y': y})
         fig.add_trace(go.Scatter(x=main_body['x'], y=main_body['y'], mode='lines', name='Main Body', line=dict(width=0), fillcolor='grey', fill='toself'))
 
         covered_bottom_left = (0, 0)
-        covered_bottom_right = (self._length - self._bare_length, 0)
-        covered_top_right = (self._length - self._bare_length, self._width)
-        covered_top_left = (0, self._width)
+        covered_bottom_right = (self.length - self.bare_length, 0)
+        covered_top_right = (self.length - self.bare_length, self.width)
+        covered_top_left = (0, self.width)
         x = [covered_bottom_left[0], covered_bottom_right[0], covered_top_right[0], covered_top_left[0], covered_bottom_left[0]]
         y = [covered_bottom_left[1], covered_bottom_right[1], covered_top_right[1], covered_top_left[1], covered_bottom_left[1]]
         covered_area = pd.DataFrame({'x': x, 'y': y})
         fig.add_trace(go.Scatter(x=covered_area['x'], y=covered_area['y'], mode='lines', name='Covered Area', line=dict(width=0), fillcolor='black', fill='toself'))
 
         for (pos, len) in zip(self._tab_positions, self._tab_lengths):
-            tab_bottom_left = (pos-len/2, self._width)
-            tab_bottom_right = (pos+len/2, self._width)
-            tab_top_right = (pos+len/2, self._width + self._tab_width)
-            tab_top_left = (pos-len/2, self._width + self._tab_width)
+            pos = pos * M_TO_CM
+            len = len * M_TO_CM
+            tab_bottom_left = (pos-len/2, self.width)
+            tab_bottom_right = (pos+len/2, self.width)
+            tab_top_right = (pos+len/2, self.width + self.tab_width)
+            tab_top_left = (pos-len/2, self.width + self.tab_width)
             x = [tab_bottom_left[0], tab_bottom_right[0], tab_top_right[0], tab_top_left[0], tab_bottom_left[0]]
             y = [tab_bottom_left[1], tab_bottom_right[1], tab_top_right[1], tab_top_left[1], tab_bottom_left[1]]
             tab = pd.DataFrame({'x': x, 'y': y})
             fig.add_trace(go.Scatter(x=tab['x'], y=tab['y'], mode='lines', name='Tab', line=dict(width=0), fillcolor='grey', fill='toself'))
 
         fig.update_layout(title=f'{self._name} Current Collector',
-                          xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="y"),
-                          yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                          xaxis=dict(showgrid=False, scaleanchor="y", title='Length (cm)'),
+                          yaxis=dict(showgrid=False, title='Width (cm)'),
                           paper_bgcolor='white',
                           plot_bgcolor='white',
                           showlegend=False)
@@ -577,6 +603,30 @@ class NotchedCurrentCollector(CurrentCollector):
         return round(self._bare_length * M_TO_CM, 2)
 
 
+class TablessCurrentCollector(NotchedCurrentCollector):
+
+    def __init__(self, 
+                 formula: str, 
+                 length: float,
+                 width: float,
+                 thickness: float,
+                 tab_width: float,
+                 bare_length: float,
+                 specific_cost: float = None,
+                 density: float = None):
+
+        super().__init__(formula=formula, 
+                         length=length,
+                         width=width,
+                         thickness=thickness,
+                         tab_width=tab_width,
+                         tab_length=length,
+                         tab_spacing=0,
+                         bare_length=bare_length,
+                         specific_cost=specific_cost,
+                         density=density)
+
+
 class TabWeldedCurrentCollector(CurrentCollector):
 
     def __init__(self,
@@ -588,7 +638,8 @@ class TabWeldedCurrentCollector(CurrentCollector):
                  weld_tab_spacing: float,
                  first_tab_spacing: float,
                  bare_length: float,
-                 specific_cost: float = None):
+                 specific_cost: float = None,
+                 density: float = None):
         """
         Initialize an object that represents a current collector with tabs welded on it.
 
@@ -601,6 +652,7 @@ class TabWeldedCurrentCollector(CurrentCollector):
         :param first_tab_spacing: float: spacing between the first tab and the edge of the current collector in cm
         :param bare_length: float: length of the current collector that is not coated with the electrode material in cm
         :param specific_cost: float: specific cost of the material $/kg. By default it will pull this from the database
+        :param density: float: density of the material in g/cm^3
         """
         self._check_weld_tab_spacing(weld_tab_spacing, weld_tab)
         self._check_width(width)
@@ -616,7 +668,8 @@ class TabWeldedCurrentCollector(CurrentCollector):
                          width=width,
                          bare_area=bare_area,
                          thickness=thickness,
-                         specific_cost=specific_cost)
+                         specific_cost=specific_cost,
+                         density=density)
 
     def _check_weld_tab_spacing(self, weld_tab_spacing: float, weld_tab: WeldTab):
 
@@ -759,3 +812,5 @@ class TabWeldedCurrentCollector(CurrentCollector):
     @property
     def bare_length(self) -> float:
         return round(self._bare_length * M_TO_CM, 2)
+
+

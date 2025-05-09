@@ -21,8 +21,8 @@ class TestCylindricalCase(unittest.TestCase):
                                              wall_thickness=0.3)
         
         # build the terminals
-        pos_terminal = Terminal(mass = 1, specific_cost = 16, thickness=2)
-        neg_terminal = Terminal(mass = 1, specific_cost = 16, thickness=2)
+        pos_terminal = Terminal(mass = 1, specific_cost = 16, thickness=0.4)
+        neg_terminal = Terminal(mass = 1, specific_cost = 16, thickness=0.4)
 
         self.case = CylindricalCase(shell=cylindrical_shell,
                                     positive_terminal=pos_terminal,
@@ -34,6 +34,8 @@ class TestCylindricalCase(unittest.TestCase):
         self.assertEqual(round(self.case._mass, 4), 0.005)
         self.assertEqual(self.case.mass, 5)
         fig = self.case.get_top_down_view()
+        # fig.show()
+        fig = self.case.get_side_view()
         # fig.show()
 
 
