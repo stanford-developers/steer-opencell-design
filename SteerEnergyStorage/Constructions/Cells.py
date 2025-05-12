@@ -169,7 +169,7 @@ class _Cell:
         if not isinstance(irreversible_capacity, (int, float)):
             raise ValueError("Irreversible capacity must be a number")
         
-        if irreversible_capacity <= 0:
+        if irreversible_capacity < 0:
             raise ValueError("Irreversible capacity must be greater than 0")
         
         self._irreversible_capacity = irreversible_capacity * H_TO_S

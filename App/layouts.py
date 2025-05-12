@@ -2,14 +2,23 @@ import dash as ds
 from styles import *
 from custom_components import SliderWithTextInput, RangeSliderWithTextInput, CurrentCollectorSelector
 
+from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector
+from SteerEnergyStorage.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial
+
 BUTTON_DIV_STYLE = {'display': 'flex', 'gap': '10px', 'margin-left': '-10px'}
+
+##########
+current_collector_materials = [m for m in CurrentCollector.get_available_materials()]
+active_materials_cathode = [m for m in CathodeMaterial.get_available_materials()]
+active_materials_anode = [m for m in AnodeMaterial.get_available_materials()]
+##########
 
 
 data_stores = ds.html.Div([
     ds.dcc.Store(id='app-load-trigger', data={}),
-    ds.dcc.Store(id={'type': 'store', 'object': 'currrent_collector', 'type': 'materials'}),
-    ds.dcc.Store(id={'type': 'store', 'electrode': 'cathode'}),
-    ds.dcc.Store(id={'type': 'store', 'electrode': 'anode'}),
+    ds.dcc.Store(id={'type': 'store', 'object': 'currrent_collector', 'type': 'materials'}, data=current_collector_materials),
+    ds.dcc.Store(id={'type': 'store', 'electrode': 'cathode'}, data=active_materials_cathode),
+    ds.dcc.Store(id={'type': 'store', 'electrode': 'anode'}, data=active_materials_anode),
     ds.dcc.Store(id={'type': 'store', 'electrode': 'cathode', 'object': 'formulation'}),
     ds.dcc.Store(id={'type': 'store', 'electrode': 'anode', 'object': 'formulation'}),
     ds.dcc.Store(id={'type': 'store', 'component': 'separator'}),
@@ -265,7 +274,6 @@ electrodes = ds.html.Div([
 ], style={'padding-left': '20px', 'width': '100%'})
 
 
-
 separator_electrolyte = ds.html.Div([
 
     ds.html.Br(), ds.html.Br(),
@@ -334,7 +342,8 @@ cell_analysis = ds.html.Div([
         'width': '40%',
         'height': 'calc(200vw)',
         'background-color': '#e3e5e6',
-        'padding': '10px'
+        'padding': '10px',
+        'overflow': 'auto',
         }
 )
 

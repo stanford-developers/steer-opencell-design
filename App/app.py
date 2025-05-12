@@ -16,7 +16,7 @@ def create_app():
         ds.html.Br(), ds.html.Br(), 
 
         layouts.data_stores,
-        
+
         ds.html.H1('Cell Design Tool', style=HEADER_STYLE | {'padding-left': '10px'}),
         ds.html.Br(), ds.html.Br(), 
 
