@@ -316,6 +316,7 @@ class _ElectrodeAssembly():
         else:
             raise AttributeError("Anode mass breakdown not calculated yet.")
 
+
 class _JellyRoll(_ElectrodeAssembly):
 
     def __init__(self, 
@@ -578,7 +579,7 @@ class CylindricalJellyRoll(_JellyRoll):
         self._n_turns = theta_max / (2 * np.pi)
         self._spiral = spiral
 
-    def get_top_down_view(self, **kwargs) -> None:
+    def get_top_down_view(self, encapsulation = None, **kwargs) -> None:
         """
         Function to show the jelly roll wrapped up 
         """
@@ -636,6 +637,10 @@ class CylindricalJellyRoll(_JellyRoll):
         # cathode active layer 2
         plot_data, edge_data = get_coil(edge_data, self._cathode._material_thickness)
         fig.add_trace(go.Scatter(x=plot_data['X (cm)'], y=plot_data['Y (cm)'], mode='lines', name='Cathode', line=dict(width=0, shape='spline'), fillcolor='#FF6F61', fill='toself'))
+
+        if encapsulation is not None:
+            for trace in encapsulation.get_top_down_view().data:
+                fig.add_trace(trace)
 
         fig.update_layout(xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title="X (cm)"),
                           yaxis=dict(showgrid=False, zeroline=False, title="Y (cm)"),

@@ -404,7 +404,7 @@ class CylindricalCase:
 
         data = pd.concat([self.outer_circle.copy(), self.inner_circle.copy()])
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=data['X [cm]'], y=data['Y [cm]'], mode='lines', name='Shell', line=dict(width=0, shape='spline'), fillcolor='black', fill='toself'))
+        fig.add_trace(go.Scatter(x=data['X [cm]'], y=data['Y [cm]'], mode='lines', name='Case', line=dict(width=0, shape='spline'), fillcolor='black', fill='toself'))
 
         fig.update_layout(title=f'{self.name} top down view',
                           xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='X [cm]'),
