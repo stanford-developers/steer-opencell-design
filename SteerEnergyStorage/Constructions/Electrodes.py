@@ -15,6 +15,7 @@ KG_TO_G = 1e3
 M_TO_UM = 1e6
 S_TO_H = 1/3600
 
+
 class _Electrode:
 
     def __init__(self, 
@@ -490,6 +491,7 @@ class Anode(_Electrode):
 
 
 class Cathode(_Electrode):
+    
     def __init__(self, 
                  formulation: ElectrodeFormulation,
                  mass_loading: float,

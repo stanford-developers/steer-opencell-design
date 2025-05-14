@@ -12,6 +12,8 @@ UM_TO_M = 1e-6
 M_TO_UM = 1e6
 G_TO_KG = 1e-3
 KG_TO_G = 1e3
+MM_TO_M = 1e-3
+M_TO_MM = 1e3
 
 
 class WeldTab:
@@ -27,8 +29,8 @@ class WeldTab:
         Initialize an object that represents a weld tab used on current collectors
 
         :param formula: str: chemical formula of the material
-        :param width: float: width of the tab in cm
-        :param length: float: length of the tab in cm
+        :param width: float: width of the tab in mm
+        :param length: float: length of the tab in mm
         :param thickness: float: thickness of the tab in um
         :param specific_cost: float: specific cost of the material $/kg. By default it will pull this from the database
         :param name: str: name of the material
@@ -66,7 +68,7 @@ class WeldTab:
         if width < 0:
             raise ValueError("Width cannot be negative.")
         
-        self._width = float(width) * CM_TO_M
+        self._width = float(width) * MM_TO_M
 
     def _check_length(self, length: float):
 
@@ -76,7 +78,7 @@ class WeldTab:
         if length < 0:
             raise ValueError("Length cannot be negative.")
         
-        self._length = float(length) * CM_TO_M
+        self._length = float(length) * MM_TO_M
 
     def _check_thickness(self, thickness: float):
 
@@ -130,11 +132,11 @@ class WeldTab:
     
     @property
     def width(self) -> float:
-        return round(self._width * M_TO_CM, 2)
+        return round(self._width * M_TO_MM, 2)
     
     @property
     def length(self) -> float:
-        return round(self._length * M_TO_CM, 2)
+        return round(self._length * M_TO_MM, 2)
     
     @property
     def thickness(self) -> float:
@@ -155,7 +157,7 @@ class WeldTab:
     @property
     def position(self) -> float:
         if hasattr(self, '_position'):
-            return self._position * M_TO_CM
+            return self._position * M_TO_MM
         else:
             raise AttributeError("The position of the tab has not been set. Put in a TabWeldedCurrentCollector object to calculate the position.")
 
@@ -171,10 +173,6 @@ class WeldTab:
     def cost(self) -> float:
         return round(self._cost, 2)
 
-    @property
-    def position(self) -> float:
-        return self._position * M_TO_CM
-    
 
 class CurrentCollector:
 
@@ -192,9 +190,9 @@ class CurrentCollector:
         :param name: str: name of the material
         :param formula: str: chemical formula of the material
         :param specific_cost: float: specific cost of the material $/kg. By default it will pull this from the database
-        :param length: float: length of the current collector in cm
-        :param width: float: width of the current collector in cm
-        :param bare_area: float: area of the current collector that is not coated with the electrode material in cm^2
+        :param length: float: length of the current collector in mm
+        :param width: float: width of the current collector in mm
+        :param bare_area: float: area of the current collector that is not coated with the electrode material in mm^2
         :param thickness: float: thickness of the current collector in um
         :param density: float: density of the material in g/cm^3
         """
@@ -258,7 +256,7 @@ class CurrentCollector:
         if length <= 0:
             raise ValueError("Length cannot be negative or equal to 0.")
         
-        self._length = float(length) * CM_TO_M
+        self._length = float(length) * MM_TO_M
 
     def _check_width(self, width: float):
 
@@ -268,7 +266,7 @@ class CurrentCollector:
         if width <= 0:
             raise ValueError("Width cannot be negative or equal to 0.")
         
-        self._width = float(width) * CM_TO_M
+        self._width = float(width) * MM_TO_M
 
     def _check_bare_area(self, bare_area: float):
 
@@ -278,7 +276,7 @@ class CurrentCollector:
         if bare_area < 0:
             raise ValueError("Bare area cannot be negative.")
         
-        self._bare_area = float(bare_area) * CM_TO_M**2
+        self._bare_area = float(bare_area) * MM_TO_M**2
 
     def _check_thickness(self, thickness: float):
 
@@ -339,8 +337,8 @@ class CurrentCollector:
         fig.add_trace(go.Scatter(x=main_plot['x'], y=main_plot['y'], mode='lines', name='Main Body', line=dict(color='black'), fillcolor='black', fill='toself'))
         fig.add_trace(go.Scatter(x=tab_plot['x'], y=tab_plot['y'], mode='lines', name='Tab', line=dict(width=0), fillcolor='grey', fill='toself'))
         fig.update_layout(title=f'{self._name} Current Collector',
-                          xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="y"),
-                          yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                          xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='Length (mm)'),
+                          yaxis=dict(showgrid=False, zeroline=False, title='Width (mm)'),
                           paper_bgcolor='white',
                           plot_bgcolor='white',
                           showlegend=False)
@@ -349,11 +347,11 @@ class CurrentCollector:
 
     @property
     def length(self) -> float:
-        return round(self._length * M_TO_CM, 2)
+        return round(self._length * M_TO_MM, 2)
     
     @property
     def width(self) -> float:
-        return round(self._width * M_TO_CM, 2)
+        return round(self._width * M_TO_MM, 2)
     
     @property
     def coated_area(self) -> float:
@@ -376,7 +374,7 @@ class CurrentCollector:
 
     @property
     def bare_area(self) -> float:
-        return round(self._bare_area * M_TO_CM**2, 4)
+        return round(self._bare_area * M_TO_MM**2, 4)
     
     @property
     def area(self) -> float:
@@ -422,11 +420,13 @@ class PunchedCurrentCollector(CurrentCollector):
         
         :param name: str: name of the material
         :param formula: str: chemical formula of the material
-        :param specific_cost: float: specific cost of the material $/kg. By default it will pull this from the database
-        :param length: float: length of the current collector in cm
-        :param width: float: width of the current collector in cm
-        :param bare_area: float: area of the current collector that is not coated with the electrode material in cm^2
+        :param length: float: length of the current collector in mm
+        :param width: float: width of the current collector in mm
+        :param tab_width: float: width of the tab in mm
+        :param tab_height: float: height of the tab in mm
+        :param tab_position: float: position of the tab in mm
         :param thickness: float: thickness of the current collector in um
+        :param specific_cost: float: specific cost of the material $/kg. By default it will pull this from the database
         :param density: float: density of the material in g/cm^3
         """
         self._check_tab_width(tab_width)
@@ -475,8 +475,8 @@ class PunchedCurrentCollector(CurrentCollector):
             fig.update_layout(height=height)
 
         fig.update_layout(title=f'Punched Current Collector',
-                          xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y"),
-                          yaxis=dict(showgrid=False, zeroline=False),
+                          xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='Length (mm)'),
+                          yaxis=dict(showgrid=False, zeroline=False, title='Width (mm)'),
                           paper_bgcolor='white',
                           plot_bgcolor='white',
                           showlegend=False)
@@ -491,7 +491,7 @@ class PunchedCurrentCollector(CurrentCollector):
         if tab_width < 0:
             raise ValueError("Tab width cannot be negative.")
         
-        self._tab_width = float(tab_width) * CM_TO_M
+        self._tab_width = float(tab_width) * MM_TO_M
 
     def _check_tab_height(self, tab_height: float):
 
@@ -501,7 +501,7 @@ class PunchedCurrentCollector(CurrentCollector):
         if tab_height < 0:
             raise ValueError("Tab length cannot be negative.")
         
-        self._tab_height = float(tab_height) * CM_TO_M
+        self._tab_height = float(tab_height) * MM_TO_M
 
     def _check_tab_position(self, tab_position: float):
 
@@ -514,19 +514,19 @@ class PunchedCurrentCollector(CurrentCollector):
         if tab_position + self.tab_width/2 > self.length:
             raise ValueError("Tab position plus half the tab width cannot be greater than the length of the current collector.")
         
-        self._tab_position = float(tab_position) * CM_TO_M
+        self._tab_position = float(tab_position) * MM_TO_M
 
     @property
     def tab_width(self) -> float:
-        return round(self._tab_width * M_TO_CM, 2)
+        return round(self._tab_width * M_TO_MM, 2)
     
     @property
     def tab_height(self) -> float:
-        return round(self._tab_height * M_TO_CM, 2)
+        return round(self._tab_height * M_TO_MM, 2)
     
     @property
     def tab_position(self) -> float:
-        return round(self._tab_position * M_TO_CM, 2)
+        return round(self._tab_position * M_TO_MM, 2)
 
 
 class NotchedCurrentCollector(CurrentCollector):
@@ -548,15 +548,15 @@ class NotchedCurrentCollector(CurrentCollector):
         
         :param name: str: name of the material
         :param formula: str: chemical formula of the material
-        :param specific_cost: float: specific cost of the material $/kg. By default it will pull this from the database
-        :param length: float: length of the current collector in cm
-        :param width: float: width of the current collector in cm
-        :param bare_length: float: length of the current collector that is not coated with the electrode material in cm
+        :param length: float: length of the current collector in mm
+        :param width: float: width of the current collector in mm
+        :param bare_length: float: length of the current collector that is not coated with the electrode material in mm
         :param thickness: float: thickness of the current collector in um
         :param density: float: density of the material in g/cm^3
-        :param tab_width: float: width of the notch in cm
-        :param tab_length: float: length of the notch in cm
-        :param tab_spacing: float: spacing between the notches in cm
+        :param tab_width: float: width of the notch in mm
+        :param tab_length: float: length of the notch in mm
+        :param tab_spacing: float: spacing between the notches in mm
+        :param specific_cost: float: specific cost of the material $/kg. By default it will pull this from the database
         :param density: float: density of the material in g/cm^3
         """
         self._check_tab_width(tab_width)
@@ -584,7 +584,7 @@ class NotchedCurrentCollector(CurrentCollector):
         if tab_width < 0:
             raise ValueError("Tab width cannot be negative.")
         
-        self._tab_width = float(tab_width) * CM_TO_M
+        self._tab_width = float(tab_width) * MM_TO_M
 
     def _check_tab_length(self, tab_length: float):
 
@@ -594,7 +594,7 @@ class NotchedCurrentCollector(CurrentCollector):
         if tab_length < 0:
             raise ValueError("Tab length cannot be negative.")
         
-        self._tab_length = float(tab_length) * CM_TO_M
+        self._tab_length = float(tab_length) * MM_TO_M
 
     def _check_tab_spacing(self, tab_spacing: float):
 
@@ -604,7 +604,7 @@ class NotchedCurrentCollector(CurrentCollector):
         if tab_spacing < 0:
             raise ValueError("Tab spacing cannot be negative.")
         
-        self._tab_spacing = float(tab_spacing) * CM_TO_M
+        self._tab_spacing = float(tab_spacing) * MM_TO_M
 
     def _check_bare_length(self, bare_length: float):
         
@@ -614,7 +614,7 @@ class NotchedCurrentCollector(CurrentCollector):
         if bare_length < 0:
             raise ValueError("Bare length cannot be negative.")
         
-        self._bare_length = float(bare_length) * CM_TO_M
+        self._bare_length = float(bare_length) * MM_TO_M
 
     def _calculate_bare_tab_area(self, tab_width: float, tab_length: float, tab_spacing: float, length: float, bare_length: float, width: float):
         """
@@ -649,9 +649,9 @@ class NotchedCurrentCollector(CurrentCollector):
 
         tab_areas = [l * tab_width for l in tab_lengths]
 
-        self._tab_positions = [t * CM_TO_M for t in tab_positions]
-        self._tab_lengths = [l * CM_TO_M for l in tab_lengths]
-        self._tab_areas = [a * CM_TO_M**2 for a in tab_areas]
+        self._tab_positions = [t * MM_TO_M for t in tab_positions]
+        self._tab_lengths = [l * MM_TO_M for l in tab_lengths]
+        self._tab_areas = [a * MM_TO_M**2 for a in tab_areas]
 
         bare_area = sum(tab_areas) + (bare_length * width)
 
@@ -690,8 +690,8 @@ class NotchedCurrentCollector(CurrentCollector):
         fig.add_trace(go.Scatter(x=covered_area['x'], y=covered_area['y'], mode='lines', name='Covered Area', line=dict(width=0), fillcolor='black', fill='toself'))
 
         for (pos, len) in zip(self._tab_positions, self._tab_lengths):
-            pos = pos * M_TO_CM
-            len = len * M_TO_CM
+            pos = pos * M_TO_MM
+            len = len * M_TO_MM
             tab_bottom_left = (pos-len/2, self.width)
             tab_bottom_right = (pos+len/2, self.width)
             tab_top_right = (pos+len/2, self.width + self.tab_width)
@@ -707,8 +707,8 @@ class NotchedCurrentCollector(CurrentCollector):
             fig.update_layout(height=height)
 
         fig.update_layout(title=f'{self._name} Current Collector',
-                          xaxis=dict(showgrid=False, scaleanchor="y", title='Length (cm)'),
-                          yaxis=dict(showgrid=False, title='Width (cm)'),
+                          xaxis=dict(showgrid=False, scaleanchor="y", title='Length (mm)'),
+                          yaxis=dict(showgrid=False, title='Width (mm)'),
                           paper_bgcolor='white',
                           plot_bgcolor='white',
                           showlegend=False)
@@ -717,19 +717,19 @@ class NotchedCurrentCollector(CurrentCollector):
 
     @property
     def tab_width(self) -> float:
-        return round(self._tab_width * M_TO_CM, 2)
+        return round(self._tab_width * M_TO_MM, 2)
     
     @property
     def tab_length(self) -> float:
-        return round(self._tab_length * M_TO_CM, 2)
+        return round(self._tab_length * M_TO_MM, 2)
     
     @property
     def tab_spacing(self) -> float:
-        return round(self._tab_spacing * M_TO_CM, 2)
+        return round(self._tab_spacing * M_TO_MM, 2)
     
     @property
     def bare_length(self) -> float:
-        return round(self._bare_length * M_TO_CM, 2)
+        return round(self._bare_length * M_TO_MM, 2)
 
 
 class TablessCurrentCollector(NotchedCurrentCollector):
@@ -743,6 +743,19 @@ class TablessCurrentCollector(NotchedCurrentCollector):
                  bare_length: float,
                  specific_cost: float = None,
                  density: float = None):
+        """
+        Initialize an object that represents a tabless current collector.
+
+        :param name: str: name of the material
+        :param formula: str: chemical formula of the material
+        :param length: float: length of the current collector in mm
+        :param width: float: width of the current collector in mm
+        :param thickness: float: thickness of the current collector in um
+        :param tab_width: float: width of the tab in mm
+        :param bare_length: float: length of the current collector that is not coated with the electrode material in mm
+        :param specific_cost: float: specific cost of the material $/kg. By default it will pull this from the database
+        :param density: float: density of the material in g/cm^3
+        """
 
         super().__init__(formula=formula, 
                          length=length,
@@ -773,13 +786,13 @@ class TabWeldedCurrentCollector(CurrentCollector):
         Initialize an object that represents a current collector with tabs welded on it.
 
         :param formula: str: chemical formula of the material
-        :param length: float: length of the current collector in cm
-        :param width: float: width of the current collector in cm
+        :param length: float: length of the current collector in mm
+        :param width: float: width of the current collector in mm
         :param thickness: float: thickness of the current collector in um
         :param weld_tab: WeldTab: object representing the weld tab
-        :param weld_tab_spacing: float: spacing between the tabs in cm
-        :param first_tab_spacing: float: spacing between the first tab and the edge of the current collector in cm
-        :param bare_length: float: length of the current collector that is not coated with the electrode material in cm
+        :param weld_tab_spacing: float: spacing between the tabs in mm
+        :param first_tab_spacing: float: spacing between the first tab and the edge of the current collector in mm
+        :param bare_length: float: length of the current collector that is not coated with the electrode material in mm
         :param specific_cost: float: specific cost of the material $/kg. By default it will pull this from the database
         :param density: float: density of the material in g/cm^3
         """
@@ -808,7 +821,7 @@ class TabWeldedCurrentCollector(CurrentCollector):
         if weld_tab_spacing < 0:
             raise ValueError("Weld tab spacing cannot be negative.")
         
-        self._weld_tab_spacing = float(weld_tab_spacing) * CM_TO_M
+        self._weld_tab_spacing = float(weld_tab_spacing) * MM_TO_M
 
     def _check_first_tab_spacing(self, first_tab_spacing: float, weld_tab: WeldTab):
         
@@ -818,7 +831,7 @@ class TabWeldedCurrentCollector(CurrentCollector):
         if first_tab_spacing < 0:
             raise ValueError("First tab spacing cannot be negative.")
                 
-        self._first_tab_spacing = float(first_tab_spacing) * CM_TO_M
+        self._first_tab_spacing = float(first_tab_spacing) * MM_TO_M
 
         if self._first_tab_spacing + weld_tab._width > self._length:
             raise ValueError("First tab spacing cannot be greater than the length of the current collector.")
@@ -831,7 +844,7 @@ class TabWeldedCurrentCollector(CurrentCollector):
         if bare_length < 0:
             raise ValueError("Bare length cannot be negative.")
         
-        self._bare_length = float(bare_length) * CM_TO_M
+        self._bare_length = float(bare_length) * MM_TO_M
 
     def _check_and_copy_weld_tab(self, weld_tab: WeldTab):
 
@@ -878,7 +891,7 @@ class TabWeldedCurrentCollector(CurrentCollector):
             elif tab_end > coat_point and tab_start < coat_point:
                 bare_area += (coat_point - tab_start) * self._width
         
-        return bare_area * M_TO_CM**2
+        return bare_area * M_TO_MM**2
 
     def _calculate_properties(self):
         self._coated_area = (self._length * self._width) - self._bare_area
@@ -894,28 +907,28 @@ class TabWeldedCurrentCollector(CurrentCollector):
         fig = go.Figure()
 
         bottom_left = (0, 0)
-        bottom_right = (self._length, 0)
-        top_right = (self._length, self._width)
-        top_left = (0, self._width)
+        bottom_right = (self.length, 0)
+        top_right = (self.length, self.width)
+        top_left = (0, self.width)
         x = [bottom_left[0], bottom_right[0], top_right[0], top_left[0], bottom_left[0]]
         y = [bottom_left[1], bottom_right[1], top_right[1], top_left[1], bottom_left[1]]
         main_body = pd.DataFrame({'x': x, 'y': y})
         fig.add_trace(go.Scatter(x=main_body['x'], y=main_body['y'], mode='lines', name='Main Body', line=dict(width=0), fillcolor='grey', fill='toself'))
 
         covered_bottom_left = (0, 0)
-        covered_bottom_right = (self._length - self._bare_length, 0)
-        covered_top_right = (self._length - self._bare_length, self._width)
-        covered_top_left = (0, self._width)
+        covered_bottom_right = (self.length - self.bare_length, 0)
+        covered_top_right = (self.length - self.bare_length, self.width)
+        covered_top_left = (0, self.width)
         x = [covered_bottom_left[0], covered_bottom_right[0], covered_top_right[0], covered_top_left[0], covered_bottom_left[0]]
         y = [covered_bottom_left[1], covered_bottom_right[1], covered_top_right[1], covered_top_left[1], covered_bottom_left[1]]
         covered_area = pd.DataFrame({'x': x, 'y': y})
         fig.add_trace(go.Scatter(x=covered_area['x'], y=covered_area['y'], mode='lines', name='Covered Area', line=dict(width=0), fillcolor='black', fill='toself'))
 
         for tab in self._weld_tabs:
-            tab_bottom_left = (tab._position - tab._width/2, 0)
-            tab_bottom_right = (tab._position + tab._width/2, 0)
-            tab_top_right = (tab._position + tab._width/2, tab._length)
-            tab_top_left = (tab._position - tab._width/2, tab._length)
+            tab_bottom_left = (tab.position - tab.width/2, 0)
+            tab_bottom_right = (tab.position + tab.width/2, 0)
+            tab_top_right = (tab.position + tab.width/2, tab.length)
+            tab_top_left = (tab.position - tab.width/2, tab.length)
             x = [tab_bottom_left[0], tab_bottom_right[0], tab_top_right[0], tab_top_left[0], tab_bottom_left[0]]
             y = [tab_bottom_left[1], tab_bottom_right[1], tab_top_right[1], tab_top_left[1], tab_bottom_left[1]]
             tab_plot = pd.DataFrame({'x': x, 'y': y})
@@ -927,8 +940,8 @@ class TabWeldedCurrentCollector(CurrentCollector):
             fig.update_layout(height=height)
 
         fig.update_layout(title=f'{self._name} Current Collector',
-                          xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="y"),
-                          yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+                          xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='Length (mm)'),
+                          yaxis=dict(showgrid=False, zeroline=False, title='Width (mm)'),
                           paper_bgcolor='white',
                           plot_bgcolor='white',
                           showlegend=False)
@@ -937,14 +950,14 @@ class TabWeldedCurrentCollector(CurrentCollector):
 
     @property
     def weld_tab_spacing(self) -> float:
-        return round(self._weld_tab_spacing * M_TO_CM, 2)
+        return round(self._weld_tab_spacing * M_TO_MM, 2)
     
     @property
     def first_tab_spacing(self) -> float:
-        return round(self._first_tab_spacing * M_TO_CM, 2)
+        return round(self._first_tab_spacing * M_TO_MM, 2)
     
     @property
     def bare_length(self) -> float:
-        return round(self._bare_length * M_TO_CM, 2)
+        return round(self._bare_length * M_TO_MM, 2)
 
 

@@ -16,6 +16,7 @@ KG_TO_G = 1000
 MM_TO_M = 0.001
 M_TO_MM = 1000
 
+
 class Pouch:
 
     def __init__(self,
@@ -138,14 +139,14 @@ class Pouch:
     @property
     def length(self) -> float:
         if hasattr(self, '_length'):
-            return round(self._length * M_TO_CM, 2)
+            return round(self._length * M_TO_MM, 2)
         else:
             raise AttributeError("The pouch needs to be used in a pouch cell to calculate its dimensions")
     
     @property
     def width(self) -> float:
         if hasattr(self, '_width'):
-            return round(self._width * M_TO_CM, 2)
+            return round(self._width * M_TO_MM, 2)
         else:
             raise AttributeError("The pouch needs to be used in a pouch cell to calculate its dimensions")
     
@@ -194,8 +195,8 @@ class CylindricalShell:
 
         :param cost: float: cost of the shell in $
         :param mass: float: mass of the shell in g
-        :param internal_radius: float: internal radius of the shell in cm
-        :param length: float: internal length of the shell in cm
+        :param internal_radius: float: internal radius of the shell in mm
+        :param length: float: internal length of the shell in mm
         :param wall_thickness: float: thickness of the shell wall in mm
         """
         self._check_cost(cost)
@@ -234,7 +235,7 @@ class CylindricalShell:
         if internal_radius <= 0:
             raise ValueError("Internal radius must be positive")
         
-        self._internal_radius = internal_radius * CM_TO_M
+        self._internal_radius = internal_radius * MM_TO_M
 
     def _check_length(self, length: float):
 
@@ -244,7 +245,7 @@ class CylindricalShell:
         if length <= 0:
             raise ValueError("Internal length must be positive")
         
-        self._length = length * CM_TO_M
+        self._length = length * MM_TO_M
 
     def _check_wall_thickness(self, wall_thickness: float):
 
@@ -271,19 +272,19 @@ class CylindricalShell:
 
     @property
     def external_radius(self) -> float:
-        return round(self._external_radius * M_TO_CM, 2)
+        return round(self._external_radius * M_TO_MM, 2)
     
     @property
     def external_length(self) -> float:
-        return round(self._internal_length * M_TO_CM, 2)
+        return round(self._internal_length * M_TO_MM, 2)
     
     @property
     def internal_volume(self) -> float:
-        return round(3.14 * (self._internal_radius**2) * self._internal_length * M_TO_CM**3, 2)
+        return round(3.14 * (self._internal_radius**2) * self._length * M_TO_CM**3, 2)
     
     @property
     def internal_radius(self) -> float:
-        return round(self._internal_radius * M_TO_CM, 2)
+        return round(self._internal_radius * M_TO_MM, 2)
     
     @property
     def wall_thickness(self) -> float:
@@ -404,11 +405,11 @@ class CylindricalCase:
 
         data = pd.concat([self.outer_circle.copy(), self.inner_circle.copy()])
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=data['X [cm]'], y=data['Y [cm]'], mode='lines', name='Case', line=dict(width=0, shape='spline'), fillcolor='black', fill='toself'))
+        fig.add_trace(go.Scatter(x=data['X [mm]'], y=data['Y [mm]'], mode='lines', name='Case', line=dict(width=0, shape='spline'), fillcolor='black', fill='toself'))
 
         fig.update_layout(title=f'{self.name} top down view',
-                          xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='X [cm]'),
-                          yaxis=dict(showgrid=False, zeroline=False, title='Y [cm]'),
+                          xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='X [mm]'),
+                          yaxis=dict(showgrid=False, zeroline=False, title='Y [mm]'),
                           paper_bgcolor='white',
                           plot_bgcolor='white',
                           showlegend=False)
@@ -442,8 +443,8 @@ class CylindricalCase:
         fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name='Negative Terminal', line=dict(width=0), fillcolor='grey', fill='toself'))
 
         fig.update_layout(title=f'{self.name} side view',
-                          xaxis=dict(showgrid=False, zeroline=False, title='X [cm]', scaleanchor="y"),
-                          yaxis=dict(showgrid=False, zeroline=False, title='Y [cm]'),
+                          xaxis=dict(showgrid=False, zeroline=False, title='X [mm]', scaleanchor="y"),
+                          yaxis=dict(showgrid=False, zeroline=False, title='Y [mm]'),
                           paper_bgcolor='white',
                           plot_bgcolor='white',
                           showlegend=False)
@@ -455,9 +456,9 @@ class CylindricalCase:
 
         return (self
                 ._inner_circle
-                .assign(x = lambda x: x['x'] * M_TO_CM)
-                .assign(y = lambda x: x['y'] * M_TO_CM)
-                .rename(columns={'x': 'X [cm]', 'y': 'Y [cm]'})
+                .assign(x = lambda x: x['x'] * M_TO_MM)
+                .assign(y = lambda x: x['y'] * M_TO_MM)
+                .rename(columns={'x': 'X [mm]', 'y': 'Y [mm]'})
                 )
     
     @property
@@ -465,9 +466,9 @@ class CylindricalCase:
 
         return (self
                 ._outer_circle
-                .assign(x = lambda x: x['x'] * M_TO_CM)
-                .assign(y = lambda x: x['y'] * M_TO_CM)
-                .rename(columns={'x': 'X [cm]', 'y': 'Y [cm]'})
+                .assign(x = lambda x: x['x'] * M_TO_MM)
+                .assign(y = lambda x: x['y'] * M_TO_MM)
+                .rename(columns={'x': 'X [mm]', 'y': 'Y [mm]'})
                 )
 
     @property
@@ -480,19 +481,19 @@ class CylindricalCase:
     
     @property
     def internal_radius(self) -> float:
-        return round(self._internal_radius * M_TO_CM, 2)
+        return round(self._internal_radius * M_TO_MM, 2)
     
     @property
     def internal_length(self) -> float:
-        return round(self._internal_length * M_TO_CM, 2)
+        return round(self._internal_length * M_TO_MM, 2)
     
     @property
     def external_radius(self) -> float:
-        return round(self._external_radius * M_TO_CM, 2)
+        return round(self._external_radius * M_TO_MM, 2)
     
     @property
     def external_length(self) -> float:
-        return round(self._external_length * M_TO_CM, 2)
+        return round(self._external_length * M_TO_MM, 2)
     
     @property
     def internal_volume(self) -> float:
@@ -522,8 +523,9 @@ class PrismaticShell:
 
         :param cost: float: cost of the shell in $
         :param mass: float: mass of the shell in g
-        :param internal_width: float: internal width of the shell in cm
-        :param internal_length: float: internal length of the shell in cm
+        :param internal_width: float: internal width of the shell in mm
+        :param internal_length: float: internal length of the shell in mm
+        :param internal_height: float: internal height of the shell in mm
         :param wall_thickness: float: thickness of the shell wall in mm
         """
         self._check_cost(cost)
@@ -570,7 +572,7 @@ class PrismaticShell:
         if internal_width <= 0:
             raise ValueError("Internal width must be positive")
         
-        self._internal_width = internal_width * CM_TO_M
+        self._internal_width = internal_width * MM_TO_M
 
     def _check_internal_length(self, internal_length: float):
 
@@ -580,7 +582,7 @@ class PrismaticShell:
         if internal_length <= 0:
             raise ValueError("Internal length must be positive")
         
-        self._internal_length = internal_length * CM_TO_M
+        self._internal_length = internal_length * MM_TO_M
 
     def _check_internal_height(self, internal_height: float):
 
@@ -590,7 +592,7 @@ class PrismaticShell:
         if internal_height <= 0:
             raise ValueError("Internal height must be positive")
         
-        self._internal_height = internal_height * CM_TO_M
+        self._internal_height = internal_height * MM_TO_M
 
     def _check_wall_thickness(self, wall_thickness: float):
 
@@ -614,38 +616,35 @@ class PrismaticShell:
 
     @property
     def external_width(self) -> float:
-        return round(self._external_width * M_TO_CM, 2)
+        return round(self._external_width * M_TO_MM, 2)
     
     @property
     def external_length(self) -> float:
-        return round(self._external_length * M_TO_CM, 2)
+        return round(self._external_length * M_TO_MM, 2)
     
     @property
     def external_height(self) -> float:
-        return round(self._external_height * M_TO_CM, 2)
-    
-    @property
-    def internal_volume(self) -> float:
-        return round(self._internal_volume * M_TO_CM**3, 2)
+        return round(self._external_height * M_TO_MM, 2)
     
     @property
     def internal_volume(self) -> float:
         return round(self._internal_volume * M_TO_CM**3, 2)
 
+    @property
     def external_volume(self) -> float:
         return round(self._external_volume * M_TO_CM**3, 2)
 
     @property
     def internal_width(self) -> float:
-        return round(self._internal_width * M_TO_CM, 2)
+        return round(self._internal_width * M_TO_MM, 2)
     
     @property
     def internal_length(self) -> float:
-        return round(self._internal_length * M_TO_CM, 2)
+        return round(self._internal_length * M_TO_MM, 2)
     
     @property
     def internal_height(self) -> float:
-        return round(self._internal_height * M_TO_CM, 2)
+        return round(self._internal_height * M_TO_MM, 2)
     
     @property
     def wall_thickness(self) -> float:
@@ -684,7 +683,8 @@ class PrismaticLid:
 
         :param cost: float: cost of the lid in $
         :param mass: float: mass of the lid in g
-        :param height: float: height of the lid in cm
+        :param internal_width: float: internal width of the lid in mm
+        :param external_width: float: external width of the lid in mm
         :param name: str: name of the lid
         """
         self._check_cost(cost)
@@ -721,7 +721,7 @@ class PrismaticLid:
         if internal_width <= 0:
             raise ValueError("Internal width must be positive")
         
-        self._internal_width = internal_width * CM_TO_M
+        self._internal_width = internal_width * MM_TO_M
 
     def _check_external_width(self, external_width: float):
 
@@ -731,7 +731,7 @@ class PrismaticLid:
         if external_width <= 0:
             raise ValueError("External width must be positive")
         
-        self._external_width = external_width * CM_TO_M
+        self._external_width = external_width * MM_TO_M
 
     def _check_name(self, name: str):
 
@@ -745,11 +745,11 @@ class PrismaticLid:
 
     @property
     def internal_width(self) -> float:
-        return round(self._internal_width * M_TO_CM, 2)
+        return round(self._internal_width * M_TO_MM, 2)
     
     @property
     def external_width(self) -> float:
-        return round(self._external_width * M_TO_CM, 2)
+        return round(self._external_width * M_TO_MM, 2)
     
     @property
     def cost(self) -> float:
@@ -875,15 +875,15 @@ class PrismaticCase:
     
     @property
     def internal_width(self) -> float:
-        return round(self._internal_width * M_TO_CM, 2)
+        return round(self._internal_width * M_TO_MM, 2)
     
     @property
     def internal_length(self) -> float:
-        return round(self._internal_length * M_TO_CM, 2)
+        return round(self._internal_length * M_TO_MM, 2)
     
     @property
     def internal_height(self) -> float:
-        return round(self._internal_height * M_TO_CM, 2)
+        return round(self._internal_height * M_TO_MM, 2)
     
     @property
     def internal_volume(self) -> float:
@@ -891,15 +891,15 @@ class PrismaticCase:
     
     @property
     def external_width(self) -> float:
-        return round(self._external_width * M_TO_CM, 2)
+        return round(self._external_width * M_TO_MM, 2)
     
     @property
     def external_length(self) -> float:
-        return round(self._external_length * M_TO_CM, 2)
+        return round(self._external_length * M_TO_MM, 2)
     
     @property
     def external_height(self) -> float:
-        return round(self._external_height * M_TO_CM, 2)
+        return round(self._external_height * M_TO_MM, 2)
     
     @property
     def external_volume(self) -> float:

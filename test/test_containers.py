@@ -60,9 +60,9 @@ class TestPrismaticCase(unittest.TestCase):
 
         cathode_current_collector = CurrentCollector(formula="Al", 
                                                      thickness=15, 
-                                                     length=16.0,
-                                                     width=10.8,
-                                                     bare_area=8.22)
+                                                     length=160,
+                                                     width=108,
+                                                     bare_area=822)
 
         cathode = Cathode(formulation=cathode_formulation,
                           mass_loading=10.68,
@@ -86,9 +86,9 @@ class TestPrismaticCase(unittest.TestCase):
         
         anode_current_collector = CurrentCollector(formula="Cu",
                                                    thickness=15,
-                                                   length=16.0,
-                                                   width=10.8,
-                                                   bare_area=7.55)
+                                                   length=160,
+                                                   width=108,
+                                                   bare_area=755)
         
         anode = Anode(formulation=anode_formulation,
                       mass_loading=5.25,
@@ -99,22 +99,22 @@ class TestPrismaticCase(unittest.TestCase):
         separator = Separator(thickness=16, 
                               areal_cost=0.9, 
                               density=0.4, 
-                              width=11.0, 
+                              width=110, 
                               porosity=47, 
-                              fold_length=18.6)
+                              fold_length=186)
 
         # make the case
         prismatic_shell = PrismaticShell(cost=0.14,
                                          mass=220.23,
-                                         internal_width=11.3,
-                                         internal_length=18.9,
-                                         internal_height=1.93,
+                                         internal_width=113,
+                                         internal_length=189,
+                                         internal_height=19.3,
                                          wall_thickness=0.8)
         
         prismatic_lid = PrismaticLid(cost=0.34,
                                      mass=40.56,
-                                     external_width=1.3, 
-                                     internal_width=0.8)
+                                     external_width=13, 
+                                     internal_width=8)
         
         self.prismatic_case = PrismaticCase(lid=prismatic_lid, shell=prismatic_shell)
 
@@ -124,13 +124,13 @@ class TestPrismaticCase(unittest.TestCase):
     def test_case(self):
         self.assertEqual(self.prismatic_case.cost, 0.48)
         self.assertEqual(self.prismatic_case.mass, 260.79)
-        self.assertEqual(self.prismatic_case.internal_width, 12.1)
-        self.assertEqual(self.prismatic_case.internal_length, 18.9)
-        self.assertEqual(self.prismatic_case.internal_height, 1.93)
+        self.assertEqual(self.prismatic_case.internal_width, 121)
+        self.assertEqual(self.prismatic_case.internal_length, 189)
+        self.assertEqual(self.prismatic_case.internal_height, 19.3)
         self.assertEqual(self.prismatic_case.internal_volume, 441.37)
-        self.assertEqual(self.prismatic_case.external_width, 12.76)
-        self.assertEqual(self.prismatic_case.external_length, 19.06)
-        self.assertEqual(self.prismatic_case.external_height, 2.09)
+        self.assertEqual(self.prismatic_case.external_width, 127.6)
+        self.assertEqual(self.prismatic_case.external_length, 190.6)
+        self.assertEqual(self.prismatic_case.external_height, 20.9)
         self.assertEqual(self.prismatic_case.external_volume, 508.3)
         self.assertEqual(self.prismatic_case.name, "Prismatic Case")
         self.assertEqual(round(self.prismatic_case._cost, 2), 0.48)

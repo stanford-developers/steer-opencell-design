@@ -9,6 +9,7 @@ KG_TO_G = 1e3
 MM_TO_M = 1e-3
 M_TO_MM = 1e3
 
+
 class Laminate():
 
     def __init__(self, 
@@ -60,7 +61,7 @@ class Terminal():
         :param mass: float: mass of the terminal in g
         :param specific_cost: float: specific cost of the terminal $/kg
         :param name: str: name of the terminal
-        :param thickness: float: thickness of the terminal in cm
+        :param thickness: float: thickness of the terminal in mm
         """
         self._check_mass(mass)
         self._check_specific_cost(specific_cost)
@@ -98,7 +99,7 @@ class Terminal():
             if thickness < 0:
                 raise ValueError("Thickness must be greater than 0")
         
-        self._thickness = thickness * CM_TO_M if thickness else None
+        self._thickness = thickness * MM_TO_M if thickness else None
 
     def _check_name(self, name):
         
@@ -121,7 +122,7 @@ class Terminal():
 
     @property
     def thickness(self):
-        return round(self._thickness * M_TO_CM, 2) if self._thickness else None
+        return round(self._thickness * M_TO_MM, 2) if self._thickness else None
 
     @property
     def cost(self):

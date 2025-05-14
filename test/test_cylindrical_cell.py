@@ -19,7 +19,7 @@ class TestCylindricalJellyRoll(unittest.TestCase):
         """
         Set up
         """
-        length = 110
+        length = 1100
 
         # construct cathode
         cathode_active_material = CathodeMaterial(name="Faradion_Gen2_4.25V", 
@@ -38,12 +38,12 @@ class TestCylindricalJellyRoll(unittest.TestCase):
 
         cathode_current_collector = NotchedCurrentCollector(formula="Cu", 
                                                            length=length,
-                                                           width=10.8,
+                                                           width=108,
                                                            thickness=5,
-                                                           tab_width=0.5,
-                                                           tab_length=3.0,
-                                                           tab_spacing=3.0,
-                                                           bare_length=3)
+                                                           tab_width=5,
+                                                           tab_length=30,
+                                                           tab_spacing=30,
+                                                           bare_length=30)
 
         cathode = Cathode(formulation=cathode_formulation,
                           mass_loading=10.68,
@@ -69,12 +69,12 @@ class TestCylindricalJellyRoll(unittest.TestCase):
         
         anode_current_collector = NotchedCurrentCollector(formula="Cu", 
                                                           length=length,
-                                                          width=10.8,
+                                                          width=108,
                                                           thickness=5,
-                                                          tab_width=0.5,
-                                                          tab_length=3.0,
-                                                          tab_spacing=3.0,
-                                                          bare_length=3)
+                                                          tab_width=5,
+                                                          tab_length=30,
+                                                          tab_spacing=30,
+                                                          bare_length=30)
         
         anode = Anode(formulation=anode_formulation,
                       mass_loading=5.25,
@@ -85,7 +85,7 @@ class TestCylindricalJellyRoll(unittest.TestCase):
         separator = Separator(thickness=16, 
                               areal_cost=0.9, 
                               density=0.4, 
-                              width=11.0, 
+                              width=110, 
                               porosity=47, 
                               fold_length=length)
         
@@ -101,13 +101,13 @@ class TestCylindricalJellyRoll(unittest.TestCase):
         # build the encapsulation
         cylindrical_shell = CylindricalShell(cost = 0.04, 
                                              mass = 3,
-                                             internal_radius=1.05,
-                                             length=11.5,
+                                             internal_radius=10.5,
+                                             length=115,
                                              wall_thickness=0.3)
         
         # build the terminals
-        pos_terminal = Terminal(mass = 1, specific_cost = 16, thickness=0.2)
-        neg_terminal = Terminal(mass = 1, specific_cost = 16, thickness=0.2)
+        pos_terminal = Terminal(mass = 1, specific_cost = 16, thickness=2)
+        neg_terminal = Terminal(mass = 1, specific_cost = 16, thickness=2)
 
         case = CylindricalCase(shell=cylindrical_shell,
                                positive_terminal=pos_terminal,
@@ -135,7 +135,7 @@ class TestCylindricalJellyRoll(unittest.TestCase):
         # TODO: check the energy density
         self.assertEqual(round(self.cell._energy), 32612)
         self.assertEqual(self.cell.energy_density, 207.74)
-        self.assertEqual(self.cell.length, 11.9)
+        self.assertEqual(self.cell.length, 119)
         self.assertEqual(round(self.cell._length, 3), 0.119)
         self.assertEqual(self.cell.mass, 68.36)
         self.assertEqual(round(self.cell._mass, 4), 0.0684)
