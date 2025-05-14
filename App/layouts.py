@@ -143,7 +143,7 @@ positive_terminal_inputs = ds.html.Div([
     ds.html.H4("Positive Terminal"),
     SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'cathode'}, 0, 10, 2, 0.01, 1, 'mass', 'Mass (g)', div_width='1000px').render(), ds.html.Br(), 
     SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'cathode'}, 0, 1000, 100, 0.1, 100, 'specific_cost', 'Specific Cost ($/kg)', div_width='600px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'cathode'}, 0, 2, 0.5, 0.01, 1, 'thickness', 'Thickness (cm)', div_width='600px').render(), ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'cathode'}, 0, 20, 5, 0.1, 10, 'thickness', 'Thickness (mm)', div_width='600px').render(), ds.html.Br(),
     ds.html.Div(id={'tab': 'encapsulation', 'object': 'terminal', 'object': 'message', 'electrode': 'cathode'}), 
 ])
 
@@ -153,7 +153,7 @@ negative_terminal_inputs = ds.html.Div([
     ds.html.H4("Negative Terminal"),
     SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'anode'}, 0, 10, 2, 0.01, 1, 'mass', 'Mass (g)', div_width='1000px').render(), ds.html.Br(), 
     SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'anode'}, 0, 1000, 100, 0.1, 100, 'specific_cost', 'Specific Cost ($/kg)', div_width='600px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'anode'}, 0, 2, 0.5, 0.01, 1, 'thickness', 'Thickness (cm)', div_width='600px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'anode'}, 0, 20, 5, 0.1, 10, 'thickness', 'Thickness (mm)', div_width='600px').render(), ds.html.Br(), 
     ds.html.Div(id={'tab': 'encapsulation', 'object': 'terminal', 'object': 'message', 'electrode': 'anode'}), 
 ])
 
@@ -167,9 +167,9 @@ cylindrical_encapsulation = ds.html.Div([
     ds.html.H4("Cylindrical Shell"),
     SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1, 0.2, 0.01, 1, 'cost', 'Cost ($)', div_width='500px').render(), ds.html.Br(), 
     SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1000, 50, 0.1, 100, 'mass', 'Mass (g)', div_width='1400px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 10, 3, 0.01, 1, 'internal_radius', 'Internal Radius (cm)', div_width='700px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 100, 17, 0.1, 10, 'internal_radius', 'Internal Radius (mm)', div_width='700px').render(), ds.html.Br(), 
     SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1, 0.3, 0.01, 1, 'wall_thickness', 'Wall thickness (mm)', div_width='500px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 50, 10, 0.01, 10, 'length', 'Length (cm)', div_width='500px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 500, 100, 0.1, 100, 'length', 'Length (mm)', div_width='500px').render(), ds.html.Br(), 
 
 ])
 
@@ -197,16 +197,16 @@ prismatic_encapsulation = ds.html.Div([
     ds.html.H4("Prismatic Lid"),
     SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_lid'}, 0, 200, 20, 0.1, 20, 'mass', 'Mass (g)', div_width='1000px').render(), ds.html.Br(),
     SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_lid'}, 0, 5, 0.5, 0.01, 1, 'cost', 'Cost ($)', div_width='1000px').render(), ds.html.Br(),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_lid'}, 0, 10, 2, 0.01, 1, 'external_width', 'External Width (cm)', div_width='1000px').render(), ds.html.Br(),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_lid'}, 0, 10, 2, 0.01, 1, 'internal_width', 'Internal Width (cm)', div_width='1000px').render(), ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_lid'}, 0, 100, 20, 0.1, 10, 'external_width', 'External Width (mm)', div_width='1000px').render(), ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_lid'}, 0, 100, 20, 0.1, 10, 'internal_width', 'Internal Width (mm)', div_width='1000px').render(), ds.html.Br(),
 
     ds.html.Br(), ds.html.Br(), ds.html.Br(),
     ds.html.H4("Prismatic Case"),
     SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 200, 20, 0.1, 20, 'mass', 'Mass (g)', div_width='1000px').render(), ds.html.Br(),
     SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 5, 0.5, 0.01, 1, 'cost', 'Cost ($)', div_width='1000px').render(), ds.html.Br(),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 20, 10, 0.01, 4, 'internal_length', 'Internal Length (cm)', div_width='1000px').render(), ds.html.Br(),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 20, 5, 0.01, 4, 'internal_width', 'Internal Width (cm)', div_width='1000px').render(), ds.html.Br(),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 50, 10, 0.01, 5, 'internal_height', 'Internal Height (cm)', div_width='1400px').render(), ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 200, 100, 0.1, 40, 'internal_length', 'Internal Length (mm)', div_width='1000px').render(), ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 200, 50, 0.1, 40, 'internal_width', 'Internal Width (mm)', div_width='1000px').render(), ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 500, 100, 0.1, 50, 'internal_height', 'Internal Height (mm)', div_width='1400px').render(), ds.html.Br(),
     SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 4, 0.5, 0.01, 1, 'wall_thickness', 'Wall Thickness (mm)', div_width='700px').render(), ds.html.Br(),
 
 ])
@@ -317,7 +317,7 @@ electrodes = ds.html.Div([
     ds.html.Br(),
     SliderWithTextInput({'type': 'electrodes', 'electrode': 'anode', 'object': 'electrode'}, 0, 60, 15, 0.1, 5, 'mass_loading', "Cathode Mass Loading (mg/cm³)", True, '1000px').render(),
     ds.html.Br(),
-    SliderWithTextInput({'type': 'electrodes', 'electrode': 'anode', 'object': 'electrode'}, 0, 5, 2, 0.01, 1, 'calender_density', "Calender Density (g/cm³)", True, '1000px').render(),
+    SliderWithTextInput({'type': 'electrodes', 'electrode': 'anode', 'object': 'electrode'}, 0, 5, 1, 0.01, 1, 'calender_density', "Calender Density (g/cm³)", True, '1000px').render(),
     ds.html.Br(),
     ds.html.Div(id={'tab': 'electrodes', 'object': 'message', 'electrode': 'anode'}),
 
@@ -347,11 +347,11 @@ separator_electrolyte = ds.html.Div([
             ds.html.Br(),
             SliderWithTextInput({'type': 'mechanicals'}, 0, 3, 1, 0.01, 1, 'separator_density', title="Density (g/cm³)", div_width='40%').render(),
             ds.html.Br(),
-            SliderWithTextInput({'type': 'mechanicals'}, 0, 30, 12, 0.01, 5, 'separator_width', title="Width (cm)", div_width='60%').render(),
+            SliderWithTextInput({'type': 'mechanicals'}, 0, 300, 120, 0.1, 50, 'separator_width', title="Width (mm)", div_width='60%').render(),
             ds.html.Br(),
             SliderWithTextInput({'type': 'mechanicals'}, 0, 100, 45, 0.1, 5, 'separator_porosity', title="Porosity (%)", div_width='80%').render(),
             ds.html.Br(),
-            SliderWithTextInput({'type': 'mechanicals'}, 0, 500, 120, 0.1, 20, 'separator_fold_length', title="Fold Length (cm)", div_width='110%').render(),
+            SliderWithTextInput({'type': 'mechanicals'}, 0, 5000, 1200, 1, 200, 'separator_fold_length', title="Fold Length (mm)", div_width='110%').render(),
             ds.html.Br(),
             ds.html.Div(id={'type': 'separator_message_text'}, children=[' '], style={'width': '150%'}),
             ],

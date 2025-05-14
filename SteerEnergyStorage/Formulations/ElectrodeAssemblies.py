@@ -162,21 +162,21 @@ class _ElectrodeAssembly():
     @property
     def length(self):
         if hasattr(self, '_length'):
-            return round(self._length * M_TO_CM, 2)
+            return round(self._length * M_TO_MM, 2)
         else:
             return AttributeError("Length not calculated yet.")
 
     @property
     def width(self):
         if hasattr(self, '_width'):
-            return round(self._width * M_TO_CM, 2)
+            return round(self._width * M_TO_MM, 2)
         else:
             return AttributeError("Width not calculated yet.")
 
     @property
     def thickness(self):
         if hasattr(self, '_thickness'):
-            return round(self._thickness * M_TO_CM, 2)
+            return round(self._thickness * M_TO_MM, 2)
         else:
             return AttributeError("Thickness not calculated yet.")
 
@@ -489,7 +489,6 @@ class CylindricalJellyRoll(_JellyRoll):
         :param anode: Anode: anode used in the stack
         :param cathode: Cathode: cathode used in the stack
         :param separator: Separator: separator used in the stack
-        :param radius: float: radius of the cylindrical jelly roll in cm
         :param internal_die_diameter: float: internal die diameter of the cylindrical jelly roll in mm
         :param name: str: name of the cylindrical jelly roll
         """
@@ -599,51 +598,51 @@ class CylindricalJellyRoll(_JellyRoll):
             df = (df
                   .assign(x = lambda x: (x['r'] * np.cos(x['theta'])) - self._shift_vector[0])
                   .assign(y = lambda x: (x['r'] * np.sin(x['theta'])) - self._shift_vector[1])
-                  .assign(x = lambda x: x['x'] * M_TO_CM)
-                  .assign(y = lambda x: x['y'] * M_TO_CM)
-                  .rename(columns={'x': 'X (cm)', 'y': 'Y (cm)'})
+                  .assign(x = lambda x: x['x'] * M_TO_MM)
+                  .assign(y = lambda x: x['y'] * M_TO_MM)
+                  .rename(columns={'x': 'X (mm)', 'y': 'Y (mm)'})
                   )
             
             return df, df2
 
         # first separator
         plot_data, edge_data = get_coil(data, self._separator._thickness)
-        fig.add_trace(go.Scatter(x=plot_data['X (cm)'], y=plot_data['Y (cm)'], mode='lines', name='Separator', line=dict(width=0, shape='spline'), fillcolor='black', fill='toself'))
+        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Separator', line=dict(width=0, shape='spline'), fillcolor='black', fill='toself'))
         
         # anode active layer 1
         plot_data, edge_data = get_coil(edge_data, self._anode._material_thickness)
-        fig.add_trace(go.Scatter(x=plot_data['X (cm)'], y=plot_data['Y (cm)'], mode='lines', name='Anode', line=dict(width=0, shape='spline'), fillcolor='#9558B2', fill='toself'))
+        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Anode', line=dict(width=0, shape='spline'), fillcolor='#9558B2', fill='toself'))
 
         # anode current collector
         plot_data, edge_data = get_coil(edge_data, self._anode._current_collector._thickness)
-        fig.add_trace(go.Scatter(x=plot_data['X (cm)'], y=plot_data['Y (cm)'], mode='lines', name='Anode Current Collector', line=dict(width=0, shape='spline'), fillcolor='grey', fill='toself'))
+        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Anode Current Collector', line=dict(width=0, shape='spline'), fillcolor='grey', fill='toself'))
 
         # anode active layer 2
         plot_data, edge_data = get_coil(edge_data, self._anode._material_thickness)
-        fig.add_trace(go.Scatter(x=plot_data['X (cm)'], y=plot_data['Y (cm)'], mode='lines', name='Anode', line=dict(width=0, shape='spline'), fillcolor='#9558B2', fill='toself'))
+        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Anode', line=dict(width=0, shape='spline'), fillcolor='#9558B2', fill='toself'))
 
         # separator
         plot_data, edge_data = get_coil(edge_data, self._separator._thickness)
-        fig.add_trace(go.Scatter(x=plot_data['X (cm)'], y=plot_data['Y (cm)'], mode='lines', name='Separator', line=dict(width=0, shape='spline'), fillcolor='black', fill='toself'))
+        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Separator', line=dict(width=0, shape='spline'), fillcolor='black', fill='toself'))
 
         # cathode active layer 1
         plot_data, edge_data = get_coil(edge_data, self._cathode._material_thickness)
-        fig.add_trace(go.Scatter(x=plot_data['X (cm)'], y=plot_data['Y (cm)'], mode='lines', name='Cathode', line=dict(width=0, shape='spline'), fillcolor='#FF6F61', fill='toself'))
+        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Cathode', line=dict(width=0, shape='spline'), fillcolor='#FF6F61', fill='toself'))
 
         # cathode current collector
         plot_data, edge_data = get_coil(edge_data, self._cathode._current_collector._thickness)
-        fig.add_trace(go.Scatter(x=plot_data['X (cm)'], y=plot_data['Y (cm)'], mode='lines', name='Cathode Current Collector', line=dict(width=0, shape='spline'), fillcolor='grey', fill='toself'))
+        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Cathode Current Collector', line=dict(width=0, shape='spline'), fillcolor='grey', fill='toself'))
 
         # cathode active layer 2
         plot_data, edge_data = get_coil(edge_data, self._cathode._material_thickness)
-        fig.add_trace(go.Scatter(x=plot_data['X (cm)'], y=plot_data['Y (cm)'], mode='lines', name='Cathode', line=dict(width=0, shape='spline'), fillcolor='#FF6F61', fill='toself'))
+        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Cathode', line=dict(width=0, shape='spline'), fillcolor='#FF6F61', fill='toself'))
 
         if encapsulation is not None:
             for trace in encapsulation.get_top_down_view().data:
                 fig.add_trace(trace)
 
-        fig.update_layout(xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title="X (cm)"),
-                          yaxis=dict(showgrid=False, zeroline=False, title="Y (cm)"),
+        fig.update_layout(xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title="X (mm)"),
+                          yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)"),
                           paper_bgcolor='white',
                           plot_bgcolor='white',
                           showlegend=False,
@@ -658,7 +657,7 @@ class CylindricalJellyRoll(_JellyRoll):
     
     @property
     def radius(self):
-        return round(self._radius * M_TO_CM, 2)
+        return round(self._radius * M_TO_MM, 2)
     
     @property
     def n_turns(self):
@@ -669,9 +668,9 @@ class CylindricalJellyRoll(_JellyRoll):
         
         return (self
                 ._spiral
-                .assign(r = lambda x: x['r'] * M_TO_CM)
+                .assign(r = lambda x: x['r'] * M_TO_MM)
                 .assign(theta = lambda x: x['theta'] * DEG_TO_RAD)
-                .rename(columns={'theta': 'Theta (deg)', 'r': 'Radius (cm)'})
+                .rename(columns={'theta': 'Theta (deg)', 'r': 'Radius (mm)'})
                 )
 
 
@@ -689,12 +688,12 @@ class FlatJellyRoll(_JellyRoll):
         :param anode: Anode: anode used in the stack
         :param cathode: Cathode: cathode used in the stack
         :param separator: Separator: separator used in the stack
-        :param focal_length: float: focal length of the flat jelly roll in cm
+        :param focal_length: float: focal length of the flat jelly roll in mm
         :param name: str: name of the flat jelly roll
         """
         super().__init__(anode=anode, cathode=cathode, separator=separator, name=name)
 
-        self._focal_length = focal_length * CM_TO_M
+        self._focal_length = focal_length * MM_TO_M
         self._calculate_flat_roll_properties()
 
     def _calculate_flat_roll_properties(self):
@@ -732,7 +731,7 @@ class FlatJellyRoll(_JellyRoll):
             
     @property
     def focal_length(self):
-        return self._focal_length * M_TO_CM
+        return self._focal_length * M_TO_MM
 
 
 class Stack(_ElectrodeAssembly):

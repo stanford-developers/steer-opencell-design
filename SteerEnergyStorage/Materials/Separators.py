@@ -7,6 +7,7 @@ M_TO_CM = 1e2
 MM_TO_M = 1e-3
 M_TO_MM = 1e3
 
+
 class Separator:
 
     def __init__(self,  
@@ -26,9 +27,9 @@ class Separator:
         :param thickness: float: thickness of the separator in um
         :param density: float: density of the material in g/cm^3
         :param porosity: float: porosity of the separator in %
-        :param width: float: width of the separator in cm
-        :param length: float: length of the separator in cm
-        :param fold_length: float: length of the fold in the separator in cm
+        :param width: float: width of the separator in mm
+        :param length: float: length of the separator in mm
+        :param fold_length: float: length of the fold in the separator in mm
         """
         self._check_areal_cost(areal_cost)
         self._check_thickness(thickness)
@@ -101,10 +102,7 @@ class Separator:
         if width < 0:
             raise ValueError("Width cannot be negative.")
         
-        if width > 100:
-            raise ValueError("This width is too high. Check the units, it should be in cm.")
-        
-        self._width = float(width) * CM_TO_M
+        self._width = float(width) * MM_TO_M
 
     def _check_fold_length(self, fold_length: float):
 
@@ -113,11 +111,8 @@ class Separator:
 
         if fold_length < 0:
             raise ValueError("Fold length cannot be negative.")
-        
-        if fold_length > 1000:
-            raise ValueError("This fold length is too high. Check the units, it should be in cm.")
-        
-        self._fold_length = float(fold_length) * CM_TO_M
+    
+        self._fold_length = float(fold_length) * MM_TO_M
 
     def _check_name(self, name: str):
 
@@ -139,7 +134,7 @@ class Separator:
     @property
     def length(self):
         if hasattr(self, '_length'):
-            return round(self._length * M_TO_CM, 2)
+            return round(self._length * M_TO_MM, 2)
 
     @property
     def pore_volume(self):
@@ -172,12 +167,12 @@ class Separator:
     @property
     def width(self):
         if hasattr(self, '_width'):
-            return round(self._width * M_TO_CM, 2)
+            return round(self._width * M_TO_MM, 2)
     
     @property
     def fold_length(self):
         if hasattr(self, '_fold_length'):
-            return round(self._fold_length * M_TO_CM, 2)
+            return round(self._fold_length * M_TO_MM, 2)
 
     @property
     def areal_cost(self):
