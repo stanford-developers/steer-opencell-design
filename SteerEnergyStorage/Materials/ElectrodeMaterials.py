@@ -13,6 +13,7 @@ A_TO_mA = 1e3
 H_TO_S = 3600
 S_TO_H = 1/3600
 
+
 class _ActiveMaterial:
 
     def __init__(self, 

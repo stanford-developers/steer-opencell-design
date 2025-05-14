@@ -32,9 +32,9 @@ class TestCellsSingleAM(unittest.TestCase):
 
         cathode_current_collector = CurrentCollector(formula="Al", 
                                                      thickness=15, 
-                                                     length=16.0,
-                                                     width=10.8,
-                                                     bare_area=8.22)
+                                                     length=160,
+                                                     width=108,
+                                                     bare_area=822)
 
         cathode = Cathode(formulation=cathode_formulation,
                           mass_loading=9,
@@ -54,9 +54,9 @@ class TestCellsSingleAM(unittest.TestCase):
         
         anode_current_collector = CurrentCollector(formula="Cu",
                                                    thickness=6,
-                                                   length=16.0,
-                                                   width=10.8,
-                                                   bare_area=7.55)
+                                                   length=160,
+                                                   width=108,
+                                                   bare_area=755)
         
         anode = Anode(formulation=anode_formulation,
                       mass_loading=7,
@@ -67,9 +67,9 @@ class TestCellsSingleAM(unittest.TestCase):
         separator = Separator(thickness=19, 
                               areal_cost=1, 
                               density=0.9, 
-                              width=11.0, 
+                              width=110, 
                               porosity=42, 
-                              fold_length=18.6)
+                              fold_length=186)
 
         # construct the stack
         stack = Stack(anode=anode, 

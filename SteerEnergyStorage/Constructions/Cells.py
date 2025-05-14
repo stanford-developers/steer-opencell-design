@@ -711,19 +711,19 @@ class _Cell:
     def height(self) -> float:
         if not hasattr(self, '_height'):
             raise AttributeError("Height has not been calculated yet")
-        return round(self._height * M_TO_CM, 2)
+        return round(self._height * M_TO_MM, 2)
     
     @property
     def width(self) -> float:
         if not hasattr(self, '_width'):
             raise AttributeError("Width has not been calculated yet")
-        return round(self._width * M_TO_CM, 2)
+        return round(self._width * M_TO_MM, 2)
     
     @property
     def length(self) -> float:
         if not hasattr(self, '_length'):
             raise AttributeError("Length has not been calculated yet")
-        return round(self._length * M_TO_CM, 2)
+        return round(self._length * M_TO_MM, 2)
     
     @property
     def energy(self) -> float:
@@ -1163,7 +1163,7 @@ class CylindricalCell(_JellyRollCell):
             raise ValueError("Number of electrode assembly must be greater than 0")
         
         if electrode_assembly._radius > self._encapsulation._internal_radius:
-            raise ValueError("Electrode assembly radius cannot be greater than the internal radius of the cylindrical case")
+            raise ValueError(f"Electrode assembly, {electrode_assembly.radius} mm,  cannot be greater than the internal radius of the cylindrical case, {self._encapsulation.internal_radius} mm")
         
         self._electrode_assemblies = [deepcopy(electrode_assembly) for _ in range(n_electrode_assembly)]  
 
@@ -1216,7 +1216,7 @@ class CylindricalCell(_JellyRollCell):
     def radius(self) -> float:
         if not hasattr(self, '_radius'):
             raise AttributeError("Radius has not been calculated yet")
-        return round(self._radius * M_TO_CM, 2)
+        return round(self._radius * M_TO_MM, 2)
     
     @property
     def diameter(self) -> float:
