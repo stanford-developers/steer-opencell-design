@@ -405,6 +405,130 @@ class CurrentCollector:
         return self.__str__()
 
 
+class PunchedCurrentCollector(CurrentCollector):
+
+    def __init__(self, 
+                 formula: str, 
+                 length: float,
+                 width: float,
+                 tab_width: float,
+                 tab_height: float,
+                 tab_position: float,
+                 thickness: float,
+                 specific_cost: float = None,
+                 density: float = None):
+        """
+        Initialize an object that represents a punched current collector.
+        
+        :param name: str: name of the material
+        :param formula: str: chemical formula of the material
+        :param specific_cost: float: specific cost of the material $/kg. By default it will pull this from the database
+        :param length: float: length of the current collector in cm
+        :param width: float: width of the current collector in cm
+        :param bare_area: float: area of the current collector that is not coated with the electrode material in cm^2
+        :param thickness: float: thickness of the current collector in um
+        :param density: float: density of the material in g/cm^3
+        """
+        self._check_tab_width(tab_width)
+        self._check_tab_height(tab_height)
+        self._check_length(length)
+        self._check_tab_position(tab_position)
+
+        bare_area = tab_height * tab_width
+
+        super().__init__(formula=formula,
+                         length=length,
+                         width=width,
+                         bare_area=bare_area,
+                         thickness=thickness,
+                         specific_cost=specific_cost,
+                         density=density)
+        
+    def get_top_down_view(self, width = None, height = None):
+        """
+        Visualize the current collector.
+        """
+        bottom_left = (0, 0)
+        bottom_right = (self.length, 0)
+        top_right = (self.length, self.width)
+        top_left = (0, self.width)
+
+        tab_bottom_left = self.tab_position - self.tab_width/2, self.width
+        tab_bottom_right = self.tab_position + self.tab_width/2, self.width
+        tab_top_right = self.tab_position + self.tab_width/2, self.width + self.tab_height
+        tab_top_left = self.tab_position - self.tab_width/2, self.width + self.tab_height
+
+        main_plot = pd.DataFrame({'x': [bottom_left[0], bottom_right[0], top_right[0], top_left[0], bottom_left[0]],
+                                  'y': [bottom_left[1], bottom_right[1], top_right[1], top_left[1], bottom_left[1]]})
+
+        tab_plot = pd.DataFrame({'x': [tab_bottom_left[0], tab_bottom_right[0], tab_top_right[0], tab_top_left[0], tab_bottom_left[0]],
+                                 'y': [tab_bottom_left[1], tab_bottom_right[1], tab_top_right[1], tab_top_left[1], tab_bottom_left[1]]})
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=main_plot['x'], y=main_plot['y'], mode='lines', name='Covered Area', line=dict(color='black'), fillcolor='black', fill='toself'))
+        fig.add_trace(go.Scatter(x=tab_plot['x'], y=tab_plot['y'], mode='lines', name='Tab', line=dict(width=0), fillcolor='grey', fill='toself'))
+
+        if width is not None:
+            fig.update_layout(width=width)
+        
+        if height is not None:
+            fig.update_layout(height=height)
+
+        fig.update_layout(title=f'Punched Current Collector',
+                          xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y"),
+                          yaxis=dict(showgrid=False, zeroline=False),
+                          paper_bgcolor='white',
+                          plot_bgcolor='white',
+                          showlegend=False)
+        
+        return fig
+        
+    def _check_tab_width(self, tab_width: float):
+
+        if not isinstance(tab_width, (int, float)):
+            raise TypeError("Tab width must be a number.")
+        
+        if tab_width < 0:
+            raise ValueError("Tab width cannot be negative.")
+        
+        self._tab_width = float(tab_width) * CM_TO_M
+
+    def _check_tab_height(self, tab_height: float):
+
+        if not isinstance(tab_height, (int, float)):
+            raise TypeError("Tab length must be a number.")
+        
+        if tab_height < 0:
+            raise ValueError("Tab length cannot be negative.")
+        
+        self._tab_height = float(tab_height) * CM_TO_M
+
+    def _check_tab_position(self, tab_position: float):
+
+        if not isinstance(tab_position, (int, float)):
+            raise TypeError("Tab position must be a number.")
+        
+        if tab_position - self.tab_width/2 < 0:
+            raise ValueError("Tab position cannot be less than half the tab width.")
+        
+        if tab_position + self.tab_width/2 > self.length:
+            raise ValueError("Tab position plus half the tab width cannot be greater than the length of the current collector.")
+        
+        self._tab_position = float(tab_position) * CM_TO_M
+
+    @property
+    def tab_width(self) -> float:
+        return round(self._tab_width * M_TO_CM, 2)
+    
+    @property
+    def tab_height(self) -> float:
+        return round(self._tab_height * M_TO_CM, 2)
+    
+    @property
+    def tab_position(self) -> float:
+        return round(self._tab_position * M_TO_CM, 2)
+
+
 class NotchedCurrentCollector(CurrentCollector):
 
     def __init__(self, 
@@ -541,7 +665,7 @@ class NotchedCurrentCollector(CurrentCollector):
         self._mass = self._volume * self._density
         self._cost = self._mass * self._specific_cost
 
-    def get_top_down_view(self):
+    def get_top_down_view(self, width = None, height = None):
         """
         Visualize the notched current collector.
         """
@@ -576,6 +700,11 @@ class NotchedCurrentCollector(CurrentCollector):
             y = [tab_bottom_left[1], tab_bottom_right[1], tab_top_right[1], tab_top_left[1], tab_bottom_left[1]]
             tab = pd.DataFrame({'x': x, 'y': y})
             fig.add_trace(go.Scatter(x=tab['x'], y=tab['y'], mode='lines', name='Tab', line=dict(width=0), fillcolor='grey', fill='toself'))
+
+        if width is not None:
+            fig.update_layout(width=width)
+        if height is not None:
+            fig.update_layout(height=height)
 
         fig.update_layout(title=f'{self._name} Current Collector',
                           xaxis=dict(showgrid=False, scaleanchor="y", title='Length (cm)'),
@@ -758,7 +887,7 @@ class TabWeldedCurrentCollector(CurrentCollector):
         self._mass = self._volume * self._density + sum([tab._mass for tab in self._weld_tabs])
         self._cost = self._mass * self._specific_cost + sum([tab._cost for tab in self._weld_tabs])
 
-    def get_top_down_view(self):
+    def get_top_down_view(self, width = None, height = None):
         """
         Visualize the tab welded current collector.
         """
@@ -791,6 +920,11 @@ class TabWeldedCurrentCollector(CurrentCollector):
             y = [tab_bottom_left[1], tab_bottom_right[1], tab_top_right[1], tab_top_left[1], tab_bottom_left[1]]
             tab_plot = pd.DataFrame({'x': x, 'y': y})
             fig.add_trace(go.Scatter(x=tab_plot['x'], y=tab_plot['y'], mode='lines', name=tab.name, line=dict(width=0), fillcolor='silver', fill='toself'))
+
+        if width is not None:
+            fig.update_layout(width=width)
+        if height is not None:
+            fig.update_layout(height=height)
 
         fig.update_layout(title=f'{self._name} Current Collector',
                           xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="y"),
