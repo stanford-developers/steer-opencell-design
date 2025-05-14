@@ -503,23 +503,23 @@ def show_current_collector_design_options(design):
     if design == 'notched':
         return [
             ds.html.Br(), 
-            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 600, 100, 0.01, 10, 'length', 'Length (cm)', div_width='1400px').render(), ds.html.Br(), 
-            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 40, 12, 0.01, 2, 'width', 'Width  (cm)', div_width='600px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 6000, 1000, 0.1, 100, 'length', 'Length (mm)', div_width='1400px').render(), ds.html.Br(), 
+            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 400, 120, 0.1, 20, 'width', 'Width  (mm)', div_width='600px').render(), ds.html.Br(),
             SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 100, 15, 0.1, 5, 'thickness', 'Thickness  (μm)', div_width='400px').render(), ds.html.Br(),
-            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 5, 1, 0.01, 1, 'tab_width', 'Tab Width (cm)', div_width='400px').render(), ds.html.Br(),
-            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 20, 3, 0.01, 1, 'tab_length', 'Tab Length (cm)', div_width='600px').render(), ds.html.Br(),
-            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 20, 3, 0.01, 1, 'tab_spacing', 'Tab Spacing (cm)', div_width='600px').render(), ds.html.Br(),
-            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 50, 0, 0.01, 5, 'bare_length', 'Bare Tape (cm)', div_width='600px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 50, 10, 0.1, 10, 'tab_width', 'Tab Width (mm)', div_width='400px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 200, 30, 0.1, 10, 'tab_length', 'Tab Length (mm)', div_width='600px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 200, 30, 0.1, 10, 'tab_spacing', 'Tab Spacing (mm)', div_width='600px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 500, 0, 0.1, 50, 'bare_length', 'Bare Tape (mm)', div_width='600px').render(), ds.html.Br(),
         ]
     
     elif design == 'tabless':
         return [
             ds.html.Br(), 
-            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 600, 100, 0.01, 10, 'length', 'Length (cm)', div_width='1400px').render(), ds.html.Br(), 
-            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 40, 12, 0.01, 2, 'width', 'Width  (cm)', div_width='600px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 6000, 1000, 0.1, 100, 'length', 'Length (mm)', div_width='1400px').render(), ds.html.Br(), 
+            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 400, 120, 0.1, 20, 'width', 'Width  (mm)', div_width='600px').render(), ds.html.Br(),
             SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 100, 15, 0.1, 5, 'thickness', 'Thickness  (μm)', div_width='400px').render(), ds.html.Br(),
-            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 5, 1, 0.01, 1, 'tab_width', 'Tab Width (cm)', div_width='400px').render(), ds.html.Br(),
-            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 50, 0, 0.01, 5, 'bare_length', 'Bare Tape (cm)', div_width='600px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 50, 10, 0.1, 10, 'tab_width', 'Tab Width (mm)', div_width='400px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 500, 0, 0.1, 50, 'bare_length', 'Bare Tape (mm)', div_width='600px').render(), ds.html.Br(),
         ]
 
     elif design == 'tab_welded':
@@ -530,14 +530,14 @@ def show_current_collector_design_options(design):
         ]
     
     elif design == 'punched':
-        def_tab_pos = 3 if electrode == 'cathode' else 8
+        def_tab_pos = 30 if electrode == 'cathode' else 80
         return [
             ds.html.Br(), 
-            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 50, 11, 0.01, 5, 'length', 'Length (cm)', div_width='1100px').render(), ds.html.Br(), 
-            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 50, 11, 0.01, 5, 'width', 'Width (cm)', div_width='1100px').render(), ds.html.Br(), 
-            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 20, 4, 0.01, 4, 'tab_width', 'Tab Width (cm)', div_width='400px').render(), ds.html.Br(),
-            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 20, 2, 0.01, 4, 'tab_height', 'Tab Height (cm)', div_width='400px').render(), ds.html.Br(), 
-            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 50, def_tab_pos, 0.01, 5, 'tab_position', 'Tab Position (cm)', div_width='1100px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 500, 110, 0.1, 50, 'length', 'Length (mm)', div_width='1100px').render(), ds.html.Br(), 
+            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 500, 110, 0.1, 50, 'width', 'Width (mm)', div_width='1100px').render(), ds.html.Br(), 
+            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 200, 40, 0.1, 40, 'tab_width', 'Tab Width (mm)', div_width='400px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 200, 20, 0.1, 40, 'tab_height', 'Tab Height (mm)', div_width='400px').render(), ds.html.Br(), 
+            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 500, def_tab_pos, 0.1, 50, 'tab_position', 'Tab Position (mm)', div_width='1100px').render(), ds.html.Br(),
             SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 100, 15, 0.1, 5, 'thickness', 'Thickness  (μm)', div_width='400px').render(), ds.html.Br(),  
         ]
 
@@ -1097,7 +1097,7 @@ def make_electrode_assembly(pickled_cathode, pickled_anode, pickled_separator, a
             ds.html.P([ds.html.B("Mass: ", style={'font-weight': '900'}), f"{electrode_assembly.mass} g"]),
             ds.html.P([ds.html.B("Pore Volume: ", style={'font-weight': '900'}), f"{electrode_assembly.pore_volume} cm³"]),
             ds.html.P([ds.html.B("Active Area: ", style={'font-weight': '900'}), f"{electrode_assembly.active_geometric_area} cm²"]),
-            ds.html.P([ds.html.B("Radius: ", style={'font-weight': '900'}), f"{electrode_assembly.radius} cm"]),
+            ds.html.P([ds.html.B("Radius: ", style={'font-weight': '900'}), f"{electrode_assembly.radius} mm"]),
             ds.html.P([ds.html.B("Number Of Turns: ", style={'font-weight': '900'}), f"{electrode_assembly.n_turns}"]),
             ds.html.Br(),
         ], style={'line-height': '0.5'}) 

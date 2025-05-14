@@ -10,11 +10,11 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         """
         self.current_collector = PunchedCurrentCollector(formula="Al", 
                                                          thickness=15, 
-                                                         length=16.0,
-                                                         width=10.8,
-                                                         tab_width=3, 
-                                                         tab_height=2.74,
-                                                         tab_position=3)
+                                                         length=160,
+                                                         width=108,
+                                                         tab_width=30, 
+                                                         tab_height=27.4,
+                                                         tab_position=30)
 
     def test_current_collector(self):
         """
@@ -23,16 +23,16 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         self.assertIsInstance(self.current_collector, CurrentCollector)
         self.assertEqual(self.current_collector.formula, "Al")
         self.assertEqual(self.current_collector.thickness, 15)
-        self.assertEqual(self.current_collector.length, 16.0)
-        self.assertEqual(self.current_collector.width, 10.8)
-        self.assertEqual(self.current_collector.bare_area, 8.22)
+        self.assertEqual(self.current_collector.length, 160)
+        self.assertEqual(self.current_collector.width, 108)
+        self.assertEqual(self.current_collector.bare_area, 822)
         self.assertEqual(round(self.current_collector._thickness, 6), 0.000015)
         self.assertEqual(round(self.current_collector._length, 6), 0.16)
         self.assertEqual(round(self.current_collector._width, 6), 0.108)
         self.assertEqual(round(self.current_collector._bare_area, 6), 0.000822)
         
         fig = self.current_collector.get_top_down_view()
-        fig.show()
+        # fig.show()
 
 
 class TestCurrentCollector(unittest.TestCase):
@@ -43,9 +43,9 @@ class TestCurrentCollector(unittest.TestCase):
         """
         self.current_collector = CurrentCollector(formula="Al", 
                                                      thickness=15, 
-                                                     length=16.0,
-                                                     width=10.8,
-                                                     bare_area=8.22)
+                                                     length=160,
+                                                     width=108,
+                                                     bare_area=822)
 
     def test_current_collector(self):
         """
@@ -54,9 +54,9 @@ class TestCurrentCollector(unittest.TestCase):
         self.assertIsInstance(self.current_collector, CurrentCollector)
         self.assertEqual(self.current_collector.formula, "Al")
         self.assertEqual(self.current_collector.thickness, 15)
-        self.assertEqual(self.current_collector.length, 16.0)
-        self.assertEqual(self.current_collector.width, 10.8)
-        self.assertEqual(self.current_collector.bare_area, 8.22)
+        self.assertEqual(self.current_collector.length, 160)
+        self.assertEqual(self.current_collector.width, 108)
+        self.assertEqual(self.current_collector.bare_area, 822)
         self.assertEqual(round(self.current_collector._thickness, 6), 0.000015)
         self.assertEqual(round(self.current_collector._length, 6), 0.16)
         self.assertEqual(round(self.current_collector._width, 6), 0.108)
@@ -74,12 +74,12 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         """
         self.current_collector = NotchedCurrentCollector(formula="Al", 
                                                          thickness=15, 
-                                                         length=85,
-                                                         width=10.8,
-                                                         tab_width=1,
-                                                         tab_length=5,
-                                                         tab_spacing=5,
-                                                         bare_length=6)
+                                                         length=850,
+                                                         width=108,
+                                                         tab_width=10,
+                                                         tab_length=50,
+                                                         tab_spacing=50,
+                                                         bare_length=60)
         
     def test_current_collector(self):
         """
@@ -88,12 +88,12 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         self.assertIsInstance(self.current_collector, NotchedCurrentCollector)
         self.assertEqual(self.current_collector.formula, "Al")
         self.assertEqual(self.current_collector.thickness, 15)
-        self.assertEqual(self.current_collector.length, 85)
-        self.assertEqual(self.current_collector.width, 10.8)
-        self.assertEqual(self.current_collector.tab_width, 1)
-        self.assertEqual(self.current_collector.tab_length, 5)
-        self.assertEqual(self.current_collector.tab_spacing, 5)
-        self.assertEqual(self.current_collector.bare_length, 6)
+        self.assertEqual(self.current_collector.length, 850)
+        self.assertEqual(self.current_collector.width, 108)
+        self.assertEqual(self.current_collector.tab_width, 10)
+        self.assertEqual(self.current_collector.tab_length, 50)
+        self.assertEqual(self.current_collector.tab_spacing, 50)
+        self.assertEqual(self.current_collector.bare_length, 60)
         self.assertEqual(round(self.current_collector._thickness, 6), 0.000015)
         self.assertEqual(round(self.current_collector._length, 6), 0.85)
         self.assertEqual(round(self.current_collector._width, 6), 0.108)
@@ -112,7 +112,7 @@ class TestWeldTab(unittest.TestCase):
         """
         Set up
         """
-        self.weldtab = WeldTab(formula='Cu', thickness=8, length=11.5, width=1)
+        self.weldtab = WeldTab(formula='Cu', thickness=8, length=115, width=10)
         
     def test_weldtab(self):
         """
@@ -121,8 +121,8 @@ class TestWeldTab(unittest.TestCase):
         self.assertIsInstance(self.weldtab, WeldTab)
         self.assertEqual(self.weldtab.formula, "Cu")
         self.assertEqual(self.weldtab.thickness, 8)
-        self.assertEqual(self.weldtab.length, 11.5)
-        self.assertEqual(self.weldtab.width, 1)
+        self.assertEqual(self.weldtab.length, 115)
+        self.assertEqual(self.weldtab.width, 10)
         self.assertEqual(round(self.weldtab._thickness, 6), 0.000008)
         self.assertEqual(round(self.weldtab._length, 6), 0.115)
         self.assertEqual(round(self.weldtab._width, 6), 0.01)
@@ -134,16 +134,16 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         """
         Set up
         """
-        weldtab = WeldTab(formula='Cu', thickness=8, length=11.5, width=1)
+        weldtab = WeldTab(formula='Cu', thickness=8, length=115, width=10)
 
         self.current_collector = TabWeldedCurrentCollector(formula="Al",
                                                            thickness=15,
-                                                           length=82,
-                                                           width=10.8,
+                                                           length=820,
+                                                           width=108,
                                                            weld_tab=weldtab,
-                                                           weld_tab_spacing=35,
-                                                           first_tab_spacing=8,
-                                                           bare_length=6)
+                                                           weld_tab_spacing=350,
+                                                           first_tab_spacing=80,
+                                                           bare_length=60)
         
     def test_current_collector(self):
         """
@@ -152,11 +152,11 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         self.assertIsInstance(self.current_collector, TabWeldedCurrentCollector)
         self.assertEqual(self.current_collector.formula, "Al")
         self.assertEqual(self.current_collector.thickness, 15)
-        self.assertEqual(self.current_collector.length, 82)
-        self.assertEqual(self.current_collector.width, 10.8)
-        self.assertEqual(self.current_collector.weld_tab_spacing, 35)
-        self.assertEqual(self.current_collector.first_tab_spacing, 8)
-        self.assertEqual(self.current_collector.bare_length, 6)
+        self.assertEqual(self.current_collector.length, 820)
+        self.assertEqual(self.current_collector.width, 108)
+        self.assertEqual(self.current_collector.weld_tab_spacing, 350)
+        self.assertEqual(self.current_collector.first_tab_spacing, 80)
+        self.assertEqual(self.current_collector.bare_length, 60)
 
         self.assertEqual(round(self.current_collector._thickness, 6), 0.000015)
         self.assertEqual(round(self.current_collector._length, 6), 0.82)
@@ -167,7 +167,7 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         self.assertIsInstance(self.current_collector._weld_tabs[0], WeldTab)
 
         self.assertEqual(self.current_collector.area, 885.6)
-        self.assertEqual(self.current_collector.bare_area, 86.4)
+        self.assertEqual(self.current_collector.bare_area, 8640)
         self.assertEqual(self.current_collector.coated_area, 799.2)
         self.assertEqual(self.current_collector.cost, 0.01)
         self.assertEqual(self.current_collector.density, 2.7)

@@ -79,15 +79,15 @@ class TestFlatJellyRoll(unittest.TestCase):
         separator = Separator(thickness=16, 
                               areal_cost=0.9, 
                               density=0.4, 
-                              width=11.0, 
+                              width=110, 
                               porosity=47, 
-                              fold_length=111)
+                              fold_length=1110)
 
         # construct the stack
         self.flat_jelly_roll = FlatJellyRoll(anode=anode, 
                                              cathode=cathode,
                                              separator=separator, 
-                                             focal_length=10.0,
+                                             focal_length=100.0,
                                              name="flat_jelly_roll")
 
     def test_instantiation(self):
@@ -102,13 +102,13 @@ class TestFlatJellyRoll(unittest.TestCase):
         Test flat roll attributes
         """
         self.assertEqual(round(self.flat_jelly_roll._separator._fold_length, 2) , 1.11)
-        self.assertEqual(self.flat_jelly_roll._separator.fold_length, 111)
+        self.assertEqual(self.flat_jelly_roll._separator.fold_length, 1110)
 
         self.assertEqual(round(self.flat_jelly_roll._focal_length, 2), 0.1)
-        self.assertEqual(round(self.flat_jelly_roll.focal_length, 2), 10)
+        self.assertEqual(round(self.flat_jelly_roll.focal_length, 2), 100)
 
         self.assertEqual(round(self.flat_jelly_roll._thickness, 4), 0.0027)
-        self.assertEqual(self.flat_jelly_roll.thickness, 0.27)
+        self.assertEqual(self.flat_jelly_roll.thickness, 2.72)
 
         self.assertEqual(round(self.flat_jelly_roll._electrode_thickness, 5), 0.00025)
         self.assertEqual(self.flat_jelly_roll.electrode_thickness, 0.25)
@@ -136,13 +136,13 @@ class TestCylindricalJellyRoll(unittest.TestCase):
                                                    conductive_additives={cathode_conductive_additive: 6})
 
         cathode_current_collector = NotchedCurrentCollector(formula="Cu", 
-                                                          length=300,
-                                                          width=10.8,
+                                                          length=3000,
+                                                          width=108,
                                                           thickness=5,
-                                                          tab_width=0.5,
-                                                          tab_length=3.0,
-                                                          tab_spacing=3.0,
-                                                          bare_length=3)
+                                                          tab_width=5,
+                                                          tab_length=30,
+                                                          tab_spacing=30,
+                                                          bare_length=30)
 
         cathode = Cathode(formulation=cathode_formulation,
                           mass_loading=18,
@@ -167,13 +167,13 @@ class TestCylindricalJellyRoll(unittest.TestCase):
                                                  conductive_additives={anode_conductive_additive: 9})
         
         anode_current_collector = NotchedCurrentCollector(formula="Cu", 
-                                                          length=300,
-                                                          width=10.8,
+                                                          length=3000,
+                                                          width=108,
                                                           thickness=5,
-                                                          tab_width=0.5,
-                                                          tab_length=3.0,
-                                                          tab_spacing=3.0,
-                                                          bare_length=3)
+                                                          tab_width=5,
+                                                          tab_length=30,
+                                                          tab_spacing=30,
+                                                          bare_length=30)
         
         anode = Anode(formulation=anode_formulation,
                       mass_loading=10,
@@ -184,9 +184,9 @@ class TestCylindricalJellyRoll(unittest.TestCase):
         separator = Separator(thickness=16, 
                               areal_cost=0.9, 
                               density=0.4, 
-                              width=11.0, 
+                              width=110, 
                               porosity=47, 
-                              fold_length=300)
+                              fold_length=3000)
         
         # construct the stack
         self.cylindrical_jelly_roll = CylindricalJellyRoll(anode=anode, 
@@ -211,8 +211,8 @@ class TestCylindricalJellyRoll(unittest.TestCase):
         self.assertEqual(round(self.cylindrical_jelly_roll._electrode_thickness, 5), 0.00042)
         self.assertEqual(self.cylindrical_jelly_roll.electrode_thickness, 0.42)
         self.assertEqual(self.cylindrical_jelly_roll.n_turns, 42.29)
-        self.assertEqual(self.cylindrical_jelly_roll.radius, 2.04)
-        self.assertEqual(self.cylindrical_jelly_roll.width, 11)
+        self.assertEqual(self.cylindrical_jelly_roll.radius, 20.39)
+        self.assertEqual(self.cylindrical_jelly_roll.width, 110.0)
 
         self.assertEqual(self.cylindrical_jelly_roll.cost_breakdown, {'Cathode': 1.46, 'Anode': 1.03, 'Separator': 0.59})
         self.assertEqual(self.cylindrical_jelly_roll.mass_breakdown, {'Cathode': 130.32, 'Anode': 79.0, 'Separator': 4.22})

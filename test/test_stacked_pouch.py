@@ -30,9 +30,9 @@ class TestStandard(unittest.TestCase):
 
         cathode_current_collector = CurrentCollector(formula="Al", 
                                                      thickness=15, 
-                                                     length=16.0,
-                                                     width=10.8,
-                                                     bare_area=8.22)
+                                                     length=160,
+                                                     width=108,
+                                                     bare_area=822)
 
         cathode = Cathode(formulation=cathode_formulation,
                           mass_loading=10.68,
@@ -52,9 +52,9 @@ class TestStandard(unittest.TestCase):
         
         anode_current_collector = CurrentCollector(formula="Cu",
                                                    thickness=5,
-                                                   length=16.0,
-                                                   width=10.8,
-                                                   bare_area=7.55)
+                                                   length=160,
+                                                   width=108,
+                                                   bare_area=755)
         
         anode = Anode(formulation=anode_formulation,
                             mass_loading=5.25,
@@ -65,9 +65,9 @@ class TestStandard(unittest.TestCase):
         separator = Separator(thickness=16, 
                               areal_cost=0.9, 
                               density=0.4, 
-                              width=11.0, 
+                              width=110, 
                               porosity=47, 
-                              fold_length=18.6)
+                              fold_length=186)
 
         # construct the stack
         stack = Stack(anode=anode, 
@@ -119,7 +119,7 @@ class TestStandard(unittest.TestCase):
         self.assertEqual(round(self.cell._cost, 2), 3.85)
         self.assertEqual(self.cell.mass, 262.63)
         self.assertEqual(round(self.cell._mass, 3), 0.263)
-        self.assertEqual(self.cell.height, 0.72)
+        self.assertEqual(self.cell.height, 7.15)
         self.assertEqual(round(self.cell._height, 4), 0.0072)
 
         self.assertEqual(self.cell.reversible_capacity, 11.93)
@@ -146,7 +146,7 @@ class TestStandard(unittest.TestCase):
         self.assertEqual(round(self.cell_double._cost, 2), 7.44)
         self.assertEqual(self.cell_double.mass, 513.98)
         self.assertEqual(round(self.cell_double._mass, 3), 0.514)
-        self.assertEqual(self.cell_double.height, 1.41)
+        self.assertEqual(self.cell_double.height, 14.07)
         self.assertEqual(round(self.cell_double._height, 4), 0.0141)
 
         self.assertEqual(self.cell_double.reversible_capacity, 25.93)
@@ -172,8 +172,8 @@ class TestStandard(unittest.TestCase):
         # fig1a.show()
         # fig1b.show()
         # fig1c.show()
-        fig1d.show()
-        fig1e.show()
+        # fig1d.show()
+        # fig1e.show()
         # fig2a.show()
         # fig2b.show()
         # fig2c.show()    
@@ -187,8 +187,8 @@ class TestStandard(unittest.TestCase):
         self.assertEqual(self.cell.pouch.heat_seal_size_top, 22)
         self.assertEqual(round(self.cell.pouch._heat_seal_size_sides, 6), 0.007)
         self.assertEqual(round(self.cell.pouch._heat_seal_size_top, 6), 0.022)
-        self.assertEqual(self.cell.pouch.length, 20.8)
-        self.assertEqual(self.cell.pouch.width, 12.4)
+        self.assertEqual(self.cell.pouch.length, 208.03)
+        self.assertEqual(self.cell.pouch.width, 124.0)
         self.assertEqual(self.cell.pouch.area, 257.96)
         self.assertEqual(round(self.cell.pouch._length, 4), 0.208)
         self.assertEqual(round(self.cell.pouch._width, 4), 0.124)
@@ -218,9 +218,9 @@ class TestStandard(unittest.TestCase):
             self.assertEqual(round(s.separator._density), 400)
             self.assertEqual(s.separator.porosity, 47)
             self.assertEqual(round(s.separator._porosity, 4), 0.47)
-            self.assertEqual(s.separator.width, 11)
+            self.assertEqual(s.separator.width, 110)
             self.assertEqual(s.separator._width, 0.11)
-            self.assertEqual(s.separator.fold_length, 18.6)
+            self.assertEqual(s.separator.fold_length, 186)
             self.assertEqual(round(s.separator._fold_length, 3), 0.186)
 
             self.assertEqual(s.separator.area, 11495.99)
