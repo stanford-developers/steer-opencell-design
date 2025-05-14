@@ -106,8 +106,8 @@ class TestCylindricalJellyRoll(unittest.TestCase):
                                              wall_thickness=0.3)
         
         # build the terminals
-        pos_terminal = Terminal(mass = 1, specific_cost = 16, thickness=2)
-        neg_terminal = Terminal(mass = 1, specific_cost = 16, thickness=2)
+        pos_terminal = Terminal(mass = 1, specific_cost = 16, thickness=0.2)
+        neg_terminal = Terminal(mass = 1, specific_cost = 16, thickness=0.2)
 
         case = CylindricalCase(shell=cylindrical_shell,
                                positive_terminal=pos_terminal,
