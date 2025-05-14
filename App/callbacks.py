@@ -9,13 +9,13 @@ from layouts import *
 from SteerEnergyStorage.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
 from SteerEnergyStorage.Formulations.ElectrodeFormulations import ElectrodeFormulation
 from SteerEnergyStorage.Materials.Separators import Separator
-from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector, NotchedCurrentCollector, TabWeldedCurrentCollector, TablessCurrentCollector
+from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector, NotchedCurrentCollector, TabWeldedCurrentCollector, TablessCurrentCollector, PunchedCurrentCollector
 from SteerEnergyStorage.Materials.Electrolytes import Electrolyte
-from SteerEnergyStorage.Materials.other import Terminal
-from SteerEnergyStorage.Constructions.Containers import CylindricalCase, CylindricalShell
+from SteerEnergyStorage.Materials.other import Terminal, Laminate, Tape
+from SteerEnergyStorage.Constructions.Containers import CylindricalCase, CylindricalShell, Pouch, PrismaticCase, PrismaticLid, PrismaticShell
 from SteerEnergyStorage.Constructions.Electrodes import Cathode, Anode
-from SteerEnergyStorage.Formulations.ElectrodeAssemblies import CylindricalJellyRoll
-from SteerEnergyStorage.Constructions.Cells import CylindricalCell, CylindricalCase
+from SteerEnergyStorage.Formulations.ElectrodeAssemblies import CylindricalJellyRoll, Stack
+from SteerEnergyStorage.Constructions.Cells import CylindricalCell, CylindricalCase, StackedPouchCell, StackedPrismaticCell
 
 
 @ds.callback(
@@ -439,9 +439,11 @@ def update_current_collector_design_options(internal_structure):
     :return: The updated current collector design options for both electrodes.
     """
     if internal_structure == 'wound':
-        options = [{'label': 'Tabless', 'value': 'tabless'}, 
-                   {'label': 'Notched', 'value': 'notched'}, 
-                   {'label': 'Tab Welded', 'value': 'tab_welded'}]
+        options = [
+            {'label': 'Tabless', 'value': 'tabless'}, 
+            {'label': 'Notched', 'value': 'notched'}, 
+            # {'label': 'Tab Welded', 'value': 'tab_welded'}
+            ]
         return options, options, 'tabless', 'tabless'
     elif internal_structure == 'stacked':
         options = [{'label': 'Punched', 'value': 'punched'}]
@@ -528,10 +530,15 @@ def show_current_collector_design_options(design):
         ]
     
     elif design == 'punched':
+        def_tab_pos = 3 if electrode == 'cathode' else 8
         return [
-            ds.html.P("Punched current collector selected for " + electrode),
-            ds.html.Br(),
-            ds.html.P("Additional parameters for punched current collector can be added here.")
+            ds.html.Br(), 
+            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 50, 11, 0.01, 5, 'length', 'Length (cm)', div_width='1100px').render(), ds.html.Br(), 
+            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 50, 11, 0.01, 5, 'width', 'Width (cm)', div_width='1100px').render(), ds.html.Br(), 
+            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 20, 4, 0.01, 4, 'tab_width', 'Tab Width (cm)', div_width='400px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 20, 2, 0.01, 4, 'tab_height', 'Tab Height (cm)', div_width='400px').render(), ds.html.Br(), 
+            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 50, def_tab_pos, 0.01, 5, 'tab_position', 'Tab Position (cm)', div_width='1100px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 100, 15, 0.1, 5, 'thickness', 'Thickness  (μm)', div_width='400px').render(), ds.html.Br(),  
         ]
 
 
@@ -654,8 +661,8 @@ def sync_encapsulation_sliders(slider_val, input_val):
         [ds.Input({'type': ds.ALL, 'object': 'current_collector', 'electrode': ds.MATCH, 'subtype': 'slider', 'property': ds.ALL}, 'drag_value'),
          ds.Input({'electrode': ds.MATCH, 'object': 'current_collector', 'subtype': 'text_input', 'property': 'name'}, 'value'),
          ds.Input({'electrode': ds.MATCH, 'object': 'current_collector', 'subtype': 'slider', 'property': 'density'}, 'drag_value'),
-         ds.Input({'electrode': ds.MATCH, 'object': 'current_collector', 'subtype': 'slider', 'property': 'specific_cost'}, 'drag_value')],
-         ds.State({'type': 'mechanicals', 'object': 'current_collector', 'electrode': ds.MATCH, 'feature': 'design'}, 'value'),
+         ds.Input({'electrode': ds.MATCH, 'object': 'current_collector', 'subtype': 'slider', 'property': 'specific_cost'}, 'drag_value'),
+         ds.Input({'type': 'mechanicals', 'object': 'current_collector', 'electrode': ds.MATCH, 'feature': 'design'}, 'value')],
          prevent_initial_call=True
 )
 def make_current_collector(properties, material_formula, material_density, material_specific_cost, current_collector_design):
@@ -700,21 +707,15 @@ def make_current_collector(properties, material_formula, material_density, mater
             return ["\u00A0"], {}
 
         try:
-            length = properties[0]
-            width = properties[1]
-            thickness = properties[2]
-            tab_width = properties[3]
-            bare_length = properties[4]
-
             current_collector = TablessCurrentCollector(
                 formula=material_formula,
-                length=length,
-                width=width,
-                thickness=thickness,
-                tab_width=tab_width,
+                length=properties[0],
+                width=properties[1],
+                thickness=properties[2],
+                tab_width=properties[3],
                 density=material_density,
                 specific_cost=material_specific_cost,
-                bare_length=bare_length
+                bare_length=properties[4]
             )
 
         except ValueError as e:
@@ -726,8 +727,22 @@ def make_current_collector(properties, material_formula, material_density, mater
         pass
 
     elif current_collector_design == 'punched':
-        # Add logic for punched design
-        pass
+        
+        try:
+            current_collector = PunchedCurrentCollector(
+                formula=material_formula,
+                length=properties[0],
+                width=properties[1],
+                tab_width=properties[2],
+                tab_height=properties[3],
+                tab_position=properties[4],
+                thickness=properties[5],
+                density=material_density,
+                specific_cost=material_specific_cost
+            )
+        except ValueError as e:
+            message = f"Error: {e}"
+            return message, {}
 
     message = ds.html.Div([
         ds.html.Br(), ds.html.Br(),
@@ -743,10 +758,11 @@ def make_current_collector(properties, material_formula, material_density, mater
     
 @ds.callback(
     ds.Output({'tab': 'mechanicals', 'object': 'current_collector', 'object': 'graph', 'electrode': ds.MATCH}, 'figure'),
-    ds.Input({'type': 'store', 'electrode': ds.MATCH, 'object': 'current_collector'}, 'data'),
+    [ds.Input({'type': 'store', 'electrode': ds.MATCH, 'object': 'current_collector'}, 'data'),
+     ds.Input({'type': 'mechanicals', 'object': 'current_collector', 'electrode': ds.MATCH, 'feature': 'design'}, 'value')],
     prevent_initial_call=True
 )
-def show_current_collector_graph(data):
+def show_current_collector_graph(data, design):
     """
     Show the current collector graph based on the selected internal structure.
 
@@ -763,11 +779,11 @@ def show_current_collector_graph(data):
     pickled_current_collector = data[f'{electrode}_current_collector']
     current_collector = pickle.loads(base64.b64decode(pickled_current_collector))
 
-    try:
-        figure = current_collector.get_top_down_view()
-    except ValueError as e:
-        return None
-    
+    if design == 'notched' or design == 'tabless':
+        figure = current_collector.get_top_down_view(width=1200, height=700)
+    elif design == 'punched':
+        figure = current_collector.get_top_down_view(width=700, height=700)
+
     return figure
 
 
@@ -784,30 +800,28 @@ def show_encapsulation_options(form_factor):
     :return: The updated encapsulation options.
     """
     if form_factor == 'cylindrical':
-
-        return [
-            ds.html.Br(), ds.html.Br(), ds.html.Br(),
-            ds.html.H4("Cylindrical Shell"),
-            SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1, 0.2, 0.01, 1, 'cost', 'Cost ($)', div_width='500px').render(), ds.html.Br(), 
-            SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1000, 50, 0.1, 100, 'mass', 'Mass (g)', div_width='1400px').render(), ds.html.Br(), 
-            SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 10, 3, 0.01, 1, 'internal_radius', 'Internal Radius (cm)', div_width='700px').render(), ds.html.Br(), 
-            SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1, 0.3, 0.01, 1, 'wall_thickness', 'Wall thickness (mm)', div_width='500px').render(), ds.html.Br(), 
-            SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 50, 10, 0.01, 10, 'length', 'Length (cm)', div_width='500px').render(), ds.html.Br(), 
-        ]
+        return [cylindrical_encapsulation]
+    
+    elif form_factor == 'pouch':
+        return [pouch_encapsulation]
+    
+    elif form_factor == 'prismatic':
+        return [prismatic_encapsulation]
     
     else:
         return []
-    
+
 
 @ds.callback(
     [ds.Output({'type': 'store', 'object': 'encapsulation'}, 'data'),
      ds.Output({'tab': 'mechanicals', 'object': 'encapsulation', 'object': 'message'}, 'children')],
-    [ds.Input({'object': 'encapsulation', 'type': 'cylindrical', 'property': ds.ALL, 'subtype': 'input'}, 'value'),
+    [ds.Input({'object': 'encapsulation', 'type': ds.ALL, 'property': ds.ALL, 'subtype': 'input'}, 'value'),
      ds.Input({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'cathode', 'property': ds.ALL, 'subtype': 'input'}, 'value'),
-     ds.Input({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'anode', 'property': ds.ALL, 'subtype': 'input'}, 'value')],
+     ds.Input({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'anode', 'property': ds.ALL, 'subtype': 'input'}, 'value'),
+     ds.Input('form_factor_dropdown', 'value')],
      prevent_initial_call=True
 )
-def make_cylindrical_encapsulation(case_inputs, cathode_terminal_inputs, anode_terminal_inputs):
+def make_encapsulation(inputs, cathode_terminal_inputs, anode_terminal_inputs, form_factor):
     """
     Create a cylindrical encapsulation object using the inputs from the sliders and text box.
 
@@ -815,24 +829,59 @@ def make_cylindrical_encapsulation(case_inputs, cathode_terminal_inputs, anode_t
     :param cathode_terminal_inputs: Inputs for the cathode terminal.
     :param anode_terminal_inputs: Inputs for the anode terminal.
     """
-    if len(case_inputs) == 0 or len(cathode_terminal_inputs) == 0 or len(anode_terminal_inputs) == 0:
+    
+    if len(inputs) == 0:
         return {}, ["\u00A0"]
 
-    try:
-        cathode_terminal = Terminal(mass = cathode_terminal_inputs[0], specific_cost = cathode_terminal_inputs[1], thickness=cathode_terminal_inputs[2])
-        anode_terminal = Terminal(mass = anode_terminal_inputs[0], specific_cost = anode_terminal_inputs[1], thickness=anode_terminal_inputs[2])
-        shell = CylindricalShell(cost=case_inputs[0], mass=case_inputs[1], internal_radius=case_inputs[2], wall_thickness=case_inputs[3], length=case_inputs[4])
+    if form_factor == 'cylindrical':
 
-        case = CylindricalCase(
-            shell=shell,
-            positive_terminal=cathode_terminal,
-            negative_terminal=anode_terminal
-        )
+        try:
+            cathode_terminal = Terminal(mass = cathode_terminal_inputs[0], specific_cost = cathode_terminal_inputs[1], thickness=cathode_terminal_inputs[2])
+            anode_terminal = Terminal(mass = anode_terminal_inputs[0], specific_cost = anode_terminal_inputs[1], thickness=anode_terminal_inputs[2])
+            shell = CylindricalShell(cost=inputs[0], mass=inputs[1], internal_radius=inputs[2], wall_thickness=inputs[3], length=inputs[4])
 
-    except ValueError as e:
-        message = f"Error: {e}"
-        return message, {}
+            case = CylindricalCase(
+                shell=shell,
+                positive_terminal=cathode_terminal,
+                negative_terminal=anode_terminal
+            )
+
+        except ValueError as e:
+            message = f"Error: {e}"
+            return {}, [message]
     
+    elif form_factor == 'pouch':
+
+        try:
+            cathode_terminal = Terminal(mass = cathode_terminal_inputs[0], specific_cost = cathode_terminal_inputs[1], thickness=cathode_terminal_inputs[2])
+            anode_terminal = Terminal(mass = anode_terminal_inputs[0], specific_cost = anode_terminal_inputs[1], thickness=anode_terminal_inputs[2])
+            laminate = Laminate(thickness=inputs[0], areal_mass=inputs[1], areal_cost=inputs[2])
+            tape = Tape(mass=inputs[3])
+
+            case = Pouch(
+                laminate=laminate,
+                tape=tape,
+                heat_seal_size_sides=inputs[4],
+                heat_seal_size_top=inputs[5],
+                positive_terminal=cathode_terminal,
+                negative_terminal=anode_terminal
+            )
+
+        except ValueError as e:
+            message = f"Error: {e}"
+            return {}, [message]
+        
+    elif form_factor == 'prismatic':
+        
+        try:
+            lid = PrismaticLid(mass=inputs[0], cost=inputs[1], external_width=inputs[2], internal_width=inputs[3])
+            shell = PrismaticShell(mass=inputs[4], cost=inputs[5], internal_length=inputs[6], internal_width=inputs[7], internal_height=inputs[8], wall_thickness=inputs[9])
+            case = PrismaticCase(lid=lid, shell=shell)
+
+        except ValueError as e:
+            message = f"Error: {e}"
+            return {}, [message]
+
     pickled_case = base64.b64encode(pickle.dumps(case)).decode('utf-8')
 
     message = ds.html.Div([
@@ -846,9 +895,11 @@ def make_cylindrical_encapsulation(case_inputs, cathode_terminal_inputs, anode_t
 
 @ds.callback(
     [ds.Output({'type': 'encapsulation', 'object': 'graph', 'view': 'top'}, 'figure'),
-     ds.Output({'type': 'encapsulation', 'object': 'graph', 'view': 'side'}, 'figure')],
-     ds.Input({'type': 'store', 'object': 'encapsulation'}, 'data'),
-     ds.State('form_factor_dropdown', 'value'),
+     ds.Output({'type': 'encapsulation', 'object': 'graph', 'view': 'side'}, 'figure'),
+     ds.Output({'type': 'encapsulation', 'object': 'graph', 'view': 'top'}, 'style'),
+     ds.Output({'type': 'encapsulation', 'object': 'graph', 'view': 'side'}, 'style')],
+     [ds.Input({'type': 'store', 'object': 'encapsulation'}, 'data'),
+      ds.Input('form_factor_dropdown', 'value')],
      prevent_initial_call=True
 )
 def get_encapsulation_plots(pickled_encapsulation, form_factor):
@@ -860,7 +911,7 @@ def get_encapsulation_plots(pickled_encapsulation, form_factor):
     :return: The updated encapsulation plots.
     """
     if pickled_encapsulation == [] or pickled_encapsulation == {}:
-        return None, None
+        return None, None, {'display': 'none'}, {'display': 'none'}
 
     pickled_case = pickled_encapsulation['case']
     case = pickle.loads(base64.b64decode(pickled_case))
@@ -868,10 +919,10 @@ def get_encapsulation_plots(pickled_encapsulation, form_factor):
     if form_factor == 'cylindrical':
         figure_top = case.get_top_down_view()
         figure_side = case.get_side_view()
-        return figure_top, figure_side
+        return figure_top, figure_side, ds.no_update, ds.no_update
    
     else:
-        return None, None
+        return None, None, {'display': 'none'}, {'display': 'none'}
 
 
 @ds.callback(
@@ -952,23 +1003,27 @@ def make_electrode(formulation, current_collector, mass_loading, calender_densit
 
 @ds.callback(
     ds.Output({'type': 'div', 'object': 'electrode_assembly'}, 'children'),
-    ds.Input('form_factor_dropdown', 'value'),
+    ds.Input('internal_structure_dropdown', 'value'),
     prevent_initial_call=True
 )
-def show_electrode_assembly_inputs(form_factor):
+def show_electrode_assembly_inputs(internal_construction):
     """
     Show the electrode assembly options based on the selected form factor.
 
     :param form_factor: The selected form factor.
     :return: The updated electrode assembly options.
     """
-    if form_factor == 'cylindrical':
+    if internal_construction == 'wound':
         return [
             ds.html.Br(),
-            SliderWithTextInput({'type': 'cylindrical', 'object': 'electrode_assembly'}, 0, 10, 2, 0.01, 1, 'die_diameter', 'Die Diameter (mm)', div_width='800px').render(), ds.html.Br()
+            SliderWithTextInput({'type': 'electrode_assembly'}, 0, 10, 2, 0.01, 1, 'die_diameter', 'Die diameter (mm)', div_width='800px').render(), ds.html.Br()
         ]
-    else:
-        return []
+    elif internal_construction == 'stacked':
+        return [
+            ds.html.Br(),
+            SliderWithTextInput({'type': 'electrode_assembly'}, 0, 100, 10, 1, 10, 'n_stacks', 'Number of electrode stacks', div_width='1000px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'electrode_assembly'}, 0, 6, 1, 1, 1, 'separator_wraps', 'Additional separator wraps', div_width='700px').render(), ds.html.Br()
+        ]
 
 
 @ds.callback(
@@ -978,12 +1033,12 @@ def show_electrode_assembly_inputs(form_factor):
     [ds.Input({'type': 'store', 'electrode': 'cathode', 'object': 'electrode'}, 'data'),
      ds.Input({'type': 'store', 'electrode': 'anode', 'object': 'electrode'}, 'data'),
      ds.Input({'type': 'store', 'component': 'separator'}, 'data'),
-     ds.Input({'type': 'cylindrical', 'object': 'electrode_assembly', 'property': 'die_diameter', 'subtype': 'input'}, 'value'),
-     ds.Input({'type': 'store', 'object': 'encapsulation'}, 'data')],
-     ds.State('internal_structure_dropdown', 'value'),
+     ds.Input({'type': 'electrode_assembly', 'property': ds.ALL, 'subtype': 'input'}, 'value'),
+     ds.Input({'type': 'store', 'object': 'encapsulation'}, 'data'),
+     ds.Input('internal_structure_dropdown', 'value')],
      prevent_initial_call=True
 )
-def make_electrode_assembly(pickled_cathode, pickled_anode, pickled_separator, die_diameter, encapsulation, internal_structure):
+def make_electrode_assembly(pickled_cathode, pickled_anode, pickled_separator, assembly_parameters, encapsulation, internal_structure):
     """
     Create an electrode assembly object using the inputs from the sliders and text box.
 
@@ -1004,8 +1059,8 @@ def make_electrode_assembly(pickled_cathode, pickled_anode, pickled_separator, d
         message = ds.html.P([ds.html.B("Warning: ", style={'font-weight': '900'}), f" No separator specified."])
         return {}, [message], None
 
-    if die_diameter is None:
-        message = ds.html.P([ds.html.B("Warning: ", style={'font-weight': '900'}), f" Die diameter must be specified."])
+    if assembly_parameters is None or len(assembly_parameters) == 0:
+        message = ds.html.P([ds.html.B("Warning: ", style={'font-weight': '900'}), f"Assembly inputs are required."])
         return {}, [message], None
     
     if encapsulation == [] or encapsulation == {} or encapsulation == None:
@@ -1030,7 +1085,7 @@ def make_electrode_assembly(pickled_cathode, pickled_anode, pickled_separator, d
                 cathode=cathode,
                 anode=anode,
                 separator=separator,
-                internal_die_diameter=die_diameter
+                internal_die_diameter=assembly_parameters[0],
             )
         except ValueError as e:
             message = f"Error: {e}"
@@ -1045,14 +1100,39 @@ def make_electrode_assembly(pickled_cathode, pickled_anode, pickled_separator, d
             ds.html.P([ds.html.B("Radius: ", style={'font-weight': '900'}), f"{electrode_assembly.radius} cm"]),
             ds.html.P([ds.html.B("Number Of Turns: ", style={'font-weight': '900'}), f"{electrode_assembly.n_turns}"]),
             ds.html.Br(),
-        ], style={'line-height': '0.5'})
+        ], style={'line-height': '0.5'}) 
+
+        figure = electrode_assembly.get_top_down_view(encapsulation=case, width=900, height=900)
 
     elif internal_structure == 'stacked':
-        return {}, [ds.html.P("Stacked structure not implemented yet.")], None
+        
+        try:
+            electrode_assembly = Stack(
+                cathode=cathode,
+                anode=anode,
+                separator=separator,
+                n_layers=assembly_parameters[0],
+                additional_separator_wraps=assembly_parameters[1]
+            )
+        except ValueError as e:
+            message = f"Error: {e}"
+            return {}, [message], None
+        
+        message = ds.html.Div([
+            ds.html.Br(), ds.html.Br(),
+            ds.html.P([ds.html.B("Cost: ", style={'font-weight': '900'}), f"{electrode_assembly.cost} $"]),
+            ds.html.P([ds.html.B("Mass: ", style={'font-weight': '900'}), f"{electrode_assembly.mass} g"]),
+            ds.html.P([ds.html.B("Pore Volume: ", style={'font-weight': '900'}), f"{electrode_assembly.pore_volume} cm³"]),
+            ds.html.P([ds.html.B("Active Area: ", style={'font-weight': '900'}), f"{electrode_assembly.active_geometric_area} cm²"]),
+            ds.html.Br(),
+        ], style={'line-height': '0.5'})
+
+        figure = None
+
+    else: 
+        return {}, ["\u00A0"], None
 
     pickled_electrode_assembly = base64.b64encode(pickle.dumps(electrode_assembly)).decode('utf-8')
-
-    figure = electrode_assembly.get_top_down_view(encapsulation=case, width=1400, height=1400)
 
     return {'electrode_assembly': pickled_electrode_assembly}, message, figure
 
@@ -1063,20 +1143,31 @@ def make_electrode_assembly(pickled_cathode, pickled_anode, pickled_separator, d
      ds.Output({'type': 'theoretical_curve_placeholder'}, 'children'),
      ds.Output({'type': 'cost_mass_placeholder'}, 'children'),
      ds.Output({'type': 'store', 'object': 'cell'}, 'data')],
-
+ 
     [ds.Input({'type': 'store', 'object': 'electrode_assembly'}, 'data'),
      ds.Input({'type': 'store', 'component': 'electrolyte'}, 'data'),
      ds.Input({'type': 'mechanicals', 'property': 'electrolyte_overfill', 'subtype': 'input'}, 'value'),
      ds.Input({'type': 'store', 'object': 'encapsulation'}, 'data'),
      ds.Input({'type': 'operation', 'property': 'capacity_range', 'subtype': 'range_slider'}, 'drag_value'),
-     ds.Input({'type': 'operation', 'property': 'voltage_range', 'subtype': 'range_slider'}, 'drag_value')],
+     ds.Input({'type': 'operation', 'property': 'voltage_range', 'subtype': 'range_slider'}, 'drag_value'),
+     ds.Input('form_factor_dropdown', 'value'),
+     ds.Input('internal_structure_dropdown', 'value'),
+     ds.Input('num_electrode_assemblies', 'value')],
 
-    [ds.State('form_factor_dropdown', 'value'),
-     ds.State({'type': 'store', 'object': 'cell'}, 'data')],
+     ds.State({'type': 'store', 'object': 'cell'}, 'data'),
 
      prevent_initial_call=True
 )
-def make_cell(pickled_electrode_assembly, pickled_electrolyte, electrolyte_overfill, pickled_case, capacity_range, voltage_range, form_factor, pickled_cell):
+def make_cell(pickled_electrode_assembly: dict, 
+              pickled_electrolyte: dict, 
+              electrolyte_overfill: float, 
+              pickled_case: dict, 
+              capacity_range: list, 
+              voltage_range: list, 
+              form_factor: str, 
+              internal_structure: str, 
+              num_electrode_assemblies: int, 
+              pickled_cell: dict):
     """
     Create a cell object using the inputs from the sliders and text box.
 
@@ -1144,6 +1235,38 @@ def make_cell(pickled_electrode_assembly, pickled_electrolyte, electrolyte_overf
             message = f"Error: {e}"
             return [message], None, None, {}
         
+    elif form_factor == 'pouch' and internal_structure == 'stacked':
+    
+        try:
+            cell = StackedPouchCell(
+                stack=electrode_assembly,
+                pouch=case,
+                electrolyte=electrolyte,
+                electrolyte_overfill=electrolyte_overfill,
+                reversible_capacity=capacity_range[1],
+                irreversible_capacity=capacity_range[0],
+                n_stacks=num_electrode_assemblies
+            )
+        except ValueError as e:
+            message = f"Error: {e}"
+            return [message], None, None, {}
+        
+    elif form_factor == 'prismatic' and internal_structure == 'stacked':
+
+        try:
+            cell = StackedPrismaticCell(
+                stack=electrode_assembly,
+                prismatic_case=case,
+                electrolyte=electrolyte,
+                electrolyte_overfill=electrolyte_overfill,
+                reversible_capacity=capacity_range[1],
+                irreversible_capacity=capacity_range[0],
+                n_stacks=num_electrode_assemblies
+            )
+        except ValueError as e:
+            message = f"Error: {e}"
+            return [message], None, None, {}
+            
     else:
         return None, None, None, {}
         
@@ -1164,7 +1287,6 @@ def make_cell(pickled_electrode_assembly, pickled_electrolyte, electrolyte_overf
         ds.html.P([ds.html.B("Energy: ", style={'font-weight': '900'}), f"{cell.energy} Wh"]),
         ds.html.P([ds.html.B("Energy Density: ", style={'font-weight': '900'}), f"{cell.energy_density} Wh/kg"]),
         ds.html.P([ds.html.B("Specific Energy: ", style={'font-weight': '900'}), f"{cell.specific_energy} Wh/L"]),
-        ds.html.Br(),
     ], style={'line-height': '0.5'})    
 
     pickled_cell = base64.b64encode(pickle.dumps(cell)).decode('utf-8')

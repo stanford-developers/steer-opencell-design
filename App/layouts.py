@@ -138,23 +138,81 @@ anode_mechanicals = ds.html.Div([
 ], style={'padding-left': '20px', 'width': '100%'})
 
 
-encapsulation = ds.html.Div([
-
+positive_terminal_inputs = ds.html.Div([
     ds.html.Br(), ds.html.Br(), ds.html.Br(),
-
     ds.html.H4("Positive Terminal"),
     SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'cathode'}, 0, 10, 2, 0.01, 1, 'mass', 'Mass (g)', div_width='1000px').render(), ds.html.Br(), 
     SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'cathode'}, 0, 1000, 100, 0.1, 100, 'specific_cost', 'Specific Cost ($/kg)', div_width='600px').render(), ds.html.Br(), 
     SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'cathode'}, 0, 2, 0.5, 0.01, 1, 'thickness', 'Thickness (cm)', div_width='600px').render(), ds.html.Br(),
     ds.html.Div(id={'tab': 'encapsulation', 'object': 'terminal', 'object': 'message', 'electrode': 'cathode'}), 
+])
 
+
+negative_terminal_inputs = ds.html.Div([
     ds.html.Br(), ds.html.Br(), ds.html.Br(),
-
     ds.html.H4("Negative Terminal"),
     SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'anode'}, 0, 10, 2, 0.01, 1, 'mass', 'Mass (g)', div_width='1000px').render(), ds.html.Br(), 
     SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'anode'}, 0, 1000, 100, 0.1, 100, 'specific_cost', 'Specific Cost ($/kg)', div_width='600px').render(), ds.html.Br(), 
     SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'anode'}, 0, 2, 0.5, 0.01, 1, 'thickness', 'Thickness (cm)', div_width='600px').render(), ds.html.Br(), 
     ds.html.Div(id={'tab': 'encapsulation', 'object': 'terminal', 'object': 'message', 'electrode': 'anode'}), 
+])
+
+
+cylindrical_encapsulation = ds.html.Div([
+
+    positive_terminal_inputs,
+    negative_terminal_inputs,
+
+    ds.html.Br(), ds.html.Br(), ds.html.Br(),
+    ds.html.H4("Cylindrical Shell"),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1, 0.2, 0.01, 1, 'cost', 'Cost ($)', div_width='500px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1000, 50, 0.1, 100, 'mass', 'Mass (g)', div_width='1400px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 10, 3, 0.01, 1, 'internal_radius', 'Internal Radius (cm)', div_width='700px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1, 0.3, 0.01, 1, 'wall_thickness', 'Wall thickness (mm)', div_width='500px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 50, 10, 0.01, 10, 'length', 'Length (cm)', div_width='500px').render(), ds.html.Br(), 
+
+])
+
+
+pouch_encapsulation = ds.html.Div([
+
+    positive_terminal_inputs,
+    negative_terminal_inputs,
+
+    ds.html.Br(), ds.html.Br(), ds.html.Br(),
+    ds.html.H4("Pouch"),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'pouch'}, 0, 200, 100, 0.1, 20, 'laminate_thickness', 'Laminate thickness (μm)', div_width='800px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'pouch'}, 0, 30, 15, 0.01, 5, 'laminate_areal_mass', 'Laminate areal mass (mg/cm²)', div_width='800px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'pouch'}, 0, 10, 4, 0.01, 2, 'laminate_areal_cost', 'Laminate areal cost ($/cm²)', div_width='800px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'pouch'}, 0, 10, 1, 0.01, 2, 'tape_mass', 'Mass of sealing tape (g)', div_width='400px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'pouch'}, 0, 50, 4, 0.01, 5, 'side_heat_seal', 'Width of side heat seals (mm)', div_width='600px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'pouch'}, 0, 50, 4, 0.01, 5, 'top_heat_seal', 'Width of top heat seal (mm)', div_width='600px').render(), ds.html.Br(), 
+
+])
+
+
+prismatic_encapsulation = ds.html.Div([
+
+    ds.html.Br(), ds.html.Br(), ds.html.Br(),
+    ds.html.H4("Prismatic Lid"),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_lid'}, 0, 200, 20, 0.1, 20, 'mass', 'Mass (g)', div_width='1000px').render(), ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_lid'}, 0, 5, 0.5, 0.01, 1, 'cost', 'Cost ($)', div_width='1000px').render(), ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_lid'}, 0, 10, 2, 0.01, 1, 'external_width', 'External Width (cm)', div_width='1000px').render(), ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_lid'}, 0, 10, 2, 0.01, 1, 'internal_width', 'Internal Width (cm)', div_width='1000px').render(), ds.html.Br(),
+
+    ds.html.Br(), ds.html.Br(), ds.html.Br(),
+    ds.html.H4("Prismatic Case"),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 200, 20, 0.1, 20, 'mass', 'Mass (g)', div_width='1000px').render(), ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 5, 0.5, 0.01, 1, 'cost', 'Cost ($)', div_width='1000px').render(), ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 20, 10, 0.01, 4, 'internal_length', 'Internal Length (cm)', div_width='1000px').render(), ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 20, 5, 0.01, 4, 'internal_width', 'Internal Width (cm)', div_width='1000px').render(), ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 50, 10, 0.01, 5, 'internal_height', 'Internal Height (cm)', div_width='1400px').render(), ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 4, 0.5, 0.01, 1, 'wall_thickness', 'Wall Thickness (mm)', div_width='700px').render(), ds.html.Br(),
+
+])
+
+
+encapsulation = ds.html.Div([
 
     ds.html.Div(id={'tab': 'mechanicals', 'object': 'encapsulation', 'object': 'div'}),
     ds.html.Div(id={'tab': 'mechanicals', 'object': 'encapsulation', 'object': 'message'}),
@@ -285,7 +343,7 @@ separator_electrolyte = ds.html.Div([
             ds.html.Br(),
             SliderWithTextInput({'type': 'mechanicals'}, 0, 60, 20, 1, 10, 'separator_thickness', title="Thickness (μm)", div_width='30%').render(),
             ds.html.Br(),
-            SliderWithTextInput({'type': 'mechanicals'}, 0, 10, 1, 0.01, 1, 'separator_areal_cost', title="Areal Cost ($/m²)", div_width='40%').render(),
+            SliderWithTextInput({'type': 'mechanicals'}, 0, 3, 0.2, 0.01, 1, 'separator_areal_cost', title="Areal Cost ($/m²)", div_width='40%').render(),
             ds.html.Br(),
             SliderWithTextInput({'type': 'mechanicals'}, 0, 3, 1, 0.01, 1, 'separator_density', title="Density (g/cm³)", div_width='40%').render(),
             ds.html.Br(),

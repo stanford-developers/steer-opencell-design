@@ -18,6 +18,7 @@ class Laminate():
                  ):
         """
         Laminate object for encapsulation of the cell
+        
         :param thickness: float: thickness of the laminate in um
         :param areal_mass: float: the areal mass of the laminate in mg/cm^2
         :param specific_cost: float: specific cost of the laminate $/m^2

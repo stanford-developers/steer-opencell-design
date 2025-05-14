@@ -1,5 +1,39 @@
 import unittest
-from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector, NotchedCurrentCollector, TabWeldedCurrentCollector, WeldTab
+from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector, NotchedCurrentCollector, TabWeldedCurrentCollector, WeldTab, PunchedCurrentCollector
+
+
+class TestPunchedCurrentCollector(unittest.TestCase):
+
+    def setUp(self):
+        """
+        Set up
+        """
+        self.current_collector = PunchedCurrentCollector(formula="Al", 
+                                                         thickness=15, 
+                                                         length=16.0,
+                                                         width=10.8,
+                                                         tab_width=3, 
+                                                         tab_height=2.74,
+                                                         tab_position=3)
+
+    def test_current_collector(self):
+        """
+        Test instantiation
+        """
+        self.assertIsInstance(self.current_collector, CurrentCollector)
+        self.assertEqual(self.current_collector.formula, "Al")
+        self.assertEqual(self.current_collector.thickness, 15)
+        self.assertEqual(self.current_collector.length, 16.0)
+        self.assertEqual(self.current_collector.width, 10.8)
+        self.assertEqual(self.current_collector.bare_area, 8.22)
+        self.assertEqual(round(self.current_collector._thickness, 6), 0.000015)
+        self.assertEqual(round(self.current_collector._length, 6), 0.16)
+        self.assertEqual(round(self.current_collector._width, 6), 0.108)
+        self.assertEqual(round(self.current_collector._bare_area, 6), 0.000822)
+        
+        fig = self.current_collector.get_top_down_view()
+        fig.show()
+
 
 class TestCurrentCollector(unittest.TestCase):
 
