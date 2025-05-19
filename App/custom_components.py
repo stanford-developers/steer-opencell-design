@@ -88,6 +88,7 @@ class MaterialSelector0(Component):
                  with_slider_titles: bool,
                  density_default: float,
                  specific_cost_default: float,
+                 formula_default: str,
                  slider_div_width: str,
                  dropdown_placeholder: str,
                  **kwargs: dict
@@ -102,6 +103,7 @@ class MaterialSelector0(Component):
         self.slider_div_width = slider_div_width
         self.materials = materials
         self.dropdown_placeholder = dropdown_placeholder
+        self.formula_default = formula_default
 
         self.make_text_input()
 
@@ -118,7 +120,8 @@ class MaterialSelector0(Component):
             id=dropdown_id,
             options=[{'label': material, 'value': material} for material in self.materials] if self.materials else [],
             placeholder=self.dropdown_placeholder,
-            style={'width': '200px', 'margin-right': '40px'}
+            style={'width': '200px', 'margin-right': '40px'},
+            value=self.formula_default
         )
 
     def make_div(self):
@@ -144,6 +147,7 @@ class CurrentCollectorSelector(MaterialSelector0):
                  specific_cost_default: float = 15,
                  slider_div_width: str = '300px',
                  dropdown_placeholder: str = 'Select Material',
+                 formula_default: str = 'Al',
                  **kwargs: dict
                  ):
         
@@ -154,6 +158,7 @@ class CurrentCollectorSelector(MaterialSelector0):
                          specific_cost_default=specific_cost_default, 
                          slider_div_width=slider_div_width, 
                          dropdown_placeholder=dropdown_placeholder,
+                         formula_default=formula_default,
                          **kwargs)
         
 
@@ -165,6 +170,7 @@ class MaterialSelector1(MaterialSelector0):
                  weight_default: float,
                  density_default: float,
                  specific_cost_default: float,
+                 formula_default: str,
                  slider_div_width: str,
                  materials: list,
                  dropdown_placeholder: str = 'Select Material',
@@ -176,6 +182,7 @@ class MaterialSelector1(MaterialSelector0):
             with_slider_titles=with_slider_titles,
             density_default=density_default,
             specific_cost_default=specific_cost_default,
+            formula_default=formula_default,
             slider_div_width=slider_div_width,
             materials=materials,
             dropdown_placeholder=dropdown_placeholder
@@ -226,6 +233,7 @@ class BinderSelector(MaterialSelector1):
                  weight_default: float = 0,
                  density_default: float = 4,
                  specific_cost_default: float = 15,
+                 formula_default: str = None,
                  slider_div_width: str = '220px',
                  materials: list = [],
                  dropdown_placeholder: str = ' ',
@@ -239,6 +247,7 @@ class BinderSelector(MaterialSelector1):
             density_default=density_default, 
             specific_cost_default=specific_cost_default, 
             slider_div_width=slider_div_width, 
+            formula_default=formula_default,
             materials=materials,
             dropdown_placeholder=dropdown_placeholder,
             **kwargs
@@ -254,6 +263,7 @@ class ConductiveAdditiveSelector(MaterialSelector1):
                  density_default: float = 4,
                  specific_cost_default: float = 15,
                  slider_div_width: str = '220px',
+                 formula_default: str = None,
                  materials: list = [],
                  dropdown_placeholder: str = ' ',
                  **kwargs: dict
@@ -265,6 +275,7 @@ class ConductiveAdditiveSelector(MaterialSelector1):
             weight_default=weight_default, 
             density_default=density_default, 
             specific_cost_default=specific_cost_default, 
+            formula_default=formula_default,
             slider_div_width=slider_div_width, 
             materials=materials,
             dropdown_placeholder=dropdown_placeholder,
@@ -357,6 +368,7 @@ class MaterialSelector2(MaterialSelector1):
                  weight_default: float,
                  density_default: float,
                  specific_cost_default: float,
+                 formula_default: str,
                  slider_div_width: str,
                  **kwargs: dict
                  ):
@@ -371,6 +383,7 @@ class MaterialSelector2(MaterialSelector1):
             density_default=density_default, 
             specific_cost_default=specific_cost_default, 
             slider_div_width=slider_div_width, 
+            formula_default=formula_default,
             materials=materials,
             dropdown_placeholder=dropdown_placeholder,
             **kwargs
@@ -424,6 +437,7 @@ class CathodeMaterialSelector(MaterialSelector2):
                          weight_default=weight_default, 
                          density_default=density_default, 
                          specific_cost_default=specific_cost_default, 
+                         formula_default=None,
                          slider_div_width=slider_div_width, 
                          **kwargs)
 
@@ -449,6 +463,7 @@ class AnodeMaterialSelector(MaterialSelector2):
                          weight_default=weight_default, 
                          density_default=density_default, 
                          specific_cost_default=specific_cost_default, 
+                         formula_default=None,
                          slider_div_width=slider_div_width, 
                          **kwargs)
 

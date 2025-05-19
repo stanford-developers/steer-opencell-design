@@ -95,7 +95,7 @@ cathode_mechanicals = ds.html.Div([
 
     ds.html.H5('Current Collector Material', style=HEADER_STYLE),
     ds.html.Br(),
-    CurrentCollectorSelector({'electrode': 'cathode', 'object': 'current_collector'}, [], density_default=2.7, specific_cost_default=2.64).render(),
+    CurrentCollectorSelector({'electrode': 'cathode', 'object': 'current_collector'}, current_collector_materials, density_default=2.7, specific_cost_default=2.64).render(),
     ds.html.Br(), ds.html.Br(),
     ds.html.H5('Design', style=HEADER_STYLE),
     ds.html.Br(),
@@ -119,7 +119,7 @@ anode_mechanicals = ds.html.Div([
 
     ds.html.H5('Current Collector Material', style=HEADER_STYLE),
     ds.html.Br(),
-    CurrentCollectorSelector({'electrode': 'anode', 'object': 'current_collector'}, [], density_default=2.7, specific_cost_default=2.64).render(),
+    CurrentCollectorSelector({'electrode': 'anode', 'object': 'current_collector'}, current_collector_materials, density_default=2.7, specific_cost_default=2.64).render(),
     ds.html.Br(), ds.html.Br(),
     ds.html.H5('Design', style=HEADER_STYLE),
     ds.html.Br(),
@@ -138,46 +138,60 @@ anode_mechanicals = ds.html.Div([
 ], style={'padding-left': '20px', 'width': '100%'})
 
 
-positive_terminal_inputs = ds.html.Div([
-    ds.html.Br(), ds.html.Br(), ds.html.Br(),
-    ds.html.H4("Positive Terminal"),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'cathode'}, 0, 10, 2, 0.01, 1, 'mass', 'Mass (g)', div_width='1000px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'cathode'}, 0, 1000, 100, 0.1, 100, 'specific_cost', 'Specific Cost ($/kg)', div_width='600px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'cathode'}, 0, 20, 5, 0.1, 10, 'thickness', 'Thickness (mm)', div_width='600px').render(), ds.html.Br(),
-    ds.html.Div(id={'tab': 'encapsulation', 'object': 'terminal', 'object': 'message', 'electrode': 'cathode'}), 
-])
-
-
-negative_terminal_inputs = ds.html.Div([
-    ds.html.Br(), ds.html.Br(), ds.html.Br(),
-    ds.html.H4("Negative Terminal"),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'anode'}, 0, 10, 2, 0.01, 1, 'mass', 'Mass (g)', div_width='1000px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'anode'}, 0, 1000, 100, 0.1, 100, 'specific_cost', 'Specific Cost ($/kg)', div_width='600px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'anode'}, 0, 20, 5, 0.1, 10, 'thickness', 'Thickness (mm)', div_width='600px').render(), ds.html.Br(), 
-    ds.html.Div(id={'tab': 'encapsulation', 'object': 'terminal', 'object': 'message', 'electrode': 'anode'}), 
-])
-
-
 cylindrical_encapsulation = ds.html.Div([
 
-    positive_terminal_inputs,
-    negative_terminal_inputs,
+    ds.html.Br(), ds.html.Br(),
+    ds.html.H4("Cylindrical Canister"),
+    ds.html.Br(),
+    CurrentCollectorSelector({'object': 'encapsulation', 'component': 'canister'}, current_collector_materials, density_default=2.7, specific_cost_default=2.64, slider_div_width='500px').render(),
+    ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 160, 35, 0.1, 10, 'can_outer_diameter', 'Outer diameter (mm)', div_width='800px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1, 0.5, 0.01, 1, 'can_wall_thickness', 'Wall thickness (mm)', div_width='400px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 400, 135, 0.1, 20, 'can_length', 'Can length (mm)', div_width='1400px').render(), ds.html.Br(), 
 
-    ds.html.Br(), ds.html.Br(), ds.html.Br(),
-    ds.html.H4("Cylindrical Shell"),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1, 0.2, 0.01, 1, 'cost', 'Cost ($)', div_width='500px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1000, 50, 0.1, 100, 'mass', 'Mass (g)', div_width='1400px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 100, 17, 0.1, 10, 'internal_radius', 'Internal Radius (mm)', div_width='700px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1, 0.3, 0.01, 1, 'wall_thickness', 'Wall thickness (mm)', div_width='500px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 500, 100, 0.1, 100, 'length', 'Length (mm)', div_width='500px').render(), ds.html.Br(), 
+    ds.html.Br(), ds.html.Br(),
+    ds.html.H4("Lid Assembly"),
+    ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 5, 0.3, 0.01, 1, 'lid_cost', 'Cost ($)', div_width='500px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 20, 5, 0.01, 2, 'lid_mass', 'Mass (g)', div_width='500px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 40, 5, 0.01, 5, 'lid_thickness', 'Thickness (mm)', div_width='600px').render(), ds.html.Br(), 
+
+    ds.html.Br(), ds.html.Br(),
+    ds.html.H4("Anode Terminal Collector"),
+    ds.html.Br(), 
+    CurrentCollectorSelector({'object': 'encapsulation', 'component': 'anode_terminal'}, current_collector_materials, density_default=2.7, specific_cost_default=2.64, slider_div_width='500px').render(),
+    ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 160, 32, 0.1, 10, 'acc_diameter', 'Diameter (mm)', div_width='800px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 4, 1, 0.01, 1, 'acc_thickness', 'Thickness (mm)', div_width='400px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1, 0.8, 0.01, 1, 'acc_fill_factor', 'Fill factor (mm)', div_width='200px').render(), ds.html.Br(), 
+    ds.html.Br(),
+
+    ds.html.Br(), ds.html.Br(),
+    ds.html.H4("Cathode Terminal Collector"),
+    ds.html.Br(), 
+    CurrentCollectorSelector({'object': 'encapsulation', 'component': 'cathode_terminal'}, current_collector_materials, density_default=2.7, specific_cost_default=2.64, slider_div_width='500px').render(),
+    ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 160, 32, 0.1, 10, 'ccc_diameter', 'Diameter (mm)', div_width='800px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 4, 1, 0.01, 1, 'ccc_thickness', 'Thickness (mm)', div_width='400px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1, 0.8, 0.01, 1, 'ccc_fill_factor', 'Fill factor (mm)', div_width='200px').render(), ds.html.Br(), 
+    ds.html.Br(),
 
 ])
 
 
 pouch_encapsulation = ds.html.Div([
 
-    positive_terminal_inputs,
-    negative_terminal_inputs,
+    ds.html.Br(), ds.html.Br(), ds.html.Br(),
+    ds.html.H4("Positive Terminal"),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'pouch'}, 0, 10, 2, 0.01, 1, 'pos_term_mass', 'Mass (g)', div_width='1000px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'pouch'}, 0, 1000, 100, 0.1, 100, 'pos_term_specific_cost', 'Specific Cost ($/kg)', div_width='600px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'pouch'}, 0, 20, 5, 0.1, 10, 'pos_term_thickness', 'Thickness (mm)', div_width='600px').render(), ds.html.Br(),
+    
+    ds.html.Br(), ds.html.Br(), ds.html.Br(),
+    ds.html.H4("Negative Terminal"),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'pouch'}, 0, 10, 2, 0.01, 1, 'neg_term_mass', 'Mass (g)', div_width='1000px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'pouch'}, 0, 1000, 100, 0.1, 100, 'neg_term_specific_cost', 'Specific Cost ($/kg)', div_width='600px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'pouch'}, 0, 20, 5, 0.1, 10, 'neg_term_thickness', 'Thickness (mm)', div_width='600px').render(), ds.html.Br(), 
 
     ds.html.Br(), ds.html.Br(), ds.html.Br(),
     ds.html.H4("Pouch"),
@@ -216,13 +230,7 @@ encapsulation = ds.html.Div([
 
     ds.html.Div(id={'tab': 'mechanicals', 'object': 'encapsulation', 'object': 'div'}),
     ds.html.Div(id={'tab': 'mechanicals', 'object': 'encapsulation', 'object': 'message'}),
-
-    ds.html.Br(), ds.html.Br(),
-            ds.html.Div([
-                ds.dcc.Graph(id={'type': 'encapsulation', 'object': 'graph', 'view': 'top'}, style={'width': '700px', 'height': '700px'}),
-                ds.dcc.Graph(id={'type': 'encapsulation', 'object': 'graph', 'view': 'side'}, style={'width': '700px', 'height': '700px'}),
-                ], style={'display': 'flex', 'flex-direction': 'row', 'justify-content': 'space-between', 'align-items': 'flex-start'}),
-
+    ds.html.Div(id={'tab': 'mechanicals', 'object': 'encapsulation', 'object': 'plot'}),
     ds.html.Div(style={'height': '1000px'})
 
 ], style={'padding-left': '20px', 'width': '100%'})
@@ -326,7 +334,7 @@ electrodes = ds.html.Div([
     ds.html.H4('Assembly'),
     ds.html.Div(id={'type': 'div', 'object': 'electrode_assembly'}),
     ds.html.Div(id={'tab': 'electrodes', 'object': 'message', 'type': 'electrode_assembly'}),
-    ds.dcc.Graph(id={'tab': 'electrodes', 'object': 'graph', 'type': 'electrode_assembly'}, config={'toImageButtonOptions': {'scale': 8}}),
+    ds.html.Div(id={'tab': 'electrodes', 'object': 'graph', 'type': 'electrode_assembly'}),
 
     ds.html.Div(style={'height': '1000px'})
 ], style={'padding-left': '20px', 'width': '100%'})

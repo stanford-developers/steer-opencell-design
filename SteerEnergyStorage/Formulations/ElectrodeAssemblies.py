@@ -2,6 +2,7 @@ from SteerEnergyStorage.Constructions.Electrodes import Anode, Cathode
 from SteerEnergyStorage.Materials.Separators import Separator
 from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector, TabWeldedCurrentCollector, NotchedCurrentCollector
 from SteerEnergyStorage.Formulations.ElectrodeFormulations import ElectrodeFormulation
+from App.styles import *
 
 from copy import deepcopy
 from copy import copy
@@ -512,7 +513,7 @@ class CylindricalJellyRoll(_JellyRoll):
         
         self._internal_die_diameter = internal_die_diameter * MM_TO_M
 
-    def _calculate_archimedean_spiral(self, dtheta: float = 0.02) -> pd.DataFrame:
+    def _calculate_archimedean_spiral(self, dtheta: float = 0.05) -> pd.DataFrame:
         """
         Function to calculate the Archimedean spiral using the archemdyan spiral solved numerically
 
@@ -575,6 +576,7 @@ class CylindricalJellyRoll(_JellyRoll):
 
         self._shift_vector = np.array([x_center, y_center])
         self._radius = (bounding_circle.bounds[2] - bounding_circle.bounds[0])/2
+        self._diameter = self._radius * 2
         self._n_turns = theta_max / (2 * np.pi)
         self._spiral = spiral
 
@@ -587,7 +589,12 @@ class CylindricalJellyRoll(_JellyRoll):
         diameter = self.radius * 2
         
         fig = go.Figure()
-        
+
+        if encapsulation is not None:
+            for trace in encapsulation.get_top_down_view().data:
+                if trace.name == 'Canister Wall':
+                    fig.add_trace(trace)
+
         def get_coil(df, thickness):
 
             df1 = df.copy().filter(['r', 'theta']).sort_values(by='theta', ascending=True)
@@ -605,50 +612,123 @@ class CylindricalJellyRoll(_JellyRoll):
             
             return df, df2
 
+        line_dict = dict(width=0, shape='spline')
+
         # first separator
         plot_data, edge_data = get_coil(data, self._separator._thickness)
-        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Separator', line=dict(width=0, shape='spline'), fillcolor='black', fill='toself'))
+        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Bottom separator', line=line_dict, fillcolor=SEPARATOR_COLOR, fill='toself'))
         
         # anode active layer 1
         plot_data, edge_data = get_coil(edge_data, self._anode._material_thickness)
-        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Anode', line=dict(width=0, shape='spline'), fillcolor='#9558B2', fill='toself'))
+        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Bottom anode layer', line=line_dict, fillcolor=ANODE_COLOR, fill='toself'))
 
         # anode current collector
         plot_data, edge_data = get_coil(edge_data, self._anode._current_collector._thickness)
-        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Anode Current Collector', line=dict(width=0, shape='spline'), fillcolor='grey', fill='toself'))
+        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Anode current collector', line=line_dict, fillcolor=CURRENT_COLLECTOR_COLOR, fill='toself'))
 
         # anode active layer 2
         plot_data, edge_data = get_coil(edge_data, self._anode._material_thickness)
-        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Anode', line=dict(width=0, shape='spline'), fillcolor='#9558B2', fill='toself'))
+        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Top anode layer', line=line_dict, fillcolor=ANODE_COLOR, fill='toself'))
 
         # separator
         plot_data, edge_data = get_coil(edge_data, self._separator._thickness)
-        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Separator', line=dict(width=0, shape='spline'), fillcolor='black', fill='toself'))
+        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Top seperator', line=line_dict, fillcolor=SEPARATOR_COLOR, fill='toself'))
 
         # cathode active layer 1
         plot_data, edge_data = get_coil(edge_data, self._cathode._material_thickness)
-        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Cathode', line=dict(width=0, shape='spline'), fillcolor='#FF6F61', fill='toself'))
+        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Bottom cathode layer', line=line_dict, fillcolor=CATHODE_COLOR, fill='toself'))
 
         # cathode current collector
         plot_data, edge_data = get_coil(edge_data, self._cathode._current_collector._thickness)
-        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Cathode Current Collector', line=dict(width=0, shape='spline'), fillcolor='grey', fill='toself'))
+        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Cathode current collector', line=line_dict, fillcolor=CURRENT_COLLECTOR_COLOR, fill='toself'))
 
         # cathode active layer 2
         plot_data, edge_data = get_coil(edge_data, self._cathode._material_thickness)
-        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Cathode', line=dict(width=0, shape='spline'), fillcolor='#FF6F61', fill='toself'))
+        fig.add_trace(go.Scatter(x=plot_data['X (mm)'], y=plot_data['Y (mm)'], mode='lines', name='Top cathode layer', line=line_dict, fillcolor=CATHODE_COLOR, fill='toself'))
 
+        fig.update_layout(xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title="X (mm)"),
+                          yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)"),
+                          paper_bgcolor='white',
+                          plot_bgcolor='white',
+                          title=f"Top View",
+                          legend=dict(orientation="h", yanchor="bottom", y=-0.04, xanchor="center",x=0.5),
+                          **kwargs)
+
+        return fig
+
+    def get_side_view(self, slider=0, encapsulation = None, **kwargs) -> None:
+        """
+        Function to show the jelly roll from the side
+        """
+        fig = go.Figure()
+
+        line_dict=dict(width=0)
+
+        # cathode
+        neg_y_disp = -self._cathode._current_collector.width/2
+        pos_y_disp = self._cathode._current_collector.width/2
+        left_x = -self.radius + self.diameter * slider
+        right_x = self.radius + self.diameter * slider
+        covered_area_x = [left_x, right_x, right_x, left_x, left_x]
+        covered_area_y = [neg_y_disp, neg_y_disp, pos_y_disp, pos_y_disp, neg_y_disp]
+        fig.add_trace(go.Scatter(x=covered_area_x, y=covered_area_y, mode='lines', name='Cathode', line=line_dict, fillcolor=CATHODE_COLOR, fill='toself'))
+
+        # cathode_tab
+        neg_y_disp = self._cathode._current_collector.width/2
+        pos_y_disp = self._cathode._current_collector.width/2 + self._cathode._current_collector.tab_width
+        left_x = -self.radius + self.diameter * slider
+        right_x = self.radius + self.diameter * slider
+        tab_x = [left_x, right_x, right_x, left_x, left_x]
+        tab_y = [neg_y_disp, neg_y_disp, pos_y_disp, pos_y_disp, neg_y_disp]
+        fig.add_trace(go.Scatter(x=tab_x, y=tab_y, mode='lines', name='Cathode Tab', line=line_dict, fillcolor=CURRENT_COLLECTOR_COLOR, fill='toself'))
+                      
+        # separator
+        neg_y_disp = -self._separator.width/2
+        pos_y_disp = self._separator.width/2
+        left_x = -self.radius + self.diameter * 3 * slider
+        right_x = self.radius + self.diameter * 3 * slider
+        covered_area_x = [left_x, right_x, right_x, left_x, left_x]
+        covered_area_y = [neg_y_disp, neg_y_disp, pos_y_disp, pos_y_disp, neg_y_disp]
+        fig.add_trace(go.Scatter(x=covered_area_x, y=covered_area_y, mode='lines', name='Separator 1', line=line_dict, fillcolor=SEPARATOR_COLOR, fill='toself'))
+
+        # anode
+        neg_y_disp = -self._anode._current_collector.width/2
+        pos_y_disp = self._anode._current_collector.width/2
+        left_x = -self.radius + self.diameter * 2 * slider
+        right_x = self.radius + self.diameter * 2 * slider
+        covered_area_x = [left_x, right_x, right_x, left_x, left_x]
+        covered_area_y = [neg_y_disp, neg_y_disp, pos_y_disp, pos_y_disp, neg_y_disp]
+        fig.add_trace(go.Scatter(x=covered_area_x, y=covered_area_y, mode='lines', name='Anode', line=line_dict, fillcolor=ANODE_COLOR, fill='toself'))
+
+        # anode_tab
+        neg_y_disp = -self._anode._current_collector.width/2 - self._anode._current_collector.tab_width
+        pos_y_disp = -self._anode._current_collector.width/2
+        left_x = -self.radius + self.diameter * 2 * slider
+        right_x = self.radius + self.diameter * 2 * slider
+        tab_x = [left_x, right_x, right_x, left_x, left_x]
+        tab_y = [neg_y_disp, neg_y_disp, pos_y_disp, pos_y_disp, neg_y_disp]
+        fig.add_trace(go.Scatter(x=tab_x, y=tab_y, mode='lines', name='Anode Tab', line=line_dict, fillcolor=CURRENT_COLLECTOR_COLOR, fill='toself'))
+
+        # separator
+        neg_y_disp = -self._separator.width/2
+        pos_y_disp = self._separator.width/2
+        left_x = -self.radius + self.diameter * 3 * slider
+        right_x = self.radius + self.diameter * 3 * slider
+        covered_area_x = [left_x, right_x, right_x, left_x, left_x]
+        covered_area_y = [neg_y_disp, neg_y_disp, pos_y_disp, pos_y_disp, neg_y_disp]
+        fig.add_trace(go.Scatter(x=covered_area_x, y=covered_area_y, mode='lines', name='Separator 2', line=line_dict, fillcolor=SEPARATOR_COLOR, fill='toself'))
+        
         if encapsulation is not None:
-            for trace in encapsulation.get_top_down_view().data:
+            for trace in encapsulation.get_side_view().data:
                 fig.add_trace(trace)
 
         fig.update_layout(xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title="X (mm)"),
                           yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)"),
                           paper_bgcolor='white',
                           plot_bgcolor='white',
-                          showlegend=False,
-                          title=f"Jelly Roll Top View",
+                          title=f"Side view",
                           **kwargs)
-
+        
         return fig
 
     @property
@@ -659,6 +739,10 @@ class CylindricalJellyRoll(_JellyRoll):
     def radius(self):
         return round(self._radius * M_TO_MM, 2)
     
+    @property
+    def diameter(self):
+        return round(self._diameter * M_TO_MM, 2)
+
     @property
     def n_turns(self):
         return round(self._n_turns, 2)
