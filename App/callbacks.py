@@ -12,7 +12,9 @@ from SteerEnergyStorage.Materials.Separators import Separator
 from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector, NotchedCurrentCollector, TabWeldedCurrentCollector, TablessCurrentCollector, PunchedCurrentCollector
 from SteerEnergyStorage.Materials.Electrolytes import Electrolyte
 from SteerEnergyStorage.Materials.other import Terminal, Laminate, Tape
-from SteerEnergyStorage.Constructions.Containers import CylindricalCase, CylindricalShell, Pouch, PrismaticCase, PrismaticLid, PrismaticShell
+from SteerEnergyStorage.Constructions.Containers import CylindricalCase, CylindricalCanister, CylindricalLidAssembly, CylindricalTerminalCollector
+from SteerEnergyStorage.Constructions.Containers import Pouch, PrismaticCase, PrismaticLid, PrismaticShell
+from SteerEnergyStorage.Constructions.Containers import PrismaticCase, PrismaticLid, PrismaticShell
 from SteerEnergyStorage.Constructions.Electrodes import Cathode, Anode
 from SteerEnergyStorage.Formulations.ElectrodeAssemblies import CylindricalJellyRoll, Stack
 from SteerEnergyStorage.Constructions.Cells import CylindricalCell, CylindricalCase, StackedPouchCell, StackedPrismaticCell
@@ -136,7 +138,7 @@ def update_material_input(n_clicks, active_materials, current_children):
      ds.Input({'type': ds.MATCH, 'electrode': ds.MATCH, 'index': ds.MATCH, 'subtype': 'input', 'property': ds.MATCH}, 'value')],
      Prevent_initial_call=True
 )
-def sync_slider_and_input_material_selectors(slider_value, input_value):
+def sync_slider_and_input_material_selectors_with_electrode(slider_value, input_value):
     """
     Synchronize the slider and input box values.
 
@@ -350,6 +352,32 @@ def sync_generic_sliders(slider_val, input_val):
         return input_val, input_val
     else:
         return ds.no_update, ds.no_update
+    
+
+@ds.callback(
+        [ds.Output({'type': ds.MATCH, 'object': ds.MATCH,'subtype': 'slider', 'property': ds.MATCH}, 'value'),
+         ds.Output({'type': ds.MATCH, 'object': ds.MATCH, 'subtype': 'input', 'property': ds.MATCH}, 'value')],
+        [ds.Input({'type': ds.MATCH, 'object': ds.MATCH, 'subtype': 'slider', 'property': ds.MATCH}, 'drag_value'),
+         ds.Input({'type': ds.MATCH, 'object': ds.MATCH, 'subtype': 'input', 'property': ds.MATCH}, 'value')],
+         prevent_initial_call=True
+)
+def sync_generic_sliders_2(slider_val, input_val):
+    """
+    Generic function to sync sliders with this ID format
+
+    :parameter slider_val: The drag value of the slider to by synced
+    :parameter input_val: The value of the inpout box being synced
+    """
+    ctx = ds.callback_context
+    triggered_id = ctx.triggered_id
+    component = triggered_id['subtype']
+
+    if component == 'slider':
+        return slider_val, slider_val
+    elif component == 'input':
+        return input_val, input_val
+    else:
+        return ds.no_update, ds.no_update
 
 
 @ds.callback(
@@ -506,7 +534,7 @@ def show_current_collector_design_options(design):
             SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 6000, 1000, 0.1, 100, 'length', 'Length (mm)', div_width='1400px').render(), ds.html.Br(), 
             SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 400, 120, 0.1, 20, 'width', 'Width  (mm)', div_width='600px').render(), ds.html.Br(),
             SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 100, 15, 0.1, 5, 'thickness', 'Thickness  (μm)', div_width='400px').render(), ds.html.Br(),
-            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 50, 10, 0.1, 10, 'tab_width', 'Tab Width (mm)', div_width='400px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 50, 3, 0.1, 10, 'tab_width', 'Tab Width (mm)', div_width='400px').render(), ds.html.Br(),
             SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 200, 30, 0.1, 10, 'tab_length', 'Tab Length (mm)', div_width='600px').render(), ds.html.Br(),
             SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 200, 30, 0.1, 10, 'tab_spacing', 'Tab Spacing (mm)', div_width='600px').render(), ds.html.Br(),
             SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 500, 0, 0.1, 50, 'bare_length', 'Bare Tape (mm)', div_width='600px').render(), ds.html.Br(),
@@ -518,7 +546,7 @@ def show_current_collector_design_options(design):
             SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 6000, 1000, 0.1, 100, 'length', 'Length (mm)', div_width='1400px').render(), ds.html.Br(), 
             SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 400, 120, 0.1, 20, 'width', 'Width  (mm)', div_width='600px').render(), ds.html.Br(),
             SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 100, 15, 0.1, 5, 'thickness', 'Thickness  (μm)', div_width='400px').render(), ds.html.Br(),
-            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 50, 10, 0.1, 10, 'tab_width', 'Tab Width (mm)', div_width='400px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 50, 3, 0.1, 10, 'tab_width', 'Tab Width (mm)', div_width='400px').render(), ds.html.Br(),
             SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 500, 0, 0.1, 50, 'bare_length', 'Bare Tape (mm)', div_width='600px').render(), ds.html.Br(),
         ]
 
@@ -543,18 +571,18 @@ def show_current_collector_design_options(design):
 
 
 @ds.callback(
-    [ds.Output({'electrode': ds.MATCH, 'object': 'current_collector', 'subtype': 'slider', 'property': 'density'}, 'value'),
-     ds.Output({'electrode': ds.MATCH, 'object': 'current_collector', 'subtype': 'input', 'property': 'density'}, 'value'),
-     ds.Output({'electrode': ds.MATCH, 'object': 'current_collector', 'subtype': 'slider', 'property': 'specific_cost'}, 'value'),
-     ds.Output({'electrode': ds.MATCH, 'object': 'current_collector', 'subtype': 'input', 'property': 'specific_cost'}, 'value')],
-    [ds.Input({'electrode': ds.MATCH, 'object': 'current_collector', 'subtype': 'text_input', 'property': 'name'}, 'value'),
-     ds.Input({'electrode': ds.MATCH, 'object': 'current_collector', 'subtype': 'slider', 'property': 'density'}, 'drag_value'),
-     ds.Input({'electrode': ds.MATCH, 'object': 'current_collector', 'subtype': 'input', 'property': 'density'}, 'value'),
-     ds.Input({'electrode': ds.MATCH, 'object': 'current_collector', 'subtype': 'slider', 'property': 'specific_cost'}, 'drag_value'),
-     ds.Input({'electrode': ds.MATCH, 'object': 'current_collector', 'subtype': 'input', 'property': 'specific_cost'}, 'value')],
+    [ds.Output({'electrode': ds.MATCH, 'object': ds.MATCH, 'subtype': 'slider', 'property': 'density'}, 'value'),
+     ds.Output({'electrode': ds.MATCH, 'object': ds.MATCH, 'subtype': 'input', 'property': 'density'}, 'value'),
+     ds.Output({'electrode': ds.MATCH, 'object': ds.MATCH, 'subtype': 'slider', 'property': 'specific_cost'}, 'value'),
+     ds.Output({'electrode': ds.MATCH, 'object': ds.MATCH, 'subtype': 'input', 'property': 'specific_cost'}, 'value')],
+    [ds.Input({'electrode': ds.MATCH, 'object': ds.MATCH, 'subtype': 'text_input', 'property': 'name'}, 'value'),
+     ds.Input({'electrode': ds.MATCH, 'object': ds.MATCH, 'subtype': 'slider', 'property': 'density'}, 'drag_value'),
+     ds.Input({'electrode': ds.MATCH, 'object': ds.MATCH, 'subtype': 'input', 'property': 'density'}, 'value'),
+     ds.Input({'electrode': ds.MATCH, 'object': ds.MATCH, 'subtype': 'slider', 'property': 'specific_cost'}, 'drag_value'),
+     ds.Input({'electrode': ds.MATCH, 'object': ds.MATCH, 'subtype': 'input', 'property': 'specific_cost'}, 'value')],
      prevent_initial_call=True
 )
-def update_current_collector_properties_and_sync(material_formula, density_slider_value, density_input_value, specific_cost_slider_value, specific_cost_input_value):
+def update_material_selector_properties_and_sync(material_formula, density_slider_value, density_input_value, specific_cost_slider_value, specific_cost_input_value):
     """
     Update the current collector properties and synchronize sliders.
 
@@ -579,28 +607,45 @@ def update_current_collector_properties_and_sync(material_formula, density_slide
         return density_input_value, density_input_value, specific_cost_input_value, specific_cost_input_value
 
     return 4, 4, 15, 15
-    
+
 
 @ds.callback(
-    [ds.Output({'electrode': 'cathode', 'object': 'current_collector', 'subtype': 'text_input', 'property': 'name'}, 'options'),
-     ds.Output({'electrode': 'anode', 'object': 'current_collector', 'subtype': 'text_input', 'property': 'name'}, 'options'),
-     ds.Output({'electrode': 'cathode', 'object': 'current_collector', 'subtype': 'text_input', 'property': 'name'}, 'value'),
-     ds.Output({'electrode': 'anode', 'object': 'current_collector', 'subtype': 'text_input', 'property': 'name'}, 'value')],
-    [ds.Input({'type': 'store', 'object': 'currrent_collector', 'type': 'materials'}, 'data')]
+    [ds.Output({'component': ds.MATCH, 'object': ds.MATCH, 'subtype': 'slider', 'property': 'density'}, 'value'),
+     ds.Output({'component': ds.MATCH, 'object': ds.MATCH, 'subtype': 'input', 'property': 'density'}, 'value'),
+     ds.Output({'component': ds.MATCH, 'object': ds.MATCH, 'subtype': 'slider', 'property': 'specific_cost'}, 'value'),
+     ds.Output({'component': ds.MATCH, 'object': ds.MATCH, 'subtype': 'input', 'property': 'specific_cost'}, 'value')],
+    [ds.Input({'component': ds.MATCH, 'object': ds.MATCH, 'subtype': 'text_input', 'property': 'name'}, 'value'),
+     ds.Input({'component': ds.MATCH, 'object': ds.MATCH, 'subtype': 'slider', 'property': 'density'}, 'drag_value'),
+     ds.Input({'component': ds.MATCH, 'object': ds.MATCH, 'subtype': 'input', 'property': 'density'}, 'value'),
+     ds.Input({'component': ds.MATCH, 'object': ds.MATCH, 'subtype': 'slider', 'property': 'specific_cost'}, 'drag_value'),
+     ds.Input({'component': ds.MATCH, 'object': ds.MATCH, 'subtype': 'input', 'property': 'specific_cost'}, 'value')],
+     prevent_initial_call=True
 )
-def update_current_collector_material_options(materials):
+def update_encapsulation_material_selector_properties_and_sync(material_formula, density_slider_value, density_input_value, specific_cost_slider_value, specific_cost_input_value):
     """
-    Update the current collector options based on the selected internal structure.
+    Update the current collector properties and synchronize sliders.
 
-    :param materials: The list of current collector materials.
-    :return: The updated current collector options for both electrodes.
-    """ 
-    if materials == []:
-        return []
+    :param material_formula: The selected material formula.
+    :param density_slider_value: The current value of the density slider.
+    :param specific_cost_slider_value: The current value of the specific cost slider.
+    :return: Updated values for density and specific cost sliders.
+    """
+    ctx = ds.callback_context
+    triggered_id = ctx.triggered_id
+
+    if triggered_id and triggered_id['subtype'] == 'text_input':
+        if material_formula is None:
+            return 4, 4, 15, 15
+        terminal = CylindricalTerminalCollector(formula=material_formula, diameter=1, thickness=1)
+        return terminal.density, terminal.density, terminal.specific_cost, terminal.specific_cost
     
-    options = [{'label': material, 'value': material} for material in materials]
+    elif triggered_id and triggered_id['subtype'] == 'slider':
+        return density_slider_value, density_slider_value, specific_cost_slider_value, specific_cost_slider_value
+    
+    elif triggered_id and triggered_id['subtype'] == 'input':
+        return density_input_value, density_input_value, specific_cost_input_value, specific_cost_input_value
 
-    return options, options, options[0]['value'], options[0]['value']
+    return 4, 4, 15, 15
 
 
 @ds.callback(
@@ -610,33 +655,7 @@ def update_current_collector_material_options(materials):
          ds.Input({'type': ds.MATCH, 'object': ds.MATCH, 'electrode': ds.MATCH, 'property': ds.MATCH, 'subtype': 'input'}, 'value')],
          prevent_initial_call=True
 )
-def sync_current_collector_and_terminal_sliders(slider_val, input_val):
-    """
-    Generic function to sync sliders with this ID format
-
-    :parameter slider_val: The drag value of the slider to by synced
-    :parameter input_val: The value of the inpout box being synced
-    """
-    ctx = ds.callback_context
-    triggered_id = ctx.triggered_id
-    component = triggered_id['subtype']
-
-    if component == 'slider':
-        return slider_val, slider_val
-    elif component == 'input':
-        return input_val, input_val
-    else:
-        return ds.no_update, ds.no_update
-    
-
-@ds.callback(
-        [ds.Output({'type': ds.MATCH, 'object': ds.MATCH, 'property': ds.MATCH, 'subtype': 'slider'}, 'value'),
-         ds.Output({'type': ds.MATCH, 'object': ds.MATCH, 'property': ds.MATCH, 'subtype': 'input'}, 'value')],
-        [ds.Input({'type': ds.MATCH, 'object': ds.MATCH, 'property': ds.MATCH, 'subtype': 'slider'}, 'drag_value'),
-         ds.Input({'type': ds.MATCH, 'object': ds.MATCH, 'property': ds.MATCH, 'subtype': 'input'}, 'value')],
-         prevent_initial_call=True
-)
-def sync_encapsulation_sliders(slider_val, input_val):
+def sync_generic_sliders_with_electrode(slider_val, input_val):
     """
     Generic function to sync sliders with this ID format
 
@@ -814,14 +833,16 @@ def show_encapsulation_options(form_factor):
 
 @ds.callback(
     [ds.Output({'type': 'store', 'object': 'encapsulation'}, 'data'),
-     ds.Output({'tab': 'mechanicals', 'object': 'encapsulation', 'object': 'message'}, 'children')],
+     ds.Output({'tab': 'mechanicals', 'object': 'encapsulation', 'object': 'message'}, 'children'),
+     ds.Output({'tab': 'mechanicals', 'object': 'encapsulation', 'object': 'plot'}, 'children')],
     [ds.Input({'object': 'encapsulation', 'type': ds.ALL, 'property': ds.ALL, 'subtype': 'input'}, 'value'),
-     ds.Input({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'cathode', 'property': ds.ALL, 'subtype': 'input'}, 'value'),
-     ds.Input({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'anode', 'property': ds.ALL, 'subtype': 'input'}, 'value'),
+     ds.Input({'object': 'encapsulation', 'component': ds.ALL, 'subtype': 'input', 'property': 'specific_cost'}, 'value'),
+     ds.Input({'object': 'encapsulation', 'component': ds.ALL, 'subtype': 'input', 'property': 'density'}, 'value'),
+     ds.Input({'object': 'encapsulation', 'component': ds.ALL, 'subtype': 'text_input', 'property': 'name'}, 'value'),
      ds.Input('form_factor_dropdown', 'value')],
-     prevent_initial_call=True
+    prevent_initial_call=True
 )
-def make_encapsulation(inputs, cathode_terminal_inputs, anode_terminal_inputs, form_factor):
+def make_encapsulation(inputs, specific_costs, densities, formulas, form_factor):
     """
     Create a cylindrical encapsulation object using the inputs from the sliders and text box.
 
@@ -829,47 +850,61 @@ def make_encapsulation(inputs, cathode_terminal_inputs, anode_terminal_inputs, f
     :param cathode_terminal_inputs: Inputs for the cathode terminal.
     :param anode_terminal_inputs: Inputs for the anode terminal.
     """
-    
+    print(f"inputs: {inputs}")
+    print(f"specific_costs: {specific_costs}")
+    print(f"densities: {densities}")
+    print(f"formulas: {formulas}")
+
     if len(inputs) == 0:
         return {}, ["\u00A0"]
 
     if form_factor == 'cylindrical':
 
         try:
-            cathode_terminal = Terminal(mass = cathode_terminal_inputs[0], specific_cost = cathode_terminal_inputs[1], thickness=cathode_terminal_inputs[2])
-            anode_terminal = Terminal(mass = anode_terminal_inputs[0], specific_cost = anode_terminal_inputs[1], thickness=anode_terminal_inputs[2])
-            shell = CylindricalShell(cost=inputs[0], mass=inputs[1], internal_radius=inputs[2], wall_thickness=inputs[3], length=inputs[4])
-
-            case = CylindricalCase(
-                shell=shell,
-                positive_terminal=cathode_terminal,
-                negative_terminal=anode_terminal
-            )
+            can = CylindricalCanister(formulas[0], outer_diameter=inputs[0], wall_thickness=inputs[1], length=inputs[2], density=densities[0], specific_cost=specific_costs[0])
+            lid = CylindricalLidAssembly(cost=inputs[3], mass=inputs[4], thickness=inputs[5])
+            anode_cc = CylindricalTerminalCollector(formula=formulas[1], diameter=inputs[6], thickness=inputs[7], fill_factor=inputs[8])
+            cathode_cc = CylindricalTerminalCollector(formula=formulas[2], diameter=inputs[9], thickness=inputs[10], fill_factor=inputs[11])
+            case = CylindricalCase(canister=can, lid_assembly=lid, anode_terminal_collector=anode_cc, cathode_terminal_collector=cathode_cc)
 
         except ValueError as e:
             message = f"Error: {e}"
-            return {}, [message]
+            return {}, [message], []
+        
+        top_down = case.get_top_down_view()
+        bottom_up = case.get_bottom_up_view()
+        side = case.get_side_view()
+
+        figure = ds.html.Div([
+                    ds.html.Div([
+                        ds.html.Div(ds.dcc.Graph(id='cylindrical_top_down', figure=top_down, style={'width': '100%', 'height': '400px'}), style={'margin-bottom': '20px'}),
+                        ds.html.Div(ds.dcc.Graph(id='cylindrical_bottom_up', figure=bottom_up, style={'width': '100%', 'height': '400px'})),
+                    ], style={'width': '40%', 'display': 'inline-block', 'vertical-align': 'top'}),
+                    ds.html.Div(ds.dcc.Graph(id='cylindrical_side', figure=side, style={'width': '100%', 'height': '820px'}),style={'width': '58%', 'display': 'inline-block', 'margin-left': '2%'})
+                ])
     
     elif form_factor == 'pouch':
 
         try:
-            cathode_terminal = Terminal(mass = cathode_terminal_inputs[0], specific_cost = cathode_terminal_inputs[1], thickness=cathode_terminal_inputs[2])
-            anode_terminal = Terminal(mass = anode_terminal_inputs[0], specific_cost = anode_terminal_inputs[1], thickness=anode_terminal_inputs[2])
-            laminate = Laminate(thickness=inputs[0], areal_mass=inputs[1], areal_cost=inputs[2])
-            tape = Tape(mass=inputs[3])
+            cathode_terminal = Terminal(mass=inputs[0], specific_cost=inputs[1], thickness=inputs[2])
+            anode_terminal = Terminal(mass=inputs[3], specific_cost=inputs[4], thickness=inputs[5])
+            laminate = Laminate(thickness=inputs[6], areal_mass=inputs[7], areal_cost=inputs[8])
+            tape = Tape(mass=inputs[9])
 
             case = Pouch(
                 laminate=laminate,
                 tape=tape,
-                heat_seal_size_sides=inputs[4],
-                heat_seal_size_top=inputs[5],
+                heat_seal_size_sides=inputs[10],
+                heat_seal_size_top=inputs[11],
                 positive_terminal=cathode_terminal,
                 negative_terminal=anode_terminal
             )
 
+            figure = None
+
         except ValueError as e:
             message = f"Error: {e}"
-            return {}, [message]
+            return {}, [message], []
         
     elif form_factor == 'prismatic':
         
@@ -880,7 +915,7 @@ def make_encapsulation(inputs, cathode_terminal_inputs, anode_terminal_inputs, f
 
         except ValueError as e:
             message = f"Error: {e}"
-            return {}, [message]
+            return {}, [message], []
 
     pickled_case = base64.b64encode(pickle.dumps(case)).decode('utf-8')
 
@@ -890,7 +925,7 @@ def make_encapsulation(inputs, cathode_terminal_inputs, anode_terminal_inputs, f
         ds.html.Br(),
     ], style={'line-height': '0.5'})
 
-    return {f'case': pickled_case}, message
+    return {f'case': pickled_case}, message, figure
 
 
 @ds.callback(
@@ -1029,7 +1064,7 @@ def show_electrode_assembly_inputs(internal_construction):
 @ds.callback(
     [ds.Output({'type': 'store', 'object': 'electrode_assembly'}, 'data'),
      ds.Output({'tab': 'electrodes', 'object': 'message', 'type': 'electrode_assembly'}, 'children'),
-     ds.Output({'tab': 'electrodes', 'object': 'graph', 'type': 'electrode_assembly'}, 'figure')],
+     ds.Output({'tab': 'electrodes', 'object': 'graph', 'type': 'electrode_assembly'}, 'children')],
     [ds.Input({'type': 'store', 'electrode': 'cathode', 'object': 'electrode'}, 'data'),
      ds.Input({'type': 'store', 'electrode': 'anode', 'object': 'electrode'}, 'data'),
      ds.Input({'type': 'store', 'component': 'separator'}, 'data'),
@@ -1102,7 +1137,13 @@ def make_electrode_assembly(pickled_cathode, pickled_anode, pickled_separator, a
             ds.html.Br(),
         ], style={'line-height': '0.5'}) 
 
-        figure = electrode_assembly.get_top_down_view(encapsulation=case, width=900, height=900)
+        figure_top = electrode_assembly.get_top_down_view(encapsulation=case, width=700, height=900)
+        figure_side = electrode_assembly.get_side_view(encapsulation=case, width=600, height=900)
+
+        figure_div = ds.html.Div([
+            ds.html.Div(ds.dcc.Graph(id='graph-1', figure=figure_top), style={'width': '48%', 'display': 'inline-block', 'vertical-align': 'top'}),
+            ds.html.Div(ds.dcc.Graph(id='graph-2', figure=figure_side), style={'width': '48%', 'display': 'inline-block', 'marginLeft': '4%', 'vertical-align': 'top'})
+            ])
 
     elif internal_structure == 'stacked':
         
@@ -1127,14 +1168,14 @@ def make_electrode_assembly(pickled_cathode, pickled_anode, pickled_separator, a
             ds.html.Br(),
         ], style={'line-height': '0.5'})
 
-        figure = None
+        figure_div = None
 
     else: 
         return {}, ["\u00A0"], None
 
     pickled_electrode_assembly = base64.b64encode(pickle.dumps(electrode_assembly)).decode('utf-8')
 
-    return {'electrode_assembly': pickled_electrode_assembly}, message, figure
+    return {'electrode_assembly': pickled_electrode_assembly}, message, figure_div
 
 
 @ds.callback(
@@ -1270,12 +1311,12 @@ def make_cell(pickled_electrode_assembly: dict,
     else:
         return None, None, None, {}
         
-    theoretical_curve = cell.get_capacity_voltage_plot(background_color='#e3e5e6', upper_v_limit=voltage_range[1], lower_v_limit=voltage_range[0], width=960, height=550)
+    theoretical_curve = cell.get_capacity_voltage_plot(background_color='#e3e5e6', upper_v_limit=voltage_range[1], lower_v_limit=voltage_range[0], width=920, height=550)
     theoretical_curve_div = ds.dcc.Graph(id='theoretical_curve_fig', figure=theoretical_curve, style={'margin-left': '20px'})    
 
     breakdown_div = ds.html.Div([
         ds.dcc.Graph(id='cost_breakdown_fig', figure=cell.get_cost_breakdown_plot(background_color='#e3e5e6', width=550, height=550)),
-        ds.dcc.Graph(id='mass_breakdown_fig', figure=cell.get_mass_breakdown_plot(background_color='#e3e5e6', width=550, height=550), style={'margin-left': '-50px'})
+        ds.dcc.Graph(id='mass_breakdown_fig', figure=cell.get_mass_breakdown_plot(background_color='#e3e5e6', width=550, height=550), style={'margin-left': '-80px'})
     ], style={'display': 'flex', 'flex-direction': 'row', 'align-items': 'center'})
 
     message = ds.html.Div([

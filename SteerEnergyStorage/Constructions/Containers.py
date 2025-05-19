@@ -2,12 +2,15 @@ from SteerEnergyStorage.Materials.other import Laminate, Tape, Terminal
 from SteerEnergyStorage.Constructions.Electrodes import Cathode, Anode
 from SteerEnergyStorage.Materials.Separators import Separator
 from SteerEnergyStorage.Formulations.ElectrodeAssemblies import Stack
+from SteerEnergyStorage.DataManager import DataManager
+from App.styles import *
 
 from copy import deepcopy
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
+import os
 
 CM_TO_M = 0.01
 M_TO_CM = 100
@@ -181,32 +184,22 @@ class Pouch:
         return self.__str__()
     
 
-class CylindricalShell:
 
-    def __init__(self,
-                 cost: float,
-                 mass: float,
-                 internal_radius: float,
-                 length: float,
-                 wall_thickness: float,
-                 name: str = 'Cylindrical Shell'):
+
+class CylindricalLidAssembly:
+
+    def __init__(self, cost: float, mass: float, thickness: float):
         """
-        Class representing a shell used for a cylindrical cell.
+        Class representing a lid assembly used for a cylindrical cell.
 
-        :param cost: float: cost of the shell in $
-        :param mass: float: mass of the shell in g
-        :param internal_radius: float: internal radius of the shell in mm
-        :param length: float: internal length of the shell in mm
-        :param wall_thickness: float: thickness of the shell wall in mm
+        :param cost: float: cost of the lid assembly in $
+        :param mass: float: mass of the lid assembly in g
+        :param thickness: float: thickness of the lid assembly in mm
         """
         self._check_cost(cost)
         self._check_mass(mass)
-        self._check_internal_radius(internal_radius)
-        self._check_length(length)
-        self._check_wall_thickness(wall_thickness)
-        self._check_name(name)
-        self._calculate_properties()
-
+        self._check_thickness(thickness)
+        
     def _check_cost(self, cost: float):
 
         if not isinstance(cost, (int, float)):
@@ -227,25 +220,262 @@ class CylindricalShell:
         
         self._mass = mass * G_TO_KG
 
-    def _check_internal_radius(self, internal_radius: float):
+    def _check_thickness(self, thickness: float):
 
-        if not isinstance(internal_radius, (int, float)):
-            raise TypeError("Internal radius must be a number")
+        if not isinstance(thickness, (int, float)):
+            raise TypeError("Thickness must be a number")
 
-        if internal_radius <= 0:
-            raise ValueError("Internal radius must be positive")
+        if thickness <= 0:
+            raise ValueError("Thickness must be positive")
         
-        self._internal_radius = internal_radius * MM_TO_M
+        self._thickness = thickness * MM_TO_M
 
-    def _check_length(self, length: float):
+    @property
+    def cost(self) -> float:
+        return round(self._cost, 2)
+    
+    @property
+    def mass(self) -> float:
+        return round(self._mass * KG_TO_G, 2)
+    
+    @property
+    def thickness(self) -> float:
+        return round(self._thickness * M_TO_MM, 2)
+    
+    def __str__(self) -> str:
+        return 'Cylindrical Lid Assembly'
+    
+    def __repr__(self):
+        return self.__str__()
 
-        if not isinstance(length, (int, float)):
-            raise TypeError("Internal length must be a number")
 
-        if length <= 0:
-            raise ValueError("Internal length must be positive")
+class CylindricalTerminalCollector:
+
+    def __init__(self, 
+                 formula: str, 
+                 diameter: float,
+                 thickness: float,
+                 fill_factor: float = 1, 
+                 specific_cost: float = None, 
+                 density: float = None):
+        """
+        Class representing a cylindrical terminal collector used for a cylindrical cell.
+
+        :param formula: str: formula of the terminal collector
+        :param radius: float: radius of the terminal collector in mm
+        :param thickness: float: thickness of the terminal collector in mm
+        :param fill_factor: float: fill factor of the terminal collector
+        :param specific_cost: float: specific cost of the terminal collector in $/kg
+        :param density: float: density of the terminal collector in g/cm^3
+        """
+        self._check_formula(formula)
+        self._check_diameter(diameter)
+        self._check_thickness(thickness)
+        self._check_fill_factor(fill_factor)
+        self._set_properties_from_database()
+        self._check_specific_cost(specific_cost)
+        self._check_density(density)
+        self._calculate_properties()
+        self._calculate_footprint()
+
+    def _check_formula(self, formula: str):
         
-        self._length = length * MM_TO_M
+        if not isinstance(formula, str):
+            raise TypeError("Formula must be a string")
+
+        if len(formula) == 0:
+            raise ValueError("Formula cannot be empty")
+        
+        self._formula = formula
+
+    def _check_fill_factor(self, fill_factor: float):
+
+        if not isinstance(fill_factor, (int, float)):
+            raise TypeError("Fill factor must be a number")
+
+        if fill_factor <= 0 or fill_factor > 1:
+            raise ValueError("Fill factor must be between 0 and 1")
+        
+        self._fill_factor = fill_factor
+
+    def _check_diameter(self, diameter: float):
+
+        if not isinstance(diameter, (int, float)):
+            raise TypeError("Diameter must be a number")
+
+        if diameter <= 0:
+            raise ValueError("Diameter must be positive")
+        
+        self._diameter = diameter * MM_TO_M
+
+    def _check_thickness(self, thickness: float):
+
+        if not isinstance(thickness, (int, float)):
+            raise TypeError("Thickness must be a number")
+
+        if thickness <= 0:
+            raise ValueError("Thickness must be positive")
+        
+        self._thickness = thickness * MM_TO_M
+
+    def _set_properties_from_database(self):
+        """
+        Retrieve the properties of the tab material.
+        """
+        data_path = os.path.join(os.path.dirname(__file__), '../../Data/materials_properties.db')
+        materials_database = DataManager(data_path)
+        available_materials = materials_database.get_unique_values('current_collectors', 'formula')
+
+        if self._formula not in available_materials:
+            raise ValueError(f'{self._formula} is not available in the materials database. Allowed values are: {available_materials}')
+        
+        data = materials_database.get_data('current_collectors', condition=f"formula='{self._formula}'", latest_column='date')
+        
+        self._name = data['name'].values[0]
+        self._specific_cost = float(data['specific_cost'].values[0])
+        self._density = float(data['density'].values[0])
+
+    def _check_specific_cost(self, specific_cost: float):
+
+        if specific_cost is not None:
+            if not isinstance(specific_cost, (int, float)):
+                raise TypeError("Specific cost must be a number.")
+            
+            if specific_cost < 0:
+                raise ValueError("Specific cost cannot be negative.")
+            
+            self._specific_cost = float(specific_cost)
+
+    def _check_density(self, density: float):
+
+        if density is not None:
+            if not isinstance(density, (int, float)):
+                raise TypeError("Density must be a number.")
+            
+            if density <= 0:
+                raise ValueError("Density must be positive.")
+            
+            self._density = float(density) * G_TO_KG / CM_TO_M**3
+
+    def _calculate_properties(self):
+        """
+        Calculate the properties of the terminal collector.
+        """
+        self._radius = self._diameter / 2
+        self._mass = np.pi * (self._radius**2) * self._thickness * self._density * self._fill_factor
+        self._cost = self._mass * self._specific_cost
+
+    def _calculate_footprint(self):
+
+        self._circle = (pd
+                        .DataFrame({
+                            'theta': np.linspace(0, 2 * np.pi, 30),
+                            'radius': self._radius
+                            })
+                        .assign(x = lambda x: x['radius'] * np.cos(x['theta']))
+                        .assign(y = lambda x: x['radius'] * np.sin(x['theta']))
+                        .sort_values(by='theta', ascending=True)
+                        .drop(columns=['theta', 'radius'])
+                        )
+        
+    @property
+    def circle(self) -> pd.DataFrame:
+
+        return (self
+                ._circle
+                .assign(x = lambda x: x['x'] * M_TO_MM)
+                .assign(y = lambda x: x['y'] * M_TO_MM)
+                .rename(columns={'x': 'X [mm]', 'y': 'Y [mm]'})
+                )
+
+    @property
+    def mass(self) -> float:
+        return round(self._mass * KG_TO_G, 2)
+    
+    @property
+    def cost(self) -> float:
+        return round(self._cost, 2)
+
+    @property
+    def name(self) -> str:
+        return self._name
+    
+    @property
+    def formula(self) -> str:
+        return self._formula
+    
+    @property
+    def radius(self) -> float:
+        return round(self._radius * M_TO_MM, 2)
+    
+    @property
+    def thickness(self) -> float:
+        return round(self._thickness * M_TO_MM, 2)
+    
+    @property
+    def fill_factor(self) -> float:
+        return round(self._fill_factor, 2)
+    
+    @property
+    def specific_cost(self) -> float:
+        return self._specific_cost
+    
+    @property
+    def density(self) -> float:
+        return self._density * KG_TO_G / M_TO_CM**3
+
+    def __str__(self) -> str:
+        return f'{self.name} ({self.formula})'
+    
+    def __repr__(self):
+        return self.__str__()
+
+
+class CylindricalCanister:
+
+    def __init__(self,
+                 formula: str,
+                 outer_diameter: float,
+                 wall_thickness: float,
+                 length: float,
+                 specific_cost: float = None,
+                 density: float = None):
+        """
+        Class representing a canister used for a cylindrical cell.
+
+        :param formula: str: formula of the canister
+        :param outer_diameter: float: outer diameter of the canister in mm
+        :param wall_thickness: float: thickness of the canister wall in mm
+        :param length: float: length of the canister in mm
+        """
+        self._check_formula(formula)
+        self._check_outer_diameter(outer_diameter)
+        self._check_wall_thickness(wall_thickness)
+        self._check_length(length)
+        self._set_properties_from_database()
+        self._check_specific_cost(specific_cost)
+        self._check_density(density)
+        self._calculate_properties()
+
+    def _check_formula(self, formula: str):
+
+        if not isinstance(formula, str):
+            raise TypeError("Formula must be a string")
+
+        if len(formula) == 0:
+            raise ValueError("Formula cannot be empty")
+        
+        self._formula = formula
+
+    def _check_outer_diameter(self, outer_diameter: float):
+
+        if not isinstance(outer_diameter, (int, float)):
+            raise TypeError("Outer diameter must be a number")
+
+        if outer_diameter <= 0:
+            raise ValueError("Outer diameter must be positive")
+        
+        self._outer_diameter = outer_diameter * MM_TO_M
 
     def _check_wall_thickness(self, wall_thickness: float):
 
@@ -257,66 +487,99 @@ class CylindricalShell:
         
         self._wall_thickness = wall_thickness * MM_TO_M
 
-    def _check_name(self, name: str):
+    def _check_length(self, length: float):
 
-        if not isinstance(name, str):
-            raise TypeError("Name must be a string")
+        if not isinstance(length, (int, float)):
+            raise TypeError("Length must be a number")
 
-        if len(name) == 0:
-            raise ValueError("Name cannot be empty")
+        if length <= 0:
+            raise ValueError("Length must be positive")
         
-        self._name = name
+        self._length = length * MM_TO_M
+
+    def _set_properties_from_database(self):
+        """
+        Retrieve the properties of the tab material.
+        """
+        data_path = os.path.join(os.path.dirname(__file__), '../../Data/materials_properties.db')
+        materials_database = DataManager(data_path)
+        available_materials = materials_database.get_unique_values('current_collectors', 'formula')
+
+        if self._formula not in available_materials:
+            raise ValueError(f'{self._formula} is not available in the materials database. Allowed values are: {available_materials}')
+        
+        data = materials_database.get_data('current_collectors', condition=f"formula='{self._formula}'", latest_column='date')
+        
+        self._name = data['name'].values[0]
+        self._specific_cost = float(data['specific_cost'].values[0])
+        self._density = float(data['density'].values[0])
+
+    def _check_specific_cost(self, specific_cost: float):
+
+        if specific_cost is not None:
+            if not isinstance(specific_cost, (int, float)):
+                raise TypeError("Specific cost must be a number.")
+            
+            if specific_cost < 0:
+                raise ValueError("Specific cost cannot be negative.")
+            
+            self._specific_cost = float(specific_cost)
+
+    def _check_density(self, density: float):
+
+        if density is not None:
+            if not isinstance(density, (int, float)):
+                raise TypeError("Density must be a number.")
+            
+            if density <= 0:
+                raise ValueError("Density must be positive.")
+            
+            self._density = float(density) * G_TO_KG / CM_TO_M**3
 
     def _calculate_properties(self):
-        self._external_radius = self._internal_radius + self._wall_thickness
+        """
+        Calculate the properties of the canister.
+        """
+        self._inner_radius = self._outer_diameter / 2 - self._wall_thickness
+        self._inner_diameter = self._outer_diameter - 2 * self._wall_thickness
+        self._outer_radius = self._outer_diameter / 2
+
+        base_plate_volume = np.pi * self._outer_diameter**2 * self._wall_thickness
+        sides_volume = np.pi * (self._outer_radius**2 - self._inner_radius**2) * (self._length - self._wall_thickness)
+
+        self._volume = base_plate_volume + sides_volume
+        self._mass = self._volume * self._density
+        self._cost = self._mass * self._specific_cost
 
     @property
-    def external_radius(self) -> float:
-        return round(self._external_radius * M_TO_MM, 2)
+    def inner_radius(self) -> float:
+        return round(self._inner_radius * M_TO_MM, 2)
     
     @property
-    def external_length(self) -> float:
-        return round(self._internal_length * M_TO_MM, 2)
+    def inner_diameter(self) -> float:
+        return round(self._inner_diameter * M_TO_MM, 2)
     
     @property
-    def internal_volume(self) -> float:
-        return round(3.14 * (self._internal_radius**2) * self._length * M_TO_CM**3, 2)
+    def outer_radius(self) -> float:
+        return round(self._outer_radius * M_TO_MM, 2)
     
     @property
-    def internal_radius(self) -> float:
-        return round(self._internal_radius * M_TO_MM, 2)
+    def outer_diameter(self) -> float:
+        return round(self._outer_diameter * M_TO_MM, 2)
     
     @property
     def wall_thickness(self) -> float:
         return round(self._wall_thickness * M_TO_MM, 2)
-    
-    @property
-    def cost(self) -> float:
-        return round(self._cost, 2)
-    
-    @property
-    def mass(self) -> float:
-        return round(self._mass * KG_TO_G, 2)
-    
-    @property
-    def name(self) -> str:
-        return self._name
-    
-    def __str__(self) -> str:
-        return self.name
-    
-    def __repr__(self):
-        return self.__str__()
 
 
 class CylindricalCase:
 
     def __init__(self,
-                 shell: CylindricalShell,
-                 positive_terminal: Terminal,
-                 negative_terminal: Terminal,
-                 name: str = 'cylindrical_case'
-                 ):
+                 canister: CylindricalCanister,
+                 lid_assembly: CylindricalLidAssembly,
+                 cathode_terminal_collector: CylindricalTerminalCollector,
+                 anode_terminal_collector: CylindricalTerminalCollector,
+                 name: str = 'cylindrical_case'):
         """
         Class representing a casing used for a cylindrical cell.
 
@@ -325,33 +588,48 @@ class CylindricalCase:
         :param negative_terminal: Terminal: negative terminal of the case
         :param name: str: name of the case
         """
-        self._check_shell(shell)
+        self._check_canister(canister)
+        self._check_lid_assembly(lid_assembly)
+        self._check_cathode_terminal_collector(cathode_terminal_collector)
+        self._check_anode_terminal_collector(anode_terminal_collector)
+
         self._check_name(name)
-        self._check_positive_terminal(positive_terminal)
-        self._check_negative_terminal(negative_terminal)
         self._calculate_properties()
         self._calculate_footprint()
 
-    def _check_shell(self, shell: CylindricalShell):
+    def _check_canister(self, canister: CylindricalCanister):
 
-        if not isinstance(shell, CylindricalShell):
-            raise TypeError("Shell must be a CylindricalShell")
-
-        self._shell = shell
-
-    def _check_positive_terminal(self, positive_terminal: Terminal):
-
-        if not isinstance(positive_terminal, Terminal):
-            raise TypeError("Positive terminal must be a Terminal")
+        if not isinstance(canister, CylindricalCanister):
+            raise TypeError("Canister must be a CylindricalCanister")
         
-        self._positive_terminal = deepcopy(positive_terminal)
+        self._canister = deepcopy(canister)
 
-    def _check_negative_terminal(self, negative_terminal: Terminal):
+    def _check_lid_assembly(self, lid_assembly: CylindricalLidAssembly):
 
-        if not isinstance(negative_terminal, Terminal):
-            raise TypeError("Negative terminal must be a Terminal")
+        if not isinstance(lid_assembly, CylindricalLidAssembly):
+            raise TypeError("Lid assembly must be a CylindricalLidAssembly")
         
-        self._negative_terminal = deepcopy(negative_terminal)
+        self._lid_assembly = deepcopy(lid_assembly)
+
+    def _check_cathode_terminal_collector(self, cathode_terminal_collector: CylindricalTerminalCollector):
+
+        if not isinstance(cathode_terminal_collector, CylindricalTerminalCollector):
+            raise TypeError("Cathode terminal collector must be a CylindricalTerminalCollector")
+        
+        if cathode_terminal_collector._radius > self._canister._inner_radius:
+            raise ValueError("Cathode terminal collector radius must be smaller than canister inner radius")
+        
+        self._cathode_terminal_collector = deepcopy(cathode_terminal_collector)
+
+    def _check_anode_terminal_collector(self, anode_terminal_collector: CylindricalTerminalCollector):
+
+        if not isinstance(anode_terminal_collector, CylindricalTerminalCollector):
+            raise TypeError("Anode terminal collector must be a CylindricalTerminalCollector")
+        
+        if anode_terminal_collector._radius > self._canister._inner_radius:
+            raise ValueError("Anode terminal collector radius must be smaller than canister inner radius")
+        
+        self._anode_terminal_collector = deepcopy(anode_terminal_collector)
 
     def _check_name(self, name: str):
 
@@ -364,21 +642,24 @@ class CylindricalCase:
         self._name = name
 
     def _calculate_properties(self):
-        self._cost = self._shell._cost + self._positive_terminal._cost + self._negative_terminal._cost
-        self._mass = self._shell._mass + self._positive_terminal._mass + self._negative_terminal._mass
-        self._internal_radius = self._shell._internal_radius
-        self._internal_length = self._shell._length
-        self._internal_volume = np.pi * (self._internal_radius**2) * self._internal_length
-        self._external_radius = self._shell._external_radius
-        self._external_length = self._shell._length + self._positive_terminal._thickness + self._negative_terminal._thickness
-        self._external_volume = np.pi * (self._external_radius**2) * self._external_length
+        self._cost = self._canister._cost + self._lid_assembly._cost + self._cathode_terminal_collector._cost + self._anode_terminal_collector._cost
+        self._mass = self._canister._mass + self._lid_assembly._mass + self._cathode_terminal_collector._mass + self._anode_terminal_collector._mass
+
+        self._length = self._canister._length
+        self._outer_radius = self._canister._outer_radius
+        self._outer_diameter = self._canister._outer_diameter
+        self._closed_volume = self._length * np.pi * (self._outer_radius**2)
+
+        self._inner_radius = self._canister._inner_radius
+        self._inner_height = self._length - self._lid_assembly._thickness - self._cathode_terminal_collector._thickness - self._anode_terminal_collector._thickness - self._canister._wall_thickness
+        self._inner_volume = np.pi * (self._inner_radius**2) * self._inner_height
 
     def _calculate_footprint(self):
         
         self._inner_circle = (pd
                               .DataFrame({
-                                  'theta': np.linspace(0, 2 * np.pi, 120),
-                                  'radius': self._internal_radius
+                                  'theta': np.linspace(0, 2 * np.pi, 30),
+                                  'radius': self._inner_radius
                                   })
                               .assign(x = lambda x: x['radius'] * np.cos(x['theta']))
                               .assign(y = lambda x: x['radius'] * np.sin(x['theta']))
@@ -388,8 +669,8 @@ class CylindricalCase:
         
         self._outer_circle = (pd
                               .DataFrame({
-                                    'theta': np.linspace(0, 2 * np.pi, 120),
-                                    'radius': self._external_radius
+                                    'theta': np.linspace(0, 2 * np.pi, 30),
+                                    'radius': self._outer_radius
                                     })
                                .assign(x = lambda x: x['radius'] * np.cos(x['theta']))
                                .assign(y = lambda x: x['radius'] * np.sin(x['theta']))
@@ -401,54 +682,102 @@ class CylindricalCase:
         """
         Get a top down view of the cylindrical case
         """
-        theta = np.linspace(0, 2 * np.pi, 120)
-
-        data = pd.concat([self.outer_circle.copy(), self.inner_circle.copy()])
+        # canister wall
+        outer_circle = self.outer_circle.copy()
+        inner_circle = self.inner_circle.copy()
+        data = pd.concat([outer_circle, inner_circle])
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=data['X [mm]'], y=data['Y [mm]'], mode='lines', name='Case', line=dict(width=0, shape='spline'), fillcolor='black', fill='toself'))
+        fig.add_trace(go.Scatter(x=data['X [mm]'], y=data['Y [mm]'], mode='lines', name='Canister Wall', line=dict(width=0, shape='spline'), fillcolor='black', fill='toself'))
+
+        # canister base
+        fig.add_trace(go.Scatter(x=inner_circle['X [mm]'], y=inner_circle['Y [mm]'], mode='lines', name='Canister Base', line=dict(width=0, shape='spline'), fillcolor='grey', fill='toself'))
+
+        # anode terminal collector
+        anode_circle = self._anode_terminal_collector.circle.copy()
+        fill_factor = self._anode_terminal_collector.fill_factor
+        fig.add_trace(go.Scatter(x=anode_circle['X [mm]'], y=anode_circle['Y [mm]'], mode='lines', name='Anode Terminal Collector', line=dict(width=0, shape='spline'), fillcolor='red', fill='toself', opacity=fill_factor))
 
         fig.update_layout(title=f'{self.name} top down view',
                           xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='X [mm]'),
                           yaxis=dict(showgrid=False, zeroline=False, title='Y [mm]'),
                           paper_bgcolor='white',
-                          plot_bgcolor='white',
-                          showlegend=False)
+                          plot_bgcolor='white')
         
         return fig
     
-    def get_side_view(self):
+    def get_bottom_up_view(self):
+
+        """
+        Get a bottom up view of the cylindrical case
+        """
+        # canister wall
+        outer_circle = self.outer_circle.copy()
+        inner_circle = self.inner_circle.copy()
+        data = pd.concat([outer_circle, inner_circle])
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=data['X [mm]'], y=data['Y [mm]'], mode='lines', name='Canister Wall', line=dict(width=0, shape='spline'), fillcolor='black', fill='toself'))
+
+        # lid assembly
+        fig.add_trace(go.Scatter(x=inner_circle['X [mm]'], y=inner_circle['Y [mm]'], mode='lines', name='Lid assembly', line=dict(width=0, shape='spline'), fillcolor='#338DFF', fill='toself'))
+
+        # cathode terminal collector
+        cathode_circle = self._cathode_terminal_collector.circle.copy()
+        fill_factor = self._cathode_terminal_collector.fill_factor
+        fig.add_trace(go.Scatter(x=cathode_circle['X [mm]'], y=cathode_circle['Y [mm]'], mode='lines', name='Cathode Terminal Collector', line=dict(width=0, shape='spline'), fillcolor='#FFC100', fill='toself', opacity=fill_factor))
+
+        fig.update_layout(title=f'{self.name} bottom up view',
+                          xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='X [mm]'),
+                          yaxis=dict(showgrid=False, zeroline=False, title='Y [mm]'),
+                          paper_bgcolor='white',
+                          plot_bgcolor='white')
+        
+        return fig
+
+    def get_side_view(self, width = None, height = None):
         """
         Get a side view of the cylindrical case
         """
         fig = go.Figure()
 
-        # main body left wall
-        x = [-self.external_radius, -self.internal_radius, -self.internal_radius, -self.external_radius]
-        y = [0, 0, self.internal_length, self.internal_length]
-        fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name='Shell', line=dict(width=0), fillcolor='black', fill='toself'))
+        # anode terminal collector
+        pos_y = -self.inner_height/2
+        neg_y = -self.inner_height/2 - self._anode_terminal_collector.thickness
+        anode_x = [-self._anode_terminal_collector.radius, self._anode_terminal_collector.radius, self._anode_terminal_collector.radius, -self._anode_terminal_collector.radius, -self._anode_terminal_collector.radius]
+        anode_y = [neg_y, neg_y, pos_y, pos_y, neg_y]
+        fig.add_trace(go.Scatter(x=anode_x, y=anode_y, mode='lines', name='Anode Terminal Collector', line=dict(width=0), fillcolor=ANODE_COLOR, fill='toself'))
 
-        # main body right wall
-        x = [self.external_radius, self.internal_radius, self.internal_radius, self.external_radius]
-        y = [0, 0, self.internal_length, self.internal_length]
-        fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name='Shell', line=dict(width=0), fillcolor='black', fill='toself'))
+        # cathode terminal collector
+        pos_y = self.inner_height/2 + self._cathode_terminal_collector.thickness
+        neg_y = self.inner_height/2
+        cathode_x = [-self._cathode_terminal_collector.radius, self._cathode_terminal_collector.radius, self._cathode_terminal_collector.radius, -self._cathode_terminal_collector.radius, -self._cathode_terminal_collector.radius]
+        cathode_y = [neg_y, neg_y, pos_y, pos_y, pos_y]
+        fig.add_trace(go.Scatter(x=cathode_x, y=cathode_y, mode='lines', name='Cathode Terminal Collector', line=dict(width=0), fillcolor=CATHODE_COLOR, fill='toself'))
 
-        # positive terminal
-        x = [-self.external_radius, self.external_radius, self.external_radius, -self.external_radius]
-        y = [self.internal_length, self.internal_length, self.internal_length + self._positive_terminal.thickness, self.internal_length + self._positive_terminal.thickness]
-        fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name='Positive Terminal', line=dict(width=0), fillcolor='grey', fill='toself'))
+        # lid assembly 
+        pos_y = self.inner_height/2 + self._cathode_terminal_collector.thickness + self._lid_assembly.thickness
+        neg_y = self.inner_height/2 + self._cathode_terminal_collector.thickness
+        lid_x = [-self.inner_radius, self.inner_radius, self.inner_radius, -self.inner_radius, -self.inner_radius]
+        lid_y = [neg_y, neg_y, pos_y, pos_y, neg_y]
+        fig.add_trace(go.Scatter(x=lid_x, y=lid_y, mode='lines', name='Lid Assembly', line=dict(width=0), fillcolor=LID_COLOR, fill='toself'))
 
-        # negative terminal
-        x = [-self.external_radius, self.external_radius, self.external_radius, -self.external_radius]
-        y = [0, 0, -self._negative_terminal.thickness, -self._negative_terminal.thickness]
-        fig.add_trace(go.Scatter(x=x, y=y, mode='lines', name='Negative Terminal', line=dict(width=0), fillcolor='grey', fill='toself'))
+        # canister
+        pos_y = self.inner_height/2 + self._cathode_terminal_collector.thickness + self._lid_assembly.thickness
+        neg_y = -self.inner_height/2 - self._anode_terminal_collector.thickness - self._canister.wall_thickness
+        canister_x = [-self.outer_radius, self.outer_radius, self.outer_radius, self.inner_radius, self.inner_radius, -self.inner_radius, -self.inner_radius, -self.outer_radius, -self.outer_radius]
+        canister_y = [neg_y, neg_y, pos_y, pos_y, neg_y + self._canister.wall_thickness, neg_y + self._canister.wall_thickness, pos_y, pos_y, neg_y]
+        fig.add_trace(go.Scatter(x=canister_x, y=canister_y, mode='lines', name='Canister', line=dict(width=0), fillcolor='black', fill='toself'))
+
+        if width is not None:
+            fig.update_layout(width=width)
+        if height is not None:
+            fig.update_layout(height=height)
 
         fig.update_layout(title=f'{self.name} side view',
-                          xaxis=dict(showgrid=False, zeroline=False, title='X [mm]', scaleanchor="y"),
+                          xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='X [mm]'),
                           yaxis=dict(showgrid=False, zeroline=False, title='Y [mm]'),
                           paper_bgcolor='white',
-                          plot_bgcolor='white',
-                          showlegend=False)
-        
+                          plot_bgcolor='white')
+
         return fig
 
     @property
@@ -480,34 +809,36 @@ class CylindricalCase:
         return round(self._mass * KG_TO_G, 2)
     
     @property
-    def internal_radius(self) -> float:
-        return round(self._internal_radius * M_TO_MM, 2)
+    def inner_radius(self) -> float:
+        return round(self._inner_radius * M_TO_MM, 2)
     
     @property
-    def internal_length(self) -> float:
-        return round(self._internal_length * M_TO_MM, 2)
+    def inner_height(self) -> float:
+        return round(self._inner_height * M_TO_MM, 2)
     
     @property
-    def external_radius(self) -> float:
-        return round(self._external_radius * M_TO_MM, 2)
+    def outer_radius(self) -> float:
+        return round(self._outer_radius * M_TO_MM, 2)
     
     @property
-    def external_length(self) -> float:
-        return round(self._external_length * M_TO_MM, 2)
+    def length(self) -> float:
+        return round(self._length * M_TO_MM, 2)
     
     @property
-    def internal_volume(self) -> float:
-        return round(self._internal_volume * M_TO_CM**3, 2)
+    def inner_volume(self) -> float:
+        return round(self._inner_volume * M_TO_CM**3, 2)
     
     @property
-    def external_volume(self) -> float:
-        return round(self._external_volume * M_TO_CM**3, 2)
+    def closed_volume(self) -> float:
+        return round(self._closed_volume * M_TO_CM**3, 2)
     
     @property
     def name(self) -> str:
         return self._name.replace('_', ' ').title()
 
-    
+
+
+
 class PrismaticShell:
 
     def __init__(self,
