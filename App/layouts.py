@@ -138,26 +138,6 @@ anode_mechanicals = ds.html.Div([
 ], style={'padding-left': '20px', 'width': '100%'})
 
 
-positive_terminal_inputs = ds.html.Div([
-    ds.html.Br(), ds.html.Br(), ds.html.Br(),
-    ds.html.H4("Positive Terminal"),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'cathode'}, 0, 10, 2, 0.01, 1, 'mass', 'Mass (g)', div_width='1000px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'cathode'}, 0, 1000, 100, 0.1, 100, 'specific_cost', 'Specific Cost ($/kg)', div_width='600px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'cathode'}, 0, 20, 5, 0.1, 10, 'thickness', 'Thickness (mm)', div_width='600px').render(), ds.html.Br(),
-    ds.html.Div(id={'tab': 'encapsulation', 'object': 'terminal', 'object': 'message', 'electrode': 'cathode'}), 
-])
-
-
-negative_terminal_inputs = ds.html.Div([
-    ds.html.Br(), ds.html.Br(), ds.html.Br(),
-    ds.html.H4("Negative Terminal"),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'anode'}, 0, 10, 2, 0.01, 1, 'mass', 'Mass (g)', div_width='1000px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'anode'}, 0, 1000, 100, 0.1, 100, 'specific_cost', 'Specific Cost ($/kg)', div_width='600px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'encapsulation', 'object': 'terminal', 'electrode': 'anode'}, 0, 20, 5, 0.1, 10, 'thickness', 'Thickness (mm)', div_width='600px').render(), ds.html.Br(), 
-    ds.html.Div(id={'tab': 'encapsulation', 'object': 'terminal', 'object': 'message', 'electrode': 'anode'}), 
-])
-
-
 cylindrical_encapsulation = ds.html.Div([
 
     ds.html.Br(), ds.html.Br(),
@@ -201,8 +181,17 @@ cylindrical_encapsulation = ds.html.Div([
 
 pouch_encapsulation = ds.html.Div([
 
-    positive_terminal_inputs,
-    negative_terminal_inputs,
+    ds.html.Br(), ds.html.Br(), ds.html.Br(),
+    ds.html.H4("Positive Terminal"),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'pouch'}, 0, 10, 2, 0.01, 1, 'pos_term_mass', 'Mass (g)', div_width='1000px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'pouch'}, 0, 1000, 100, 0.1, 100, 'pos_term_specific_cost', 'Specific Cost ($/kg)', div_width='600px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'pouch'}, 0, 20, 5, 0.1, 10, 'pos_term_thickness', 'Thickness (mm)', div_width='600px').render(), ds.html.Br(),
+    
+    ds.html.Br(), ds.html.Br(), ds.html.Br(),
+    ds.html.H4("Negative Terminal"),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'pouch'}, 0, 10, 2, 0.01, 1, 'neg_term_mass', 'Mass (g)', div_width='1000px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'pouch'}, 0, 1000, 100, 0.1, 100, 'neg_term_specific_cost', 'Specific Cost ($/kg)', div_width='600px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'pouch'}, 0, 20, 5, 0.1, 10, 'neg_term_thickness', 'Thickness (mm)', div_width='600px').render(), ds.html.Br(), 
 
     ds.html.Br(), ds.html.Br(), ds.html.Br(),
     ds.html.H4("Pouch"),
