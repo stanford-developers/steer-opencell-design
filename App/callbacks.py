@@ -886,19 +886,21 @@ def make_encapsulation(inputs, specific_costs, densities, formulas, form_factor)
     elif form_factor == 'pouch':
 
         try:
-            cathode_terminal = Terminal(mass = cathode_terminal_inputs[0], specific_cost = cathode_terminal_inputs[1], thickness=cathode_terminal_inputs[2])
-            anode_terminal = Terminal(mass = anode_terminal_inputs[0], specific_cost = anode_terminal_inputs[1], thickness=anode_terminal_inputs[2])
-            laminate = Laminate(thickness=inputs[0], areal_mass=inputs[1], areal_cost=inputs[2])
-            tape = Tape(mass=inputs[3])
+            cathode_terminal = Terminal(mass=inputs[0], specific_cost=inputs[1], thickness=inputs[2])
+            anode_terminal = Terminal(mass=inputs[3], specific_cost=inputs[4], thickness=inputs[5])
+            laminate = Laminate(thickness=inputs[6], areal_mass=inputs[7], areal_cost=inputs[8])
+            tape = Tape(mass=inputs[9])
 
             case = Pouch(
                 laminate=laminate,
                 tape=tape,
-                heat_seal_size_sides=inputs[4],
-                heat_seal_size_top=inputs[5],
+                heat_seal_size_sides=inputs[10],
+                heat_seal_size_top=inputs[11],
                 positive_terminal=cathode_terminal,
                 negative_terminal=anode_terminal
             )
+
+            figure = None
 
         except ValueError as e:
             message = f"Error: {e}"
@@ -1166,7 +1168,7 @@ def make_electrode_assembly(pickled_cathode, pickled_anode, pickled_separator, a
             ds.html.Br(),
         ], style={'line-height': '0.5'})
 
-        figure = None
+        figure_div = None
 
     else: 
         return {}, ["\u00A0"], None
