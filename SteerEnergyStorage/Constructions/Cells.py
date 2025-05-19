@@ -1114,7 +1114,7 @@ class StackedPrismaticCell(_PrismaticCell, _StackedCell):
 class CylindricalCell(_JellyRollCell):
 
     def __init__(self,
-                 electrode_assembly: _JellyRoll,
+                 electrode_assembly: CylindricalJellyRoll,
                  electrolyte: Electrolyte,
                  electrolyte_overfill: float,
                  encapsulation: CylindricalCase,
@@ -1162,8 +1162,8 @@ class CylindricalCell(_JellyRollCell):
         if n_electrode_assembly <= 0:
             raise ValueError("Number of electrode assembly must be greater than 0")
         
-        if electrode_assembly._radius > self._encapsulation._internal_radius:
-            raise ValueError(f"Electrode assembly, {electrode_assembly.radius} mm,  cannot be greater than the internal radius of the cylindrical case, {self._encapsulation.internal_radius} mm")
+        if electrode_assembly._radius > self._encapsulation._inner_radius:
+            raise ValueError(f"Electrode assembly, {electrode_assembly.radius} mm,  cannot be greater than the internal radius of the cylindrical case, {self._encapsulation.inner_radius} mm")
         
         self._electrode_assemblies = [deepcopy(electrode_assembly) for _ in range(n_electrode_assembly)]  
 
@@ -1179,9 +1179,9 @@ class CylindricalCell(_JellyRollCell):
         self._encapsulation = deepcopy(encapsulation)
 
     def _calculate_geometry_properties(self):
-        self._radius = self._encapsulation._external_radius
+        self._radius = self._encapsulation._outer_radius
         self._diameter = self._radius * 2
-        self._length = self._encapsulation._external_length
+        self._length = self._encapsulation._length
         self._volume = np.pi * self._radius**2 * self._length
 
     def get_top_down_view(self, background_color='white', **kwargs) -> go.Figure:
@@ -1193,7 +1193,8 @@ class CylindricalCell(_JellyRollCell):
         fig = go.Figure()
 
         for trace in self._encapsulation.get_top_down_view().data:
-            fig.add_trace(trace)
+            if trace.name == 'Canister Wall':
+                fig.add_trace(trace)
 
         for trace in self._electrode_assemblies[0].get_top_down_view().data:
             fig.add_trace(trace)
@@ -1202,7 +1203,6 @@ class CylindricalCell(_JellyRollCell):
                           yaxis=dict(showgrid=False, zeroline=False, showticklabels=False, title="Y (cm)"),
                           paper_bgcolor=background_color,
                           plot_bgcolor=background_color,
-                          showlegend=False,
                           title=f"Top down view of cylindrical cell",
                           **kwargs)
 
