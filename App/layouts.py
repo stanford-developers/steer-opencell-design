@@ -1,6 +1,7 @@
 import dash as ds
 from styles import *
-from custom_components import SliderWithTextInput, RangeSliderWithTextInput, CurrentCollectorSelector
+from custom_components import SliderWithTextInput, RangeSliderWithTextInput, CurrentCollectorSelector, CathodeMaterialSelector, AnodeMaterialSelector
+from styles import *
 
 from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector
 from SteerEnergyStorage.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial
@@ -84,7 +85,9 @@ cell_operation = ds.html.Div([
 
     RangeSliderWithTextInput({'type': 'operation'}, 0, 6, [1.5, 4.2], 0.1, 1, 'voltage_range', "Voltage Range (V)").render(),
     ds.html.Br(), ds.html.Br(),
-    RangeSliderWithTextInput({'type': 'operation'}, 0, 40, [2, 12], 0.1, 5, 'capacity_range', "Irreverisble and Reversible Capacity (Ah)").render(),
+    SliderWithTextInput({'type': 'operation'}, 0, 3, 1, 0.01, 1, 'irreversible_capacity', "Irreversible Capacity (Ah)", div_width='300px').render(),
+    ds.html.Br(),
+    SliderWithTextInput({'type': 'operation'}, 1, 20, 12, 0.01, 1, 'reversible_capacity', "Reversible Capacity (Ah)", div_width='900px').render(),
 
     ], style={'padding-left': '10px'})
 
@@ -106,8 +109,6 @@ cathode_mechanicals = ds.html.Div([
         ),
     ds.html.Div(id={'tab': 'mechanicals', 'object': 'current_collector', 'object': 'div', 'electrode': 'cathode'}),
     ds.html.Div(id={'tab': 'mechanicals', 'object': 'current_collector', 'object': 'message', 'electrode': 'cathode'}),
-    ds.dcc.Graph(id={'tab': 'mechanicals', 'object': 'current_collector', 'object': 'graph', 'electrode': 'cathode'}, style={'height': '400px', 'width': '1400px'}),
-
     ds.html.Div(style={'height': '1000px'})
 
 ], style={'padding-left': '20px', 'width': '100%'})
@@ -130,9 +131,6 @@ anode_mechanicals = ds.html.Div([
         ),
     ds.html.Div(id={'tab': 'mechanicals', 'object': 'current_collector', 'object': 'div', 'electrode': 'anode'}),
     ds.html.Div(id={'tab': 'mechanicals', 'object': 'current_collector', 'object': 'message', 'electrode': 'anode'}),
-    ds.dcc.Graph(id={'tab': 'mechanicals', 'object': 'current_collector', 'object': 'graph', 'electrode': 'anode'}, style={'height': '400px', 'width': '1400px'}),
-
-
     ds.html.Div(style={'height': '1000px'})
 
 ], style={'padding-left': '20px', 'width': '100%'})
@@ -161,7 +159,7 @@ cylindrical_encapsulation = ds.html.Div([
     ds.html.Br(), 
     CurrentCollectorSelector({'object': 'encapsulation', 'component': 'anode_terminal'}, current_collector_materials, density_default=2.7, specific_cost_default=2.64, slider_div_width='500px').render(),
     ds.html.Br(),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 160, 32, 0.1, 10, 'acc_diameter', 'Diameter (mm)', div_width='800px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 160, 28, 0.1, 10, 'acc_diameter', 'Diameter (mm)', div_width='800px').render(), ds.html.Br(), 
     SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 4, 1, 0.01, 1, 'acc_thickness', 'Thickness (mm)', div_width='400px').render(), ds.html.Br(), 
     SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1, 0.8, 0.01, 1, 'acc_fill_factor', 'Fill factor (mm)', div_width='200px').render(), ds.html.Br(), 
     ds.html.Br(),
@@ -171,7 +169,7 @@ cylindrical_encapsulation = ds.html.Div([
     ds.html.Br(), 
     CurrentCollectorSelector({'object': 'encapsulation', 'component': 'cathode_terminal'}, current_collector_materials, density_default=2.7, specific_cost_default=2.64, slider_div_width='500px').render(),
     ds.html.Br(),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 160, 32, 0.1, 10, 'ccc_diameter', 'Diameter (mm)', div_width='800px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 160, 28, 0.1, 10, 'ccc_diameter', 'Diameter (mm)', div_width='800px').render(), ds.html.Br(), 
     SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 4, 1, 0.01, 1, 'ccc_thickness', 'Thickness (mm)', div_width='400px').render(), ds.html.Br(), 
     SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1, 0.8, 0.01, 1, 'ccc_fill_factor', 'Fill factor (mm)', div_width='200px').render(), ds.html.Br(), 
     ds.html.Br(),
@@ -240,7 +238,9 @@ cathode_formulation = ds.html.Div([
 
     ds.html.Br(), ds.html.Br(),
     ds.html.H4('Active Materials'),
-    ds.html.Div(id={'type': 'materials_selector', 'electrode': 'cathode', 'material': 'active_material'}, children=[], style={'width': '100%'}),
+    ds.html.Div(id={'type': 'materials_selector', 'electrode': 'cathode', 'material': 'active_material'}, children=[
+        CathodeMaterialSelector(id={'type': 'active_material', 'index': 0, 'electrode': 'cathode'}, materials=active_materials_cathode, with_slider_titles=True, weight_default=100, name_default='lfp_2').render()
+    ], style={'width': '100%'}),
     ds.html.Div([
         ds.html.Button("+", id={'type': 'button', 'action': 'add', 'electrode': 'cathode', 'material': 'active_material'}, n_clicks=0, style=BUTTON_STYLE),
         ds.html.Button("-", id={'type': 'button', 'action': 'remove', 'electrode': 'cathode', 'material': 'active_material'}, n_clicks=0, style=BUTTON_STYLE)
@@ -276,7 +276,9 @@ anode_formulation = ds.html.Div([
 
     ds.html.Br(), ds.html.Br(),
     ds.html.H4('Active Materials'),
-    ds.html.Div(id={'type': 'materials_selector', 'electrode': 'anode', 'material': 'active_material'}, children=[], style={'width': '100%'}),
+    ds.html.Div(id={'type': 'materials_selector', 'electrode': 'anode', 'material': 'active_material'}, children=[
+        AnodeMaterialSelector(id={'type': 'active_material', 'index': 0, 'electrode': 'anode'}, materials=active_materials_anode, with_slider_titles=True, weight_default=100, name_default='faradion_hc').render()
+    ], style={'width': '100%'}),
     ds.html.Div([
         ds.html.Button("+", id={'type': 'button', 'action': 'add', 'electrode': 'anode', 'material': 'active_material'}, n_clicks=0, style=BUTTON_STYLE),
         ds.html.Button("-", id={'type': 'button', 'action': 'remove', 'electrode': 'anode', 'material': 'active_material'}, n_clicks=0, style=BUTTON_STYLE)
@@ -359,7 +361,7 @@ separator_electrolyte = ds.html.Div([
             ds.html.Br(),
             SliderWithTextInput({'type': 'mechanicals'}, 0, 100, 45, 0.1, 5, 'separator_porosity', title="Porosity (%)", div_width='80%').render(),
             ds.html.Br(),
-            SliderWithTextInput({'type': 'mechanicals'}, 0, 5000, 1200, 1, 200, 'separator_fold_length', title="Fold Length (mm)", div_width='110%').render(),
+            SliderWithTextInput({'type': 'mechanicals'}, 0, 8000, 1200, 1, 100, 'separator_fold_length', title="Fold Length (mm)", div_width='110%').render(),
             ds.html.Br(),
             ds.html.Div(id={'type': 'separator_message_text'}, children=[' '], style={'width': '150%'}),
             ],
@@ -388,18 +390,90 @@ separator_electrolyte = ds.html.Div([
 
 
 cell_analysis = ds.html.Div([
-    
-    ds.html.Br(),
 
-    ds.html.H3('Cell Properties', style=HEADER_STYLE | {'padding-left': '20px'}),
     ds.html.Div(id={'type': 'cell_properties_text'}, style={'padding-left': '20px'}),
-
-    ds.html.Br(), 
 
     ds.html.Div(id={'type': 'theoretical_curve_placeholder'}),
 
     ds.html.Br(), 
-    ds.html.Div(id={'type': 'cost_mass_placeholder'}),
+    ds.html.Div(id={'type': 'cost_mass_placeholder'})
+
+])
+
+
+electrode_schematics = ds.html.Div([
+
+    ds.html.Br(),
+    
+    ds.html.Div([
+        ds.dcc.Graph(
+            id={'tab': 'mechanicals', 'object': 'current_collector', 'object': 'graph', 'electrode': 'cathode'},
+            style={'height': '400px', 'width': '400px'},
+            figure=EMPTY_FIG,
+            config={'displayModeBar': False}
+        ),
+        ds.dcc.Graph(
+            id={'tab': 'mechanicals', 'object': 'current_collector', 'object': 'graph', 'electrode': 'anode'},
+            style={'height': '400px', 'width': '400px'},
+            figure=EMPTY_FIG,
+            config={'displayModeBar': False}
+        ),
+    ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '80px', 'justifyContent': 'flex-start'}),
+
+    ds.html.Br(),
+
+    ds.html.Div([
+        ds.dcc.Graph(
+            id={'tab': 'mechanicals', 'object': 'separator', 'object': 'graph'},
+            style={'height': '400px', 'width': '400px'},
+            figure=EMPTY_FIG,
+            config={'displayModeBar': False}
+        ),
+        ds.dcc.Graph(
+            id='electrode_schematics_figure_3',
+            style={'height': '400px', 'width': '400px'},
+            figure=EMPTY_FIG
+        ),
+    ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '80px', 'justifyContent': 'flex-start'}),
+
+    ds.dcc.Graph(id='layup_schematic',style={'height': '380', 'width': '1000'},figure=EMPTY_FIG),
+
+])
+
+
+assembly_schematics = ds.html.Div([
+
+    ds.html.Br(),
+
+    ds.html.Div([
+        ds.dcc.Graph(id='assembly-schematics-1', style={'height': '250px', 'width': '500px'}, figure=EMPTY_FIG),
+        ds.dcc.Graph(id='assembly-schematics-2', style={'height': '250px', 'width': '500px'}, figure=EMPTY_FIG),
+    ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '20px'}),
+    ds.html.Br(),
+    ds.dcc.Graph(id='assembly-schematics-3', style={'height': '440px', 'width': '80%', 'marginTop': '20px'}, figure=EMPTY_FIG),
+    ds.html.Br(),
+    ds.dcc.Graph(id='assembly-schematics-4', style={'height': '540px', 'width': '80%', 'marginLeft': '40px'}, figure=EMPTY_FIG),
+
+])
+
+
+right_panel = ds.html.Div([
+    
+    ds.dcc.Tabs(
+        id='right_panel_tabs',
+        children=[
+            ds.dcc.Tab(label='Electrode Schematics', value='electrode_schematics'),
+            ds.dcc.Tab(label='Assembly Schematics', value='assembly_schematics'),
+            ds.dcc.Tab(label='Cell Analysis', value='cell_analysis'),
+        ],
+        colors={'border': "#757575", 'primary': "#bcbcbc", 'background': RIGHT_PANEL_COLOR},
+        style={'width': '100%', 'height': 'calc(2vw)', 'background-color': RIGHT_PANEL_COLOR, 'lineHeight': '0.9'},
+        value='electrode_schematics',
+    ),
+
+    ds.html.Div(id='electrode_schematics', children=[electrode_schematics], style={'display': 'block'}),
+    ds.html.Div(id='assembly_schematics', children=[assembly_schematics], style={'display': 'none'}),
+    ds.html.Div(id='cell_analysis', children=[cell_analysis], style={'display': 'none'}),
 
     ], style={
         'position': 'fixed',
@@ -407,7 +481,7 @@ cell_analysis = ds.html.Div([
         'right': '0',
         'width': '40%',
         'height': 'calc(200vw)',
-        'background-color': '#e3e5e6',
+        'background-color': RIGHT_PANEL_COLOR,
         'padding': '10px',
         'overflow': 'auto',
         }
@@ -444,5 +518,4 @@ tab_container = ds.html.Div([
     ds.html.Div(id='electrodes', children=[electrodes], style={'display': 'none'}),
 
 ], style={'margin-left': '10px', 'margin-right': '10px', 'width': 'calc(58.5vw)'})
-
 
