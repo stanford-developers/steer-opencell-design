@@ -1,3 +1,8 @@
+from plotly.subplots import make_subplots
+from plotly import graph_objects as go
+
+from App.styles import *
+
 UM_TO_M = 1e-6
 M_TO_UM = 1e6
 G_TO_KG = 1e-3
@@ -130,7 +135,72 @@ class Separator:
         self._mass = self._thickness * self._area * self._density
         self._cost = self._area * self._areal_cost
         self._pore_volume = self._thickness * self._area * self._porosity
-        
+
+    def _make_top_down_shapes(self):
+
+        fig = go.Figure()
+        y_shift = -self.width / 2
+        x_shift = self.fold_length / 2  # Shift value
+
+        x = [0, self.fold_length, self.fold_length, 0, 0]
+        x = [xi - x_shift for xi in x]  # Shift all x values
+        y = [0, 0, self.width, self.width, 0]
+        y = [yi + y_shift for yi in y]
+        fig.add_trace(go.Scatter(x=x, y=y, mode='lines', line=dict(width=0), fillcolor=SEPARATOR_COLOR, fill='toself', name='Separator'))
+
+        return fig
+
+
+    def get_top_down_view(self, paper_bgcolor='white', plot_bgcolor='white', title=None, split=True, **kwargs):
+        """
+        Visualize the notched current collector.
+        If the collector is long, split into two subplots for left and right ends with split indicators.
+        The vertical datum is centered at y = self.width / 2.
+        """
+        split_threshold = 2
+        aspect_ratio = self.fold_length / self.width
+        n_cols = 2 if aspect_ratio >= split_threshold else 1
+    
+        if aspect_ratio < split_threshold or not split:
+            fig = self._make_top_down_shapes()
+            fig.update_layout(xaxis=dict(scaleanchor='y'))
+            
+        else:
+            fig = make_subplots(rows=1, cols=n_cols, shared_yaxes=True, horizontal_spacing=0.02)
+            for trace in self._make_top_down_shapes().data:
+                fig.add_trace(trace, row=1, col=1)
+                fig.add_trace(trace, row=1, col=2)
+
+            half_window = self.width
+            left_xlim = [-self.fold_length/2, -self.fold_length/2 + half_window]
+            right_xlim = [self.fold_length/2 - half_window, self.fold_length/2]
+            fig.update_xaxes(range=left_xlim, row=1, col=1)
+            fig.update_xaxes(range=right_xlim, row=1, col=2)
+
+            # Add vertical split indicators
+            bottom_y_lim = -(self.width / 2) * 1.1
+            top_y_lim = (self.width / 2) * 1.1
+            line = dict(color="#864C39", width=6)
+            fig.add_shape(type='line', x0=left_xlim[1], x1=left_xlim[1], y0=bottom_y_lim, y1=top_y_lim, line=line, xref='x', yref='y')
+            fig.add_shape(type='line', x0=right_xlim[0], x1=right_xlim[0], y0=bottom_y_lim, y1=top_y_lim, line=line, xref='x2', yref='y2')
+
+            fig.update_layout(xaxis=dict(scaleanchor='y'), xaxis2=dict(scaleanchor='y'))
+
+        if title is None:
+            title = f'{self._name} Current Collector'
+
+        fig.update_layout(
+            title=title,
+            paper_bgcolor=paper_bgcolor,
+            plot_bgcolor=plot_bgcolor,
+            showlegend=False,
+            xaxis_title='x (mm)',
+            yaxis_title='y (mm)',
+            **kwargs
+        )
+
+        return fig
+
     @property
     def length(self):
         if hasattr(self, '_length'):
