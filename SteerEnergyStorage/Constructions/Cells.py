@@ -206,11 +206,13 @@ class _Cell:
         figure.update_traces(line=dict(width=4))
         figure.add_vline(x=upper_cap_limit, line_color='black', line_width=1)
         figure.add_vline(x=lower_cap_limit, line_color='black', line_width=1)
+        
         if upper_v_limit is not None:
             figure.add_hline(y=upper_v_limit, line_color='black', line_width=1)
         if lower_v_limit is not None:
             figure.add_hline(y=lower_v_limit, line_color='black', line_width=1)
         figure.update_layout(plot_bgcolor=background_color, paper_bgcolor=background_color)
+
         return figure
     
     def _add_to_dict(self, dictionary_1: dict, dictionary_2: dict | float | int):

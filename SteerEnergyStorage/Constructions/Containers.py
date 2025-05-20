@@ -678,7 +678,7 @@ class CylindricalCase:
                                .drop(columns=['theta', 'radius'])
                                )
 
-    def get_top_down_view(self):
+    def get_top_down_view(self, paper_bgcolor='white', plot_bgcolor='white', title=None, with_base=True, **kwargs):
         """
         Get a top down view of the cylindrical case
         """
@@ -689,23 +689,24 @@ class CylindricalCase:
         fig = go.Figure()
         fig.add_trace(go.Scatter(x=data['X [mm]'], y=data['Y [mm]'], mode='lines', name='Canister Wall', line=dict(width=0, shape='spline'), fillcolor='black', fill='toself'))
 
-        # canister base
-        fig.add_trace(go.Scatter(x=inner_circle['X [mm]'], y=inner_circle['Y [mm]'], mode='lines', name='Canister Base', line=dict(width=0, shape='spline'), fillcolor='grey', fill='toself'))
+        if with_base:
+            fig.add_trace(go.Scatter(x=inner_circle['X [mm]'], y=inner_circle['Y [mm]'], mode='lines', name='Canister Base', line=dict(width=0, shape='spline'), fillcolor='grey', fill='toself'))
+            anode_circle = self._anode_terminal_collector.circle.copy()
+            fill_factor = self._anode_terminal_collector.fill_factor
+            fig.add_trace(go.Scatter(x=anode_circle['X [mm]'], y=anode_circle['Y [mm]'], mode='lines', name='Anode Collector', line=dict(width=0, shape='spline'), fillcolor='red', fill='toself', opacity=fill_factor))
 
-        # anode terminal collector
-        anode_circle = self._anode_terminal_collector.circle.copy()
-        fill_factor = self._anode_terminal_collector.fill_factor
-        fig.add_trace(go.Scatter(x=anode_circle['X [mm]'], y=anode_circle['Y [mm]'], mode='lines', name='Anode Terminal Collector', line=dict(width=0, shape='spline'), fillcolor='red', fill='toself', opacity=fill_factor))
+        title = title if title is not None else f'{self.name} top down view'
 
-        fig.update_layout(title=f'{self.name} top down view',
+        fig.update_layout(title=title,
                           xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='X [mm]'),
                           yaxis=dict(showgrid=False, zeroline=False, title='Y [mm]'),
-                          paper_bgcolor='white',
-                          plot_bgcolor='white')
+                          paper_bgcolor=paper_bgcolor,
+                          plot_bgcolor=plot_bgcolor,
+                          **kwargs)
         
         return fig
     
-    def get_bottom_up_view(self):
+    def get_bottom_up_view(self, paper_bgcolor='white', plot_bgcolor='white', title=None, **kwargs):
 
         """
         Get a bottom up view of the cylindrical case
@@ -723,17 +724,20 @@ class CylindricalCase:
         # cathode terminal collector
         cathode_circle = self._cathode_terminal_collector.circle.copy()
         fill_factor = self._cathode_terminal_collector.fill_factor
-        fig.add_trace(go.Scatter(x=cathode_circle['X [mm]'], y=cathode_circle['Y [mm]'], mode='lines', name='Cathode Terminal Collector', line=dict(width=0, shape='spline'), fillcolor='#FFC100', fill='toself', opacity=fill_factor))
+        fig.add_trace(go.Scatter(x=cathode_circle['X [mm]'], y=cathode_circle['Y [mm]'], mode='lines', name='Cathode Collector', line=dict(width=0, shape='spline'), fillcolor='#FFC100', fill='toself', opacity=fill_factor))
 
-        fig.update_layout(title=f'{self.name} bottom up view',
+        title = title if title is not None else f'{self.name} bottom up view'
+
+        fig.update_layout(title=title,
                           xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='X [mm]'),
                           yaxis=dict(showgrid=False, zeroline=False, title='Y [mm]'),
-                          paper_bgcolor='white',
-                          plot_bgcolor='white')
+                          paper_bgcolor=paper_bgcolor,
+                          plot_bgcolor=plot_bgcolor,
+                          **kwargs)
         
         return fig
 
-    def get_side_view(self, width = None, height = None):
+    def get_side_view(self, plot_bgcolor='white', paper_bgcolor='white', **kwargs):
         """
         Get a side view of the cylindrical case
         """
@@ -767,16 +771,11 @@ class CylindricalCase:
         canister_y = [neg_y, neg_y, pos_y, pos_y, neg_y + self._canister.wall_thickness, neg_y + self._canister.wall_thickness, pos_y, pos_y, neg_y]
         fig.add_trace(go.Scatter(x=canister_x, y=canister_y, mode='lines', name='Canister', line=dict(width=0), fillcolor='black', fill='toself'))
 
-        if width is not None:
-            fig.update_layout(width=width)
-        if height is not None:
-            fig.update_layout(height=height)
-
-        fig.update_layout(title=f'{self.name} side view',
-                          xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='X [mm]'),
+        fig.update_layout(xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='X [mm]'),
                           yaxis=dict(showgrid=False, zeroline=False, title='Y [mm]'),
-                          paper_bgcolor='white',
-                          plot_bgcolor='white')
+                          paper_bgcolor=paper_bgcolor,
+                          plot_bgcolor=plot_bgcolor,
+                          **kwargs)
 
         return fig
 

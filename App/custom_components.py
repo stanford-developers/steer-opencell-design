@@ -370,11 +370,13 @@ class MaterialSelector2(MaterialSelector1):
                  specific_cost_default: float,
                  formula_default: str,
                  slider_div_width: str,
+                 name_default: str,
                  **kwargs: dict
                  ):
         
         self.dropdown_placeholder = dropdown_placeholder
         self.materials = materials
+        self.name_default = name_default
 
         super().__init__(
             id=id, 
@@ -401,7 +403,8 @@ class MaterialSelector2(MaterialSelector1):
             id=dropdown_id,
             options=[{'label': material, 'value': material} for material in self.materials] if self.materials else [],
             placeholder=self.dropdown_placeholder,
-            style={'width': '300px', 'margin-right': '40px'}
+            style={'width': '300px', 'margin-right': '40px'},
+            value=self.name_default
         )
 
     def make_div(self):
@@ -427,6 +430,7 @@ class CathodeMaterialSelector(MaterialSelector2):
                  density_default: float = 4,
                  specific_cost_default: float = 15,
                  slider_div_width: str = '220px',
+                 name_default=None,
                  **kwargs: dict
                  ):
         
@@ -439,6 +443,7 @@ class CathodeMaterialSelector(MaterialSelector2):
                          specific_cost_default=specific_cost_default, 
                          formula_default=None,
                          slider_div_width=slider_div_width, 
+                         name_default=name_default,
                          **kwargs)
 
     
@@ -453,6 +458,7 @@ class AnodeMaterialSelector(MaterialSelector2):
                  density_default: float = 4,
                  specific_cost_default: float = 15,
                  slider_div_width: str = '220px',
+                 name_default=None,
                  **kwargs: dict
                  ):
         
@@ -465,5 +471,6 @@ class AnodeMaterialSelector(MaterialSelector2):
                          specific_cost_default=specific_cost_default, 
                          formula_default=None,
                          slider_div_width=slider_div_width, 
+                         name_default=name_default,
                          **kwargs)
 

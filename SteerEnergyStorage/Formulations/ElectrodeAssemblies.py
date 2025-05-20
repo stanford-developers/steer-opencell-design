@@ -519,7 +519,7 @@ class CylindricalJellyRoll(_JellyRoll):
 
         :param dtheta: float: step size for the theta angle in radians
         """
-        length = self._separator._fold_length
+        length = self._anode._current_collector._length
         b = self._electrode_thickness / (2*np.pi)
         a = (self._internal_die_diameter / 2)
         
@@ -580,7 +580,7 @@ class CylindricalJellyRoll(_JellyRoll):
         self._n_turns = theta_max / (2 * np.pi)
         self._spiral = spiral
 
-    def get_top_down_view(self, encapsulation = None, **kwargs) -> None:
+    def get_top_down_view(self, encapsulation = None, paper_bgcolor='white', plot_bgcolor='white', **kwargs) -> go.Figure:
         """
         Function to show the jelly roll wrapped up 
         """
@@ -648,15 +648,14 @@ class CylindricalJellyRoll(_JellyRoll):
 
         fig.update_layout(xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title="X (mm)"),
                           yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)"),
-                          paper_bgcolor='white',
-                          plot_bgcolor='white',
-                          title=f"Top View",
-                          legend=dict(orientation="h", yanchor="bottom", y=-0.04, xanchor="center",x=0.5),
+                          paper_bgcolor=paper_bgcolor,
+                          plot_bgcolor=plot_bgcolor,
+                          legend=dict(orientation="v", yanchor="middle", y=0.5, xanchor="left"),
                           **kwargs)
 
         return fig
 
-    def get_side_view(self, slider=0, encapsulation = None, **kwargs) -> None:
+    def get_side_view(self, slider=0, encapsulation = None, paper_bgcolor='white', plot_bgcolor='white', **kwargs) -> go.Figure:
         """
         Function to show the jelly roll from the side
         """
@@ -724,13 +723,46 @@ class CylindricalJellyRoll(_JellyRoll):
 
         fig.update_layout(xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title="X (mm)"),
                           yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)"),
-                          paper_bgcolor='white',
-                          plot_bgcolor='white',
-                          title=f"Side view",
+                          paper_bgcolor=paper_bgcolor,
+                          plot_bgcolor=plot_bgcolor,
                           **kwargs)
         
         return fig
 
+    def get_layup(self, paper_bgcolor='white', plot_bgcolor='white', **kwargs) -> go.Figure:
+        """
+        Function to show the jelly roll layed out flat
+        """
+        figure = go.Figure()
+        
+        for trace in self._cathode._current_collector.get_top_down_view(split=False).data:
+            trace.legendgroup = 'Cathode'
+            trace.showlegend = True if trace.name == 'Main Body' else False
+            trace.name = 'Cathode'
+            trace.line = dict(color='black', width=1)
+            figure.add_trace(trace)
+
+        for trace in self._anode._current_collector.get_top_down_view(split=False).data:
+            trace.legendgroup = 'Anode'
+            trace.showlegend = True if trace.name == 'Main Body' else False
+            trace.name = 'Anode'
+            trace.line = dict(color='black', width=1)
+            figure.add_trace(trace)
+
+        for trace in self._separator.get_top_down_view(split=False).data:
+            trace.legendgroup = 'Separator'
+            trace.line = dict(color='black', width=1)
+            figure.add_trace(trace)
+
+        figure.update_layout(xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title="X (mm)"),
+                          yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)"),
+                          paper_bgcolor=paper_bgcolor,
+                          plot_bgcolor=plot_bgcolor,
+                          legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5),
+                          **kwargs)
+        
+        return figure
+        
     @property
     def internal_die_diameter(self):
         return round(self._internal_die_diameter * M_TO_MM, 2)

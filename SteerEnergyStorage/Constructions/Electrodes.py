@@ -465,6 +465,7 @@ class Anode(_Electrode):
                          name=name)
         
         self._anode_free = anode_free
+        self._current_collector._anode = True
         
     def _order_and_clean_curves(self, data: pd.DataFrame) -> pd.DataFrame:
         """

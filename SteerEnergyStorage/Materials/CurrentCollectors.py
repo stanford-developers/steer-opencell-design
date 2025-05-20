@@ -2,6 +2,7 @@ from SteerEnergyStorage.DataManager import DataManager
 
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import pandas as pd
 import os
 from copy import deepcopy
@@ -207,6 +208,7 @@ class CurrentCollector:
         self._check_bare_area(bare_area)
         self._check_thickness(thickness)
         self._calculate_properties()
+        self._anode = False
 
     def _calculate_properties(self):
 
@@ -664,56 +666,94 @@ class NotchedCurrentCollector(CurrentCollector):
         self._volume = self._area * self._thickness
         self._mass = self._volume * self._density
         self._cost = self._mass * self._specific_cost
+        self._total_width = self._width + self._tab_width
 
-    def get_top_down_view(self, width = None, height = None):
-        """
-        Visualize the notched current collector.
-        """
+    def _make_top_down_shapes(self):
+
         fig = go.Figure()
+        y_shift = -self.width / 2
+        x_shift = self.length / 2  # Shift value
 
-        bottom_left = (0, 0)
-        bottom_right = (self.length, 0)
-        top_right = (self.length, self.width)
-        top_left = (0, self.width)
-        x = [bottom_left[0], bottom_right[0], top_right[0], top_left[0], bottom_left[0]]
-        y = [bottom_left[1], bottom_right[1], top_right[1], top_left[1], bottom_left[1]]
-        main_body = pd.DataFrame({'x': x, 'y': y})
-        fig.add_trace(go.Scatter(x=main_body['x'], y=main_body['y'], mode='lines', name='Main Body', line=dict(width=0), fillcolor='grey', fill='toself'))
+        # Main body
+        x = [0, self.length, self.length, 0, 0]
+        x = [xi - x_shift for xi in x]
+        y = [0, 0, self.width, self.width, 0]
+        y = [yi + y_shift for yi in y]
+        fig.add_trace(go.Scatter(x=x, y=y, mode='lines', line=dict(width=0), fillcolor='grey', fill='toself', name='Main Body'))
 
-        covered_bottom_left = (0, 0)
-        covered_bottom_right = (self.length - self.bare_length, 0)
-        covered_top_right = (self.length - self.bare_length, self.width)
-        covered_top_left = (0, self.width)
-        x = [covered_bottom_left[0], covered_bottom_right[0], covered_top_right[0], covered_top_left[0], covered_bottom_left[0]]
-        y = [covered_bottom_left[1], covered_bottom_right[1], covered_top_right[1], covered_top_left[1], covered_bottom_left[1]]
-        covered_area = pd.DataFrame({'x': x, 'y': y})
-        fig.add_trace(go.Scatter(x=covered_area['x'], y=covered_area['y'], mode='lines', name='Covered Area', line=dict(width=0), fillcolor='black', fill='toself'))
+        # Covered area
+        x = [0, self.length - self.bare_length, self.length - self.bare_length, 0, 0]
+        x = [xi - x_shift for xi in x]
+        y = [0, 0, self.width, self.width, 0]
+        y = [yi + y_shift for yi in y]
+        fig.add_trace(go.Scatter(x=x, y=y, mode='lines', line=dict(width=0), fillcolor='black', fill='toself', name='Covered Area'))
 
-        for (pos, len) in zip(self._tab_positions, self._tab_lengths):
+        # Tabs
+        for (pos, length) in zip(self._tab_positions, self._tab_lengths):
             pos = pos * M_TO_MM
-            len = len * M_TO_MM
-            tab_bottom_left = (pos-len/2, self.width)
-            tab_bottom_right = (pos+len/2, self.width)
-            tab_top_right = (pos+len/2, self.width + self.tab_width)
-            tab_top_left = (pos-len/2, self.width + self.tab_width)
-            x = [tab_bottom_left[0], tab_bottom_right[0], tab_top_right[0], tab_top_left[0], tab_bottom_left[0]]
-            y = [tab_bottom_left[1], tab_bottom_right[1], tab_top_right[1], tab_top_left[1], tab_bottom_left[1]]
-            tab = pd.DataFrame({'x': x, 'y': y})
-            fig.add_trace(go.Scatter(x=tab['x'], y=tab['y'], mode='lines', name='Tab', line=dict(width=0), fillcolor='grey', fill='toself'))
-
-        if width is not None:
-            fig.update_layout(width=width)
-        if height is not None:
-            fig.update_layout(height=height)
-
-        fig.update_layout(title=f'{self._name} Current Collector',
-                          xaxis=dict(showgrid=False, scaleanchor="y", title='Length (mm)'),
-                          yaxis=dict(showgrid=False, title='Width (mm)'),
-                          paper_bgcolor='white',
-                          plot_bgcolor='white',
-                          showlegend=False)
+            length = length * M_TO_MM
+            x = [pos - length/2, pos + length/2, pos + length/2, pos - length/2, pos - length/2]
+            x = [xi - x_shift for xi in x]
+            y = [self.width, self.width, self.width + self.tab_width, self.width + self.tab_width, self.width]
+            y = [yi + y_shift for yi in y]
+            y = [-yi for yi in y] if self._anode == True else [yi for yi in y]
+            fig.add_trace(go.Scatter(x=x, y=y, mode='lines', line=dict(width=0), fillcolor='grey', fill='toself', name='Tab'))
 
         return fig
+
+    def get_top_down_view(self, paper_bgcolor='white', plot_bgcolor='white', title=None, split=True, **kwargs):
+        """
+        Visualize the notched current collector.
+        If the collector is long, split into two subplots for left and right ends with split indicators.
+        The vertical datum is centered at y = self.width / 2.
+        """
+        split_threshold = 2
+        aspect_ratio = self.length / self.total_width
+        n_cols = 2 if aspect_ratio >= split_threshold else 1
+    
+        if aspect_ratio < split_threshold or not split:
+            fig = self._make_top_down_shapes()
+            fig.update_layout(xaxis=dict(scaleanchor='y'))
+
+        else:
+            fig = make_subplots(rows=1, cols=n_cols, shared_yaxes=True, horizontal_spacing=0.02)
+            for trace in self._make_top_down_shapes().data:
+                fig.add_trace(trace, row=1, col=1)
+                fig.add_trace(trace, row=1, col=2)
+
+            half_window = self.total_width
+            left_xlim = [-self.length/2, -self.length/2 + half_window]
+            right_xlim = [self.length/2 - half_window, self.length/2]
+            fig.update_xaxes(range=left_xlim, row=1, col=1)
+            fig.update_xaxes(range=right_xlim, row=1, col=2)
+
+            # Add vertical split indicators
+            bottom_y_lim = -(self.width / 2) * 1.1
+            top_y_lim = (self.width / 2 + self.tab_width) * 1.1
+            line = dict(color="#864C39", width=6)
+            fig.add_shape(type='line', x0=left_xlim[1], x1=left_xlim[1], y0=bottom_y_lim, y1=top_y_lim, line=line, xref='x', yref='y')
+            fig.add_shape(type='line', x0=right_xlim[0], x1=right_xlim[0], y0=bottom_y_lim, y1=top_y_lim, line=line, xref='x2', yref='y2')
+
+            fig.update_layout(xaxis=dict(scaleanchor='y'), xaxis2=dict(scaleanchor='y'))
+
+        if title is None:
+            title = f'{self._name} Current Collector'
+
+        fig.update_layout(
+            title=title,
+            paper_bgcolor=paper_bgcolor,
+            plot_bgcolor=plot_bgcolor,
+            showlegend=False,
+            xaxis_title='x (mm)',
+            yaxis_title='y (mm)',
+            **kwargs
+        )
+
+        return fig
+
+    @property
+    def total_width(self) -> float:
+        return round(self._total_width * M_TO_MM, 2)
 
     @property
     def tab_width(self) -> float:
