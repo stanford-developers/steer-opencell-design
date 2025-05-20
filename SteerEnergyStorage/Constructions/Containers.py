@@ -693,7 +693,7 @@ class CylindricalCase:
             fig.add_trace(go.Scatter(x=inner_circle['X [mm]'], y=inner_circle['Y [mm]'], mode='lines', name='Canister Base', line=dict(width=0, shape='spline'), fillcolor='grey', fill='toself'))
             anode_circle = self._anode_terminal_collector.circle.copy()
             fill_factor = self._anode_terminal_collector.fill_factor
-            fig.add_trace(go.Scatter(x=anode_circle['X [mm]'], y=anode_circle['Y [mm]'], mode='lines', name='Anode Collector', line=dict(width=0, shape='spline'), fillcolor='red', fill='toself', opacity=fill_factor))
+            fig.add_trace(go.Scatter(x=anode_circle['X [mm]'], y=anode_circle['Y [mm]'], mode='lines', name='Anode Collector', line=dict(width=0, shape='spline'), fillcolor=ANODE_COLOR, fill='toself', opacity=fill_factor))
 
         title = title if title is not None else f'{self.name} top down view'
 
@@ -724,7 +724,7 @@ class CylindricalCase:
         # cathode terminal collector
         cathode_circle = self._cathode_terminal_collector.circle.copy()
         fill_factor = self._cathode_terminal_collector.fill_factor
-        fig.add_trace(go.Scatter(x=cathode_circle['X [mm]'], y=cathode_circle['Y [mm]'], mode='lines', name='Cathode Collector', line=dict(width=0, shape='spline'), fillcolor='#FFC100', fill='toself', opacity=fill_factor))
+        fig.add_trace(go.Scatter(x=cathode_circle['X [mm]'], y=cathode_circle['Y [mm]'], mode='lines', name='Cathode Collector', line=dict(width=0, shape='spline'), fillcolor=CATHODE_COLOR, fill='toself', opacity=fill_factor))
 
         title = title if title is not None else f'{self.name} bottom up view'
 

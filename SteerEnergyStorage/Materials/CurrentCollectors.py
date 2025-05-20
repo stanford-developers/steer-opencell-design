@@ -1,4 +1,5 @@
 from SteerEnergyStorage.DataManager import DataManager
+from App.styles import *
 
 import plotly.express as px
 import plotly.graph_objects as go
@@ -184,7 +185,8 @@ class CurrentCollector:
                  bare_area: float,
                  thickness: float,
                  specific_cost: float = None,
-                 density: float = None):
+                 density: float = None,
+                 anode=False):
         """
         Initialize an object that represents a current collector.
         
@@ -208,7 +210,7 @@ class CurrentCollector:
         self._check_bare_area(bare_area)
         self._check_thickness(thickness)
         self._calculate_properties()
-        self._anode = False
+        self._anode = anode
 
     def _calculate_properties(self):
 
@@ -416,7 +418,8 @@ class PunchedCurrentCollector(CurrentCollector):
                  tab_position: float,
                  thickness: float,
                  specific_cost: float = None,
-                 density: float = None):
+                 density: float = None,
+                 anode=False):
         """
         Initialize an object that represents a punched current collector.
         
@@ -444,12 +447,16 @@ class PunchedCurrentCollector(CurrentCollector):
                          bare_area=bare_area,
                          thickness=thickness,
                          specific_cost=specific_cost,
-                         density=density)
+                         density=density,
+                         anode=anode)
         
-    def get_top_down_view(self, width = None, height = None):
+    def get_top_down_view(self, paper_bgcolor='white', plot_bgcolor='white', **kwargs):
         """
-        Visualize the current collector.
+        Visualize the current collector, shifted down by self.width/2 and right by self.length/2.
         """
+        x_shift = self.length / 2
+        y_shift = -self.width / 2
+
         bottom_left = (0, 0)
         bottom_right = (self.length, 0)
         top_right = (self.length, self.width)
@@ -460,29 +467,30 @@ class PunchedCurrentCollector(CurrentCollector):
         tab_top_right = self.tab_position + self.tab_width/2, self.width + self.tab_height
         tab_top_left = self.tab_position - self.tab_width/2, self.width + self.tab_height
 
-        main_plot = pd.DataFrame({'x': [bottom_left[0], bottom_right[0], top_right[0], top_left[0], bottom_left[0]],
-                                  'y': [bottom_left[1], bottom_right[1], top_right[1], top_left[1], bottom_left[1]]})
+        # Apply shifts to all coordinates
+        def shift(coords):
+            return [(x - x_shift, y + y_shift) for x, y in coords]
 
-        tab_plot = pd.DataFrame({'x': [tab_bottom_left[0], tab_bottom_right[0], tab_top_right[0], tab_top_left[0], tab_bottom_left[0]],
-                                 'y': [tab_bottom_left[1], tab_bottom_right[1], tab_top_right[1], tab_top_left[1], tab_bottom_left[1]]})
-        
+        main_coords = shift([bottom_left, bottom_right, top_right, top_left, bottom_left])
+        tab_coords = shift([tab_bottom_left, tab_bottom_right, tab_top_right, tab_top_left, tab_bottom_left])
+
+        main_plot = pd.DataFrame({'x': [c[0] for c in main_coords], 'y': [c[1] for c in main_coords]})
+        tab_plot = pd.DataFrame({'x': [c[0] for c in tab_coords], 'y': [c[1] for c in tab_coords]})
+
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=main_plot['x'], y=main_plot['y'], mode='lines', name='Covered Area', line=dict(color='black'), fillcolor='black', fill='toself'))
-        fig.add_trace(go.Scatter(x=tab_plot['x'], y=tab_plot['y'], mode='lines', name='Tab', line=dict(width=0), fillcolor='grey', fill='toself'))
+        fill_color = ANODE_COLOR if self._anode else CATHODE_COLOR
+        fig.add_trace(go.Scatter(x=main_plot['x'], y=main_plot['y'], mode='lines', name='Covered Area', line=dict(width=1, color='black'), fillcolor=fill_color, fill='toself'))
+        fig.add_trace(go.Scatter(x=tab_plot['x'], y=tab_plot['y'], mode='lines', name='Tab', line=dict(width=1, color='black'), fillcolor=CURRENT_COLLECTOR_COLOR, fill='toself'))
 
-        if width is not None:
-            fig.update_layout(width=width)
-        
-        if height is not None:
-            fig.update_layout(height=height)
+        fig.update_layout(
+            xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='x (mm)'),
+            yaxis=dict(showgrid=False, zeroline=False, title='y (mm)'),
+            paper_bgcolor=paper_bgcolor,
+            plot_bgcolor=plot_bgcolor,
+            showlegend=False,
+            **kwargs
+        )
 
-        fig.update_layout(title=f'Punched Current Collector',
-                          xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='Length (mm)'),
-                          yaxis=dict(showgrid=False, zeroline=False, title='Width (mm)'),
-                          paper_bgcolor='white',
-                          plot_bgcolor='white',
-                          showlegend=False)
-        
         return fig
         
     def _check_tab_width(self, tab_width: float):
@@ -544,6 +552,7 @@ class NotchedCurrentCollector(CurrentCollector):
                  bare_length: float,
                  specific_cost: float = None,
                  density: float = None,
+                 anode=False
                  ):
         """
         Initialize an object that represents a notched current collector.
@@ -576,7 +585,8 @@ class NotchedCurrentCollector(CurrentCollector):
                          bare_area=bare_area,
                          thickness=thickness,
                          specific_cost=specific_cost,
-                         density=density)
+                         density=density,
+                         anode=anode)
 
     def _check_tab_width(self, tab_width: float):
 
@@ -679,14 +689,15 @@ class NotchedCurrentCollector(CurrentCollector):
         x = [xi - x_shift for xi in x]
         y = [0, 0, self.width, self.width, 0]
         y = [yi + y_shift for yi in y]
-        fig.add_trace(go.Scatter(x=x, y=y, mode='lines', line=dict(width=0), fillcolor='grey', fill='toself', name='Main Body'))
+        fig.add_trace(go.Scatter(x=x, y=y, mode='lines', line=dict(width=1, color='black'), fillcolor=CURRENT_COLLECTOR_COLOR, fill='toself', name='Main Body'))
 
         # Covered area
         x = [0, self.length - self.bare_length, self.length - self.bare_length, 0, 0]
         x = [xi - x_shift for xi in x]
         y = [0, 0, self.width, self.width, 0]
         y = [yi + y_shift for yi in y]
-        fig.add_trace(go.Scatter(x=x, y=y, mode='lines', line=dict(width=0), fillcolor='black', fill='toself', name='Covered Area'))
+        fillcolor = ANODE_COLOR if self._anode else CATHODE_COLOR
+        fig.add_trace(go.Scatter(x=x, y=y, mode='lines', line=dict(width=1, color='black'), fillcolor=fillcolor, fill='toself', name='Covered Area'))
 
         # Tabs
         for (pos, length) in zip(self._tab_positions, self._tab_lengths):
@@ -697,7 +708,7 @@ class NotchedCurrentCollector(CurrentCollector):
             y = [self.width, self.width, self.width + self.tab_width, self.width + self.tab_width, self.width]
             y = [yi + y_shift for yi in y]
             y = [-yi for yi in y] if self._anode == True else [yi for yi in y]
-            fig.add_trace(go.Scatter(x=x, y=y, mode='lines', line=dict(width=0), fillcolor='grey', fill='toself', name='Tab'))
+            fig.add_trace(go.Scatter(x=x, y=y, mode='lines', line=dict(width=1, color='black'), fillcolor='grey', fill='toself', name='Tab'))
 
         return fig
 
@@ -728,8 +739,8 @@ class NotchedCurrentCollector(CurrentCollector):
             fig.update_xaxes(range=right_xlim, row=1, col=2)
 
             # Add vertical split indicators
-            bottom_y_lim = -(self.width / 2) * 1.1
-            top_y_lim = (self.width / 2 + self.tab_width) * 1.1
+            bottom_y_lim = -(self.width / 2) * 1.1 if not self._anode else -(self.width / 2 + self.tab_width) * 1.1
+            top_y_lim = (self.width / 2 + self.tab_width) * 1.1 if not self._anode else (self.width / 2) * 1.1
             line = dict(color="#864C39", width=6)
             fig.add_shape(type='line', x0=left_xlim[1], x1=left_xlim[1], y0=bottom_y_lim, y1=top_y_lim, line=line, xref='x', yref='y')
             fig.add_shape(type='line', x0=right_xlim[0], x1=right_xlim[0], y0=bottom_y_lim, y1=top_y_lim, line=line, xref='x2', yref='y2')
@@ -782,7 +793,8 @@ class TablessCurrentCollector(NotchedCurrentCollector):
                  tab_width: float,
                  bare_length: float,
                  specific_cost: float = None,
-                 density: float = None):
+                 density: float = None,
+                 anode=False):
         """
         Initialize an object that represents a tabless current collector.
 
@@ -806,7 +818,8 @@ class TablessCurrentCollector(NotchedCurrentCollector):
                          tab_spacing=0,
                          bare_length=bare_length,
                          specific_cost=specific_cost,
-                         density=density)
+                         density=density,
+                         anode=anode)
 
 
 class TabWeldedCurrentCollector(CurrentCollector):
@@ -821,7 +834,8 @@ class TabWeldedCurrentCollector(CurrentCollector):
                  first_tab_spacing: float,
                  bare_length: float,
                  specific_cost: float = None,
-                 density: float = None):
+                 density: float = None,
+                 anode: bool = False):
         """
         Initialize an object that represents a current collector with tabs welded on it.
 
@@ -851,7 +865,8 @@ class TabWeldedCurrentCollector(CurrentCollector):
                          bare_area=bare_area,
                          thickness=thickness,
                          specific_cost=specific_cost,
-                         density=density)
+                         density=density,
+                         anode=anode)
 
     def _check_weld_tab_spacing(self, weld_tab_spacing: float, weld_tab: WeldTab):
 
