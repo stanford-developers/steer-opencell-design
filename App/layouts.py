@@ -138,12 +138,16 @@ anode_mechanicals = ds.html.Div([
 
 cylindrical_encapsulation = ds.html.Div([
 
+    ds.html.Br(),
+
+    ds.html.Img(src='assets/Cylindrical_encapsulation.png', style={'width': '70%', 'height': 'auto', 'padding-left': '10px'}),
+
     ds.html.Br(), ds.html.Br(),
     ds.html.H4("Cylindrical Canister"),
     ds.html.Br(),
     CurrentCollectorSelector({'object': 'encapsulation', 'component': 'canister'}, current_collector_materials, density_default=2.7, specific_cost_default=2.64, slider_div_width='500px').render(),
     ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 160, 35, 0.1, 10, 'can_outer_diameter', 'Outer diameter (mm)', div_width='800px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 160, 31.6, 0.1, 10, 'can_outer_diameter', 'Outer diameter (mm)', div_width='800px').render(), ds.html.Br(), 
     SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1, 0.5, 0.01, 1, 'can_wall_thickness', 'Wall thickness (mm)', div_width='400px').render(), ds.html.Br(), 
     SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 400, 135, 0.1, 20, 'can_length', 'Can length (mm)', div_width='1400px').render(), ds.html.Br(), 
 
@@ -216,9 +220,9 @@ prismatic_encapsulation = ds.html.Div([
     ds.html.H4("Prismatic Case"),
     SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 200, 20, 0.1, 20, 'mass', 'Mass (g)', div_width='1000px').render(), ds.html.Br(),
     SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 5, 0.5, 0.01, 1, 'cost', 'Cost ($)', div_width='1000px').render(), ds.html.Br(),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 200, 100, 0.1, 40, 'internal_length', 'Internal Length (mm)', div_width='1000px').render(), ds.html.Br(),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 200, 50, 0.1, 40, 'internal_width', 'Internal Width (mm)', div_width='1000px').render(), ds.html.Br(),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 500, 100, 0.1, 50, 'internal_height', 'Internal Height (mm)', div_width='1400px').render(), ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 200, 121, 0.1, 40, 'internal_length', 'Internal Length (mm)', div_width='1000px').render(), ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 200, 100, 0.1, 40, 'internal_width', 'Internal Width (mm)', div_width='1000px').render(), ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 200, 7.5, 0.1, 40, 'internal_height', 'Internal Height (mm)', div_width='1400px').render(), ds.html.Br(),
     SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 4, 0.5, 0.01, 1, 'wall_thickness', 'Wall Thickness (mm)', div_width='700px').render(), ds.html.Br(),
 
 ])
@@ -342,30 +346,52 @@ electrodes = ds.html.Div([
 ], style={'padding-left': '20px', 'width': '100%'})
 
 
+separator_long = ds.html.Div([
+    
+    ds.html.H4('Separator', style=HEADER_STYLE),
+    ds.html.Br(),
+    SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 60, 20, 1, 10, 'separator_thickness', title="Thickness (μm)", div_width='30%').render(),
+    ds.html.Br(),
+    SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 3, 0.2, 0.01, 1, 'separator_areal_cost', title="Areal Cost ($/m²)", div_width='40%').render(),
+    ds.html.Br(),
+    SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 3, 1, 0.01, 1, 'separator_density', title="Density (g/cm³)", div_width='40%').render(),
+    ds.html.Br(),
+    SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 400, 120, 0.1, 50, 'separator_width', title="Width (mm)", div_width='60%').render(),
+    ds.html.Br(),
+    SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 100, 45, 0.1, 5, 'separator_porosity', title="Porosity (%)", div_width='80%').render(),
+    ds.html.Br(),
+    SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 8000, 1200, 1, 100, 'separator_fold_length', title="Length (mm)", div_width='110%').render(),
+
+])
+
+
+separator_short = ds.html.Div([
+
+    ds.html.H4('Separator', style=HEADER_STYLE),
+    ds.html.Br(),
+    SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 60, 20, 1, 10, 'separator_thickness', title="Thickness (μm)", div_width='30%').render(),
+    ds.html.Br(),
+    SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 3, 0.2, 0.01, 1, 'separator_areal_cost', title="Areal Cost ($/m²)", div_width='40%').render(),
+    ds.html.Br(),
+    SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 3, 1, 0.01, 1, 'separator_density', title="Density (g/cm³)", div_width='40%').render(),
+    ds.html.Br(),
+    SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 400, 120, 0.1, 50, 'separator_width', title="Width (mm)", div_width='60%').render(),
+    ds.html.Br(),
+    SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 100, 45, 0.1, 5, 'separator_porosity', title="Porosity (%)", div_width='80%').render(),
+    ds.html.Br(),
+    SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 400, 120, 1, 50, 'separator_fold_length', title="Fold Length (mm)", div_width='110%').render(),
+
+])
+
+
 separator_electrolyte = ds.html.Div([
 
     ds.html.Br(), ds.html.Br(),
 
-    ds.html.Div(
-        id={'tab': 'mechanicals', 'type': 'separator', 'object': 'div'}, 
-        children=[
-            ds.html.H4('Separator', style=HEADER_STYLE),
-            ds.html.Br(),
-            SliderWithTextInput({'type': 'mechanicals'}, 0, 60, 20, 1, 10, 'separator_thickness', title="Thickness (μm)", div_width='30%').render(),
-            ds.html.Br(),
-            SliderWithTextInput({'type': 'mechanicals'}, 0, 3, 0.2, 0.01, 1, 'separator_areal_cost', title="Areal Cost ($/m²)", div_width='40%').render(),
-            ds.html.Br(),
-            SliderWithTextInput({'type': 'mechanicals'}, 0, 3, 1, 0.01, 1, 'separator_density', title="Density (g/cm³)", div_width='40%').render(),
-            ds.html.Br(),
-            SliderWithTextInput({'type': 'mechanicals'}, 0, 300, 120, 0.1, 50, 'separator_width', title="Width (mm)", div_width='60%').render(),
-            ds.html.Br(),
-            SliderWithTextInput({'type': 'mechanicals'}, 0, 100, 45, 0.1, 5, 'separator_porosity', title="Porosity (%)", div_width='80%').render(),
-            ds.html.Br(),
-            SliderWithTextInput({'type': 'mechanicals'}, 0, 8000, 1200, 1, 100, 'separator_fold_length', title="Fold Length (mm)", div_width='110%').render(),
-            ds.html.Br(),
-            ds.html.Div(id={'type': 'separator_message_text'}, children=[' '], style={'width': '150%'}),
-            ],
-        style={'padding-left': '20px', 'width': '80%'}),
+    ds.html.Div(id={'tab': 'mechanicals', 'type': 'separator', 'object': 'div'}, children=[], style={'padding-left': '20px', 'width': '80%'}),
+
+    ds.html.Br(),
+    ds.html.Div(id={'type': 'separator_message_text'}, children=[' '], style={'width': '150%'}),
 
     ds.html.Br(),
 
@@ -374,11 +400,11 @@ separator_electrolyte = ds.html.Div([
         children=[
             ds.html.H4('Electrolyte', style=HEADER_STYLE),
             ds.html.Br(),
-            SliderWithTextInput({'type': 'mechanicals'}, 0, 20, 5, 0.01, 1, 'electrolyte_specific_cost', title="Specific Cost ($/kg)", div_width='80%').render(),
+            SliderWithTextInput({'type': 'mechanicals', 'object': 'electrolyte'}, 0, 20, 5, 0.01, 1, 'electrolyte_specific_cost', title="Specific Cost ($/kg)", div_width='80%').render(),
             ds.html.Br(),
-            SliderWithTextInput({'type': 'mechanicals'}, 0, 2, 1, 0.01, 1, 'electrolyte_density', title="Density (g/cm³)", div_width='40%').render(),
+            SliderWithTextInput({'type': 'mechanicals', 'object': 'electrolyte'}, 0, 2, 1, 0.01, 1, 'electrolyte_density', title="Density (g/cm³)", div_width='40%').render(),
             ds.html.Br(),
-            SliderWithTextInput({'type': 'mechanicals'}, 0, 100, 10, 0.1, 10, 'electrolyte_overfill', title="Overfill (%)", div_width='70%').render(),
+            SliderWithTextInput({'type': 'mechanicals', 'object': 'electrolyte'}, 0, 100, 10, 0.1, 10, 'electrolyte_overfill', title="Overfill (%)", div_width='70%').render(),
             ds.html.Br(),
             ds.html.Div(id={'type': 'electrolyte_message_text'}, children=[' '], style={'width': '150%'}),
             ],
@@ -424,13 +450,13 @@ electrode_schematics = ds.html.Div([
 
     ds.html.Div([
         ds.dcc.Graph(
-            id={'tab': 'mechanicals', 'object': 'separator', 'object': 'graph'},
+            id={'tab': 'mechanicals', 'item': 'separator1', 'object': 'graph'},
             style={'height': '400px', 'width': '400px'},
             figure=EMPTY_FIG,
             config={'displayModeBar': False}
         ),
         ds.dcc.Graph(
-            id='electrode_schematics_figure_3',
+            id={'tab': 'mechanicals', 'item': 'separator2', 'object': 'graph'},
             style={'height': '400px', 'width': '400px'},
             figure=EMPTY_FIG
         ),
@@ -451,7 +477,7 @@ assembly_schematics = ds.html.Div([
     ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '20px'}),
     ds.html.Br(),
     ds.dcc.Graph(id='assembly-schematics-3', style={'height': '440px', 'width': '80%', 'marginTop': '20px'}, figure=EMPTY_FIG),
-    ds.html.Br(),
+    ds.html.Br(), ds.html.Br(),
     ds.dcc.Graph(id='assembly-schematics-4', style={'height': '540px', 'width': '80%', 'marginLeft': '40px'}, figure=EMPTY_FIG),
 
 ])
