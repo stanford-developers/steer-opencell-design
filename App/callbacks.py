@@ -48,6 +48,24 @@ def show_tab_content(active_tab):
 
 
 @ds.callback(
+    [ds.Output('electrode_schematics', 'style'),
+     ds.Output('assembly_schematics', 'style'),
+     ds.Output('cell_analysis', 'style')],
+    [ds.Input('right_panel_tabs', 'value')]
+)
+def show_analysis_tab_content(active_tab):
+
+    styles = {'display': 'none'}
+    active_style = {'display': 'block'}
+
+    return [
+        active_style if active_tab == 'electrode_schematics' else styles,
+        active_style if active_tab == 'assembly_schematics' else styles,
+        active_style if active_tab == 'cell_analysis' else styles,
+    ]
+
+
+@ds.callback(
     [ds.Output('internal_structure_dropdown', 'options'), 
      ds.Output('internal_structure_dropdown', 'value'),
      ds.Output('num_electrode_assemblies', 'value'),
@@ -452,6 +470,28 @@ def make_separator(inputs):
 
 
 @ds.callback(
+        ds.Output({'tab': 'mechanicals', 'object': 'separator', 'object': 'graph'}, 'figure'),
+        ds.Input({'type': 'store', 'component': 'separator'}, 'data'),
+        prevent_initial_call=True
+)
+def show_separator_graph(data):
+    """
+    Show the separator graph based on the selected separator data.
+
+    :param data: The selected separator data.
+    :return: The updated separator graph.
+    """
+    if data == {} or data == None:
+        return EMPTY_FIG
+
+    pickled_separator = data['separator']
+    separator = pickle.loads(base64.b64decode(pickled_separator))
+    title = 'Separator top down view'
+    separator_graph = separator.get_top_down_view(width=500, height=420, paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, title=title, margin=dict(t=40))
+    return separator_graph
+
+
+@ds.callback(
     [ds.Output({'type': 'mechanicals', 'object': 'current_collector', 'electrode': 'cathode', 'feature': 'design'}, 'options'),
      ds.Output({'type': 'mechanicals', 'object': 'current_collector', 'electrode': 'anode', 'feature': 'design'}, 'options'),
      ds.Output({'type': 'mechanicals', 'object': 'current_collector', 'electrode': 'cathode', 'feature': 'design'}, 'value'),
@@ -487,7 +527,7 @@ def update_current_collector_design_options(internal_structure):
      ds.Input({'type': 'mechanicals', 'subtype': 'input', 'property': 'electrolyte_density'}, 'value')],
      prevent_initial_call=True
 )
-def make_separator(specific_cost, density):
+def make_electrolyte(specific_cost, density):
     """
     Create a separator object using the inputs from the sliders and text box.
 
@@ -532,22 +572,22 @@ def show_current_collector_design_options(design):
         return [
             ds.html.Br(), 
             SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 6000, 1000, 0.1, 100, 'length', 'Length (mm)', div_width='1400px').render(), ds.html.Br(), 
-            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 400, 120, 0.1, 20, 'width', 'Width  (mm)', div_width='600px').render(), ds.html.Br(),
-            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 100, 15, 0.1, 5, 'thickness', 'Thickness  (μm)', div_width='400px').render(), ds.html.Br(),
-            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 50, 3, 0.1, 10, 'tab_width', 'Tab Width (mm)', div_width='400px').render(), ds.html.Br(),
-            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 200, 30, 0.1, 10, 'tab_length', 'Tab Length (mm)', div_width='600px').render(), ds.html.Br(),
-            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 200, 30, 0.1, 10, 'tab_spacing', 'Tab Spacing (mm)', div_width='600px').render(), ds.html.Br(),
-            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 500, 0, 0.1, 50, 'bare_length', 'Bare Tape (mm)', div_width='600px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 400, 120, 0.1, 20, 'width', 'Width of coated area (mm)', div_width='600px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 100, 15, 0.1, 5, 'thickness', 'Tape thickness (μm)', div_width='400px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 50, 6, 0.1, 10, 'tab_width', 'Tab height (mm)', div_width='400px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 200, 30, 0.1, 10, 'tab_length', 'Tab length (mm)', div_width='600px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 200, 30, 0.1, 10, 'tab_spacing', 'Space between tabs (mm)', div_width='600px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 500, 0, 0.1, 50, 'bare_length', 'Length of bare tape (mm)', div_width='600px').render(), ds.html.Br(),
         ]
     
     elif design == 'tabless':
         return [
             ds.html.Br(), 
             SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 6000, 1000, 0.1, 100, 'length', 'Length (mm)', div_width='1400px').render(), ds.html.Br(), 
-            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 400, 120, 0.1, 20, 'width', 'Width  (mm)', div_width='600px').render(), ds.html.Br(),
-            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 100, 15, 0.1, 5, 'thickness', 'Thickness  (μm)', div_width='400px').render(), ds.html.Br(),
-            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 50, 3, 0.1, 10, 'tab_width', 'Tab Width (mm)', div_width='400px').render(), ds.html.Br(),
-            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 500, 0, 0.1, 50, 'bare_length', 'Bare Tape (mm)', div_width='600px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 400, 120, 0.1, 20, 'width', 'Width of coated area (mm)', div_width='600px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 100, 15, 0.1, 5, 'thickness', 'Tape thickness (μm)', div_width='400px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 50, 6, 0.1, 10, 'tab_width', 'Tab height (mm)', div_width='400px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 500, 0, 0.1, 50, 'bare_length', 'Length of bare tape (mm)', div_width='600px').render(), ds.html.Br(),
         ]
 
     elif design == 'tab_welded':
@@ -563,10 +603,10 @@ def show_current_collector_design_options(design):
             ds.html.Br(), 
             SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 500, 110, 0.1, 50, 'length', 'Length (mm)', div_width='1100px').render(), ds.html.Br(), 
             SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 500, 110, 0.1, 50, 'width', 'Width (mm)', div_width='1100px').render(), ds.html.Br(), 
-            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 200, 40, 0.1, 40, 'tab_width', 'Tab Width (mm)', div_width='400px').render(), ds.html.Br(),
-            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 200, 20, 0.1, 40, 'tab_height', 'Tab Height (mm)', div_width='400px').render(), ds.html.Br(), 
+            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 200, 40, 0.1, 40, 'tab_width', 'Tab width (mm)', div_width='400px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 200, 20, 0.1, 40, 'tab_height', 'Tab height (mm)', div_width='400px').render(), ds.html.Br(), 
             SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 500, def_tab_pos, 0.1, 50, 'tab_position', 'Tab Position (mm)', div_width='1100px').render(), ds.html.Br(),
-            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 100, 15, 0.1, 5, 'thickness', 'Thickness  (μm)', div_width='400px').render(), ds.html.Br(),  
+            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 100, 15, 0.1, 5, 'thickness', 'Current collector thickness (μm)', div_width='400px').render(), ds.html.Br(),  
         ]
 
 
@@ -793,15 +833,17 @@ def show_current_collector_graph(data, design):
     electrode = triggered_id['electrode']
 
     if data == [] or data == {}:
-        return None
+        return EMPTY_FIG
 
     pickled_current_collector = data[f'{electrode}_current_collector']
     current_collector = pickle.loads(base64.b64decode(pickled_current_collector))
 
+    title = electrode.capitalize() + " top down view"
+
     if design == 'notched' or design == 'tabless':
-        figure = current_collector.get_top_down_view(width=1200, height=700)
+        figure = current_collector.get_top_down_view(width=500, height=420, paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, title=title, margin=dict(t=40))
     elif design == 'punched':
-        figure = current_collector.get_top_down_view(width=700, height=700)
+        figure = current_collector.get_top_down_view(width=500, height=420, paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, title=title, margin=dict(t=40))
 
     return figure
 
@@ -833,8 +875,7 @@ def show_encapsulation_options(form_factor):
 
 @ds.callback(
     [ds.Output({'type': 'store', 'object': 'encapsulation'}, 'data'),
-     ds.Output({'tab': 'mechanicals', 'object': 'encapsulation', 'object': 'message'}, 'children'),
-     ds.Output({'tab': 'mechanicals', 'object': 'encapsulation', 'object': 'plot'}, 'children')],
+     ds.Output({'tab': 'mechanicals', 'object': 'encapsulation', 'object': 'message'}, 'children')],
     [ds.Input({'object': 'encapsulation', 'type': ds.ALL, 'property': ds.ALL, 'subtype': 'input'}, 'value'),
      ds.Input({'object': 'encapsulation', 'component': ds.ALL, 'subtype': 'input', 'property': 'specific_cost'}, 'value'),
      ds.Input({'object': 'encapsulation', 'component': ds.ALL, 'subtype': 'input', 'property': 'density'}, 'value'),
@@ -850,11 +891,6 @@ def make_encapsulation(inputs, specific_costs, densities, formulas, form_factor)
     :param cathode_terminal_inputs: Inputs for the cathode terminal.
     :param anode_terminal_inputs: Inputs for the anode terminal.
     """
-    print(f"inputs: {inputs}")
-    print(f"specific_costs: {specific_costs}")
-    print(f"densities: {densities}")
-    print(f"formulas: {formulas}")
-
     if len(inputs) == 0:
         return {}, ["\u00A0"]
 
@@ -869,19 +905,7 @@ def make_encapsulation(inputs, specific_costs, densities, formulas, form_factor)
 
         except ValueError as e:
             message = f"Error: {e}"
-            return {}, [message], []
-        
-        top_down = case.get_top_down_view()
-        bottom_up = case.get_bottom_up_view()
-        side = case.get_side_view()
-
-        figure = ds.html.Div([
-                    ds.html.Div([
-                        ds.html.Div(ds.dcc.Graph(id='cylindrical_top_down', figure=top_down, style={'width': '100%', 'height': '400px'}), style={'margin-bottom': '20px'}),
-                        ds.html.Div(ds.dcc.Graph(id='cylindrical_bottom_up', figure=bottom_up, style={'width': '100%', 'height': '400px'})),
-                    ], style={'width': '40%', 'display': 'inline-block', 'vertical-align': 'top'}),
-                    ds.html.Div(ds.dcc.Graph(id='cylindrical_side', figure=side, style={'width': '100%', 'height': '820px'}),style={'width': '58%', 'display': 'inline-block', 'margin-left': '2%'})
-                ])
+            return {}, [message]
     
     elif form_factor == 'pouch':
 
@@ -900,11 +924,9 @@ def make_encapsulation(inputs, specific_costs, densities, formulas, form_factor)
                 negative_terminal=anode_terminal
             )
 
-            figure = None
-
         except ValueError as e:
             message = f"Error: {e}"
-            return {}, [message], []
+            return {}, [message]
         
     elif form_factor == 'prismatic':
         
@@ -915,7 +937,7 @@ def make_encapsulation(inputs, specific_costs, densities, formulas, form_factor)
 
         except ValueError as e:
             message = f"Error: {e}"
-            return {}, [message], []
+            return {}, [message]
 
     pickled_case = base64.b64encode(pickle.dumps(case)).decode('utf-8')
 
@@ -925,16 +947,14 @@ def make_encapsulation(inputs, specific_costs, densities, formulas, form_factor)
         ds.html.Br(),
     ], style={'line-height': '0.5'})
 
-    return {f'case': pickled_case}, message, figure
+    return {f'case': pickled_case}, message
 
 
 @ds.callback(
-    [ds.Output({'type': 'encapsulation', 'object': 'graph', 'view': 'top'}, 'figure'),
-     ds.Output({'type': 'encapsulation', 'object': 'graph', 'view': 'side'}, 'figure'),
-     ds.Output({'type': 'encapsulation', 'object': 'graph', 'view': 'top'}, 'style'),
-     ds.Output({'type': 'encapsulation', 'object': 'graph', 'view': 'side'}, 'style')],
-     [ds.Input({'type': 'store', 'object': 'encapsulation'}, 'data'),
-      ds.Input('form_factor_dropdown', 'value')],
+    [ds.Output('assembly-schematics-1', 'figure'),
+     ds.Output('assembly-schematics-2', 'figure')],
+    [ds.Input({'type': 'store', 'object': 'encapsulation'}, 'data'),
+     ds.Input('form_factor_dropdown', 'value')],
      prevent_initial_call=True
 )
 def get_encapsulation_plots(pickled_encapsulation, form_factor):
@@ -945,19 +965,20 @@ def get_encapsulation_plots(pickled_encapsulation, form_factor):
     :param form_factor: The selected form factor.
     :return: The updated encapsulation plots.
     """
+
     if pickled_encapsulation == [] or pickled_encapsulation == {}:
-        return None, None, {'display': 'none'}, {'display': 'none'}
+        return EMPTY_FIG, EMPTY_FIG
 
     pickled_case = pickled_encapsulation['case']
     case = pickle.loads(base64.b64decode(pickled_case))
 
     if form_factor == 'cylindrical':
-        figure_top = case.get_top_down_view()
-        figure_side = case.get_side_view()
-        return figure_top, figure_side, ds.no_update, ds.no_update
+        figure_top = case.get_top_down_view(paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=450, height=320, title='Can top-down view', margin=dict(t=40))
+        figure_bot = case.get_bottom_up_view(paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=450, height=320, title='Can bottom-up view', margin=dict(t=40))
+        return figure_top, figure_bot
    
     else:
-        return None, None, {'display': 'none'}, {'display': 'none'}
+        return EMPTY_FIG, EMPTY_FIG
 
 
 @ds.callback(
@@ -1063,17 +1084,15 @@ def show_electrode_assembly_inputs(internal_construction):
 
 @ds.callback(
     [ds.Output({'type': 'store', 'object': 'electrode_assembly'}, 'data'),
-     ds.Output({'tab': 'electrodes', 'object': 'message', 'type': 'electrode_assembly'}, 'children'),
-     ds.Output({'tab': 'electrodes', 'object': 'graph', 'type': 'electrode_assembly'}, 'children')],
+     ds.Output({'tab': 'electrodes', 'object': 'message', 'type': 'electrode_assembly'}, 'children')],
     [ds.Input({'type': 'store', 'electrode': 'cathode', 'object': 'electrode'}, 'data'),
      ds.Input({'type': 'store', 'electrode': 'anode', 'object': 'electrode'}, 'data'),
      ds.Input({'type': 'store', 'component': 'separator'}, 'data'),
      ds.Input({'type': 'electrode_assembly', 'property': ds.ALL, 'subtype': 'input'}, 'value'),
-     ds.Input({'type': 'store', 'object': 'encapsulation'}, 'data'),
      ds.Input('internal_structure_dropdown', 'value')],
      prevent_initial_call=True
 )
-def make_electrode_assembly(pickled_cathode, pickled_anode, pickled_separator, assembly_parameters, encapsulation, internal_structure):
+def make_electrode_assembly(pickled_cathode, pickled_anode, pickled_separator, assembly_parameters, internal_structure):
     """
     Create an electrode assembly object using the inputs from the sliders and text box.
 
@@ -1084,25 +1103,19 @@ def make_electrode_assembly(pickled_cathode, pickled_anode, pickled_separator, a
     """
     if pickled_cathode == [] or pickled_cathode == {}:
         message = ds.html.P([ds.html.B("Warning: ", style={'font-weight': '900'}), f" No cathode formulation specified."])
-        return {}, [message], None
+        return {}, [message]
 
     if pickled_anode == [] or pickled_anode == {}:
         message = ds.html.P([ds.html.B("Warning: ", style={'font-weight': '900'}), f" No anode formulation specified."])
-        return {}, [message], None
+        return {}, [message]
 
     if pickled_separator == [] or pickled_separator == {}:
         message = ds.html.P([ds.html.B("Warning: ", style={'font-weight': '900'}), f" No separator specified."])
-        return {}, [message], None
+        return {}, [message]
 
     if assembly_parameters is None or len(assembly_parameters) == 0:
         message = ds.html.P([ds.html.B("Warning: ", style={'font-weight': '900'}), f"Assembly inputs are required."])
-        return {}, [message], None
-    
-    if encapsulation == [] or encapsulation == {} or encapsulation == None:
-        encapsulation = None
-    else:
-        pickled_case = encapsulation['case']
-        case = pickle.loads(base64.b64decode(pickled_case))
+        return {}, [message]
 
     pickled_cathode = pickled_cathode['cathode_electrode']
     cathode = pickle.loads(base64.b64decode(pickled_cathode))
@@ -1124,7 +1137,7 @@ def make_electrode_assembly(pickled_cathode, pickled_anode, pickled_separator, a
             )
         except ValueError as e:
             message = f"Error: {e}"
-            return {}, [message], None
+            return {}, [message]
         
         message = ds.html.Div([
             ds.html.Br(), ds.html.Br(),
@@ -1136,14 +1149,6 @@ def make_electrode_assembly(pickled_cathode, pickled_anode, pickled_separator, a
             ds.html.P([ds.html.B("Number Of Turns: ", style={'font-weight': '900'}), f"{electrode_assembly.n_turns}"]),
             ds.html.Br(),
         ], style={'line-height': '0.5'}) 
-
-        figure_top = electrode_assembly.get_top_down_view(encapsulation=case, width=700, height=900)
-        figure_side = electrode_assembly.get_side_view(encapsulation=case, width=600, height=900)
-
-        figure_div = ds.html.Div([
-            ds.html.Div(ds.dcc.Graph(id='graph-1', figure=figure_top), style={'width': '48%', 'display': 'inline-block', 'vertical-align': 'top'}),
-            ds.html.Div(ds.dcc.Graph(id='graph-2', figure=figure_side), style={'width': '48%', 'display': 'inline-block', 'marginLeft': '4%', 'vertical-align': 'top'})
-            ])
 
     elif internal_structure == 'stacked':
         
@@ -1157,7 +1162,7 @@ def make_electrode_assembly(pickled_cathode, pickled_anode, pickled_separator, a
             )
         except ValueError as e:
             message = f"Error: {e}"
-            return {}, [message], None
+            return {}, [message]
         
         message = ds.html.Div([
             ds.html.Br(), ds.html.Br(),
@@ -1168,14 +1173,127 @@ def make_electrode_assembly(pickled_cathode, pickled_anode, pickled_separator, a
             ds.html.Br(),
         ], style={'line-height': '0.5'})
 
-        figure_div = None
-
     else: 
-        return {}, ["\u00A0"], None
+        return {}, ["\u00A0"]
 
     pickled_electrode_assembly = base64.b64encode(pickle.dumps(electrode_assembly)).decode('utf-8')
 
-    return {'electrode_assembly': pickled_electrode_assembly}, message, figure_div
+    return {'electrode_assembly': pickled_electrode_assembly}, message
+
+
+@ds.callback(
+    ds.Output('assembly-schematics-3', 'figure'),
+   [ds.Input({'type': 'store', 'object': 'electrode_assembly'}, 'data'),
+    ds.Input({'type': 'store', 'object': 'encapsulation'}, 'data'),
+    ds.Input('form_factor_dropdown', 'value'),
+    ds.Input('internal_structure_dropdown', 'value')],
+    prevent_initial_call=True
+)
+def show_assembly_figure_3(pickled_assembly, pickled_case, form_factor, internal_structure):
+    """
+    Show the assembly figure based on the selected form factor and internal structure.
+
+    :param pickled_assembly: The pickled assembly data.
+    :param pickled_case: The pickled case data.
+    :param form_factor: The selected form factor.
+    :param internal_structure: The selected internal structure.
+    :return: The updated assembly figure.
+    """
+    if (pickled_assembly == [] or pickled_assembly == {} or pickled_assembly is None) and (pickled_case == [] or pickled_case == {} or pickled_case is None):
+        return EMPTY_FIG
+
+    if pickled_assembly == [] or pickled_assembly == {} or pickled_assembly is None:
+        return EMPTY_FIG
+    
+    elif pickled_case == [] or pickled_case == {} or pickled_case is None:
+        assembly = pickle.loads(base64.b64decode(pickled_assembly['electrode_assembly']))
+        figure = assembly.get_top_down_view(paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=700, height=500, title='Assembly top-down cross-section', margin=dict(t=40))
+        return figure
+    
+    else:
+        assembly = pickle.loads(base64.b64decode(pickled_assembly['electrode_assembly']))
+        case = pickle.loads(base64.b64decode(pickled_case['case']))
+
+        if form_factor == 'cylindrical' and internal_structure == 'wound':
+            figure = assembly.get_top_down_view(encapsulation=case, paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=700, height=500, title='Assembly top-down cross-section', margin=dict(t=40))
+            return figure
+
+        else:
+            return EMPTY_FIG
+        
+
+@ds.callback(
+    ds.Output('assembly-schematics-4', 'figure'),
+   [ds.Input({'type': 'store', 'object': 'electrode_assembly'}, 'data'),
+    ds.Input({'type': 'store', 'object': 'encapsulation'}, 'data'),
+    ds.Input('form_factor_dropdown', 'value'),
+    ds.Input('internal_structure_dropdown', 'value')],
+    prevent_initial_call=True
+)
+def show_assembly_figure_4(pickled_assembly, pickled_case, form_factor, internal_structure):
+    """
+    Show the assembly figure based on the selected form factor and internal structure.
+
+    :param pickled_assembly: The pickled assembly data.
+    :param pickled_case: The pickled case data.
+    :param form_factor: The selected form factor.
+    :param internal_structure: The selected internal structure.
+    :return: The updated assembly figure.
+    """
+    if (pickled_assembly == [] or pickled_assembly == {} or pickled_assembly is None) and (pickled_case == [] or pickled_case == {} or pickled_case is None):
+        return EMPTY_FIG
+
+    if pickled_assembly == [] or pickled_assembly == {} or pickled_assembly is None:
+        case = pickle.loads(base64.b64decode(pickled_case['case']))
+        figure = case.get_side_view(paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=700, height=500, title='Assembly side cross-section', margin=dict(t=40))
+        return figure
+    
+    elif pickled_case == [] or pickled_case == {} or pickled_case is None:
+        assembly = pickle.loads(base64.b64decode(pickled_assembly['electrode_assembly']))
+        figure = assembly.get_side_view(paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=700, height=500, title='Assembly side cross-section', margin=dict(t=40))
+        return figure
+    
+    else:
+        assembly = pickle.loads(base64.b64decode(pickled_assembly['electrode_assembly']))
+        case = pickle.loads(base64.b64decode(pickled_case['case']))
+
+        if form_factor == 'cylindrical' and internal_structure == 'wound':
+            figure = assembly.get_side_view(encapsulation=case, paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=700, height=500, title='Assembly side cross-section', margin=dict(t=40))
+            return figure
+
+        else:
+            return EMPTY_FIG
+
+
+@ds.callback(
+    ds.Output('layup_schematic', 'figure'),
+   [ds.Input({'type': 'store', 'object': 'electrode_assembly'}, 'data'),
+    ds.Input('form_factor_dropdown', 'value'),
+    ds.Input('internal_structure_dropdown', 'value')],
+    prevent_initial_call=True
+)
+def show_layup(pickled_assembly, form_factor, internal_structure):
+    """
+    Show the assembly figure based on the selected form factor and internal structure.
+
+    :param pickled_assembly: The pickled assembly data.
+    :param pickled_case: The pickled case data.
+    :param form_factor: The selected form factor.
+    :param internal_structure: The selected internal structure.
+    :return: The updated assembly figure.
+    """
+    if (pickled_assembly == [] or pickled_assembly == {} or pickled_assembly is None):
+        return EMPTY_FIG
+
+    else:
+        assembly = pickle.loads(base64.b64decode(pickled_assembly['electrode_assembly']))
+
+        if form_factor == 'cylindrical' and internal_structure == 'wound':
+            figure = assembly.get_layup(paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=1000, height=450, title='Layup', margin=dict(t=40))
+            return figure
+
+        else:
+            return EMPTY_FIG
 
 
 @ds.callback(
@@ -1189,7 +1307,8 @@ def make_electrode_assembly(pickled_cathode, pickled_anode, pickled_separator, a
      ds.Input({'type': 'store', 'component': 'electrolyte'}, 'data'),
      ds.Input({'type': 'mechanicals', 'property': 'electrolyte_overfill', 'subtype': 'input'}, 'value'),
      ds.Input({'type': 'store', 'object': 'encapsulation'}, 'data'),
-     ds.Input({'type': 'operation', 'property': 'capacity_range', 'subtype': 'range_slider'}, 'drag_value'),
+     ds.Input({'type': 'operation', 'property': 'irreversible_capacity', 'subtype': 'input'}, 'value'),
+     ds.Input({'type': 'operation', 'property': 'reversible_capacity', 'subtype': 'input'}, 'value'),
      ds.Input({'type': 'operation', 'property': 'voltage_range', 'subtype': 'range_slider'}, 'drag_value'),
      ds.Input('form_factor_dropdown', 'value'),
      ds.Input('internal_structure_dropdown', 'value'),
@@ -1203,7 +1322,8 @@ def make_cell(pickled_electrode_assembly: dict,
               pickled_electrolyte: dict, 
               electrolyte_overfill: float, 
               pickled_case: dict, 
-              capacity_range: list, 
+              irreversible_capacity: float,
+              reversible_capacity: float,
               voltage_range: list, 
               form_factor: str, 
               internal_structure: str, 
@@ -1212,12 +1332,17 @@ def make_cell(pickled_electrode_assembly: dict,
     """
     Create a cell object using the inputs from the sliders and text box.
 
-    :param form_factor: The selected form factor.
     :param pickled_electrode_assembly: The pickled electrode assembly data.
     :param pickled_electrolyte: The pickled electrolyte data.
     :param electrolyte_overfill: The electrolyte overfill value.
     :param pickled_case: The pickled case data.
-    :param capacity_range: The capacity range value.
+    :param irreversible_capacity: The irreversible capacity value.
+    :param reversible_capacity: The reversible capacity value.
+    :param voltage_range: The voltage range value.
+    :param form_factor: The selected form factor.
+    :param internal_structure: The selected internal structure.
+    :param num_electrode_assemblies: The number of electrode assemblies.
+    :param pickled_cell: The pickled cell data.
     """
     ctx = ds.callback_context
     triggered_id = ctx.triggered_prop_ids
@@ -1244,8 +1369,12 @@ def make_cell(pickled_electrode_assembly: dict,
         message = ds.html.P([ds.html.B("Warning: ", style={'font-weight': '900'}), f" Electrolyte overfill must be specified."], style={'margin-left': '20px'})
         return [message], None, None, {}
 
-    if capacity_range is None or len(capacity_range) == 0:
-        message = ds.html.P([ds.html.B("Warning: ", style={'font-weight': '900'}), f" Capacity range must be specified."], style={'margin-left': '20px'})
+    if irreversible_capacity is None:
+        message = ds.html.P([ds.html.B("Warning: ", style={'font-weight': '900'}), f" Irreversible capacity must be specified."], style={'margin-left': '20px'})
+        return [message], None, None, {}
+    
+    if reversible_capacity is None:
+        message = ds.html.P([ds.html.B("Warning: ", style={'font-weight': '900'}), f" Reversible capacity must be specified."], style={'margin-left': '20px'})
         return [message], None, None, {}
     
     if voltage_range is None or len(voltage_range) == 0:
@@ -1269,8 +1398,8 @@ def make_cell(pickled_electrode_assembly: dict,
                 electrolyte=electrolyte,
                 encapsulation=case,
                 electrolyte_overfill=electrolyte_overfill,
-                reversible_capacity=capacity_range[1],
-                irreversible_capacity=capacity_range[0]
+                reversible_capacity=reversible_capacity,
+                irreversible_capacity=irreversible_capacity
             )
         except ValueError as e:
             message = f"Error: {e}"
@@ -1284,8 +1413,8 @@ def make_cell(pickled_electrode_assembly: dict,
                 pouch=case,
                 electrolyte=electrolyte,
                 electrolyte_overfill=electrolyte_overfill,
-                reversible_capacity=capacity_range[1],
-                irreversible_capacity=capacity_range[0],
+                reversible_capacity=reversible_capacity,
+                irreversible_capacity=irreversible_capacity,
                 n_stacks=num_electrode_assemblies
             )
         except ValueError as e:
@@ -1300,8 +1429,8 @@ def make_cell(pickled_electrode_assembly: dict,
                 prismatic_case=case,
                 electrolyte=electrolyte,
                 electrolyte_overfill=electrolyte_overfill,
-                reversible_capacity=capacity_range[1],
-                irreversible_capacity=capacity_range[0],
+                reversible_capacity=reversible_capacity,
+                irreversible_capacity=irreversible_capacity,
                 n_stacks=num_electrode_assemblies
             )
         except ValueError as e:
@@ -1311,7 +1440,7 @@ def make_cell(pickled_electrode_assembly: dict,
     else:
         return None, None, None, {}
         
-    theoretical_curve = cell.get_capacity_voltage_plot(background_color='#e3e5e6', upper_v_limit=voltage_range[1], lower_v_limit=voltage_range[0], width=920, height=550)
+    theoretical_curve = cell.get_capacity_voltage_plot(background_color=RIGHT_PANEL_COLOR, upper_v_limit=voltage_range[1], lower_v_limit=voltage_range[0], width=920, height=550)
     theoretical_curve_div = ds.dcc.Graph(id='theoretical_curve_fig', figure=theoretical_curve, style={'margin-left': '20px'})    
 
     breakdown_div = ds.html.Div([
@@ -1334,3 +1463,5 @@ def make_cell(pickled_electrode_assembly: dict,
     
     return [message], [theoretical_curve_div], [breakdown_div], {'cell': pickled_cell}
     
+
+
