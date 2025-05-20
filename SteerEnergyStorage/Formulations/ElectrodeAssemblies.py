@@ -734,33 +734,77 @@ class CylindricalJellyRoll(_JellyRoll):
         Function to show the jelly roll layed out flat
         """
         figure = go.Figure()
-        
+        all_x = []
+        all_y = []
+
+        # Cathode
         for trace in self._cathode._current_collector.get_top_down_view(split=False).data:
             trace.legendgroup = 'Cathode'
             trace.showlegend = True if trace.name == 'Main Body' else False
             trace.name = 'Cathode'
             trace.line = dict(color='black', width=1)
             figure.add_trace(trace)
+            all_x.extend(trace.x)
+            all_y.extend(trace.y)
 
+        # Separator 1
+        for trace in self._separator.get_top_down_view(split=False).data:
+            trace.legendgroup = 'Separator 1'
+            trace.name = 'Separator 1'
+            trace.line = dict(color='black', width=1)
+            figure.add_trace(trace)
+            all_x.extend(trace.x)
+            all_y.extend(trace.y)
+
+        # Anode
         for trace in self._anode._current_collector.get_top_down_view(split=False).data:
             trace.legendgroup = 'Anode'
             trace.showlegend = True if trace.name == 'Main Body' else False
             trace.name = 'Anode'
             trace.line = dict(color='black', width=1)
             figure.add_trace(trace)
+            all_x.extend(trace.x)
+            all_y.extend(trace.y)
 
+        # Separator 2
         for trace in self._separator.get_top_down_view(split=False).data:
-            trace.legendgroup = 'Separator'
+            trace.legendgroup = 'Separator 2'
+            trace.name = 'Separator 2'
             trace.line = dict(color='black', width=1)
             figure.add_trace(trace)
+            all_x.extend(trace.x)
+            all_y.extend(trace.y)
 
-        figure.update_layout(xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title="X (mm)"),
-                          yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)"),
-                          paper_bgcolor=paper_bgcolor,
-                          plot_bgcolor=plot_bgcolor,
-                          legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5),
-                          **kwargs)
-        
+        # Compute axis ranges with a small margin
+        if all_x and all_y:
+            x_margin = 0.05 * (max(all_x) - min(all_x)) if max(all_x) > min(all_x) else 1
+            y_margin = 0.05 * (max(all_y) - min(all_y)) if max(all_y) > min(all_y) else 1
+            x_range = [min(all_x) - x_margin, max(all_x) + x_margin]
+            y_range = [min(all_y) - y_margin, max(all_y) + y_margin]
+        else:
+            x_range = None
+            y_range = None
+
+        figure.update_layout(
+            xaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                scaleanchor="y",
+                title="X (mm)",
+                range=x_range
+            ),
+            yaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                title="Y (mm)",
+                range=y_range
+            ),
+            paper_bgcolor=paper_bgcolor,
+            plot_bgcolor=plot_bgcolor,
+            legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5),
+            **kwargs
+        )
+
         return figure
         
     @property
@@ -1228,6 +1272,91 @@ class Stack(_ElectrodeAssembly):
 
         del self._anode
         
+    def get_layup(self, paper_bgcolor='white', plot_bgcolor='white', **kwargs):
+
+        figure = go.Figure()
+        all_x = []
+        all_y = []
+
+        # Separator 1
+        for trace in self._separator.get_top_down_view().data:
+            trace.legendgroup = 'Separator third layer'
+            trace.name = 'Separator third layer'
+            trace.line = dict(color='black', width=1)
+            figure.add_trace(trace)
+            all_x.extend(trace.x)
+            all_y.extend(trace.y)
+
+        # Cathode
+        for trace in self._cathodes[0]._current_collector.get_top_down_view().data:
+            trace.legendgroup = 'Cathode'
+            trace.showlegend = True if trace.name == 'Covered Area' else False
+            trace.name = 'Cathode'
+            trace.line = dict(color='black', width=1)
+            figure.add_trace(trace)
+            all_x.extend(trace.x)
+            all_y.extend(trace.y)
+
+        # Separator 1
+        for trace in self._separator.get_top_down_view().data:
+            trace.legendgroup = 'Separator second layer'
+            trace.name = 'Separator second layer'
+            trace.line = dict(color='black', width=1)
+            figure.add_trace(trace)
+            all_x.extend(trace.x)
+            all_y.extend(trace.y)
+
+        # Anode
+        for trace in self._anodes[0]._current_collector.get_top_down_view().data:
+            trace.legendgroup = 'Anode'
+            trace.showlegend = True if trace.name == 'Covered Area' else False
+            trace.name = 'Anode'
+            trace.line = dict(color='black', width=1)
+            figure.add_trace(trace)
+            all_x.extend(trace.x)
+            all_y.extend(trace.y)
+
+        # Separator 2
+        for trace in self._separator.get_top_down_view().data:
+            trace.legendgroup = 'Separator top layer'
+            trace.name = 'Separator top layer'
+            trace.line = dict(color='black', width=1)
+            figure.add_trace(trace)
+            all_x.extend(trace.x)
+            all_y.extend(trace.y)
+
+        # Compute axis ranges with a small margin
+        if all_x and all_y:
+            x_margin = 0.05 * (max(all_x) - min(all_x)) if max(all_x) > min(all_x) else 1
+            y_margin = 0.05 * (max(all_y) - min(all_y)) if max(all_y) > min(all_y) else 1
+            x_range = [min(all_x) - x_margin, max(all_x) + x_margin]
+            y_range = [min(all_y) - y_margin, max(all_y) + y_margin]
+        else:
+            x_range = None
+            y_range = None
+
+        figure.update_layout(
+            xaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                scaleanchor="y",
+                title="X (mm)",
+                range=x_range
+            ),
+            yaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                title="Y (mm)",
+                range=y_range
+            ),
+            paper_bgcolor=paper_bgcolor,
+            plot_bgcolor=plot_bgcolor,
+            legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='center', x=0.5),
+            **kwargs
+        )
+
+        return figure
+
     @property
     def anodes(self):
         return self._anodes
