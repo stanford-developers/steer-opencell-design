@@ -429,12 +429,33 @@ def update_stack_slider(form_factor, internal_structure):
     
 
 @ds.callback(
+        ds.Output({'tab': 'mechanicals', 'type': 'separator', 'object': 'div'}, 'children'),
+        ds.Input('internal_structure_dropdown', 'value'),
+        prevent_initial_call=True
+)
+def show_separator_options(internal_structure):
+    """
+    Show the separator options based on the selected internal structure.
+
+    :param internal_structure: The selected internal structure.
+    :return: The updated separator options.
+    """
+    if internal_structure == 'wound':
+        return separator_long
+    elif internal_structure == 'stacked':
+        return separator_short
+    else:
+        return []
+
+
+@ds.callback(
     [ds.Output({'type': 'separator_message_text'}, 'children'), 
      ds.Output({'type': 'store', 'component': 'separator'}, 'data')],
-    [ds.Input({'type': 'mechanicals', 'subtype': 'input', 'property': ds.ALL}, 'value')],
+    [ds.Input({'type': 'mechanicals', 'object': 'separator', 'subtype': 'input', 'property': ds.ALL}, 'value'),
+     ds.Input('internal_structure_dropdown', 'value')],
      prevent_initial_call=True
 )
-def make_separator(inputs):
+def make_separator(inputs, internal_structure):
     """
     Create a separator object using the inputs from the sliders and text box.
 
@@ -445,6 +466,12 @@ def make_separator(inputs):
     :param fold_length: Fold length of the separator.
     :param width: Width of the separator.
     """
+    if inputs == [] or inputs == None:
+        return [], {}
+    
+    if internal_structure is None:
+        return [], {}
+
     try:
         separator = Separator(
             thickness=inputs[0],
@@ -470,11 +497,13 @@ def make_separator(inputs):
 
 
 @ds.callback(
-        ds.Output({'tab': 'mechanicals', 'object': 'separator', 'object': 'graph'}, 'figure'),
-        ds.Input({'type': 'store', 'component': 'separator'}, 'data'),
+        [ds.Output({'tab': 'mechanicals', 'item': 'separator1', 'object': 'graph'}, 'figure'),
+         ds.Output({'tab': 'mechanicals', 'item': 'separator2', 'object': 'graph'}, 'figure')],
+        [ds.Input({'type': 'store', 'component': 'separator'}, 'data'),
+        ds.Input('internal_structure_dropdown', 'value')],
         prevent_initial_call=True
 )
-def show_separator_graph(data):
+def show_separator_plots(data, internal_structure):
     """
     Show the separator graph based on the selected separator data.
 
@@ -482,13 +511,25 @@ def show_separator_graph(data):
     :return: The updated separator graph.
     """
     if data == {} or data == None:
-        return EMPTY_FIG
+        return EMPTY_FIG, EMPTY_FIG
+    
+    if internal_structure is None:
+        return EMPTY_FIG, EMPTY_FIG
 
     pickled_separator = data['separator']
     separator = pickle.loads(base64.b64decode(pickled_separator))
-    title = 'Separator top down view'
-    separator_graph = separator.get_top_down_view(width=500, height=420, paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, title=title, margin=dict(t=40))
-    return separator_graph
+
+    if internal_structure == 'wound':
+        title = 'Separator 1 top down view'
+        separator_graph_1 = separator.get_top_down_view(width=500, height=420, paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, title=title, margin=dict(t=40))
+        title = 'Separator 2 top down view'
+        separator_graph_2 = separator.get_top_down_view(width=500, height=420, paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, title=title, margin=dict(t=40))
+        return separator_graph_1, separator_graph_2
+    
+    elif internal_structure == 'stacked':
+        title = 'Single separator layer'
+        separator_graph = separator.get_top_down_view(width=500, height=420, paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, title=title, margin=dict(t=40))
+        return separator_graph, EMPTY_FIG
 
 
 @ds.callback(
@@ -523,8 +564,8 @@ def update_current_collector_design_options(internal_structure):
 @ds.callback(
     [ds.Output({'type': 'electrolyte_message_text'}, 'children'), 
      ds.Output({'type': 'store', 'component': 'electrolyte'}, 'data')],
-    [ds.Input({'type': 'mechanicals', 'subtype': 'input', 'property': 'electrolyte_specific_cost'}, 'value'),
-     ds.Input({'type': 'mechanicals', 'subtype': 'input', 'property': 'electrolyte_density'}, 'value')],
+    [ds.Input({'type': 'mechanicals', 'object': 'electrolyte', 'subtype': 'input', 'property': 'electrolyte_specific_cost'}, 'value'),
+     ds.Input({'type': 'mechanicals', 'object': 'electrolyte', 'subtype': 'input', 'property': 'electrolyte_density'}, 'value')],
      prevent_initial_call=True
 )
 def make_electrolyte(specific_cost, density):
@@ -734,6 +775,7 @@ def make_current_collector(properties, material_formula, material_density, mater
     ctx = ds.callback_context
     triggered_id = ast.literal_eval(ctx.triggered[0]['prop_id'].split('.')[0])
     electrode = triggered_id['electrode']
+    anode = True if electrode == 'anode' else False
 
     if current_collector_design is None:
         return ["\u00A0"], {}
@@ -754,7 +796,8 @@ def make_current_collector(properties, material_formula, material_density, mater
                 tab_spacing=properties[5],
                 density=material_density,
                 specific_cost=material_specific_cost,
-                bare_length=properties[6]
+                bare_length=properties[6],
+                anode=anode
             )
         except ValueError as e:
             message = f"Error: {e}"
@@ -774,7 +817,8 @@ def make_current_collector(properties, material_formula, material_density, mater
                 tab_width=properties[3],
                 density=material_density,
                 specific_cost=material_specific_cost,
-                bare_length=properties[4]
+                bare_length=properties[4],
+                anode=anode
             )
 
         except ValueError as e:
@@ -797,7 +841,8 @@ def make_current_collector(properties, material_formula, material_density, mater
                 tab_position=properties[4],
                 thickness=properties[5],
                 density=material_density,
-                specific_cost=material_specific_cost
+                specific_cost=material_specific_cost,
+                anode=anode
             )
         except ValueError as e:
             message = f"Error: {e}"
@@ -957,7 +1002,7 @@ def make_encapsulation(inputs, specific_costs, densities, formulas, form_factor)
      ds.Input('form_factor_dropdown', 'value')],
      prevent_initial_call=True
 )
-def get_encapsulation_plots(pickled_encapsulation, form_factor):
+def show_encapsulation_plots(pickled_encapsulation, form_factor):
     """
     Get the encapsulation plots based on the selected form factor.
 
@@ -1207,7 +1252,7 @@ def show_assembly_figure_3(pickled_assembly, pickled_case, form_factor, internal
     
     elif pickled_case == [] or pickled_case == {} or pickled_case is None:
         assembly = pickle.loads(base64.b64decode(pickled_assembly['electrode_assembly']))
-        figure = assembly.get_top_down_view(paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=700, height=500, title='Assembly top-down cross-section', margin=dict(t=40))
+        figure = assembly.get_top_down_view(paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=900, height=500, title='Assembly top-down cross-section', margin=dict(t=40))
         return figure
     
     else:
@@ -1215,7 +1260,7 @@ def show_assembly_figure_3(pickled_assembly, pickled_case, form_factor, internal
         case = pickle.loads(base64.b64decode(pickled_case['case']))
 
         if form_factor == 'cylindrical' and internal_structure == 'wound':
-            figure = assembly.get_top_down_view(encapsulation=case, paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=700, height=500, title='Assembly top-down cross-section', margin=dict(t=40))
+            figure = assembly.get_top_down_view(encapsulation=case, paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=900, height=500, title='Assembly top-down cross-section', margin=dict(t=40))
             return figure
 
         else:
@@ -1245,12 +1290,12 @@ def show_assembly_figure_4(pickled_assembly, pickled_case, form_factor, internal
 
     if pickled_assembly == [] or pickled_assembly == {} or pickled_assembly is None:
         case = pickle.loads(base64.b64decode(pickled_case['case']))
-        figure = case.get_side_view(paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=700, height=500, title='Assembly side cross-section', margin=dict(t=40))
+        figure = case.get_side_view(paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=900, height=500, title='Assembly side cross-section', margin=dict(t=40))
         return figure
     
     elif pickled_case == [] or pickled_case == {} or pickled_case is None:
         assembly = pickle.loads(base64.b64decode(pickled_assembly['electrode_assembly']))
-        figure = assembly.get_side_view(paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=700, height=500, title='Assembly side cross-section', margin=dict(t=40))
+        figure = assembly.get_side_view(paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=900, height=500, title='Assembly side cross-section', margin=dict(t=40))
         return figure
     
     else:
@@ -1258,7 +1303,7 @@ def show_assembly_figure_4(pickled_assembly, pickled_case, form_factor, internal
         case = pickle.loads(base64.b64decode(pickled_case['case']))
 
         if form_factor == 'cylindrical' and internal_structure == 'wound':
-            figure = assembly.get_side_view(encapsulation=case, paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=700, height=500, title='Assembly side cross-section', margin=dict(t=40))
+            figure = assembly.get_side_view(encapsulation=case, paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=900, height=500, title='Assembly side cross-section', margin=dict(t=40))
             return figure
 
         else:
@@ -1268,11 +1313,10 @@ def show_assembly_figure_4(pickled_assembly, pickled_case, form_factor, internal
 @ds.callback(
     ds.Output('layup_schematic', 'figure'),
    [ds.Input({'type': 'store', 'object': 'electrode_assembly'}, 'data'),
-    ds.Input('form_factor_dropdown', 'value'),
     ds.Input('internal_structure_dropdown', 'value')],
     prevent_initial_call=True
 )
-def show_layup(pickled_assembly, form_factor, internal_structure):
+def show_layup(pickled_assembly, internal_structure):
     """
     Show the assembly figure based on the selected form factor and internal structure.
 
@@ -1288,12 +1332,8 @@ def show_layup(pickled_assembly, form_factor, internal_structure):
     else:
         assembly = pickle.loads(base64.b64decode(pickled_assembly['electrode_assembly']))
 
-        if form_factor == 'cylindrical' and internal_structure == 'wound':
-            figure = assembly.get_layup(paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=1000, height=450, title='Layup', margin=dict(t=40))
-            return figure
-
-        else:
-            return EMPTY_FIG
+    figure = assembly.get_layup(paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=1000, height=450, title='Layup', margin=dict(t=40))
+    return figure
 
 
 @ds.callback(
@@ -1305,7 +1345,7 @@ def show_layup(pickled_assembly, form_factor, internal_structure):
  
     [ds.Input({'type': 'store', 'object': 'electrode_assembly'}, 'data'),
      ds.Input({'type': 'store', 'component': 'electrolyte'}, 'data'),
-     ds.Input({'type': 'mechanicals', 'property': 'electrolyte_overfill', 'subtype': 'input'}, 'value'),
+     ds.Input({'type': 'mechanicals', 'object': 'electrolyte', 'property': 'electrolyte_overfill', 'subtype': 'input'}, 'value'),
      ds.Input({'type': 'store', 'object': 'encapsulation'}, 'data'),
      ds.Input({'type': 'operation', 'property': 'irreversible_capacity', 'subtype': 'input'}, 'value'),
      ds.Input({'type': 'operation', 'property': 'reversible_capacity', 'subtype': 'input'}, 'value'),

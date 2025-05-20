@@ -146,7 +146,7 @@ class Separator:
         x = [xi - x_shift for xi in x]  # Shift all x values
         y = [0, 0, self.width, self.width, 0]
         y = [yi + y_shift for yi in y]
-        fig.add_trace(go.Scatter(x=x, y=y, mode='lines', line=dict(width=0), fillcolor=SEPARATOR_COLOR, fill='toself', name='Separator'))
+        fig.add_trace(go.Scatter(x=x, y=y, mode='lines', line=dict(width=1, color='black'), fillcolor=SEPARATOR_COLOR, fill='toself', name='Separator'))
 
         return fig
 
