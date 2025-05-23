@@ -1023,7 +1023,7 @@ def update_encapsulation_material_selector_properties_and_sync(material_formula,
     if triggered_id and triggered_id['subtype'] == 'text_input':
         if material_formula is None:
             return 4, 4, 15, 15
-        terminal = CylindricalTerminalCollector(formula=material_formula, diameter=1, thickness=1)
+        terminal = CylindricalTerminalConnector(formula=material_formula, diameter=1, thickness=1)
         return terminal.density, terminal.density, terminal.specific_cost, terminal.specific_cost
     
     elif triggered_id and triggered_id['subtype'] == 'slider':
