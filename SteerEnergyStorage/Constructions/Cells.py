@@ -417,9 +417,9 @@ class _Cell:
 
         color_map = self._get_color_map()
 
-        data = pd.concat([cost_breakdown, anode_cost_breakdown, cathode_cost_breakdown, electrode_assembly_cost_breakdown])
+        data = pd.concat([cost_breakdown, anode_cost_breakdown, cathode_cost_breakdown, electrode_assembly_cost_breakdown]).drop(columns=['level_0'])
 
-        figure = px.sunburst(data, path=['level_0', 'level_1', 'level_2'], values='cost', color='level_1', color_discrete_map=color_map, **kwargs)
+        figure = px.sunburst(data, path=['level_1', 'level_2'], values='cost', color='level_1', color_discrete_map=color_map, **kwargs)
         figure.update_traces(textinfo='percent parent+label')
         figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
         figure.update_layout(plot_bgcolor=background_color, paper_bgcolor=background_color, margin=dict(t=20, l=80, r=80, b=80))
@@ -458,9 +458,9 @@ class _Cell:
 
         color_map = self._get_color_map()
 
-        data = pd.concat([mass_breakdown, anode_mass_breakdown, cathode_mass_breakdown, electrode_assembly_mass_breakdown])
+        data = pd.concat([mass_breakdown, anode_mass_breakdown, cathode_mass_breakdown, electrode_assembly_mass_breakdown]).drop(columns=['level_0'])
 
-        figure = px.sunburst(data, path=['level_0', 'level_1', 'level_2'], values='mass', color='level_1', color_discrete_map=color_map, **kwargs)
+        figure = px.sunburst(data, path=['level_1', 'level_2'], values='mass', color='level_1', color_discrete_map=color_map, **kwargs)
         figure.update_traces(textinfo='percent parent+label')
         figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
         figure.update_layout(plot_bgcolor=background_color, paper_bgcolor=background_color, margin=dict(t=20, l=80, r=80, b=80))
@@ -1183,6 +1183,9 @@ class CylindricalCell(_JellyRollCell):
         
         if electrode_assembly._radius > self._encapsulation._inner_radius:
             raise ValueError(f"Electrode assembly, {electrode_assembly.radius} mm,  cannot be greater than the internal radius of the cylindrical case, {self._encapsulation.inner_radius} mm")
+        
+        if electrode_assembly._width > self._encapsulation._inner_height:
+            raise ValueError(f"Electrode assembly, {electrode_assembly.width} mm, cannot be greater than the internal height of the cylindrical case, {self._encapsulation.inner_height} mm")
         
         self._electrode_assemblies = [deepcopy(electrode_assembly) for _ in range(n_electrode_assembly)]  
 

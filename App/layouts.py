@@ -1,6 +1,6 @@
 import dash as ds
 from styles import *
-from custom_components import SliderWithTextInput, RangeSliderWithTextInput, CurrentCollectorSelector, CathodeMaterialSelector, AnodeMaterialSelector
+from custom_components import SliderWithTextInput, RangeSliderWithTextInput, CurrentCollectorSelector, CathodeMaterialSelector, AnodeMaterialSelector, CheckboxWithSlider
 from styles import *
 
 from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector
@@ -16,6 +16,7 @@ active_materials_anode = [m for m in AnodeMaterial.get_available_materials()]
 
 
 data_stores = ds.html.Div([
+
     ds.dcc.Store(id='app-load-trigger', data={}),
     ds.dcc.Store(id={'type': 'store', 'object': 'currrent_collector', 'type': 'materials'}, data=current_collector_materials),
     ds.dcc.Store(id={'type': 'store', 'electrode': 'cathode'}, data=active_materials_cathode),
@@ -31,6 +32,9 @@ data_stores = ds.html.Div([
     ds.dcc.Store(id={'type': 'store', 'electrode': 'anode', 'object': 'electrode'}),
     ds.dcc.Store(id={'type': 'store', 'object': 'electrode_assembly'}),
     ds.dcc.Store(id={'type': 'store', 'object': 'cell'}),
+
+    ds.dcc.Store(id='lengths', data={}),
+
 ])
 
 
@@ -98,11 +102,11 @@ cathode_mechanicals = ds.html.Div([
 
     ds.html.Br(), ds.html.Br(), ds.html.Br(),
 
-    ds.html.H5('Current Collector Material', style=HEADER_STYLE),
+    ds.html.H4('Current Collector Material', style=HEADER_STYLE),
     ds.html.Br(),
     CurrentCollectorSelector({'electrode': 'cathode', 'object': 'current_collector'}, current_collector_materials, density_default=2.7, specific_cost_default=2.64).render(),
     ds.html.Br(), ds.html.Br(),
-    ds.html.H5('Design', style=HEADER_STYLE),
+    ds.html.H4('Design', style=HEADER_STYLE),
     ds.html.Br(),
     ds.dcc.Dropdown(
         id={'type': 'mechanicals', 'object': 'current_collector', 'electrode': 'cathode', 'feature': 'design'}, 
@@ -119,12 +123,19 @@ cathode_mechanicals = ds.html.Div([
 anode_mechanicals = ds.html.Div([
 
     ds.html.Br(), ds.html.Br(), ds.html.Br(),
+    
+    # ds.html.H4('Constraints', style=HEADER_STYLE),
+    # ds.html.Br(),
+    # CheckboxWithSlider({'electrode': 'anode', 'object': 'current_collector'}, 0, 10, False, 0, 0.01, 1, 'length_overhang', 'Length overhang relative to cathode (mm)', div_width='60%').render(),
+    # ds.html.Br() ,ds.html.Br(),
+    # CheckboxWithSlider({'electrode': 'anode', 'object': 'current_collector'}, 0, 10, False, 0, 0.01, 1, 'width_overhang', 'Width overhang relative to cathode (mm)', div_width='60%').render(),
+    # ds.html.Br() , ds.html.Br(), ds.html.Br(),
 
-    ds.html.H5('Current Collector Material', style=HEADER_STYLE),
+    ds.html.H4('Current Collector Material', style=HEADER_STYLE),
     ds.html.Br(),
     CurrentCollectorSelector({'electrode': 'anode', 'object': 'current_collector'}, current_collector_materials, density_default=2.7, specific_cost_default=2.64).render(),
     ds.html.Br(), ds.html.Br(),
-    ds.html.H5('Design', style=HEADER_STYLE),
+    ds.html.H4('Design', style=HEADER_STYLE),
     ds.html.Br(),
     ds.dcc.Dropdown(
         id={'type': 'mechanicals', 'object': 'current_collector', 'electrode': 'anode', 'feature': 'design'}, 
@@ -317,7 +328,26 @@ anode_formulation = ds.html.Div([
 electrodes = ds.html.Div([
 
     ds.html.Br(), ds.html.Br(), ds.html.Br(),
+
+    ds.html.H4('Adjustments'),
+    ds.html.Br(),
+
+    ds.html.P('Adjust electrode length'),
+    ds.html.Div([
+        ds.html.Button("+", id='add_electrode_length', n_clicks=0, style=BUTTON_STYLE),
+        ds.html.Button("-", id='subtract_electrode_length', n_clicks=0, style=BUTTON_STYLE)
+    ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px'}),
+
+    ds.html.Br(), ds.html.Br(),
+
+    ds.html.P('Adjust electrode width'),
+    ds.html.Div([
+        ds.html.Button("+", id='add_electrode_width', n_clicks=0, style=BUTTON_STYLE),
+        ds.html.Button("-", id='subtract_electrode_width', n_clicks=0, style=BUTTON_STYLE)
+    ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px'}),
  
+    ds.html.Br(), ds.html.Br(),
+
     ds.html.H4('Cathode'),
     ds.html.Br(),
     SliderWithTextInput({'type': 'electrodes', 'electrode': 'cathode', 'object': 'electrode'}, 0, 60, 11.5, 0.01, 5, 'mass_loading', "Mass loading (mg/cm³)", True, '1000px').render(),
