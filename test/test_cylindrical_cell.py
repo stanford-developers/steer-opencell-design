@@ -112,7 +112,7 @@ class TestCylindricalJellyRoll(unittest.TestCase):
 
         lid = CylindricalLidAssembly(cost=0.1, mass=5, thickness=3)
 
-        case = CylindricalCase(canister=cylindrical_shell, lid_assembly=lid, cathode_terminal_collector=cathode_connector, anode_terminal_collector=anode_connector)
+        case = CylindricalCase(canister=cylindrical_shell, lid_assembly=lid, cathode_terminal_connector=cathode_connector, anode_terminal_connector=anode_connector)
 
         # build the cell
         self.cell = CylindricalCell(electrode_assembly=cylindrical_jelly_roll,
