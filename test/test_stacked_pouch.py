@@ -206,9 +206,9 @@ class TestStandard(unittest.TestCase):
         self.assertEqual(round(self.cell.pouch.laminate._areal_mass, 6), 0.18)
         
     def test_electrolyte(self):
-        self.assertEqual(round(self.cell.electrolyte._density,), 1200)
-        self.assertEqual(self.cell.electrolyte.density, 1.2)
-        self.assertEqual(self.cell.electrolyte.specific_cost, 8.94)
+        self.assertEqual(round(self.cell._electrolyte._density,), 1200)
+        self.assertEqual(self.cell._electrolyte.density, 1.2)
+        self.assertEqual(self.cell._electrolyte.specific_cost, 8.94)
 
     def test_separator(self):
         for s in self.cell.stacks:

@@ -7,7 +7,7 @@ from SteerEnergyStorage.Formulations.ElectrodeAssemblies import CylindricalJelly
 from SteerEnergyStorage.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
 from SteerEnergyStorage.Materials.CurrentCollectors import NotchedCurrentCollector
 from SteerEnergyStorage.Materials.Separators import Separator
-from SteerEnergyStorage.Constructions.Containers import CylindricalShell, CylindricalCase
+from SteerEnergyStorage.Constructions.Containers import CylindricalCanister, CylindricalCase, CylindricalTerminalConnector, CylindricalLidAssembly
 from SteerEnergyStorage.Materials.other import Terminal
 from SteerEnergyStorage.Constructions.Cells import CylindricalCell
 
@@ -93,25 +93,26 @@ class TestCylindricalJellyRoll(unittest.TestCase):
         cylindrical_jelly_roll = CylindricalJellyRoll(anode=anode, 
                                                       cathode=cathode,
                                                       separator=separator, 
-                                                      internal_die_diameter=8)
+                                                      mandrel_diameter=8)
         
         # build the electrolyte
         electrolyte = Electrolyte(specific_cost=8.94, density=1.2)
 
-        # build the encapsulation
-        cylindrical_shell = CylindricalShell(cost = 0.04, 
-                                             mass = 3,
-                                             internal_radius=10.5,
-                                             length=115,
-                                             wall_thickness=0.3)
-        
-        # build the terminals
-        pos_terminal = Terminal(mass = 1, specific_cost = 16, thickness=2)
-        neg_terminal = Terminal(mass = 1, specific_cost = 16, thickness=2)
 
-        case = CylindricalCase(shell=cylindrical_shell,
-                               positive_terminal=pos_terminal,
-                               negative_terminal=neg_terminal)
+
+        # build the encapsulation
+        cylindrical_shell = CylindricalCanister(formula = 'Al', 
+                                                outer_diameter=21.6,
+                                                wall_thickness=0.3,
+                                                length=115)
+        
+        # build the connectors
+        anode_connector = CylindricalTerminalConnector(formula='Al', diameter=10, thickness=1, fill_factor=0.8)
+        cathode_connector = CylindricalTerminalConnector(formula='Al', diameter=10, thickness=1, fill_factor=0.8)
+
+        lid = CylindricalLidAssembly(cost=0.1, mass=5, thickness=3)
+
+        case = CylindricalCase(canister=cylindrical_shell, lid_assembly=lid, cathode_terminal_collector=cathode_connector, anode_terminal_collector=anode_connector)
 
         # build the cell
         self.cell = CylindricalCell(electrode_assembly=cylindrical_jelly_roll,
@@ -126,36 +127,32 @@ class TestCylindricalJellyRoll(unittest.TestCase):
         Test the instantiation of the cell
         """
         self.assertIsInstance(self.cell, CylindricalCell)
-        self.assertEqual(self.cell.cost, 0.97)
-        self.assertEqual(round(self.cell._cost, 2), 0.97)
+        self.assertEqual(self.cell.cost, 1.02)
+        self.assertEqual(round(self.cell._cost, 2), 1.02)
         self.assertEqual(self.cell.electrolyte_overfill, 10)
         self.assertEqual(self.cell._electrolyte_overfill, 0.1)
         self.assertEqual(self.cell.energy, 9.06)
 
         # TODO: check the energy density
         self.assertEqual(round(self.cell._energy), 32612)
-        self.assertEqual(self.cell.energy_density, 207.74)
-        self.assertEqual(self.cell.length, 119)
-        self.assertEqual(round(self.cell._length, 3), 0.119)
-        self.assertEqual(self.cell.mass, 68.36)
-        self.assertEqual(round(self.cell._mass, 4), 0.0684)
-        self.assertEqual(self.cell.volume, 43.61)
-        self.assertEqual(round(self.cell._volume, 6), 4.4e-05)
+        self.assertEqual(self.cell.energy_density, 214.97)
+        self.assertEqual(self.cell.length, 115)
+        self.assertEqual(round(self.cell._length, 3), 0.115)
+        self.assertEqual(self.cell.mass, 76.1)
+        self.assertEqual(round(self.cell._mass, 4), 0.0761)
+        self.assertEqual(self.cell.volume, 42.14)
+        self.assertEqual(round(self.cell._volume, 6), 4.2e-05)
         self.assertEqual(round(self.cell._diameter, 4), 0.0216)
         self.assertEqual(self.cell.diameter, 2.16)
 
     def test_plots(self):
 
         fig1a = self.cell.get_capacity_voltage_plot()
-        fig1b = self.cell.get_cost_breakdown_plot(mode='pie')
-        fig1c = self.cell.get_mass_breakdown_plot(mode='pie')
         fig1d = self.cell.get_cost_breakdown_plot(mode='sunburst')
         fig1e = self.cell.get_mass_breakdown_plot(mode='sunburst')
         fig2a = self.cell.get_top_down_view()
 
         # fig1a.show()
-        # fig1b.show()
-        # fig1c.show()
         # fig1d.show()
         # fig1e.show()
         # fig2a.show()

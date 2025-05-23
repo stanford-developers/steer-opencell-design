@@ -482,7 +482,7 @@ class CylindricalJellyRoll(_JellyRoll):
                  anode: Anode | CurrentCollector, 
                  cathode: Cathode, 
                  separator: Separator, 
-                 internal_die_diameter: float,
+                 mandrel_diameter: float,
                  name: str = 'cylindrical_jelly_roll') -> None:
         """
         Initialize an object that represents an electrochemical cylindrical jelly roll within an electrochemical cell
@@ -490,28 +490,28 @@ class CylindricalJellyRoll(_JellyRoll):
         :param anode: Anode: anode used in the stack
         :param cathode: Cathode: cathode used in the stack
         :param separator: Separator: separator used in the stack
-        :param internal_die_diameter: float: internal die diameter of the cylindrical jelly roll in mm
+        :param mandrel_diameter: float: internal mandrel diameter of the cylindrical jelly roll in mm
         :param name: str: name of the cylindrical jelly roll
         """
         super().__init__(anode=anode, cathode=cathode, separator=separator, name=name)
 
-        self._check_internal_die_diameter(internal_die_diameter)
+        self._check_mandrel_diameter(mandrel_diameter)
         self._calculate_archimedean_spiral()
         self._center_and_calculate_radius()
 
-    def _check_internal_die_diameter(self, internal_die_diameter: float):
+    def _check_mandrel_diameter(self, mandrel_diameter: float):
         """
-        Function to check the internal die diameter
+        Function to check the internal mandrel diameter
 
-        :param internal_die_diameter: float: internal die diameter of the cylindrical jelly roll in mm
+        :param mandrel_diameter: float: internal mandrel diameter of the cylindrical jelly roll in mm
         """
-        if not isinstance(internal_die_diameter, (int, float)):
-            raise ValueError("Internal die diameter must be a number")
+        if not isinstance(mandrel_diameter, (int, float)):
+            raise ValueError("Internal mandrel diameter must be a number")
         
-        if internal_die_diameter < 0:
-            raise ValueError("Internal die diameter must be greater than 0")
+        if mandrel_diameter < 0:
+            raise ValueError("Internal mandrel diameter must be greater than 0")
         
-        self._internal_die_diameter = internal_die_diameter * MM_TO_M
+        self._mandrel_diameter = mandrel_diameter * MM_TO_M
 
     def _calculate_archimedean_spiral(self, dtheta: float = 0.05) -> pd.DataFrame:
         """
@@ -521,7 +521,7 @@ class CylindricalJellyRoll(_JellyRoll):
         """
         length = self._anode._current_collector._length
         b = self._electrode_thickness / (2*np.pi)
-        a = (self._internal_die_diameter / 2)
+        a = (self._mandrel_diameter / 2)
         
         total_length = 0
         theta = 0
@@ -808,8 +808,8 @@ class CylindricalJellyRoll(_JellyRoll):
         return figure
         
     @property
-    def internal_die_diameter(self):
-        return round(self._internal_die_diameter * M_TO_MM, 2)
+    def mandrel_diameter(self):
+        return round(self._mandrel_diameter * M_TO_MM, 2)
     
     @property
     def radius(self):
