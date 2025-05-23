@@ -249,7 +249,7 @@ class CylindricalLidAssembly:
         return self.__str__()
 
 
-class CylindricalTerminalCollector:
+class CylindricalTerminalConnector:
 
     def __init__(self, 
                  formula: str, 
@@ -259,14 +259,14 @@ class CylindricalTerminalCollector:
                  specific_cost: float = None, 
                  density: float = None):
         """
-        Class representing a cylindrical terminal collector used for a cylindrical cell.
+        Class representing a cylindrical terminal connector used for a cylindrical cell.
 
-        :param formula: str: formula of the terminal collector
-        :param radius: float: radius of the terminal collector in mm
-        :param thickness: float: thickness of the terminal collector in mm
-        :param fill_factor: float: fill factor of the terminal collector
-        :param specific_cost: float: specific cost of the terminal collector in $/kg
-        :param density: float: density of the terminal collector in g/cm^3
+        :param formula: str: formula of the terminal connector
+        :param radius: float: radius of the terminal connector in mm
+        :param thickness: float: thickness of the terminal connector in mm
+        :param fill_factor: float: fill factor of the terminal connector
+        :param specific_cost: float: specific cost of the terminal connector in $/kg
+        :param density: float: density of the terminal connector in g/cm^3
         """
         self._check_formula(formula)
         self._check_diameter(diameter)
@@ -359,7 +359,7 @@ class CylindricalTerminalCollector:
 
     def _calculate_properties(self):
         """
-        Calculate the properties of the terminal collector.
+        Calculate the properties of the terminal connector.
         """
         self._radius = self._diameter / 2
         self._mass = np.pi * (self._radius**2) * self._thickness * self._density * self._fill_factor
@@ -577,8 +577,8 @@ class CylindricalCase:
     def __init__(self,
                  canister: CylindricalCanister,
                  lid_assembly: CylindricalLidAssembly,
-                 cathode_terminal_collector: CylindricalTerminalCollector,
-                 anode_terminal_collector: CylindricalTerminalCollector,
+                 cathode_terminal_connector: CylindricalTerminalConnector,
+                 anode_terminal_connector: CylindricalTerminalConnector,
                  name: str = 'cylindrical_case'):
         """
         Class representing a casing used for a cylindrical cell.
@@ -590,8 +590,8 @@ class CylindricalCase:
         """
         self._check_canister(canister)
         self._check_lid_assembly(lid_assembly)
-        self._check_cathode_terminal_collector(cathode_terminal_collector)
-        self._check_anode_terminal_collector(anode_terminal_collector)
+        self._check_cathode_terminal_connector(cathode_terminal_connector)
+        self._check_anode_terminal_connector(anode_terminal_connector)
 
         self._check_name(name)
         self._calculate_properties()
@@ -611,25 +611,25 @@ class CylindricalCase:
         
         self._lid_assembly = deepcopy(lid_assembly)
 
-    def _check_cathode_terminal_collector(self, cathode_terminal_collector: CylindricalTerminalCollector):
+    def _check_cathode_terminal_connector(self, cathode_terminal_connector: CylindricalTerminalConnector):
 
-        if not isinstance(cathode_terminal_collector, CylindricalTerminalCollector):
-            raise TypeError("Cathode terminal collector must be a CylindricalTerminalCollector")
+        if not isinstance(cathode_terminal_connector, CylindricalTerminalConnector):
+            raise TypeError("Cathode terminal connector must be a CylindricalTerminalCollector")
         
-        if cathode_terminal_collector._radius > self._canister._inner_radius:
-            raise ValueError("Cathode terminal collector radius must be smaller than canister inner radius")
+        if cathode_terminal_connector._radius > self._canister._inner_radius:
+            raise ValueError(f"Cathode terminal connector radius ({cathode_terminal_connector.radius} mm) must be smaller than canister inner radius ({self._canister.inner_radius} mm)")
         
-        self._cathode_terminal_collector = deepcopy(cathode_terminal_collector)
+        self._cathode_terminal_connector = deepcopy(cathode_terminal_connector)
 
-    def _check_anode_terminal_collector(self, anode_terminal_collector: CylindricalTerminalCollector):
+    def _check_anode_terminal_connector(self, anode_terminal_connector: CylindricalTerminalConnector):
 
-        if not isinstance(anode_terminal_collector, CylindricalTerminalCollector):
-            raise TypeError("Anode terminal collector must be a CylindricalTerminalCollector")
+        if not isinstance(anode_terminal_connector, CylindricalTerminalConnector):
+            raise TypeError("Anode terminal connector must be a CylindricalTerminalCollector")
         
-        if anode_terminal_collector._radius > self._canister._inner_radius:
-            raise ValueError("Anode terminal collector radius must be smaller than canister inner radius")
+        if anode_terminal_connector._radius > self._canister._inner_radius:
+            raise ValueError(f"Anode terminal connector radius ({anode_terminal_connector.radius} mm) must be smaller than canister inner radius ({self._canister.inner_radius} mm)")
         
-        self._anode_terminal_collector = deepcopy(anode_terminal_collector)
+        self._anode_terminal_connector = deepcopy(anode_terminal_connector)
 
     def _check_name(self, name: str):
 
@@ -642,8 +642,8 @@ class CylindricalCase:
         self._name = name
 
     def _calculate_properties(self):
-        self._cost = self._canister._cost + self._lid_assembly._cost + self._cathode_terminal_collector._cost + self._anode_terminal_collector._cost
-        self._mass = self._canister._mass + self._lid_assembly._mass + self._cathode_terminal_collector._mass + self._anode_terminal_collector._mass
+        self._cost = self._canister._cost + self._lid_assembly._cost + self._cathode_terminal_connector._cost + self._anode_terminal_connector._cost
+        self._mass = self._canister._mass + self._lid_assembly._mass + self._cathode_terminal_connector._mass + self._anode_terminal_connector._mass
 
         self._length = self._canister._length
         self._outer_radius = self._canister._outer_radius
@@ -651,7 +651,7 @@ class CylindricalCase:
         self._closed_volume = self._length * np.pi * (self._outer_radius**2)
 
         self._inner_radius = self._canister._inner_radius
-        self._inner_height = self._length - self._lid_assembly._thickness - self._cathode_terminal_collector._thickness - self._anode_terminal_collector._thickness - self._canister._wall_thickness
+        self._inner_height = self._length - self._lid_assembly._thickness - self._cathode_terminal_connector._thickness - self._anode_terminal_connector._thickness - self._canister._wall_thickness
         self._inner_volume = np.pi * (self._inner_radius**2) * self._inner_height
 
     def _calculate_footprint(self):
@@ -691,8 +691,8 @@ class CylindricalCase:
 
         if with_base:
             fig.add_trace(go.Scatter(x=inner_circle['X [mm]'], y=inner_circle['Y [mm]'], mode='lines', name='Canister Base', line=dict(width=0, shape='spline'), fillcolor='grey', fill='toself'))
-            anode_circle = self._anode_terminal_collector.circle.copy()
-            fill_factor = self._anode_terminal_collector.fill_factor
+            anode_circle = self._anode_terminal_connector.circle.copy()
+            fill_factor = self._anode_terminal_connector.fill_factor
             fig.add_trace(go.Scatter(x=anode_circle['X [mm]'], y=anode_circle['Y [mm]'], mode='lines', name='Anode Collector', line=dict(width=0, shape='spline'), fillcolor=ANODE_COLOR, fill='toself', opacity=fill_factor))
 
         title = title if title is not None else f'{self.name} top down view'
@@ -721,9 +721,9 @@ class CylindricalCase:
         # lid assembly
         fig.add_trace(go.Scatter(x=inner_circle['X [mm]'], y=inner_circle['Y [mm]'], mode='lines', name='Lid assembly', line=dict(width=0, shape='spline'), fillcolor='#338DFF', fill='toself'))
 
-        # cathode terminal collector
-        cathode_circle = self._cathode_terminal_collector.circle.copy()
-        fill_factor = self._cathode_terminal_collector.fill_factor
+        # cathode terminal connector
+        cathode_circle = self._cathode_terminal_connector.circle.copy()
+        fill_factor = self._cathode_terminal_connector.fill_factor
         fig.add_trace(go.Scatter(x=cathode_circle['X [mm]'], y=cathode_circle['Y [mm]'], mode='lines', name='Cathode Collector', line=dict(width=0, shape='spline'), fillcolor=CATHODE_COLOR, fill='toself', opacity=fill_factor))
 
         title = title if title is not None else f'{self.name} bottom up view'
@@ -743,30 +743,30 @@ class CylindricalCase:
         """
         fig = go.Figure()
 
-        # anode terminal collector
+        # anode terminal connector
         pos_y = -self.inner_height/2
-        neg_y = -self.inner_height/2 - self._anode_terminal_collector.thickness
-        anode_x = [-self._anode_terminal_collector.radius, self._anode_terminal_collector.radius, self._anode_terminal_collector.radius, -self._anode_terminal_collector.radius, -self._anode_terminal_collector.radius]
+        neg_y = -self.inner_height/2 - self._anode_terminal_connector.thickness
+        anode_x = [-self._anode_terminal_connector.radius, self._anode_terminal_connector.radius, self._anode_terminal_connector.radius, -self._anode_terminal_connector.radius, -self._anode_terminal_connector.radius]
         anode_y = [neg_y, neg_y, pos_y, pos_y, neg_y]
         fig.add_trace(go.Scatter(x=anode_x, y=anode_y, mode='lines', name='Anode Terminal Collector', line=dict(width=0), fillcolor=ANODE_COLOR, fill='toself'))
 
-        # cathode terminal collector
-        pos_y = self.inner_height/2 + self._cathode_terminal_collector.thickness
+        # cathode terminal connector
+        pos_y = self.inner_height/2 + self._cathode_terminal_connector.thickness
         neg_y = self.inner_height/2
-        cathode_x = [-self._cathode_terminal_collector.radius, self._cathode_terminal_collector.radius, self._cathode_terminal_collector.radius, -self._cathode_terminal_collector.radius, -self._cathode_terminal_collector.radius]
+        cathode_x = [-self._cathode_terminal_connector.radius, self._cathode_terminal_connector.radius, self._cathode_terminal_connector.radius, -self._cathode_terminal_connector.radius, -self._cathode_terminal_connector.radius]
         cathode_y = [neg_y, neg_y, pos_y, pos_y, pos_y]
         fig.add_trace(go.Scatter(x=cathode_x, y=cathode_y, mode='lines', name='Cathode Terminal Collector', line=dict(width=0), fillcolor=CATHODE_COLOR, fill='toself'))
 
         # lid assembly 
-        pos_y = self.inner_height/2 + self._cathode_terminal_collector.thickness + self._lid_assembly.thickness
-        neg_y = self.inner_height/2 + self._cathode_terminal_collector.thickness
+        pos_y = self.inner_height/2 + self._cathode_terminal_connector.thickness + self._lid_assembly.thickness
+        neg_y = self.inner_height/2 + self._cathode_terminal_connector.thickness
         lid_x = [-self.inner_radius, self.inner_radius, self.inner_radius, -self.inner_radius, -self.inner_radius]
         lid_y = [neg_y, neg_y, pos_y, pos_y, neg_y]
         fig.add_trace(go.Scatter(x=lid_x, y=lid_y, mode='lines', name='Lid Assembly', line=dict(width=0), fillcolor=LID_COLOR, fill='toself'))
 
         # canister
-        pos_y = self.inner_height/2 + self._cathode_terminal_collector.thickness + self._lid_assembly.thickness
-        neg_y = -self.inner_height/2 - self._anode_terminal_collector.thickness - self._canister.wall_thickness
+        pos_y = self.inner_height/2 + self._cathode_terminal_connector.thickness + self._lid_assembly.thickness
+        neg_y = -self.inner_height/2 - self._anode_terminal_connector.thickness - self._canister.wall_thickness
         canister_x = [-self.outer_radius, self.outer_radius, self.outer_radius, self.inner_radius, self.inner_radius, -self.inner_radius, -self.inner_radius, -self.outer_radius, -self.outer_radius]
         canister_y = [neg_y, neg_y, pos_y, pos_y, neg_y + self._canister.wall_thickness, neg_y + self._canister.wall_thickness, pos_y, pos_y, neg_y]
         fig.add_trace(go.Scatter(x=canister_x, y=canister_y, mode='lines', name='Canister', line=dict(width=0), fillcolor='black', fill='toself'))

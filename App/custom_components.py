@@ -1,6 +1,7 @@
 from SteerEnergyStorage.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
 
 from dash.development.base_component import Component
+import numpy as np
 import dash as ds
 from styles import *
 
@@ -48,7 +49,7 @@ class SliderWithTextInput(Component):
             max=max_val,
             value=default_val,
             step=step,
-            marks={i: "" for i in range(min_val, max_val + 1, mark_interval)}
+            marks={float(i): "" for i in np.arange(min_val, max_val + mark_interval, mark_interval)}
         )
 
         input_id = self.id.copy()
@@ -231,8 +232,8 @@ class BinderSelector(MaterialSelector1):
                  id: dict, 
                  with_slider_titles: bool = True,
                  weight_default: float = 0,
-                 density_default: float = 4,
-                 specific_cost_default: float = 15,
+                 density_default: float = 1.7,
+                 specific_cost_default: float = 10,
                  formula_default: str = None,
                  slider_div_width: str = '220px',
                  materials: list = [],
@@ -260,8 +261,8 @@ class ConductiveAdditiveSelector(MaterialSelector1):
                  id: dict, 
                  with_slider_titles: bool = True,
                  weight_default: float = 0,
-                 density_default: float = 4,
-                 specific_cost_default: float = 15,
+                 density_default: float = 1.9,
+                 specific_cost_default: float = 9,
                  slider_div_width: str = '220px',
                  formula_default: str = None,
                  materials: list = [],
@@ -391,8 +392,8 @@ class MaterialSelector2(MaterialSelector1):
             **kwargs
         )
 
-        self.reversible_capacity_div = SliderWithTextInput(self.id, 0, 1, 1, 0.01, 1, 'reversible_capacity', 'Rev. Cap. Scaling', self.with_slider_titles, self.slider_div_width).render()
-        self.irreversible_capacity_div = SliderWithTextInput(self.id, 0, 1, 1, 0.01, 1, 'irreversible_capacity', 'Irrev. Cap. Scaling', self.with_slider_titles, self.slider_div_width).render()
+        self.reversible_capacity_div = SliderWithTextInput(self.id, 0.5, 1, 1, 0.01, 0.1, 'reversible_capacity', 'Rev. Cap. Scaling', self.with_slider_titles, self.slider_div_width).render()
+        self.irreversible_capacity_div = SliderWithTextInput(self.id, 0.5, 1, 1, 0.01, 0.1, 'irreversible_capacity', 'Irrev. Cap. Scaling', self.with_slider_titles, self.slider_div_width).render()
 
     def make_text_input(self):
 
@@ -428,7 +429,7 @@ class CathodeMaterialSelector(MaterialSelector2):
                  with_slider_titles: bool = True,
                  weight_default: float = 100,
                  density_default: float = 4,
-                 specific_cost_default: float = 15,
+                 specific_cost_default: float = 11,
                  slider_div_width: str = '220px',
                  name_default=None,
                  **kwargs: dict
@@ -455,8 +456,8 @@ class AnodeMaterialSelector(MaterialSelector2):
                  dropdown_placeholder: str = 'Select Material',
                  with_slider_titles: bool = True,
                  weight_default: float = 100,
-                 density_default: float = 4,
-                 specific_cost_default: float = 15,
+                 density_default: float = 1.5,
+                 specific_cost_default: float = 14,
                  slider_div_width: str = '220px',
                  name_default=None,
                  **kwargs: dict

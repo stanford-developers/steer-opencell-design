@@ -708,7 +708,7 @@ class NotchedCurrentCollector(CurrentCollector):
             y = [self.width, self.width, self.width + self.tab_width, self.width + self.tab_width, self.width]
             y = [yi + y_shift for yi in y]
             y = [-yi for yi in y] if self._anode == True else [yi for yi in y]
-            fig.add_trace(go.Scatter(x=x, y=y, mode='lines', line=dict(width=1, color='black'), fillcolor='grey', fill='toself', name='Tab'))
+            fig.add_trace(go.Scatter(x=x, y=y, mode='lines', line=dict(width=1, color='black'), fillcolor=CURRENT_COLLECTOR_COLOR, fill='toself', name='Tab'))
 
         return fig
 

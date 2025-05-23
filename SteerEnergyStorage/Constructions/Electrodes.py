@@ -170,7 +170,12 @@ class _Electrode:
                                       sum(caf / cad for caf, cad in zip(conductive_aids_fractions, conductive_aids_densities)) + \
                                       sum(bf / bd for bf, bd in zip(binder_fractions, binder_densities))
         
-        self._porosity = 1 - (theoretical_specific_volume * self._calender_density)
+        porosity = 1 - (theoretical_specific_volume * self._calender_density)
+
+        if porosity < 0:
+            raise ValueError("Porosity cannot be negative. Check the mass fractions and densities of the components.")
+
+        self._porosity = porosity
     
     def _calculate_half_cell_curve(self, grid_n: int) -> None:
         """
