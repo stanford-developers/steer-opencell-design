@@ -1,6 +1,6 @@
 import unittest
 import plotly.express as px
-from SteerEnergyStorage.Constructions.Containers import PrismaticCase, PrismaticLid, PrismaticShell, CylindricalCase, CylindricalShell
+from SteerEnergyStorage.Constructions.Containers import PrismaticCase, PrismaticLid, PrismaticShell, CylindricalCanister, CylindricalCase, CylindricalLidAssembly, CylindricalTerminalConnector
 from SteerEnergyStorage.Formulations.ElectrodeFormulations import ElectrodeFormulation
 from SteerEnergyStorage.Constructions.Electrodes import Cathode, Anode
 from SteerEnergyStorage.Materials.other import Terminal
@@ -14,25 +14,24 @@ class TestCylindricalCase(unittest.TestCase):
     def setUp(self):
         
         # build the encapsulation
-        cylindrical_shell = CylindricalShell(cost = 0.04, 
-                                             mass = 3,
-                                             internal_radius=1.1,
-                                             length=11.5,
-                                             wall_thickness=0.3)
+        cylindrical_shell = CylindricalCanister(formula = 'Al', 
+                                                outer_diameter=21.6,
+                                                wall_thickness=0.3,
+                                                length=115)
         
-        # build the terminals
-        pos_terminal = Terminal(mass = 1, specific_cost = 16, thickness=0.4)
-        neg_terminal = Terminal(mass = 1, specific_cost = 16, thickness=0.4)
+        # build the connectors
+        anode_connector = CylindricalTerminalConnector(formula='Al', diameter=10, thickness=1, fill_factor=0.8)
+        cathode_connector = CylindricalTerminalConnector(formula='Al', diameter=10, thickness=1, fill_factor=0.8)
 
-        self.case = CylindricalCase(shell=cylindrical_shell,
-                                    positive_terminal=pos_terminal,
-                                    negative_terminal=neg_terminal)
+        lid = CylindricalLidAssembly(cost=0.1, mass=5, thickness=3)
+
+        self.case = CylindricalCase(canister=cylindrical_shell, lid_assembly=lid, cathode_terminal_collector=cathode_connector, anode_terminal_collector=anode_connector)
         
     def test_attributes(self):
-        self.assertEqual(round(self.case._cost, 4), 0.072)
-        self.assertEqual(self.case.cost, 0.07)
-        self.assertEqual(round(self.case._mass, 4), 0.005)
-        self.assertEqual(self.case.mass, 5)
+        self.assertEqual(round(self.case._cost, 4), 0.1204)
+        self.assertEqual(self.case.cost, 0.12)
+        self.assertEqual(round(self.case._mass, 4), 0.0127)
+        self.assertEqual(self.case.mass, 12.74)
         fig = self.case.get_top_down_view()
         # fig.show()
         fig = self.case.get_side_view()
