@@ -188,33 +188,6 @@ class _Cell:
         
         self._grid_n = grid_n
 
-    def get_capacity_voltage_plot(self, background_color='white', upper_v_limit=None, lower_v_limit=None, **kwargs):
-
-        cathode_curve = self.cathode_half_cell_curve.copy().assign(Electrode='Cathode')
-        anode_curve = self.anode_half_cell_curve.copy().assign(Electrode='Anode') if not self._anode_free else None
-        full_curves = self.full_cell_curve.copy().assign(Electrode='Full Cell')
-
-        data = pd.concat([cathode_curve, anode_curve, full_curves])
-        upper_cap_limit = self.reversible_capacity + self.irreversible_capacity
-        lower_cap_limit = self.irreversible_capacity
-
-        color_map = {'Cathode': 'blue', 'Anode': 'red', 'Full Cell': 'black'}
-
-        figure = px.line(data, x='Capacity (Ah)', y='Voltage (V)', color='Electrode', title='Capacity vs Voltage', line_shape='spline', 
-                         template='presentation', color_discrete_map=color_map, **kwargs)
-        
-        figure.update_traces(line=dict(width=4))
-        figure.add_vline(x=upper_cap_limit, line_color='black', line_width=1)
-        figure.add_vline(x=lower_cap_limit, line_color='black', line_width=1)
-        
-        if upper_v_limit is not None:
-            figure.add_hline(y=upper_v_limit, line_color='black', line_width=1)
-        if lower_v_limit is not None:
-            figure.add_hline(y=lower_v_limit, line_color='black', line_width=1)
-        figure.update_layout(plot_bgcolor=background_color, paper_bgcolor=background_color)
-
-        return figure
-    
     def _add_to_dict(self, dictionary_1: dict, dictionary_2: dict | float | int):
         
         for key, value in dictionary_2.items():
@@ -446,10 +419,10 @@ class _Cell:
 
         data = pd.concat([cost_breakdown, anode_cost_breakdown, cathode_cost_breakdown, electrode_assembly_cost_breakdown])
 
-        figure = px.sunburst(data, path=['level_0', 'level_1', 'level_2'], values='cost', title='Cost Breakdown', color='level_1', color_discrete_map=color_map, **kwargs)
+        figure = px.sunburst(data, path=['level_0', 'level_1', 'level_2'], values='cost', color='level_1', color_discrete_map=color_map, **kwargs)
         figure.update_traces(textinfo='percent parent+label')
         figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
-        figure.update_layout(plot_bgcolor=background_color, paper_bgcolor=background_color)
+        figure.update_layout(plot_bgcolor=background_color, paper_bgcolor=background_color, margin=dict(t=20, l=80, r=80, b=80))
 
         return figure
     
@@ -487,35 +460,13 @@ class _Cell:
 
         data = pd.concat([mass_breakdown, anode_mass_breakdown, cathode_mass_breakdown, electrode_assembly_mass_breakdown])
 
-        figure = px.sunburst(data, path=['level_0', 'level_1', 'level_2'], values='mass', title='Mass Breakdown', color='level_1', color_discrete_map=color_map, **kwargs)
+        figure = px.sunburst(data, path=['level_0', 'level_1', 'level_2'], values='mass', color='level_1', color_discrete_map=color_map, **kwargs)
         figure.update_traces(textinfo='percent parent+label')
         figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
-        figure.update_layout(plot_bgcolor=background_color, paper_bgcolor=background_color)
+        figure.update_layout(plot_bgcolor=background_color, paper_bgcolor=background_color, margin=dict(t=20, l=80, r=80, b=80))
 
         return figure
     
-    def get_mass_breakdown_plot(self, mode: str = 'sunburst', **kwargs):
-
-        if mode.lower() == 'pie':
-            figure = self._get_mass_breakdown_plot_pie(**kwargs)
-        elif mode.lower() == 'sunburst':
-            figure = self._get_mass_breakdown_plot_sunburst(**kwargs)
-        else:
-            raise ValueError("Plot mode not recognized. Please choose between ['pie', 'sunburst']")
-
-        return figure
-    
-    def get_cost_breakdown_plot(self, mode: str = 'sunburst', **kwargs):
-
-        if mode.lower() == 'pie':
-            figure = self._get_cost_breakdown_plot_pie(**kwargs)
-        elif mode.lower() == 'sunburst':
-            figure = self._get_cost_breakdown_plot_sunburst(**kwargs)
-        else:
-            raise ValueError("Plot mode not recognized. Please choose between ['pie', 'sunburst']")
-
-        return figure
-
     def _calculate_mass_breakdown(self):
         
         self._mass_breakdown = {'electrode_assemblies': sum([s._mass for s in self._electrode_assemblies]),
@@ -573,14 +524,80 @@ class _Cell:
         self._energy_density = self._energy / self._volume
         self._normalized_cost = self._cost / self._energy
 
+    def get_capacity_voltage_plot(self, background_color='white', upper_v_limit=None, lower_v_limit=None, n_p_ratio=None, **kwargs):
+
+        cathode_curve = self.cathode_half_cell_curve.copy().assign(Electrode='Cathode')
+        anode_curve = self.anode_half_cell_curve.copy().assign(Electrode='Anode') if not self._anode_free else None
+        full_curves = self.full_cell_curve.copy().assign(Electrode='Full Cell')
+
+        data = pd.concat([cathode_curve, anode_curve, full_curves])
+        upper_cap_limit = self.reversible_capacity + self.irreversible_capacity
+        lower_cap_limit = self.irreversible_capacity
+
+        color_map = {'Cathode': 'blue', 'Anode': 'red', 'Full Cell': 'black'}
+
+        figure = px.line(data, x='Capacity (Ah)', y='Voltage (V)', color='Electrode', title='Capacity vs Voltage', line_shape='spline', template='presentation', color_discrete_map=color_map, **kwargs)
+        
+        y_max = data['Voltage (V)'].max()
+        y_min = data['Voltage (V)'].min()
+        y_range = y_max - y_min
+        y_plot_range = [y_min - y_range * 0.1, y_max + y_range * 0.1]
+
+        if n_p_ratio is not None:
+            n_p_ratio_value = upper_cap_limit * n_p_ratio
+            x_max = data['Capacity (Ah)'].max() if data['Capacity (Ah)'].max() > n_p_ratio_value else n_p_ratio_value
+        else:
+            x_max = data['Capacity (Ah)'].max()
+
+        x_min = data['Capacity (Ah)'].min()
+        x_range = x_max - x_min
+        x_plot_range = [x_min - x_range * 0.1, x_max + x_range * 0.1]
+
+        # add capacity lines
+        figure.add_traces(go.Scatter(x=[upper_cap_limit, upper_cap_limit], y=y_plot_range, mode='lines', line=dict(color='orange', width=2, dash='dash'), name='Upper Capacity Limit'))
+        figure.add_traces(go.Scatter(x=[lower_cap_limit, lower_cap_limit], y=y_plot_range, mode='lines', line=dict(color='royalblue', width=2, dash='dash'), name='Lower Capacity Limit'))
+
+        if upper_v_limit is not None:
+            figure.add_traces(go.Scatter(x=x_plot_range, y=[upper_v_limit, upper_v_limit], mode='lines', line=dict(color='firebrick', width=2, dash='dot'), name='Upper Voltage Limit'))
+        if lower_v_limit is not None:
+            figure.add_traces(go.Scatter(x=x_plot_range, y=[lower_v_limit, lower_v_limit], mode='lines', line=dict(color='seagreen', width=2, dash='dashdot'), name='Lower Voltage Limit'))
+        if n_p_ratio is not None:
+            figure.add_traces(go.Scatter(x=[n_p_ratio_value, n_p_ratio_value], y=y_plot_range, mode='lines', line=dict(color='black', width=2.5, dash='longdash'), name='n/p Ratio'))
+
+        figure.update_layout(
+            plot_bgcolor=background_color, 
+            paper_bgcolor=background_color,
+            legend=dict(title_text='')
+        )
+
+        return figure
+
+    def get_mass_breakdown_plot(self, mode: str = 'sunburst', **kwargs):
+
+        if mode.lower() == 'pie':
+            figure = self._get_mass_breakdown_plot_pie(**kwargs)
+        elif mode.lower() == 'sunburst':
+            figure = self._get_mass_breakdown_plot_sunburst(**kwargs)
+        else:
+            raise ValueError("Plot mode not recognized. Please choose between ['pie', 'sunburst']")
+
+        return figure
+    
+    def get_cost_breakdown_plot(self, mode: str = 'sunburst', **kwargs):
+
+        if mode.lower() == 'pie':
+            figure = self._get_cost_breakdown_plot_pie(**kwargs)
+        elif mode.lower() == 'sunburst':
+            figure = self._get_cost_breakdown_plot_sunburst(**kwargs)
+        else:
+            raise ValueError("Plot mode not recognized. Please choose between ['pie', 'sunburst']")
+
+        return figure
+
     @property
     def electrolyte_overfill(self) -> float:
         return self._electrolyte_overfill * 100
 
-    @property
-    def electrolyte(self) -> Electrolyte:
-        return self._electrolyte
-    
     @property
     def full_cell_curve(self):
 
@@ -1225,3 +1242,4 @@ class CylindricalCell(_JellyRollCell):
         if not hasattr(self, '_diameter'):
             raise AttributeError("Diameter has not been calculated yet")
         return round(self._diameter * M_TO_CM, 2)
+    

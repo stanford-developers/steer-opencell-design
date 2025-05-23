@@ -150,7 +150,6 @@ class TestCylindricalJellyRoll(unittest.TestCase):
                           calender_density=2.60)
 
 
-
         # construct anode
         anode_active_material = AnodeMaterial(name="Faradion_HC",
                                               specific_cost=14.27,
@@ -192,7 +191,7 @@ class TestCylindricalJellyRoll(unittest.TestCase):
         self.cylindrical_jelly_roll = CylindricalJellyRoll(anode=anode, 
                                                            cathode=cathode,
                                                            separator=separator, 
-                                                           internal_die_diameter=5.0,
+                                                           mandrel_diameter=5.0,
                                                            name="cylindrical_jelly_roll")
         
     def test_instantiation(self):
@@ -206,11 +205,11 @@ class TestCylindricalJellyRoll(unittest.TestCase):
         """
         Test cylindrical roll attributes
         """
-        self.assertEqual(round(self.cylindrical_jelly_roll._internal_die_diameter, 4), 0.005)
-        self.assertEqual(self.cylindrical_jelly_roll.internal_die_diameter, 5)
+        self.assertEqual(round(self.cylindrical_jelly_roll._mandrel_diameter, 4), 0.005)
+        self.assertEqual(self.cylindrical_jelly_roll.mandrel_diameter, 5)
         self.assertEqual(round(self.cylindrical_jelly_roll._electrode_thickness, 5), 0.00042)
         self.assertEqual(self.cylindrical_jelly_roll.electrode_thickness, 0.42)
-        self.assertEqual(self.cylindrical_jelly_roll.n_turns, 42.29)
+        self.assertEqual(self.cylindrical_jelly_roll.n_turns, 42.3)
         self.assertEqual(self.cylindrical_jelly_roll.radius, 20.39)
         self.assertEqual(self.cylindrical_jelly_roll.width, 110.0)
 
