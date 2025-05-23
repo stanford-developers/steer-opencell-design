@@ -293,10 +293,12 @@ def update_stack_slider(form_factor, internal_structure):
         [ds.Output({'type': ds.MATCH, 'object': ds.MATCH, 'electrode': ds.MATCH, 'property': ds.MATCH, 'subtype': 'slider'}, 'value'),
          ds.Output({'type': ds.MATCH, 'object': ds.MATCH, 'electrode': ds.MATCH, 'property': ds.MATCH, 'subtype': 'input'}, 'value')],
         [ds.Input({'type': ds.MATCH, 'object': ds.MATCH, 'electrode': ds.MATCH, 'property': ds.MATCH, 'subtype': 'slider'}, 'drag_value'),
-         ds.Input({'type': ds.MATCH, 'object': ds.MATCH, 'electrode': ds.MATCH, 'property': ds.MATCH, 'subtype': 'input'}, 'value')],
+         ds.Input({'type': ds.MATCH, 'object': ds.MATCH, 'electrode': ds.MATCH, 'property': ds.MATCH, 'subtype': 'input'}, 'value'),
+         ds.Input('add_electrode_length', 'n_clicks'),
+         ds.Input('subtract_electrode_length', 'n_clicks')],
          prevent_initial_call=True
 )
-def sync_generic_sliders_with_electrode(slider_val, input_val):
+def sync_generic_sliders_with_electrode(slider_val, input_val, add_len, sub_len):
     """
     Generic function to sync sliders with this ID format
 
@@ -305,8 +307,8 @@ def sync_generic_sliders_with_electrode(slider_val, input_val):
     """
     ctx = ds.callback_context
     triggered_id = ctx.triggered_id
-    component = triggered_id['subtype']
 
+    component = triggered_id['subtype']
     if component == 'slider':
         return slider_val, slider_val
     elif component == 'input':
@@ -1021,7 +1023,7 @@ def update_encapsulation_material_selector_properties_and_sync(material_formula,
     if triggered_id and triggered_id['subtype'] == 'text_input':
         if material_formula is None:
             return 4, 4, 15, 15
-        terminal = CylindricalTerminalCollector(formula=material_formula, diameter=1, thickness=1)
+        terminal = CylindricalTerminalConnector(formula=material_formula, diameter=1, thickness=1)
         return terminal.density, terminal.density, terminal.specific_cost, terminal.specific_cost
     
     elif triggered_id and triggered_id['subtype'] == 'slider':
@@ -1573,3 +1575,11 @@ def make_cell(pickled_electrode_assembly: dict,
     
     return [message], [theoretical_curve_div], [breakdown_div], {'cell': pickled_cell}
     
+
+
+
+
+###################################
+# Temporary Callbacks
+###################################
+

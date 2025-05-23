@@ -14,7 +14,7 @@ class SliderWithTextInput(Component):
                  max_val: float, 
                  default_val: float | list[float], 
                  step: float,
-                 mark_interval,
+                 mark_interval: float,
                  property_name: str,
                  title: str,
                  with_slider_titles: bool = True,
@@ -79,7 +79,88 @@ class SliderWithTextInput(Component):
 
     def render(self):
         return self.div
-    
+
+
+class CheckboxWithSlider(Component):
+
+    def __init__(self,
+                 id: dict,
+                 min_val: float,
+                 max_val: float,
+                 default_check: bool,
+                 default_val: float,
+                 step: float,
+                 mark_interval: float,
+                 property_name: str,
+                 title: str,
+                 with_slider_titles: bool = True,
+                 div_width: str = '30%',
+                 checkbox_label: str = "",
+                 **kwargs: dict
+                 ):
+        super().__init__(**kwargs)
+
+        self.id = id
+        self.min_val = min_val
+        self.max_val = max_val
+        self.default_check = default_check
+        self.default_val = default_val
+        self.step = step
+        self.mark_interval = mark_interval
+        self.property_name = property_name
+        self.with_slider_titles = with_slider_titles
+        self.title = title
+        self.div_width = div_width
+        self.checkbox_label = checkbox_label
+
+        self.make_checkbox()
+        self.slider_div = SliderWithTextInput(
+            self.id, self.min_val, self.max_val, self.default_val,
+            self.step, self.mark_interval, self.property_name,
+            self.title, self.with_slider_titles, self.div_width
+        ).render()
+
+    def make_checkbox(self):
+
+        checkbox_id = self.id.copy()
+        checkbox_id.update({'subtype': 'checkbox', 'property': self.property_name})
+
+        self.checkbox = ds.dcc.Checklist(
+            id=checkbox_id,
+            options=[{'label': self.checkbox_label, 'value': True}],
+            value=[True] if self.default_check else [False],
+            style={
+                'margin': '0 10px 0 0',
+                'display': 'flex',
+                'alignItems': 'center',
+                'height': '40px',
+                'width': '40px'
+            },
+            inputStyle={
+                'marginRight': '6px',
+                'transform': 'scale(2)', 
+                'WebkitTransform': 'scale(2)',  # For Safari support
+            }
+        )
+
+    def make_div(self):
+        self.div = ds.html.Div([
+            self.checkbox,
+            self.slider_div
+        ], style={
+            'display': 'flex',
+            'alignItems': 'center',
+            'flexDirection': 'row',
+            'gap': '0px', 
+            'width': self.div_width,
+            'minHeight': '50px',
+            'marginLeft': '20px'
+        })
+
+    def render(self):
+        self.make_div()
+        return self.div
+
 
 class MaterialSelector0(Component):
 
@@ -392,8 +473,8 @@ class MaterialSelector2(MaterialSelector1):
             **kwargs
         )
 
-        self.reversible_capacity_div = SliderWithTextInput(self.id, 0.5, 1, 1, 0.01, 0.1, 'reversible_capacity', 'Rev. Cap. Scaling', self.with_slider_titles, self.slider_div_width).render()
-        self.irreversible_capacity_div = SliderWithTextInput(self.id, 0.5, 1, 1, 0.01, 0.1, 'irreversible_capacity', 'Irrev. Cap. Scaling', self.with_slider_titles, self.slider_div_width).render()
+        self.reversible_capacity_div = SliderWithTextInput(self.id, 0.5, 1.5, 1, 0.01, 0.1, 'reversible_capacity', 'Rev. Cap. Scaling', self.with_slider_titles, self.slider_div_width).render()
+        self.irreversible_capacity_div = SliderWithTextInput(self.id, 0.5, 1.5, 1, 0.01, 0.1, 'irreversible_capacity', 'Irrev. Cap. Scaling', self.with_slider_titles, self.slider_div_width).render()
 
     def make_text_input(self):
 
