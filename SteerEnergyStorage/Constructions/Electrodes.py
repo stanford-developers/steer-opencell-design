@@ -1,19 +1,12 @@
 from SteerEnergyStorage.Formulations.ElectrodeFormulations import ElectrodeFormulation
 from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector
 
+from SteerEnergyStorage.Constants import *
+
 import pandas as pd
 import numpy as np
 from typing import Dict, Any
 import plotly.express as px
-
-MG_TO_KG = 1e-6
-CM_TO_M = 1e-2
-KG_TO_MG = 1e6
-M_TO_CM = 1e2
-G_TO_KG = 1e-3
-KG_TO_G = 1e3
-M_TO_UM = 1e6
-S_TO_H = 1/3600
 
 
 class _Electrode:

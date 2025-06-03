@@ -20,7 +20,7 @@ class TestCellsSingleAM(unittest.TestCase):
         Set up
         """
         # construct cathode
-        cathode_active_material = CathodeMaterial(name="lfp", specific_cost=14, density=3.6)
+        cathode_active_material = CathodeMaterial(name="LFP", specific_cost=14, density=3.6)
         
         cathode_conductive_additive = ConductiveAdditive(specific_cost=9, density=1.9)
 
@@ -42,7 +42,7 @@ class TestCellsSingleAM(unittest.TestCase):
                           calender_density=2.3)
 
         # construct anode
-        anode_active_material = AnodeMaterial(name="synthetic_graphite", specific_cost=11, density=2.26)
+        anode_active_material = AnodeMaterial(name="Synthetic Graphite", specific_cost=11, density=2.26)
         
         anode_conductive_additive = ConductiveAdditive(specific_cost=9, density=1.9)
 

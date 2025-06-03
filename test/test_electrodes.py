@@ -13,13 +13,13 @@ class TestWithStandardCurrentCollector(unittest.TestCase):
         """
         #### stack 1 ####
         # construct cathode
-        cathode_active_material1 = CathodeMaterial(name="Faradion_Gen2_4.25V", 
+        cathode_active_material1 = CathodeMaterial(name="NaNiMn P2-O3 Composite - 4.25V", 
                                                    specific_cost=11.26, 
                                                    density=4, 
                                                    irreversible_capacity_scaling=1, 
                                                    reversible_capacity_scaling=1)
         
-        cathode_active_material2 = CathodeMaterial(name="faradion_gen2_4.35v", 
+        cathode_active_material2 = CathodeMaterial(name="NaNiMn P2-O3 Composite - 4.35V", 
                                                    specific_cost=15.21, 
                                                    density=4, 
                                                    irreversible_capacity_scaling=1, 
@@ -49,7 +49,7 @@ class TestWithStandardCurrentCollector(unittest.TestCase):
                                calender_density=2.60)
 
         # construct anode
-        anode_active_material = AnodeMaterial(name="Faradion_HC",
+        anode_active_material = AnodeMaterial(name="Hard Carbon (Vendor A - 330 mAh/g)",
                                                specific_cost=14.27,
                                                density=1.50,
                                                irreversible_capacity_scaling=1,
@@ -121,7 +121,7 @@ class TestWithNotched(unittest.TestCase):
         """
         #### stack 1 ####
         # construct cathode
-        cathode_active_material = CathodeMaterial(name="Faradion_Gen2_4.25V", 
+        cathode_active_material = CathodeMaterial(name="NaNiMn P2-O3 Composite - 4.25V", 
                                                    specific_cost=11.26, 
                                                    density=4, 
                                                    irreversible_capacity_scaling=1, 
@@ -150,7 +150,7 @@ class TestWithNotched(unittest.TestCase):
                                calender_density=2.60)
 
         # construct anode
-        anode_active_material = AnodeMaterial(name="Faradion_HC",
+        anode_active_material = AnodeMaterial(name="Hard Carbon (Vendor A - 330 mAh/g)",
                                                specific_cost=14.27,
                                                density=1.50,
                                                irreversible_capacity_scaling=1,
@@ -216,7 +216,7 @@ class TestWithTabWelded(unittest.TestCase):
         """
         #### stack 1 ####
         # construct cathode
-        cathode_active_material = CathodeMaterial(name="Faradion_Gen2_4.25V", 
+        cathode_active_material = CathodeMaterial(name="NaNiMn P2-O3 Composite - 4.25V", 
                                                    specific_cost=11.26, 
                                                    density=4, 
                                                    irreversible_capacity_scaling=1, 
@@ -247,7 +247,7 @@ class TestWithTabWelded(unittest.TestCase):
                                calender_density=2.60)
 
         # construct anode
-        anode_active_material = AnodeMaterial(name="Faradion_HC",
+        anode_active_material = AnodeMaterial(name="Hard Carbon (Vendor A - 330 mAh/g)",
                                                specific_cost=14.27,
                                                density=1.50,
                                                irreversible_capacity_scaling=1,

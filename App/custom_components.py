@@ -189,7 +189,7 @@ class MaterialSelector0(Component):
 
         self.make_text_input()
 
-        self.density_div = SliderWithTextInput(self.id, 0, 10, self.density_default, 0.01, 1, 'density', 'Density (g/cm³)', self.with_slider_titles, self.slider_div_width).render()
+        self.density_div = SliderWithTextInput(self.id, 0, 12, self.density_default, 0.01, 1, 'density', 'Density (g/cm³)', self.with_slider_titles, self.slider_div_width).render()
         self.specific_cost_div = SliderWithTextInput(self.id, 0, 30, self.specific_cost_default, 0.01, 5, 'specific_cost', 'Specific Cost ($/kg)', self.with_slider_titles, self.slider_div_width).render()
 
 
@@ -453,12 +453,16 @@ class MaterialSelector2(MaterialSelector1):
                  formula_default: str,
                  slider_div_width: str,
                  name_default: str,
+                 irreversible_capacity_scaling_default: float = 1,
+                 reversible_capacity_scaling_default: float = 1,
                  **kwargs: dict
                  ):
         
         self.dropdown_placeholder = dropdown_placeholder
         self.materials = materials
         self.name_default = name_default
+        self.irreversible_capacity_scaling_default = irreversible_capacity_scaling_default
+        self.reversible_capacity_scaling_default = reversible_capacity_scaling_default
 
         super().__init__(
             id=id, 
@@ -473,8 +477,8 @@ class MaterialSelector2(MaterialSelector1):
             **kwargs
         )
 
-        self.reversible_capacity_div = SliderWithTextInput(self.id, 0.5, 1.5, 1, 0.01, 0.1, 'reversible_capacity', 'Rev. Cap. Scaling', self.with_slider_titles, self.slider_div_width).render()
-        self.irreversible_capacity_div = SliderWithTextInput(self.id, 0.5, 1.5, 1, 0.01, 0.1, 'irreversible_capacity', 'Irrev. Cap. Scaling', self.with_slider_titles, self.slider_div_width).render()
+        self.reversible_capacity_div = SliderWithTextInput(self.id, 0.5, 1.5, self.reversible_capacity_scaling_default, 0.01, 0.1, 'reversible_capacity', 'Rev. Cap. Scaling', self.with_slider_titles, self.slider_div_width).render()
+        self.irreversible_capacity_div = SliderWithTextInput(self.id, 0.5, 1.5, self.irreversible_capacity_scaling_default, 0.01, 0.1, 'irreversible_capacity', 'Irrev. Cap. Scaling', self.with_slider_titles, self.slider_div_width).render()
 
     def make_text_input(self):
 
@@ -485,7 +489,7 @@ class MaterialSelector2(MaterialSelector1):
             id=dropdown_id,
             options=[{'label': material, 'value': material} for material in self.materials] if self.materials else [],
             placeholder=self.dropdown_placeholder,
-            style={'width': '300px', 'margin-right': '40px'},
+            style={'width': '380px', 'margin-right': '40px'},
             value=self.name_default
         )
 
@@ -509,10 +513,12 @@ class CathodeMaterialSelector(MaterialSelector2):
                  dropdown_placeholder: str = 'Select Material',
                  with_slider_titles: bool = True,
                  weight_default: float = 100,
-                 density_default: float = 4,
+                 density_default: float = 4.4,
                  specific_cost_default: float = 11,
                  slider_div_width: str = '220px',
                  name_default=None,
+                 irreversible_capacity_scaling_default: float = 1,
+                 reversible_capacity_scaling_default: float = 1,
                  **kwargs: dict
                  ):
         
@@ -526,7 +532,15 @@ class CathodeMaterialSelector(MaterialSelector2):
                          formula_default=None,
                          slider_div_width=slider_div_width, 
                          name_default=name_default,
+                         irreversible_capacity_scaling_default=irreversible_capacity_scaling_default,
+                         reversible_capacity_scaling_default=reversible_capacity_scaling_default,
                          **kwargs)
+        
+        dens_cost_slider_id = self.id.copy() 
+        dens_cost_slider_id['logic'] = 'match'
+
+        self.density_div = SliderWithTextInput(dens_cost_slider_id, 0, 12, self.density_default, 0.01, 1, 'density', 'Density (g/cm³)', self.with_slider_titles, self.slider_div_width).render()
+        self.specific_cost_div = SliderWithTextInput(dens_cost_slider_id, 0, 500, self.specific_cost_default, 0.01, 50, 'specific_cost', 'Specific Cost ($/kg)', self.with_slider_titles, self.slider_div_width).render()
 
     
 class AnodeMaterialSelector(MaterialSelector2):
@@ -538,9 +552,11 @@ class AnodeMaterialSelector(MaterialSelector2):
                  with_slider_titles: bool = True,
                  weight_default: float = 100,
                  density_default: float = 1.5,
-                 specific_cost_default: float = 14,
+                 specific_cost_default: float = 7,
                  slider_div_width: str = '220px',
                  name_default=None,
+                 irreversible_capacity_scaling_default: float = 1,
+                 reversible_capacity_scaling_default: float = 1,
                  **kwargs: dict
                  ):
         
@@ -554,5 +570,14 @@ class AnodeMaterialSelector(MaterialSelector2):
                          formula_default=None,
                          slider_div_width=slider_div_width, 
                          name_default=name_default,
+                         irreversible_capacity_scaling_default=irreversible_capacity_scaling_default,
+                         reversible_capacity_scaling_default=reversible_capacity_scaling_default,
                          **kwargs)
+        
+        dens_cost_slider_id = self.id.copy() 
+        dens_cost_slider_id['logic'] = 'match'
+        
+        self.density_div = SliderWithTextInput(dens_cost_slider_id, 0, 12, self.density_default, 0.01, 1, 'density', 'Density (g/cm³)', self.with_slider_titles, self.slider_div_width).render()
+        self.specific_cost_div = SliderWithTextInput(dens_cost_slider_id, 0, 500, self.specific_cost_default, 0.01, 50, 'specific_cost', 'Specific Cost ($/kg)', self.with_slider_titles, self.slider_div_width).render()
+
 

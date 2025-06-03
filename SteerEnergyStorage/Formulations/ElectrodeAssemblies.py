@@ -1,8 +1,9 @@
 from SteerEnergyStorage.Constructions.Electrodes import Anode, Cathode
 from SteerEnergyStorage.Materials.Separators import Separator
 from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector, TabWeldedCurrentCollector, NotchedCurrentCollector
-from SteerEnergyStorage.Formulations.ElectrodeFormulations import ElectrodeFormulation
+
 from App.styles import *
+from SteerEnergyStorage.Constants import *
 
 from copy import deepcopy
 from copy import copy
@@ -11,20 +12,8 @@ import numpy as np
 from shapely.geometry import Polygon
 from shapely import minimum_bounding_circle
 import warnings
-import plotly.express as px
 import plotly.graph_objects as go
 
-KG_TO_G = 1e3
-M_TO_CM = 1e2
-CM_TO_M = 1e-2
-M_TO_MM = 1e3
-A_TO_mA = 1e3
-mA_TO_A = 1e-3
-S_TO_H = 1/3600
-H_TO_S = 3600
-MM_TO_M = 1e-3
-PI = 3.14159265359
-DEG_TO_RAD = 0.017453292519943295
 
 
 class _ElectrodeAssembly():
