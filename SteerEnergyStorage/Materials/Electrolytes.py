@@ -1,10 +1,4 @@
-from SteerEnergyStorage.Materials.Salts import Salt
-from SteerEnergyStorage.Materials.Solvents import Solvent
-
-G_TO_KG = 0.001
-CM_TO_M = 0.01
-KG_TO_G = 1000
-M_TO_CM = 100
+from SteerEnergyStorage.Constants import *
 
 
 class Electrolyte:

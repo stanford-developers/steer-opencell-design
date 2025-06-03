@@ -1,9 +1,11 @@
 from SteerEnergyStorage.Materials.ElectrodeMaterials import _ActiveMaterial, Binder, ConductiveAdditive
+
 from SteerEnergyStorage.Utils import get_colorway
+from SteerEnergyStorage.Constants import *
+
 from typing import Dict, Optional
 
-KG_TO_G = 1000
-M_TO_CM = 1e2
+
 
 class ElectrodeFormulation:
     
@@ -20,14 +22,72 @@ class ElectrodeFormulation:
         :param conductive_additives: Dictionary containing the conductive additives and their mass fractions in percent.
         :param name: Name of the electrode formulation.
         """
-        self._active_materials = {key: value / 100 for key, value in active_materials.items()}
-        self._binders = {key: value / 100 for key, value in (binders or {}).items()}
-        self._conductive_additives = {key: value / 100 for key, value in (conductive_additives or {}).items()}
-        self._name = name.replace(" ", "_").lower()
-        self._validate_formulation()
+        self._check_active_materials(active_materials)
+        self._check_binders(binders)
+        self._check_conductive_additives(conductive_additives)
+        self._check_name(name)
+        self._check_formulation()
         self._get_color_map()
         self._calculate_density()
         self._calculate_specific_cost()
+
+    def _check_active_materials(self, active_materials) -> None:
+
+        for key, value in active_materials.items():
+
+            if not isinstance(key, _ActiveMaterial):
+                raise TypeError(f"Expected an instance of _ActiveMaterial, got {type(key)}.")
+            if not isinstance(value, (int, float)):
+                raise TypeError(f"Expected a numeric value for mass fraction, got {type(value)}.")
+            if value < 0 or value > 100:
+                raise ValueError(f"Mass fraction for {key.name} must be between 0 and 100, got {value}.")
+
+        self._active_materials = {key: value / 100 for key, value in active_materials.items()}
+
+    def _check_binders(self, binders) -> None:
+        
+        if binders == None or binders == {}:
+            return {}
+        
+        for key, value in binders.items():
+            if not isinstance(key, Binder):
+                raise TypeError(f"Expected an instance of Binder, got {type(key)}.")
+            if not isinstance(value, (int, float)):
+                raise TypeError(f"Expected a numeric value for mass fraction, got {type(value)}.")
+            if value < 0 or value > 100:
+                raise ValueError(f"Mass fraction for {key.name} must be between 0 and 100, got {value}.")
+        
+        self._binders = {key: value / 100 for key, value in binders.items()}
+
+    def _check_conductive_additives(self, conductive_additives) -> None:
+
+        if conductive_additives is None or conductive_additives == {}:
+            return {}
+
+        for key, value in conductive_additives.items():
+            if not isinstance(key, ConductiveAdditive):
+                raise TypeError(f"Expected an instance of ConductiveAdditive, got {type(key)}.")
+            if not isinstance(value, (int, float)):
+                raise TypeError(f"Expected a numeric value for mass fraction, got {type(value)}.")
+            if value < 0 or value > 100:
+                raise ValueError(f"Mass fraction for {key.name} must be between 0 and 100, got {value}.")
+        
+        self._conductive_additives = {key: value / 100 for key, value in conductive_additives.items()}
+
+    def _check_name(self, name: str) -> None:
+
+        """
+        Validate the name of the electrode formulation.
+        
+        :param name: Name of the electrode formulation.
+        :raises ValueError: If the name is not a string or is empty.
+        """
+        if not isinstance(name, str):
+            raise TypeError(f"Expected a string for name, got {type(name)}.")
+        if not name.strip():
+            raise ValueError("Name cannot be an empty string.")
+        
+        self._name = name.replace(" ", "_").lower()
 
     def _calculate_density(self) -> float:
         """
@@ -104,7 +164,7 @@ class ElectrodeFormulation:
             color_dict = {key.name: value for key, value in zip(components.keys(), colors)}
             self._color_map.update(color_dict)
 
-    def _validate_formulation(self) -> None:
+    def _check_formulation(self) -> None:
         """
         Validate the electrode formulation to ensure it meets the required criteria.
         """
@@ -116,11 +176,11 @@ class ElectrodeFormulation:
             if not (0.999 <= total_fraction <= 1.001):
                 raise ValueError(f"Your weight fractions sum to {round(total_fraction * 100, 1)} %. Ensure they sum to 100 %.")
 
-        self._validate_unique_names(self._active_materials, "active materials")
-        self._validate_unique_names(self._binders, "binders")
-        self._validate_unique_names(self._conductive_additives, "conductive additives")
+        self._check_unique_names(self._active_materials, "active materials")
+        self._check_unique_names(self._binders, "binders")
+        self._check_unique_names(self._conductive_additives, "conductive additives")
 
-    def _validate_unique_names(self, components: Dict, component_type: str) -> None:
+    def _check_unique_names(self, components: Dict, component_type: str) -> None:
         """
         Validate that the components have unique names.
         

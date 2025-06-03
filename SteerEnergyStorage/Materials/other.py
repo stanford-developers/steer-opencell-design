@@ -1,13 +1,4 @@
-UM_TO_M = 1e-6
-M_TO_UM = 1e6
-MG_TO_KG = 1e-6
-KG_TO_MG = 1e6
-CM_TO_M = 1e-2
-M_TO_CM = 1e2
-G_TO_KG = 1e-3
-KG_TO_G = 1e3
-MM_TO_M = 1e-3
-M_TO_MM = 1e3
+from SteerEnergyStorage.Constants import *
 
 
 class Laminate():
@@ -180,4 +171,4 @@ class Tape():
         
     def __repr__(self):
         return self.__str__()
-    
+
