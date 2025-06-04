@@ -12,66 +12,38 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         self.material = CurrentCollectorMaterial.from_database("Copper")
 
         self.current_collector = PunchedCurrentCollector(material=self.material,
-                                                         x_body_length=160,
-                                                         y_body_length=108,
+                                                         width=160,
+                                                         height=108,
                                                          thickness=8,
                                                          tab_width=20,
                                                          tab_height=10,
                                                          tab_position=20,
-                                                         coated_tab_height_a_side=2,
-                                                         coated_tab_height_b_side=1)
+                                                         coated_tab_height=2)
 
     def test_current_collector(self):
         """
         Test instantiation
         """
-        # self.assertIsInstance(self.current_collector, CurrentCollector)
-        # self.assertEqual(self.current_collector.formula, "Al")
-        # self.assertEqual(self.current_collector.thickness, 15)``
-        # self.assertEqual(self.current_collector.length, 160)
-        # self.assertEqual(self.current_collector.width, 108)
-        # self.assertEqual(self.current_collector.bare_area, 822)
-        # self.assertEqual(round(self.current_collector._thickness, 6), 0.000015)
-        # self.assertEqual(round(self.current_collector._length, 6), 0.16)
-        # self.assertEqual(round(self.current_collector._width, 6), 0.108)
-        # self.assertEqual(round(self.current_collector._bare_area, 6), 0.000822)
-        
+        self.assertIsInstance(self.current_collector, PunchedCurrentCollector)
+        self.assertEqual(self.current_collector.width, 160)
+        self.assertEqual(self.current_collector.height, 108)
+        self.assertEqual(self.current_collector.thickness, 8)
+        self.assertEqual(self.current_collector.tab_width, 20)
+        self.assertEqual(self.current_collector.tab_height, 10)
+        self.assertEqual(self.current_collector.tab_position, 20)
+        self.assertEqual(self.current_collector.coated_tab_height, 2)
+        self.assertEqual(round(self.current_collector._thickness, 6), 0.000008)
+        self.assertEqual(round(self.current_collector._tab_width, 6), 0.02)
+        self.assertEqual(round(self.current_collector._tab_height, 6), 0.01)
+        self.assertEqual(round(self.current_collector._tab_position, 6), 0.02)
+        self.assertEqual(round(self.current_collector._coated_tab_height, 6), 0.002)
+
+    def test_figures(self):
         fig_a = self.current_collector.get_a_side_view()
-        fig_b = self.current_collector.get_b_side_view()
-        
-        fig_a.show()
-        fig_b.show()
+        # fig_a.show()
 
 
-# class TestCurrentCollector(unittest.TestCase):
 
-#     def setUp(self):
-#         """
-#         Set up
-#         """
-#         self.current_collector = CurrentCollector(formula="Al", 
-#                                                      thickness=15, 
-#                                                      length=160,
-#                                                      width=108,
-#                                                      bare_area=822)
-
-#     def test_current_collector(self):
-#         """
-#         Test instantiation
-#         """
-#         self.assertIsInstance(self.current_collector, CurrentCollector)
-#         self.assertEqual(self.current_collector.formula, "Al")
-#         self.assertEqual(self.current_collector.thickness, 15)
-#         self.assertEqual(self.current_collector.length, 160)
-#         self.assertEqual(self.current_collector.width, 108)
-#         self.assertEqual(self.current_collector.bare_area, 822)
-#         self.assertEqual(round(self.current_collector._thickness, 6), 0.000015)
-#         self.assertEqual(round(self.current_collector._length, 6), 0.16)
-#         self.assertEqual(round(self.current_collector._width, 6), 0.108)
-#         self.assertEqual(round(self.current_collector._bare_area, 6), 0.000822)
-        
-#         fig = self.current_collector.get_top_down_view()
-#         # fig.show()
 
 
 # class TestNotchedCurrentCollector(unittest.TestCase):
