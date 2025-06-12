@@ -6,6 +6,7 @@ from SteerEnergyStorage.DataManager import DataManager
 from pathlib import Path
 from copy import deepcopy
 
+
 class RawMaterial:
 
     def __init__(self, 
@@ -134,9 +135,9 @@ class CurrentCollectorMaterial(RawMaterial):
     @staticmethod
     def from_database(name) -> 'CurrentCollectorMaterial':
         """
-        Creates an instance from a dictionary representation.
+        Pull object from the database.
         
-        :param data: dict: Dictionary containing the material properties.
+        :param name: str: Name of the current collector material.
         :return: CurrentCollectorMaterial: Instance of the class.
         """
         database = DataManager((Path(__file__).parent / '../../Data/database.db').resolve())
@@ -153,4 +154,67 @@ class CurrentCollectorMaterial(RawMaterial):
         material = deepcopy(loads(data['object'].iloc[0]))
 
         return material
+    
+    @staticmethod
+    def get_available_materials() -> list:
+        """
+        Get a list of available current collector materials from the database.
+        
+        :return: list: List of available current collector materials.
+        """
+        database = DataManager((Path(__file__).parent / '../../Data/database.db').resolve())
+        return database.get_unique_values('current_collector_materials', 'name')
 
+
+class InsulationMaterial(RawMaterial):
+    """
+    Materials from which insulation is made.
+    """
+    def __init__(self,
+                 name: str,
+                 density: float,
+                 specific_cost: float,
+                 color: str):
+        """
+        Insulation material for encapsulation of the cell
+        
+        :param density: float: density of the material in g/cm^3
+        :param specific_cost: float: specific cost of the material $/kg
+        :param name: str: name of the material
+        :param color: str: color of the material
+        """
+        super().__init__(name, density, specific_cost, color)
+
+    @staticmethod
+    def from_database(name) -> 'InsulationMaterial':
+        """
+        Pull object from the database.
+
+        :param name: str: Name of the insulation material.
+        :return: InsulationMaterial: Instance of the class.
+        """
+        database = DataManager((Path(__file__).parent / '../../Data/database.db').resolve())
+        available_materials = database.get_unique_values('insulation_materials', 'name')
+
+        if name not in available_materials:
+            raise ValueError(f"Material '{name}' not found in the database. Available materials: {available_materials}")
+        
+        data = (database
+                .get_data(table_name='insulation_materials')
+                .query(f"name == '{name}'")
+                )
+        
+        material = deepcopy(loads(data['object'].iloc[0]))
+
+        return material
+    
+    @staticmethod
+    def get_available_materials() -> list:
+        """
+        Get a list of available insulation materials from the database.
+        
+        :return: list: List of available insulation materials.
+        """
+        database = DataManager((Path(__file__).parent / '../../Data/database.db').resolve())
+        return database.get_unique_values('insulation_materials', 'name')
+    
