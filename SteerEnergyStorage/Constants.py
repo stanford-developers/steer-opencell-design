@@ -16,6 +16,8 @@ MG_TO_KG = 1e-6
 KG_TO_MG = 1e6
 M_TO_UM = 1e6
 UM_TO_M = 1e-6
+MM_TO_CM = 1e-1
+CM_TO_MM = 1e1
 
 # Current units
 A_TO_mA = 1e3
