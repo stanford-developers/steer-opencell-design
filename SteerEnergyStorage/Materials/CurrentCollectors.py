@@ -1,6 +1,7 @@
 from SteerEnergyStorage.Materials.RawMaterials import CurrentCollectorMaterial
 
 from SteerEnergyStorage.Utils import get_area_from_trace
+from SteerEnergyStorage.Utils import build_square_df
 from SteerEnergyStorage.Constants import *
 from App.styles import *
 
@@ -9,7 +10,6 @@ from typing import Tuple, Optional, Iterable
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
-import numpy as np
 from copy import deepcopy
 
 
@@ -44,7 +44,7 @@ class _CurrentCollector(ABC):
         self._am_fill_pattern = dict(shape='/', size=20, solidity=0.6, fgcolor=self._material._color)
         self._in_fill_pattern = dict(shape='\\', size=10, solidity=0.6, fgcolor=self._material._color)
 
-    def _check_datum(self, datum: Optional[Tuple[float, float]]):
+    def _check_datum(self, datum: Optional[Tuple[float, float]]) -> None:
         """
         Check if the datum is a tuple of two floats.
         If not, set it to (0, 0).
@@ -57,7 +57,7 @@ class _CurrentCollector(ABC):
         
         self._datum = (float(datum[0]) * MM_TO_M, float(datum[1]) * MM_TO_M)
 
-    def _calculate_properties(self):
+    def _calculate_properties(self) -> None:
         """
         Calculate the properties of the punched current collector.
         """
@@ -75,14 +75,14 @@ class _CurrentCollector(ABC):
         self._mass = self._volume * self._material._density
         self._cost = self._mass * self._material._specific_cost     
 
-    def _check_material(self, material: CurrentCollectorMaterial):
+    def _check_material(self, material: CurrentCollectorMaterial) -> None:
 
         if not isinstance(material, CurrentCollectorMaterial):
             raise TypeError("Material must be an instance of CurrentCollectorMaterial.")
         
         self._material = material
 
-    def _check_x_body_length(self, x_body_length: float):
+    def _check_x_body_length(self, x_body_length: float) -> None:
 
         if not isinstance(x_body_length, (int, float)):
             raise TypeError("Length must be a number.")
@@ -92,7 +92,7 @@ class _CurrentCollector(ABC):
         
         self._x_body_length = float(x_body_length) * MM_TO_M
 
-    def _check_y_body_length(self, y_body_length: float):
+    def _check_y_body_length(self, y_body_length: float) -> None:
 
         if not isinstance(y_body_length, (int, float)):
             raise TypeError("Width must be a number.")
@@ -102,7 +102,7 @@ class _CurrentCollector(ABC):
         
         self._y_body_length = float(y_body_length) * MM_TO_M
 
-    def _check_thickness(self, thickness: float):
+    def _check_thickness(self, thickness: float) -> None:
 
         if not isinstance(thickness, (int, float)):
             raise TypeError("Thickness must be a number.")
@@ -112,7 +112,7 @@ class _CurrentCollector(ABC):
         
         self._thickness = float(thickness) * UM_TO_M
 
-    def _check_insulation_width(self, insulation_width: Optional[float]):
+    def _check_insulation_width(self, insulation_width: Optional[float]) -> None:
 
         if not isinstance(insulation_width, (int, float)):
             raise TypeError("Insulation width must be a number.")
@@ -121,35 +121,15 @@ class _CurrentCollector(ABC):
         
         self._insulation_width = float(insulation_width) * MM_TO_M
 
-    def _get_square_footprint(self, 
-                              start_position: Tuple[float, float], 
-                              x_length: float, 
-                              y_length: float
-                              ) -> pd.DataFrame:
-
-        x_coords = [start_position[0],
-                    start_position[0],
-                    start_position[0] + x_length,
-                    start_position[0] + x_length,
-                    start_position[0]]
-        
-        y_coords = [start_position[1],
-                    start_position[1] + y_length,
-                    start_position[1] + y_length,
-                    start_position[1],
-                    start_position[1]]
-        
-        return pd.DataFrame({'x': x_coords, 'y': y_coords})
-
     @abstractmethod
-    def get_a_side_view(self, paper_bgcolor='white', plot_bgcolor='white', **kwargs):
+    def get_a_side_view(self, paper_bgcolor='white', plot_bgcolor='white', **kwargs) -> go.Figure:
         """
         Visualize the current collector.
         """
         pass
 
     @abstractmethod
-    def get_b_side_view(self, paper_bgcolor='white', plot_bgcolor='white', **kwargs):
+    def get_b_side_view(self, paper_bgcolor='white', plot_bgcolor='white', **kwargs) -> go.Figure:
         """
         Visualize the current collector from the B side.
         """
@@ -243,16 +223,18 @@ class _CurrentCollector(ABC):
 
 class _TabbedCurrentCollector(_CurrentCollector):
 
-    def __init__(self,
-                 material: CurrentCollectorMaterial,
-                 x_body_length: float,
-                 y_body_length: float,
-                 tab_width: float,
-                 tab_height: float,
-                 coated_tab_height: float,
-                 thickness: float,
-                 insulation_width: Optional[float] = 0,
-                 **kwargs):
+    def __init__(
+            self,
+            material: CurrentCollectorMaterial,
+            x_body_length: float,
+            y_body_length: float,
+            tab_width: float,
+            tab_height: float,
+            coated_tab_height: float,
+            thickness: float,
+            insulation_width: Optional[float] = 0,
+            **kwargs
+        ):
         """
         Initialize an object that represents a tabbed current collector.
         
@@ -278,7 +260,7 @@ class _TabbedCurrentCollector(_CurrentCollector):
 
         self._total_height = self._y_body_length + self._tab_height
         
-    def _check_tab_width(self, tab_width: float):
+    def _check_tab_width(self, tab_width: float) -> None:
 
         if not isinstance(tab_width, (int, float)):
             raise TypeError("Tab width must be a number.")
@@ -291,7 +273,7 @@ class _TabbedCurrentCollector(_CurrentCollector):
         if self._tab_width > self._x_body_length:
             raise ValueError("Tab width cannot be greater than the length of the current collector.")
 
-    def _check_tab_height(self, tab_height: float):
+    def _check_tab_height(self, tab_height: float) -> None:
 
         if not isinstance(tab_height, (int, float)):
             raise TypeError("Tab height must be a number.")
@@ -301,7 +283,7 @@ class _TabbedCurrentCollector(_CurrentCollector):
         
         self._tab_height = float(tab_height) * MM_TO_M
 
-    def _check_coated_tab_height(self, coated_tab_height: float):
+    def _check_coated_tab_height(self, coated_tab_height: float) -> None:
 
         if not isinstance(coated_tab_height, (int, float)):
             raise TypeError("Covered tab height on the top side must be a number.")
@@ -333,16 +315,17 @@ class _TabbedCurrentCollector(_CurrentCollector):
 
 class _TapeCurrentCollector(_CurrentCollector):
 
-    def __init__(self,
-                 material: CurrentCollectorMaterial,
-                 x_body_length: float,
-                 y_body_length: float,
-                 thickness: float,
-                 bare_lengths_a_side: Tuple[float, float] = (0,0),
-                 bare_lengths_b_side: Tuple[float, float] = (0,0),
-                 insulation_width: Optional[float] = 0,
-                 **kwargs
-                 ):
+    def __init__(
+            self,
+            material: CurrentCollectorMaterial,
+            x_body_length: float,
+            y_body_length: float,
+            thickness: float,
+            bare_lengths_a_side: Tuple[float, float] = (0,0),
+            bare_lengths_b_side: Tuple[float, float] = (0,0),
+            insulation_width: Optional[float] = 0,
+            **kwargs
+        ) -> None:
         
         super().__init__(material=material,
                          x_body_length=x_body_length,
@@ -353,7 +336,7 @@ class _TapeCurrentCollector(_CurrentCollector):
         self._check_bare_lengths_a_side(bare_lengths_a_side)
         self._check_bare_lengths_b_side(bare_lengths_b_side)
 
-    def _check_bare_lengths_a_side(self, bare_lengths_a_side: Tuple[float, float]):
+    def _check_bare_lengths_a_side(self, bare_lengths_a_side: Tuple[float, float]) -> None:
 
         if not isinstance(bare_lengths_a_side, tuple) or len(bare_lengths_a_side) != 2:
             raise TypeError("Bare lengths on A side must be a tuple of two floats.")
@@ -369,7 +352,7 @@ class _TapeCurrentCollector(_CurrentCollector):
         if self._x_body_length < sum(self._bare_lengths_a_side):
             raise ValueError("Total bare lengths on A side cannot be greater than the length of the current collector.")
 
-    def _check_bare_lengths_b_side(self, bare_lengths_b_side: Tuple[float, float]):
+    def _check_bare_lengths_b_side(self, bare_lengths_b_side: Tuple[float, float]) -> None:
 
         if not isinstance(bare_lengths_b_side, tuple) or len(bare_lengths_b_side) != 2:
             raise TypeError("Bare lengths on B side must be a tuple of two floats.")
@@ -408,10 +391,7 @@ class _TapeCurrentCollector(_CurrentCollector):
 
         return fig
 
-    def _add_height_dimension(self, 
-                              fig: go.Figure, 
-                              pad: float = 0.05
-                              ) -> go.Figure:
+    def _add_height_dimension(self, fig: go.Figure, pad: float = 0.05) -> go.Figure:
 
         # Height line
         x = self._datum[0] - self._x_body_length / 2 - pad * self._y_body_length
@@ -424,12 +404,13 @@ class _TapeCurrentCollector(_CurrentCollector):
 
         return fig
 
-    def _get_view(self, 
-                  aspect_ratio: float = 3, 
-                  side: str = 'a',
-                  with_dimensions: bool = True, 
-                  **kwargs
-                  ):
+    def _get_view(
+            self, 
+            aspect_ratio: float = 3, 
+            side: str = 'a',
+            with_dimensions: bool = True, 
+            **kwargs
+        ) -> go.Figure:
         """
         Visualize the notched current collector.
         If the collector is long, split into two subplots for left and right ends with split indicators.
@@ -508,7 +489,12 @@ class _TapeCurrentCollector(_CurrentCollector):
 
         return figure
 
-    def _get_full_view(self, side: str = 'a', with_dimensions: bool = True, aspect_ratio: float = 3) -> go.Figure:
+    def _get_full_view(
+            self, 
+            side: str = 'a', 
+            with_dimensions: bool = True, 
+            aspect_ratio: float = 3
+        ) -> go.Figure:
         """
         Visualize the notched current collector from the A side.
         """
@@ -530,10 +516,10 @@ class _TapeCurrentCollector(_CurrentCollector):
 
         return fig
 
-    def get_a_side_view(self, **kwargs):
+    def get_a_side_view(self, **kwargs) -> go.Figure:
         return self._get_view(side='a', **kwargs)
     
-    def get_b_side_view(self, **kwargs):
+    def get_b_side_view(self, **kwargs) -> go.Figure:
         return self._get_view(side='b', **kwargs)
 
     @property
@@ -555,17 +541,18 @@ class _TapeCurrentCollector(_CurrentCollector):
         
 class PunchedCurrentCollector(_TabbedCurrentCollector):
 
-    def __init__(self, 
-                 material: CurrentCollectorMaterial,
-                 width: float,
-                 height: float,
-                 thickness: float,
-                 tab_width: float,
-                 tab_height: float,
-                 tab_position: float,
-                 coated_tab_height: float = 0,
-                 insulation_width: Optional[float] = 0,
-                 ):
+    def __init__(
+            self, 
+            material: CurrentCollectorMaterial,
+            width: float,
+            height: float,
+            thickness: float,
+            tab_width: float,
+            tab_height: float,
+            tab_position: float,
+            coated_tab_height: float = 0,
+            insulation_width: Optional[float] = 0,
+        ) -> None:
         """
         Initialize an object that represents a punched current collector.
         
@@ -591,7 +578,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         self._check_tab_position(tab_position)
         self._calculate_properties()
 
-    def _check_tab_position(self, tab_position: float):
+    def _check_tab_position(self, tab_position: float) -> None:
 
         if not isinstance(tab_position, (int, float)):
             raise TypeError("Tab position must be a number.")
@@ -604,11 +591,12 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         if self._tab_position + self._tab_width / 2 > self.x_body_length:
             raise ValueError("Tab position plus half the tab width cannot be greater than the length of the current collector.")
 
-    def _get_footprint(self, 
-                       notch_height: float = None, 
-                       y_depth: float = None,
-                       y_start: float = 0,
-                       ) -> pd.DataFrame:
+    def _get_footprint(
+            self, 
+            notch_height: float = None, 
+            y_depth: float = None,
+            y_start: float = 0,
+        ) -> pd.DataFrame:
         """
         Get the footprint of the current collector.
 
@@ -759,30 +747,24 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
         # Case 1: Insulation strip is above the body
         if _y_insulation_start > self._datum[1] + self._y_body_length/2:
+            x = self._datum[0] - self._x_body_length/2 + self._tab_position - self._tab_width/2 
+            y = _y_insulation_start
             
-            start_position = (
-                self._datum[0] - self._x_body_length/2 + self._tab_position - self._tab_width/2, 
-                _y_insulation_start
-                )
-            
-            insulation_area = self._get_square_footprint(
-                x_length=self._tab_width,
-                y_length=self._insulation_width,
-                start_position=start_position
+            insulation_area = build_square_df(
+                x_width=self._tab_width,
+                y_width=self._insulation_width,
+                x = x,
+                y = y
             )
 
         # Case 2: Entire insulation below body
         elif round(_y_insulation_end, 10) <= round(self._datum[1] + self._y_body_length/2, 10):
-            
-            start_position = (
-                self._datum[0] - self._x_body_length/2, 
-                _y_insulation_start
-                )
-            
-            insulation_area = self._get_square_footprint(
-                x_length=self._x_body_length,
-                y_length=self._insulation_width,
-                start_position=start_position
+
+            insulation_area = build_square_df(
+                x_width=self._x_body_length,
+                y_width=self._insulation_width,
+                x = self._datum[0] - self._x_body_length/2,
+                y = _y_insulation_start
             )
 
         # Case 3: Straddling the body
@@ -812,14 +794,14 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
         return trace, area
 
-    def _get_a_side_insulation_area_trace(self):
+    def _get_a_side_insulation_area_trace(self) -> go.Scatter:
         """
         Returns a Plotly Scatter trace representing the insulation area on the B side.
         The B side is the same as the A side in this case.
         """
         return self._get_insulation_area_trace()
     
-    def _get_b_side_insulation_area_trace(self):
+    def _get_b_side_insulation_area_trace(self) -> go.Scatter:
         """
         Returns a Plotly Scatter trace representing the insulation area on the B side.
         The B side is the same as the A side in this case.
@@ -880,19 +862,20 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
 class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
-    def __init__(self, 
-                 material: CurrentCollectorMaterial,
-                 length: float,
-                 width: float,
-                 thickness: float,
-                 tab_width: float,
-                 tab_spacing: float,
-                 tab_height: float,
-                 coated_tab_height: float = 0,
-                 bare_lengths_a_side: Tuple[float, float] = (0,0),
-                 bare_lengths_b_side: Tuple[float, float] = (0,0),
-                 insulation_width: Optional[float] = 0,
-                 ):
+    def __init__(
+            self, 
+            material: CurrentCollectorMaterial,
+            length: float,
+            width: float,
+            thickness: float,
+            tab_width: float,
+            tab_spacing: float,
+            tab_height: float,
+            coated_tab_height: float = 0,
+            bare_lengths_a_side: Tuple[float, float] = (0,0),
+            bare_lengths_b_side: Tuple[float, float] = (0,0),
+            insulation_width: Optional[float] = 0,
+        ) -> None:
         """
         Initialize an object that represents a notched current collector.
         
@@ -922,7 +905,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         self._calculate_tab_positions()
         self._calculate_properties()
 
-    def _check_tab_spacing(self, tab_spacing: float):
+    def _check_tab_spacing(self, tab_spacing: float) -> None:
 
         if not isinstance(tab_spacing, (int, float)):
             raise TypeError("Tab spacing must be a number.")
@@ -936,7 +919,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         if self._tab_gap < 0:
             raise ValueError("Tab spacing cannot be less than the tab width.")
         
-    def _calculate_tab_positions(self):
+    def _calculate_tab_positions(self) -> None:
         """
         Function to calculate the positions of the tabs along the length of the current collector.
         """
@@ -996,8 +979,8 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         bare_left, bare_right = (b for b in bare_lengths)
 
         # x bounds
-        default_x0 = -self._x_body_length / 2 + bare_left
-        default_x1 = +self._x_body_length / 2 - bare_right
+        default_x0 = self._datum[0] - self._x_body_length / 2 + bare_left
+        default_x1 = self._datum[0] + self._x_body_length / 2 - bare_right
         x0 = default_x0 if x_start is None else x_start
         x1 = default_x1 if x_end is None else x_end
 
@@ -1138,86 +1121,75 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         return self._get_coated_area_trace(bare_lengths=self._bare_lengths_b_side)
 
     def _get_insulation_area_trace(self, side: str = 'a') -> Tuple[go.Scatter, float]:
-        
-        _y_insulation_start = self._datum[1] + self._y_body_length/2 + self._coated_tab_height - self._insulation_width
-        _y_insulation_end = _y_insulation_start + self._insulation_width
+        """
+        Return insulation trace and area for a given side ('a' or 'b').
+        Handles three cases: (1) above body, (2) below body, (3) straddling edge.
+        """
+        # Compute insulation Y-range
+        y_body_top = self._datum[1] + self._y_body_length / 2
+        y_ins_start = y_body_top + self._coated_tab_height - self._insulation_width
+        y_ins_end = y_ins_start + self._insulation_width
 
-        if side == 'a':
-            _coated_start = self._datum[0] - self._x_body_length/2 + self._bare_lengths_a_side[0]
-            _coated_end = self._datum[0] + self._x_body_length/2 - self._bare_lengths_a_side[1]
-        else:
-            _coated_start = self._datum[0] - self._x_body_length/2 + self._bare_lengths_b_side[0]
-            _coated_end = self._datum[0] + self._x_body_length/2 - self._bare_lengths_b_side[1]
+        # Compute x bounds of coated region
+        bare_left, bare_right = (
+            self._bare_lengths_a_side if side == 'a' else self._bare_lengths_b_side
+        )
+        x_start = self._datum[0] - self._x_body_length / 2 + bare_left
+        x_end = self._datum[0] + self._x_body_length / 2 - bare_right
 
-        # Case 1: Insulation strip is above the body
-        if round(_y_insulation_start, 5) >= round(self._datum[1] + self._y_body_length/2, 5):
-            
+        # Case 1: Insulation entirely above the body
+        if round(y_ins_start, 5) >= round(y_body_top, 5):
             insulation_area = pd.DataFrame(columns=['x', 'y'])
-
-            for idx, (tab_start, tab_end) in enumerate(self._tab_positions):
-                
-                if tab_end < _coated_start or tab_start > _coated_end:
+            for idx, (ts, te) in enumerate(self._tab_positions):
+                # Clip tab to coated region
+                if te < x_start or ts > x_end:
                     continue
+                s = max(ts, x_start)
+                e = min(te, x_end)
 
-                if tab_end > _coated_start and tab_start < _coated_start:
-                    tab_start = _coated_start
+                tab_df = build_square_df(
+                    x_width=e - s,
+                    y_width=self._insulation_width,
+                    x=s,
+                    y=y_ins_start
+                )
+                
+                tab_df = tab_df.assign(tab_number=idx + 1)
 
-                if tab_end > _coated_end and tab_start < _coated_end:
-                    tab_end = _coated_end
-                
-                start_position = (tab_start, _y_insulation_start)
-                x_length = tab_end - tab_start
-                
-                tab_coordinates = (self
-                                   ._get_square_footprint(
-                                       x_length=x_length,
-                                       y_length=self._insulation_width,
-                                       start_position=start_position
-                                       )
-                                    .assign(tab_number=idx + 1)
-                                    )
-                
-                insulation_area = pd.concat([
-                    insulation_area, 
-                    tab_coordinates,
-                    pd.DataFrame([[None]*len(tab_coordinates.columns)], columns=tab_coordinates.columns)
-                ], ignore_index=True)
+                # Concatenate with spacer row for plotly breaks
+                insulation_area = pd.concat(
+                    [insulation_area, tab_df, pd.DataFrame([[None]*len(tab_df.columns)],
+                                                        columns=tab_df.columns)],
+                    ignore_index=True
+                )
 
-        # Case 2: Entire insulation below body
-        elif round(_y_insulation_end, 10) <= round(self._datum[1] + self._y_body_length/2, 10):
-            
-            if side == 'a':
-                x_start = self._datum[0] - self._x_body_length/2 + self._bare_lengths_a_side[0]
-                x_end = self._datum[0] + self._x_body_length/2 - self._bare_lengths_a_side[1]
-            else:
-                x_start = self._datum[0] - self._x_body_length/2 + self._bare_lengths_b_side[0]
-                x_end = self._datum[0] + self._x_body_length/2 - self._bare_lengths_b_side[1]
-            
-            insulation_area = self._get_square_footprint(
-                x_length=x_end - x_start,
-                y_length=self._insulation_width,
-                start_position=(x_start, _y_insulation_start)
+        # Case 2: Insulation entirely below the body
+        elif round(y_ins_end, 10) <= round(y_body_top, 10):
+
+            insulation_area = build_square_df(
+                x_width = x_end - x_start,
+                y_width = self._insulation_width,
+                x = x_start,
+                y = y_ins_start
             )
 
-        # Case 3: Straddling the body
+        # Case 3: Insulation straddles the top of the body
         else:
-            notch_height = (_y_insulation_end - (self._datum[1] + self._y_body_length/2))
-
-            y_depth = (self._datum[1] + self._y_body_length/2) - _y_insulation_start
-
+            notch = y_ins_end - y_body_top
+            depth = y_body_top - y_ins_start
             insulation_area = self._get_footprint(
-                notch_height=notch_height,
-                y_depth=y_depth,
-                y_start=_y_insulation_start,
-                x_start=_coated_start,
-                x_end=_coated_end
+                notch_height=notch,
+                y_depth=depth,
+                y_start=y_ins_start,
+                x_start=x_start,
+                x_end=x_end
             )
 
-        def get_trace(area):
-
-            trace = go.Scatter(
-                x=area['x'],
-                y=area['y'],
+        # Helper for converting area df to go.Scatter
+        def get_trace(area_df: pd.DataFrame) -> go.Scatter:
+            return go.Scatter(
+                x=area_df['x'],
+                y=area_df['y'],
                 mode='lines',
                 name='Insulation Area',
                 line=dict(width=1, color='black'),
@@ -1226,9 +1198,8 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
                 fillpattern=self._in_fill_pattern
             )
 
-            return trace
-
         trace = get_trace(insulation_area)
+
         if 'tab_number' not in insulation_area.columns:
             area = get_area_from_trace(trace)
         else:
@@ -1238,7 +1209,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
                     .apply(lambda df: get_area_from_trace(get_trace(df[['x', 'y']])))
                     .sum()
                     )
-            
+
         return trace, area
     
     def _get_a_side_insulation_area_trace(self) -> Tuple[go.Scatter, float]:
@@ -1270,16 +1241,17 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
 class TablessCurrentCollector(NotchedCurrentCollector):
 
-    def __init__(self, 
-                 material: CurrentCollectorMaterial,
-                 length: float,
-                 width: float,
-                 coated_width: float,
-                 thickness: float,
-                 bare_lengths_a_side: Tuple[float, float] = (0, 0),
-                 bare_lengths_b_side: Tuple[float, float] = (0, 0),
-                 insulation_width: Optional[float] = 0,
-                 ):
+    def __init__(
+            self, 
+            material: CurrentCollectorMaterial,
+            length: float,
+            width: float,
+            coated_width: float,
+            thickness: float,
+            bare_lengths_a_side: Tuple[float, float] = (0, 0),
+            bare_lengths_b_side: Tuple[float, float] = (0, 0),
+            insulation_width: Optional[float] = 0,
+            ) -> None:
         """
         Initialize an object that represents a tabless current collector.
         
@@ -1293,22 +1265,23 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         tab_height = width - coated_width
         width = width - tab_height
 
-        super().__init__(material=material,
-                         length=length,
-                         width=width,
-                         thickness=thickness,
-                         tab_height=tab_height,
-                         tab_width=length,
-                         tab_spacing=length,
-                         coated_tab_height=0,
-                         bare_lengths_a_side=bare_lengths_a_side,
-                         bare_lengths_b_side=bare_lengths_b_side,
-                         insulation_width=insulation_width,
-                         )
+        super().__init__(
+            material=material,
+            length=length,
+            width=width,
+            thickness=thickness,
+            tab_height=tab_height,
+            tab_width=length,
+            tab_spacing=length,
+            coated_tab_height=0,
+            bare_lengths_a_side=bare_lengths_a_side,
+            bare_lengths_b_side=bare_lengths_b_side,
+            insulation_width=insulation_width,
+        )
 
         self._check_coated_width(coated_width)
 
-    def _check_coated_width(self, coated_width: float):
+    def _check_coated_width(self, coated_width: float) -> None:
 
         if not isinstance(coated_width, (int, float)):
             raise TypeError("Coated width must be a number.")
@@ -1321,10 +1294,7 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         if self._coated_width > self._y_body_length:
             raise ValueError("Coated width cannot be greater than the width of the current collector.")
     
-    def _add_height_dimension(self, 
-                              fig: go.Figure, 
-                              pad: float = 0.05
-                              ) -> go.Figure:
+    def _add_height_dimension(self, fig: go.Figure, pad: float = 0.05) -> go.Figure:
 
         # Height line
         x = self._datum[0] - self._x_body_length / 2 - pad * self._y_body_length
@@ -1337,11 +1307,12 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 
         return fig
 
-    def _add_dimensions(self, 
-                        fig: go.Figure, 
-                        pad: float = 0.05,
-                        aspect_ratio: float = 3
-                        ) -> go.Figure:
+    def _add_dimensions(
+            self, 
+            fig: go.Figure, 
+            pad: float = 0.05,
+            aspect_ratio: float = 3
+        ) -> go.Figure:
         """
         Add dimension annotations to the figure.
         
@@ -1364,13 +1335,14 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 
 class WeldTab:
 
-    def __init__(self,
-                 material: CurrentCollectorMaterial,
-                 width: float,
-                 length: float,
-                 thickness: float,
-                 datum: Tuple[float, float] = (0, 0)
-                 ):
+    def __init__(
+            self,
+            material: CurrentCollectorMaterial,
+            width: float,
+            length: float,
+            thickness: float,
+            datum: Tuple[float, float] = (0, 0)
+        ) -> None:
         """
         Initialize an object that represents a weld tab used on current collectors
 
@@ -1386,7 +1358,7 @@ class WeldTab:
         self._check_thickness(thickness)
         self._calculate_properties()
 
-    def _check_datum(self, datum: Tuple[float, float]):
+    def _check_datum(self, datum: Tuple[float, float]) -> None:
 
         if not isinstance(datum, tuple) or len(datum) != 2:
             raise TypeError("Datum must be a tuple of two numbers (x, y).")
@@ -1396,14 +1368,14 @@ class WeldTab:
         
         self._datum = (float(datum[0]) * MM_TO_M, float(datum[1]) * MM_TO_M)
 
-    def _check_material(self, material: CurrentCollectorMaterial):
+    def _check_material(self, material: CurrentCollectorMaterial) -> None:
 
         if not isinstance(material, CurrentCollectorMaterial):
             raise TypeError("Material must be an instance of CurrentCollectorMaterial.")
         
         self._material = material
 
-    def _check_width(self, width: float):
+    def _check_width(self, width: float) -> None:
         
         if not isinstance(width, (int, float)):
             raise TypeError("Width must be a number.")
@@ -1413,7 +1385,7 @@ class WeldTab:
         
         self._width = float(width) * MM_TO_M
 
-    def _check_length(self, length: float):
+    def _check_length(self, length: float) -> None:
 
         if not isinstance(length, (int, float)):
             raise TypeError("Length must be a number.")
@@ -1423,7 +1395,7 @@ class WeldTab:
         
         self._length = float(length) * MM_TO_M
 
-    def _check_thickness(self, thickness: float):
+    def _check_thickness(self, thickness: float) -> None:
 
         if not isinstance(thickness, (int, float)):
             raise TypeError("Thickness must be a number.")
@@ -1433,7 +1405,7 @@ class WeldTab:
         
         self._thickness = float(thickness) * UM_TO_M
 
-    def _calculate_properties(self):
+    def _calculate_properties(self) -> None:
         """
         Calculate the properties of the tab.
         """
@@ -1548,7 +1520,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             tab_weld_side: str = 'a',
             bare_lengths_a_side: Tuple[float, float] = (0, 0),
             bare_lengths_b_side: Tuple[float, float] = (0, 0)
-        ):
+        ) -> None:
         """
         Initialize an object that represents a current collector with tabs welded on it.
 
@@ -1580,11 +1552,11 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         self._check_tab_weld_side(tab_weld_side)
         self._calculate_properties()
 
-    def _calculate_properties(self):
+    def _calculate_properties(self) -> None:
         super()._calculate_properties()
         self._cost += sum(tab._cost for tab in self._weld_tabs)
 
-    def _check_weld_tab_positions(self, weld_tab_positions: Iterable[float], weld_tab: WeldTab):
+    def _check_weld_tab_positions(self, weld_tab_positions: Iterable[float], weld_tab: WeldTab) -> None:
 
         if not isinstance(weld_tab_positions, Iterable):
             raise TypeError("Weld tab positions must be an iterable of numbers.")
@@ -1603,7 +1575,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         if any(pos > self._x_body_length for pos in self._weld_tab_positions):
             raise ValueError("Weld tab positions cannot be greater than the length of the current collector.")
         
-    def _check_and_copy_weld_tab(self, weld_tab: WeldTab):
+    def _check_and_copy_weld_tab(self, weld_tab: WeldTab) -> None:
 
         if not isinstance(weld_tab, WeldTab):
             raise TypeError("Weld tab must be an instance of WeldTab.")
@@ -1615,7 +1587,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             pos = (_pos - self._x_body_length / 2) * M_TO_MM
             _tab.datum = (pos, tab_y_center)
 
-    def _check_tab_overhang(self, tab_overhang: float):
+    def _check_tab_overhang(self, tab_overhang: float) -> None:
         
         if not isinstance(tab_overhang, (int, float)):
             raise TypeError("Tab overhang must be a number.")
@@ -1625,7 +1597,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         
         self._tab_overhang = float(tab_overhang) * MM_TO_M
 
-    def _check_skip_coat_width(self, skip_coat_width: float):
+    def _check_skip_coat_width(self, skip_coat_width: float) -> None:
 
         if not isinstance(skip_coat_width, (int, float)):
             raise TypeError("Skip coat width must be a number.")
@@ -1641,18 +1613,20 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         if self._skip_coat_width > self._y_body_length:
             raise ValueError("Skip coat width cannot be greater than the width of the current collector.")
 
-    def _check_tab_weld_side(self, tab_weld_side: str):
+    def _check_tab_weld_side(self, tab_weld_side: str) -> None:
 
         if tab_weld_side not in ['a', 'b']:
             raise ValueError("Tab weld side must be either 'a' or 'b'.")
         
         self._tab_weld_side = tab_weld_side
 
-    def _get_full_view(self, 
-                  side='a', 
-                  aspect_ratio: float = 3, 
-                  with_dimensions: bool = True, 
-                  **kwargs) -> go.Figure:
+    def _get_full_view(
+            self, 
+            side='a', 
+            aspect_ratio: float = 3, 
+            with_dimensions: bool = True, 
+            **kwargs
+        ) -> go.Figure:
         
         # Get the base figure from the parent class
         figure = super()._get_full_view(
@@ -1677,10 +1651,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
 
         return figure
 
-    def _get_footprint(self,
-                       left_x: Optional[float] = None,
-                       right_x: Optional[float] = None,
-                       ) -> pd.DataFrame:
+    def _get_footprint(self, left_x: Optional[float] = None, right_x: Optional[float] = None) -> pd.DataFrame:
 
         left_x = self._datum[0] - self._x_body_length / 2 if left_x is None else left_x
         right_x = self._datum[0] + self._x_body_length / 2 if right_x is None else right_x
@@ -1692,7 +1663,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
 
         return pd.DataFrame({'x': x_coords, 'y': y_coords})
 
-    def _get_body_trace(self):
+    def _get_body_trace(self) -> Tuple[go.Scatter, float]:
         
         coordinates = self._get_footprint()
         
@@ -1749,8 +1720,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             right_x=self._datum[0] + self._x_body_length / 2 - self._bare_lengths_a_side[1]
         )
 
-        if self._tab_weld_side == side:
-            coated_area = self._remove_skip_coat_area(coated_area)
+        coated_area = self._remove_skip_coat_area(coated_area)
         
         trace = go.Scatter(
             x=coated_area['x'],
@@ -1775,20 +1745,27 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
 
         return trace, area
 
-    def _get_a_side_coated_area_trace(self):
+    def _get_a_side_coated_area_trace(self) -> Tuple[go.Scatter, float]:
         return self._get_coated_area_trace(side='a')
 
-    def _get_b_side_coated_area_trace(self):
+    def _get_b_side_coated_area_trace(self) -> Tuple[go.Scatter, float]:
         return self._get_coated_area_trace(side='b')
 
-    def _get_insulation_area_trace(self):
+    def _get_insulation_area_trace(self) -> Tuple[go.Scatter, float]:
         return go.Scatter(x=[], y=[]), 0
+    
+    def _get_a_side_insulation_area_trace(self) -> Tuple[go.Scatter, float]:
+        return self._get_insulation_area_trace()
+    
+    def _get_b_side_insulation_area_trace(self) -> Tuple[go.Scatter, float]:
+        return self._get_insulation_area_trace()
 
-    def _add_dimensions(self, 
-                        fig: go.Figure, 
-                        pad: float = 0.05,
-                        aspect_ratio: float = 3
-                        ) -> go.Figure:
+    def _add_dimensions(
+            self, 
+            fig: go.Figure, 
+            pad: float = 0.05,
+            aspect_ratio: float = 3
+        ) -> go.Figure:
         """
         Add dimension annotations to the figure.
         
