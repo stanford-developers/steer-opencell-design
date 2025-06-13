@@ -1,6 +1,8 @@
 import plotly.colors as pc
 import numpy as np
 import plotly.graph_objects as go
+import pandas as pd
+from typing import Tuple
 
 def rgb_tuple_to_hex(rgb):
     return '#{:02x}{:02x}{:02x}'.format(*rgb)
@@ -46,5 +48,18 @@ def get_area_from_trace(trace: go.Scatter) -> float:
 
         return area
 
+def build_square_df(x: float, y: float, x_width: float, y_width: float) -> pd.DataFrame:
+    """
+    Build a DataFrame representing a square or rectangle defined by its bottom-left corner (x, y)
+    and its width and height.
 
+    :param x: float, x-coordinate of the bottom-left corner
+    :param y: float, y-coordinate of the bottom-left corner
+    :param x_width: float, width of the square/rectangle
+    :param y_width: float, height of the square/rectangle
+    """
+    return pd.DataFrame({
+        'x': [x, x, x + x_width, x + x_width, x],
+        'y': [y, y + y_width, y + y_width, y, y]
+    })
 
