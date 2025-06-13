@@ -171,24 +171,45 @@ class _CurrentCollector(ABC):
         pass
 
     @property
+    def properties(self) -> dict:
+        """
+        Get the properties of the current collector.
+        """
+        return {
+            'Mass': f"{self.mass} g",
+            'Cost': f"{self.cost} $",
+            'Total single sided area': f"{self.body_area} cm²",
+            'Total coated area': f"{self.coated_area} cm²",
+            'Total insulation area': f"{self.insulation_area} cm²"
+        }
+
+    @property
     def coated_area(self) -> float:
-        return round(self._coated_area * M_TO_MM**2, 2)
+        return round(self._coated_area * M_TO_CM**2, 2)
 
     @property
     def a_side_coated_area(self) -> float:
-        return round(self._a_side_coated_area * M_TO_MM**2, 2)
+        return round(self._a_side_coated_area * M_TO_CM**2, 2)
     
     @property
     def b_side_coated_area(self) -> float:
-        return round(self._b_side_coated_area * M_TO_MM**2, 2)
+        return round(self._b_side_coated_area * M_TO_CM**2, 2)
 
     @property
     def body_area(self) -> float:
-        return round(self._body_area * M_TO_MM**2, 2)
+        return round(self._body_area * M_TO_CM**2, 2)
+
+    @property
+    def a_side_insulation_area(self) -> float:
+        return round(self._a_side_insulation_area * M_TO_CM**2, 2)
+    
+    @property
+    def b_side_insulation_area(self) -> float:
+        return round(self._b_side_insulation_area * M_TO_CM**2, 2)
 
     @property
     def insulation_area(self) -> float:
-        return round(self._insulation_area * M_TO_MM**2, 2)
+        return round(self._insulation_area * M_TO_CM**2, 2)
 
     @property
     def mass(self) -> float:
@@ -1331,6 +1352,7 @@ class TablessCurrentCollector(NotchedCurrentCollector):
     @property
     def width(self) -> float:
         return round((self._y_body_length + self._tab_height) * M_TO_MM, 2)
+
 
 
 class WeldTab:
