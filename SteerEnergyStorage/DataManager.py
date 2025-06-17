@@ -145,6 +145,52 @@ class DataManager:
         
         return data
 
+    def get_cathode_materials(self, most_recent: bool = True) -> pd.DataFrame:
+        """
+        Retrieves cathode materials from the database.
+
+        :param most_recent: If True, returns only the most recent entry.
+        :return: DataFrame with cathode materials.
+        """
+        data = (
+            self
+            .get_data(
+                table_name='cathode_materials'
+            ).groupby(
+                'name', 
+                group_keys=False
+            ).apply(
+                lambda x: x.sort_values('date', ascending=False).head(1) if most_recent else x
+            ).reset_index(
+                drop=True
+            )
+        ) 
+        
+        return data
+    
+    def get_anode_materials(self, most_recent: bool = True) -> pd.DataFrame:
+        """
+        Retrieves anode materials from the database.
+
+        :param most_recent: If True, returns only the most recent entry.
+        :return: DataFrame with anode materials.
+        """
+        data = (
+            self
+            .get_data(
+                table_name='anode_materials'
+            ).groupby(
+                'name', 
+                group_keys=False
+            ).apply(
+                lambda x: x.sort_values('date', ascending=False).head(1) if most_recent else x
+            ).reset_index(
+                drop=True
+            )
+        ) 
+        
+        return data
+
     @staticmethod
     def read_half_cell_curve(half_cell_path) -> pd.DataFrame:
         """
