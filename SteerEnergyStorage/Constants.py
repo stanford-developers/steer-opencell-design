@@ -33,4 +33,9 @@ W_TO_KW = 1e-3
 # Angle units
 DEG_TO_RAD = 0.017453292519943295
 
+# Allowed reference materials
+ALLOWED_REFERENCE = [
+    "Na/Na+",
+    "Li/Li+"
+]
 
