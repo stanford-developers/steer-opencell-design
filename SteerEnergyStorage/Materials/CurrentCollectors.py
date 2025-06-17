@@ -1354,7 +1354,6 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         return round((self._y_body_length + self._tab_height) * M_TO_MM, 2)
 
 
-
 class WeldTab:
 
     def __init__(
