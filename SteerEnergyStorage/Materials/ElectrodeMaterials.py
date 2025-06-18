@@ -791,6 +791,24 @@ class Binder(RawMaterial):
             color=color
         )
 
+    @staticmethod
+    def from_database(name) -> 'Binder':
+        """
+        Pull object from the database.
+        
+        :param name: str: Name of the binder material.
+        :return: Binder: Instance of the class.
+        """
+        database = DataManager((Path(__file__).parent / '../../Data/database.db').resolve())
+        available_materials = database.get_unique_values('binder_materials', 'name')
+
+        if name not in available_materials:
+            raise ValueError(f"Material '{name}' not found in the database. Available materials: {available_materials}")
+        
+        data = database.get_binder_materials(most_recent=True).query(f"name == '{name}'")
+        material = deepcopy(loads(data['object'].iloc[0]))
+        return material
+
 
 class ConductiveAdditive(RawMaterial):
 
@@ -809,5 +827,21 @@ class ConductiveAdditive(RawMaterial):
                 color=color
             )
 
+    @staticmethod
+    def from_database(name) -> 'ConductiveAdditive':
+        """
+        Pull object from the database.
+        
+        :param name: str: Name of the conductive additive material.
+        :return: ConductiveAdditive: Instance of the class.
+        """
+        database = DataManager((Path(__file__).parent / '../../Data/database.db').resolve())
+        available_materials = database.get_unique_values('conductive_additive_materials', 'name')
 
+        if name not in available_materials:
+            raise ValueError(f"Material '{name}' not found in the database. Available materials: {available_materials}")
+        
+        data = database.get_conductive_additive_materials(most_recent=True).query(f"name == '{name}'")
+        material = deepcopy(loads(data['object'].iloc[0]))
+        return material
 
