@@ -107,7 +107,7 @@ class RawMaterial:
         return dumps(self)
 
     def __str__(self):
-        return f"{self.name}, {self.last_updated}"
+        return f"{self.name}, {self.__class__.__name__}, {self.last_updated}"
     
     def __repr__(self):
         return self.__str__()
