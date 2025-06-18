@@ -768,18 +768,14 @@ class AnodeMaterial(_ActiveMaterial):
         return material
 
 
-
-
-
-
-
-class Binder:
+class Binder(RawMaterial):
 
     def __init__(
             self, 
+            name: str,
             specific_cost: float, 
             density: float,
-            name: str = 'Binder'
+            color: str = '#2c2c2c'
         ):
         """
         Initialize an object that represents a binder.
@@ -788,72 +784,30 @@ class Binder:
         :param specific_cost: float: specific cost of the material per kg
         :param density: float: density of the material in g/cm^3 (default: 1.7)
         """
-        self._name = name
-        self._specific_cost = specific_cost
-        self._density = density * G_TO_KG / CM_TO_M**3
+        super().__init__(
+            name=name, 
+            density=density, 
+            specific_cost=specific_cost,
+            color=color
+        )
 
-    @property
-    def density(self) -> float:
-        density = self._density * KG_TO_G / M_TO_CM**3
-        return round(density, 2)
-    
-    @property
-    def specific_cost(self) -> float:
-        return self._specific_cost
-    
-    @property
-    def name(self) -> str:
-        return self._name
-    
-    def __str__(self) -> str:
-        if self.name is not None:
-            return self.name
-        else:
-            return "binder"
-        
-    def __repr__(self) -> str:
-        return self.__str__()
-    
-    
-class ConductiveAdditive:
+
+class ConductiveAdditive(RawMaterial):
 
     def __init__(
             self, 
-            specific_cost: float, 
+            name: str,
+            specific_cost: float,
             density: float,
-            name: str = 'Conductive Additive'
+            color: str = '#2c2c2c'
         ):
-        """
-        Initialize an object that represents a conductive additive.
-        
-        :param name: str: name of the material
-        :param specific_cost: float: specific cost of the material per kg
-        :param density: float: density of the material in g/cm^3
-        """
-        self._name = name
-        self._specific_cost = specific_cost
-        self._density = density * G_TO_KG / CM_TO_M**3
 
-    @property
-    def specific_cost(self) -> float:
-        return self._specific_cost
+        super().__init__(
+                name=name, 
+                density=density, 
+                specific_cost=specific_cost,
+                color=color
+            )
 
-    @property
-    def density(self) -> float:
-        density = self._density * KG_TO_G / M_TO_CM**3
-        return round(density, 2)
-    
-    @property
-    def name(self) -> str:
-        return self._name
-
-    def __str__(self) -> str:
-        if self._name is not None:
-            return self.name
-        else:
-            return "conductive additive"
-        
-    def __repr__(self) -> str:
-        return self.__str__()
 
 
