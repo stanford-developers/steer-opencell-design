@@ -642,7 +642,7 @@ class TestNMMMultiCurve(unittest.TestCase):
         self.assertTrue(self.material.voltage_cuttoff_range == (3.7, 4.36))
 
         figure = self.material.get_plot()
-        figure.show()
+        # figure.show()
 
     def test_voltage_setter_extrapolate(self):
         self.material.voltage_cuttoff = 4
@@ -957,4 +957,4 @@ class TestHardCarbon(unittest.TestCase):
             markers=True
         )
 
-        figure.show()
+        # figure.show()
