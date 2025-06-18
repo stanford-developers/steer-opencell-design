@@ -500,19 +500,6 @@ class _ActiveMaterial(RawMaterial):
         return self._reference
 
     @property
-    def name(self) -> str:
-        return self._name
-    
-    @property
-    def density(self) -> float:
-        density = self._density * KG_TO_G / M_TO_CM**3
-        return round(density, 2)
-    
-    @property
-    def specific_cost(self) -> float:
-        return self._specific_cost
-    
-    @property
     def half_cell_curve(self) -> pd.DataFrame:
 
         if not hasattr(self, '_half_cell_curve'):
