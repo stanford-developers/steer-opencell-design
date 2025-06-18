@@ -4,11 +4,11 @@ from SteerEnergyStorage.Constants import *
 
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
 import plotly.express as px
-from pickle import dumps
+from pickle import dumps, loads
 from pathlib import Path
 from typing import List, Union, Optional
+from copy import deepcopy
 
 
 class _ActiveMaterial(RawMaterial):
@@ -443,7 +443,7 @@ class _ActiveMaterial(RawMaterial):
 
         return interpolated_curve
 
-    def get_plot(self, **kwargs):
+    def plot_curves(self, **kwargs):
 
         data = self.half_cell_curves.copy()
 
@@ -461,6 +461,25 @@ class _ActiveMaterial(RawMaterial):
             **kwargs
         )
 
+        return fig
+
+    def plot_half_cell_curve(self, **kwargs):
+
+        data = self.half_cell_curve.copy()
+
+        fig = px.line(
+            data,
+            x='Specific Capacity (mAh/g)',
+            y='Voltage (V)',
+            markers=True
+        )
+
+        fig.update_layout(
+            paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
+            plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
+            **kwargs
+        )
+        
         return fig
 
     def pickle(self):
@@ -601,14 +620,7 @@ class _ActiveMaterial(RawMaterial):
                 return False
             
         return self._time_stamp > other._time_stamp
-    
-    def __str__(self) -> str:
-        if self.name is not None:
-            return f"{self.__class__.__name__} - {self.name}"
-        
-    def __repr__(self) -> str:
-        return self.__str__()
-    
+
 
 class CathodeMaterial(_ActiveMaterial):
 
@@ -641,6 +653,24 @@ class CathodeMaterial(_ActiveMaterial):
             negative_voltage_extrapolation_window = negative_voltage_extrapolation_window,
             color = color
         )
+
+    @staticmethod
+    def from_database(name) -> 'CathodeMaterial':
+        """
+        Pull object from the database.
+        
+        :param name: str: Name of the current collector material.
+        :return: CurrentCollectorMaterial: Instance of the class.
+        """
+        database = DataManager((Path(__file__).parent / '../../Data/database.db').resolve())
+        available_materials = database.get_unique_values('cathode_materials', 'name')
+
+        if name not in available_materials:
+            raise ValueError(f"Material '{name}' not found in the database. Available materials: {available_materials}")
+        
+        data = database.get_cathode_materials(most_recent=True).query(f"name == '{name}'")
+        material = deepcopy(loads(data['object'].iloc[0]))
+        return material
 
     @property
     def voltage_cuttoff_range(self) -> tuple:
@@ -719,7 +749,23 @@ class AnodeMaterial(_ActiveMaterial):
 
         self._half_cell_curve = self._half_cell_curves.copy().query('specific_capacity_max == specific_capacity_max.max()')
 
+    @staticmethod
+    def from_database(name) -> 'AnodeMaterial':
+        """
+        Pull object from the database.
+        
+        :param name: str: Name of the current collector material.
+        :return: CurrentCollectorMaterial: Instance of the class.
+        """
+        database = DataManager((Path(__file__).parent / '../../Data/database.db').resolve())
+        available_materials = database.get_unique_values('anode_materials', 'name')
 
+        if name not in available_materials:
+            raise ValueError(f"Material '{name}' not found in the database. Available materials: {available_materials}")
+        
+        data = database.get_anode_materials(most_recent=True).query(f"name == '{name}'")
+        material = deepcopy(loads(data['object'].iloc[0]))
+        return material
 
 
 
