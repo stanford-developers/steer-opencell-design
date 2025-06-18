@@ -40,9 +40,9 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         self.assertEqual(round(self.current_collector._tab_height, 6), 0.012)
         self.assertEqual(round(self.current_collector._tab_position, 6), 0.02)
         self.assertEqual(round(self.current_collector._coated_tab_height, 6), 0.003)
-        self.assertEqual(self.current_collector.body_area, 17520)
-        self.assertEqual(self.current_collector.coated_area, 2 * 16960)
-        self.assertEqual(self.current_collector.insulation_area, 760)
+        self.assertEqual(self.current_collector.body_area, 175.2)
+        self.assertEqual(self.current_collector.coated_area, 2 * 169.6)
+        self.assertEqual(self.current_collector.insulation_area, 7.6)
 
     def test_figures(self):
         fig_a = self.current_collector.get_a_side_view()
@@ -92,9 +92,9 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[0], 6), 0.02)
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[1], 6), 0.08)
         self.assertEqual(round(self.current_collector._coated_tab_height, 6), 0.002)
-        self.assertEqual(round(self.current_collector.body_area, 6), 336600)
-        self.assertEqual(round(self.current_collector.coated_area, 6), 307930 + 307400)
-        self.assertEqual(round(self.current_collector.insulation_area, 6), 18580)
+        self.assertEqual(round(self.current_collector.body_area, 6), 3366)
+        self.assertEqual(round(self.current_collector.coated_area, 6), 3079.3 + 3074)
+        self.assertEqual(round(self.current_collector.insulation_area, 6), 185.8)
 
     def test_figures(self):
         fig_a = self.current_collector.get_a_side_view()
@@ -146,9 +146,9 @@ class TestNotchedCurrentCollector2(unittest.TestCase):
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[0], 6), 0.02)
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[1], 6), 0.08)
         self.assertEqual(round(self.current_collector._coated_tab_height, 6), 0.004)
-        self.assertEqual(round(self.current_collector.body_area, 6), 336600)
-        self.assertEqual(round(self.current_collector.coated_area, 6), 633910)
-        self.assertEqual(round(self.current_collector.insulation_area, 6), 6970)
+        self.assertEqual(round(self.current_collector.body_area, 6), 3366)
+        self.assertEqual(round(self.current_collector.coated_area, 6), 6339.1)
+        self.assertEqual(round(self.current_collector.insulation_area, 6), 69.7)
 
     def test_figures(self):
         fig_a = self.current_collector.get_a_side_view()
@@ -281,8 +281,8 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         self.assertEqual(round(self.current_collector._bare_lengths_a_side[1], 6), 0.08)
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[0], 6), 0.02)
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[1], 6), 0.08)
-        self.assertEqual(self.current_collector.body_area, 88560)
-        self.assertEqual(self.current_collector.coated_area, 143640)
+        self.assertEqual(self.current_collector.body_area, 885.6)
+        self.assertEqual(self.current_collector.coated_area, 1436.4)
         self.assertEqual(self.current_collector.insulation_area, 0)
 
     def test_plots(self):
@@ -292,8 +292,8 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         # fig = self.current_collector.get_a_side_view()
         fig1 = self.current_collector.get_a_side_view()
         fig2 = self.current_collector.get_b_side_view()
-        fig1.show()
-        fig2.show()
+        # fig1.show()
+        # fig2.show()
  
 
 
