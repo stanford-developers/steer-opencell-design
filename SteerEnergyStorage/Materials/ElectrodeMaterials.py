@@ -20,7 +20,6 @@ class _ActiveMaterial(RawMaterial):
             specific_cost: float, 
             density: float,
             half_cell_curves: Union[List[pd.DataFrame], pd.DataFrame],
-            negative_voltage_extrapolation_window: float = 0.4,
             color: str = '#2c2c2c',
         ) -> None:
         """
@@ -51,24 +50,13 @@ class _ActiveMaterial(RawMaterial):
 
         self._check_reference(reference)
         self._check_half_cell_curves(half_cell_curves)
-        self._check_negative_voltage_extrapolation_window(negative_voltage_extrapolation_window)
         self._process_half_cell_curves()
-        self._calculate_half_cell_curves_properties()
 
         self._reversible_capacity_scaling = 1.0
         self._irreversible_capacity_scaling = 1.0
 
     def _process_half_cell_curves(self) -> None:
         pass
-
-    def _check_negative_voltage_extrapolation_window(self, negative_voltage_extrapolation_window: float):
-        """
-        Check if the negative voltage interpolation window is a valid float.
-        """
-        if not isinstance(negative_voltage_extrapolation_window, (float, int)) or negative_voltage_extrapolation_window <= 0:
-            raise ValueError("Negative voltage interpolation window must be a positive float")
-        
-        self._negative_voltage_extrapolation_window = float(negative_voltage_extrapolation_window)
 
     def _check_reference(self, reference: str):
         """
@@ -187,23 +175,6 @@ class _ActiveMaterial(RawMaterial):
             ignore_index=True
         )
 
-    def _calculate_half_cell_curves_properties(self) -> None:
-
-        # calculate the maximum voltage range for the half cell curves 
-        self._maximum_voltage = round(
-            self._half_cell_curves['voltage_max'].max(), 
-            4
-        )
-
-        # calculate the minimum voltage range for interpolation of the curves
-        self._minimum_voltage = round(
-            self._half_cell_curves['voltage_max'].min(), 
-            4
-        )
-        
-        # calculate the minimum voltage range for extrapolation of the curves
-        self._minimum_extrapolated_voltage = self._minimum_voltage - self._negative_voltage_extrapolation_window
-
     def _check_irreversible_capacity_scaling(self, scaling: float):
         """
         Check if the irreversible capacity scaling is a valid float.
@@ -251,123 +222,6 @@ class _ActiveMaterial(RawMaterial):
                 )
         
         self._half_cell_curve = data
-
-    def _truncate_and_shift_curves(self, input_value: float) -> None:
-        """
-        Truncate charge/discharge curves based on a voltage or specific_capacity input and shift the discharge curve
-        to maintain continuity with the charge curve.
-
-        Parameters
-        ----------
-        input_value : float
-            The voltage or specific_capacity value to truncate the curve at.
-
-        Raises
-        ------
-        ValueError
-            If `input_value` is not within the range of the charge curve along the specified axis.
-        """
-
-        # Get the data with the minimum voltage limit
-        data = (
-            self
-            ._half_cell_curves
-            .copy()
-            .query('voltage_max == voltage_max.min()')
-        )
-
-        # Split charge and discharge curves
-        charge = data[data['direction'] == 'charge'].copy()
-        discharge = data[data['direction'] == 'discharge'].copy()
-
-        # Interpolate corresponding voltage on discharge curve
-        charge_interp_value = np.interp(input_value, charge['voltage'], charge['specific_capacity'])
-
-        # add the interpolated values to the curves
-        charge = pd.concat([charge, pd.DataFrame({
-            'specific_capacity': [charge_interp_value],
-            'voltage': [input_value],
-            'direction': ['charge'],
-            'voltage_max': [input_value],
-            'specific_capacity_max': [charge_interp_value]
-        })], ignore_index=True)
-
-        # Truncate curves to only include values below or equal to the voltage
-        charge_trunc = charge[charge['voltage'] <= input_value].copy()
-        discharge_trunc = discharge[discharge['voltage'] <= input_value].copy()
-
-        # Calculate shift to make discharge curve continuous with charge curve
-        # We assume continuity is needed in specific_capacity
-        capacity_shift = charge_trunc['specific_capacity'].iloc[-1] - discharge_trunc['specific_capacity'].iloc[-1]
-        discharge_trunc['specific_capacity'] += capacity_shift
-
-        ref_charge = charge_trunc.loc[charge_trunc['voltage'].idxmax()]
-        ref_discharge = discharge_trunc.loc[discharge_trunc['voltage'].idxmax()]
-
-        capacity_shift = ref_charge['specific_capacity'] - ref_discharge['specific_capacity']
-        discharge_trunc['specific_capacity'] += capacity_shift
-
-        self._half_cell_curve = pd.concat([
-            charge_trunc, discharge_trunc], 
-            ignore_index=True
-        )
-
-    def _get_half_cell_interpolated_on_max_voltage(self, input_value: float) -> None:
-        """
-        Get the half cell curves interpolated on a maximum voltage.
-
-        Parameters
-        ----------
-        input_value : float
-            The maximum voltage to interpolate the half cell curves on.
-        """
-
-        # Get the closest curves below the input value 
-        closest_below_curve = (
-            self
-            ._half_cell_curves
-            .query('voltage_max <= @input_value')
-            .query('voltage_max == voltage_max.max()')
-        )
-
-        # Split the closest below curve into charge and discharge curves
-        closest_below_curve_charge = closest_below_curve.query('direction == "charge"').sort_values('specific_capacity')
-        closest_below_curve_discharge = closest_below_curve.query('direction == "discharge"').sort_values('specific_capacity')
-
-        # Get the closest curves above the input value
-        closest_above_curve = (
-            self
-            ._half_cell_curves
-            .query('voltage_max >= @input_value')
-            .query('voltage_max == voltage_max.min()')
-        )
-
-        # Split the closest above curve into charge and discharge curves
-        closest_above_curve_charge = closest_above_curve.query('direction == "charge"').sort_values('specific_capacity')
-        closest_above_curve_discharge = closest_above_curve.query('direction == "discharge"').sort_values('specific_capacity')
-
-        # Get the interpolated charge curve
-        charge_curve = self._interpolate_curve_on_maximum_voltage(
-            input_value,
-            closest_below_curve_charge,
-            closest_above_curve_charge
-        )
-
-        # Get the interpolated discharge curve
-        discharge_curve = (
-            self
-            ._interpolate_curve_on_maximum_voltage(
-                input_value,
-                closest_below_curve_discharge,
-                closest_above_curve_discharge
-            ).sort_values(
-                'specific_capacity',
-                ascending=False
-            )
-            )
-
-        # Concatenate the charge and discharge curves
-        self._half_cell_curve = pd.concat([charge_curve, discharge_curve], ignore_index=True)
         
     def _interpolate_curve_on_maximum_voltage(
             self, 
@@ -443,6 +297,31 @@ class _ActiveMaterial(RawMaterial):
 
         return interpolated_curve
 
+    @staticmethod
+    def enforce_monotonicity(df: pd.DataFrame, on: str) -> pd.DataFrame:
+        """
+        Ensure that the voltage values in the DataFrame are monotonic.
+        
+        Parameters
+        ----------
+        df : pd.DataFrame
+            DataFrame containing 'voltage' column.
+        on : str
+            The column name to enforce monotonicity on, either 'voltage' or 'specific_capacity'.
+        """
+        df = df.copy()
+
+        df_charge = df.query('direction == "charge"')
+        df_discharge = df.query('direction == "discharge"')
+
+        trend_charge = df_charge[on].iloc[-1] - df_charge[on].iloc[0]
+        trend_discharge = df_discharge[on].iloc[-1] - df_discharge[on].iloc[0]
+
+        df_charge.loc[:, on] = np.maximum.accumulate(df_charge[on]) if trend_charge > 0 else np.minimum.accumulate(df_charge[on])
+        df_discharge.loc[:, on] = np.minimum.accumulate(df_discharge[on]) if trend_discharge < 0 else np.maximum.accumulate(df_discharge[on])
+
+        return pd.concat([df_charge, df_discharge], ignore_index=True)
+
     def plot_curves(self, **kwargs):
 
         data = self.half_cell_curves.copy()
@@ -465,13 +344,10 @@ class _ActiveMaterial(RawMaterial):
 
     def plot_half_cell_curve(self, **kwargs):
 
-        data = self.half_cell_curve.copy()
-
         fig = px.line(
-            data,
+            self.half_cell_curve,
             x='Specific Capacity (mAh/g)',
-            y='Voltage (V)',
-            markers=True
+            y='Voltage (V)'
         )
 
         fig.update_layout(
@@ -479,6 +355,8 @@ class _ActiveMaterial(RawMaterial):
             plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
             **kwargs
         )
+
+        fig.update_traces(line=dict(color=self.color))
         
         return fig
 
@@ -499,19 +377,6 @@ class _ActiveMaterial(RawMaterial):
         """
         return self._reference
 
-    @property
-    def name(self) -> str:
-        return self._name
-    
-    @property
-    def density(self) -> float:
-        density = self._density * KG_TO_G / M_TO_CM**3
-        return round(density, 2)
-    
-    @property
-    def specific_cost(self) -> float:
-        return self._specific_cost
-    
     @property
     def half_cell_curve(self) -> pd.DataFrame:
 
@@ -650,8 +515,156 @@ class CathodeMaterial(_ActiveMaterial):
             specific_cost = specific_cost,
             density = density,
             half_cell_curves = half_cell_curves,
-            negative_voltage_extrapolation_window = negative_voltage_extrapolation_window,
             color = color
+        )
+
+        self._check_negative_voltage_extrapolation_window(negative_voltage_extrapolation_window)
+        self._calculate_half_cell_curves_properties()
+
+    def _calculate_half_cell_curves_properties(self) -> None:
+
+        # calculate the maximum voltage range for the half cell curves 
+        self._maximum_voltage = round(
+            self._half_cell_curves['voltage_max'].max(), 
+            4
+        )
+
+        # calculate the minimum voltage range for interpolation of the curves
+        self._minimum_voltage = round(
+            self._half_cell_curves['voltage_max'].min(), 
+            4
+        )
+        
+        # calculate the minimum voltage range for extrapolation of the curves
+        self._minimum_extrapolated_voltage = self._minimum_voltage - self._negative_voltage_extrapolation_window
+
+        # voltage cuttoff range
+        self._voltage_cuttoff_range = (self._minimum_extrapolated_voltage, self._maximum_voltage)
+
+    def _check_negative_voltage_extrapolation_window(self, negative_voltage_extrapolation_window: float):
+        """
+        Check if the negative voltage interpolation window is a valid float.
+        """
+        if not isinstance(negative_voltage_extrapolation_window, (float, int)) or negative_voltage_extrapolation_window <= 0:
+            raise ValueError("Negative voltage interpolation window must be a positive float")
+        
+        self._negative_voltage_extrapolation_window = float(negative_voltage_extrapolation_window)
+
+    def _get_half_cell_interpolated_on_max_voltage(self, input_value: float) -> None:
+        """
+        Get the half cell curves interpolated on a maximum voltage.
+
+        Parameters
+        ----------
+        input_value : float
+            The maximum voltage to interpolate the half cell curves on.
+        """
+
+        # Get the closest curves below the input value 
+        closest_below_curve = (
+            self
+            ._half_cell_curves
+            .query('voltage_max <= @input_value')
+            .query('voltage_max == voltage_max.max()')
+        )
+
+        # Split the closest below curve into charge and discharge curves
+        closest_below_curve_charge = closest_below_curve.query('direction == "charge"').sort_values('specific_capacity')
+        closest_below_curve_discharge = closest_below_curve.query('direction == "discharge"').sort_values('specific_capacity')
+
+        # Get the closest curves above the input value
+        closest_above_curve = (
+            self
+            ._half_cell_curves
+            .query('voltage_max >= @input_value')
+            .query('voltage_max == voltage_max.min()')
+        )
+
+        # Split the closest above curve into charge and discharge curves
+        closest_above_curve_charge = closest_above_curve.query('direction == "charge"').sort_values('specific_capacity')
+        closest_above_curve_discharge = closest_above_curve.query('direction == "discharge"').sort_values('specific_capacity')
+
+        # Get the interpolated charge curve
+        charge_curve = self._interpolate_curve_on_maximum_voltage(
+            input_value,
+            closest_below_curve_charge,
+            closest_above_curve_charge
+        )
+
+        # Get the interpolated discharge curve
+        discharge_curve = (
+            self
+            ._interpolate_curve_on_maximum_voltage(
+                input_value,
+                closest_below_curve_discharge,
+                closest_above_curve_discharge
+            ).sort_values(
+                'specific_capacity',
+                ascending=False
+            )
+        )
+
+        # Concatenate the charge and discharge curves
+        self._half_cell_curve = pd.concat([charge_curve, discharge_curve], ignore_index=True)
+
+    def _truncate_and_shift_curves(self, input_value: float) -> None:
+        """
+        Truncate charge/discharge curves based on a voltage or specific_capacity input and shift the discharge curve
+        to maintain continuity with the charge curve.
+
+        Parameters
+        ----------
+        input_value : float
+            The voltage or specific_capacity value to truncate the curve at.
+
+        Raises
+        ------
+        ValueError
+            If `input_value` is not within the range of the charge curve along the specified axis.
+        """
+
+        # Get the data with the minimum voltage limit
+        data = (
+            self
+            ._half_cell_curves
+            .copy()
+            .query('voltage_max == voltage_max.min()')
+        )
+
+        # Split charge and discharge curves
+        charge = data[data['direction'] == 'charge'].copy()
+        discharge = data[data['direction'] == 'discharge'].copy()
+
+        # Interpolate corresponding voltage on discharge curve
+        charge_interp_value = np.interp(input_value, charge['voltage'], charge['specific_capacity'])
+
+        # add the interpolated values to the curves
+        charge = pd.concat([charge, pd.DataFrame({
+            'specific_capacity': [charge_interp_value],
+            'voltage': [input_value],
+            'direction': ['charge'],
+            'voltage_max': [input_value],
+            'specific_capacity_max': [charge_interp_value]
+        })], ignore_index=True)
+
+        # Truncate curves to only include values below or equal to the voltage
+        charge_trunc = charge[charge['voltage'] <= input_value].copy()
+        discharge_trunc = discharge[discharge['voltage'] <= input_value].copy()
+
+        # Calculate shift to make discharge curve continuous with charge curve
+        # We assume continuity is needed in specific_capacity
+        capacity_shift = charge_trunc['specific_capacity'].iloc[-1] - discharge_trunc['specific_capacity'].iloc[-1]
+        discharge_trunc['specific_capacity'] += capacity_shift
+
+        ref_charge = charge_trunc.loc[charge_trunc['voltage'].idxmax()]
+        ref_discharge = discharge_trunc.loc[discharge_trunc['voltage'].idxmax()]
+
+        capacity_shift = ref_charge['specific_capacity'] - ref_discharge['specific_capacity']
+        discharge_trunc['specific_capacity'] += capacity_shift
+
+        self._half_cell_curve = pd.concat([
+            charge_trunc, discharge_trunc], 
+            ignore_index=True
         )
 
     @staticmethod
@@ -679,9 +692,7 @@ class CathodeMaterial(_ActiveMaterial):
         
         :return: tuple: (minimum voltage, maximum voltage)
         """
-        min_v = float(round(self._minimum_extrapolated_voltage, 2))
-        max_v = float(round(self._maximum_voltage, 2))
-        return (min_v, max_v)
+        return (round(self._minimum_extrapolated_voltage, 2), round(self._maximum_voltage, 2))
 
     @property
     def voltage_cuttoff(self) -> float:
@@ -690,7 +701,10 @@ class CathodeMaterial(_ActiveMaterial):
         
         :return: float: maximum voltage of the half cell curves
         """
-        return round(float(self.half_cell_curves['Maximum Voltage (V)'].max()), 3)
+        if hasattr(self, '_voltage_cuttoff'):
+            return self._voltage_cuttoff
+        else:
+            raise ValueError(f"A voltage cuttoff for {self.name} has not been set yet. Please set a voltage cuttoff in the range {self.voltage_cuttoff_range} before accessing this property.")
 
     @voltage_cuttoff.setter
     def voltage_cuttoff(self, voltage: float):
@@ -711,6 +725,8 @@ class CathodeMaterial(_ActiveMaterial):
         else:
             raise ValueError(f"Voltage cuttoff must be less than or equal to {self._maximum_voltage} V")
 
+        self._half_cell_curve = self.enforce_monotonicity(self._half_cell_curve, on='voltage')
+        self._half_cell_curve = self.enforce_monotonicity(self._half_cell_curve, on='specific_capacity')
         self._apply_reversible_capacity_scaling(self._reversible_capacity_scaling)
         self._apply_irreversible_capacity_scaling(self._irreversible_capacity_scaling)
 
@@ -724,7 +740,6 @@ class AnodeMaterial(_ActiveMaterial):
             specific_cost: float,
             density: float,
             half_cell_curves: Union[List[pd.DataFrame], pd.DataFrame],
-            negative_voltage_extrapolation_window: float = 0.4,
             color: str = '#2c2c2c'
         ):
         """
@@ -743,7 +758,6 @@ class AnodeMaterial(_ActiveMaterial):
             specific_cost = specific_cost,
             density = density,
             half_cell_curves = half_cell_curves,
-            negative_voltage_extrapolation_window = negative_voltage_extrapolation_window,
             color = color
         )
 

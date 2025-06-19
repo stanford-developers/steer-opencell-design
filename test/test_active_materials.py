@@ -641,9 +641,6 @@ class TestNMMMultiCurve(unittest.TestCase):
         self.assertIsInstance(self.material, CathodeMaterial)
         self.assertTrue(self.material.voltage_cuttoff_range == (3.7, 4.36))
 
-        figure = self.material.get_plot()
-        # figure.show()
-
     def test_voltage_setter_extrapolate(self):
         self.material.voltage_cuttoff = 4
         data = self.material.half_cell_curve
@@ -914,7 +911,7 @@ class TestHardCarbon(unittest.TestCase):
         self.assertTrue(isinstance(self.material, AnodeMaterial))
         # self.assertEqual(self.material.voltage_cuttoff_range, (3.7, 4.1))
 
-        figure = self.material.get_plot()
+        figure = self.material.plot_half_cell_curve()
         # figure.show()
 
     def test_reversible_capacity_scaling(self):
