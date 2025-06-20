@@ -46,7 +46,9 @@ class TestPunchedCurrentCollector(unittest.TestCase):
 
     def test_figures(self):
         fig_a = self.current_collector.get_a_side_view()
+        fig_b = self.current_collector.get_end_view()
         # fig_a.show()
+        # fig_b.show()
 
 
 class TestNotchedCurrentCollector(unittest.TestCase):
@@ -57,18 +59,20 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         """
         self.material = CurrentCollectorMaterial.from_database(name="Aluminum")
 
-        self.current_collector = NotchedCurrentCollector(material=self.material,
-                                                         thickness=15, 
-                                                         length=3000,
-                                                         width=108,
-                                                         tab_width=30,
-                                                         tab_spacing=50,
-                                                         tab_height=7,
-                                                         bare_lengths_a_side=(15, 80),
-                                                         bare_lengths_b_side=(20, 80),
-                                                         coated_tab_height=2,
-                                                         insulation_width=4)
-        
+        self.current_collector = NotchedCurrentCollector(
+            material=self.material,
+            thickness=15, 
+            length=3000,
+            width=108,
+            tab_width=30,
+            tab_spacing=50,
+            tab_height=7,
+            bare_lengths_a_side=(15, 80),
+            bare_lengths_b_side=(20, 80),
+            coated_tab_height=2,
+            insulation_width=4
+        )
+
     def test_current_collector(self):
         """
         Test instantiation
@@ -99,8 +103,11 @@ class TestNotchedCurrentCollector(unittest.TestCase):
     def test_figures(self):
         fig_a = self.current_collector.get_a_side_view()
         fig_b = self.current_collector.get_b_side_view()
+        fig_c = self.current_collector.get_end_view()
+
         # fig_a.show()
         # fig_b.show()
+        # fig_c.show()
 
 
 class TestNotchedCurrentCollector2(unittest.TestCase):
@@ -111,17 +118,19 @@ class TestNotchedCurrentCollector2(unittest.TestCase):
         """
         self.material = CurrentCollectorMaterial.from_database(name="Aluminum")
 
-        self.current_collector = NotchedCurrentCollector(material=self.material,
-                                                         thickness=15, 
-                                                         length=3000,
-                                                         width=108,
-                                                         tab_width=30,
-                                                         tab_spacing=50,
-                                                         tab_height=7,
-                                                         bare_lengths_a_side=(15, 80),
-                                                         bare_lengths_b_side=(20, 80),
-                                                         coated_tab_height=4,
-                                                         insulation_width=2)
+        self.current_collector = NotchedCurrentCollector(
+            material=self.material,
+            thickness=15, 
+            length=3000,
+            width=108,
+            tab_width=30,
+            tab_spacing=50,
+            tab_height=7,
+            bare_lengths_a_side=(15, 80),
+            bare_lengths_b_side=(20, 80),
+            coated_tab_height=4,
+            insulation_width=2
+        )
         
     def test_current_collector(self):
         """
@@ -165,14 +174,16 @@ class TestTablessCurrentCollector(unittest.TestCase):
         """
         self.material = CurrentCollectorMaterial.from_database(name="Copper")
 
-        self.current_collector = TablessCurrentCollector(material=self.material,
-                                                         thickness=8,
-                                                         length=2000,
-                                                         width=108,
-                                                         coated_width=100,
-                                                         bare_lengths_a_side=(15, 80),
-                                                         bare_lengths_b_side=(30, 140),
-                                                         insulation_width=3)
+        self.current_collector = TablessCurrentCollector(
+            material=self.material,
+            thickness=8,
+            length=2000,
+            width=108,
+            coated_width=100,
+            bare_lengths_a_side=(15, 80),
+            bare_lengths_b_side=(30, 140),
+            insulation_width=3
+        )
         
     def test_current_collector(self):
         """
@@ -191,8 +202,10 @@ class TestTablessCurrentCollector(unittest.TestCase):
     def test_figures(self):
         fig_a = self.current_collector.get_a_side_view()
         fig_b = self.current_collector.get_b_side_view()
+        fig_c = self.current_collector.get_end_view()
         # fig_a.show()
         # fig_b.show()
+        # fig_c.show()
 
 
 class TestWeldTab(unittest.TestCase):
@@ -222,13 +235,16 @@ class TestWeldTab(unittest.TestCase):
         self.assertEqual(round(self.weldtab._length, 6), 0.115)
         self.assertEqual(round(self.weldtab._thickness, 6), 0.00002)
         self.assertEqual(self.weldtab._area, 0.000575)
+        self.assertEqual(self.weldtab._side_area, 2.3e-6)
 
     def test_plots(self):
         """
         Test plots
         """
-        fig = self.weldtab.get_view()
-        # fig.show()
+        fig1 = self.weldtab.get_view()
+        fig2 = self.weldtab.get_side_view()
+        # fig1.show()
+        # fig2.show()
 
 
 class TestTabWeldedCurrentCollector(unittest.TestCase):
@@ -289,12 +305,11 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         """
         Test plots
         """
-        # fig = self.current_collector.get_a_side_view()
         fig1 = self.current_collector.get_a_side_view()
         fig2 = self.current_collector.get_b_side_view()
+        fig3 = self.current_collector.get_end_view()
         # fig1.show()
         # fig2.show()
+        # fig3.show()
  
-
-
 
