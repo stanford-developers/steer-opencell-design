@@ -22,6 +22,7 @@ class _CurrentCollector(ABC):
                  thickness: float,
                  insulation_width: Optional[float] = 0,
                  datum: Optional[Tuple[float, float]] = (0, 0),
+                 name: Optional[str] = 'Current Collector',
                  **kwargs):
         """
         Initialize an object that represents a current collector.
@@ -39,10 +40,21 @@ class _CurrentCollector(ABC):
         self._check_y_body_length(y_body_length)
         self._check_thickness(thickness)
         self._check_insulation_width(insulation_width)
+        self._check_name(name)
 
         # Shading patterns
         self._am_fill_pattern = dict(shape='/', size=20, solidity=0.6, fgcolor=self._material._color)
         self._in_fill_pattern = dict(shape='\\', size=10, solidity=0.6, fgcolor=self._material._color)
+
+    def _check_name(self, name: str) -> None:
+        """
+        Check if the name is a string.
+        If not, raise a TypeError.
+        """
+        if not isinstance(name, str):
+            raise TypeError("Name must be a string.")
+        
+        self._name = name
 
     def _check_datum(self, datum: Optional[Tuple[float, float]]) -> None:
         """
@@ -171,6 +183,13 @@ class _CurrentCollector(ABC):
         pass
 
     @property
+    def name(self) -> str:
+        """
+        Get the name of the current collector.
+        """
+        return self._name
+
+    @property
     def properties(self) -> dict:
         """
         Get the properties of the current collector.
@@ -254,6 +273,7 @@ class _TabbedCurrentCollector(_CurrentCollector):
             coated_tab_height: float,
             thickness: float,
             insulation_width: Optional[float] = 0,
+            name: Optional[str] = 'Tabbed Current Collector',
             **kwargs
         ):
         """
@@ -273,6 +293,7 @@ class _TabbedCurrentCollector(_CurrentCollector):
                          y_body_length=y_body_length,
                          thickness=thickness,
                          insulation_width=insulation_width,
+                         name=name,
                          **kwargs)
         
         self._check_tab_width(tab_width)
@@ -345,14 +366,18 @@ class _TapeCurrentCollector(_CurrentCollector):
             bare_lengths_a_side: Tuple[float, float] = (0,0),
             bare_lengths_b_side: Tuple[float, float] = (0,0),
             insulation_width: Optional[float] = 0,
+            name: Optional[str] = 'Tape Current Collector',
             **kwargs
         ) -> None:
         
-        super().__init__(material=material,
-                         x_body_length=x_body_length,
-                         y_body_length=y_body_length,
-                         insulation_width=insulation_width,
-                         thickness=thickness)
+        super().__init__(
+            material=material,
+            x_body_length=x_body_length,
+            y_body_length=y_body_length,
+            insulation_width=insulation_width,
+            thickness=thickness,
+            name=name
+        )
         
         self._check_bare_lengths_a_side(bare_lengths_a_side)
         self._check_bare_lengths_b_side(bare_lengths_b_side)
@@ -573,6 +598,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
             tab_position: float,
             coated_tab_height: float = 0,
             insulation_width: Optional[float] = 0,
+            name: Optional[str] = 'Punched Current Collector',
         ) -> None:
         """
         Initialize an object that represents a punched current collector.
@@ -586,15 +612,17 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         :param tab_position: float: position of the tab in mm, measured from the left edge of the current collector
         :param coated_tab_height: float: height of the coated tab on the top side in mm
         """
-        super().__init__(material=material,
-                         x_body_length=width,
-                         y_body_length=height,
-                         tab_width=tab_width,
-                         tab_height=tab_height,
-                         coated_tab_height=coated_tab_height,
-                         thickness=thickness,
-                         insulation_width=insulation_width,
-                         )
+        super().__init__(
+            material=material,
+            x_body_length=width,
+            y_body_length=height,
+            tab_width=tab_width,
+            tab_height=tab_height,
+            coated_tab_height=coated_tab_height,
+            thickness=thickness,
+            insulation_width=insulation_width,
+            name=name
+        )
         
         self._check_tab_position(tab_position)
         self._calculate_properties()
@@ -753,7 +781,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
             fillpattern=self._am_fill_pattern
         )
 
-        area =            get_area_from_trace(trace)
+        area = get_area_from_trace(trace)
         
         return trace, area
 
@@ -881,8 +909,14 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         return round(self._tab_position * M_TO_MM, 2)
 
 
-class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
-
+class NotchedCurrentCollector(
+    _TabbedCurrentCollector, 
+    _TapeCurrentCollector
+    ):
+    """
+    A notched current collector with tabs along the length.
+    Inherits from _TabbedCurrentCollector and _TapeCurrentCollector.
+    """
     def __init__(
             self, 
             material: CurrentCollectorMaterial,
@@ -896,31 +930,51 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
             bare_lengths_a_side: Tuple[float, float] = (0,0),
             bare_lengths_b_side: Tuple[float, float] = (0,0),
             insulation_width: Optional[float] = 0,
+            name: Optional[str] = 'Notched Current Collector',
         ) -> None:
         """
         Initialize an object that represents a notched current collector.
         
-        :param material: CurrentCollectorMaterial: material of the current collector
-        :param length: float: length of the current collector in mm
-        :param width: float: width of the current collector in mm
-        :param thickness: float: thickness of the current collector in um
-        :param tab_width: float: width of the tabs in mm
-        :param tab_length: float: length of the tabs in mm
-        :param tab_spacing: float: spacing between the tabs in mm
-        :param bare_lengths_a_side: Tuple[float, float]: lengths of the bare area on the A side in mm (left, right)
-        :param bare_lengths_b_side: Tuple[float, float]: lengths of the bare area on the B side in mm (left, right)
+        Parameters:
+        -----------
+        material: CurrentCollectorMaterial: 
+            Material of the current collector.
+        length: float:
+            Length of the current collector in mm.
+        width: float:
+            Width of the current collector in mm.
+        thickness: float:
+            Thickness of the current collector in um.
+        tab_width: float:
+            Width of the tabs in mm.
+        tab_spacing: float:
+            Spacing between the tabs in mm.
+        tab_height: float:
+            Height of the tabs in mm.
+        coated_tab_height: float:
+            Height of the coated tab on the top side in mm.
+        bare_lengths_a_side: Tuple[float, float]:
+            Bare lengths on the A side in mm, as a tuple of two floats (left, right).
+        bare_lengths_b_side: Tuple[float, float]:
+            Bare lengths on the B side in mm, as a tuple of two floats (left, right).
+        insulation_width: Optional[float]:
+            Width of the insulation strip in mm, default is 0.
+        name: Optional[str]:
+            Name of the current collector, default is 'Notched Current Collector'.
         """
-        super().__init__(material=material,
-                         x_body_length=length,
-                         y_body_length=width,
-                         tab_width=tab_width,
-                         tab_height=tab_height,
-                         thickness=thickness,
-                         coated_tab_height=coated_tab_height,
-                         bare_lengths_a_side=bare_lengths_a_side,
-                         bare_lengths_b_side=bare_lengths_b_side,
-                         insulation_width=insulation_width,
-                         )
+        super().__init__(
+            material=material,
+            x_body_length=length,
+            y_body_length=width,
+            tab_width=tab_width,
+            tab_height=tab_height,
+            thickness=thickness,
+            coated_tab_height=coated_tab_height,
+            bare_lengths_a_side=bare_lengths_a_side,
+            bare_lengths_b_side=bare_lengths_b_side,
+            insulation_width=insulation_width,
+            name=name
+        )
 
         self._check_tab_spacing(tab_spacing)
         self._calculate_tab_positions()
@@ -1272,16 +1326,31 @@ class TablessCurrentCollector(NotchedCurrentCollector):
             bare_lengths_a_side: Tuple[float, float] = (0, 0),
             bare_lengths_b_side: Tuple[float, float] = (0, 0),
             insulation_width: Optional[float] = 0,
+            name: Optional[str] = 'Tabless Current Collector'
             ) -> None:
         """
         Initialize an object that represents a tabless current collector.
         
-        :param material: CurrentCollectorMaterial: material of the current collector
-        :param length: float: length of the current collector in mm
-        :param width: float: width of the current collector in mm
-        :param thickness: float: thickness of the current collector in um
-        :param bare_lengths_a_side: Tuple[float, float]: lengths of the bare area on the A side in mm (left, right)
-        :param bare_lengths_b_side: Tuple[float, float]: lengths of the bare area on the B side in mm (left, right)
+        Parameters:
+        -----------
+        material: CurrentCollectorMaterial: 
+            Material of the current collector.
+        length: float:
+            Length of the current collector in mm.
+        width: float:
+            Width of the current collector in mm.
+        coated_width: float:
+            Width of the coated area in mm.
+        thickness: float:
+            Thickness of the current collector in um.
+        bare_lengths_a_side: Tuple[float, float]:
+            Bare lengths on the A side in mm, as a tuple of two floats (left, right).
+        bare_lengths_b_side: Tuple[float, float]:
+            Bare lengths on the B side in mm, as a tuple of two floats (left, right).
+        insulation_width: Optional[float]:
+            Width of the insulation strip in mm, default is 0.
+        name: Optional[str]:
+            Name of the current collector, default is 'Tabless Current Collector'.
         """
         tab_height = width - coated_width
         width = width - tab_height
@@ -1298,6 +1367,7 @@ class TablessCurrentCollector(NotchedCurrentCollector):
             bare_lengths_a_side=bare_lengths_a_side,
             bare_lengths_b_side=bare_lengths_b_side,
             insulation_width=insulation_width,
+            name=name
         )
 
         self._check_coated_width(coated_width)
@@ -1540,22 +1610,38 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             tab_overhang: float,
             tab_weld_side: str = 'a',
             bare_lengths_a_side: Tuple[float, float] = (0, 0),
-            bare_lengths_b_side: Tuple[float, float] = (0, 0)
+            bare_lengths_b_side: Tuple[float, float] = (0, 0),
+            name: Optional[str] = 'Tab Welded Current Collector'
         ) -> None:
         """
         Initialize an object that represents a current collector with tabs welded on it.
 
-        :param material: CurrentCollectorMaterial: material of the current collector
-        :param length: float: length of the current collector in mm
-        :param width: float: width of the current collector in mm
-        :param thickness: float: thickness of the current collector in um
-        :param weld_tab: WeldTab: the weld tab to be used on the current collector
-        :param weld_tab_positions: Iterable[float]: positions of the weld tabs along the length of the current collector in mm
-        :param skip_coat_width: float: width of the skip coat area in mm
-        :param tab_weld_side: str: side of the current collector where the weld tabs are located ('a' or 'b')
-        :param bare_lengths_a_side: Tuple[float, float]: lengths of the bare area on the A side in mm (left, right)
-        :param bare_lengths_b_side: Tuple[float, float]: lengths of the bare area on the B side in mm (left, right)
-        :param tab_overhang: float: overhang of the weld tab on the current collector in mm
+        Parameters:
+        -----------
+        material: CurrentCollectorMaterial: 
+            Material of the current collector.
+        length: float:
+            Length of the current collector in mm.
+        width: float:
+            Width of the current collector in mm.
+        thickness: float:
+            Thickness of the current collector in um.
+        weld_tab: WeldTab:
+            Weld tab to be used on the current collector.
+        weld_tab_positions: Iterable[float]:
+            Positions of the weld tabs along the length of the current collector in mm.
+        skip_coat_width: float:
+            Width of the skip coat area in mm.
+        tab_overhang: float:
+            Overhang of the weld tab in mm.
+        tab_weld_side: str:
+            Side of the current collector where the weld tabs are welded ('a' or 'b').
+        bare_lengths_a_side: Tuple[float, float]:
+            Bare lengths on the A side in mm, as a tuple of two floats (left, right).
+        bare_lengths_b_side: Tuple[float, float]:
+            Bare lengths on the B side in mm, as a tuple of two floats (left, right).
+        name: Optional[str]:
+            Name of the current collector, default is 'Tab Welded Current Collector'.
         """
         super().__init__(
             material=material,
@@ -1563,7 +1649,8 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             y_body_length=width,
             thickness=thickness,
             bare_lengths_a_side=bare_lengths_a_side,
-            bare_lengths_b_side=bare_lengths_b_side
+            bare_lengths_b_side=bare_lengths_b_side,
+            name=name
         )
         
         self._check_weld_tab_positions(weld_tab_positions, weld_tab)

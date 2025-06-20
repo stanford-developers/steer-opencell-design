@@ -231,16 +231,19 @@ class _ElectrodeFormulation:
         :return: A dictionary with the density contribution of each component.
         """
         active_material_densities = [c._density for c in self._active_materials.keys()]
+
         active_material_density_breakdown = {
             key.name: value * self._active_materials[key] for key, value in zip(self._active_materials.keys(), active_material_densities)
         }
 
         binder_densities = [c._density for c in self._binders.keys()]
+
         binder_density_breakdown = {
             key.name: value * self._binders[key] for key, value in zip(self._binders.keys(), binder_densities)
         } if self._binders else {}
 
         conductive_additive_densities = [c._density for c in self._conductive_additives.keys()]
+        
         conductive_additive_density_breakdown = {
             key.name: value * self._conductive_additives[key] for key, value in zip(self._conductive_additives.keys(), conductive_additive_densities)
         } if self._conductive_additives else {}

@@ -1,5 +1,6 @@
-from SteerEnergyStorage.Formulations.ElectrodeFormulations import ElectrodeFormulation
-from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector
+from SteerEnergyStorage.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation, _ElectrodeFormulation
+from SteerEnergyStorage.Materials.CurrentCollectors import _CurrentCollector
+from SteerEnergyStorage.Materials.RawMaterials import InsulationMaterial
 
 from SteerEnergyStorage.Constants import *
 
@@ -10,33 +11,101 @@ import plotly.express as px
 
 
 class _Electrode:
-
-    def __init__(self, 
-                 formulation: ElectrodeFormulation,
-                 mass_loading: float,
-                 current_collector: CurrentCollector,
-                 calender_density: float,
-                 name: str = 'Electrode'):
+    """
+    Base class for electrodes, representing the common properties and methods of an electrode.
+    """
+    def __init__(
+            self, 
+            formulation: _ElectrodeFormulation,
+            mass_loading: float,
+            current_collector: _CurrentCollector,
+            calender_density: float,
+            insulation_material: InsulationMaterial = None,
+            insulation_thickness: float = 0.0,
+            name: str = 'Electrode'
+        ):
         """
         Initialize an object that represents an electrode.
 
-        :param formulation: Formulation of the electrode.
-        :param mass_loading: Mass loading of the electrode in mg/cm^2.
-        :param current_collector: Current collector used in the electrode.
-        :param calender_density: Density of the electrode after calendering in g/cm^3.
-        :param name: Name of the electrode.
+        Parameters:
+        ----------
+        formulation : _ElectrodeFormulation
+            The formulation of the electrode, which includes active materials, binders, and conductive additives.
+        mass_loading : float
+            The mass loading of the electrode in mg/cm^2.
+        current_collector : _CurrentCollector
+            The current collector used in the electrode.
+        calender_density : float
+            The density of the electrode coating after calendering in g/cm^3.
+        insulation_material : InsulationMaterial, optional
+            The insulation material used in the electrode (default is None).
+        insulation_thickness : float, optional
+            The thickness of the insulation material in micrometers (default is 0.0).
+        name : str, optional
+            The name of the electrode (default is 'Electrode').
+        ----------
         """
         self._check_name(name)
         self._check_formulation(formulation)
         self._check_current_collector(current_collector)
         self._check_mass_loading(mass_loading)
         self._check_calender_density(calender_density)
+        self._check_insulation_material(insulation_material)
+        self._check_insulation_thickness(insulation_thickness)
 
         self._calculate_porosity()
-        self._calculate_mass_properties()
         self._calculate_thickness_properties()
-        self._calculate_mass_breakdown()
-        self._calculate_cost_breakdown()
+        self._calculate_mass_properties()
+        self._calculate_cost_properties()
+
+    def _check_insulation_material(self, insulation_material: InsulationMaterial) -> None:
+        """
+        Check if the insulation material is valid.
+
+        Parameters:
+        ----------
+        insulation_material : InsulationMaterial
+            The insulation material to check.
+
+        Raises:
+        -------
+        TypeError: If the insulation material is not an InsulationMaterial object.
+        ValueError: If the insulation material is not provided when the current collector has an insulation width.
+        ----------
+        """
+        if insulation_material is not None and not isinstance(insulation_material, InsulationMaterial):
+            raise TypeError("Insulation material must be an InsulationMaterial object")
+        
+        if self._current_collector._insulation_area != 0 and insulation_material is None:
+            raise ValueError("Insulation material must be provided if the current collector has an insulation width")
+        
+        self._insulation_material = insulation_material
+
+    def _check_insulation_thickness(self, insulation_thickness: float) -> None:
+        """
+        Check if the insulation thickness is valid.
+
+        Parameters:
+        ----------
+        insulation_thickness : float
+            The thickness of the insulation material in micrometers.
+        
+        Raises:
+        -------
+        TypeError: If the insulation thickness is not a number.
+        ValueError: If the insulation thickness is less than zero.
+        ----------
+        """
+        if not isinstance(insulation_thickness, (int, float)):
+            raise TypeError("Insulation thickness must be a number")
+        
+        if insulation_thickness < 0:
+            raise ValueError("Insulation thickness must be greater than or equal to zero")
+        
+        if self._insulation_material is not None and insulation_thickness == 0:
+            raise ValueError("Insulation thickness must be greater than zero if insulation material is provided")
+        
+        self._insulation_thickness = insulation_thickness * UM_TO_M
 
     def _check_name(self, name: str) -> None:
 
@@ -45,16 +114,16 @@ class _Electrode:
         
         self._name = name
 
-    def _check_formulation(self, formulation: ElectrodeFormulation) -> None:
+    def _check_formulation(self, formulation: _ElectrodeFormulation) -> None:
 
-        if not isinstance(formulation, ElectrodeFormulation):
+        if not isinstance(formulation, _ElectrodeFormulation):
             raise TypeError("Formulation must be an ElectrodeFormulation object")
 
         self._formulation = formulation
 
-    def _check_current_collector(self, current_collector: CurrentCollector) -> None:
+    def _check_current_collector(self, current_collector: _CurrentCollector) -> None:
 
-        if not isinstance(current_collector, CurrentCollector):
+        if not isinstance(current_collector, _CurrentCollector):
             raise TypeError("Current collector must be a CurrentCollector object")
 
         self._current_collector = current_collector
@@ -83,68 +152,51 @@ class _Electrode:
         """
         Calculate the mass properties of the electrode.
         """
-        self._single_sided_area = self._current_collector._coated_area
-        self._coating_mass = self._single_sided_area * self._mass_loading * 2
-        self._mass = self._coating_mass + self._current_collector._mass
+        self._coating_mass = self._current_collector._coated_area * self._mass_loading
+        self._insulator_mass = self._current_collector._insulation_area * self._insulation_material._density * self._insulation_thickness if self._insulation_material else 0.0
+        self._mass = self._coating_mass + self._current_collector._mass + self._insulator_mass
+
+        self._mass_breakdown = (
+            {k: float(v * self._minimum_coating_volume) for k, v in self._formulation._density_breakdown.items()} | 
+            {self._current_collector.name: self._current_collector._mass} |
+            {self._insulation_material.name: self._insulator_mass} if self._insulation_material else {}
+        )
+
+    def _calculate_cost_properties(self) -> None:
+        """
+        Calculate the cost properties of the electrode.
+        """
+        self._coating_cost = self._coating_mass * self._formulation._specific_cost
+        self._insulator_cost = self._insulator_mass * self._insulation_material._specific_cost if self._insulation_material else 0.0
+        self._cost = self._coating_cost + self._current_collector._cost + self._insulator_cost
+
+        self._cost_breakdown = (
+            {k: float(v * self._coating_mass) for k, v in self._formulation._specific_cost_breakdown.items()} |
+            {self._current_collector.name: self._current_collector.cost} |
+            {self._insulation_material.name: self._insulator_cost * self._insulator_mass} if self._insulation_material else {}
+        )
 
     def _calculate_thickness_properties(self) -> None:
         """
         Calculate the thickness properties of the electrode.
         """
-        self._material_thickness = self._mass_loading / self._calender_density
-        self._material_volume = self._single_sided_area * self._material_thickness * 2
-        self._thickness = self._material_thickness * 2 + self._current_collector._thickness
-        self._pore_volume = self._material_volume * self._porosity
+        self._minimum_coating_thickness = self._mass_loading / self._formulation._density
+        self._minimum_coating_volume = self._current_collector._coated_area * self._minimum_coating_thickness
 
-    def _calculate_mass_breakdown(self) -> None:
-        """
-        Calculate the mass breakdown of the electrode.
-        """
-        self._mass_breakdown = {'current_collector': self._current_collector._mass}
-        self._mass_breakdown.update(self._calculate_component_breakdown(self._formulation._active_materials, 'active_materials'))
-        self._mass_breakdown.update(self._calculate_component_breakdown(self._formulation._binders, 'binders'))
-        self._mass_breakdown.update(self._calculate_component_breakdown(self._formulation._conductive_additives, 'conductive_additives'))
+        self._coating_thickness = self._mass_loading / self._calender_density
+        self._coating_volume = self._current_collector._coated_area * self._coating_thickness
+        self._thickness = self._coating_thickness * 2 + self._current_collector._thickness
+        self._pore_volume = self._coating_volume * self._porosity
 
-        active_material_mass = sum(self._mass_breakdown['active_materials'].values())
-        binder_mass = sum(self._mass_breakdown['binders'].values())
-        conductive_additive_mass = sum(self._mass_breakdown['conductive_additives'].values())
-        current_collector_mass = self._current_collector._mass
-        self._mass = active_material_mass + binder_mass + conductive_additive_mass + current_collector_mass
-
-    def _calculate_cost_breakdown(self) -> None:
-        """
-        Calculate the cost breakdown of the electrode.
-        """
-        self._cost_breakdown = {'current_collector': self._current_collector._cost}
-        self._cost_breakdown.update(self._calculate_component_cost_breakdown(self._formulation._active_materials, 'active_materials'))
-        self._cost_breakdown.update(self._calculate_component_cost_breakdown(self._formulation._binders, 'binders'))
-        self._cost_breakdown.update(self._calculate_component_cost_breakdown(self._formulation._conductive_additives, 'conductive_additives'))
+        if self._insulation_thickness > self._coating_thickness:
+            raise ValueError(f"""Insulation thickness of {self.insulation_thickness} um cannot be 
+                             greater than coating thickness of {self.coating_thickness}. Increase 
+                             your mass loading or decrease insulation thickness.""")
         
-        active_material_cost = sum(self._cost_breakdown['active_materials'].values())
-        binder_cost = sum(self._cost_breakdown['binders'].values())
-        conductive_additive_cost = sum(self._cost_breakdown['conductive_additives'].values())
-        current_collector_cost = self._current_collector._cost
-        self._cost = active_material_cost + binder_cost + conductive_additive_cost + current_collector_cost
-
-    def _calculate_component_breakdown(self, components: Dict[Any, float], component_type: str) -> Dict[str, Dict[Any, float]]:
-        """
-        Calculate the mass breakdown for a given component type.
-
-        :param components: Dictionary of components and their mass fractions.
-        :param component_type: Type of component (e.g., 'active_materials').
-        :return: Dictionary of mass breakdown for the given component type.
-        """
-        return {component_type: {component: fraction * self._coating_mass for component, fraction in components.items()}}
-
-    def _calculate_component_cost_breakdown(self, components: Dict[Any, float], component_type: str) -> Dict[str, Dict[Any, float]]:
-        """
-        Calculate the cost breakdown for a given component type.
-
-        :param components: Dictionary of components and their mass fractions.
-        :param component_type: Type of component (e.g., 'active_materials').
-        :return: Dictionary of cost breakdown for the given component type.
-        """
-        return {component_type: {component: fraction * self._coating_mass * component._specific_cost for component, fraction in components.items()}}
+        if self._coating_thickness < self._minimum_coating_thickness:
+            raise ValueError(f"""Your caldender density of {self.calender_density} g/cm^3 is too high, 
+                             leading to negative porosity. Decrease your calender density below 
+                             {self._formulation._density} g/cm^3.""")
 
     def _calculate_porosity(self) -> None:
         """
@@ -270,13 +322,31 @@ class _Electrode:
         return fig    
 
     @property
+    def insulation_thickness(self) -> float:
+        """
+        Get the insulation thickness of the electrode.
+
+        :return: Insulation thickness of the electrode in micrometers.
+        """
+        return round(self._insulation_thickness * M_TO_UM, 2)
+
+    @property
+    def coating_thickness(self) -> float:
+        """
+        Get the coating thickness of the electrode.
+
+        :return: Coating thickness of the electrode in micrometers.
+        """
+        return round(self._coating_thickness * M_TO_UM, 2)
+
+    @property
     def cost_breakdown(self) -> Dict[str, Any]:
         """
         Get the cost breakdown of the electrode.
 
         :return: Dictionary containing the cost breakdown.
         """
-        return self._format_breakdown(self._cost_breakdown)
+        return {k: round(v, 2) for k, v in self._cost_breakdown.items()}
 
     @property
     def mass_breakdown(self) -> Dict[str, Any]:
@@ -285,25 +355,7 @@ class _Electrode:
 
         :return: Dictionary containing the mass breakdown.
         """
-        return self._format_breakdown(self._mass_breakdown)
-
-    def _format_breakdown(self, breakdown: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Format the breakdown dictionary.
-
-        :param breakdown: Dictionary containing the breakdown.
-        :return: Formatted breakdown dictionary.
-        """
-        formatted_breakdown = {}
-        for key, value in breakdown.items():
-            if isinstance(value, dict):
-                value = {k: round(v, 5) for k, v in value.items()}
-            else:
-                value = round(value, 5)
-            key = key.replace('_', ' ').title()
-            formatted_breakdown[key] = value
-
-        return formatted_breakdown
+        return {k: round(v * KG_TO_G, 2) for k, v in self._mass_breakdown.items()}
 
     @property
     def half_cell_curve(self) -> pd.DataFrame:
@@ -342,15 +394,6 @@ class _Electrode:
         return round(self._calender_density * (KG_TO_G / M_TO_CM**3), 2)
 
     @property
-    def formulation(self) -> ElectrodeFormulation:
-        """
-        Get the formulation of the electrode.
-
-        :return: Formulation of the electrode.
-        """
-        return self._formulation
-
-    @property
     def mass_loading(self) -> float:
         """
         Get the mass loading of the electrode.
@@ -360,22 +403,13 @@ class _Electrode:
         return round(self._mass_loading * (KG_TO_MG / M_TO_CM**2), 2)
 
     @property
-    def current_collector(self) -> CurrentCollector:
+    def current_collector(self) -> _CurrentCollector:
         """
         Get the current collector of the electrode.
 
         :return: Current collector of the electrode.
         """
         return self._current_collector
-
-    @property
-    def single_sided_area(self) -> float:
-        """
-        Get the single-sided area of the electrode.
-
-        :return: Single-sided area of the electrode.
-        """
-        return round(self._single_sided_area, 2)
 
     @property
     def name(self) -> str:
@@ -431,6 +465,15 @@ class _Electrode:
         """
         return round(self._cost, 2)
 
+    @property
+    def formulation(self) -> _ElectrodeFormulation:
+        """
+        Get the formulation of the electrode.
+
+        :return: Formulation of the electrode.
+        """
+        return self._formulation
+
     def __str__(self) -> str:
         return self._name
     
@@ -439,101 +482,94 @@ class _Electrode:
 
 
 class Anode(_Electrode):
-    
-    def __init__(self, 
-                 formulation: ElectrodeFormulation,
-                 mass_loading: float,
-                 current_collector: CurrentCollector,
-                 calender_density: float,
-                 name: str = 'Anode',
-                 anode_free = False):
+    """
+    A class representing an anode in a battery system, inheriting from the _Electrode base class.
+    """
+    def __init__(
+            self, 
+            formulation: AnodeFormulation,
+            mass_loading: float,
+            current_collector: _CurrentCollector,
+            calender_density: float,
+            insulation_material: InsulationMaterial = None,
+            insulation_thickness: float = 0.0,
+            name: str = 'Anode'
+        ):
         """
         Initialize an object that represents an anode.
 
-        :param formulation: Formulation of the anode.
-        :param mass_loading: Mass loading of the anode in mg/cm^2.
-        :param current_collector: Current collector used in the anode.
-        :param calender_density: Density of the anode after calendering in g/cm^3.
-        :param name: Name of the anode.
+        Parameters:
+        ----------
+        formulation : AnodeFormulation
+            The formulation of the anode.
+        mass_loading : float
+            The mass loading of the anode in mg/cm^2.
+        current_collector : _CurrentCollector
+            The current collector used in the anode.
+        calender_density : float
+            The density of the anode after calendering in g/cm^3.
+        insulation_material : InsulationMaterial, optional
+            The insulation material used in the anode (default is None).
+        insulation_thickness : float, optional
+            The thickness of the insulation material in micrometers (default is 0.0).
+        name : str, optional
+            The name of the anode (default is 'Anode').
+        ----------
         """
-        super().__init__(formulation=formulation,
-                         mass_loading=mass_loading,
-                         current_collector=current_collector,
-                         calender_density=calender_density,
-                         name=name)
+        super().__init__(
+            formulation=formulation,
+            mass_loading=mass_loading,
+            current_collector=current_collector,
+            calender_density=calender_density,
+            name=name,
+            insulation_material=insulation_material,
+            insulation_thickness=insulation_thickness
+        )
         
-        self._anode_free = anode_free
-        self._current_collector._anode = True
         
-    def _order_and_clean_curves(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-        Order and clean the curves ready for interpolation.
-
-        :param data: DataFrame containing the capacity curves.
-        :return: DataFrame containing the ordered and cleaned curves.
-        """
-        charge_data = (data
-                       .query("direction == 'charge'")
-                       .sort_values('capacity', ascending=True)
-                       .assign(min_vol=lambda x: x['voltage'].cummin())
-                       .query("voltage >= min_vol")
-                       )
-        
-        discharge_data = (data
-                          .query("direction == 'discharge'")
-                          .sort_values('capacity', ascending=False)
-                          .assign(min_vol=lambda x: x['voltage'].cummin())
-                          .query("voltage <= min_vol")
-                          )
-
-        return pd.concat([charge_data, discharge_data]).reset_index(drop=True)
-
-
 class Cathode(_Electrode):
-    
-    def __init__(self, 
-                 formulation: ElectrodeFormulation,
-                 mass_loading: float,
-                 current_collector: CurrentCollector,
-                 calender_density: float,
-                 name: str = 'Cathode'):
+    """
+    A class representing a cathode in a battery system, inheriting from the _Electrode base class.
+    """
+    def __init__(
+            self, 
+            formulation: CathodeFormulation,
+            mass_loading: float,
+            current_collector: _CurrentCollector,
+            calender_density: float,
+            insulation_material: InsulationMaterial = None,
+            insulation_thickness: float = 0.0,
+            name: str = 'Cathode'
+        ):
         """
         Initialize an object that represents a cathode.
 
-        :param formulation: Formulation of the cathode.
-        :param mass_loading: Mass loading of the cathode in mg/cm^2.
-        :param current_collector: Current collector used in the cathode.
-        :param calender_density: Density of the cathode after calendering in g/cm^3.
-        :param name: Name of the cathode.
+        Parameters:
+        ----------
+        formulation : CathodeFormulation
+            The formulation of the cathode.
+        mass_loading : float
+            The mass loading of the cathode in mg/cm^2.
+        current_collector : _CurrentCollector
+            The current collector used in the cathode.
+        calender_density : float
+            The density of the cathode after calendering in g/cm^3.
+        insulation_material : InsulationMaterial, optional
+            The insulation material used in the cathode (default is None).
+        insulation_thickness : float, optional
+            The thickness of the insulation material in micrometers (default is 0.0).
+        name : str, optional
+            The name of the cathode (default is 'Cathode').
+        ----------
         """
-        super().__init__(formulation=formulation,
-                         mass_loading=mass_loading,
-                         current_collector=current_collector,
-                         calender_density=calender_density,
-                         name=name)
-        
-    def _order_and_clean_curves(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-        Order and clean the curves ready for interpolation.
+        super().__init__(
+            formulation=formulation,
+            mass_loading=mass_loading,
+            current_collector=current_collector,
+            calender_density=calender_density,
+            name=name,
+            insulation_material=insulation_material,
+            insulation_thickness=insulation_thickness
+        )
 
-        :param data: DataFrame containing the capacity curves.
-        :return: DataFrame containing the ordered and cleaned curves.
-        """
-        charge_data = (data
-                       .query("direction == 'charge'")
-                       .sort_values('capacity', ascending=True)
-                       .assign(max_vol=lambda x: x['voltage'].cummax())
-                       .query("voltage >= max_vol")
-                       )
-        
-        discharge_data = (data
-                          .query("direction == 'discharge'")
-                          .sort_values('capacity', ascending=False)
-                          .assign(max_vol=lambda x: x['voltage'].cummax())
-                          .query("voltage <= max_vol")
-                          )
-
-        return pd.concat([charge_data, discharge_data]).reset_index(drop=True).drop(columns=['max_vol'])
-
-
-
+    

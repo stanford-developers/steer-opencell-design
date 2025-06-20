@@ -46,7 +46,7 @@ def get_area_from_trace(trace: go.Scatter) -> float:
         # Calculate the area using the shoelace formula
         area = 0.5 * np.abs(np.dot(x[:-1], y[1:]) - np.dot(y[:-1], x[1:]))
 
-        return area
+        return float(area)
 
 def build_square_df(x: float, y: float, x_width: float, y_width: float) -> pd.DataFrame:
     """
