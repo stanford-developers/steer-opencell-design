@@ -105,9 +105,11 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
     def test_views(self):
         figure1 = self.cathode.get_a_side_view(width=900, height=600)
         figure2 = self.cathode.get_b_side_view(width=900, height=600)
+        figure3 = self.cathode.get_end_view(width=900, height=600)
         
         # figure1.show()
         # figure2.show()
+        # figure3.show()
 
 
 class TestCathodeTwoMaterialNotched(unittest.TestCase):
@@ -194,7 +196,101 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
     def test_views(self):
         figure1 = self.cathode.get_a_side_view(width=900, height=600)
         figure2 = self.cathode.get_b_side_view(width=900, height=600)
+        figure3 = self.cathode.get_end_view(width=900, height=600)
+        # figure1.show()
+        # figure2.show()
+        # figure3.show()
+
+
+class testAnodeTabWelded(unittest.TestCase):
+
+    def setUp(self):
+        
+        active_material = AnodeMaterial.from_database("Synthetic Graphite")
+        conductive_additive = ConductiveAdditive.from_database("Super P")
+        binder = Binder.from_database("CMC")
+
+        formulation = AnodeFormulation(
+            active_materials={
+                active_material: 90
+            },
+            binders={
+                binder: 5
+            },
+            conductive_additives={
+                conductive_additive: 5
+            }
+        )
+
+        tab_material = CurrentCollectorMaterial.from_database("Copper")
+
+        tab = WeldTab(
+            material=tab_material,
+            width=10,
+            length=110,
+            thickness=10
+        )
+
+        cc_material = CurrentCollectorMaterial.from_database("Copper")
+
+        current_collector = TabWeldedCurrentCollector(
+            material=cc_material,
+            length=3000,
+            width=160,
+            thickness=10,
+            weld_tab=tab,
+            weld_tab_positions=[40, 400, 2800],
+            skip_coat_width=30,
+            tab_overhang=30,
+            tab_weld_side='a'
+        )
+
+        self.anode = Anode(
+            formulation=formulation,
+            mass_loading=10.68,
+            current_collector=current_collector,
+            calender_density=2.60
+        )
+
+    def test_electrodes(self):
+
+        self.assertTrue(isinstance(self.anode, Anode))
+        self.assertTrue(isinstance(self.anode.current_collector, TabWeldedCurrentCollector))
+        self.assertTrue(isinstance(self.anode.formulation, AnodeFormulation))
+
+        self.assertEqual(
+            self.anode.mass_breakdown, 
+            {'Synthetic Graphite': 97.73, 
+             'CMC': 0.77, 
+             'Super P': 0.96, 
+             'Tab Welded Current Collector': 46.37}
+        )
+
+        self.assertEqual(
+            self.anode.cost_breakdown,
+            {'Synthetic Graphite': 0.22, 
+             'CMC': 0.05, 
+             'Super P': 0.07, 
+             'Tab Welded Current Collector': 0.28}
+        )
+
+        self.assertEqual(round(sum([a for a in self.anode._mass_breakdown.values()]), 2), round(self.anode._mass, 2))
+        self.assertEqual(round(sum([a for a in self.anode._cost_breakdown.values()]), 2), round(self.anode._cost, 2))
+
+    def test_half_cell_curve(self):
+
+        figure1 = self.anode.plot_half_cell_curve()
+        figure2 = self.anode.plot_half_cell_curve(areal=True)
+
         # figure1.show()
         # figure2.show()
 
+    def test_views(self):
 
+        figure1 = self.anode.get_a_side_view(width=900, height=600)
+        figure2 = self.anode.get_b_side_view(width=900, height=600)
+        figure3 = self.anode.get_end_view(width=900, height=600)
+
+        # figure1.show()
+        # figure2.show()
+        figure3.show()

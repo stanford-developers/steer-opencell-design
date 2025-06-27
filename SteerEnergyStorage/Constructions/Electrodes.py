@@ -3,6 +3,7 @@ from SteerEnergyStorage.Materials.CurrentCollectors import _CurrentCollector
 from SteerEnergyStorage.Materials.RawMaterials import InsulationMaterial
 
 from SteerEnergyStorage.Constants import *
+from SteerEnergyStorage.Utils import *
 
 import pandas as pd
 import numpy as np
@@ -79,6 +80,9 @@ class _Electrode:
         
         if self._current_collector._insulation_area != 0 and insulation_material is None:
             raise ValueError("Insulation material must be provided if the current collector has an insulation width")
+        
+        if self._current_collector._insulation_area == 0 and insulation_material is not None:
+            raise ValueError("Insulation material cannot be provided if the current collector does not have an insulation area")
         
         self._insulation_material = insulation_material
 
@@ -160,7 +164,7 @@ class _Electrode:
         self._mass_breakdown = (
             {k: float(v * self._minimum_coating_volume) for k, v in self._formulation._density_breakdown.items()} | 
             {self._current_collector.name: self._current_collector._mass} |
-            {self._insulation_material.name: self._insulator_mass} if self._insulation_material else {}
+            ({self._insulation_material.name: self._insulator_mass} if self._insulation_material else {})
         )
 
     def _calculate_cost_properties(self) -> None:
@@ -174,7 +178,7 @@ class _Electrode:
         self._cost_breakdown = (
             {k: float(v * self._coating_mass) for k, v in self._formulation._specific_cost_breakdown.items()} |
             {self._current_collector.name: self._current_collector.cost} |
-            {self._insulation_material.name: self._insulator_cost * self._insulator_mass} if self._insulation_material else {}
+            ({self._insulation_material.name: self._insulator_cost * self._insulator_mass} if self._insulation_material else {})
         )
 
     def _calculate_thickness_properties(self) -> None:
@@ -246,6 +250,33 @@ class _Electrode:
 
         self._half_cell_curve = data
 
+    def _get_top_down_view(self, side: str = 'a', **kwargs) -> pd.DataFrame:
+        """
+        Helper method to get a top-down view of the electrode.
+        """
+        if side == 'a':
+            figure = self._current_collector.get_a_side_view(**kwargs)
+        elif side == 'b':
+            figure = self._current_collector.get_b_side_view(**kwargs)
+        else:
+            raise ValueError("Side must be either 'a' or 'b'.")
+        
+        for trace in figure.data:
+
+            if trace.name == "Coated Area":
+                trace.name = self._formulation.name
+                trace.fill = 'toself'
+                trace.fillcolor = self._formulation._color
+                trace.fillpattern = None
+
+            elif trace.name == "Insulation Strip":
+                trace.name = self._insulation_material.name if self._insulation_material else 'No Insulation'
+                trace.fill = 'toself'
+                trace.fillcolor = self._insulation_material._color if self._insulation_material else 'rgba(0,0,0,0)'
+                trace.fillpattern = None
+
+        return figure
+
     def plot_half_cell_curve(self, areal: bool = False, **kwargs) -> None:
         """
         Plot the half cell curve of the electrode.
@@ -275,45 +306,82 @@ class _Electrode:
 
         return fig    
 
-    def _get_top_down_view(self, side: str = 'a', **kwargs) -> pd.DataFrame:
-        """
-        Helper method to get a top-down view of the electrode.
-        """
-        if side == 'a':
-            figure = self._current_collector.get_a_side_view(**kwargs)
-        elif side == 'b':
-            figure = self._current_collector.get_a_side_view(**kwargs)
-        else:
-            raise ValueError("Side must be either 'a' or 'b'.")
-        
-        for trace in figure.data:
-
-            if trace.name == "Coated Area":
-                trace.name = self._formulation.name
-                trace.fill = 'toself'
-                trace.fillcolor = self._formulation._color
-                trace.fillpattern = None
-
-            elif trace.name == "Insulation Strip":
-                trace.name = self._insulation_material.name if self._insulation_material else 'No Insulation'
-                trace.fill = 'toself'
-                trace.fillcolor = self._insulation_material._color if self._insulation_material else 'rgba(0,0,0,0)'
-                trace.fillpattern = None
-
-        return figure
-
-    def get_a_side_view(self, **kwargs) -> pd.DataFrame:
+    def get_a_side_view(self, **kwargs) -> go.Figure:
         """
         Get a side view of the electrode.
         """
         figure = self._get_top_down_view(side='a', **kwargs)
         return figure
 
-    def get_b_side_view(self, **kwargs) -> pd.DataFrame:
+    def get_b_side_view(self, **kwargs) -> go.Figure:
         """
         Get a side view of the electrode.
         """
         figure = self._get_top_down_view(side='b', **kwargs)
+        return figure
+
+    def get_end_view(self, **kwargs) -> go.Figure:
+        """
+        Get a side view of the electrode, including coatings and insulation.
+        """
+        figure = self._current_collector.get_end_view(**kwargs)
+
+        def add_patch(trace, y_base, y_thickness, material, showlegend):
+
+            y_data = trace.y
+            df = build_square_df(
+                x=min(y_data),
+                y=y_base,
+                x_width=max(y_data) - min(y_data),
+                y_width=y_thickness
+            )
+            figure.add_trace(
+                go.Scatter(
+                    x=df['x'],
+                    y=df['y'],
+                    fill='toself',
+                    fillcolor=material._color,
+                    mode='lines',
+                    name=material.name,
+                    line=dict(color='black', width=0.5),
+                    showlegend=showlegend,
+                    legendgroup=material.name
+                )
+            )
+
+        # Add coatings
+        add_patch(
+            self._current_collector._a_side_coated_area_trace,
+            self._current_collector._datum[2] + self._current_collector._thickness / 2,
+            self._coating_thickness,
+            self._formulation,
+            showlegend=True
+        )
+        add_patch(
+            self._current_collector._b_side_coated_area_trace,
+            self._current_collector._datum[2] - self._current_collector._thickness / 2,
+            -self._coating_thickness,
+            self._formulation,
+            showlegend=False
+        )
+
+        # Add insulation if present
+        if self._insulation_material:
+            add_patch(
+                self._current_collector._a_side_insulation_area_trace,
+                self._current_collector._datum[2] + self._current_collector._thickness / 2,
+                self._insulation_thickness,
+                self._insulation_material,
+                showlegend=True
+            )
+            add_patch(
+                self._current_collector._b_side_insulation_area_trace,
+                self._current_collector._datum[2] - self._current_collector._thickness / 2,
+                -self._insulation_thickness,
+                self._insulation_material,
+                showlegend=False
+            )
+
         return figure
 
     @property
