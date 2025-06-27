@@ -1,9 +1,15 @@
 from distutils.core import setup
 from setuptools import find_packages
+import pathlib
+import re
+
+root = pathlib.Path(__file__).parent
+init = root / "SteerEnergyStorage" / "__init__.py"
+version = re.search(r'__version__\s*=\s*"([^"]+)"', init.read_text()).group(1)
 
 setup(
     name='SteerEnergyStorage',
-    version="0.1.1", 
+    version=version, 
     description='Modelling energy storage from cell to site',
     author='Nicholas Siemons',
     author_email='nsiemons@stanford.edu',

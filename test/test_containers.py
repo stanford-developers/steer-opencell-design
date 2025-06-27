@@ -25,7 +25,7 @@ class TestCylindricalCase(unittest.TestCase):
 
         lid = CylindricalLidAssembly(cost=0.1, mass=5, thickness=3)
 
-        self.case = CylindricalCase(canister=cylindrical_shell, lid_assembly=lid, cathode_terminal_collector=cathode_connector, anode_terminal_collector=anode_connector)
+        self.case = CylindricalCase(canister=cylindrical_shell, lid_assembly=lid, cathode_terminal_connector=cathode_connector, anode_terminal_connector=anode_connector)
         
     def test_attributes(self):
         self.assertEqual(round(self.case._cost, 4), 0.1204)
@@ -43,7 +43,7 @@ class TestPrismaticCase(unittest.TestCase):
     def setUp(self):
 
         # construct cathode
-        cathode_active_material = CathodeMaterial(name="Faradion_Gen2_4.25V", 
+        cathode_active_material = CathodeMaterial(name="NaNiMn P2-O3 Composite - 4.25V", 
                                                   specific_cost=11.26, 
                                                   density=4, 
                                                   irreversible_capacity_scaling=1, 
@@ -69,7 +69,7 @@ class TestPrismaticCase(unittest.TestCase):
                           calender_density=2.60)
 
         # construct anode
-        anode_active_material = AnodeMaterial(name="Faradion_HC",
+        anode_active_material = AnodeMaterial(name="Hard Carbon (Vendor A - 330 mAh/g)",
                                                specific_cost=14.27,
                                                density=1.50,
                                                irreversible_capacity_scaling=1,

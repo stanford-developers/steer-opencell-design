@@ -18,7 +18,7 @@ class TestStandard(unittest.TestCase):
         Set up
         """
         # construct cathode
-        cathode_active_material = CathodeMaterial(name="Faradion_Gen2_4.25V", specific_cost=11.26, density=4)
+        cathode_active_material = CathodeMaterial(name="NaNiMn P2-O3 Composite - 4.25V", specific_cost=11.26, density=4)
         
         cathode_conductive_additive = ConductiveAdditive(specific_cost=9, density=1.9)
 
@@ -40,7 +40,7 @@ class TestStandard(unittest.TestCase):
                           calender_density=2.60)
 
         # construct anode
-        anode_active_material = AnodeMaterial(name="Faradion_HC", specific_cost=14.27, density=1.50)
+        anode_active_material = AnodeMaterial(name="Hard Carbon (Vendor A - 330 mAh/g)", specific_cost=14.27, density=1.50)
         
         anode_conductive_additive = ConductiveAdditive(specific_cost=9, density=1.9)
 

@@ -1,7 +1,9 @@
 from SteerEnergyStorage.Formulations.ElectrodeAssemblies import Stack, CylindricalJellyRoll, FlatJellyRoll, _JellyRoll
 from SteerEnergyStorage.Materials.Electrolytes import Electrolyte
-from SteerEnergyStorage.Materials.other import Terminal
 from SteerEnergyStorage.Constructions.Containers import Pouch, PrismaticCase, CylindricalCase
+
+from App.styles import *
+from SteerEnergyStorage.Constants import *
 from SteerEnergyStorage.Utils import get_colorway
 
 import pandas as pd
@@ -12,15 +14,6 @@ import plotly.graph_objects as go
 from copy import deepcopy
 from scipy.interpolate import CubicSpline
 
-KG_TO_G = 1e3
-M_TO_CM = 1e2
-M_TO_MM = 1e3
-A_TO_mA = 1e3
-mA_TO_A = 1e-3
-S_TO_H = 1/3600
-H_TO_S = 3600
-W_TO_KW = 1e-3
-M_TO_DM = 10
 
 class _Cell:
 
@@ -312,11 +305,10 @@ class _Cell:
 
         color_map = {
             'Electrolyte': '#3465A4',
-            'Encapsulation': '#E86E1C',
-            'Electrode Assemblies': '#4DAF4A',
-            'Cathode': '#F6BE00',
-            'Anode': '#9558B2',
-            'Cell': '#FF6F61'
+            'Encapsulation': CURRENT_COLLECTOR_COLOR,
+            'Cathode': CATHODE_COLOR,
+            'Anode': ANODE_COLOR,
+            'Separator': SEPARATOR_COLOR,
         }
 
         items = ['active_materials', 'binders', 'conductive_additives', 'current_collectors']
@@ -1111,13 +1103,7 @@ class StackedPrismaticCell(_PrismaticCell, _StackedCell):
         :param name: Name of the cell
         """
 
-        # Check stack is small enough to fit in the prismatic case
-        if stack._thickness > prismatic_case._internal_height:
-            raise ValueError("Stack thickness cannot be greater than the internal height of the prismatic case")
-        if stack._width > prismatic_case._internal_width:
-            raise ValueError("Stack width cannot be greater than the internal width of the prismatic case")
-        if stack._length > prismatic_case._internal_length:
-            raise ValueError("Stack length cannot be greater than the internal length of the prismatic case")
+        self._check_encapsulation(stack, prismatic_case, n_stacks)
 
         super().__init__(electrode_assembly=stack,
                          n_electrode_assembly=n_stacks,
@@ -1128,6 +1114,16 @@ class StackedPrismaticCell(_PrismaticCell, _StackedCell):
                          irreversible_capacity=irreversible_capacity,
                          grid_n=grid_n,
                          name=name)
+        
+    def _check_encapsulation(self, stack: Stack, prismatic_case: PrismaticCase, n_stacks: int) -> None:
+
+        # Check stack is small enough to fit in the prismatic case
+        if stack._thickness * n_stacks > prismatic_case._internal_height:
+            raise ValueError("Stack thickness cannot be greater than the internal height of the prismatic case")
+        if stack._width > prismatic_case._internal_width:
+            raise ValueError("Stack width cannot be greater than the internal width of the prismatic case")
+        if stack._length > prismatic_case._internal_length:
+            raise ValueError("Stack length cannot be greater than the internal length of the prismatic case")
 
 
 class CylindricalCell(_JellyRollCell):
