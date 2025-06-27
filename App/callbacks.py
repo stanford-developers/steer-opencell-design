@@ -86,11 +86,11 @@ def update_internal_structure_options(form_factor_value):
     
     elif form_factor_value == 'prismatic':
         assembly_options = [{'label': (str(1) + ' Electrode Assembly'), 'value': 1}] + [{'label': str(i) + ' Electrode Assemblies', 'value': i} for i in range(2, 7)]
-        return [{'label': 'Stacked', 'value': 'stacked'}], 'stacked', 1, assembly_options
+        return [{'label': 'Stacked', 'value': 'stacked'}], 'stacked', 4, assembly_options
     
     elif form_factor_value == 'pouch':
         assembly_options = [{'label': (str(1) + ' Electrode Assembly'), 'value': 1}] + [{'label': str(i) + ' Electrode Assemblies', 'value': i} for i in range(2, 7)]
-        return [{'label': 'Stacked', 'value': 'stacked'}], 'stacked', 1, assembly_options
+        return [{'label': 'Stacked', 'value': 'stacked'}], 'stacked', 4, assembly_options
 
     else:
         return [], None, 1, 1
@@ -180,6 +180,84 @@ def sync_slider_and_input_material_selectors_with_electrode(slider_value, input_
 
 
 @ds.callback(
+    [ds.Output({'type': ds.MATCH, 'electrode': ds.MATCH, 'index': ds.MATCH, 'subtype': 'slider', 'property': 'density', 'logic': 'match'}, 'value'),
+     ds.Output({'type': ds.MATCH, 'electrode': ds.MATCH, 'index': ds.MATCH, 'subtype': 'input', 'property': 'density', 'logic': 'match'}, 'value')],
+    [ds.Input({'type': ds.MATCH, 'electrode': ds.MATCH, 'index': ds.MATCH, 'subtype': 'slider', 'property': 'density', 'logic': 'match'}, 'drag_value'),
+     ds.Input({'type': ds.MATCH, 'electrode': ds.MATCH, 'index': ds.MATCH, 'subtype': 'input', 'property': 'density', 'logic': 'match'}, 'value'),
+     ds.Input({'type': ds.MATCH, 'electrode': ds.MATCH, 'index': ds.MATCH, 'subtype': 'text_input', 'property': 'name'}, 'value')],
+     Prevent_initial_call=True
+)
+def sync_slider_materials_density(slider_value, input_value, material_name):
+    """
+    Synchronize the slider and input box values.
+
+    :param slider_value: The value from the slider.
+    :param input_value: The value from the input box.
+    :return: The synchronized values for both components.
+    """
+    ctx = ds.callback_context
+
+    if not ctx.triggered:
+        return ds.no_update, ds.no_update
+
+    trigger_id = ast.literal_eval(ctx.triggered[0]['prop_id'].split('.')[0])
+
+    if trigger_id['subtype'] == 'slider':
+        return slider_value, slider_value
+    elif trigger_id['subtype'] == 'input':
+        return input_value, input_value
+    elif trigger_id['subtype'] == 'text_input':
+        electrode = trigger_id['electrode']
+        if electrode == 'cathode':
+            density = CathodeMaterial(name=material_name).density
+            return density, density
+        elif electrode == 'anode':
+            density = AnodeMaterial(name=material_name).density
+            return density, density
+
+    return slider_value, input_value
+
+
+@ds.callback(
+    [ds.Output({'type': ds.MATCH, 'electrode': ds.MATCH, 'index': ds.MATCH, 'subtype': 'slider', 'property': 'specific_cost', 'logic': 'match'}, 'value'),
+     ds.Output({'type': ds.MATCH, 'electrode': ds.MATCH, 'index': ds.MATCH, 'subtype': 'input', 'property': 'specific_cost', 'logic': 'match'}, 'value')],
+    [ds.Input({'type': ds.MATCH, 'electrode': ds.MATCH, 'index': ds.MATCH, 'subtype': 'slider', 'property': 'specific_cost', 'logic': 'match'}, 'drag_value'),
+     ds.Input({'type': ds.MATCH, 'electrode': ds.MATCH, 'index': ds.MATCH, 'subtype': 'input', 'property': 'specific_cost', 'logic': 'match'}, 'value'),
+     ds.Input({'type': ds.MATCH, 'electrode': ds.MATCH, 'index': ds.MATCH, 'subtype': 'text_input', 'property': 'name'}, 'value')],
+     Prevent_initial_call=True
+)
+def sync_slider_materials_specific_cost(slider_value, input_value, material_name):
+    """
+    Synchronize the slider and input box values.
+
+    :param slider_value: The value from the slider.
+    :param input_value: The value from the input box.
+    :return: The synchronized values for both components.
+    """
+    ctx = ds.callback_context
+
+    if not ctx.triggered:
+        return ds.no_update, ds.no_update
+
+    trigger_id = ast.literal_eval(ctx.triggered[0]['prop_id'].split('.')[0])
+
+    if trigger_id['subtype'] == 'slider':
+        return slider_value, slider_value
+    elif trigger_id['subtype'] == 'input':
+        return input_value, input_value
+    elif trigger_id['subtype'] == 'text_input':
+        electrode = trigger_id['electrode']
+        if electrode == 'cathode':
+            cost = CathodeMaterial(name=material_name).specific_cost
+            return cost, cost
+        elif electrode == 'anode':
+            cost = AnodeMaterial(name=material_name).specific_cost
+            return cost, cost
+
+    return slider_value, input_value
+
+
+@ds.callback(
     [ds.Output({'type': 'operation', 'subtype': 'range_slider', 'property': ds.MATCH}, 'value'),
      ds.Output({'type': 'operation', 'subtype': 'input', 'property': ds.MATCH, 'select_value': 'min'}, 'value'),
      ds.Output({'type': 'operation', 'subtype': 'input', 'property': ds.MATCH, 'select_value': 'max'}, 'value')],
@@ -232,6 +310,78 @@ def sync_generic_sliders(slider_val, input_val):
     else:
         return ds.no_update, ds.no_update
     
+
+@ds.callback(
+        [ds.Output({'type': 'operation', 'logic': 'match', 'subtype': 'slider', 'property': 'reversible_capacity'}, 'value'),
+         ds.Output({'type': 'operation', 'logic': 'match', 'subtype': 'input', 'property': 'reversible_capacity'}, 'value')],
+        [ds.Input({'type': 'operation', 'logic': 'match', 'subtype': 'slider', 'property': 'reversible_capacity'}, 'drag_value'),
+         ds.Input({'type': 'operation', 'logic': 'match', 'subtype': 'input', 'property': 'reversible_capacity'}, 'value'),
+         ds.Input('form_factor_dropdown', 'value')],
+         prevent_initial_call=True
+)
+def sync_reversible_cap_slider(slider_val, input_val, form_factor):
+    """
+    Generic function to sync sliders with this ID format
+
+    :parameter slider_val: The drag value of the slider to by synced
+    :parameter input_val: The value of the inpout box being synced
+    """
+    ctx = ds.callback_context
+    triggered_id = ctx.triggered_id
+    
+    if triggered_id == 'form_factor_dropdown':
+        if form_factor == 'cylindrical':
+            return 17.5, 17.5
+        elif form_factor == 'prismatic':
+            return 155, 155
+        elif form_factor == 'pouch':
+            return 155, 155
+
+    component = triggered_id['subtype']
+
+    if component == 'slider':
+        return slider_val, slider_val
+    elif component == 'input':
+        return input_val, input_val
+    else:
+        return ds.no_update, ds.no_update
+    
+
+@ds.callback(
+        [ds.Output({'type': 'operation', 'logic': 'match', 'subtype': 'slider', 'property': 'irreversible_capacity'}, 'value'),
+         ds.Output({'type': 'operation', 'logic': 'match', 'subtype': 'input', 'property': 'irreversible_capacity'}, 'value')],
+        [ds.Input({'type': 'operation', 'logic': 'match', 'subtype': 'slider', 'property': 'irreversible_capacity'}, 'drag_value'),
+         ds.Input({'type': 'operation', 'logic': 'match', 'subtype': 'input', 'property': 'irreversible_capacity'}, 'value'),
+         ds.Input('form_factor_dropdown', 'value')],
+         prevent_initial_call=True
+)
+def sync_irreversible_cap_slider(slider_val, input_val, form_factor):
+    """
+    Generic function to sync sliders with this ID format
+
+    :parameter slider_val: The drag value of the slider to by synced
+    :parameter input_val: The value of the inpout box being synced
+    """
+    ctx = ds.callback_context
+    triggered_id = ctx.triggered_id
+    
+    if triggered_id == 'form_factor_dropdown':
+        if form_factor == 'cylindrical':
+            return 3.29, 3.29
+        elif form_factor == 'prismatic':
+            return 50.5, 50.5
+        elif form_factor == 'pouch':
+            return 50.5, 50.5
+
+    component = triggered_id['subtype']
+
+    if component == 'slider':
+        return slider_val, slider_val
+    elif component == 'input':
+        return input_val, input_val
+    else:
+        return ds.no_update, ds.no_update
+
 
 @ds.callback(
         [ds.Output({'type': ds.MATCH, 'object': ds.MATCH,'subtype': 'slider', 'property': ds.MATCH}, 'value'),
@@ -293,12 +443,10 @@ def update_stack_slider(form_factor, internal_structure):
         [ds.Output({'type': ds.MATCH, 'object': ds.MATCH, 'electrode': ds.MATCH, 'property': ds.MATCH, 'subtype': 'slider'}, 'value'),
          ds.Output({'type': ds.MATCH, 'object': ds.MATCH, 'electrode': ds.MATCH, 'property': ds.MATCH, 'subtype': 'input'}, 'value')],
         [ds.Input({'type': ds.MATCH, 'object': ds.MATCH, 'electrode': ds.MATCH, 'property': ds.MATCH, 'subtype': 'slider'}, 'drag_value'),
-         ds.Input({'type': ds.MATCH, 'object': ds.MATCH, 'electrode': ds.MATCH, 'property': ds.MATCH, 'subtype': 'input'}, 'value'),
-         ds.Input('add_electrode_length', 'n_clicks'),
-         ds.Input('subtract_electrode_length', 'n_clicks')],
+         ds.Input({'type': ds.MATCH, 'object': ds.MATCH, 'electrode': ds.MATCH, 'property': ds.MATCH, 'subtype': 'input'}, 'value')],
          prevent_initial_call=True
 )
-def sync_generic_sliders_with_electrode(slider_val, input_val, add_len, sub_len):
+def sync_generic_sliders_with_electrode(slider_val, input_val):
     """
     Generic function to sync sliders with this ID format
 
@@ -386,10 +534,11 @@ def show_separator_options(internal_structure):
     [ds.Output({'type': 'separator_message_text'}, 'children'), 
      ds.Output({'type': 'store', 'component': 'separator'}, 'data')],
     [ds.Input({'type': 'mechanicals', 'object': 'separator', 'subtype': 'input', 'property': ds.ALL}, 'value'),
-     ds.Input('internal_structure_dropdown', 'value')],
+     ds.Input('internal_structure_dropdown', 'value'),
+     ds.Input({'type': ds.ALL, 'object': 'current_collector', 'electrode': 'cathode', 'property': 'length', 'subtype': 'input'}, 'value')], #TODO: remove this input and revert back to lengths
      prevent_initial_call=True
 )
-def make_separator(inputs, internal_structure):
+def make_separator(inputs, internal_structure, cathode_length):
     """
     Create a separator object using the inputs from the sliders and text box.
 
@@ -413,7 +562,7 @@ def make_separator(inputs, internal_structure):
             density=inputs[2],  
             width=inputs[3],
             porosity=inputs[4], 
-            fold_length=inputs[5], 
+            fold_length= 2*inputs[5] + cathode_length[0],   # TODO: revert back to inputs[5] when the length input is fixed 
         )
     except ValueError as e:
         message = f"Error: {e}"
@@ -474,8 +623,8 @@ def show_separator_plots(data, internal_structure):
 @ds.callback(
     ds.Output({'type': 'active_material', 'electrode': ds.MATCH, 'index': ds.MATCH, 'subtype': 'store', 'property': 'object'}, 'data'),
     [ds.Input({'type': 'active_material', 'electrode': ds.MATCH, 'index': ds.MATCH, 'subtype': 'text_input', 'property': 'name'}, 'value'),
-     ds.Input({'type': 'active_material', 'electrode': ds.MATCH, 'index': ds.MATCH, 'subtype': 'slider', 'property': 'specific_cost'}, 'value'),
-     ds.Input({'type': 'active_material', 'electrode': ds.MATCH, 'index': ds.MATCH, 'subtype': 'slider', 'property': 'density'}, 'value'),
+     ds.Input({'type': 'active_material', 'electrode': ds.MATCH, 'index': ds.MATCH, 'subtype': 'slider', 'property': 'specific_cost', 'logic': 'match'}, 'value'),
+     ds.Input({'type': 'active_material', 'electrode': ds.MATCH, 'index': ds.MATCH, 'subtype': 'slider', 'property': 'density', 'logic': 'match'}, 'value'),
      ds.Input({'type': 'active_material', 'electrode': ds.MATCH, 'index': ds.MATCH, 'subtype': 'slider', 'property': 'reversible_capacity'}, 'value'),
      ds.Input({'type': 'active_material', 'electrode': ds.MATCH, 'index': ds.MATCH, 'subtype': 'slider', 'property': 'irreversible_capacity'}, 'value'),
      ds.Input({'type': 'active_material', 'electrode': ds.MATCH, 'index': ds.MATCH, 'subtype': 'slider', 'property': 'weight'}, 'value')],
@@ -506,6 +655,7 @@ def make_active_material(material_name, specific_cost, density, reversible_capac
             reversible_capacity_scaling=reversible_capacity,
             irreversible_capacity_scaling=irreversible_capacity
         )
+
     elif electrode == 'anode':
         material = AnodeMaterial(
             name=material_name,
@@ -698,11 +848,16 @@ def show_current_collector_design_options(design):
     triggered_id = ast.literal_eval(ctx.triggered[0]['prop_id'].split('.')[0])
     electrode = triggered_id['electrode']
 
+    length_label = 'Length (mm)' if electrode == 'cathode' else 'Length overhang relative to cathode (mm)' #TODO: remove this
+    length_default = 3690 if electrode == 'cathode' else 80 #TODO: remove this
+    length_max = 6000 if electrode == 'cathode' else 500 #TODO: remove this
+    length_width = '1400px' if electrode == 'cathode' else '400px' #TODO: remove this
+
     if design == 'notched':
         return [
             ds.html.Br(), 
-            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 6000, 2500, 0.1, 100, 'length', 'Length (mm)', div_width='1400px').render(), ds.html.Br(), 
-            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 400, 120, 0.1, 20, 'width', 'Width of coated area (mm)', div_width='600px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, length_max, length_default, 0.1, 100, 'length', length_label, div_width=length_width).render(), ds.html.Br(), 
+            SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 400, 142, 0.1, 20, 'width', 'Width of coated area (mm)', div_width='600px').render(), ds.html.Br(),
             SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 100, 15, 0.1, 5, 'thickness', 'Current collector thickness (μm)', div_width='400px').render(), ds.html.Br(),
             SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 50, 6, 0.1, 10, 'tab_width', 'Tab height (mm)', div_width='400px').render(), ds.html.Br(),
             SliderWithTextInput({'type': 'notched', 'object': 'current_collector', 'electrode': electrode}, 0, 200, 30, 0.1, 10, 'tab_length', 'Tab length (mm)', div_width='600px').render(), ds.html.Br(),
@@ -713,8 +868,8 @@ def show_current_collector_design_options(design):
     elif design == 'tabless':
         return [
             ds.html.Br(), 
-            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 6000, 2500, 0.1, 100, 'length', 'Length (mm)', div_width='1400px').render(), ds.html.Br(), 
-            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 400, 120, 0.1, 20, 'width', 'Width of coated area (mm)', div_width='600px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, length_max, length_default, 0.1, 100, 'length', length_label, div_width=length_width).render(), ds.html.Br(), 
+            SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 400, 142, 0.1, 20, 'width', 'Width of coated area (mm)', div_width='600px').render(), ds.html.Br(),
             SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 100, 15, 0.1, 5, 'thickness', 'Current collector thickness (μm)', div_width='400px').render(), ds.html.Br(),
             SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 50, 6, 0.1, 10, 'tab_width', 'Tab height (mm)', div_width='400px').render(), ds.html.Br(),
             SliderWithTextInput({'type': 'tabless', 'object': 'current_collector', 'electrode': electrode}, 0, 500, 0, 0.1, 50, 'bare_length', 'Length of bare current collector (mm)', div_width='600px').render(), ds.html.Br(),
@@ -728,11 +883,11 @@ def show_current_collector_design_options(design):
         ]
     
     elif design == 'punched':
-        def_tab_pos = 30 if electrode == 'cathode' else 80
+        def_tab_pos = 30 if electrode == 'cathode' else 135
         return [
             ds.html.Br(), 
-            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 500, 110, 0.1, 50, 'length', 'Length (mm)', div_width='1100px').render(), ds.html.Br(), 
-            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 500, 110, 0.1, 50, 'width', 'Width (mm)', div_width='1100px').render(), ds.html.Br(), 
+            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 500, 165, 0.1, 50, 'length', 'Length (mm)', div_width='1100px').render(), ds.html.Br(), 
+            SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 500, 184, 0.1, 50, 'width', 'Width (mm)', div_width='1100px').render(), ds.html.Br(), 
             SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 200, 40, 0.1, 40, 'tab_width', 'Tab width (mm)', div_width='400px').render(), ds.html.Br(),
             SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 200, 20, 0.1, 40, 'tab_height', 'Tab height (mm)', div_width='400px').render(), ds.html.Br(), 
             SliderWithTextInput({'type': 'punched', 'object': 'current_collector', 'electrode': electrode}, 0, 500, def_tab_pos, 0.1, 50, 'tab_position', 'Tab Position (mm)', div_width='1100px').render(), ds.html.Br(),
@@ -740,17 +895,18 @@ def show_current_collector_design_options(design):
         ]
 
 
+#TODO: remove this when going back to the original length input
 @ds.callback(
-        [ds.Output({'tab': 'mechanicals', 'object': 'current_collector', 'object': 'message', 'electrode': ds.MATCH}, 'children'),
-         ds.Output({'type': 'store', 'electrode': ds.MATCH, 'object': 'current_collector'}, 'data')],
-        [ds.Input({'type': ds.ALL, 'object': 'current_collector', 'electrode': ds.MATCH, 'subtype': 'slider', 'property': ds.ALL}, 'drag_value'),
-         ds.Input({'electrode': ds.MATCH, 'object': 'current_collector', 'subtype': 'text_input', 'property': 'name'}, 'value'),
-         ds.Input({'electrode': ds.MATCH, 'object': 'current_collector', 'subtype': 'slider', 'property': 'density'}, 'drag_value'),
-         ds.Input({'electrode': ds.MATCH, 'object': 'current_collector', 'subtype': 'slider', 'property': 'specific_cost'}, 'drag_value'),
-         ds.Input({'type': 'mechanicals', 'object': 'current_collector', 'electrode': ds.MATCH, 'feature': 'design'}, 'value')],
+        [ds.Output({'tab': 'mechanicals', 'object': 'current_collector', 'object': 'message', 'electrode': 'cathode'}, 'children'),
+         ds.Output({'type': 'store', 'electrode': 'cathode', 'object': 'current_collector'}, 'data')],
+        [ds.Input({'type': ds.ALL, 'object': 'current_collector', 'electrode': 'cathode', 'subtype': 'slider', 'property': ds.ALL}, 'drag_value'),
+         ds.Input({'electrode': 'cathode', 'object': 'current_collector', 'subtype': 'text_input', 'property': 'name'}, 'value'),
+         ds.Input({'electrode': 'cathode', 'object': 'current_collector', 'subtype': 'slider', 'property': 'density'}, 'drag_value'),
+         ds.Input({'electrode': 'cathode', 'object': 'current_collector', 'subtype': 'slider', 'property': 'specific_cost'}, 'drag_value'),
+         ds.Input({'type': 'mechanicals', 'object': 'current_collector', 'electrode': 'cathode', 'feature': 'design'}, 'value')],
          prevent_initial_call=True
 )
-def make_current_collector(properties, material_formula, material_density, material_specific_cost, current_collector_design):
+def make_cathode_current_collector(properties, material_formula, material_density, material_specific_cost, current_collector_design):
     """
     Create a current collector object using the inputs from the sliders and text box.
 
@@ -843,6 +999,216 @@ def make_current_collector(properties, material_formula, material_density, mater
 
     pickled_current_collector = base64.b64encode(pickle.dumps(current_collector)).decode('utf-8')
     return [message], {f'{electrode}_current_collector': pickled_current_collector}
+
+
+#TODO: remove this when going back to the original length input
+@ds.callback(
+        [ds.Output({'tab': 'mechanicals', 'object': 'current_collector', 'object': 'message', 'electrode': 'anode'}, 'children'),
+         ds.Output({'type': 'store', 'electrode': 'anode', 'object': 'current_collector'}, 'data')],
+        [ds.Input({'type': ds.ALL, 'object': 'current_collector', 'electrode': 'anode', 'subtype': 'slider', 'property': ds.ALL}, 'drag_value'),
+         ds.Input({'electrode': 'anode', 'object': 'current_collector', 'subtype': 'text_input', 'property': 'name'}, 'value'),
+         ds.Input({'electrode': 'anode', 'object': 'current_collector', 'subtype': 'slider', 'property': 'density'}, 'drag_value'),
+         ds.Input({'electrode': 'anode', 'object': 'current_collector', 'subtype': 'slider', 'property': 'specific_cost'}, 'drag_value'),
+         ds.Input({'type': 'mechanicals', 'object': 'current_collector', 'electrode': 'anode', 'feature': 'design'}, 'value'),
+         ds.Input({'type': ds.ALL, 'object': 'current_collector', 'electrode': 'cathode', 'subtype': 'slider', 'property': 'length'}, 'drag_value')],
+         prevent_initial_call=True
+)
+def make_anode_current_collector(properties, material_formula, material_density, material_specific_cost, current_collector_design, cathode_length):
+    """
+    Create a current collector object using the inputs from the sliders and text box.
+
+    :param properties: Properties of the current collector.
+    :param current_collector_design: The selected current collector design.
+    """
+    ctx = ds.callback_context
+    triggered_id = ast.literal_eval(ctx.triggered[0]['prop_id'].split('.')[0])
+    anode = True
+
+    if current_collector_design is None:
+        return ["\u00A0"], {}
+    
+    if properties == []:
+            return ["\u00A0"], {}
+
+    if current_collector_design == 'notched':
+
+        try:
+            current_collector = NotchedCurrentCollector(
+                formula=material_formula,
+                length= 2*properties[0] + cathode_length[0],  # TODO: revert back to properties[0] when the length input is fixed
+                width=properties[1],
+                thickness=properties[2],
+                tab_width=properties[3],
+                tab_length=properties[4],
+                tab_spacing=properties[5],
+                density=material_density,
+                specific_cost=material_specific_cost,
+                bare_length=properties[6],
+                anode=anode
+            )
+        except ValueError as e:
+            message = f"Error: {e}"
+            return message, {}
+        
+    elif current_collector_design == 'tabless':
+
+        if properties == []:
+            return ["\u00A0"], {}
+
+        try:
+            current_collector = TablessCurrentCollector(
+                formula=material_formula,
+                length=2*properties[0] + cathode_length[0],  # TODO: revert back to properties[0] when the length input is fixed
+                width=properties[1],
+                thickness=properties[2],
+                tab_width=properties[3],
+                density=material_density,
+                specific_cost=material_specific_cost,
+                bare_length=properties[4],
+                anode=anode
+            )
+
+        except ValueError as e:
+            message = f"Error: {e}"
+            return message, {}
+
+    elif current_collector_design == 'tab_welded':
+        # Add logic for tab welded design
+        pass
+
+    elif current_collector_design == 'punched':
+        
+        try:
+            current_collector = PunchedCurrentCollector(
+                formula=material_formula,
+                length=properties[0],
+                width=properties[1],
+                tab_width=properties[2],
+                tab_height=properties[3],
+                tab_position=properties[4],
+                thickness=properties[5],
+                density=material_density,
+                specific_cost=material_specific_cost,
+                anode=anode
+            )
+        except ValueError as e:
+            message = f"Error: {e}"
+            return message, {}
+
+    message = ds.html.Div([
+        ds.html.Br(), ds.html.Br(),
+        ds.html.P([ds.html.B("Coated Area: ", style={'font-weight': '900'}), f"{current_collector.coated_area} cm²"]),
+        ds.html.P([ds.html.B("Current Collector Mass: ", style={'font-weight': '900'}), f"{current_collector.mass} g"]),
+        ds.html.P([ds.html.B("Current Collector Cost: ", style={'font-weight': '900'}), f"{current_collector.cost} $"]),
+        ds.html.Br(),
+    ], style={'line-height': '0.5'})
+
+    pickled_current_collector = base64.b64encode(pickle.dumps(current_collector)).decode('utf-8')
+    return [message], {f'anode_current_collector': pickled_current_collector}
+
+# @ds.callback(
+#         [ds.Output({'tab': 'mechanicals', 'object': 'current_collector', 'object': 'message', 'electrode': ds.MATCH}, 'children'),
+#          ds.Output({'type': 'store', 'electrode': ds.MATCH, 'object': 'current_collector'}, 'data')],
+#         [ds.Input({'type': ds.ALL, 'object': 'current_collector', 'electrode': ds.MATCH, 'subtype': 'slider', 'property': ds.ALL}, 'drag_value'),
+#          ds.Input({'electrode': ds.MATCH, 'object': 'current_collector', 'subtype': 'text_input', 'property': 'name'}, 'value'),
+#          ds.Input({'electrode': ds.MATCH, 'object': 'current_collector', 'subtype': 'slider', 'property': 'density'}, 'drag_value'),
+#          ds.Input({'electrode': ds.MATCH, 'object': 'current_collector', 'subtype': 'slider', 'property': 'specific_cost'}, 'drag_value'),
+#          ds.Input({'type': 'mechanicals', 'object': 'current_collector', 'electrode': ds.MATCH, 'feature': 'design'}, 'value')],
+#          prevent_initial_call=True
+# )
+# def make_current_collector(properties, material_formula, material_density, material_specific_cost, current_collector_design):
+#     """
+#     Create a current collector object using the inputs from the sliders and text box.
+
+#     :param properties: Properties of the current collector.
+#     :param current_collector_design: The selected current collector design.
+#     """
+#     ctx = ds.callback_context
+#     triggered_id = ast.literal_eval(ctx.triggered[0]['prop_id'].split('.')[0])
+#     electrode = triggered_id['electrode']
+#     anode = True if electrode == 'anode' else False
+
+#     if current_collector_design is None:
+#         return ["\u00A0"], {}
+    
+#     if properties == []:
+#             return ["\u00A0"], {}
+
+#     if current_collector_design == 'notched':
+
+#         try:
+#             current_collector = NotchedCurrentCollector(
+#                 formula=material_formula,
+#                 length=properties[0],
+#                 width=properties[1],
+#                 thickness=properties[2],
+#                 tab_width=properties[3],
+#                 tab_length=properties[4],
+#                 tab_spacing=properties[5],
+#                 density=material_density,
+#                 specific_cost=material_specific_cost,
+#                 bare_length=properties[6],
+#                 anode=anode
+#             )
+#         except ValueError as e:
+#             message = f"Error: {e}"
+#             return message, {}
+        
+#     elif current_collector_design == 'tabless':
+
+#         if properties == []:
+#             return ["\u00A0"], {}
+
+#         try:
+#             current_collector = TablessCurrentCollector(
+#                 formula=material_formula,
+#                 length=properties[0],
+#                 width=properties[1],
+#                 thickness=properties[2],
+#                 tab_width=properties[3],
+#                 density=material_density,
+#                 specific_cost=material_specific_cost,
+#                 bare_length=properties[4],
+#                 anode=anode
+#             )
+
+#         except ValueError as e:
+#             message = f"Error: {e}"
+#             return message, {}
+
+#     elif current_collector_design == 'tab_welded':
+#         # Add logic for tab welded design
+#         pass
+
+#     elif current_collector_design == 'punched':
+        
+#         try:
+#             current_collector = PunchedCurrentCollector(
+#                 formula=material_formula,
+#                 length=properties[0],
+#                 width=properties[1],
+#                 tab_width=properties[2],
+#                 tab_height=properties[3],
+#                 tab_position=properties[4],
+#                 thickness=properties[5],
+#                 density=material_density,
+#                 specific_cost=material_specific_cost,
+#                 anode=anode
+#             )
+#         except ValueError as e:
+#             message = f"Error: {e}"
+#             return message, {}
+
+#     message = ds.html.Div([
+#         ds.html.Br(), ds.html.Br(),
+#         ds.html.P([ds.html.B("Coated Area: ", style={'font-weight': '900'}), f"{current_collector.coated_area} cm²"]),
+#         ds.html.P([ds.html.B("Current Collector Mass: ", style={'font-weight': '900'}), f"{current_collector.mass} g"]),
+#         ds.html.P([ds.html.B("Current Collector Cost: ", style={'font-weight': '900'}), f"{current_collector.cost} $"]),
+#         ds.html.Br(),
+#     ], style={'line-height': '0.5'})
+
+#     pickled_current_collector = base64.b64encode(pickle.dumps(current_collector)).decode('utf-8')
+#     return [message], {f'{electrode}_current_collector': pickled_current_collector}
 
 
 @ds.callback(
@@ -1164,12 +1530,12 @@ def show_electrode_assembly_inputs(internal_construction):
     if internal_construction == 'wound':
         return [
             ds.html.Br(),
-            SliderWithTextInput({'type': 'electrode_assembly'}, 0, 10, 2, 0.01, 1, 'mandrel_diameter', 'Mandrel diameter (mm)', div_width='800px').render(), ds.html.Br()
+            SliderWithTextInput({'type': 'electrode_assembly'}, 0, 10, 5, 0.01, 1, 'mandrel_diameter', 'Mandrel diameter (mm)', div_width='800px').render(), ds.html.Br()
         ]
     elif internal_construction == 'stacked':
         return [
             ds.html.Br(),
-            SliderWithTextInput({'type': 'electrode_assembly'}, 0, 100, 10, 1, 10, 'n_stacks', 'Number of electrode stacks', div_width='1000px').render(), ds.html.Br(),
+            SliderWithTextInput({'type': 'electrode_assembly'}, 0, 200, 42, 1, 10, 'n_stacks', 'Number of electrode stacks', div_width='1000px').render(), ds.html.Br(),
             SliderWithTextInput({'type': 'electrode_assembly'}, 0, 6, 1, 1, 1, 'separator_wraps', 'Additional separator wraps', div_width='700px').render(), ds.html.Br()
         ]
 
@@ -1337,6 +1703,7 @@ def show_layup(pickled_assembly, internal_structure):
         assembly = pickle.loads(base64.b64decode(pickled_assembly['electrode_assembly']))
 
     figure = assembly.get_layup(paper_bgcolor=RIGHT_PANEL_COLOR, plot_bgcolor=RIGHT_PANEL_COLOR, width=1000, height=450, title='Layup', margin=dict(t=40))
+
     return figure
 
 
@@ -1403,8 +1770,8 @@ def show_assembly_figure_4(pickled_assembly, pickled_case, form_factor, internal
      ds.Input({'type': 'store', 'component': 'electrolyte'}, 'data'),
      ds.Input({'type': 'mechanicals', 'object': 'electrolyte', 'property': 'electrolyte_overfill', 'subtype': 'input'}, 'value'),
      ds.Input({'type': 'store', 'object': 'encapsulation'}, 'data'),
-     ds.Input({'type': 'operation', 'property': 'irreversible_capacity', 'subtype': 'input'}, 'value'),
-     ds.Input({'type': 'operation', 'property': 'reversible_capacity', 'subtype': 'input'}, 'value'),
+     ds.Input({'type': 'operation', 'property': 'irreversible_capacity', 'subtype': 'input', 'logic': 'match'}, 'value'),
+     ds.Input({'type': 'operation', 'property': 'reversible_capacity', 'subtype': 'input', 'logic': 'match'}, 'value'),
      ds.Input({'type': 'operation', 'property': 'voltage_range', 'subtype': 'range_slider'}, 'drag_value'),
      ds.Input('form_factor_dropdown', 'value'),
      ds.Input('internal_structure_dropdown', 'value'),
@@ -1544,8 +1911,8 @@ def make_cell(pickled_electrode_assembly: dict,
     message = ds.html.Div([
         ds.html.Br(), 
         ds.html.P([ds.html.B("Energy: ", style={'font-weight': '900'}), f"{cell.energy} Wh"], style={'font-size': '20px'}),
-        ds.html.P([ds.html.B("Energy Density: ", style={'font-weight': '900'}), f"{cell.energy_density} Wh/kg"], style={'font-size': '20px'}),
-        ds.html.P([ds.html.B("Specific Energy: ", style={'font-weight': '900'}), f"{cell.specific_energy} Wh/L"], style={'font-size': '20px'}),
+        ds.html.P([ds.html.B("Energy Density: ", style={'font-weight': '900'}), f"{cell.energy_density} Wh/L"], style={'font-size': '20px'}),
+        ds.html.P([ds.html.B("Specific Energy: ", style={'font-weight': '900'}), f"{cell.specific_energy} Wh/kg"], style={'font-size': '20px'}),
     ], style={'line-height': '0.7'})    
 
     breakdown_div = ds.html.Div([

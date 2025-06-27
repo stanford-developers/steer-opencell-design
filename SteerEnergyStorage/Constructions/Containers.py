@@ -2,22 +2,17 @@ from SteerEnergyStorage.Materials.other import Laminate, Tape, Terminal
 from SteerEnergyStorage.Constructions.Electrodes import Cathode, Anode
 from SteerEnergyStorage.Materials.Separators import Separator
 from SteerEnergyStorage.Formulations.ElectrodeAssemblies import Stack
-from SteerEnergyStorage.DataManager import DataManager
-from App.styles import *
 
+from SteerEnergyStorage.DataManager import DataManager
+
+from App.styles import *
+from SteerEnergyStorage.Constants import *
+
+from pathlib import Path
 from copy import deepcopy
 import numpy as np
-import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
-import os
-
-CM_TO_M = 0.01
-M_TO_CM = 100
-G_TO_KG = 0.001
-KG_TO_G = 1000
-MM_TO_M = 0.001
-M_TO_MM = 1000
 
 
 class Pouch:
@@ -184,8 +179,6 @@ class Pouch:
         return self.__str__()
     
 
-
-
 class CylindricalLidAssembly:
 
     def __init__(self, cost: float, mass: float, thickness: float):
@@ -322,7 +315,7 @@ class CylindricalTerminalConnector:
         """
         Retrieve the properties of the tab material.
         """
-        data_path = os.path.join(os.path.dirname(__file__), '../../Data/materials_properties.db')
+        data_path = (Path(__file__).parent / '../../Data/materials_properties.db').resolve()
         materials_database = DataManager(data_path)
         available_materials = materials_database.get_unique_values('current_collectors', 'formula')
 
@@ -501,7 +494,7 @@ class CylindricalCanister:
         """
         Retrieve the properties of the tab material.
         """
-        data_path = os.path.join(os.path.dirname(__file__), '../../Data/materials_properties.db')
+        data_path = (Path(__file__).parent / '../../Data/materials_properties.db').resolve()
         materials_database = DataManager(data_path)
         available_materials = materials_database.get_unique_values('current_collectors', 'formula')
 
@@ -834,8 +827,6 @@ class CylindricalCase:
     @property
     def name(self) -> str:
         return self._name.replace('_', ' ').title()
-
-
 
 
 class PrismaticShell:

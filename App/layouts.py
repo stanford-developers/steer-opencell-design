@@ -1,6 +1,6 @@
 import dash as ds
 from styles import *
-from custom_components import SliderWithTextInput, RangeSliderWithTextInput, CurrentCollectorSelector, CathodeMaterialSelector, AnodeMaterialSelector, CheckboxWithSlider
+from custom_components import SliderWithTextInput, RangeSliderWithTextInput, CurrentCollectorSelector, CathodeMaterialSelector, AnodeMaterialSelector, CheckboxWithSlider, BinderSelector, ConductiveAdditiveSelector
 from styles import *
 
 from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector
@@ -9,9 +9,9 @@ from SteerEnergyStorage.Materials.ElectrodeMaterials import CathodeMaterial, Ano
 BUTTON_DIV_STYLE = {'display': 'flex', 'gap': '10px', 'margin-left': '-10px'}
 
 ##########
-current_collector_materials = [m for m in CurrentCollector.get_available_materials()]
-active_materials_cathode = [m for m in CathodeMaterial.get_available_materials()]
-active_materials_anode = [m for m in AnodeMaterial.get_available_materials()]
+current_collector_materials = sorted([m for m in CurrentCollector.get_available_materials()])
+active_materials_cathode = sorted([m for m in CathodeMaterial.get_available_materials()])
+active_materials_anode = sorted([m for m in AnodeMaterial.get_available_materials()])
 ##########
 
 
@@ -32,9 +32,6 @@ data_stores = ds.html.Div([
     ds.dcc.Store(id={'type': 'store', 'electrode': 'anode', 'object': 'electrode'}),
     ds.dcc.Store(id={'type': 'store', 'object': 'electrode_assembly'}),
     ds.dcc.Store(id={'type': 'store', 'object': 'cell'}),
-
-    ds.dcc.Store(id='lengths', data={}),
-
 ])
 
 
@@ -87,13 +84,13 @@ cell_operation = ds.html.Div([
     ds.html.H3('Operating Window', style=HEADER_STYLE),
     ds.html.Br(),
 
-    RangeSliderWithTextInput({'type': 'operation'}, 0, 6, [1.5, 4.2], 0.1, 1, 'voltage_range', "Voltage Range (V)").render(),
+    RangeSliderWithTextInput({'type': 'operation'}, 0, 6, [1.5, 3.95], 0.01, 1, 'voltage_range', "Voltage Range (V)").render(),
     ds.html.Br(), ds.html.Br(),
-    SliderWithTextInput({'type': 'operation'}, 0, 3, 1, 0.01, 1, 'irreversible_capacity', "Irreversible Capacity (Ah)", div_width='300px').render(),
+    SliderWithTextInput({'type': 'operation', 'logic': 'match'}, 0, 60, 3.30, 0.01, 5, 'irreversible_capacity', "Irreversible Capacity (Ah)", div_width='500px').render(),
     ds.html.Br(),
-    SliderWithTextInput({'type': 'operation'}, 1, 20, 12, 0.01, 1, 'reversible_capacity', "Reversible Capacity (Ah)", div_width='900px').render(),
+    SliderWithTextInput({'type': 'operation', 'logic': 'match'}, 0, 200, 17.5, 0.01, 5, 'reversible_capacity', "Reversible Capacity (Ah)", div_width='1100px').render(),
     ds.html.Br(), ds.html.Br(),
-    SliderWithTextInput({'type': 'operation'}, 0.9, 1.91, 1.2, 0.01, 0.2, 'n_p_ratio', "N/P ratio", div_width='400px').render(),
+    SliderWithTextInput({'type': 'operation'}, 0.9, 1.91, 1.12, 0.01, 0.2, 'n_p_ratio', "N/P ratio", div_width='400px').render(),
 
     ], style={'padding-left': '20px'})
 
@@ -160,25 +157,25 @@ cylindrical_encapsulation = ds.html.Div([
     ds.html.Br(),
     CurrentCollectorSelector({'object': 'encapsulation', 'component': 'canister'}, current_collector_materials, density_default=2.7, specific_cost_default=2.64, slider_div_width='500px').render(),
     ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 160, 31.6, 0.1, 10, 'can_outer_diameter', 'Outer diameter (mm)', div_width='800px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1, 0.5, 0.01, 1, 'can_wall_thickness', 'Wall thickness (mm)', div_width='400px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 400, 135, 0.1, 20, 'can_length', 'Can length (mm)', div_width='1400px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 160, 40.5, 0.1, 10, 'can_outer_diameter', 'Outer diameter (mm)', div_width='800px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1, 0.3, 0.01, 1, 'can_wall_thickness', 'Wall thickness (mm)', div_width='400px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 400, 160, 0.1, 20, 'can_length', 'Can length (mm)', div_width='1400px').render(), ds.html.Br(), 
 
     ds.html.Br(), ds.html.Br(),
     ds.html.H4("Lid Assembly"),
     ds.html.Br(),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 5, 0.3, 0.01, 1, 'lid_cost', 'Cost ($)', div_width='500px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 20, 5, 0.01, 2, 'lid_mass', 'Mass (g)', div_width='500px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 40, 5, 0.01, 5, 'lid_thickness', 'Thickness (mm)', div_width='600px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 5, 0.1, 0.01, 1, 'lid_cost', 'Cost ($)', div_width='500px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 16.2, 5, 0.01, 2, 'lid_mass', 'Mass (g)', div_width='500px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 40, 4, 0.01, 5, 'lid_thickness', 'Thickness (mm)', div_width='600px').render(), ds.html.Br(), 
 
     ds.html.Br(), ds.html.Br(),
     ds.html.H4("Cathode Terminal Connector"),
     ds.html.Br(), 
     CurrentCollectorSelector({'object': 'encapsulation', 'component': 'cathode_terminal'}, current_collector_materials, density_default=2.7, specific_cost_default=2.64, slider_div_width='500px').render(),
     ds.html.Br(),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 160, 28, 0.1, 10, 'ccc_diameter', 'Diameter (mm)', div_width='800px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 4, 1, 0.01, 1, 'ccc_thickness', 'Thickness (mm)', div_width='400px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1, 0.8, 0.01, 1, 'ccc_fill_factor', 'Fill factor (mm)', div_width='200px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 160, 39, 0.1, 10, 'ccc_diameter', 'Diameter (mm)', div_width='800px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 4, 0.8, 0.01, 1, 'ccc_thickness', 'Thickness (mm)', div_width='400px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1, 0.6, 0.01, 1, 'ccc_fill_factor', 'Fill factor (mm)', div_width='200px').render(), ds.html.Br(), 
     ds.html.Br(),
 
     ds.html.Br(), ds.html.Br(),
@@ -186,9 +183,9 @@ cylindrical_encapsulation = ds.html.Div([
     ds.html.Br(), 
     CurrentCollectorSelector({'object': 'encapsulation', 'component': 'anode_terminal'}, current_collector_materials, density_default=2.7, specific_cost_default=2.64, slider_div_width='500px').render(),
     ds.html.Br(),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 160, 28, 0.1, 10, 'acc_diameter', 'Diameter (mm)', div_width='800px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 4, 1, 0.01, 1, 'acc_thickness', 'Thickness (mm)', div_width='400px').render(), ds.html.Br(), 
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1, 0.8, 0.01, 1, 'acc_fill_factor', 'Fill factor (mm)', div_width='200px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 160, 39, 0.1, 10, 'acc_diameter', 'Diameter (mm)', div_width='800px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 4, 0.8, 0.01, 1, 'acc_thickness', 'Thickness (mm)', div_width='400px').render(), ds.html.Br(), 
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'cylindrical'}, 0, 1, 0.6, 0.01, 1, 'acc_fill_factor', 'Fill factor (mm)', div_width='200px').render(), ds.html.Br(), 
     ds.html.Br(),
 
 ])
@@ -233,9 +230,9 @@ prismatic_encapsulation = ds.html.Div([
     ds.html.H4("Prismatic Case"),
     SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 200, 20, 0.1, 20, 'mass', 'Mass (g)', div_width='1000px').render(), ds.html.Br(),
     SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 5, 0.5, 0.01, 1, 'cost', 'Cost ($)', div_width='1000px').render(), ds.html.Br(),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 200, 121, 0.1, 40, 'internal_length', 'Internal Length (mm)', div_width='1000px').render(), ds.html.Br(),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 200, 100, 0.1, 40, 'internal_width', 'Internal Width (mm)', div_width='1000px').render(), ds.html.Br(),
-    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 200, 7.5, 0.1, 40, 'internal_height', 'Internal Height (mm)', div_width='1400px').render(), ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 200, 177, 0.1, 40, 'internal_length', 'Internal Length (mm)', div_width='1000px').render(), ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 200, 171, 0.1, 40, 'internal_width', 'Internal Width (mm)', div_width='1000px').render(), ds.html.Br(),
+    SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 200, 55, 0.1, 40, 'internal_height', 'Internal Height (mm)', div_width='1400px').render(), ds.html.Br(),
     SliderWithTextInput({'object': 'encapsulation', 'type': 'prismatic_case'}, 0, 4, 0.5, 0.01, 1, 'wall_thickness', 'Wall Thickness (mm)', div_width='700px').render(), ds.html.Br(),
 
 ])
@@ -255,7 +252,12 @@ cathode_formulation = ds.html.Div([
     ds.html.Br(), ds.html.Br(),
     ds.html.H4('Active Materials'),
     ds.html.Div(id={'type': 'materials_selector', 'electrode': 'cathode', 'material': 'active_material'}, children=[
-        CathodeMaterialSelector(id={'type': 'active_material', 'index': 0, 'electrode': 'cathode'}, materials=active_materials_cathode, with_slider_titles=True, weight_default=100, name_default='lfp_2').render()
+        CathodeMaterialSelector(id={'type': 'active_material', 'index': 0, 'electrode': 'cathode'}, 
+                                materials=active_materials_cathode, 
+                                with_slider_titles=True, 
+                                weight_default=95, 
+                                name_default=active_materials_cathode[1],
+                                irreversible_capacity_scaling_default=1.11).render()
     ], style={'width': '100%'}),
     ds.html.Div([
         ds.html.Button("+", id={'type': 'button', 'action': 'add', 'electrode': 'cathode', 'material': 'active_material'}, n_clicks=0, style=BUTTON_STYLE),
@@ -264,7 +266,9 @@ cathode_formulation = ds.html.Div([
     ds.html.Br(), ds.html.Br(), ds.html.Br(),
 
     ds.html.H4('Binders'),
-    ds.html.Div(id={'type': 'materials_selector', 'electrode': 'cathode', 'material': 'binder'}, children=[], style={'width': '100%'}),
+    ds.html.Div(id={'type': 'materials_selector', 'electrode': 'cathode', 'material': 'binder'}, children=[
+        BinderSelector({'type': 'binder', 'index': 0, 'electrode': 'cathode'}, weight_default=2.5).render()
+    ], style={'width': '100%'}),
     ds.html.Div([
         ds.html.Button("+", id={'type': 'button', 'action': 'add', 'electrode': 'cathode', 'material': 'binder'}, n_clicks=0, style=BUTTON_STYLE),
         ds.html.Button("-", id={'type': 'button', 'action': 'remove', 'electrode': 'cathode', 'material': 'binder'}, n_clicks=0, style=BUTTON_STYLE)
@@ -272,7 +276,9 @@ cathode_formulation = ds.html.Div([
     ds.html.Br(), ds.html.Br(), ds.html.Br(),
 
     ds.html.H4('Conductive Additives'),
-    ds.html.Div(id={'type': 'materials_selector', 'electrode': 'cathode', 'material': 'conductive_additive'}, children=[], style={'width': '100%'}),
+    ds.html.Div(id={'type': 'materials_selector', 'electrode': 'cathode', 'material': 'conductive_additive'}, children=[
+        ConductiveAdditiveSelector({'type': 'conductive_additive', 'index': 0, 'electrode': 'cathode'}, weight_default=2.5).render()
+    ], style={'width': '100%'}),
     ds.html.Div([
         ds.html.Button("+", id={'type': 'button', 'action': 'add', 'electrode': 'cathode', 'material': 'conductive_additive'}, n_clicks=0, style=BUTTON_STYLE),
         ds.html.Button("-", id={'type': 'button', 'action': 'remove', 'electrode': 'cathode', 'material': 'conductive_additive'}, n_clicks=0, style=BUTTON_STYLE)
@@ -293,7 +299,12 @@ anode_formulation = ds.html.Div([
     ds.html.Br(), ds.html.Br(),
     ds.html.H4('Active Materials'),
     ds.html.Div(id={'type': 'materials_selector', 'electrode': 'anode', 'material': 'active_material'}, children=[
-        AnodeMaterialSelector(id={'type': 'active_material', 'index': 0, 'electrode': 'anode'}, materials=active_materials_anode, with_slider_titles=True, weight_default=100, name_default='faradion_hc').render()
+        AnodeMaterialSelector(id={'type': 'active_material', 'index': 0, 'electrode': 'anode'}, 
+                              materials=active_materials_anode, 
+                              with_slider_titles=True, 
+                              weight_default=95, 
+                              name_default=active_materials_anode[1],
+                              irreversible_capacity_scaling_default=0.8).render()
     ], style={'width': '100%'}),
     ds.html.Div([
         ds.html.Button("+", id={'type': 'button', 'action': 'add', 'electrode': 'anode', 'material': 'active_material'}, n_clicks=0, style=BUTTON_STYLE),
@@ -302,7 +313,9 @@ anode_formulation = ds.html.Div([
     ds.html.Br(), ds.html.Br(), ds.html.Br(),
 
     ds.html.H4('Binders'),
-    ds.html.Div(id={'type': 'materials_selector', 'electrode': 'anode', 'material': 'binder'}, children=[], style={'width': '100%'}),
+    ds.html.Div(id={'type': 'materials_selector', 'electrode': 'anode', 'material': 'binder'}, children=[
+        BinderSelector({'type': 'binder', 'index': 0, 'electrode': 'anode'}, weight_default=2.5).render()
+    ], style={'width': '100%'}),
     ds.html.Div([
         ds.html.Button("+", id={'type': 'button', 'action': 'add', 'electrode': 'anode', 'material': 'binder'}, n_clicks=0, style=BUTTON_STYLE),
         ds.html.Button("-", id={'type': 'button', 'action': 'remove', 'electrode': 'anode', 'material': 'binder'}, n_clicks=0, style=BUTTON_STYLE)
@@ -310,7 +323,9 @@ anode_formulation = ds.html.Div([
     ds.html.Br(), ds.html.Br(), ds.html.Br(),
 
     ds.html.H4('Conductive Additives'),
-    ds.html.Div(id={'type': 'materials_selector', 'electrode': 'anode', 'material': 'conductive_additive'}, children=[], style={'width': '100%'}),
+    ds.html.Div(id={'type': 'materials_selector', 'electrode': 'anode', 'material': 'conductive_additive'}, children=[
+        ConductiveAdditiveSelector({'type': 'conductive_additive', 'index': 0, 'electrode': 'anode'}, weight_default=2.5).render()
+    ], style={'width': '100%'}),
     ds.html.Div([
         ds.html.Button("+", id={'type': 'button', 'action': 'add', 'electrode': 'anode', 'material': 'conductive_additive'}, n_clicks=0, style=BUTTON_STYLE),
         ds.html.Button("-", id={'type': 'button', 'action': 'remove', 'electrode': 'anode', 'material': 'conductive_additive'}, n_clicks=0, style=BUTTON_STYLE)
@@ -329,30 +344,11 @@ electrodes = ds.html.Div([
 
     ds.html.Br(), ds.html.Br(), ds.html.Br(),
 
-    ds.html.H4('Adjustments'),
-    ds.html.Br(),
-
-    ds.html.P('Adjust electrode length'),
-    ds.html.Div([
-        ds.html.Button("+", id='add_electrode_length', n_clicks=0, style=BUTTON_STYLE),
-        ds.html.Button("-", id='subtract_electrode_length', n_clicks=0, style=BUTTON_STYLE)
-    ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px'}),
-
-    ds.html.Br(), ds.html.Br(),
-
-    ds.html.P('Adjust electrode width'),
-    ds.html.Div([
-        ds.html.Button("+", id='add_electrode_width', n_clicks=0, style=BUTTON_STYLE),
-        ds.html.Button("-", id='subtract_electrode_width', n_clicks=0, style=BUTTON_STYLE)
-    ], style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px'}),
- 
-    ds.html.Br(), ds.html.Br(),
-
     ds.html.H4('Cathode'),
     ds.html.Br(),
-    SliderWithTextInput({'type': 'electrodes', 'electrode': 'cathode', 'object': 'electrode'}, 0, 60, 11.5, 0.01, 5, 'mass_loading', "Mass loading (mg/cm³)", True, '1000px').render(),
+    SliderWithTextInput({'type': 'electrodes', 'electrode': 'cathode', 'object': 'electrode'}, 0, 60, 15.0, 0.01, 5, 'mass_loading', "Mass loading (mg/cm³)", True, '1000px').render(),
     ds.html.Br(),
-    SliderWithTextInput({'type': 'electrodes', 'electrode': 'cathode', 'object': 'electrode'}, 0, 5, 2.6, 0.01, 1, 'calender_density', "Calender density (g/cm³)", True, '1000px').render(),
+    SliderWithTextInput({'type': 'electrodes', 'electrode': 'cathode', 'object': 'electrode'}, 0, 5, 3.04, 0.01, 1, 'calender_density', "Calender density (g/cm³)", True, '1000px').render(),
     ds.html.Br(),
     ds.html.Div(id={'tab': 'electrodes', 'object': 'message', 'electrode': 'cathode'}),
 
@@ -360,9 +356,9 @@ electrodes = ds.html.Div([
 
     ds.html.H4('Anode'),
     ds.html.Br(),
-    SliderWithTextInput({'type': 'electrodes', 'electrode': 'anode', 'object': 'electrode'}, 0, 60, 5.25, 0.01, 5, 'mass_loading', "Mass loading (mg/cm³)", True, '1000px').render(),
+    SliderWithTextInput({'type': 'electrodes', 'electrode': 'anode', 'object': 'electrode'}, 0, 60, 8.7, 0.01, 5, 'mass_loading', "Mass loading (mg/cm³)", True, '1000px').render(),
     ds.html.Br(),
-    SliderWithTextInput({'type': 'electrodes', 'electrode': 'anode', 'object': 'electrode'}, 0, 5, 0.85, 0.01, 1, 'calender_density', "Calender density (g/cm³)", True, '1000px').render(),
+    SliderWithTextInput({'type': 'electrodes', 'electrode': 'anode', 'object': 'electrode'}, 0, 5, 1.16, 0.01, 1, 'calender_density', "Calender density (g/cm³)", True, '1000px').render(),
     ds.html.Br(),
     ds.html.Div(id={'tab': 'electrodes', 'object': 'message', 'electrode': 'anode'}),
 
@@ -387,11 +383,11 @@ separator_long = ds.html.Div([
     ds.html.Br(),
     SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 3, 0.4, 0.01, 1, 'separator_density', title="Density (g/cm³)", div_width='40%').render(),
     ds.html.Br(),
-    SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 400, 120, 0.1, 50, 'separator_width', title="Width (mm)", div_width='60%').render(),
+    SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 400, 147, 0.1, 50, 'separator_width', title="Width (mm)", div_width='60%').render(),
     ds.html.Br(),
     SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 100, 47, 0.1, 5, 'separator_porosity', title="Porosity (%)", div_width='80%').render(),
     ds.html.Br(),
-    SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 8000, 2600, 1, 100, 'separator_fold_length', title="Length (mm)", div_width='110%').render(),
+    SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 1000, 500, 1, 100, 'separator_fold_length', title="Length overhang relative to cathode (mm)", div_width='60%').render(), #TODO: change bck to length
 
 ])
 
@@ -406,11 +402,11 @@ separator_short = ds.html.Div([
     ds.html.Br(),
     SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 3, 0.4, 0.01, 1, 'separator_density', title="Density (g/cm³)", div_width='40%').render(),
     ds.html.Br(),
-    SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 400, 120, 0.1, 50, 'separator_width', title="Width (mm)", div_width='60%').render(),
+    SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 400, 190, 0.1, 50, 'separator_width', title="Width (mm)", div_width='60%').render(),
     ds.html.Br(),
     SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 100, 47, 0.1, 5, 'separator_porosity', title="Porosity (%)", div_width='80%').render(),
     ds.html.Br(),
-    SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 400, 120, 1, 50, 'separator_fold_length', title="Fold Length (mm)", div_width='110%').render(),
+    SliderWithTextInput({'type': 'mechanicals', 'object': 'separator'}, 0, 400, 5, 1, 50, 'separator_fold_length', title="Overhang from cathode (mm)", div_width='110%').render(), #TODO: change bck to length
 
 ])
 
@@ -433,7 +429,7 @@ separator_electrolyte = ds.html.Div([
             ds.html.Br(),
             SliderWithTextInput({'type': 'mechanicals', 'object': 'electrolyte'}, 0, 20, 5, 0.01, 1, 'electrolyte_specific_cost', title="Specific Cost ($/kg)", div_width='80%').render(),
             ds.html.Br(),
-            SliderWithTextInput({'type': 'mechanicals', 'object': 'electrolyte'}, 0, 2, 1, 0.01, 1, 'electrolyte_density', title="Density (g/cm³)", div_width='40%').render(),
+            SliderWithTextInput({'type': 'mechanicals', 'object': 'electrolyte'}, 0, 2, 1.18, 0.01, 1, 'electrolyte_density', title="Density (g/cm³)", div_width='40%').render(),
             ds.html.Br(),
             SliderWithTextInput({'type': 'mechanicals', 'object': 'electrolyte'}, 0, 100, 10, 0.1, 10, 'electrolyte_overfill', title="Overfill (%)", div_width='70%').render(),
             ds.html.Br(),
@@ -561,8 +557,8 @@ tab_container = ds.html.Div([
             ds.dcc.Tab(label='Encapsulation', value='encapsulation'),
             ds.dcc.Tab(label='Cathode Formulation', value='cathode_design'),
             ds.dcc.Tab(label='Anode Formulation', value='anode_design'),
-            ds.dcc.Tab(label='Separator and Electrolyte', value='separator_electrolyte_design'),
             ds.dcc.Tab(label='Electrode Specifications', value='electrodes'),
+            ds.dcc.Tab(label='Separator and Electrolyte', value='separator_electrolyte_design'),
         ],
         value='cathode_mechanicals',
     ),

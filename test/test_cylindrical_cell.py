@@ -22,7 +22,7 @@ class TestCylindricalJellyRoll(unittest.TestCase):
         length = 1100
 
         # construct cathode
-        cathode_active_material = CathodeMaterial(name="Faradion_Gen2_4.25V", 
+        cathode_active_material = CathodeMaterial(name="NaNiMn P2-O3 Composite - 4.25V", 
                                                  specific_cost=11.26, 
                                                  density=4, 
                                                  irreversible_capacity_scaling=1, 
@@ -53,7 +53,7 @@ class TestCylindricalJellyRoll(unittest.TestCase):
 
 
         # construct anode
-        anode_active_material = AnodeMaterial(name="Faradion_HC",
+        anode_active_material = AnodeMaterial(name="Hard Carbon (Vendor A - 330 mAh/g)",
                                               specific_cost=14.27,
                                               density=1.50,
                                               irreversible_capacity_scaling=1,
@@ -110,7 +110,7 @@ class TestCylindricalJellyRoll(unittest.TestCase):
         anode_connector = CylindricalTerminalConnector(formula='Al', diameter=10, thickness=1, fill_factor=0.8)
         cathode_connector = CylindricalTerminalConnector(formula='Al', diameter=10, thickness=1, fill_factor=0.8)
 
-        lid = CylindricalLidAssembly(cost=0.1, mass=5, thickness=3)
+        lid = CylindricalLidAssembly(cost=0.1, mass=5, thickness=1)
 
         case = CylindricalCase(canister=cylindrical_shell, lid_assembly=lid, cathode_terminal_connector=cathode_connector, anode_terminal_connector=anode_connector)
 

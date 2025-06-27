@@ -59,7 +59,11 @@ class DataManager:
 
         self._connection.commit()
 
-    def get_data(self, table_name: str, columns: list = None, condition: str | list[str] = None, latest_column: str = None):
+    def get_data(self, 
+                 table_name: str, 
+                 columns: list = None, 
+                 condition: str | list[str] = None, 
+                 latest_column: str = None):
         """
         Retrieve data from the database.
 
@@ -109,6 +113,130 @@ class DataManager:
         self._cursor.execute(query)
         return [row[0] for row in self._cursor.fetchall()]
     
+    def get_current_collector_materials(self, most_recent: bool = True) -> pd.DataFrame:
+        """
+        Retrieves current collector materials from the database.
+
+        :param most_recent: If True, returns only the most recent entry.
+        :return: DataFrame with current collector materials.
+        """
+        data = (self
+                .get_data(table_name='current_collector_materials')
+                .groupby('name', group_keys=False)
+                .apply(lambda x: x.sort_values('date', ascending=False).head(1) if most_recent else x)
+                .reset_index(drop=True)
+                ) 
+        
+        return data
+    
+    def get_insulation_materials(self, most_recent: bool = True) -> pd.DataFrame:
+        """
+        Retrieves insulation materials from the database.
+
+        :param most_recent: If True, returns only the most recent entry.
+        :return: DataFrame with insulation materials.
+        """
+        data = (self
+                .get_data(table_name='insulation_materials')
+                .groupby('name', group_keys=False)
+                .apply(lambda x: x.sort_values('date', ascending=False).head(1) if most_recent else x)
+                .reset_index(drop=True)
+                ) 
+        
+        return data
+
+    def get_cathode_materials(self, most_recent: bool = True) -> pd.DataFrame:
+        """
+        Retrieves cathode materials from the database.
+
+        :param most_recent: If True, returns only the most recent entry.
+        :return: DataFrame with cathode materials.
+        """
+        data = (
+            self
+            .get_data(
+                table_name='cathode_materials'
+            ).groupby(
+                'name', 
+                group_keys=False
+            ).apply(
+                lambda x: x.sort_values('date', ascending=False).head(1) if most_recent else x
+            ).reset_index(
+                drop=True
+            )
+        ) 
+        
+        return data
+    
+    def get_anode_materials(self, most_recent: bool = True) -> pd.DataFrame:
+        """
+        Retrieves anode materials from the database.
+
+        :param most_recent: If True, returns only the most recent entry.
+        :return: DataFrame with anode materials.
+        """
+        data = (
+            self
+            .get_data(
+                table_name='anode_materials'
+            ).groupby(
+                'name', 
+                group_keys=False
+            ).apply(
+                lambda x: x.sort_values('date', ascending=False).head(1) if most_recent else x
+            ).reset_index(
+                drop=True
+            )
+        ) 
+        
+        return data
+    
+    def get_binder_materials(self, most_recent: bool = True) -> pd.DataFrame:
+        """
+        Retrieves binder materials from the database.
+
+        :param most_recent: If True, returns only the most recent entry.
+        :return: DataFrame with binder materials.
+        """
+        data = (
+            self
+            .get_data(
+                table_name='binder_materials'
+            ).groupby(
+                'name', 
+                group_keys=False
+            ).apply(
+                lambda x: x.sort_values('date', ascending=False).head(1) if most_recent else x
+            ).reset_index(
+                drop=True
+            )
+        ) 
+        
+        return data
+    
+    def get_conductive_additive_materials(self, most_recent: bool = True) -> pd.DataFrame:
+        """
+        Retrieves conductive additives from the database.
+
+        :param most_recent: If True, returns only the most recent entry.
+        :return: DataFrame with conductive additives.
+        """
+        data = (
+            self
+            .get_data(
+                table_name='conductive_additive_materials'
+            ).groupby(
+                'name', 
+                group_keys=False
+            ).apply(
+                lambda x: x.sort_values('date', ascending=False).head(1) if most_recent else x
+            ).reset_index(
+                drop=True
+            )
+        ) 
+        
+        return data
+
     @staticmethod
     def read_half_cell_curve(half_cell_path) -> pd.DataFrame:
         """

@@ -2,15 +2,7 @@ from plotly.subplots import make_subplots
 from plotly import graph_objects as go
 
 from App.styles import *
-
-UM_TO_M = 1e-6
-M_TO_UM = 1e6
-G_TO_KG = 1e-3
-CM_TO_M = 1e-2
-KG_TO_G = 1e3
-M_TO_CM = 1e2
-MM_TO_M = 1e-3
-M_TO_MM = 1e3
+from SteerEnergyStorage.Constants import *
 
 
 class Separator:
