@@ -163,7 +163,7 @@ class _CurrentCollector(ABC):
             y=coordinates['y'], 
             mode='lines', 
             name='End', 
-            line=dict(width=1, color='black'), 
+            line=dict(width=0.5, color='black'), 
             fillcolor=self._material._color, 
             fill='toself'
         )
@@ -1731,7 +1731,7 @@ class WeldTab:
             y=coordinates['y'], 
             mode='lines', 
             name='Weld Tab', 
-            line=dict(width=1, color='black'), 
+            line=dict(width=0.5, color='black'), 
             fillcolor=self._material._color, 
             fill='toself'
         )
@@ -1970,7 +1970,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         for i, tab in enumerate(self._weld_tabs):
             tr = tab._trace
             tr.legendgroup = 'Weld Tabs'
-            tr.name = 'Weld Tabs' if i == 0 else ''
+            tr.name = 'Weld Tabs'
             tr.showlegend = True if i == 0 else False
             figure.add_trace(tr)
 
@@ -2056,7 +2056,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             x=coated_area['x'],
             y=coated_area['y'],
             mode='lines',
-            name='A Side Coated Area',
+            name='Coated Area',
             line=dict(width=1, color='black'),
             fillcolor='black',
             fill='toself',
@@ -2064,12 +2064,15 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         )
 
         if 'tab_number' in coated_area.columns:
-            area = (coated_area
-                           .dropna()
-                           .groupby('tab_number')
-                           .apply(lambda df: get_area_from_trace(go.Scatter(x=df['x'], y=df['y'], mode='lines')))
-                           .sum()
-                           )
+
+            area = (
+                coated_area
+                .dropna()
+                .groupby('tab_number')
+                .apply(lambda df: get_area_from_trace(go.Scatter(x=df['x'], y=df['y'], mode='lines')))
+                .sum()
+            )
+
         else:
             area = get_area_from_trace(trace)
 
