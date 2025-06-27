@@ -1079,35 +1079,35 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         ) -> None:
         """
         Initialize an object that represents a notched current collector.
-        
-        Parameters:
-        -----------
-        material: CurrentCollectorMaterial: 
+
+        Parameters
+        ----------
+        material : CurrentCollectorMaterial
             Material of the current collector.
-        length: float:
+        length : float
             Length of the current collector in mm.
-        width: float:
+        width : float
             Width of the current collector in mm.
-        thickness: float:
-            Thickness of the current collector in um.
-        tab_width: float:
+        thickness : float
+            Thickness of the current collector in µm.
+        tab_width : float
             Width of the tabs in mm.
-        tab_spacing: float:
+        tab_spacing : float
             Spacing between the tabs in mm.
-        tab_height: float:
+        tab_height : float
             Height of the tabs in mm.
-        coated_tab_height: float:
+        coated_tab_height : float
             Height of the coated tab on the top side in mm.
-        bare_lengths_a_side: Tuple[float, float]:
+        bare_lengths_a_side : Tuple[float, float]
             Bare lengths on the A side in mm, as a tuple of two floats (left, right).
-        bare_lengths_b_side: Tuple[float, float]:
+        bare_lengths_b_side : Tuple[float, float]
             Bare lengths on the B side in mm, as a tuple of two floats (left, right).
-        insulation_width: Optional[float]:
-            Width of the insulation strip in mm, default is 0.
-        name: Optional[str]:
-            Name of the current collector, default is 'Notched Current Collector'.
-        datum: Optional[Tuple[float, float, float]]:
-            Datum of the current collector in mm, default is (0, 0, 0).
+        insulation_width : Optional[float], default=0
+            Width of the insulation strip in mm.
+        name : Optional[str], default='Notched Current Collector'
+            Name of the current collector.
+        datum : Optional[Tuple[float, float, float]], default=(0, 0, 0)
+            Datum of the current collector in mm.
         """
         super().__init__(
             material=material,
