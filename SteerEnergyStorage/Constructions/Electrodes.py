@@ -222,102 +222,52 @@ class _Electrode:
 
         self._porosity = porosity
     
-    def _calculate_half_cell_curve(self, grid_n: int) -> None:
+    def _calculate_half_cell_curve(self) -> None:
         """
-        Calculate the half cell curve of the electrode.
+        Calculate the half cell curve of the cathode.
 
-        :param grid_n: Number of points to interpolate the curve on.
+        Parameters:
+        ----------
+        voltage : float
+            The voltage cut-off for the half cell curve in volts.
         """
-        data = self._calculate_capacity_curves()
-        data = data.groupby('active_material', group_keys=True).apply(lambda df: df.pipe(self._order_and_clean_curves)).reset_index(drop=True)
-        data = data.groupby('direction', group_keys=True).apply(lambda df: df.pipe(self._linear_interpolate_on_voltage, grid_n)).reset_index(drop=False)
-        data = data.groupby(['direction', 'voltage'], group_keys=True).agg({'capacity': 'sum'}).reset_index(drop=False)
-        data = self._flip_and_shift_curves(data)
+        data = (
+            self
+            ._formulation
+            ._half_cell_curve
+            .assign(
+                capacity = lambda x: x['specific_capacity'] * self._coating_mass,
+                areal_capacity = lambda x: x['capacity'] / (self._current_collector._coated_area),
+            ).drop(
+                columns=['specific_capacity_max', 'voltage_max', 'specific_capacity']
+            )
+        )
+
         self._half_cell_curve = data
-        reversible_capacity = self._half_cell_curve.query("direction == 'discharge'")['capacity'].max()
-        self._areal_capacity = reversible_capacity / (self._single_sided_area * 2)
 
-    def _calculate_capacity_curves(self) -> pd.DataFrame:
-        """
-        Calculate the capacity curves of the electrode.
-
-        :return: DataFrame containing the capacity curves.
-        """
-        half_cell_curve = []
-        for am in self._formulation._active_materials.keys():
-            am_mass = self._coating_mass * self._formulation._active_materials[am]
-            irrev_scale = am._irreversible_capacity_scaling
-            rev_scaling = am._reversible_capacity_scaling
-            data = am._half_cell_curve.copy()
-            data['capacity'] = data['specific_capacity'] * am_mass
-
-            data['capacity'] = [c * irrev_scale if d == 'charge' 
-                                           else c * irrev_scale * rev_scaling
-                                           for c, d in zip(data['capacity'], data['direction'])]
-            
-            data = (data
-                    .filter(['voltage', 'capacity', 'direction'])
-                    .sort_values(by=['direction', 'capacity'])
-                    .assign(active_material=am)
-                    )
-
-            half_cell_curve.append(data)
-
-        return pd.concat(half_cell_curve)
-
-    def _linear_interpolate_on_voltage(self, data: pd.DataFrame, grid_n: int) -> pd.DataFrame:
-        """
-        Cubic spline interpolate the curves on voltage.
-
-        :param data: DataFrame containing the capacity curves.
-        :param grid_n: Number of points to interpolate the curve on.
-        :return: DataFrame containing the interpolated curves.
-        """
-        data = data.sort_values('voltage')
-        interpolated_curves = []
-        v_min = data['voltage'].min()
-        v_max = data['voltage'].max()
-        voltage_grid = np.linspace(v_min, v_max, grid_n)
-        for am, df in data.groupby('active_material'):
-            x = df['voltage']
-            y = df['capacity']
-            new_y = np.interp(voltage_grid, x, y)
-            new_data = pd.DataFrame({'voltage': voltage_grid, 'capacity': new_y, 'active_material': am})
-            interpolated_curves.append(new_data)
-
-        new_data = pd.concat(interpolated_curves)
-
-        return new_data
-
-    def _flip_and_shift_curves(self, data: pd.DataFrame) -> pd.DataFrame:
-        """
-        Flip and shift the curves.
-
-        :param data: DataFrame containing the interpolated curves.
-        :return: DataFrame containing the flipped and shifted curves.
-        """
-        data = (data
-                .assign(max_capacity=lambda x: x['capacity'].max())
-                .assign(capacity=lambda x: [-c + m if d == 'discharge' else c for c, d, m in zip(x['capacity'], x['direction'], x['max_capacity'])])
-                .reset_index(drop=True)
-                .drop(columns=['max_capacity'])
-                )
-                
-        charge_curve = data.query("direction == 'charge'").sort_values('capacity', ascending=True)
-        discharge_curve = data.query("direction == 'discharge'").sort_values('capacity', ascending=False)
-        return pd.concat([charge_curve, discharge_curve]).reset_index(drop=True)
-
-    def plot_half_cell_curve(self, grid_n: int = 100, **kwargs) -> None:
+    def plot_half_cell_curve(self, areal: bool = False, **kwargs) -> None:
         """
         Plot the half cell curve of the electrode.
 
         :param grid_n: Number of points to interpolate the curve on.
         """
         if not hasattr(self, '_half_cell_curve'):
-            self._calculate_half_cell_curve(grid_n)
+            raise ValueError(f"A half cell curve for {self.name} has not been calculated yet. Please set a voltage cuttoff before plotting.")
 
-        fig = px.line(self.half_cell_curve, y='Voltage (V)', x='Capacity (Ah)', color='Direction',
-                      title='Capacity vs Voltage', line_shape='spline', template='presentation', **kwargs)
+        x = 'Capacity (Ah)' if not areal else 'Areal Capacity (mAh/cm²)'
+
+        fig = px.line(
+            self.half_cell_curve, 
+            y='Voltage (V)', 
+            x=x, 
+            line_shape='spline', 
+            template='presentation', 
+            **kwargs
+        )
+
+        fig.update_traces(
+            line=dict(color=self._formulation._color),
+        )
 
         return fig    
 
@@ -359,21 +309,29 @@ class _Electrode:
 
     @property
     def half_cell_curve(self) -> pd.DataFrame:
-        """
-        Get the half cell curve of the electrode.
 
-        :return: DataFrame containing the half cell curve.
-        """
         if not hasattr(self, '_half_cell_curve'):
-            raise ValueError("Half cell curve not calculated. Call _calculate_half_cell_curve() first.")
+            raise ValueError(f"A half cell curve for {self.name} has not been calculated yet. Please set a voltage cuttoff or a maximum specific capacity before accessing this property.")
 
-        return (self
+        data = (self
                 ._half_cell_curve
-                .assign(capacity=lambda x: x['capacity'] * S_TO_H)
-                .rename(columns={'capacity': 'Capacity (Ah)', 
-                                 'voltage': 'Voltage (V)', 
-                                 'direction': 'Direction'})
+                .assign(
+                    capacity = lambda x: x['capacity'] * (S_TO_H),
+                    areal_capacity = lambda x: x['areal_capacity'] * ((S_TO_H * A_TO_mA)/M_TO_CM**2),
+                ).filter(
+                    items=['capacity', 'voltage', 'direction', 'areal_capacity']
                 )
+                .rename(
+                    columns={
+                        'capacity': 'Capacity (Ah)', 
+                        'voltage': 'Voltage (V)', 
+                        'direction': 'Direction',
+                        'areal_capacity': 'Areal Capacity (mAh/cm²)'
+                        }
+                    )
+                )
+        
+        return data
 
     @property
     def porosity(self) -> float:
@@ -525,7 +483,9 @@ class Anode(_Electrode):
             insulation_material=insulation_material,
             insulation_thickness=insulation_thickness
         )
-        
+
+        self._calculate_half_cell_curve()
+
         
 class Cathode(_Electrode):
     """
@@ -544,23 +504,22 @@ class Cathode(_Electrode):
         """
         Initialize an object that represents a cathode.
 
-        Parameters:
+        Parameters
         ----------
         formulation : CathodeFormulation
             The formulation of the cathode.
         mass_loading : float
-            The mass loading of the cathode in mg/cm^2.
+            The mass loading of the cathode in mg/cm².
         current_collector : _CurrentCollector
             The current collector used in the cathode.
         calender_density : float
-            The density of the cathode after calendering in g/cm^3.
+            The density of the cathode after calendering in g/cm³.
         insulation_material : InsulationMaterial, optional
             The insulation material used in the cathode (default is None).
         insulation_thickness : float, optional
-            The thickness of the insulation material in micrometers (default is 0.0).
+            The thickness of the insulation in micrometers (default is 0.0).
         name : str, optional
             The name of the cathode (default is 'Cathode').
-        ----------
         """
         super().__init__(
             formulation=formulation,
@@ -571,5 +530,36 @@ class Cathode(_Electrode):
             insulation_material=insulation_material,
             insulation_thickness=insulation_thickness
         )
+
+    def _calculate_half_cell_curve(self, voltage: float) -> None:
+        """
+        Calculate the half cell curve of the cathode.
+
+        Parameters:
+        ----------
+        voltage : float
+            The voltage cut-off for the half cell curve in volts.
+        """
+        self._formulation.voltage_cuttoff = voltage
+        super()._calculate_half_cell_curve()
+
+    @property
+    def voltage_cuttoff(self) -> float:
+        """
+        Get the maximum voltage of the half cell curves.
+        
+        :return: float: maximum voltage of the half cell curves
+        """
+        return round(float(self.half_cell_curves['Maximum Voltage (V)'].max()), 3)
+
+    @voltage_cuttoff.setter
+    def voltage_cuttoff(self, voltage: float):
+        """
+        Set the voltage cuttoff for the half cell curves.
+        
+        :param voltage: float: maximum voltage of the half cell curves
+        """
+        self._calculate_half_cell_curve(voltage)
+
 
     

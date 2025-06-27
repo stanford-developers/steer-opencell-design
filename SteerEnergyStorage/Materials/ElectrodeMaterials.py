@@ -686,6 +686,15 @@ class CathodeMaterial(_ActiveMaterial):
         return material
 
     @property
+    def minimum_extrapolated_voltage(self) -> float:
+        """
+        Get the minimum extrapolated voltage for the half cell curves.
+        
+        :return: float: minimum extrapolated voltage of the half cell curves
+        """
+        return float(round(self._minimum_extrapolated_voltage, 2))
+
+    @property
     def voltage_cuttoff_range(self) -> tuple:
         """
         Get the valid voltage range for the half cell curves.
@@ -716,7 +725,7 @@ class CathodeMaterial(_ActiveMaterial):
         if not isinstance(voltage, (float, int)) or voltage <= 0:
             raise ValueError("Voltage cuttoff must be a positive float")
         
-        if voltage < self._minimum_extrapolated_voltage:
+        if voltage < self.minimum_extrapolated_voltage:
             raise ValueError(f"Voltage cuttoff must be greater than or equal to {self._minimum_extrapolated_voltage} V")
         elif voltage < self._minimum_voltage:
             self._truncate_and_shift_curves(voltage)

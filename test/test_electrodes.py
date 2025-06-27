@@ -13,8 +13,6 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         """
         Set up
         """
-        #### stack 1 ####
-        # construct cathode
         active_material1 = CathodeMaterial.from_database("NaNiMn P2-O3 Composite")
         conductive_additive1 = ConductiveAdditive.from_database("Super P")
         conductive_additive2 = ConductiveAdditive.from_database("Graphite")
@@ -100,16 +98,71 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
 
     def test_half_cell_curve(self):
 
-        self.cathode._calculate_half_cell_curve(grid_n=100)
-        self.anode._calculate_half_cell_curve(grid_n=100)
-        data_cathode = self.cathode.half_cell_curve
-        data_anode = self.anode.half_cell_curve
+        self.cathode.voltage_cuttoff = 4.3
+        figure = self.cathode.plot_half_cell_curve()
+        # figure.show()
 
-        # px.line(data_cathode, x='Capacity (Ah)', y='Voltage (V)', title='Cathode Half Cell Curve', 
-        #         line_shape='spline', color='Direction', markers=True).show()
+
+class TestCathodeTwoMaterialNotched(unittest.TestCase):
+
+    def setUp(self):
         
-        # px.line(data_anode, x='Capacity (Ah)', y='Voltage (V)', title='Anode Half Cell Curve',
-        #         line_shape='spline', color='Direction', markers=True).show()
+        material1 = CathodeMaterial.from_database("LFP")
+        material2 = CathodeMaterial.from_database("NMC811")
+        conductive_additive = ConductiveAdditive.from_database("Super P")
+        binder = Binder.from_database("PVDF")
+
+        formulation = CathodeFormulation(
+            active_materials={
+                material1: 67, 
+                material2: 28
+            },
+            binders={
+                binder: 2
+            },
+            conductive_additives={
+                conductive_additive: 3
+            }
+        )
+
+        current_collector_material = CurrentCollectorMaterial.from_database("Copper")
+
+        current_collector = NotchedCurrentCollector(
+            material=current_collector_material,
+            length=4500,
+            width=300,
+            thickness=8,
+            tab_width=20,
+            tab_spacing=100,
+            tab_height=12,
+            insulation_width=3,
+            coated_tab_height=2
+        )
+
+        insulation = InsulationMaterial.from_database("Aluminium Oxide, 99.5%")
+
+        self.cathode = Cathode(
+            formulation=formulation,
+            mass_loading=6.2,
+            current_collector=current_collector,
+            calender_density=2.60,
+            insulation_material=insulation,
+            insulation_thickness=10
+        )
+
+        self.cathode.voltage_cuttoff = 4.1
+
+    def test_electrodes(self):
+        self.assertTrue(isinstance(self.cathode, Cathode))
+
+    def test_half_cell_curve(self):
+        figure1 = self.cathode.plot_half_cell_curve()
+        figure2 = self.cathode.plot_half_cell_curve(areal=True)
+        # figure1.show()
+        # figure2.show()
+
+
+
 
 
 # class TestWithNotched(unittest.TestCase):

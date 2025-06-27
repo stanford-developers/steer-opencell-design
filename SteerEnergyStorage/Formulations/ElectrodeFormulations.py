@@ -281,6 +281,7 @@ class _ElectrodeFormulation:
         )
 
         if add_materials:
+            
             for material in self._active_materials.keys():
 
                 material_curve = material.half_cell_curve.assign()
@@ -449,7 +450,9 @@ class _ElectrodeFormulation:
         
         :return: tuple: (minimum voltage, maximum voltage)
         """
-        return (round(self._voltage_cuttoff_range[0], 4), round(self._voltage_cuttoff_range[1], 4))
+        minimum = float(round(self._voltage_cuttoff_range[0], 2))
+        maximum = float(round(self._voltage_cuttoff_range[1], 2))
+        return (minimum, maximum)
 
     @property
     def half_cell_curve(self) -> pd.DataFrame:
