@@ -385,6 +385,22 @@ class _Electrode:
         return figure
 
     @property
+    def properties(self) -> Dict[str, Any]:
+        """
+        Get the properties of the electrode.
+
+        :return: Dictionary containing the properties of the electrode.
+        """
+        return {
+            'Mass': f"{self.mass} g",
+            'Coating mass': f"{self.coating_mass} g",
+            'Total thickness': f"{self.thickness} um",
+            'Coating thickness': f"{self.coating_thickness} um",
+            'Porosity': f"{self.porosity} %",
+            'Cost': f"$ {self.cost}",
+        }
+
+    @property
     def insulation_thickness(self) -> float:
         """
         Get the insulation thickness of the electrode.
@@ -508,15 +524,6 @@ class _Electrode:
         :return: Mass of the electrode.
         """
         return round(self._mass * KG_TO_G, 2)
-    
-    @property
-    def material_thickness(self) -> float:
-        """
-        Get the material thickness of the electrode.
-
-        :return: Material thickness of the electrode.
-        """
-        return round(self._material_thickness * M_TO_UM, 2)
 
     @property
     def thickness(self) -> float:
