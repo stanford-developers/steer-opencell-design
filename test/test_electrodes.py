@@ -40,11 +40,11 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
             width=300,
             height=280,
             thickness=12,
-            tab_width=10,
-            tab_height=10,
-            tab_position=15,
+            tab_width=50,
+            tab_height=30,
+            tab_position=50,
             coated_tab_height=3,
-            insulation_width=5
+            insulation_width=10
         )
 
         insulation = InsulationMaterial.from_database("Aluminium Oxide, 95%")
@@ -66,18 +66,18 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
 
         self.assertEqual(
             self.cathode.mass_breakdown, 
-            {'NaNiMn P2-O3 Composite': 17.0, 
+            {'NaNiMn P2-O3 Composite': 16.7, 
              'PVDF': 0.23, 
-             'CMC': 0.14, 
-             'Super P': 0.26, 
+             'CMC': 0.13, 
+             'Super P': 0.25, 
              'Graphite': 0.19, 
-             'Punched Current Collector': 2.72, 
-             'Aluminium Oxide, 95%': 0.11}
+             'Punched Current Collector': 2.77, 
+             'Aluminium Oxide, 95%': 0.41}
         )
 
         self.assertEqual(
             self.cathode.cost_breakdown,
-            {'NaNiMn P2-O3 Composite': 0.18, 
+            {'NaNiMn P2-O3 Composite': 0.17, 
              'PVDF': 0.05, 
              'CMC': 0.0, 
              'Super P': 0.01, 
@@ -86,14 +86,14 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
              'Aluminium Oxide, 95%': 0.0}
         )
 
-        self.assertEqual(round(sum([a for a in self.cathode.mass_breakdown.values()]), 2), self.cathode.mass)
-        self.assertEqual(round(sum([a for a in self.cathode.cost_breakdown.values()]), 2), self.cathode.cost)
+        self.assertEqual(round(sum([a for a in self.cathode._mass_breakdown.values()]), 2), round(self.cathode._mass, 2))
+        self.assertEqual(round(sum([a for a in self.cathode._cost_breakdown.values()]), 2), round(self.cathode._cost, 2))
         self.assertEqual(self.cathode.calender_density, 2.60)
         self.assertEqual(self.cathode.mass_loading, 10.68)
         self.assertEqual(self.cathode.insulation_thickness, 25)
-        self.assertEqual(self.cathode.coating_mass, 17.81)
+        self.assertEqual(self.cathode.coating_mass, 17.49)
         self.assertEqual(self.cathode.coating_thickness, 41.08)
-        self.assertEqual(self.cathode.mass, 20.65)
+        self.assertEqual(self.cathode.mass, 20.67)
 
 
     def test_half_cell_curve(self):
@@ -101,6 +101,13 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         self.cathode.voltage_cuttoff = 4.3
         figure = self.cathode.plot_half_cell_curve()
         # figure.show()
+
+    def test_views(self):
+        figure1 = self.cathode.get_a_side_view(width=900, height=600)
+        figure2 = self.cathode.get_b_side_view(width=900, height=600)
+        
+        # figure1.show()
+        # figure2.show()
 
 
 class TestCathodeTwoMaterialNotched(unittest.TestCase):
@@ -132,10 +139,10 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
             length=4500,
             width=300,
             thickness=8,
-            tab_width=20,
-            tab_spacing=100,
-            tab_height=12,
-            insulation_width=3,
+            tab_width=60,
+            tab_spacing=200,
+            tab_height=18,
+            insulation_width=6,
             coated_tab_height=2
         )
 
@@ -155,205 +162,39 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
     def test_electrodes(self):
         self.assertTrue(isinstance(self.cathode, Cathode))
 
+        self.assertTrue(
+            self.cathode.mass_breakdown,
+            {'LFP': 103.43, 
+             'NMC811': 57.63, 
+             'PVDF': 1.53, 
+             'Super P': 2.57, 
+             'Notched Current Collector': 106.21, 
+             'Aluminium Oxide, 99.5%': 1.6}
+        )
+
+        self.assertTrue(
+            self.cathode.cost_breakdown,
+            {'LFP': 0.66, 
+             'NMC811': 1.16, 
+             'PVDF': 0.31, 
+             'Super P': 0.07, 
+             'Notched Current Collector': 0.64, 
+             'Aluminium Oxide, 99.5%': 0.0}
+        )
+
+        self.assertEqual(round(sum([a for a in self.cathode._mass_breakdown.values()]), 2), round(self.cathode._mass, 2))
+        self.assertEqual(round(sum([a for a in self.cathode._cost_breakdown.values()]), 2), round(self.cathode._cost, 2))
+
     def test_half_cell_curve(self):
         figure1 = self.cathode.plot_half_cell_curve()
         figure2 = self.cathode.plot_half_cell_curve(areal=True)
         # figure1.show()
         # figure2.show()
 
+    def test_views(self):
+        figure1 = self.cathode.get_a_side_view(width=900, height=600)
+        figure2 = self.cathode.get_b_side_view(width=900, height=600)
+        # figure1.show()
+        # figure2.show()
 
 
-
-
-# class TestWithNotched(unittest.TestCase):
-
-#     def setUp(self):
-#         """
-#         Set up
-#         """
-#         #### stack 1 ####
-#         # construct cathode
-#         cathode_active_material = CathodeMaterial(name="NaNiMn P2-O3 Composite - 4.25V", 
-#                                                    specific_cost=11.26, 
-#                                                    density=4, 
-#                                                    irreversible_capacity_scaling=1, 
-#                                                    reversible_capacity_scaling=1)
-        
-#         cathode_conductive_additive = ConductiveAdditive(specific_cost=9, density=1.9, name="Super C65")
-
-#         cathode_binder = Binder(name="PVDF", specific_cost=15, density=1.7)
-
-#         cathode_formulation = ElectrodeFormulation(active_materials={cathode_active_material: 89},
-#                                                     binders={cathode_binder: 6},
-#                                                     conductive_additives={cathode_conductive_additive: 5})
-
-#         cathode_current_collector = NotchedCurrentCollector(formula="Al",
-#                                                             length=83,
-#                                                             width=10.8,
-#                                                             thickness=15,
-#                                                             tab_width=1,
-#                                                             tab_length=5,
-#                                                             tab_spacing=6,
-#                                                             bare_length=5)
-
-#         self.cathode = Cathode(formulation=cathode_formulation,
-#                                mass_loading=10.68,
-#                                current_collector=cathode_current_collector,
-#                                calender_density=2.60)
-
-#         # construct anode
-#         anode_active_material = AnodeMaterial(name="Hard Carbon (Vendor A - 330 mAh/g)",
-#                                                specific_cost=14.27,
-#                                                density=1.50,
-#                                                irreversible_capacity_scaling=1,
-#                                                reversible_capacity_scaling=1)
-        
-#         anode_conductive_additive = ConductiveAdditive(specific_cost=9, density=1.9)
-
-#         anode_binder = Binder(name="PVDF", specific_cost=10, density=1.7)
-
-#         anode_formulation = ElectrodeFormulation(active_materials={anode_active_material: 88},
-#                                                  binders={anode_binder: 3},
-#                                                  conductive_additives={anode_conductive_additive: 9})
-        
-#         anode_current_collector = NotchedCurrentCollector(formula="Cu",
-#                                                           length=87,
-#                                                           width=10.8,
-#                                                           thickness=15,
-#                                                           tab_width=1,
-#                                                           tab_length=5,
-#                                                           tab_spacing=10,
-#                                                           bare_length=5)
-        
-#         self.anode = Anode(formulation=anode_formulation,
-#                            mass_loading=10.68,
-#                            current_collector=anode_current_collector,
-#                            calender_density=0.85)
-        
-#     def test_electrodes(self):
-
-#         self.assertTrue(isinstance(self.cathode, Cathode))
-#         self.assertTrue(isinstance(self.anode, Anode))
-#         self.assertTrue(isinstance(self.cathode.current_collector, CurrentCollector))
-#         self.assertTrue(isinstance(self.anode.current_collector, CurrentCollector))
-#         self.assertTrue(isinstance(self.cathode.formulation, ElectrodeFormulation))
-#         self.assertTrue(isinstance(self.anode.formulation, ElectrodeFormulation))
-
-#     def test_current_collectors(self):
-
-#         self.assertTrue(isinstance(self.cathode.current_collector, NotchedCurrentCollector))
-#         self.assertTrue(isinstance(self.anode.current_collector, NotchedCurrentCollector))
-#         # self.cathode.current_collector.show()
-#         # self.anode.current_collector.show()
-
-#     def test_half_cell_curve(self):
-
-#         self.cathode._calculate_half_cell_curve(grid_n=100)
-#         self.anode._calculate_half_cell_curve(grid_n=100)
-#         data_cathode = self.cathode.half_cell_curve
-#         data_anode = self.anode.half_cell_curve
-
-#         # px.line(data_cathode, x='Capacity (Ah)', y='Voltage (V)', title='Cathode Half Cell Curve', 
-#         #         line_shape='spline', color='Direction', markers=True).show()
-        
-#         # px.line(data_anode, x='Capacity (Ah)', y='Voltage (V)', title='Anode Half Cell Curve',
-#         #         line_shape='spline', color='Direction', markers=True).show()
-
-
-# class TestWithTabWelded(unittest.TestCase):
-
-#     def setUp(self):
-#         """
-#         Set up
-#         """
-#         #### stack 1 ####
-#         # construct cathode
-#         cathode_active_material = CathodeMaterial(name="NaNiMn P2-O3 Composite - 4.25V", 
-#                                                    specific_cost=11.26, 
-#                                                    density=4, 
-#                                                    irreversible_capacity_scaling=1, 
-#                                                    reversible_capacity_scaling=1)
-        
-#         cathode_conductive_additive = ConductiveAdditive(specific_cost=9, density=1.9, name="Super C65")
-
-#         cathode_binder = Binder(name="PVDF", specific_cost=15, density=1.7)
-
-#         cathode_formulation = ElectrodeFormulation(active_materials={cathode_active_material: 89},
-#                                                     binders={cathode_binder: 6},
-#                                                     conductive_additives={cathode_conductive_additive: 5})
-
-#         weldTab = WeldTab(formula='Al', thickness=8, length=11.5, width=1)
-
-#         cathode_current_collector = TabWeldedCurrentCollector(formula="Al",
-#                                                               length=83,
-#                                                               width=10.8,
-#                                                               thickness=15,
-#                                                               weld_tab=weldTab,
-#                                                               weld_tab_spacing=24,
-#                                                               first_tab_spacing=5,
-#                                                               bare_length=5)
-
-#         self.cathode = Cathode(formulation=cathode_formulation,
-#                                mass_loading=10.68,
-#                                current_collector=cathode_current_collector,
-#                                calender_density=2.60)
-
-#         # construct anode
-#         anode_active_material = AnodeMaterial(name="Hard Carbon (Vendor A - 330 mAh/g)",
-#                                                specific_cost=14.27,
-#                                                density=1.50,
-#                                                irreversible_capacity_scaling=1,
-#                                                reversible_capacity_scaling=1)
-        
-#         anode_conductive_additive = ConductiveAdditive(specific_cost=9, density=1.9)
-
-#         anode_binder = Binder(name="PVDF", specific_cost=10, density=1.7)
-
-#         anode_formulation = ElectrodeFormulation(active_materials={anode_active_material: 88},
-#                                                  binders={anode_binder: 3},
-#                                                  conductive_additives={anode_conductive_additive: 9})
-        
-#         weldTab = WeldTab(formula='Cu', thickness=4, length=11.5, width=1)
-
-#         anode_current_collector = TabWeldedCurrentCollector(formula="Cu",
-#                                                             length=85,
-#                                                             width=10.8,
-#                                                             thickness=15,
-#                                                             weld_tab=weldTab,
-#                                                             weld_tab_spacing=30,
-#                                                             first_tab_spacing=5,
-#                                                             bare_length=5)
-        
-#         self.anode = Anode(formulation=anode_formulation,
-#                            mass_loading=10.68,
-#                            current_collector=anode_current_collector,
-#                            calender_density=0.85)
-        
-#     def test_electrodes(self):
-        
-#         self.assertTrue(isinstance(self.cathode, Cathode))
-#         self.assertTrue(isinstance(self.anode, Anode))
-#         self.assertTrue(isinstance(self.cathode.current_collector, CurrentCollector))
-#         self.assertTrue(isinstance(self.anode.current_collector, CurrentCollector))
-#         self.assertTrue(isinstance(self.cathode.formulation, ElectrodeFormulation))
-#         self.assertTrue(isinstance(self.anode.formulation, ElectrodeFormulation))
-
-#     def test_current_collectors(self):
-
-#         self.assertTrue(isinstance(self.cathode.current_collector, TabWeldedCurrentCollector))
-#         self.assertTrue(isinstance(self.anode.current_collector, TabWeldedCurrentCollector))
-#         # self.cathode.current_collector.show()
-#         # self.anode.current_collector.show()
-
-#     def test_half_cell_curve(self):
-
-#         self.cathode._calculate_half_cell_curve(grid_n=100)
-#         self.anode._calculate_half_cell_curve(grid_n=100)
-#         data_cathode = self.cathode.half_cell_curve
-#         data_anode = self.anode.half_cell_curve
-
-#         # px.line(data_cathode, x='Capacity (Ah)', y='Voltage (V)', title='Cathode Half Cell Curve', 
-#         #         line_shape='spline', color='Direction', markers=True).show()
-        
-#         # px.line(data_anode, x='Capacity (Ah)', y='Voltage (V)', title='Anode Half Cell Curve',
-#         #         line_shape='spline', color='Direction', markers=True).show()
