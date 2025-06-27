@@ -614,8 +614,17 @@ class _TapeCurrentCollector(_CurrentCollector):
             )
 
             for trace in figure.data:
-                figure_subplot.add_trace(trace, row=1, col=1)
-                figure_subplot.add_trace(trace, row=2, col=1)
+                
+                trace1 = deepcopy(trace)
+                trace2 = deepcopy(trace)
+
+                group_name = trace.name or f"group_{id(trace)}"
+                trace1.legendgroup = group_name
+                trace2.legendgroup = group_name
+                trace2.showlegend = False
+
+                figure_subplot.add_trace(trace1, row=1, col=1)
+                figure_subplot.add_trace(trace2, row=2, col=1)
 
             if with_dimensions:
                 orig = figure.layout.annotations or []
@@ -1410,11 +1419,12 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         # Helper for converting area df to go.Scatter
         def get_trace(area_df: pd.DataFrame) -> go.Scatter:
+
             return go.Scatter(
                 x=area_df['x'],
                 y=area_df['y'],
                 mode='lines',
-                name='Insulation Area',
+                name='Insulation Strip',
                 line=dict(width=1, color='black'),
                 fill='toself',
                 fillcolor='white',
@@ -1426,12 +1436,13 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         if 'tab_number' not in insulation_area.columns:
             area = get_area_from_trace(trace)
         else:
-            area = (insulation_area
-                    .dropna()
-                    .groupby('tab_number')
-                    .apply(lambda df: get_area_from_trace(get_trace(df[['x', 'y']])))
-                    .sum()
-                    )
+            area = (
+                insulation_area
+                .dropna()
+                .groupby('tab_number')
+                .apply(lambda df: get_area_from_trace(get_trace(df[['x', 'y']])))
+                .sum()
+            )
 
         return trace, area
     

@@ -8,6 +8,7 @@ import pandas as pd
 import numpy as np
 from typing import Dict, Any
 import plotly.express as px
+import plotly.graph_objects as go
 
 
 class _Electrode:
@@ -249,7 +250,10 @@ class _Electrode:
         """
         Plot the half cell curve of the electrode.
 
-        :param grid_n: Number of points to interpolate the curve on.
+        Parameters
+        ----------
+        areal : bool, optional
+            If True, plot the areal capacity instead of the specific capacity (default is False).
         """
         if not hasattr(self, '_half_cell_curve'):
             raise ValueError(f"A half cell curve for {self.name} has not been calculated yet. Please set a voltage cuttoff before plotting.")
@@ -270,6 +274,47 @@ class _Electrode:
         )
 
         return fig    
+
+    def _get_top_down_view(self, side: str = 'a', **kwargs) -> pd.DataFrame:
+        """
+        Helper method to get a top-down view of the electrode.
+        """
+        if side == 'a':
+            figure = self._current_collector.get_a_side_view(**kwargs)
+        elif side == 'b':
+            figure = self._current_collector.get_a_side_view(**kwargs)
+        else:
+            raise ValueError("Side must be either 'a' or 'b'.")
+        
+        for trace in figure.data:
+
+            if trace.name == "Coated Area":
+                trace.name = self._formulation.name
+                trace.fill = 'toself'
+                trace.fillcolor = self._formulation._color
+                trace.fillpattern = None
+
+            elif trace.name == "Insulation Strip":
+                trace.name = self._insulation_material.name if self._insulation_material else 'No Insulation'
+                trace.fill = 'toself'
+                trace.fillcolor = self._insulation_material._color if self._insulation_material else 'rgba(0,0,0,0)'
+                trace.fillpattern = None
+
+        return figure
+
+    def get_a_side_view(self, **kwargs) -> pd.DataFrame:
+        """
+        Get a side view of the electrode.
+        """
+        figure = self._get_top_down_view(side='a', **kwargs)
+        return figure
+
+    def get_b_side_view(self, **kwargs) -> pd.DataFrame:
+        """
+        Get a side view of the electrode.
+        """
+        figure = self._get_top_down_view(side='b', **kwargs)
+        return figure
 
     @property
     def insulation_thickness(self) -> float:
