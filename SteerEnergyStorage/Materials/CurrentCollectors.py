@@ -50,40 +50,17 @@ class _CurrentCollector(ABC):
         kwargs: dict
             Additional keyword arguments for customization.
         """
-        self._check_datum(datum)
-        self._check_material(material)
-        self._check_x_body_length(x_body_length)
-        self._check_y_body_length(y_body_length)
-        self._check_thickness(thickness)
-        self._check_insulation_width(insulation_width)
-        self._check_name(name)
+        self.datum = datum
+        self.material = material
+        self.x_body_length = x_body_length
+        self.y_body_length = y_body_length
+        self.thickness = thickness
+        self.insulation_width = insulation_width
+        self.name = name
 
         # Shading patterns
         self._am_fill_pattern = dict(shape='/', size=20, solidity=0.6, fgcolor=self._material._color)
         self._in_fill_pattern = dict(shape='\\', size=10, solidity=0.6, fgcolor=self._material._color)
-
-    def _check_name(self, name: str) -> None:
-        """
-        Check if the name is a string.
-        If not, raise a TypeError.
-        """
-        if not isinstance(name, str):
-            raise TypeError("Name must be a string.")
-        
-        self._name = name
-
-    def _check_datum(self, datum: Optional[Tuple[float, float]]) -> None:
-        """
-        Check if the datum is a tuple of two floats.
-        If not, set it to (0, 0, 0).
-        """
-        if not isinstance(datum, tuple) or len(datum) != 3:
-            raise TypeError("Datum must be a tuple of three floats, (x, y, z).")
-        
-        if not all(isinstance(coord, (int, float)) for coord in datum):
-            raise TypeError("Both coordinates in datum must be numbers.")
-        
-        self._datum = (float(datum[0]) * MM_TO_M, float(datum[1]) * MM_TO_M, float(datum[2]) * MM_TO_M)
 
     def _calculate_properties(self) -> None:
         """
@@ -102,52 +79,6 @@ class _CurrentCollector(ABC):
         self._volume = self._body_area * self._thickness
         self._mass = self._volume * self._material._density
         self._cost = self._mass * self._material._specific_cost     
-
-    def _check_material(self, material: CurrentCollectorMaterial) -> None:
-
-        if not isinstance(material, CurrentCollectorMaterial):
-            raise TypeError("Material must be an instance of CurrentCollectorMaterial.")
-        
-        self._material = material
-
-    def _check_x_body_length(self, x_body_length: float) -> None:
-
-        if not isinstance(x_body_length, (int, float)):
-            raise TypeError("Length must be a number.")
-        
-        if x_body_length <= 0:
-            raise ValueError("Length cannot be negative or equal to 0.")
-        
-        self._x_body_length = float(x_body_length) * MM_TO_M
-
-    def _check_y_body_length(self, y_body_length: float) -> None:
-
-        if not isinstance(y_body_length, (int, float)):
-            raise TypeError("Width must be a number.")
-        
-        if y_body_length <= 0:
-            raise ValueError("Width cannot be negative or equal to 0.")
-        
-        self._y_body_length = float(y_body_length) * MM_TO_M
-
-    def _check_thickness(self, thickness: float) -> None:
-
-        if not isinstance(thickness, (int, float)):
-            raise TypeError("Thickness must be a number.")
-        
-        if thickness < 0:
-            raise ValueError("Thickness cannot be negative.")
-        
-        self._thickness = float(thickness) * UM_TO_M
-
-    def _check_insulation_width(self, insulation_width: Optional[float]) -> None:
-
-        if not isinstance(insulation_width, (int, float)):
-            raise TypeError("Insulation width must be a number.")
-        if insulation_width < 0:
-            raise ValueError("Insulation width cannot be negative or equal to 0.")
-        
-        self._insulation_width = float(insulation_width) * MM_TO_M
 
     def _get_end_trace(self) -> go.Scatter:
         
@@ -240,11 +171,116 @@ class _CurrentCollector(ABC):
         pass
 
     @property
+    def datum(self) -> Tuple[float, float, float]:
+        """
+        Get the datum of the current collector.
+        """
+        return self._datum
+
+    @datum.setter
+    def datum(self, datum: Tuple[float, float, float]) -> None:
+        """
+        Set the datum, converting mm to m.
+        """
+        if not isinstance(datum, tuple) or len(datum) != 3:
+            raise TypeError("Datum must be a tuple of three floats, (x, y, z).")
+        
+        if not all(isinstance(coord, (int, float)) for coord in datum):
+            raise TypeError("All coordinates in datum must be numbers.")
+        
+        self._datum = tuple(float(coord) * MM_TO_M for coord in datum)
+
+    @property
+    def material(self) -> CurrentCollectorMaterial:
+        """
+        Get the material of the current collector.
+        """
+        return self._material
+    
+    @material.setter
+    def material(self, material: CurrentCollectorMaterial) -> None:
+
+        if not isinstance(material, CurrentCollectorMaterial):
+            raise TypeError("Material must be an instance of CurrentCollectorMaterial.")
+        
+        self._material = material
+
+    @property
+    def x_body_length(self) -> float:
+        return round(self._x_body_length * M_TO_MM, 2)
+    
+    @x_body_length.setter
+    def x_body_length(self, x_body_length: float) -> None:
+
+        if not isinstance(x_body_length, (int, float)):
+            raise TypeError("Length must be a number.")
+        
+        if x_body_length <= 0:
+            raise ValueError("Length cannot be negative or equal to 0.")
+        
+        self._x_body_length = float(x_body_length) * MM_TO_M
+
+    @property
+    def y_body_length(self) -> float:
+        return round(self._y_body_length * M_TO_MM, 2)
+    
+    @y_body_length.setter
+    def y_body_length(self, y_body_length: float) -> None:
+
+        if not isinstance(y_body_length, (int, float)):
+            raise TypeError("Length must be a number.")
+
+        if y_body_length <= 0:
+            raise ValueError("Length cannot be negative or equal to 0.")
+
+        self._y_body_length = float(y_body_length) * MM_TO_M
+
+    @property
+    def thickness(self) -> float:
+        return round(self._thickness * M_TO_UM, 2)
+    
+    @thickness.setter
+    def thickness(self, thickness: float) -> None:
+
+        if not isinstance(thickness, (int, float)):
+            raise TypeError("Thickness must be a number.")
+
+        if thickness <= 0:
+            raise ValueError("Thickness cannot be negative or equal to 0.")
+
+        self._thickness = float(thickness) * UM_TO_M
+
+    @property
+    def insulation_width(self) -> float:
+        return round(self._insulation_width * M_TO_MM, 2)
+
+    @insulation_width.setter
+    def insulation_width(self, insulation_width: float) -> None:
+
+        if not isinstance(insulation_width, (int, float)):
+            raise TypeError("Insulation width must be a number.")
+
+        if insulation_width < 0:
+            raise ValueError("Insulation width cannot be negative.")
+
+        self._insulation_width = float(insulation_width) * MM_TO_M
+
+    @property
     def name(self) -> str:
         """
         Get the name of the current collector.
         """
         return self._name
+
+    @name.setter
+    def name(self, name: str) -> None:
+        """
+        Set the name of the current collector.
+        """
+        if not isinstance(name, str):
+            raise TypeError("Name must be a string.")
+        
+        self._name = name
 
     @property
     def properties(self) -> dict:
@@ -295,22 +331,6 @@ class _CurrentCollector(ABC):
     def cost(self) -> float:
         return round(self._cost, 2)
     
-    @property
-    def datum(self) -> Tuple[float, float, float]:
-        return (self._datum[0] * M_TO_MM, self._datum[1] * M_TO_MM, self._datum[2] * M_TO_MM)
-
-    @property
-    def x_body_length(self) -> float:
-        return round(self._x_body_length * M_TO_MM, 2)
-    
-    @property
-    def y_body_length(self) -> float:
-        return round(self._y_body_length * M_TO_MM, 2)
-    
-    @property
-    def thickness(self) -> float:
-        return round(self._thickness * M_TO_UM, 2)
-
     def __str__(self):
         return f"{self.__class__.__name__}"
     
