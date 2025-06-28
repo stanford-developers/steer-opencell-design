@@ -393,47 +393,11 @@ class _TabbedCurrentCollector(_CurrentCollector):
             **kwargs
         )
         
-        self._check_tab_width(tab_width)
-        self._check_tab_height(tab_height)
-        self._check_coated_tab_height(coated_tab_height)
+        self.tab_width = tab_width
+        self.tab_height = tab_height
+        self.coated_tab_height = coated_tab_height
 
         self._total_height = self._y_body_length + self._tab_height
-        
-    def _check_tab_width(self, tab_width: float) -> None:
-
-        if not isinstance(tab_width, (int, float)):
-            raise TypeError("Tab width must be a number.")
-        
-        if tab_width < 0:
-            raise ValueError("Tab width cannot be negative.")
-        
-        self._tab_width = float(tab_width) * MM_TO_M
-
-        if self._tab_width > self._x_body_length:
-            raise ValueError("Tab width cannot be greater than the length of the current collector.")
-
-    def _check_tab_height(self, tab_height: float) -> None:
-
-        if not isinstance(tab_height, (int, float)):
-            raise TypeError("Tab height must be a number.")
-        
-        if tab_height < 0:
-            raise ValueError("Tab height cannot be negative.")
-        
-        self._tab_height = float(tab_height) * MM_TO_M
-
-    def _check_coated_tab_height(self, coated_tab_height: float) -> None:
-
-        if not isinstance(coated_tab_height, (int, float)):
-            raise TypeError("Covered tab height on the top side must be a number.")
-        
-        if coated_tab_height < 0:
-            raise ValueError("Covered tab height on the top side cannot be negative.")
-        
-        self._coated_tab_height = float(coated_tab_height) * MM_TO_M
-
-        if self._coated_tab_height > self._tab_height:
-            raise ValueError("Covered tab height on the top side cannot be greater than the tab height.")
 
     def _get_end_trace(self) -> go.Scatter:
         
@@ -460,13 +424,52 @@ class _TabbedCurrentCollector(_CurrentCollector):
     def tab_width(self) -> float:
         return round(self._tab_width * M_TO_MM, 2)
 
+    @tab_width.setter
+    def tab_width(self, tab_width: float) -> None:
+
+        if not isinstance(tab_width, (int, float)):
+            raise TypeError("Tab width must be a number.")
+
+        if tab_width < 0:
+            raise ValueError("Tab width cannot be negative.")
+
+        self._tab_width = float(tab_width) * MM_TO_M
+
+        if self._tab_width > self._x_body_length:
+            raise ValueError("Tab width cannot be greater than the length of the current collector.")
+
     @property
     def tab_height(self) -> float:
         return round(self._tab_height * M_TO_MM, 2)
 
+    @tab_height.setter
+    def tab_height(self, tab_height: float) -> None:
+
+        if not isinstance(tab_height, (int, float)):
+            raise TypeError("Tab height must be a number.")
+
+        if tab_height < 0:
+            raise ValueError("Tab height cannot be negative.")
+
+        self._tab_height = float(tab_height) * MM_TO_M
+
     @property
     def coated_tab_height(self) -> float:
         return round(self._coated_tab_height * M_TO_MM, 2)
+
+    @coated_tab_height.setter
+    def coated_tab_height(self, coated_tab_height: float) -> None:
+
+        if not isinstance(coated_tab_height, (int, float)):
+            raise TypeError("Covered tab height on the top side must be a number.")
+
+        if coated_tab_height < 0:
+            raise ValueError("Covered tab height on the top side cannot be negative.")
+
+        self._coated_tab_height = float(coated_tab_height) * MM_TO_M
+
+        if self._coated_tab_height > self._tab_height:
+            raise ValueError("Covered tab height on the top side cannot be greater than the tab height.")
 
     @property
     def total_height(self) -> float:
@@ -526,40 +529,8 @@ class _TapeCurrentCollector(_CurrentCollector):
             datum=datum,
         )
         
-        self._check_bare_lengths_a_side(bare_lengths_a_side)
-        self._check_bare_lengths_b_side(bare_lengths_b_side)
-
-    def _check_bare_lengths_a_side(self, bare_lengths_a_side: Tuple[float, float]) -> None:
-
-        if not isinstance(bare_lengths_a_side, tuple) or len(bare_lengths_a_side) != 2:
-            raise TypeError("Bare lengths on A side must be a tuple of two floats.")
-        
-        if any(not isinstance(length, (int, float)) for length in bare_lengths_a_side):
-            raise TypeError("Bare lengths on A side must be numbers.")
-        
-        if any(length < 0 for length in bare_lengths_a_side):
-            raise ValueError("Bare lengths on A side cannot be negative.")
-        
-        self._bare_lengths_a_side = tuple(float(length) * MM_TO_M for length in bare_lengths_a_side)
-
-        if self._x_body_length < sum(self._bare_lengths_a_side):
-            raise ValueError("Total bare lengths on A side cannot be greater than the length of the current collector.")
-
-    def _check_bare_lengths_b_side(self, bare_lengths_b_side: Tuple[float, float]) -> None:
-
-        if not isinstance(bare_lengths_b_side, tuple) or len(bare_lengths_b_side) != 2:
-            raise TypeError("Bare lengths on B side must be a tuple of two floats.")
-        
-        if any(not isinstance(length, (int, float)) for length in bare_lengths_b_side):
-            raise TypeError("Bare lengths on B side must be numbers.")
-        
-        if any(length < 0 for length in bare_lengths_b_side):
-            raise ValueError("Bare lengths on B side cannot be negative.")
-        
-        self._bare_lengths_b_side = tuple(float(length) * MM_TO_M for length in bare_lengths_b_side)
-
-        if self._x_body_length < sum(self._bare_lengths_b_side):
-            raise ValueError("Total bare lengths on B side cannot be greater than the length of the current collector.")
+        self.bare_lengths_a_side = bare_lengths_a_side
+        self.bare_lengths_b_side = bare_lengths_b_side
 
     def _add_length_dimension(self, fig: go.Figure, aspect_ratio: float = 3, pad: float = 0.05) -> go.Figure:
 
@@ -728,9 +699,43 @@ class _TapeCurrentCollector(_CurrentCollector):
     def bare_lengths_a_side(self) -> Tuple[float, float]:
         return tuple(round(length * M_TO_MM, 2) for length in self._bare_lengths_a_side)
     
+    @bare_lengths_a_side.setter
+    def bare_lengths_a_side(self, bare_lengths_a_side: Iterable[float]) -> None:
+
+        if not isinstance(bare_lengths_a_side, tuple) or len(bare_lengths_a_side) != 2:
+                raise TypeError("Bare lengths on A side must be a tuple of two floats.")
+            
+        if any(not isinstance(length, (int, float)) for length in bare_lengths_a_side):
+            raise TypeError("Bare lengths on A side must be numbers.")
+        
+        if any(length < 0 for length in bare_lengths_a_side):
+            raise ValueError("Bare lengths on A side cannot be negative.")
+        
+        self._bare_lengths_a_side = tuple(float(length) * MM_TO_M for length in bare_lengths_a_side)
+
+        if self._x_body_length < sum(self._bare_lengths_a_side):
+            raise ValueError("Total bare lengths on A side cannot be greater than the length of the current collector.")
+
     @property
     def bare_lengths_b_side(self) -> Tuple[float, float]:
         return tuple(round(length * M_TO_MM, 2) for length in self._bare_lengths_b_side)
+
+    @bare_lengths_b_side.setter
+    def bare_lengths_b_side(self, bare_lengths_b_side: Iterable[float]) -> None:
+
+        if not isinstance(bare_lengths_b_side, tuple) or len(bare_lengths_b_side) != 2:
+            raise TypeError("Bare lengths on B side must be a tuple of two floats.")
+        
+        if any(not isinstance(length, (int, float)) for length in bare_lengths_b_side):
+            raise TypeError("Bare lengths on B side must be numbers.")
+        
+        if any(length < 0 for length in bare_lengths_b_side):
+            raise ValueError("Bare lengths on B side cannot be negative.")
+        
+        self._bare_lengths_b_side = tuple(float(length) * MM_TO_M for length in bare_lengths_b_side)
+
+        if self._x_body_length < sum(self._bare_lengths_b_side):
+            raise ValueError("Total bare lengths on B side cannot be greater than the length of the current collector.")
 
     @property
     def length(self) -> float:
@@ -800,21 +805,8 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
             datum=datum
         )
         
-        self._check_tab_position(tab_position)
+        self.tab_position = tab_position
         self._calculate_properties()
-
-    def _check_tab_position(self, tab_position: float) -> None:
-
-        if not isinstance(tab_position, (int, float)):
-            raise TypeError("Tab position must be a number.")
-        
-        self._tab_position = float(tab_position) * MM_TO_M
-        
-        if self._tab_position - self._tab_width / 2 < 0:
-            raise ValueError("Tab position cannot be less than half the tab width.")
-        
-        if self._tab_position + self._tab_width / 2 > self.x_body_length:
-            raise ValueError("Tab position plus half the tab width cannot be greater than the length of the current collector.")
 
     def _get_footprint(
             self, 
@@ -1084,6 +1076,20 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
     def tab_position(self) -> float:
         return round(self._tab_position * M_TO_MM, 2)
 
+    @tab_position.setter
+    def tab_position(self, tab_position: float) -> None:
+
+        if not isinstance(tab_position, (int, float)):
+            raise TypeError("Tab position must be a number.")
+        
+        self._tab_position = float(tab_position) * MM_TO_M
+        
+        if self._tab_position - self._tab_width / 2 < 0:
+            raise ValueError("Tab position cannot be less than half the tab width.")
+        
+        if self._tab_position + self._tab_width / 2 > self.x_body_length:
+            raise ValueError("Tab position plus half the tab width cannot be greater than the length of the current collector.")
+
 
 class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
     """
@@ -1153,23 +1159,9 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
             datum=datum
         )
 
-        self._check_tab_spacing(tab_spacing)
+        self.tab_spacing = tab_spacing
         self._calculate_tab_positions()
         self._calculate_properties()
-
-    def _check_tab_spacing(self, tab_spacing: float) -> None:
-
-        if not isinstance(tab_spacing, (int, float)):
-            raise TypeError("Tab spacing must be a number.")
-        
-        if tab_spacing < 0:
-            raise ValueError("Tab spacing cannot be negative.")
-        
-        self._tab_spacing = float(tab_spacing) * MM_TO_M
-        self._tab_gap = self._tab_spacing - self._tab_width
-
-        if self._tab_gap < 0:
-            raise ValueError("Tab spacing cannot be less than the tab width.")
         
     def _calculate_tab_positions(self) -> None:
         """
@@ -1480,6 +1472,21 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
     def tab_spacing(self) -> float:
         return round(self._tab_spacing * M_TO_MM, 2)
 
+    @tab_spacing.setter
+    def tab_spacing(self, tab_spacing: float) -> None:
+
+        if not isinstance(tab_spacing, (int, float)):
+            raise TypeError("Tab spacing must be a number.")
+        
+        if tab_spacing < 0:
+            raise ValueError("Tab spacing cannot be negative.")
+        
+        self._tab_spacing = float(tab_spacing) * MM_TO_M
+        self._tab_gap = self._tab_spacing - self._tab_width
+
+        if self._tab_gap < 0:
+            raise ValueError("Tab spacing cannot be less than the tab width.")
+
     @property
     def tab_gap(self) -> float:
         return round(self._tab_gap * M_TO_MM, 2)
@@ -1554,20 +1561,7 @@ class TablessCurrentCollector(NotchedCurrentCollector):
             datum=datum
         )
 
-        self._check_coated_width(coated_width)
-
-    def _check_coated_width(self, coated_width: float) -> None:
-
-        if not isinstance(coated_width, (int, float)):
-            raise TypeError("Coated width must be a number.")
-        
-        if coated_width < 0:
-            raise ValueError("Coated width cannot be negative.")
-        
-        self._coated_width = float(coated_width) * MM_TO_M
-        
-        if self._coated_width > self._y_body_length:
-            raise ValueError("Coated width cannot be greater than the width of the current collector.")
+        self.coated_width = coated_width
     
     def _add_height_dimension(self, fig: go.Figure, pad: float = 0.05) -> go.Figure:
 
@@ -1603,6 +1597,20 @@ class TablessCurrentCollector(NotchedCurrentCollector):
     def coated_width(self) -> float:
         return round(self._coated_width * M_TO_MM, 2)
     
+    @coated_width.setter
+    def coated_width(self, coated_width: float) -> None:
+
+        if not isinstance(coated_width, (int, float)):
+            raise TypeError("Coated width must be a number.")
+        
+        if coated_width < 0:
+            raise ValueError("Coated width cannot be negative.")
+        
+        self._coated_width = float(coated_width) * MM_TO_M
+        
+        if self._coated_width > self._y_body_length:
+            raise ValueError("Coated width cannot be greater than the width of the current collector.")
+
     @property
     def width(self) -> float:
         return round((self._y_body_length + self._tab_height) * M_TO_MM, 2)
@@ -1626,59 +1634,14 @@ class WeldTab:
         :param length: float: length of the weld tab in mm
         :param thickness: float: thickness of the weld tab in um
         """
-        self._check_datum(datum)
-        self._check_material(material)
-        self._check_width(width)
-        self._check_length(length)
-        self._check_thickness(thickness)
+        self.datum = datum
+        self.material = material
+        self.width = width
+        self.length = length
+        self.thickness = thickness
+
         self._calculate_properties()
-
-    def _check_datum(self, datum: Tuple[float, float]) -> None:
-
-        if not isinstance(datum, tuple) or len(datum) != 3:
-            raise TypeError("Datum must be a tuple of three numbers (x, y, z).")
-        
-        if not all(isinstance(coord, (int, float)) for coord in datum):
-            raise TypeError("Both coordinates in the datum must be numbers.")
-        
-        self._datum = (float(datum[0]) * MM_TO_M, float(datum[1]) * MM_TO_M, float(datum[2]) * MM_TO_M)
-
-    def _check_material(self, material: CurrentCollectorMaterial) -> None:
-
-        if not isinstance(material, CurrentCollectorMaterial):
-            raise TypeError("Material must be an instance of CurrentCollectorMaterial.")
-        
-        self._material = material
-
-    def _check_width(self, width: float) -> None:
-        
-        if not isinstance(width, (int, float)):
-            raise TypeError("Width must be a number.")
-        
-        if width < 0:
-            raise ValueError("Width cannot be negative.")
-        
-        self._width = float(width) * MM_TO_M
-
-    def _check_length(self, length: float) -> None:
-
-        if not isinstance(length, (int, float)):
-            raise TypeError("Length must be a number.")
-        
-        if length < 0:
-            raise ValueError("Length cannot be negative.")
-        
-        self._length = float(length) * MM_TO_M
-
-    def _check_thickness(self, thickness: float) -> None:
-
-        if not isinstance(thickness, (int, float)):
-            raise TypeError("Thickness must be a number.")
-        
-        if thickness < 0:
-            raise ValueError("Thickness cannot be negative.")
-        
-        self._thickness = float(thickness) * UM_TO_M
+        self._suspend_updates = False
 
     def _calculate_properties(self) -> None:
         """
@@ -1795,16 +1758,96 @@ class WeldTab:
         return figure
 
     @property
+    def datum(self) -> Tuple[float, float]:
+        return (round(self._datum[0] * M_TO_MM, 2), round(self._datum[1] * M_TO_MM, 2))
+    
+    @datum.setter
+    def datum(self, datum: Tuple[float, float, float]) -> None:
+        
+        if not isinstance(datum, tuple) or len(datum) != 3:
+            raise TypeError("Datum must be a tuple of three numbers (x, y, z).")
+        
+        if not all(isinstance(coord, (int, float)) for coord in datum):
+            raise TypeError("Both coordinates in the datum must be numbers.")
+        
+        self._datum = (float(datum[0]) * MM_TO_M, float(datum[1]) * MM_TO_M, float(datum[2]) * MM_TO_M)
+
+        if hasattr(self, '_suspend_updates'):
+            if not self._suspend_updates:
+                self._calculate_properties()
+
+    @property
+    def material(self) -> CurrentCollectorMaterial:
+        return self._material
+    
+    @material.setter
+    def material(self, material: CurrentCollectorMaterial) -> None:
+
+        if not isinstance(material, CurrentCollectorMaterial):
+            raise TypeError("Material must be an instance of CurrentCollectorMaterial.")
+        
+        self._material = material
+    
+        if hasattr(self, '_suspend_updates'):
+            if not self._suspend_updates:
+                self._calculate_properties()
+
+    @property
     def width(self) -> float:
         return round(self._width * M_TO_MM, 2)
     
+    @width.setter
+    def width(self, width: float) -> None:
+
+        if not isinstance(width, (int, float)):
+            raise TypeError("Width must be a number.")
+        
+        if width < 0:
+            raise ValueError("Width cannot be negative.")
+        
+        self._width = float(width) * MM_TO_M
+        
+        if hasattr(self, '_suspend_updates'):
+            if not self._suspend_updates:
+                self._calculate_properties()
+
     @property
     def length(self) -> float:
         return round(self._length * M_TO_MM, 2)
     
+    @length.setter
+    def length(self, length: float) -> None:
+
+        if not isinstance(length, (int, float)):
+            raise TypeError("Length must be a number.")
+        
+        if length < 0:
+            raise ValueError("Length cannot be negative.")
+        
+        self._length = float(length) * MM_TO_M
+        
+        if hasattr(self, '_suspend_updates'):
+            if not self._suspend_updates:
+                self._calculate_properties()
+
     @property
     def thickness(self) -> float:
         return round(self._thickness * M_TO_UM, 2)
+
+    @thickness.setter
+    def thickness(self, thickness: float) -> None:
+
+        if not isinstance(thickness, (int, float)):
+            raise TypeError("Thickness must be a number.")
+        
+        if thickness < 0:
+            raise ValueError("Thickness cannot be negative.")
+        
+        self._thickness = float(thickness) * UM_TO_M
+        
+        if hasattr(self, '_suspend_updates'):
+            if not self._suspend_updates:
+                self._calculate_properties()
 
     @property
     def volume(self) -> float:
@@ -1821,15 +1864,6 @@ class WeldTab:
     @property
     def area(self) -> float:
         return round(self._area * M_TO_MM**2, 2)
-
-    @property
-    def datum(self) -> Tuple[float, float]:
-        return (round(self._datum[0] * M_TO_MM, 2), round(self._datum[1] * M_TO_MM, 2))
-    
-    @datum.setter
-    def datum(self, value: Tuple[float, float, float]) -> None:
-        self._check_datum(value)
-        self._calculate_properties()
 
 
 class TabWeldedCurrentCollector(_TapeCurrentCollector):
@@ -1895,80 +1929,16 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             datum=datum
         )
         
-        self._check_weld_tab_positions(weld_tab_positions, weld_tab)
-        self._check_tab_overhang(tab_overhang)
-        self._check_and_copy_weld_tab(weld_tab)
-        self._check_skip_coat_width(skip_coat_width)
-        self._check_tab_weld_side(tab_weld_side)
+        self.weld_tab_positions = weld_tab_positions
+        self.tab_overhang = tab_overhang
+        self.weld_tab = weld_tab
+        self.skip_coat_width = skip_coat_width
+        self.tab_weld_side = tab_weld_side
         self._calculate_properties()
 
     def _calculate_properties(self) -> None:
         super()._calculate_properties()
         self._cost += sum(tab._cost for tab in self._weld_tabs)
-
-    def _check_weld_tab_positions(self, weld_tab_positions: Iterable[float], weld_tab: WeldTab) -> None:
-
-        if not isinstance(weld_tab_positions, Iterable):
-            raise TypeError("Weld tab positions must be an iterable of numbers.")
-        
-        if len(weld_tab_positions) == 0:
-            raise ValueError("Weld tab positions cannot be empty. Please provide at least one position.")
-        
-        self._weld_tab_positions = [float(pos) * MM_TO_M for pos in sorted(weld_tab_positions)]
-
-        if min(self._weld_tab_positions) < weld_tab._width / 2:
-            raise ValueError("Weld tab positions cannot be less than half the width of the weld tab.")
-
-        if any(pos < 0 for pos in self._weld_tab_positions):
-            raise ValueError("Weld tab positions cannot be negative.")
-        
-        if any(pos > self._x_body_length for pos in self._weld_tab_positions):
-            raise ValueError("Weld tab positions cannot be greater than the length of the current collector.")
-        
-    def _check_and_copy_weld_tab(self, weld_tab: WeldTab) -> None:
-
-        if not isinstance(weld_tab, WeldTab):
-            raise TypeError("Weld tab must be an instance of WeldTab.")
-        
-        self._weld_tabs = [deepcopy(weld_tab) for _ in self._weld_tab_positions]
-        tab_y_center = (self._y_body_length / 2 + self._tab_overhang - self._weld_tabs[0]._length / 2) * M_TO_MM
-
-        for _pos, _tab in zip(self._weld_tab_positions, self._weld_tabs):
-            pos = (_pos - self._x_body_length / 2) * M_TO_MM
-            _tab.datum = (pos, tab_y_center, self.datum[2] + self.thickness/2*UM_TO_MM + _tab.thickness/2*UM_TO_MM)
-
-    def _check_tab_overhang(self, tab_overhang: float) -> None:
-        
-        if not isinstance(tab_overhang, (int, float)):
-            raise TypeError("Tab overhang must be a number.")
-        
-        if tab_overhang < 0:
-            raise ValueError("Tab overhang cannot be negative.")
-        
-        self._tab_overhang = float(tab_overhang) * MM_TO_M
-
-    def _check_skip_coat_width(self, skip_coat_width: float) -> None:
-
-        if not isinstance(skip_coat_width, (int, float)):
-            raise TypeError("Skip coat width must be a number.")
-        
-        if skip_coat_width < 0:
-            raise ValueError("Skip coat width cannot be negative.")
-        
-        if skip_coat_width < self._weld_tabs[0]._width / 2:
-            self._skip_coat_width = self._weld_tabs[0]._width
-        else:
-            self._skip_coat_width = float(skip_coat_width) * MM_TO_M
-
-        if self._skip_coat_width > self._y_body_length:
-            raise ValueError("Skip coat width cannot be greater than the width of the current collector.")
-
-    def _check_tab_weld_side(self, tab_weld_side: str) -> None:
-
-        if tab_weld_side not in ['a', 'b']:
-            raise ValueError("Tab weld side must be either 'a' or 'b'.")
-        
-        self._tab_weld_side = tab_weld_side
 
     def _get_full_view(
             self, 
@@ -2156,13 +2126,47 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         return [round(pos * M_TO_MM, 2) for pos in self._weld_tab_positions]
     
+    @weld_tab_positions.setter
+    def weld_tab_positions(self, weld_tab_positions: Iterable[float]) -> None:
+
+        if not isinstance(weld_tab_positions, Iterable):
+            raise TypeError("Weld tab positions must be an iterable of numbers.")
+        
+        if len(weld_tab_positions) == 0:
+            raise ValueError("Weld tab positions cannot be empty. Please provide at least one position.")
+        
+        self._weld_tab_positions = [float(pos) * MM_TO_M for pos in sorted(weld_tab_positions)]
+
+        if any(pos < 0 for pos in self._weld_tab_positions):
+            raise ValueError("Weld tab positions cannot be negative.")
+        
+        if any(pos > self._x_body_length for pos in self._weld_tab_positions):
+            raise ValueError("Weld tab positions cannot be greater than the length of the current collector.")
+
     @property
     def skip_coat_width(self) -> float:
         """
         Returns the width of the skip coat area in mm.
         """
         return round(self._skip_coat_width * M_TO_MM, 2)
-    
+
+    @skip_coat_width.setter
+    def skip_coat_width(self, skip_coat_width: float) -> None:
+
+        if not isinstance(skip_coat_width, (int, float)):
+            raise TypeError("Skip coat width must be a number.")
+        
+        if skip_coat_width < 0:
+            raise ValueError("Skip coat width cannot be negative.")
+        
+        if skip_coat_width < self._weld_tabs[0]._width / 2:
+            self._skip_coat_width = self._weld_tabs[0]._width
+        else:
+            self._skip_coat_width = float(skip_coat_width) * MM_TO_M
+
+        if self._skip_coat_width > self._y_body_length:
+            raise ValueError("Skip coat width cannot be greater than the width of the current collector.")
+
     @property
     def tab_weld_side(self) -> str:
         """
@@ -2170,6 +2174,14 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         return self._tab_weld_side
     
+    @tab_weld_side.setter
+    def tab_weld_side(self, tab_weld_side: str) -> None:
+
+        if tab_weld_side not in ['a', 'b']:
+            raise ValueError("Tab weld side must be either 'a' or 'b'.")
+        
+        self._tab_weld_side = tab_weld_side
+
     @property
     def tab_overhang(self) -> float:
         """
@@ -2177,4 +2189,34 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         return round(self._tab_overhang * M_TO_MM, 2)
 
+    @tab_overhang.setter
+    def tab_overhang(self, tab_overhang: float) -> None:
+
+        if not isinstance(tab_overhang, (int, float)):
+            raise TypeError("Tab overhang must be a number.")
+        
+        if tab_overhang < 0:
+            raise ValueError("Tab overhang cannot be negative.")
+        
+        self._tab_overhang = float(tab_overhang) * MM_TO_M
+
+    @property
+    def weld_tab(self) -> list:
+        """
+        Returns a list of WeldTab objects representing the weld tabs on the current collector.
+        """
+        return self._weld_tabs[0]
+    
+    @weld_tab.setter
+    def weld_tabs(self, weld_tab: WeldTab) -> None:
+
+        if not isinstance(weld_tab, WeldTab):
+            raise TypeError("Weld tab must be an instance of WeldTab.")
+        
+        self._weld_tabs = [deepcopy(weld_tab) for _ in self._weld_tab_positions]
+        tab_y_center = (self._y_body_length / 2 + self._tab_overhang - self._weld_tabs[0]._length / 2) * M_TO_MM
+
+        for _pos, _tab in zip(self._weld_tab_positions, self._weld_tabs):
+            pos = (_pos - self._x_body_length / 2) * M_TO_MM
+            _tab.datum = (pos, tab_y_center, self.datum[2] + self.thickness/2*UM_TO_MM + _tab.thickness/2*UM_TO_MM)
 
