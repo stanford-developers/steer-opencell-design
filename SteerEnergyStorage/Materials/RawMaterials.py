@@ -7,7 +7,7 @@ from pathlib import Path
 from copy import deepcopy
 
 
-class RawMaterial:
+class _RawMaterial:
 
     def __init__(
             self, 
@@ -115,7 +115,7 @@ class RawMaterial:
         return self.__str__()
     
 
-class CurrentCollectorMaterial(RawMaterial):
+class CurrentCollectorMaterial(_RawMaterial):
     """
     Materials from which current collectors are made.
     """
@@ -182,7 +182,7 @@ class CurrentCollectorMaterial(RawMaterial):
         return material
 
 
-class InsulationMaterial(RawMaterial):
+class InsulationMaterial(_RawMaterial):
     """
     Materials from which insulation is made.
     """
