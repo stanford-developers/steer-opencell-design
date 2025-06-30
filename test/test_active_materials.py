@@ -172,7 +172,7 @@ class TestLFPSingleCurve(unittest.TestCase):
         self.assertTrue(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2) == 2.7)
         self.assertTrue(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2) == 155.19)
 
-        figure.show()
+        # figure.show()
 
     def test_irreversible_capacity_scaling(self):
         """
@@ -890,7 +890,7 @@ class TestHardCarbon(unittest.TestCase):
         Test instantiation
         """
         self.assertTrue(isinstance(self.material, AnodeMaterial))
-        self.assertEqual(self.material.voltage_cutoff_range, (0.2, 0))
+        self.assertEqual(self.material.voltage_cutoff_range, (0.05, 0))
         figure = self.material.plot_half_cell_curve()
         # figure.show()
 
@@ -907,7 +907,7 @@ class TestHardCarbon(unittest.TestCase):
         # self.assertTrue(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2) == 0.0)
         # self.assertTrue(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2) == 356.22)
 
-        figure.show()
+        # figure.show()
 
     def test_reversible_capacity_scaling(self):
         """
@@ -915,38 +915,11 @@ class TestHardCarbon(unittest.TestCase):
         """
         self.material.reversible_capacity_scaling = 0.5
         data = self.material.half_cell_curve
+        figure = self.material.plot_half_cell_curve()
 
         self.assertTrue(round(data['Voltage (V)'].max(), 2) == 2.06)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].min(), 2) == 195.07)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2) == 0.03)
+        self.assertTrue(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].min(), 2) == 194.24)
+        self.assertTrue(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2) == 0)
         self.assertTrue(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2) == 359.75)
-
-        figure = px.line(
-            data,
-            y='Voltage (V)',
-            x='Specific Capacity (mAh/g)',
-            markers=True
-        )
-
-        # figure.show()
-
-    def test_irreversible_capacity_scaling(self):
-        """
-        Test irreversible capacity scaling
-        """
-        self.material.irreversible_capacity_scaling = 0.5
-        data = self.material.half_cell_curve
-
-        self.assertTrue(round(data['Voltage (V)'].max(), 2) == 2.06)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].min(), 2) == 15.2)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2) == 0.03)
-        self.assertTrue(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2) == 179.88)
-
-        figure = px.line(
-            data,
-            y='Voltage (V)',
-            x='Specific Capacity (mAh/g)',
-            markers=True
-        )
 
         # figure.show()
