@@ -2,6 +2,7 @@ import unittest
 from SteerEnergyStorage.Materials.RawMaterials import CurrentCollectorMaterial
 from SteerEnergyStorage.Materials.CurrentCollectors import PunchedCurrentCollector, NotchedCurrentCollector, TablessCurrentCollector, WeldTab, TabWeldedCurrentCollector
 
+import plotly.graph_objects as go
 
 class TestPunchedCurrentCollector(unittest.TestCase):
 
@@ -46,7 +47,9 @@ class TestPunchedCurrentCollector(unittest.TestCase):
 
     def test_figures(self):
         fig_a = self.current_collector.get_a_side_view()
+        fig_b = self.current_collector.get_end_view()
         # fig_a.show()
+        # fig_b.show()
 
 
 class TestNotchedCurrentCollector(unittest.TestCase):
@@ -57,18 +60,20 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         """
         self.material = CurrentCollectorMaterial.from_database(name="Aluminum")
 
-        self.current_collector = NotchedCurrentCollector(material=self.material,
-                                                         thickness=15, 
-                                                         length=3000,
-                                                         width=108,
-                                                         tab_width=30,
-                                                         tab_spacing=50,
-                                                         tab_height=7,
-                                                         bare_lengths_a_side=(15, 80),
-                                                         bare_lengths_b_side=(20, 80),
-                                                         coated_tab_height=2,
-                                                         insulation_width=4)
-        
+        self.current_collector = NotchedCurrentCollector(
+            material=self.material,
+            thickness=15, 
+            length=3000,
+            width=108,
+            tab_width=30,
+            tab_spacing=50,
+            tab_height=7,
+            bare_lengths_a_side=(15, 80),
+            bare_lengths_b_side=(20, 80),
+            coated_tab_height=2,
+            insulation_width=4
+        )
+
     def test_current_collector(self):
         """
         Test instantiation
@@ -95,12 +100,57 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         self.assertEqual(round(self.current_collector.body_area, 6), 3366)
         self.assertEqual(round(self.current_collector.coated_area, 6), 3079.3 + 3074)
         self.assertEqual(round(self.current_collector.insulation_area, 6), 185.8)
+        self.assertEqual(self.current_collector.cost, 0.03)
+        self.assertEqual(self.current_collector.mass, 13.63)
 
     def test_figures(self):
         fig_a = self.current_collector.get_a_side_view()
         fig_b = self.current_collector.get_b_side_view()
+        fig_c = self.current_collector.get_end_view()
+
         # fig_a.show()
         # fig_b.show()
+        # fig_c.show()
+
+    def test_setters(self):
+
+        self.current_collector.material = CurrentCollectorMaterial.from_database(name="Copper")
+        self.assertEqual(self.current_collector.material.name, "Copper")
+        self.assertEqual(self.current_collector.mass, 48.77)
+        self.assertEqual(self.current_collector.cost, 0.29)
+
+        self.current_collector.thickness = 10
+        self.assertEqual(self.current_collector.thickness, 10)
+        self.assertEqual(self.current_collector.mass, 32.52)
+        self.assertEqual(self.current_collector.cost, 0.20)
+
+        self.current_collector.bare_lengths_a_side = (100, 100)
+        self.assertEqual(self.current_collector.mass, 32.52)
+        self.assertEqual(self.current_collector.cost, 0.20)
+
+        fig_a = self.current_collector.get_a_side_view()
+        fig_b = self.current_collector.get_b_side_view()
+        fig_c = self.current_collector.get_end_view()
+
+        # fig_a.show()
+        # fig_b.show()
+        # fig_c.show()
+
+    def test_datum_shifter(self):
+
+        self.current_collector.length = 300
+        fig11 = self.current_collector._get_full_view(with_dimensions=False)
+        fig12 = self.current_collector.get_end_view()
+        
+        self.current_collector.datum = (200, 150, 50)
+        fig21 = self.current_collector._get_full_view(with_dimensions=False)
+        fig22 = self.current_collector.get_end_view()
+
+        figure1 = go.Figure(data=fig11.data + fig21.data)
+        figure2 = go.Figure(data=fig12.data + fig22.data)
+        
+        # figure1.show()
+        # figure2.show()
 
 
 class TestNotchedCurrentCollector2(unittest.TestCase):
@@ -111,17 +161,19 @@ class TestNotchedCurrentCollector2(unittest.TestCase):
         """
         self.material = CurrentCollectorMaterial.from_database(name="Aluminum")
 
-        self.current_collector = NotchedCurrentCollector(material=self.material,
-                                                         thickness=15, 
-                                                         length=3000,
-                                                         width=108,
-                                                         tab_width=30,
-                                                         tab_spacing=50,
-                                                         tab_height=7,
-                                                         bare_lengths_a_side=(15, 80),
-                                                         bare_lengths_b_side=(20, 80),
-                                                         coated_tab_height=4,
-                                                         insulation_width=2)
+        self.current_collector = NotchedCurrentCollector(
+            material=self.material,
+            thickness=15, 
+            length=3000,
+            width=108,
+            tab_width=30,
+            tab_spacing=50,
+            tab_height=7,
+            bare_lengths_a_side=(15, 80),
+            bare_lengths_b_side=(20, 80),
+            coated_tab_height=4,
+            insulation_width=2
+        )
         
     def test_current_collector(self):
         """
@@ -165,14 +217,16 @@ class TestTablessCurrentCollector(unittest.TestCase):
         """
         self.material = CurrentCollectorMaterial.from_database(name="Copper")
 
-        self.current_collector = TablessCurrentCollector(material=self.material,
-                                                         thickness=8,
-                                                         length=2000,
-                                                         width=108,
-                                                         coated_width=100,
-                                                         bare_lengths_a_side=(15, 80),
-                                                         bare_lengths_b_side=(30, 140),
-                                                         insulation_width=3)
+        self.current_collector = TablessCurrentCollector(
+            material=self.material,
+            thickness=8,
+            length=2000,
+            width=108,
+            coated_width=100,
+            bare_lengths_a_side=(15, 80),
+            bare_lengths_b_side=(30, 140),
+            insulation_width=3
+        )
         
     def test_current_collector(self):
         """
@@ -191,8 +245,10 @@ class TestTablessCurrentCollector(unittest.TestCase):
     def test_figures(self):
         fig_a = self.current_collector.get_a_side_view()
         fig_b = self.current_collector.get_b_side_view()
+        fig_c = self.current_collector.get_end_view()
         # fig_a.show()
         # fig_b.show()
+        # fig_c.show()
 
 
 class TestWeldTab(unittest.TestCase):
@@ -222,13 +278,16 @@ class TestWeldTab(unittest.TestCase):
         self.assertEqual(round(self.weldtab._length, 6), 0.115)
         self.assertEqual(round(self.weldtab._thickness, 6), 0.00002)
         self.assertEqual(self.weldtab._area, 0.000575)
+        self.assertEqual(self.weldtab._side_area, 2.3e-6)
 
     def test_plots(self):
         """
         Test plots
         """
-        fig = self.weldtab.get_view()
-        # fig.show()
+        fig1 = self.weldtab.get_view()
+        fig2 = self.weldtab.get_side_view()
+        # fig1.show()
+        # fig2.show()
 
 
 class TestTabWeldedCurrentCollector(unittest.TestCase):
@@ -289,12 +348,11 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         """
         Test plots
         """
-        # fig = self.current_collector.get_a_side_view()
         fig1 = self.current_collector.get_a_side_view()
         fig2 = self.current_collector.get_b_side_view()
+        fig3 = self.current_collector.get_end_view()
         # fig1.show()
         # fig2.show()
+        # fig3.show()
  
-
-
 
