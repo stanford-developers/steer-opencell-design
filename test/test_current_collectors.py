@@ -2,6 +2,7 @@ import unittest
 from SteerEnergyStorage.Materials.RawMaterials import CurrentCollectorMaterial
 from SteerEnergyStorage.Materials.CurrentCollectors import PunchedCurrentCollector, NotchedCurrentCollector, TablessCurrentCollector, WeldTab, TabWeldedCurrentCollector
 
+import plotly.graph_objects as go
 
 class TestPunchedCurrentCollector(unittest.TestCase):
 
@@ -99,6 +100,8 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         self.assertEqual(round(self.current_collector.body_area, 6), 3366)
         self.assertEqual(round(self.current_collector.coated_area, 6), 3079.3 + 3074)
         self.assertEqual(round(self.current_collector.insulation_area, 6), 185.8)
+        self.assertEqual(self.current_collector.cost, 0.03)
+        self.assertEqual(self.current_collector.mass, 13.63)
 
     def test_figures(self):
         fig_a = self.current_collector.get_a_side_view()
@@ -108,6 +111,46 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         # fig_a.show()
         # fig_b.show()
         # fig_c.show()
+
+    def test_setters(self):
+
+        self.current_collector.material = CurrentCollectorMaterial.from_database(name="Copper")
+        self.assertEqual(self.current_collector.material.name, "Copper")
+        self.assertEqual(self.current_collector.mass, 48.77)
+        self.assertEqual(self.current_collector.cost, 0.29)
+
+        self.current_collector.thickness = 10
+        self.assertEqual(self.current_collector.thickness, 10)
+        self.assertEqual(self.current_collector.mass, 32.52)
+        self.assertEqual(self.current_collector.cost, 0.20)
+
+        self.current_collector.bare_lengths_a_side = (100, 100)
+        self.assertEqual(self.current_collector.mass, 32.52)
+        self.assertEqual(self.current_collector.cost, 0.20)
+
+        fig_a = self.current_collector.get_a_side_view()
+        fig_b = self.current_collector.get_b_side_view()
+        fig_c = self.current_collector.get_end_view()
+
+        # fig_a.show()
+        # fig_b.show()
+        # fig_c.show()
+
+    def test_datum_shifter(self):
+
+        self.current_collector.length = 300
+        fig11 = self.current_collector._get_full_view(with_dimensions=False)
+        fig12 = self.current_collector.get_end_view()
+        
+        self.current_collector.datum = (200, 150, 50)
+        fig21 = self.current_collector._get_full_view(with_dimensions=False)
+        fig22 = self.current_collector.get_end_view()
+
+        figure1 = go.Figure(data=fig11.data + fig21.data)
+        figure2 = go.Figure(data=fig12.data + fig22.data)
+        
+        # figure1.show()
+        # figure2.show()
 
 
 class TestNotchedCurrentCollector2(unittest.TestCase):

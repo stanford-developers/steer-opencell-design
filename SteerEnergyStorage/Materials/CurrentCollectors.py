@@ -17,6 +17,7 @@ class _CurrentCollector(ABC):
     """
     Abstract base class for current collectors.
     """
+
     def __init__(
             self, 
             material: CurrentCollectorMaterial,
@@ -27,29 +28,31 @@ class _CurrentCollector(ABC):
             datum: Optional[Tuple[float, float, float]] = (0, 0, 0),
             name: Optional[str] = 'Current Collector',
             **kwargs
-        ):
+    ):
         """
         Initialize an object that represents a current collector.
-        
-        Parameters:
+
+        Parameters
         ----------
-        material: CurrentCollectorMaterial
+        material : CurrentCollectorMaterial
             Material of the current collector.
-        x_body_length: float
+        x_body_length : float
             Length of the current collector in mm.
-        y_body_length: float
+        y_body_length : float
             Width of the current collector in mm.
-        thickness: float
-            Thickness of the current collector in um.
-        insulation_width: Optional[float]
-            Width of the insulation in mm, default is 0.
-        datum: Optional[Tuple[float, float]]
-            Datum of the current collector in mm, default is (0, 0).
-        name: Optional[str]
-            Name of the current collector, default is 'Current Collector'.
-        kwargs: dict
-            Additional keyword arguments for customization.
+        thickness : float
+            Thickness of the current collector in µm.
+        insulation_width : Optional[float], default=0
+            Width of the insulation in mm.
+        datum : Optional[Tuple[float, float, float]], default=(0,0,0)
+            Datum of the current collector in mm.
+        name : Optional[str], default='Current Collector'
+            Name for the current collector.
+        **kwargs : dict
+            Additional keyword args.
         """
+        self._update_properties = False
+
         self.datum = datum
         self.material = material
         self.x_body_length = x_body_length
@@ -62,23 +65,23 @@ class _CurrentCollector(ABC):
         self._am_fill_pattern = dict(shape='/', size=20, solidity=0.6, fgcolor=self._material._color)
         self._in_fill_pattern = dict(shape='\\', size=10, solidity=0.6, fgcolor=self._material._color)
 
-    def _calculate_properties(self) -> None:
-        """
-        Calculate the properties of the punched current collector.
-        """
+    def _calculate_traces_and_areas(self) -> None:
         self._body_trace, self._body_area = self._get_body_trace()
-
         self._a_side_coated_area_trace, self._a_side_coated_area = self._get_a_side_coated_area_trace()
         self._b_side_coated_area_trace, self._b_side_coated_area = self._get_b_side_coated_area_trace()
-        self._coated_area = self._a_side_coated_area + self._b_side_coated_area
-
         self._a_side_insulation_area_trace, self._a_side_insulation_area = self._get_a_side_insulation_area_trace()
         self._b_side_insulation_area_trace, self._b_side_insulation_area = self._get_b_side_insulation_area_trace()
+        self._coated_area = self._a_side_coated_area + self._b_side_coated_area        
         self._insulation_area = self._a_side_insulation_area + self._b_side_insulation_area
 
+    def _calculate_bulk_properties(self) -> None:
         self._volume = self._body_area * self._thickness
         self._mass = self._volume * self._material._density
         self._cost = self._mass * self._material._specific_cost     
+
+    def _calculate_all_properties(self) -> None:
+        self._calculate_traces_and_areas()
+        self._calculate_bulk_properties()
 
     def _get_end_trace(self) -> go.Scatter:
         
@@ -188,7 +191,10 @@ class _CurrentCollector(ABC):
         if not all(isinstance(coord, (int, float)) for coord in datum):
             raise TypeError("All coordinates in datum must be numbers.")
         
-        self._datum = tuple(float(coord) * MM_TO_M for coord in datum)
+        self._datum = (float(datum[0]) * MM_TO_M, float(datum[1]) * MM_TO_M, float(datum[2]) * MM_TO_M)
+
+        if self._update_properties:
+            self._calculate_all_properties()
 
     @property
     def material(self) -> CurrentCollectorMaterial:
@@ -205,6 +211,9 @@ class _CurrentCollector(ABC):
         
         self._material = material
 
+        if self._update_properties:
+            self._calculate_all_properties()
+
     @property
     def x_body_length(self) -> float:
         return round(self._x_body_length * M_TO_MM, 2)
@@ -219,6 +228,9 @@ class _CurrentCollector(ABC):
             raise ValueError("Length cannot be negative or equal to 0.")
         
         self._x_body_length = float(x_body_length) * MM_TO_M
+
+        if self._update_properties:
+            self._calculate_all_properties()
 
     @property
     def y_body_length(self) -> float:
@@ -235,6 +247,9 @@ class _CurrentCollector(ABC):
 
         self._y_body_length = float(y_body_length) * MM_TO_M
 
+        if self._update_properties:
+            self._calculate_all_properties()
+
     @property
     def thickness(self) -> float:
         return round(self._thickness * M_TO_UM, 2)
@@ -247,8 +262,11 @@ class _CurrentCollector(ABC):
 
         if thickness <= 0:
             raise ValueError("Thickness cannot be negative or equal to 0.")
-
+        
         self._thickness = float(thickness) * UM_TO_M
+
+        if self._update_properties:
+            self._calculate_all_properties()
 
     @property
     def insulation_width(self) -> float:
@@ -264,6 +282,9 @@ class _CurrentCollector(ABC):
             raise ValueError("Insulation width cannot be negative.")
 
         self._insulation_width = float(insulation_width) * MM_TO_M
+
+        if self._update_properties:
+            self._calculate_traces_and_areas()
 
     @property
     def name(self) -> str:
@@ -396,7 +417,6 @@ class _TabbedCurrentCollector(_CurrentCollector):
         self.tab_width = tab_width
         self.tab_height = tab_height
         self.coated_tab_height = coated_tab_height
-
         self._total_height = self._y_body_length + self._tab_height
 
     def _get_end_trace(self) -> go.Scatter:
@@ -437,6 +457,9 @@ class _TabbedCurrentCollector(_CurrentCollector):
 
         if self._tab_width > self._x_body_length:
             raise ValueError("Tab width cannot be greater than the length of the current collector.")
+        
+        if self._update_properties:
+            self._calculate_all_properties()
 
     @property
     def tab_height(self) -> float:
@@ -452,6 +475,9 @@ class _TabbedCurrentCollector(_CurrentCollector):
             raise ValueError("Tab height cannot be negative.")
 
         self._tab_height = float(tab_height) * MM_TO_M
+
+        if self._update_properties:
+            self._calculate_all_properties()
 
     @property
     def coated_tab_height(self) -> float:
@@ -470,6 +496,9 @@ class _TabbedCurrentCollector(_CurrentCollector):
 
         if self._coated_tab_height > self._tab_height:
             raise ValueError("Covered tab height on the top side cannot be greater than the tab height.")
+        
+        if self._update_properties:
+            self._calculate_all_properties()
 
     @property
     def total_height(self) -> float:
@@ -715,6 +744,9 @@ class _TapeCurrentCollector(_CurrentCollector):
 
         if self._x_body_length < sum(self._bare_lengths_a_side):
             raise ValueError("Total bare lengths on A side cannot be greater than the length of the current collector.")
+        
+        if self._update_properties:
+            self._calculate_all_properties()
 
     @property
     def bare_lengths_b_side(self) -> Tuple[float, float]:
@@ -736,14 +768,45 @@ class _TapeCurrentCollector(_CurrentCollector):
 
         if self._x_body_length < sum(self._bare_lengths_b_side):
             raise ValueError("Total bare lengths on B side cannot be greater than the length of the current collector.")
+        
+        if self._update_properties:
+            self._calculate_all_properties()
 
     @property
     def length(self) -> float:
         return self.x_body_length
     
+    @length.setter
+    def length(self, length: float) -> None:
+
+        if not isinstance(length, (int, float)):
+            raise TypeError("Length must be a number.")
+        
+        if length <= 0:
+            raise ValueError("Length cannot be negative or equal to 0.")
+        
+        self.x_body_length = length
+
+        if self._update_properties:
+            self._calculate_all_properties()
+
     @property
     def width(self) -> float:
         return self.y_body_length
+    
+    @width.setter
+    def width(self, width: float) -> None:
+
+        if not isinstance(width, (int, float)):
+            raise TypeError("Width must be a number.")
+        
+        if width <= 0:
+            raise ValueError("Width cannot be negative or equal to 0.")
+        
+        self.y_body_length = width
+
+        if self._update_properties:
+            self._calculate_all_properties()
 
         
 class PunchedCurrentCollector(_TabbedCurrentCollector):
@@ -806,7 +869,8 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         )
         
         self.tab_position = tab_position
-        self._calculate_properties()
+        self._calculate_all_properties()
+        self._update_properties = True
 
     def _get_footprint(
             self, 
@@ -1089,6 +1153,9 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         
         if self._tab_position + self._tab_width / 2 > self.x_body_length:
             raise ValueError("Tab position plus half the tab width cannot be greater than the length of the current collector.")
+        
+        if self._update_properties:
+            self._calculate_all_properties()
 
 
 class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
@@ -1160,8 +1227,8 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         )
 
         self.tab_spacing = tab_spacing
-        self._calculate_tab_positions()
-        self._calculate_properties()
+        self._calculate_all_properties()
+        self._update_properties = True
         
     def _calculate_tab_positions(self) -> None:
         """
@@ -1195,6 +1262,10 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
             tab_ends[-1] = self._datum[0] + self._x_body_length / 2
 
         self._tab_positions = list(zip(tab_starts, tab_ends))
+
+    def _calculate_all_properties(self):
+        self._calculate_tab_positions()
+        super()._calculate_all_properties()
 
     def _get_footprint(
             self,
@@ -1267,11 +1338,9 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         pts.append((x0, y0))
 
         # pack to DataFrame, then apply global datum offset
-        df = pd.DataFrame(pts, columns=("x", "y"))
-        df["x"] += self._datum[0]
-        df["y"] += self._datum[1]
+        df = pd.DataFrame(pts, columns=("x", "y")).reset_index(drop=True)
 
-        return df.reset_index(drop=True)
+        return df
 
     def _add_dimensions(self, fig: go.Figure, pad: float = 0.05, aspect_ratio: float = 3) -> go.Figure:
         """
@@ -1486,6 +1555,9 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         if self._tab_gap < 0:
             raise ValueError("Tab spacing cannot be less than the tab width.")
+        
+        if self._update_properties:
+            self._calculate_all_properties()
 
     @property
     def tab_gap(self) -> float:
@@ -1561,7 +1633,9 @@ class TablessCurrentCollector(NotchedCurrentCollector):
             datum=datum
         )
 
+        self._update_properties = False
         self.coated_width = coated_width
+        self._update_properties = True
     
     def _add_height_dimension(self, fig: go.Figure, pad: float = 0.05) -> go.Figure:
 
@@ -1610,6 +1684,9 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         
         if self._coated_width > self._y_body_length:
             raise ValueError("Coated width cannot be greater than the width of the current collector.")
+        
+        if self._update_properties:
+            self._calculate_all_properties()
 
     @property
     def width(self) -> float:
@@ -1634,16 +1711,18 @@ class WeldTab:
         :param length: float: length of the weld tab in mm
         :param thickness: float: thickness of the weld tab in um
         """
+        self._update_properties = False
+
         self.datum = datum
         self.material = material
         self.width = width
         self.length = length
         self.thickness = thickness
 
-        self._calculate_properties()
-        self._suspend_updates = False
+        self._calculate_all_properties()
+        self._update_properties = True
 
-    def _calculate_properties(self) -> None:
+    def _calculate_all_properties(self) -> None:
         """
         Calculate the properties of the tab.
         """
@@ -1772,9 +1851,8 @@ class WeldTab:
         
         self._datum = (float(datum[0]) * MM_TO_M, float(datum[1]) * MM_TO_M, float(datum[2]) * MM_TO_M)
 
-        if hasattr(self, '_suspend_updates'):
-            if not self._suspend_updates:
-                self._calculate_properties()
+        if self._update_properties:
+            self._calculate_all_properties()
 
     @property
     def material(self) -> CurrentCollectorMaterial:
@@ -1788,9 +1866,8 @@ class WeldTab:
         
         self._material = material
     
-        if hasattr(self, '_suspend_updates'):
-            if not self._suspend_updates:
-                self._calculate_properties()
+        if self._update_properties:
+            self._calculate_all_properties()
 
     @property
     def width(self) -> float:
@@ -1807,9 +1884,8 @@ class WeldTab:
         
         self._width = float(width) * MM_TO_M
         
-        if hasattr(self, '_suspend_updates'):
-            if not self._suspend_updates:
-                self._calculate_properties()
+        if self._update_properties:
+            self._calculate_all_properties()
 
     @property
     def length(self) -> float:
@@ -1826,9 +1902,8 @@ class WeldTab:
         
         self._length = float(length) * MM_TO_M
         
-        if hasattr(self, '_suspend_updates'):
-            if not self._suspend_updates:
-                self._calculate_properties()
+        if self._update_properties:
+            self._calculate_all_properties()
 
     @property
     def thickness(self) -> float:
@@ -1845,10 +1920,8 @@ class WeldTab:
         
         self._thickness = float(thickness) * UM_TO_M
         
-        if hasattr(self, '_suspend_updates'):
-            if not self._suspend_updates:
-                self._calculate_properties()
-
+        if self._update_properties:
+            self._calculate_all_properties()
     @property
     def volume(self) -> float:
         return round(self._volume * M_TO_CM**3, 2)
@@ -1889,8 +1962,8 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         Initialize an object that represents a current collector with tabs welded on it.
 
-        Parameters:
-        -----------
+        Parameters
+        ----------
         material: CurrentCollectorMaterial: 
             Material of the current collector.
         length: float:
@@ -1934,10 +2007,12 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         self.weld_tab = weld_tab
         self.skip_coat_width = skip_coat_width
         self.tab_weld_side = tab_weld_side
-        self._calculate_properties()
 
-    def _calculate_properties(self) -> None:
-        super()._calculate_properties()
+        self._calculate_all_properties()
+        self._update_properties = True
+
+    def _calculate_all_properties(self) -> None:
+        super()._calculate_all_properties()
         self._cost += sum(tab._cost for tab in self._weld_tabs)
 
     def _get_full_view(
@@ -2142,6 +2217,9 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         
         if any(pos > self._x_body_length for pos in self._weld_tab_positions):
             raise ValueError("Weld tab positions cannot be greater than the length of the current collector.")
+        
+        if self._update_properties:
+            self._calculate_all_properties()
 
     @property
     def skip_coat_width(self) -> float:
@@ -2166,6 +2244,9 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
 
         if self._skip_coat_width > self._y_body_length:
             raise ValueError("Skip coat width cannot be greater than the width of the current collector.")
+        
+        if self._update_properties:
+            self._calculate_all_properties()
 
     @property
     def tab_weld_side(self) -> str:
@@ -2181,6 +2262,9 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             raise ValueError("Tab weld side must be either 'a' or 'b'.")
         
         self._tab_weld_side = tab_weld_side
+
+        if self._update_properties:
+            self._calculate_all_properties()
 
     @property
     def tab_overhang(self) -> float:
@@ -2200,6 +2284,9 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         
         self._tab_overhang = float(tab_overhang) * MM_TO_M
 
+        if self._update_properties:
+            self._calculate_all_properties()
+
     @property
     def weld_tab(self) -> list:
         """
@@ -2208,7 +2295,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         return self._weld_tabs[0]
     
     @weld_tab.setter
-    def weld_tabs(self, weld_tab: WeldTab) -> None:
+    def weld_tab(self, weld_tab: WeldTab) -> None:
 
         if not isinstance(weld_tab, WeldTab):
             raise TypeError("Weld tab must be an instance of WeldTab.")
@@ -2219,4 +2306,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         for _pos, _tab in zip(self._weld_tab_positions, self._weld_tabs):
             pos = (_pos - self._x_body_length / 2) * M_TO_MM
             _tab.datum = (pos, tab_y_center, self.datum[2] + self.thickness/2*UM_TO_MM + _tab.thickness/2*UM_TO_MM)
+
+        if self._update_properties:
+            self._calculate_all_properties()
 
