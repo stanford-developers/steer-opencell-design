@@ -60,12 +60,14 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
 
     def test_voltage_cutoff(self):
         
-        self.cathode_formulation.voltage_cuttoff = 4.2
+        self.cathode_formulation.voltage_cutoff = 4.2
         figure = self.cathode_formulation.plot_half_cell_curve(add_materials=True)
+        
+        self.assertEqual(self.cathode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[10], 46381.3)
+        self.assertEqual(self.cathode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[20], 92762.6)
+        self.assertEqual(self.cathode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[80], 371050.5)
+
         # figure.show()
-        self.assertEqual(self.cathode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[10], 46253.9)
-        self.assertEqual(self.cathode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[20], 92507.8)
-        self.assertEqual(self.cathode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[80], 370031.2)
 
 
 class TestMultiCathodeFormulation(unittest.TestCase):
@@ -76,6 +78,8 @@ class TestMultiCathodeFormulation(unittest.TestCase):
         """
         self.cathode_active_material1 = CathodeMaterial.from_database("LFP")
         self.cathode_active_material2 = CathodeMaterial.from_database("NMC811")
+        self.cathode_active_material2.extrapolation_window = 0.5
+        
         cathode_conductive_additive1 = ConductiveAdditive.from_database("Super P")
         cathode_conductive_additive2 = ConductiveAdditive.from_database("Graphite")
         cathode_binder1 = Binder.from_database("PVDF")
@@ -108,14 +112,30 @@ class TestMultiCathodeFormulation(unittest.TestCase):
         self.assertEqual(round(sum(self.cathode_formulation.specific_cost_breakdown.values()), 2), self.cathode_formulation.specific_cost)
         self.assertEqual(round(sum(self.cathode_formulation.density_breakdown.values()), 2), self.cathode_formulation.density)
 
-    def test_voltage_cutoff(self):
-
-        self.cathode_formulation.voltage_cuttoff = 4.1
         figure = self.cathode_formulation.plot_half_cell_curve(add_materials=True)
         # figure.show()
+
+    def test_voltage_cutoff(self):
+
+        self.cathode_formulation.voltage_cutoff = 4.09
+        figure = self.cathode_formulation.plot_half_cell_curve(add_materials=True)
+
         self.assertEqual(self.cathode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[10], 659.8)
-        self.assertEqual(self.cathode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[20], 665.9)
-        self.assertEqual(self.cathode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[80], 495146.3)
+        self.assertEqual(self.cathode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[20], 665.7)
+        self.assertEqual(self.cathode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[80], 494247.9)
+
+        # figure.show()
+
+    def test_change_active_materials(self):
+
+        self.cathode_formulation.active_materials = {self.cathode_active_material1: 90}
+        self.cathode_formulation.voltage_cutoff = 4.09
+
+        self.assertEqual(self.cathode_formulation.density, 3.43)
+        self.assertEqual(self.cathode_formulation.specific_cost, 9.1)
+
+        figure = self.cathode_formulation.plot_half_cell_curve(add_materials=True)
+        # figure.show()
 
 
 class TestSimpleAnodeFormulation(unittest.TestCase):
@@ -146,7 +166,21 @@ class TestSimpleAnodeFormulation(unittest.TestCase):
             }
         )
 
+        self.anode_formulation2 = AnodeFormulation(
+            active_materials={
+                anode_active_material: 88
+            },
+            binders={
+                anode_binder: 3
+            },
+            conductive_additives={
+                anode_conductive_additive: 9
+            },
+            voltage_cutoff=0.0
+        )
+
     def test_formulation(self):
+
         self.assertTrue(isinstance(self.anode_formulation, AnodeFormulation))
         self.assertEqual(len(self.anode_formulation._active_materials), 1)
         self.assertEqual(len(self.anode_formulation._binders), 1)
@@ -158,12 +192,24 @@ class TestSimpleAnodeFormulation(unittest.TestCase):
         self.assertEqual(round(sum(self.anode_formulation.specific_cost_breakdown.values()), 2), self.anode_formulation.specific_cost)
         self.assertEqual(round(sum(self.anode_formulation.density_breakdown.values()), 2), self.anode_formulation.density)
 
-    def test_plot_half_cell_curve(self):
         figure = self.anode_formulation.plot_half_cell_curve(add_materials=True)
         # figure.show()
+
+    def test_plot_half_cell_curve(self):
+
+        self.anode_formulation.voltage_cutoff = 0.0
+        figure = self.anode_formulation.plot_half_cell_curve(add_materials=True)
+        
         self.assertEqual(self.anode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[10], 0)
         self.assertEqual(self.anode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[20], 6657.7)
         self.assertEqual(self.anode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[80], 943619.6)
+
+        # figure.show()
+
+    def test_anode_half_Cell_curve_set(self):
+
+        figure = self.anode_formulation2.plot_half_cell_curve(add_materials=True)
+        # figure.show()
 
 
 class TestDualAnodeFormulation(unittest.TestCase):
@@ -189,6 +235,7 @@ class TestDualAnodeFormulation(unittest.TestCase):
         )
 
     def test_formulation(self):
+
         self.assertTrue(isinstance(self.anode_formulation, AnodeFormulation))
         self.assertEqual(len(self.anode_formulation._active_materials), 2)
         self.assertEqual(len(self.anode_formulation._binders), 1)
@@ -201,11 +248,12 @@ class TestDualAnodeFormulation(unittest.TestCase):
         self.assertEqual(round(sum(self.anode_formulation.density_breakdown.values()), 2), self.anode_formulation.density)
 
     def test_plot_half_cell_curve(self):
+        
         figure = self.anode_formulation.plot_half_cell_curve(add_materials=True)
-        # figure.show()
+
         self.assertEqual(self.anode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[10], 1277.6)
         self.assertEqual(self.anode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[20], 1650.7)
         self.assertEqual(self.anode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[80], 274572.3)
 
-
+        # figure.show()
         
