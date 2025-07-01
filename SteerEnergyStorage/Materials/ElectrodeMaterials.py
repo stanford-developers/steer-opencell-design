@@ -365,18 +365,18 @@ class _ActiveMaterial(_RawMaterial):
         )
 
         # Create a new row for the interpolated charge curve
-        new_charge_row = charge.iloc[0].copy()
+        new_charge_row = charge.iloc[[charge.index.argmin()]].copy()
         new_charge_row['specific_capacity'] = charge_capacity_interp_value
         new_charge_row['voltage'] = input_value
 
         # Create a new row for the discharge curve
-        new_discharge_row = discharge.iloc[0].copy()
+        new_discharge_row = discharge.iloc[[discharge.index.argmin()]].copy()
         new_discharge_row['specific_capacity'] = discharge_capacity_interp_value
         new_discharge_row['voltage'] = input_value
 
         # Add the new rows to the charge and discharge curves
-        charge = pd.concat([charge, new_charge_row.to_frame().T], ignore_index=True)
-        discharge = pd.concat([new_discharge_row.to_frame().T, discharge], ignore_index=True)
+        charge = pd.concat([charge, new_charge_row], ignore_index=True)
+        discharge = pd.concat([new_discharge_row, discharge], ignore_index=True)
 
         # Truncate curves to only include values below or equal to the voltage
         if type(self) == CathodeMaterial:
@@ -536,6 +536,7 @@ class _ActiveMaterial(_RawMaterial):
                 self
                 ._half_cell_curves
                 ['voltage_at_max_capacity']
+                .astype(float)
                 .iloc[0]
             )
 
@@ -587,6 +588,9 @@ class _ActiveMaterial(_RawMaterial):
             raise ValueError("Extrapolation window must be a positive float")
         
         self._extrapolation_window = abs(float(window))
+
+        if hasattr(self, '_half_cell_curves'):
+            self._calculate_half_cell_curves_properties()
 
     @property
     def reference(self) -> str:
@@ -671,12 +675,16 @@ class _ActiveMaterial(_RawMaterial):
             if not {'specific_capacity', 'voltage', 'direction'}.issubset(curve.columns):
                 raise ValueError("Each half cell curve DataFrame must contain 'specific_capacity', 'voltage', and 'direction' columns")
             
-        half_cell_curves = pd.concat(
-            [df.assign(id = i) for i, df in enumerate(half_cell_curves)],
-            ignore_index=True
-        )
+        new_half_cell_curves = []
+        for id, hc in enumerate(half_cell_curves):
+            hc['id'] = int(id)
+            hc['voltage'] = hc['voltage'].astype(float)
+            hc['specific_capacity'] = hc['specific_capacity'].astype(float)
+            hc['direction'] = hc['direction'].astype(str)
+            new_half_cell_curves.append(hc)
 
-        self._half_cell_curves = self._process_half_cell_curves(half_cell_curves)
+        new_half_cell_curves = pd.concat(new_half_cell_curves, ignore_index=True)
+        self._half_cell_curves = self._process_half_cell_curves(new_half_cell_curves)
         self._calculate_half_cell_curves_properties()
 
     @property
@@ -810,11 +818,11 @@ class CathodeMaterial(_ActiveMaterial):
     def _calculate_half_cell_curves_properties(self) -> None:
 
         # calculate the maximum voltage range for the half cell curves 
-        self._maximum_voltage_cutoff = self._half_cell_curves['voltage_at_max_capacity'].max()
+        self._maximum_voltage_cutoff = float(self._half_cell_curves['voltage_at_max_capacity'].max())
 
         # calculate the minimum voltage range for interpolation of the curves
-        self._minimum_voltage_cutoff = self._half_cell_curves['voltage_at_max_capacity'].min()
-        
+        self._minimum_voltage_cutoff = float(self._half_cell_curves['voltage_at_max_capacity'].min())
+
         # calculate the minimum voltage range for extrapolation of the curves
         self._minimum_extrapolated_voltage = self._minimum_voltage_cutoff - self._extrapolation_window
 
@@ -834,7 +842,7 @@ class CathodeMaterial(_ActiveMaterial):
             raise ValueError(f"Voltage cutoff {voltage} V is less than the minimum extrapolated voltage of the half cell curves {self._minimum_extrapolated_voltage} V. Please set a higher voltage cutoff.")
         elif voltage < self._maximum_voltage_cutoff and voltage > self._minimum_voltage_cutoff:
             return False
-        elif voltage < self._minimum_voltage_cutoff and voltage > self._minimum_extrapolated_voltage:
+        elif voltage <= self._minimum_voltage_cutoff and voltage >= self._minimum_extrapolated_voltage:
             return True
         
     @staticmethod
@@ -949,7 +957,7 @@ class AnodeMaterial(_ActiveMaterial):
             raise ValueError(f"Voltage cutoff {voltage} V is greater than the minimum extrapolated voltage of the half cell curves {self._minimum_extrapolated_voltage} V. Please set a higher voltage cutoff.")
         elif voltage > self._maximum_voltage_cutoff and voltage < self._minimum_voltage_cutoff:
             return False
-        elif voltage > self._minimum_voltage_cutoff and voltage < self._minimum_extrapolated_voltage:
+        elif voltage >= self._minimum_voltage_cutoff and voltage <= self._minimum_extrapolated_voltage:
             return True
 
     @staticmethod
