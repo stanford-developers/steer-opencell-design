@@ -266,7 +266,7 @@ class _ElectrodeFormulation:
                     specific_capacity=lambda x: x['specific_capacity'] * weight_frac,
                 )
             )
-            
+
             return
 
         # Determine common charge/discharge voltage ranges
@@ -549,7 +549,7 @@ class _ElectrodeFormulation:
                         'voltage': 'Voltage (V)', 
                         'direction': 'Direction',
                         }
-                        )
+                    )
                 )
         
         return data
