@@ -587,6 +587,7 @@ class _ActiveMaterial(_RawMaterial):
             raise ValueError("Extrapolation window must be a positive float")
         
         self._extrapolation_window = abs(float(window))
+        self._calculate_half_cell_curves_properties()
 
     @property
     def reference(self) -> str:
