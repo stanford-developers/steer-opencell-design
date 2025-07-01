@@ -60,7 +60,7 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
 
     def test_voltage_cutoff(self):
         
-        self.cathode_formulation.voltage_cuttoff = 4.2
+        self.cathode_formulation.voltage_cutoff = 4.2
         figure = self.cathode_formulation.plot_half_cell_curve(add_materials=True)
         # figure.show()
         self.assertEqual(self.cathode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[10], 46253.9)
@@ -76,6 +76,8 @@ class TestMultiCathodeFormulation(unittest.TestCase):
         """
         self.cathode_active_material1 = CathodeMaterial.from_database("LFP")
         self.cathode_active_material2 = CathodeMaterial.from_database("NMC811")
+        self.cathode_active_material2.extrapolation_window = 0.5
+        
         cathode_conductive_additive1 = ConductiveAdditive.from_database("Super P")
         cathode_conductive_additive2 = ConductiveAdditive.from_database("Graphite")
         cathode_binder1 = Binder.from_database("PVDF")
@@ -110,9 +112,9 @@ class TestMultiCathodeFormulation(unittest.TestCase):
 
     def test_voltage_cutoff(self):
 
-        self.cathode_formulation.voltage_cuttoff = 4.1
+        self.cathode_formulation.voltage_cutoff = 4.09
         figure = self.cathode_formulation.plot_half_cell_curve(add_materials=True)
-        # figure.show()
+        figure.show()
         self.assertEqual(self.cathode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[10], 659.8)
         self.assertEqual(self.cathode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[20], 665.9)
         self.assertEqual(self.cathode_formulation._half_cell_curve['specific_capacity'].round(1).iloc[80], 495146.3)
