@@ -256,14 +256,14 @@ class _ElectrodeFormulation:
         This method is called to ensure that all half-cell properties are calculated and available.
         """
         minimum_voltage = max([
-            material._voltage_cuttoff_range[0] for material in self._active_materials.keys()
+            material._voltage_cutoff_range[0] for material in self._active_materials.keys()
         ])
 
         maximum_voltage = min([
-            material._voltage_cuttoff_range[1] for material in self._active_materials.keys()
+            material._voltage_cutoff_range[1] for material in self._active_materials.keys()
         ])
 
-        self._voltage_cuttoff_range = (minimum_voltage, maximum_voltage)
+        self._voltage_cutoff_range = (minimum_voltage, maximum_voltage)
 
     def plot_half_cell_curve(self, add_materials: bool = False, **kwargs):
 
@@ -315,7 +315,7 @@ class _ElectrodeFormulation:
         """
         for material in self._active_materials:
             if isinstance(material, CathodeMaterial):
-                material.voltage_cuttoff = voltage
+                material.voltage_cutoff = voltage
 
         # Single-material shortcut
         if len(self._active_materials) == 1:
@@ -335,10 +335,21 @@ class _ElectrodeFormulation:
         # Determine common charge/discharge voltage ranges
         def get_common_voltage_range(direction: str):
 
-            v_start = max(material._half_cell_curve.query(f'direction == "{direction}"')['voltage'].min()
-                        for material in self._active_materials)
-            v_end = min(material._half_cell_curve.query(f'direction == "{direction}"')['voltage'].max()
-                        for material in self._active_materials)
+            v_start = max([
+                material
+                ._half_cell_curve
+                .query(f'direction == "{direction}"')['voltage']
+                .min()
+                for material in self._active_materials
+            ])
+
+            v_end = min([
+                material._half_cell_curve
+                .query(f'direction == "{direction}"')['voltage']
+                .max()
+                for material in self._active_materials
+            ])
+
             return np.linspace(v_start, v_end, num=100)
 
         v_charge_grid = get_common_voltage_range('charge')
@@ -355,8 +366,8 @@ class _ElectrodeFormulation:
             df['specific_capacity'] *= weight_frac
             df['specific_capacity_max'] *= weight_frac
 
-            charge_curve = df.query('direction == "charge"').sort_values(by='voltage')
-            discharge_curve = df.query('direction == "discharge"').sort_values(by='voltage')
+            charge_curve = df.query('direction == "charge"').sort_values(by='specific_capacity')
+            discharge_curve = df.query('direction == "discharge"').sort_values(by='specific_capacity')
 
             charge_interp = np.interp(
                 v_charge_grid, 
@@ -444,21 +455,21 @@ class _ElectrodeFormulation:
         return {key: round(value * KG_TO_G / (M_TO_CM ** 3), 4) for key, value in self._density_breakdown.items()}
 
     @property
-    def voltage_cuttoff_range(self) -> tuple:
+    def voltage_cutoff_range(self) -> tuple:
         """
         Get the valid voltage range for the half cell curves.
         
         :return: tuple: (minimum voltage, maximum voltage)
         """
-        minimum = float(round(self._voltage_cuttoff_range[0], 2))
-        maximum = float(round(self._voltage_cuttoff_range[1], 2))
+        minimum = float(round(self._voltage_cutoff_range[0], 2))
+        maximum = float(round(self._voltage_cutoff_range[1], 2))
         return (minimum, maximum)
 
     @property
     def half_cell_curve(self) -> pd.DataFrame:
 
         if not hasattr(self, '_half_cell_curve'):
-            raise ValueError(f"A half cell curve for {self.name} has not been calculated yet. Please set a voltage cuttoff or a maximum specific capacity before accessing this property.")
+            raise ValueError(f"A half cell curve for {self.name} has not been calculated yet. Please set a voltage cutoff or a maximum specific capacity before accessing this property.")
 
         data = (self
                 ._half_cell_curve
@@ -519,7 +530,7 @@ class CathodeFormulation(_ElectrodeFormulation):
         )
 
     @property
-    def voltage_cuttoff(self) -> float:
+    def voltage_cutoff(self) -> float:
         """
         Get the maximum voltage of the half cell curves.
         
@@ -527,18 +538,18 @@ class CathodeFormulation(_ElectrodeFormulation):
         """
         return round(float(self.half_cell_curves['Maximum Voltage (V)'].max()), 3)
 
-    @voltage_cuttoff.setter
-    def voltage_cuttoff(self, voltage: float):
+    @voltage_cutoff.setter
+    def voltage_cutoff(self, voltage: float):
         """
-        Set the voltage cuttoff for the half cell curves.
+        Set the voltage cutoff for the half cell curves.
         
         :param voltage: float: maximum voltage of the half cell curves
         """
         if not isinstance(voltage, (float, int)) or voltage <= 0:
-            raise ValueError("Voltage cuttoff must be a positive float")
+            raise ValueError("Voltage cutoff must be a positive float")
         
-        if voltage < min(self.voltage_cuttoff_range) or voltage > max(self.voltage_cuttoff_range):
-            raise ValueError(f"Voltage cuttoff must be within the range {self.voltage_cuttoff_range}")
+        if voltage < min(self.voltage_cutoff_range) or voltage > max(self.voltage_cutoff_range):
+            raise ValueError(f"Voltage cutoff must be within the range {self.voltage_cutoff_range}")
         
         self._calculate_half_cell_curve(voltage)
         self._half_cell_curve = _ActiveMaterial.enforce_monotonicity(self._half_cell_curve, 'voltage')

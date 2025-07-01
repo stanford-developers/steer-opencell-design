@@ -158,6 +158,12 @@ class TestLFPSingleCurve(unittest.TestCase):
         # figure1.show()
         # figure2.show()
 
+    def test_extrapolation_window_setter(self):
+        
+        self.material.extrapolation_window = 0.5
+        self.assertEqual(self.material.extrapolation_window, 0.5)
+        self.assertEqual(self.material.voltage_cutoff_range, (3.6, 4.1))
+
     def test_voltage_setter(self):
         """
         Test voltage setter
@@ -902,10 +908,9 @@ class TestHardCarbon(unittest.TestCase):
         data = self.material.half_cell_curve
         figure = self.material.plot_half_cell_curve()
 
-        # self.assertTrue(round(data['Voltage (V)'].max(), 10) == 0.5)
-        # self.assertTrue(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].min(), 2) == -0.01)
-        # self.assertTrue(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2) == 0.0)
-        # self.assertTrue(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2) == 356.22)
+        self.assertTrue(round(data['Voltage (V)'].min(), 10) == 0)
+        self.assertTrue(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].max(), 2) == 358.61)
+        self.assertTrue(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2) == 0.0)
 
         # figure.show()
 
