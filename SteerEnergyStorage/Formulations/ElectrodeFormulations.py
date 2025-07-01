@@ -18,21 +18,34 @@ class _ElectrodeFormulation:
             active_materials: Dict[_ActiveMaterial, float], 
             binders: Optional[Dict[Binder, float]] = None, 
             conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None,
+            voltage_cutoff: Optional[float] = None,
             name: Optional[str] = 'Electrode Formulation'
         ):
         """
         Initialize an object that represents an electrode formulation.
         
-        Parameters:
-        - active_materials (Dict[_ActiveMaterial, float]): Dictionary of active materials and their mass fractions in percent.
-        - binders (Optional[Dict[Binder, float]]): Dictionary of binders and their mass fractions in percent.
-        - conductive_additives (Optional[Dict[ConductiveAdditive, float]]): Dictionary of conductive additives and their mass fractions in percent.
-        - name (Optional[str]): Name of the formulation.
+        Parameters
+        ----------
+        active_materials : Dict[_ActiveMaterial, float]
+            A dictionary where keys are instances of _ActiveMaterial and values are their mass fractions in percent
+        binders : Optional[Dict[Binder, float]]
+            A dictionary where keys are instances of Binder and values are their mass fractions in percent
+        conductive_additives : Optional[Dict[ConductiveAdditive, float]]
+            A dictionary where keys are instances of ConductiveAdditive and values are their mass fractions in percent
+        voltage_cutoff : Optional[float]
+            The maximum voltage for the half-cell curves. If not provided, it will be set to
+            the maximum voltage from the active materials' voltage cutoff range.
+        name : Optional[str]
+            Name of the electrode formulation. Defaults to 'Electrode Formulation'.
         """
-        self._check_active_materials(active_materials)
-        self._check_binders(binders)
-        self._check_conductive_additives(conductive_additives)
-        self._check_name(name)
+        self._update_properties = False
+        
+        self.active_materials = active_materials
+        self.binders = binders
+        self.conductive_additives = conductive_additives
+        self.voltage_cutoff = voltage_cutoff
+        self.name = name
+
         self._check_formulation()
         self._get_properties()
 
@@ -45,66 +58,7 @@ class _ElectrodeFormulation:
         self._get_density_breakdown()
         self._calculate_specific_cost()
         self._get_specific_cost_breakdown()
-        self._calculate_half_cell_properties() if isinstance(self, CathodeFormulation) else None
         self._get_color()
-
-    def _check_active_materials(self, active_materials) -> None:
-
-        for key, value in active_materials.items():
-
-            if not isinstance(key, _ActiveMaterial):
-                raise TypeError(f"Expected an instance of _ActiveMaterial, got {type(key)}.")
-            if not isinstance(value, (int, float)):
-                raise TypeError(f"Expected a numeric value for mass fraction, got {type(value)}.")
-            if value < 0 or value > 100:
-                raise ValueError(f"Mass fraction for {key.name} must be between 0 and 100, got {value}.")
-
-        self._active_materials = {key: value / 100 for key, value in active_materials.items()}
-
-    def _check_binders(self, binders) -> None:
-        
-        if binders == None or binders == {}:
-            return {}
-        
-        for key, value in binders.items():
-            if not isinstance(key, Binder):
-                raise TypeError(f"Expected an instance of Binder, got {type(key)}.")
-            if not isinstance(value, (int, float)):
-                raise TypeError(f"Expected a numeric value for mass fraction, got {type(value)}.")
-            if value < 0 or value > 100:
-                raise ValueError(f"Mass fraction for {key.name} must be between 0 and 100, got {value}.")
-        
-        self._binders = {key: value / 100 for key, value in binders.items()}
-
-    def _check_conductive_additives(self, conductive_additives) -> None:
-
-        if conductive_additives is None or conductive_additives == {}:
-            return {}
-
-        for key, value in conductive_additives.items():
-            if not isinstance(key, ConductiveAdditive):
-                raise TypeError(f"Expected an instance of ConductiveAdditive, got {type(key)}.")
-            if not isinstance(value, (int, float)):
-                raise TypeError(f"Expected a numeric value for mass fraction, got {type(value)}.")
-            if value < 0 or value > 100:
-                raise ValueError(f"Mass fraction for {key.name} must be between 0 and 100, got {value}.")
-        
-        self._conductive_additives = {key: value / 100 for key, value in conductive_additives.items()}
-
-    def _check_name(self, name: str) -> None:
-
-        """
-        Validate the name of the electrode formulation.
-        
-        :param name: Name of the electrode formulation.
-        :raises ValueError: If the name is not a string or is empty.
-        """
-        if not isinstance(name, str):
-            raise TypeError(f"Expected a string for name, got {type(name)}.")
-        if not name.strip():
-            raise ValueError("Name cannot be an empty string.")
-        
-        self._name = name
 
     def _calculate_density(self) -> float:
         """
@@ -181,13 +135,10 @@ class _ElectrodeFormulation:
         """
         Validate the electrode formulation to ensure it meets the required criteria.
         """
-        if not self._active_materials:
-            raise ValueError("You must include at least one active material in the formulation.")
+        total_fraction = sum(self._active_materials.values()) + sum(self._binders.values()) + sum(self._conductive_additives.values())
 
-        if (self._active_materials or self._binders or self._conductive_additives):
-            total_fraction = sum(self._active_materials.values()) + sum(self._binders.values()) + sum(self._conductive_additives.values())
-            if not (0.999 <= total_fraction <= 1.001):
-                raise ValueError(f"Your weight fractions sum to {round(total_fraction * 100, 1)} %. Ensure they sum to 100 %.")
+        if not (0.999 <= total_fraction <= 1.001):
+            raise ValueError(f"Your weight fractions sum to {round(total_fraction * 100, 1)} %. Ensure they sum to 100 %.")
 
         self._check_unique_names(self._active_materials, "active materials")
         self._check_unique_names(self._binders, "binders")
@@ -250,21 +201,6 @@ class _ElectrodeFormulation:
 
         self._density_breakdown = active_material_density_breakdown | binder_density_breakdown | conductive_additive_density_breakdown
 
-    def _calculate_half_cell_properties(self) -> None:
-        """
-        Calculate the properties of the half-cell based on the electrode formulation.
-        This method is called to ensure that all half-cell properties are calculated and available.
-        """
-        minimum_voltage = max([
-            material._voltage_cutoff_range[0] for material in self._active_materials.keys()
-        ])
-
-        maximum_voltage = min([
-            material._voltage_cutoff_range[1] for material in self._active_materials.keys()
-        ])
-
-        self._voltage_cutoff_range = (minimum_voltage, maximum_voltage)
-
     def plot_half_cell_curve(self, add_materials: bool = False, **kwargs):
 
         figure = go.Figure()
@@ -310,13 +246,12 @@ class _ElectrodeFormulation:
         Calculate the half-cell curve for the cathode formulation based on the active materials
         and their weight fractions, treating charge and discharge curves separately.
 
-        Parameters:
-        - voltage (Optional[float]): Optional cutoff voltage for the curves.
+        Parameters
+        ----------
+        voltage : Optional[float]
+            The maximum voltage for the half-cell curve. If not provided, it will be set to
+            the maximum voltage from the active materials' voltage cutoff range.
         """
-        for material in self._active_materials:
-            if isinstance(material, CathodeMaterial):
-                material.voltage_cutoff = voltage
-
         # Single-material shortcut
         if len(self._active_materials) == 1:
             material = next(iter(self._active_materials))
@@ -362,12 +297,12 @@ class _ElectrodeFormulation:
         for material, weight_frac in self._active_materials.items():
 
             df = material._half_cell_curve.copy()
-
             df['specific_capacity'] *= weight_frac
             df['specific_capacity_max'] *= weight_frac
 
-            charge_curve = df.query('direction == "charge"').sort_values(by='specific_capacity')
-            discharge_curve = df.query('direction == "discharge"').sort_values(by='specific_capacity')
+            ascending = True if isinstance(self, CathodeFormulation) else False
+            charge_curve = df.query('direction == "charge"').sort_values(by='specific_capacity', ascending=ascending)
+            discharge_curve = df.query('direction == "discharge"').sort_values(by='specific_capacity', ascending=ascending)
 
             charge_interp = np.interp(
                 v_charge_grid, 
@@ -426,18 +361,155 @@ class _ElectrodeFormulation:
     def name(self) -> Optional[str]:
         return self._name.replace("_", " ").title()
 
+    @name.setter
+    def name(self, name: str):
+
+        if not isinstance(name, str):
+            raise TypeError(f"Expected a string for name, got {type(name)}.")
+        if not name.strip():
+            raise ValueError("Name cannot be an empty string.")
+        
+        self._name = name
+
     @property
     def active_materials(self) -> Dict[_ActiveMaterial, float]:
         return {key: value * 100 for key, value in self._active_materials.items()}
     
+    @active_materials.setter
+    def active_materials(self, active_materials: Dict[_ActiveMaterial, float]):
+
+        if len(active_materials) == 0:
+            raise ValueError("You must include at least one active material in the formulation.")
+
+        for key, value in active_materials.items():
+
+            if not isinstance(key, _ActiveMaterial):
+                raise TypeError(f"Expected an instance of _ActiveMaterial, got {type(key)}.")
+            if not isinstance(value, (int, float)):
+                raise TypeError(f"Expected a numeric value for mass fraction, got {type(value)}.")
+            if value < 0 or value > 100:
+                raise ValueError(f"Mass fraction for {key.name} must be between 0 and 100, got {value}.")
+
+        if self._update_properties:
+            
+            try:
+                original = self._active_materials
+                self._active_materials = {key: value / 100 for key, value in active_materials.items()}
+                self._check_formulation()
+            except ValueError as e:
+                self._active_materials = original
+                raise e
+
+            self._get_properties()
+
+        else:
+            self._active_materials = {key: value / 100 for key, value in active_materials.items()}
+
+        voltage_cutoff_ranges = [material._voltage_cutoff_range for material in self._active_materials.keys()]
+        starts, ends = zip(*voltage_cutoff_ranges)
+        common_start = max(starts) if type(self) == CathodeFormulation else min(starts)
+        common_end = min(ends) if type(self) == CathodeFormulation else max(ends)
+
+        if (common_start <= common_end and type(self) == CathodeFormulation) or (common_start >= common_end and type(self) == AnodeFormulation):
+            self._voltage_cutoff_range = (common_start, common_end)
+        else:
+            raise ValueError("The active materials have incompatible voltage cutoff ranges.")
+
     @property
     def binders(self) -> Dict[Binder, float]:
-        return {key: value * 100 for key, value in self._binders.items()}
+        return {key: value * 100 for key, value in self._binders.items()} if self._binders != {} else {} 
     
+    @binders.setter
+    def binders(self, binders: Optional[Dict[Binder, float]] = None):
+
+        if binders != {}:        
+
+            for key, value in binders.items():
+                if not isinstance(key, Binder):
+                    raise TypeError(f"Expected an instance of Binder, got {type(key)}.")
+                if not isinstance(value, (int, float)):
+                    raise TypeError(f"Expected a numeric value for mass fraction, got {type(value)}.")
+                if value < 0 or value > 100:
+                    raise ValueError(f"Mass fraction for {key.name} must be between 0 and 100, got {value}.")
+        
+        if self._update_properties:
+
+            try:
+                original = self._binders
+                self._binders = {key: value / 100 for key, value in binders.items()}
+                self._check_formulation()
+            except ValueError as e:
+                self._binders = original
+                raise e
+
+            self._get_properties()
+
+        else:
+            self._binders = {key: value / 100 for key, value in binders.items()}
+
     @property
     def conductive_additives(self) -> Dict[ConductiveAdditive, float]:
-        return {key: value * 100 for key, value in self._conductive_additives.items()}
+        return {key: value * 100 for key, value in self._conductive_additives.items()} if self._conductive_additives != {} else {}
     
+    @conductive_additives.setter
+    def conductive_additives(self, conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None):
+
+        if conductive_additives != {}:
+
+            for key, value in conductive_additives.items():
+                if not isinstance(key, ConductiveAdditive):
+                    raise TypeError(f"Expected an instance of ConductiveAdditive, got {type(key)}.")
+                if not isinstance(value, (int, float)):
+                    raise TypeError(f"Expected a numeric value for mass fraction, got {type(value)}.")
+                if value < 0 or value > 100:
+                    raise ValueError(f"Mass fraction for {key.name} must be between 0 and 100, got {value}.")
+            
+        if self._update_properties:
+
+            try:
+                original = self._conductive_additives
+                self._conductive_additives = {key: value / 100 for key, value in conductive_additives.items()}
+                self._check_formulation()
+            except ValueError as e:
+                self._conductive_additives = original
+                raise e
+
+            self._get_properties()
+
+        else:
+            self._conductive_additives = {key: value / 100 for key, value in conductive_additives.items() if key is not None}
+
+    @property
+    def voltage_cutoff(self) -> float:
+        """
+        Get the maximum voltage of the half cell curves.
+        
+        :return: float: maximum voltage of the half cell curves
+        """
+        return round(float(self.half_cell_curves['Maximum Voltage (V)'].max()), 3)
+
+    @voltage_cutoff.setter
+    def voltage_cutoff(self, voltage: float):
+        """
+        Set the voltage cutoff for the half cell curves.
+        
+        :param voltage: float: maximum voltage of the half cell curves
+        """
+        if voltage is None:
+            voltage = max(self._voltage_cutoff_range) if type(self) == CathodeFormulation else min(self._voltage_cutoff_range)
+
+        if not isinstance(voltage, (float, int)):
+            raise ValueError("Voltage cutoff must be a float")
+        
+        if voltage < min(self.voltage_cutoff_range) or voltage > max(self.voltage_cutoff_range):
+            raise ValueError(f"Voltage cutoff must be within the range {self.voltage_cutoff_range}")
+        
+        # set the voltage cutoff for each active material
+        for material in self._active_materials:
+            material.voltage_cutoff = voltage
+
+        self._calculate_half_cell_curve(voltage)
+
     @property
     def density(self) -> float:
         return round(self._density * KG_TO_G / (M_TO_CM ** 3), 2)
@@ -461,9 +533,7 @@ class _ElectrodeFormulation:
         
         :return: tuple: (minimum voltage, maximum voltage)
         """
-        minimum = float(round(self._voltage_cutoff_range[0], 2))
-        maximum = float(round(self._voltage_cutoff_range[1], 2))
-        return (minimum, maximum)
+        return self._voltage_cutoff_range
 
     @property
     def half_cell_curve(self) -> pd.DataFrame:
@@ -511,49 +581,35 @@ class CathodeFormulation(_ElectrodeFormulation):
             active_materials: Dict[_ActiveMaterial, float], 
             binders: Optional[Dict[Binder, float]] = None, 
             conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None,
+            voltage_cutoff: Optional[float] = None,
             name: Optional[str] = 'Cathode Formulation'
         ):
         """
         Initialize a cathode formulation with active materials, binders, and conductive additives.
         
-        Parameters:
-        - active_materials (Dict[_ActiveMaterial, float]): Dictionary of active materials and their mass fractions in percent.
-        - binders (Optional[Dict[Binder, float]]): Dictionary of binders and their mass fractions in percent.
-        - conductive_additives (Optional[Dict[ConductiveAdditive, float]]): Dictionary of conductive additives and their mass fractions in percent.
-        - name (Optional[str]): Name of the cathode formulation.
+        Parameters
+        ----------
+        active_materials : Dict[_ActiveMaterial, float]
+            Dictionary of active materials and their mass fractions in percent.
+        binders : Optional[Dict[Binder, float]]
+            Dictionary of binders and their mass fractions in percent.
+        conductive_additives : Optional[Dict[ConductiveAdditive, float]]
+            Dictionary of conductive additives and their mass fractions in percent.
+        voltage_cutoff : Optional[float]
+            The maximum voltage for the half-cell curves. If not provided, it will be set to
+            the maximum voltage from the active materials' voltage cutoff range.
+        name : Optional[str]
+            Name of the cathode formulation. Defaults to 'Cathode Formulation'.
         """
         super().__init__(
             active_materials=active_materials, 
             binders=binders, 
             conductive_additives=conductive_additives, 
+            voltage_cutoff=voltage_cutoff,
             name=name
         )
 
-    @property
-    def voltage_cutoff(self) -> float:
-        """
-        Get the maximum voltage of the half cell curves.
-        
-        :return: float: maximum voltage of the half cell curves
-        """
-        return round(float(self.half_cell_curves['Maximum Voltage (V)'].max()), 3)
-
-    @voltage_cutoff.setter
-    def voltage_cutoff(self, voltage: float):
-        """
-        Set the voltage cutoff for the half cell curves.
-        
-        :param voltage: float: maximum voltage of the half cell curves
-        """
-        if not isinstance(voltage, (float, int)) or voltage <= 0:
-            raise ValueError("Voltage cutoff must be a positive float")
-        
-        if voltage < min(self.voltage_cutoff_range) or voltage > max(self.voltage_cutoff_range):
-            raise ValueError(f"Voltage cutoff must be within the range {self.voltage_cutoff_range}")
-        
-        self._calculate_half_cell_curve(voltage)
-        self._half_cell_curve = _ActiveMaterial.enforce_monotonicity(self._half_cell_curve, 'voltage')
-        self._half_cell_curve = _ActiveMaterial.enforce_monotonicity(self._half_cell_curve, 'specific_capacity')
+        self._update_properties = True
 
 
 class AnodeFormulation(_ElectrodeFormulation):
@@ -566,24 +622,33 @@ class AnodeFormulation(_ElectrodeFormulation):
             active_materials: Dict[_ActiveMaterial, float], 
             binders: Optional[Dict[Binder, float]] = None, 
             conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None,
+            voltage_cutoff: Optional[float] = None,
             name: Optional[str] = 'Anode Formulation'
         ):
         """
         Initialize an anode formulation with active materials, binders, and conductive additives.
         
-        Parameters:
-        - active_materials (Dict[_ActiveMaterial, float]): Dictionary of active materials and their mass fractions in percent.
-        - binders (Optional[Dict[Binder, float]]): Dictionary of binders and their mass fractions in percent.
-        - conductive_additives (Optional[Dict[ConductiveAdditive, float]]): Dictionary of conductive additives and their mass fractions in percent.
-        - name (Optional[str]): Name of the anode formulation.
+        Parameters
+        ----------
+        active_materials : Dict[_ActiveMaterial, float]
+            Dictionary of active materials and their mass fractions in percent.
+        binders : Optional[Dict[Binder, float]]
+            Dictionary of binders and their mass fractions in percent.
+        conductive_additives : Optional[Dict[ConductiveAdditive, float]]
+            Dictionary of conductive additives and their mass fractions in percent.
+        voltage_cutoff : Optional[float]
+            The maximum voltage for the half-cell curves. If not provided, it will be set to
+            the minimum voltage from the active materials' voltage cutoff range.
+        name : Optional[str]
+            Name of the anode formulation. Defaults to 'Anode Formulation'.
         """
         super().__init__(
             active_materials=active_materials, 
             binders=binders, 
             conductive_additives=conductive_additives, 
+            voltage_cutoff=voltage_cutoff,
             name=name
         )
-        self._calculate_half_cell_curve()
-        self._half_cell_curve = _ActiveMaterial.enforce_monotonicity(self._half_cell_curve, 'voltage')
-        self._half_cell_curve = _ActiveMaterial.enforce_monotonicity(self._half_cell_curve, 'specific_capacity')
+        
+        self._update_properties = True
 

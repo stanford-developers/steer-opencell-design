@@ -536,6 +536,7 @@ class _ActiveMaterial(_RawMaterial):
                 self
                 ._half_cell_curves
                 ['voltage_at_max_capacity']
+                .astype(float)
                 .iloc[0]
             )
 
@@ -817,11 +818,11 @@ class CathodeMaterial(_ActiveMaterial):
     def _calculate_half_cell_curves_properties(self) -> None:
 
         # calculate the maximum voltage range for the half cell curves 
-        self._maximum_voltage_cutoff = self._half_cell_curves['voltage_at_max_capacity'].max()
+        self._maximum_voltage_cutoff = float(self._half_cell_curves['voltage_at_max_capacity'].max())
 
         # calculate the minimum voltage range for interpolation of the curves
-        self._minimum_voltage_cutoff = self._half_cell_curves['voltage_at_max_capacity'].min()
-        
+        self._minimum_voltage_cutoff = float(self._half_cell_curves['voltage_at_max_capacity'].min())
+
         # calculate the minimum voltage range for extrapolation of the curves
         self._minimum_extrapolated_voltage = self._minimum_voltage_cutoff - self._extrapolation_window
 
@@ -841,7 +842,7 @@ class CathodeMaterial(_ActiveMaterial):
             raise ValueError(f"Voltage cutoff {voltage} V is less than the minimum extrapolated voltage of the half cell curves {self._minimum_extrapolated_voltage} V. Please set a higher voltage cutoff.")
         elif voltage < self._maximum_voltage_cutoff and voltage > self._minimum_voltage_cutoff:
             return False
-        elif voltage < self._minimum_voltage_cutoff and voltage > self._minimum_extrapolated_voltage:
+        elif voltage <= self._minimum_voltage_cutoff and voltage >= self._minimum_extrapolated_voltage:
             return True
         
     @staticmethod
@@ -956,7 +957,7 @@ class AnodeMaterial(_ActiveMaterial):
             raise ValueError(f"Voltage cutoff {voltage} V is greater than the minimum extrapolated voltage of the half cell curves {self._minimum_extrapolated_voltage} V. Please set a higher voltage cutoff.")
         elif voltage > self._maximum_voltage_cutoff and voltage < self._minimum_voltage_cutoff:
             return False
-        elif voltage > self._minimum_voltage_cutoff and voltage < self._minimum_extrapolated_voltage:
+        elif voltage >= self._minimum_voltage_cutoff and voltage <= self._minimum_extrapolated_voltage:
             return True
 
     @staticmethod
