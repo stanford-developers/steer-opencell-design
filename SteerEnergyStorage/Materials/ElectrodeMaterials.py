@@ -157,13 +157,13 @@ class _ActiveMaterial(_RawMaterial):
 
     def _apply_irreversible_capacity_scaling(self, scaling: float):
 
-        data = (self
-                ._half_cell_curve
-                .assign(
-                    specific_capacity = lambda x: x['specific_capacity'] * scaling,
-                    specific_capacity_max = lambda x: x['specific_capacity_max'] * scaling,
-                )
-                )
+        data = (
+            self
+            ._half_cell_curve
+            .assign(
+                specific_capacity = lambda x: x['specific_capacity'] * scaling,
+            )
+        )
         
         self._half_cell_curve = data
         
@@ -374,9 +374,25 @@ class _ActiveMaterial(_RawMaterial):
         new_discharge_row['specific_capacity'] = discharge_capacity_interp_value
         new_discharge_row['voltage'] = input_value
 
-        # Add the new rows to the charge and discharge curves
-        charge = pd.concat([charge, new_charge_row], ignore_index=True)
-        discharge = pd.concat([new_discharge_row, discharge], ignore_index=True)
+        # Add the new rows to the charge and discharge curves and select relevant columns
+        charge = (
+            pd
+            .concat(
+                [charge, new_charge_row], 
+                ignore_index=True
+            ).filter(
+                ['specific_capacity', 'voltage', 'direction']
+            )
+        )
+
+        discharge = (
+            pd
+            .concat(
+                [new_discharge_row, discharge], ignore_index=True
+            ).filter(
+                ['specific_capacity', 'voltage', 'direction']
+            )
+        )
 
         # Truncate curves to only include values below or equal to the voltage
         if type(self) == CathodeMaterial:
@@ -619,9 +635,6 @@ class _ActiveMaterial(_RawMaterial):
                 ._half_cell_curve
                 .assign(
                     specific_capacity = lambda x: x['specific_capacity'] * (S_TO_H * A_TO_mA / KG_TO_G),
-                    specific_capacity_max = lambda x: x['specific_capacity_max'] * (S_TO_H * A_TO_mA / KG_TO_G),
-                ).filter(
-                    items=['specific_capacity', 'voltage', 'direction']
                 )
                 .rename(
                     columns={
@@ -629,8 +642,8 @@ class _ActiveMaterial(_RawMaterial):
                         'voltage': 'Voltage (V)', 
                         'direction': 'Direction',
                         }
-                        )
                 )
+            )
         
         return data
 

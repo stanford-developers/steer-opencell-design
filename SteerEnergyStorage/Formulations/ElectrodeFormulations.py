@@ -254,17 +254,19 @@ class _ElectrodeFormulation:
         """
         # Single-material shortcut
         if len(self._active_materials) == 1:
+            
             material = next(iter(self._active_materials))
             weight_frac = self._active_materials[material]
+
             self._half_cell_curve = (
                 material
                 ._half_cell_curve
                 .copy()
                 .assign(
                     specific_capacity=lambda x: x['specific_capacity'] * weight_frac,
-                    specific_capacity_max=lambda x: x['specific_capacity_max'] * weight_frac
                 )
             )
+            
             return
 
         # Determine common charge/discharge voltage ranges
@@ -298,7 +300,6 @@ class _ElectrodeFormulation:
 
             df = material._half_cell_curve.copy()
             df['specific_capacity'] *= weight_frac
-            df['specific_capacity_max'] *= weight_frac
 
             ascending = True if isinstance(self, CathodeFormulation) else False
             charge_curve = df.query('direction == "charge"').sort_values(by='specific_capacity', ascending=ascending)
@@ -351,10 +352,6 @@ class _ElectrodeFormulation:
             final_df
             .sort_values(by=['direction', 'index_for_order'])
             .drop(columns='index_for_order')
-            .assign(
-                specific_capacity_max=lambda x: x['specific_capacity'],
-                voltage_max=lambda x: x['voltage'].max()
-            )
         )
 
     @property
@@ -501,7 +498,7 @@ class _ElectrodeFormulation:
         if not isinstance(voltage, (float, int)):
             raise ValueError("Voltage cutoff must be a float")
         
-        if voltage < min(self.voltage_cutoff_range) or voltage > max(self.voltage_cutoff_range):
+        if voltage < min(self._voltage_cutoff_range) or voltage > max(self._voltage_cutoff_range):
             raise ValueError(f"Voltage cutoff must be within the range {self.voltage_cutoff_range}")
         
         # set the voltage cutoff for each active material
@@ -533,7 +530,7 @@ class _ElectrodeFormulation:
         
         :return: tuple: (minimum voltage, maximum voltage)
         """
-        return self._voltage_cutoff_range
+        return (round(self._voltage_cutoff_range[0], 3), round(self._voltage_cutoff_range[1], 3))
 
     @property
     def half_cell_curve(self) -> pd.DataFrame:
@@ -545,9 +542,6 @@ class _ElectrodeFormulation:
                 ._half_cell_curve
                 .assign(
                     specific_capacity = lambda x: x['specific_capacity'] * (S_TO_H * A_TO_mA / KG_TO_G),
-                    specific_capacity_max = lambda x: x['specific_capacity_max'] * (S_TO_H * A_TO_mA / KG_TO_G),
-                ).filter(
-                    items=['specific_capacity', 'voltage', 'direction']
                 )
                 .rename(
                     columns={
