@@ -88,6 +88,7 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
 
         self.assertEqual(round(sum([a for a in self.cathode._mass_breakdown.values()]), 2), round(self.cathode._mass, 2))
         self.assertEqual(round(sum([a for a in self.cathode._cost_breakdown.values()]), 2), round(self.cathode._cost, 2))
+
         self.assertEqual(self.cathode.calender_density, 2.60)
         self.assertEqual(self.cathode.mass_loading, 10.68)
         self.assertEqual(self.cathode.insulation_thickness, 25)
@@ -95,14 +96,14 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         self.assertEqual(self.cathode.coating_thickness, 41.08)
         self.assertEqual(self.cathode.mass, 20.67)
 
-
     def test_half_cell_curve(self):
 
-        self.cathode.voltage_cuttoff = 4.3
-        figure = self.cathode.plot_half_cell_curve()
+        self.cathode.voltage_cutoff = 4
+        figure = self.cathode.plot_half_cell_curve(areal=True)
         # figure.show()
 
     def test_views(self):
+
         figure1 = self.cathode.get_a_side_view(width=900, height=600)
         figure2 = self.cathode.get_b_side_view(width=900, height=600)
         figure3 = self.cathode.get_end_view(width=900, height=600)
@@ -118,6 +119,8 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
         
         material1 = CathodeMaterial.from_database("LFP")
         material2 = CathodeMaterial.from_database("NMC811")
+        material2.extrapolation_window = 0.5
+
         conductive_additive = ConductiveAdditive.from_database("Super P")
         binder = Binder.from_database("PVDF")
 
@@ -159,9 +162,10 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
             insulation_thickness=10
         )
 
-        self.cathode.voltage_cuttoff = 4.1
+        self.cathode.voltage_cutoff = 4.1
 
     def test_electrodes(self):
+        
         self.assertTrue(isinstance(self.cathode, Cathode))
 
         self.assertTrue(

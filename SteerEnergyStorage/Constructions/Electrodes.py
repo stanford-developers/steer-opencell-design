@@ -226,29 +226,6 @@ class _Electrode:
             raise ValueError("Porosity cannot be negative. Check the mass fractions and densities of the components.")
 
         self._porosity = porosity
-    
-    def _calculate_half_cell_curve(self) -> None:
-        """
-        Calculate the half cell curve of the cathode.
-
-        Parameters:
-        ----------
-        voltage : float
-            The voltage cut-off for the half cell curve in volts.
-        """
-        data = (
-            self
-            ._formulation
-            ._half_cell_curve
-            .assign(
-                capacity = lambda x: x['specific_capacity'] * self._coating_mass,
-                areal_capacity = lambda x: x['capacity'] / (self._current_collector._coated_area),
-            ).drop(
-                columns=['specific_capacity_max', 'voltage_max', 'specific_capacity']
-            )
-        )
-
-        self._half_cell_curve = data
 
     def _get_top_down_view(self, side: str = 'a', **kwargs) -> pd.DataFrame:
         """
@@ -287,7 +264,7 @@ class _Electrode:
             If True, plot the areal capacity instead of the specific capacity (default is False).
         """
         if not hasattr(self, '_half_cell_curve'):
-            raise ValueError(f"A half cell curve for {self.name} has not been calculated yet. Please set a voltage cuttoff before plotting.")
+            raise ValueError(f"A half cell curve for {self.name} has not been calculated yet. Please set a voltage cutoff before plotting.")
 
         x = 'Capacity (Ah)' if not areal else 'Areal Capacity (mAh/cm²)'
 
@@ -385,6 +362,39 @@ class _Electrode:
         return figure
 
     @property
+    def voltage_cutoff(self) -> float:
+        """
+        Get the maximum voltage of the half cell curves.
+        
+        :return: float: maximum voltage of the half cell curves
+        """
+        return round(float(self.half_cell_curves['Maximum Voltage (V)'].max()), 3)
+
+    @voltage_cutoff.setter
+    def voltage_cutoff(self, voltage: float):
+        """
+        Set the voltage cutoff for the half cell curves.
+        
+        :param voltage: float: maximum voltage of the half cell curves
+        """
+        self._formulation.voltage_cutoff = voltage
+        self._voltage_cutoff = voltage
+        
+        data = (
+            self
+            ._formulation
+            ._half_cell_curve
+            .assign(
+                capacity = lambda x: x['specific_capacity'] * self._coating_mass,
+                areal_capacity = lambda x: x['capacity'] / (self._current_collector._coated_area),
+            ).drop(
+                columns=['specific_capacity_max', 'voltage_at_max_capacity', 'specific_capacity']
+            )
+        )
+
+        self._half_cell_curve = data
+
+    @property
     def properties(self) -> Dict[str, Any]:
         """
         Get the properties of the electrode.
@@ -440,7 +450,7 @@ class _Electrode:
     def half_cell_curve(self) -> pd.DataFrame:
 
         if not hasattr(self, '_half_cell_curve'):
-            raise ValueError(f"A half cell curve for {self.name} has not been calculated yet. Please set a voltage cuttoff or a maximum specific capacity before accessing this property.")
+            raise ValueError(f"A half cell curve for {self.name} has not been calculated yet. Please set a voltage cutoff or a maximum specific capacity before accessing this property.")
 
         data = (self
                 ._half_cell_curve
@@ -604,8 +614,6 @@ class Anode(_Electrode):
             insulation_thickness=insulation_thickness
         )
 
-        self._calculate_half_cell_curve()
-
         
 class Cathode(_Electrode):
     """
@@ -651,35 +659,6 @@ class Cathode(_Electrode):
             insulation_thickness=insulation_thickness
         )
 
-    def _calculate_half_cell_curve(self, voltage: float) -> None:
-        """
-        Calculate the half cell curve of the cathode.
-
-        Parameters:
-        ----------
-        voltage : float
-            The voltage cut-off for the half cell curve in volts.
-        """
-        self._formulation.voltage_cuttoff = voltage
-        super()._calculate_half_cell_curve()
-
-    @property
-    def voltage_cuttoff(self) -> float:
-        """
-        Get the maximum voltage of the half cell curves.
-        
-        :return: float: maximum voltage of the half cell curves
-        """
-        return round(float(self.half_cell_curves['Maximum Voltage (V)'].max()), 3)
-
-    @voltage_cuttoff.setter
-    def voltage_cuttoff(self, voltage: float):
-        """
-        Set the voltage cuttoff for the half cell curves.
-        
-        :param voltage: float: maximum voltage of the half cell curves
-        """
-        self._calculate_half_cell_curve(voltage)
 
 
     
