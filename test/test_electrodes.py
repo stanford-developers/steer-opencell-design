@@ -297,6 +297,6 @@ class testAnodeTabWelded(unittest.TestCase):
         figure2 = self.anode.get_b_side_view(width=900, height=600)
         figure3 = self.anode.get_end_view(width=900, height=600)
 
-        figure1.show()
-        figure2.show()
-        figure3.show()
+        # figure1.show()
+        # figure2.show()
+        # figure3.show()
