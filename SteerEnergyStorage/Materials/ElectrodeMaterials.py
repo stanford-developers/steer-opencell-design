@@ -435,10 +435,30 @@ class _ActiveMaterial(_RawMaterial):
         pd.DataFrame
             A DataFrame containing the half cell curve with columns 'specific_capacity', 'voltage', and 'direction'.
         """
-        if extrapolate_bool:
-            half_cell_curve = self._truncate_and_shift_curves(voltage_cutoff)
-        else: 
-            half_cell_curve = self._get_half_cell_interpolated_on_max_voltage(voltage_cutoff)
+        voltages_at_max_capacity = (
+            self
+            ._half_cell_curves
+            ['voltage_at_max_capacity']
+            .unique()
+        )
+
+        if voltage_cutoff in voltages_at_max_capacity:
+            
+            half_cell_curve = (
+                self
+                ._half_cell_curves
+                .query(
+                    'voltage_at_max_capacity == @voltage_cutoff'
+                ).filter(
+                    items=['specific_capacity', 'voltage', 'direction']
+                )
+            )
+
+        else:
+            if extrapolate_bool:
+                half_cell_curve = self._truncate_and_shift_curves(voltage_cutoff)
+            else: 
+                half_cell_curve = self._get_half_cell_interpolated_on_max_voltage(voltage_cutoff)
 
         return half_cell_curve
 
@@ -855,7 +875,7 @@ class CathodeMaterial(_ActiveMaterial):
             raise ValueError(f"Voltage cutoff {voltage} V is less than the minimum extrapolated voltage of the half cell curves {self._minimum_extrapolated_voltage} V. Please set a higher voltage cutoff.")
         elif voltage < self._maximum_voltage_cutoff and voltage > self._minimum_voltage_cutoff:
             return False
-        elif voltage <= self._minimum_voltage_cutoff and voltage >= self._minimum_extrapolated_voltage:
+        elif voltage <= self._maximum_voltage_cutoff and voltage >= self._minimum_extrapolated_voltage:
             return True
         
     @staticmethod
