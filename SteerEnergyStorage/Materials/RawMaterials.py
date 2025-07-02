@@ -249,3 +249,90 @@ class InsulationMaterial(_RawMaterial):
         return material
 
     
+class SeparatorMaterial(_RawMaterial):
+    """
+    Materials from which separators are made.
+    """
+    def __init__(
+            self,
+            name: str,
+            density: float,
+            specific_cost: float,
+            porosity: float,
+            color: str
+        ):
+        """
+        Separator material for encapsulation of the cell
+
+        Parameters
+        ----------
+        name : str
+            Name of the separator material.
+        density : float
+            Density of the material in g/cm^3.
+        specific_cost : float
+            Specific cost of the material in $/kg.
+        porosity : float
+            Porosity of the separator material in %.
+        color : str
+            Color of the material.
+        """
+        super().__init__(
+            name,
+            density,
+            specific_cost,
+            color
+        )
+
+        self.porosity = porosity
+
+    @property
+    def porosity(self):
+        return round(self._porosity * 100, 2)
+    
+    @porosity.setter
+    def porosity(self, porosity: float) -> None:
+
+        if not isinstance(porosity, (int, float)):
+            raise TypeError("Porosity must be a number.")
+        if porosity < 0 or porosity > 100:
+            raise ValueError("Porosity must be between 0 and 100%.")
+        
+        self._porosity = porosity / 100.0
+
+    @staticmethod
+    def from_database(name) -> 'SeparatorMaterial':
+        """
+        Pull object from the database.
+
+        Parameters
+        ----------
+        name : str
+            Name of the separator material.
+
+        Returns
+        -------
+        SeparatorMaterial: Instance of the class.
+
+        Raises
+        ------
+        ValueError: If the material is not found in the database.
+        """
+        database = DataManager((Path(__file__).parent / '../../Data/database.db').resolve())
+        available_materials = database.get_unique_values('separator_materials', 'name')
+
+        if name not in available_materials:
+            raise ValueError(f"Material '{name}' not found in the database. Available materials: {available_materials}")
+
+        data = (
+            database
+            .get_data(table_name='separator_materials')
+            .query(f"name == '{name}'")
+        )
+
+        material = deepcopy(loads(data['object'].iloc[0]))
+
+        return material
+
+
+
