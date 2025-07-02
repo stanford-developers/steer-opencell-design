@@ -11,7 +11,7 @@ from typing import Dict, Any
 import plotly.express as px
 import plotly.graph_objects as go
 
-
+# TODO: Add datum and voltage cutoff to the electrode class
 class _Electrode:
     """
     Base class for electrodes, representing the common properties and methods of an electrode.
@@ -24,12 +24,13 @@ class _Electrode:
             calender_density: float,
             insulation_material: InsulationMaterial = None,
             insulation_thickness: float = 0.0,
+            voltage_cutoff: float = None,
             name: str = 'Electrode'
         ):
         """
         Initialize an object that represents an electrode.
 
-        Parameters:
+        Parameters
         ----------
         formulation : _ElectrodeFormulation
             The formulation of the electrode, which includes active materials, binders, and conductive additives.
@@ -43,115 +44,28 @@ class _Electrode:
             The insulation material used in the electrode (default is None).
         insulation_thickness : float, optional
             The thickness of the insulation material in micrometers (default is 0.0).
+        voltage_cutoff : float, optional
+            The maximum voltage of the half cell curves (default is None).
         name : str, optional
             The name of the electrode (default is 'Electrode').
         ----------
         """
-        self._check_name(name)
-        self._check_formulation(formulation)
-        self._check_current_collector(current_collector)
-        self._check_mass_loading(mass_loading)
-        self._check_calender_density(calender_density)
-        self._check_insulation_material(insulation_material)
-        self._check_insulation_thickness(insulation_thickness)
+        self._update_properties = False
+
+        self.name = name
+        self.formulation = formulation
+        self.current_collector = current_collector
+        self.mass_loading = mass_loading
+        self.calender_density = calender_density
+        self.insulation_material = insulation_material
+        self.insulation_thickness = insulation_thickness
 
         self._calculate_porosity()
         self._calculate_thickness_properties()
         self._calculate_mass_properties()
         self._calculate_cost_properties()
 
-    def _check_insulation_material(self, insulation_material: InsulationMaterial) -> None:
-        """
-        Check if the insulation material is valid.
-
-        Parameters:
-        ----------
-        insulation_material : InsulationMaterial
-            The insulation material to check.
-
-        Raises:
-        -------
-        TypeError: If the insulation material is not an InsulationMaterial object.
-        ValueError: If the insulation material is not provided when the current collector has an insulation width.
-        ----------
-        """
-        if insulation_material is not None and not isinstance(insulation_material, InsulationMaterial):
-            raise TypeError("Insulation material must be an InsulationMaterial object")
-        
-        if self._current_collector._insulation_area != 0 and insulation_material is None:
-            raise ValueError("Insulation material must be provided if the current collector has an insulation width")
-        
-        if self._current_collector._insulation_area == 0 and insulation_material is not None:
-            raise ValueError("Insulation material cannot be provided if the current collector does not have an insulation area")
-        
-        self._insulation_material = insulation_material
-
-    def _check_insulation_thickness(self, insulation_thickness: float) -> None:
-        """
-        Check if the insulation thickness is valid.
-
-        Parameters:
-        ----------
-        insulation_thickness : float
-            The thickness of the insulation material in micrometers.
-        
-        Raises:
-        -------
-        TypeError: If the insulation thickness is not a number.
-        ValueError: If the insulation thickness is less than zero.
-        ----------
-        """
-        if not isinstance(insulation_thickness, (int, float)):
-            raise TypeError("Insulation thickness must be a number")
-        
-        if insulation_thickness < 0:
-            raise ValueError("Insulation thickness must be greater than or equal to zero")
-        
-        if self._insulation_material is not None and insulation_thickness == 0:
-            raise ValueError("Insulation thickness must be greater than zero if insulation material is provided")
-        
-        self._insulation_thickness = insulation_thickness * UM_TO_M
-
-    def _check_name(self, name: str) -> None:
-
-        if not isinstance(name, str):
-            raise TypeError("Name must be a string")
-        
-        self._name = name
-
-    def _check_formulation(self, formulation: _ElectrodeFormulation) -> None:
-
-        if not isinstance(formulation, _ElectrodeFormulation):
-            raise TypeError("Formulation must be an ElectrodeFormulation object")
-
-        self._formulation = formulation
-
-    def _check_current_collector(self, current_collector: _CurrentCollector) -> None:
-
-        if not isinstance(current_collector, _CurrentCollector):
-            raise TypeError("Current collector must be a CurrentCollector object")
-
-        self._current_collector = current_collector
-
-    def _check_mass_loading(self, mass_loading: float) -> None:
-
-        if not isinstance(mass_loading, (int, float)):
-            raise TypeError("Mass loading must be a number")
-
-        if mass_loading <= 0:
-            raise ValueError("Mass loading must be greater than zero")
-        
-        self._mass_loading = mass_loading * (MG_TO_KG / CM_TO_M**2)
-
-    def _check_calender_density(self, calender_density: float) -> None:
-
-        if not isinstance(calender_density, (int, float)):
-            raise TypeError("Calender density must be a number")
-
-        if calender_density <= 0:
-            raise ValueError("Calender density must be greater than zero")
-
-        self._calender_density = calender_density * (G_TO_KG / CM_TO_M**3)
+        self.voltage_cutoff = voltage_cutoff
 
     def _calculate_mass_properties(self) -> None:
         """
@@ -177,8 +91,8 @@ class _Electrode:
 
         self._cost_breakdown = (
             {k: float(v * self._coating_mass) for k, v in self._formulation._specific_cost_breakdown.items()} |
-            {self._current_collector.name: self._current_collector.cost} |
-            ({self._insulation_material.name: self._insulator_cost * self._insulator_mass} if self._insulation_material else {})
+            {self._current_collector.name: self._current_collector._cost} |
+            ({self._insulation_material.name: self._insulator_cost} if self._insulation_material else {})
         )
 
     def _calculate_thickness_properties(self) -> None:
@@ -194,11 +108,13 @@ class _Electrode:
         self._pore_volume = self._coating_volume * self._porosity
 
         if self._insulation_thickness > self._coating_thickness:
+
             raise ValueError(f"""Insulation thickness of {self.insulation_thickness} um cannot be 
                              greater than coating thickness of {self.coating_thickness}. Increase 
                              your mass loading or decrease insulation thickness.""")
         
         if self._coating_thickness < self._minimum_coating_thickness:
+
             raise ValueError(f"""Your caldender density of {self.calender_density} g/cm^3 is too high, 
                              leading to negative porosity. Decrease your calender density below 
                              {self._formulation._density} g/cm^3.""")
@@ -362,6 +278,29 @@ class _Electrode:
         return figure
 
     @property
+    def formulation(self) -> _ElectrodeFormulation:
+        """
+        Get the formulation of the electrode.
+
+        :return: Formulation of the electrode.
+        """
+        return self._formulation
+    
+    @formulation.setter
+    def formulation(self, formulation: _ElectrodeFormulation):
+
+        if not isinstance(formulation, _ElectrodeFormulation):
+            raise TypeError("Formulation must be an ElectrodeFormulation object")
+
+        self._formulation = formulation
+
+        if self._update_properties:
+            self._calculate_porosity()
+            self._calculate_thickness_properties()
+            self._calculate_mass_properties()
+            self._calculate_cost_properties()
+
+    @property
     def voltage_cutoff(self) -> float:
         """
         Get the maximum voltage of the half cell curves.
@@ -388,11 +327,51 @@ class _Electrode:
                 capacity = lambda x: x['specific_capacity'] * self._coating_mass,
                 areal_capacity = lambda x: x['capacity'] / (self._current_collector._coated_area),
             ).drop(
-                columns=['specific_capacity_max', 'voltage_at_max_capacity', 'specific_capacity']
+                columns=['specific_capacity']
             )
         )
 
         self._half_cell_curve = data
+
+    @property
+    def insulation_material(self) -> InsulationMaterial:
+        """
+        Get the insulation material of the electrode.
+
+        :return: Insulation material of the electrode.
+        """
+        return self._insulation_material
+    
+    @insulation_material.setter
+    def insulation_material(self, insulation_material: InsulationMaterial):
+        """
+        Check if the insulation material is valid.
+
+        Parameters:
+        ----------
+        insulation_material : InsulationMaterial
+            The insulation material to check.
+
+        Raises:
+        -------
+        TypeError: If the insulation material is not an InsulationMaterial object.
+        ValueError: If the insulation material is not provided when the current collector has an insulation width.
+        ----------
+        """
+        if insulation_material is not None and not isinstance(insulation_material, InsulationMaterial):
+            raise TypeError("Insulation material must be an InsulationMaterial object")
+        
+        if self._current_collector._insulation_area != 0 and insulation_material is None:
+            raise ValueError("Insulation material must be provided if the current collector has an insulation width")
+        
+        if self._current_collector._insulation_area == 0 and insulation_material is not None:
+            raise ValueError("Insulation material cannot be provided if the current collector does not have an insulation area")
+        
+        self._insulation_material = insulation_material
+
+        if self._update_properties:
+            self._calculate_mass_properties()
+            self._calculate_cost_properties()
 
     @property
     def properties(self) -> Dict[str, Any]:
@@ -418,6 +397,38 @@ class _Electrode:
         :return: Insulation thickness of the electrode in micrometers.
         """
         return round(self._insulation_thickness * M_TO_UM, 2)
+
+    @insulation_thickness.setter
+    def insulation_thickness(self, insulation_thickness: float):
+        """
+        Check if the insulation thickness is valid.
+
+        Parameters:
+        ----------
+        insulation_thickness : float
+            The thickness of the insulation material in micrometers.
+        
+        Raises:
+        -------
+        TypeError: If the insulation thickness is not a number.
+        ValueError: If the insulation thickness is less than zero.
+        ----------
+        """
+        if not isinstance(insulation_thickness, (int, float)):
+            raise TypeError("Insulation thickness must be a number")
+        
+        if insulation_thickness < 0:
+            raise ValueError("Insulation thickness must be greater than or equal to zero")
+        
+        if self._insulation_material is not None and insulation_thickness == 0:
+            raise ValueError("Insulation thickness must be greater than zero if insulation material is provided")
+        
+        self._insulation_thickness = insulation_thickness * UM_TO_M
+
+        if self._update_properties:
+            self._calculate_thickness_properties()
+            self._calculate_mass_properties()
+            self._calculate_cost_properties()
 
     @property
     def coating_thickness(self) -> float:
@@ -490,6 +501,21 @@ class _Electrode:
         """
         return round(self._calender_density * (KG_TO_G / M_TO_CM**3), 2)
 
+    @calender_density.setter
+    def calender_density(self, calender_density: float):
+
+        if not isinstance(calender_density, (int, float)):
+            raise TypeError("Calender density must be a number")
+
+        if calender_density <= 0:
+            raise ValueError("Calender density must be greater than zero")
+
+        self._calender_density = calender_density * (G_TO_KG / CM_TO_M**3)
+
+        if self._update_properties:
+            self._calculate_porosity()
+            self._calculate_thickness_properties()
+
     @property
     def mass_loading(self) -> float:
         """
@@ -499,6 +525,22 @@ class _Electrode:
         """
         return round(self._mass_loading * (KG_TO_MG / M_TO_CM**2), 2)
 
+    @mass_loading.setter
+    def mass_loading(self, mass_loading: float):
+
+        if not isinstance(mass_loading, (int, float)):
+            raise TypeError("Mass loading must be a number")
+
+        if mass_loading <= 0:
+            raise ValueError("Mass loading must be greater than zero")
+        
+        self._mass_loading = mass_loading * (MG_TO_KG / CM_TO_M**2)
+
+        if self._update_properties:
+            self._calculate_thickness_properties()
+            self._calculate_mass_properties()
+            self._calculate_cost_properties()
+
     @property
     def current_collector(self) -> _CurrentCollector:
         """
@@ -507,6 +549,20 @@ class _Electrode:
         :return: Current collector of the electrode.
         """
         return self._current_collector
+    
+    @current_collector.setter
+    def current_collector(self, current_collector: _CurrentCollector):
+
+        if not isinstance(current_collector, _CurrentCollector):
+            raise TypeError("Current collector must be a CurrentCollector object")
+
+        self._current_collector = current_collector
+
+        if self._update_properties:
+            self._calculate_porosity()
+            self._calculate_thickness_properties()
+            self._calculate_mass_properties()
+            self._calculate_cost_properties()
 
     @property
     def name(self) -> str:
@@ -516,6 +572,14 @@ class _Electrode:
         :return: Name of the electrode.
         """
         return self._name
+
+    @name.setter
+    def name(self, name: str):
+
+        if not isinstance(name, str):
+            raise TypeError("Name must be a string")
+        
+        self._name = name
 
     @property
     def coating_mass(self) -> float:
@@ -553,15 +617,6 @@ class _Electrode:
         """
         return round(self._cost, 2)
 
-    @property
-    def formulation(self) -> _ElectrodeFormulation:
-        """
-        Get the formulation of the electrode.
-
-        :return: Formulation of the electrode.
-        """
-        return self._formulation
-
     def __str__(self) -> str:
         return self._name
     
@@ -581,6 +636,7 @@ class Anode(_Electrode):
             calender_density: float,
             insulation_material: InsulationMaterial = None,
             insulation_thickness: float = 0.0,
+            voltage_cutoff: float = None,
             name: str = 'Anode'
         ):
         """
@@ -600,6 +656,8 @@ class Anode(_Electrode):
             The insulation material used in the anode (default is None).
         insulation_thickness : float, optional
             The thickness of the insulation material in micrometers (default is 0.0).
+        voltage_cutoff : float, optional
+            The maximum voltage of the half cell curves (default is None).
         name : str, optional
             The name of the anode (default is 'Anode').
         ----------
@@ -611,8 +669,11 @@ class Anode(_Electrode):
             calender_density=calender_density,
             name=name,
             insulation_material=insulation_material,
-            insulation_thickness=insulation_thickness
+            insulation_thickness=insulation_thickness,
+            voltage_cutoff=voltage_cutoff
         )
+
+        self._update_properties = True
 
         
 class Cathode(_Electrode):
@@ -627,6 +688,7 @@ class Cathode(_Electrode):
             calender_density: float,
             insulation_material: InsulationMaterial = None,
             insulation_thickness: float = 0.0,
+            voltage_cutoff: float = None,
             name: str = 'Cathode'
         ):
         """
@@ -646,6 +708,8 @@ class Cathode(_Electrode):
             The insulation material used in the cathode (default is None).
         insulation_thickness : float, optional
             The thickness of the insulation in micrometers (default is 0.0).
+        voltage_cutoff : float, optional
+            The maximum voltage of the half cell curves (default is None).
         name : str, optional
             The name of the cathode (default is 'Cathode').
         """
@@ -656,8 +720,11 @@ class Cathode(_Electrode):
             calender_density=calender_density,
             name=name,
             insulation_material=insulation_material,
-            insulation_thickness=insulation_thickness
+            insulation_thickness=insulation_thickness,
+            voltage_cutoff=voltage_cutoff
         )
+
+        self._update_properties = True
 
 
 

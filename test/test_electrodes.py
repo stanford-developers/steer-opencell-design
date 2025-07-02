@@ -83,7 +83,7 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
              'Super P': 0.01, 
              'Graphite': 0.0, 
              'Punched Current Collector': 0.01, 
-             'Aluminium Oxide, 95%': 0.0}
+             'Aluminium Oxide, 95%': 0.01}
         )
 
         self.assertEqual(round(sum([a for a in self.cathode._mass_breakdown.values()]), 2), round(self.cathode._mass, 2))
@@ -98,7 +98,7 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
 
     def test_half_cell_curve(self):
 
-        self.cathode.voltage_cutoff = 4
+        self.cathode.voltage_cutoff = 4.
         figure = self.cathode.plot_half_cell_curve(areal=True)
         # figure.show()
 
@@ -256,6 +256,8 @@ class testAnodeTabWelded(unittest.TestCase):
             calender_density=2.60
         )
 
+        self.anode.voltage_cutoff = 0.02
+
     def test_electrodes(self):
 
         self.assertTrue(isinstance(self.anode, Anode))
@@ -295,6 +297,6 @@ class testAnodeTabWelded(unittest.TestCase):
         figure2 = self.anode.get_b_side_view(width=900, height=600)
         figure3 = self.anode.get_end_view(width=900, height=600)
 
-        # figure1.show()
-        # figure2.show()
+        figure1.show()
+        figure2.show()
         figure3.show()
