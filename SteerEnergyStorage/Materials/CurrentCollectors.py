@@ -66,13 +66,19 @@ class _CurrentCollector(ABC):
         self._in_fill_pattern = dict(shape='\\', size=10, solidity=0.6, fgcolor=self._material._color)
 
     def _calculate_traces_and_areas(self) -> None:
+
         self._body_trace, self._body_area = self._get_body_trace()
         self._a_side_coated_area_trace, self._a_side_coated_area = self._get_a_side_coated_area_trace()
         self._b_side_coated_area_trace, self._b_side_coated_area = self._get_b_side_coated_area_trace()
         self._a_side_insulation_area_trace, self._a_side_insulation_area = self._get_a_side_insulation_area_trace()
         self._b_side_insulation_area_trace, self._b_side_insulation_area = self._get_b_side_insulation_area_trace()
+
         self._coated_area = self._a_side_coated_area + self._b_side_coated_area        
+        self._coated_width = max(self._a_side_coated_area_trace.y) - min(self._a_side_coated_area_trace.y)
         self._insulation_area = self._a_side_insulation_area + self._b_side_insulation_area
+
+        if hasattr(self, '_x_flipped') and self._x_flipped:
+            self._flip_on_x()
 
     def _calculate_bulk_properties(self) -> None:
         self._volume = self._body_area * self._thickness
@@ -103,6 +109,20 @@ class _CurrentCollector(ABC):
         )
 
         return trace
+
+    def _flip_on_x(self) -> None:
+
+        self._body_trace.y = [2*self._datum[1] - y for y in self._body_trace.y]
+        self._a_side_coated_area_trace.y = [2*self._datum[1] - y for y in self._a_side_coated_area_trace.y]
+        self._b_side_coated_area_trace.y = [2*self._datum[1] - y for y in self._b_side_coated_area_trace.y]
+
+        if self._a_side_insulation_area_trace is not None:
+            self._a_side_insulation_area_trace.y = [2*self._datum[1] - y for y in self._a_side_insulation_area_trace.y]
+
+        if self._b_side_insulation_area_trace is not None:
+            self._b_side_insulation_area_trace.y = [2*self._datum[1] - y for y in self._b_side_insulation_area_trace.y]
+
+        self._x_flipped = True
 
     def get_end_view(self, **kwargs) -> go.Figure:
         """
@@ -178,7 +198,11 @@ class _CurrentCollector(ABC):
         """
         Get the datum of the current collector.
         """
-        return self._datum
+        return (
+            round(self._datum[0] * M_TO_MM, 1),
+            round(self._datum[1] * M_TO_MM, 1),
+            round(self._datum[2] * M_TO_MM, 1)
+        )
 
     @datum.setter
     def datum(self, datum: Tuple[float, float, float]) -> None:
@@ -191,7 +215,11 @@ class _CurrentCollector(ABC):
         if not all(isinstance(coord, (int, float)) for coord in datum):
             raise TypeError("All coordinates in datum must be numbers.")
         
-        self._datum = (float(datum[0]) * MM_TO_M, float(datum[1]) * MM_TO_M, float(datum[2]) * MM_TO_M)
+        self._datum = (
+            float(datum[0]) * MM_TO_M, 
+            float(datum[1]) * MM_TO_M, 
+            float(datum[2]) * MM_TO_M
+        )
 
         if self._update_properties:
             self._calculate_all_properties()
@@ -504,6 +532,26 @@ class _TabbedCurrentCollector(_CurrentCollector):
     def total_height(self) -> float:
         return round(self._total_height * M_TO_MM, 2)
 
+    @property
+    def coated_width(self) -> float:
+        return round(self._coated_width * M_TO_MM, 2)
+    
+    @coated_width.setter
+    def coated_width(self, coated_width: float) -> None:
+
+        if not isinstance(coated_width, (int, float)):
+            raise TypeError("Coated width must be a number.")
+        
+        if coated_width < 0:
+            raise ValueError("Coated width cannot be negative.")
+        
+        self._coated_width = float(coated_width) * MM_TO_M
+        
+        if self._coated_width > self._y_body_length:
+            raise ValueError("Coated width cannot be greater than the width of the current collector.")
+        
+        if self._update_properties:
+            self._calculate_all_properties()
 
 class _TapeCurrentCollector(_CurrentCollector):
     """
@@ -808,7 +856,7 @@ class _TapeCurrentCollector(_CurrentCollector):
         if self._update_properties:
             self._calculate_all_properties()
 
-        
+  
 class PunchedCurrentCollector(_TabbedCurrentCollector):
     """
     A class representing a punched current collector used in z-fold and flat sheet cells
@@ -1644,9 +1692,10 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         ymin = self._datum[1] - self._y_body_length / 2
         ymax = ymin + self._y_body_length + self._tab_height
         ymid = (ymin + ymax) / 2
+
         fig.add_annotation(x=x, ax=x, y=ymax, ay=ymin, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
         fig.add_annotation(x=x, ax=x, y=ymin, ay=ymax, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-        fig.add_annotation(x=x, y=ymid, xref='x', yref='y', showarrow=False, xshift=-12, text=f'Height: {self.y_body_length} mm', textangle=-90)
+        fig.add_annotation(x=x, y=ymid, xref='x', yref='y', showarrow=False, xshift=-12, text=f'Height: {self.total_height} mm', textangle=-90)
 
         return fig
 
@@ -1666,27 +1715,6 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         fig = self._add_length_dimension(fig, pad=pad, aspect_ratio=aspect_ratio)
         fig = self._add_height_dimension(fig, pad=pad)
         return fig
-
-    @property
-    def coated_width(self) -> float:
-        return round(self._coated_width * M_TO_MM, 2)
-    
-    @coated_width.setter
-    def coated_width(self, coated_width: float) -> None:
-
-        if not isinstance(coated_width, (int, float)):
-            raise TypeError("Coated width must be a number.")
-        
-        if coated_width < 0:
-            raise ValueError("Coated width cannot be negative.")
-        
-        self._coated_width = float(coated_width) * MM_TO_M
-        
-        if self._coated_width > self._y_body_length:
-            raise ValueError("Coated width cannot be greater than the width of the current collector.")
-        
-        if self._update_properties:
-            self._calculate_all_properties()
 
     @property
     def width(self) -> float:

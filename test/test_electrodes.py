@@ -1,5 +1,6 @@
 import unittest
 import plotly.express as px
+import plotly.graph_objects as go
 from SteerEnergyStorage.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation
 from SteerEnergyStorage.Constructions.Electrodes import Cathode, Anode
 from SteerEnergyStorage.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
@@ -111,6 +112,28 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         # figure1.show()
         # figure2.show()
         # figure3.show()
+
+    def test_datum_setter(self):
+
+        figure1 = self.cathode.get_a_side_view(with_dimensions=False)
+        figurea = self.cathode.get_end_view()
+        
+        new_datum = (
+            self.cathode._current_collector.x_body_length,
+            self.cathode._current_collector.y_body_length,
+            self.cathode._thickness * 1e3
+        )
+
+        self.cathode.datum = new_datum
+
+        figure2 = self.cathode.get_a_side_view(with_dimensions=False)
+        figureb = self.cathode.get_end_view()
+
+        figure_top = go.Figure(data=figure1.data + figure2.data)
+        figure_end = go.Figure(data=figurea.data + figureb.data)
+        
+        # figure_top.show()
+        # figure_end.show()
 
 
 class TestCathodeTwoMaterialNotched(unittest.TestCase):

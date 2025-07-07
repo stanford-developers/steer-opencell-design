@@ -15,7 +15,7 @@ class Separator:
             self,  
             material: SeparatorMaterial,
             thickness: float, 
-            width: float = None,
+            width: float,
             length: float = None,
             name: str = 'Separator',
             datum: Tuple[float, float, float] = (0, 0, 0)
@@ -96,6 +96,7 @@ class Separator:
     def _calculate_traces(self):
         self._get_top_down_trace()
         self._get_side_view_trace()
+        self._get_end_view_trace()
 
     def _get_top_down_trace(self) -> go.Scatter:
         """
@@ -132,6 +133,38 @@ class Separator:
         )
 
         self._top_down_trace = trace
+
+    def _get_end_view_trace(self) -> go.Scatter:
+
+        if not hasattr(self, "_length") or self._length is None or \
+           not hasattr(self, "_width") or self._width is None or \
+           not hasattr(self, '_material') or self._material is None or \
+           not hasattr(self, '_datum') or self._datum is None or \
+           not hasattr(self, '_name') or self._name is None:
+
+            return None
+
+        if self._folded:
+            return None # TODO: Implement end view for folded separators
+        
+        coordinates = build_square_df(
+            x=self._datum[1] - self._width / 2,
+            y=self._datum[2] - self._thickness / 2,
+            x_width=self._width,
+            y_width=self._thickness
+        )
+
+        trace = go.Scatter(
+            x=coordinates['x'],
+            y=coordinates['y'],
+            mode='lines',
+            line=dict(color='black', width=1),
+            fill='toself',
+            fillcolor=self._material._color,
+            name=self._name
+        )
+
+        self._end_view_trace = trace
 
     def _get_side_view_trace(self) -> go.Scatter:
         """        
@@ -210,7 +243,6 @@ class Separator:
 
         self._areal_cost = float(areal_cost)
         self._material._specific_cost = self._areal_cost / (self.material.density * self.thickness)
-
         self._calculate_cost()
 
     @property
@@ -234,8 +266,7 @@ class Separator:
         if not all(isinstance(coord, (int, float)) for coord in datum):
             raise TypeError("All coordinates in the datum must be numbers.")
 
-        self._datum = tuple(float(coord) for coord in datum)
-
+        self._datum = tuple(float(coord * MM_TO_M) for coord in datum)
         self._calculate_traces()
 
     @property
@@ -291,10 +322,6 @@ class Separator:
 
     @width.setter
     def width(self, width: float) -> None:
-
-        if width is None:
-            self._width = None
-            return
 
         if not isinstance(width, (int, float)):
             raise TypeError("Width must be a number.")

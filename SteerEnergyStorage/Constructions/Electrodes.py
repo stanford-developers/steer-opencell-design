@@ -7,11 +7,11 @@ from SteerEnergyStorage.Utils import *
 
 import pandas as pd
 import numpy as np
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 import plotly.express as px
 import plotly.graph_objects as go
 
-# TODO: Add datum and voltage cutoff to the electrode class
+
 class _Electrode:
     """
     Base class for electrodes, representing the common properties and methods of an electrode.
@@ -25,7 +25,8 @@ class _Electrode:
             insulation_material: InsulationMaterial = None,
             insulation_thickness: float = 0.0,
             voltage_cutoff: float = None,
-            name: str = 'Electrode'
+            name: str = 'Electrode',
+            datum: Tuple[float, float, float] = (0.0, 0.0, 0.0)
         ):
         """
         Initialize an object that represents an electrode.
@@ -59,6 +60,7 @@ class _Electrode:
         self.calender_density = calender_density
         self.insulation_material = insulation_material
         self.insulation_thickness = insulation_thickness
+        self.datum = datum
 
         self._calculate_porosity()
         self._calculate_thickness_properties()
@@ -228,6 +230,7 @@ class _Electrode:
                 x_width=max(y_data) - min(y_data),
                 y_width=y_thickness
             )
+            
             figure.add_trace(
                 go.Scatter(
                     x=df['x'],
@@ -276,6 +279,32 @@ class _Electrode:
             )
 
         return figure
+
+    @property
+    def datum(self) -> Tuple[float, float, float]:
+        """
+        Get the datum of the electrode.
+
+        :return: Tuple containing the x, y, z coordinates of the electrode's datum.
+        """
+        return (
+            round(self._datum[0] * M_TO_MM, 1),
+            round(self._datum[1] * M_TO_MM, 1),
+            round(self._datum[2] * M_TO_MM, 1)
+        )
+    
+    @datum.setter
+    def datum(self, datum: Tuple[float, float, float]):
+        """
+        Set the datum of the electrode.
+
+        :param datum: Tuple containing the x, y, z coordinates of the electrode's datum.
+        """
+        if not isinstance(datum, tuple) or len(datum) != 3:
+            raise TypeError("Datum must be a tuple of three floats (x, y, z coordinates)")
+        
+        self._datum = tuple(d * MM_TO_M for d in datum)
+        self._current_collector.datum = datum
 
     @property
     def formulation(self) -> _ElectrodeFormulation:
@@ -675,7 +704,87 @@ class Anode(_Electrode):
 
         self._update_properties = True
 
+    @property
+    def top_overhang(self) -> float:
+        """
+        Get the top overhang of the anode when in a layup or stack.
+
+        :return: Top overhang of the anode in mm.
+        """
+        if hasattr(self, '_top_overhang'):
+            return round(self._top_overhang * M_TO_MM, 2)
+        else:
+            return
         
+    @top_overhang.setter
+    def top_overhang(self, top_overhang: float):
+        """
+        Set the top overhang of the anode when in a layup or stack.
+
+        :param top_overhang: Top overhang of the anode in mm.
+        """
+        if not isinstance(top_overhang, (int, float)):
+            raise TypeError("Top overhang must be a number")
+        
+        if top_overhang < 0:
+            raise ValueError("Top overhang must be greater than or equal to zero")
+        
+        if not hasattr(self, '_top_overhang'):
+            raise AttributeError("Top overhang has not been set yet. This indicates that the anode is not part of a layup or stack, and so the top overhang cannot be set.")
+        
+        old_top_overhang = self.top_overhang
+        new_top_overhang = top_overhang
+        overhang_difference = new_top_overhang - old_top_overhang
+
+        self.datum = (
+            self.datum[0],
+            self.datum[1] + overhang_difference,
+            self.datum[2]
+        )
+
+        self._top_overhang = new_top_overhang * MM_TO_M
+
+    @property
+    def bottom_overhang(self) -> float:
+        """
+        Get the bottom overhang of the anode when in a layup or stack.
+
+        :return: Bottom overhang of the anode in mm.
+        """
+        if hasattr(self, '_bottom_overhang'):
+            return round(self._bottom_overhang * M_TO_MM, 2)
+        else:
+            return
+        
+    @bottom_overhang.setter
+    def bottom_overhang(self, bottom_overhang: float):
+        """
+        Set the bottom overhang of the anode when in a layup or stack.
+
+        :param bottom_overhang: Bottom overhang of the anode in mm.
+        """
+        if not isinstance(bottom_overhang, (int, float)):
+            raise TypeError("Bottom overhang must be a number")
+        
+        if bottom_overhang < 0:
+            raise ValueError("Bottom overhang must be greater than or equal to zero")
+        
+        if not hasattr(self, '_bottom_overhang'):
+            raise AttributeError("Bottom overhang has not been set yet. This indicates that the anode is not part of a layup or stack, and so the bottom overhang cannot be set.")
+        
+        old_bottom_overhang = self.bottom_overhang
+        new_bottom_overhang = bottom_overhang
+        overhang_difference = new_bottom_overhang - old_bottom_overhang
+
+        self.datum = (
+            self.datum[0],
+            self.datum[1] - overhang_difference,
+            self.datum[2]
+        )
+
+        self._bottom_overhang = new_bottom_overhang * MM_TO_M
+
+
 class Cathode(_Electrode):
     """
     A class representing a cathode in a battery system, inheriting from the _Electrode base class.
