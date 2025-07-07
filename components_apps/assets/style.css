@@ -1,0 +1,27 @@
+/* Change the slider track color */
+.rc-slider-track {
+    background-color: #6c757d;
+}
+
+/* Change the slider handle color */
+.rc-slider-handle {
+    border: 2px solid #343a40;
+    background-color: #ffffff;
+}
+
+/* Change the slider dots color */
+.rc-slider-dot {
+    border-color: #a7a9aa;
+}
+
+/* Change the slider dots when active */
+.rc-slider-dot-active {
+    background-color: #343a40;
+}
+
+/* Change the slider handle color when focused or active */
+.rc-slider-handle:focus, .rc-slider-handle:active {
+    border-color: #343a40;
+    background-color: #ffffff; 
+    outline: none; 
+}
