@@ -6,18 +6,20 @@ from SteerEnergyStorage.Constants import *
 from App.styles import *
 
 from abc import ABC, abstractmethod
-from typing import Tuple, Optional, Iterable
+from typing import Tuple, Optional, Iterable, Dict
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
 from copy import deepcopy
+from pickle import dumps, loads
+import base64
+import numpy as np
 
 
 class _CurrentCollector(ABC):
     """
     Abstract base class for current collectors.
     """
-
     def __init__(
             self, 
             material: CurrentCollectorMaterial,
@@ -66,19 +68,13 @@ class _CurrentCollector(ABC):
         self._in_fill_pattern = dict(shape='\\', size=10, solidity=0.6, fgcolor=self._material._color)
 
     def _calculate_traces_and_areas(self) -> None:
-
         self._body_trace, self._body_area = self._get_body_trace()
         self._a_side_coated_area_trace, self._a_side_coated_area = self._get_a_side_coated_area_trace()
         self._b_side_coated_area_trace, self._b_side_coated_area = self._get_b_side_coated_area_trace()
         self._a_side_insulation_area_trace, self._a_side_insulation_area = self._get_a_side_insulation_area_trace()
         self._b_side_insulation_area_trace, self._b_side_insulation_area = self._get_b_side_insulation_area_trace()
-
         self._coated_area = self._a_side_coated_area + self._b_side_coated_area        
-        self._coated_width = max(self._a_side_coated_area_trace.y) - min(self._a_side_coated_area_trace.y)
         self._insulation_area = self._a_side_insulation_area + self._b_side_insulation_area
-
-        if hasattr(self, '_x_flipped') and self._x_flipped:
-            self._flip_on_x()
 
     def _calculate_bulk_properties(self) -> None:
         self._volume = self._body_area * self._thickness
@@ -110,20 +106,6 @@ class _CurrentCollector(ABC):
 
         return trace
 
-    def _flip_on_x(self) -> None:
-
-        self._body_trace.y = [2*self._datum[1] - y for y in self._body_trace.y]
-        self._a_side_coated_area_trace.y = [2*self._datum[1] - y for y in self._a_side_coated_area_trace.y]
-        self._b_side_coated_area_trace.y = [2*self._datum[1] - y for y in self._b_side_coated_area_trace.y]
-
-        if self._a_side_insulation_area_trace is not None:
-            self._a_side_insulation_area_trace.y = [2*self._datum[1] - y for y in self._a_side_insulation_area_trace.y]
-
-        if self._b_side_insulation_area_trace is not None:
-            self._b_side_insulation_area_trace.y = [2*self._datum[1] - y for y in self._b_side_insulation_area_trace.y]
-
-        self._x_flipped = True
-
     def get_end_view(self, **kwargs) -> go.Figure:
         """
         Returns a Plotly Figure representing the end view of the punched current collector.
@@ -143,6 +125,14 @@ class _CurrentCollector(ABC):
         )
 
         return fig
+    
+    def pickle(self) -> bytes:
+        """
+        Serialize the current collector object to bytes.
+        """
+        pickled = dumps(self)
+        based = base64.b64encode(pickled).decode('utf-8')
+        return based
 
     @abstractmethod
     def get_a_side_view(self, paper_bgcolor='white', plot_bgcolor='white', **kwargs) -> go.Figure:
@@ -198,11 +188,7 @@ class _CurrentCollector(ABC):
         """
         Get the datum of the current collector.
         """
-        return (
-            round(self._datum[0] * M_TO_MM, 1),
-            round(self._datum[1] * M_TO_MM, 1),
-            round(self._datum[2] * M_TO_MM, 1)
-        )
+        return self._datum
 
     @datum.setter
     def datum(self, datum: Tuple[float, float, float]) -> None:
@@ -215,11 +201,7 @@ class _CurrentCollector(ABC):
         if not all(isinstance(coord, (int, float)) for coord in datum):
             raise TypeError("All coordinates in datum must be numbers.")
         
-        self._datum = (
-            float(datum[0]) * MM_TO_M, 
-            float(datum[1]) * MM_TO_M, 
-            float(datum[2]) * MM_TO_M
-        )
+        self._datum = (float(datum[0]) * MM_TO_M, float(datum[1]) * MM_TO_M, float(datum[2]) * MM_TO_M)
 
         if self._update_properties:
             self._calculate_all_properties()
@@ -297,6 +279,21 @@ class _CurrentCollector(ABC):
             self._calculate_all_properties()
 
     @property
+    def thickness_range(self):
+        min = 1e-6
+        max = 20e-6
+        return (round(min * M_TO_UM, 2), round(max * M_TO_UM, 2))
+
+    @property
+    def thickness_marks(self) -> Dict[int, str]:
+        """
+        Get the thickness marks for the slider.
+        """
+        min_thickness = np.ceil(self.thickness_range[0])
+        max_thickness = np.floor(self.thickness_range[1])
+        return {i: '' for i in range(int(min_thickness), int(max_thickness) + 1, 10)}
+
+    @property
     def insulation_width(self) -> float:
         return round(self._insulation_width * M_TO_MM, 2)
 
@@ -313,6 +310,24 @@ class _CurrentCollector(ABC):
 
         if self._update_properties:
             self._calculate_traces_and_areas()
+
+    @property
+    def insulation_width_range(self) -> Tuple[float, float]:
+        """
+        Get the insulation width range in mm.
+        """
+        min = 0
+        max = self._y_body_length / 4
+        return (round(min * M_TO_MM, 2), round(max * M_TO_MM, 2))
+
+    @property
+    def insulation_width_marks(self) -> Dict[int, str]:
+        """
+        Get the insulation width marks for the slider.
+        """
+        min_insulation = np.ceil(self.insulation_width_range[0])
+        max_insulation = np.floor(self.insulation_width_range[1])
+        return {i: '' for i in range(int(min_insulation), int(max_insulation) + 1, 10)}
 
     @property
     def name(self) -> str:
@@ -346,7 +361,16 @@ class _CurrentCollector(ABC):
 
     @property
     def coated_area(self) -> float:
-        return round(self._coated_area * M_TO_CM**2, 2)
+        return round(self._coated_area * M_TO_CM**2, 1)
+
+    @property
+    def coated_area_marks(self) -> Dict[int, str]:
+        """
+        Get the coated area marks for the slider.
+        """
+        min_coated = np.ceil(self.coated_area_range[0])
+        max_coated = np.floor(self.coated_area_range[1])
+        return {i: '' for i in range(int(min_coated), int(max_coated) + 1, 1000)}
 
     @property
     def a_side_coated_area(self) -> float:
@@ -378,7 +402,7 @@ class _CurrentCollector(ABC):
 
     @property
     def cost(self) -> float:
-        return round(self._cost, 2)
+        return round(self._cost, 3)
     
     def __str__(self):
         return f"{self.__class__.__name__}"
@@ -490,6 +514,21 @@ class _TabbedCurrentCollector(_CurrentCollector):
             self._calculate_all_properties()
 
     @property
+    def tab_width_range(self) -> Tuple[float, float]:
+        min = 0.01
+        max = self._x_body_length
+        return (round(min * M_TO_MM, 2), round(max * M_TO_MM, 2))
+
+    @property
+    def tab_width_marks(self) -> Dict[int, str]:
+        """
+        Get the tab width marks for the slider.
+        """
+        min_tab_width = np.ceil(self.tab_width_range[0])
+        max_tab_width = np.floor(self.tab_width_range[1])
+        return {i: '' for i in range(int(min_tab_width), int(max_tab_width) + 1, 40)}
+
+    @property
     def tab_height(self) -> float:
         return round(self._tab_height * M_TO_MM, 2)
 
@@ -506,6 +545,21 @@ class _TabbedCurrentCollector(_CurrentCollector):
 
         if self._update_properties:
             self._calculate_all_properties()
+
+    @property
+    def tab_height_range(self) -> Tuple[float, float]:
+        min = 0.01
+        max = 0.1
+        return (round(min * M_TO_MM, 2), round(max * M_TO_MM, 2))
+
+    @property
+    def tab_height_marks(self) -> Dict[int, str]:
+        """
+        Get the tab height marks for the slider.
+        """
+        min_tab_height = np.ceil(self.tab_height_range[0])
+        max_tab_height = np.floor(self.tab_height_range[1])
+        return {i: '' for i in range(int(min_tab_height), int(max_tab_height) + 1, 40)}
 
     @property
     def coated_tab_height(self) -> float:
@@ -529,29 +583,60 @@ class _TabbedCurrentCollector(_CurrentCollector):
             self._calculate_all_properties()
 
     @property
+    def coated_tab_height_range(self) -> Tuple[float, float]:
+        min = 0
+        max = self._tab_height
+        return (round(min * M_TO_MM, 2), round(max * M_TO_MM, 2))
+
+    @property
+    def coated_tab_height_marks(self) -> Dict[int, str]:
+        """
+        Get the coated tab height marks for the slider.
+        """
+        min_coated_tab_height = np.ceil(self.coated_tab_height_range[0])
+        max_coated_tab_height = np.floor(self.coated_tab_height_range[1])
+        return {i: '' for i in range(int(min_coated_tab_height), int(max_coated_tab_height) + 1, 5)}
+
+    @property
     def total_height(self) -> float:
         return round(self._total_height * M_TO_MM, 2)
 
     @property
-    def coated_width(self) -> float:
-        return round(self._coated_width * M_TO_MM, 2)
-    
-    @coated_width.setter
-    def coated_width(self, coated_width: float) -> None:
+    def tab_position(self) -> float:
+        return round(self._tab_position * M_TO_MM, 1)
 
-        if not isinstance(coated_width, (int, float)):
-            raise TypeError("Coated width must be a number.")
+    @tab_position.setter
+    def tab_position(self, tab_position: float) -> None:
+
+        if not isinstance(tab_position, (int, float)):
+            raise TypeError("Tab position must be a number.")
         
-        if coated_width < 0:
-            raise ValueError("Coated width cannot be negative.")
+        self._tab_position = float(tab_position) * MM_TO_M
         
-        self._coated_width = float(coated_width) * MM_TO_M
+        if self._tab_position - self._tab_width / 2 < 0:
+            raise ValueError("Tab position cannot be less than half the tab width.")
         
-        if self._coated_width > self._y_body_length:
-            raise ValueError("Coated width cannot be greater than the width of the current collector.")
+        if self._tab_position + self._tab_width / 2 > self.x_body_length:
+            raise ValueError("Tab position plus half the tab width cannot be greater than the length of the current collector.")
         
         if self._update_properties:
             self._calculate_all_properties()
+
+    @property
+    def tab_position_range(self) -> Tuple[float, float]:
+        min = self._tab_width/2
+        max = self._x_body_length - self._tab_width/2
+        return (round(min * M_TO_MM, 1), round(max * M_TO_MM, 1))
+
+    @property
+    def tab_position_marks(self) -> Dict[int, str]:
+        """
+        Get the tab position marks for the slider.
+        """
+        min_tab_position = np.ceil(self.tab_position_range[0])
+        max_tab_position = np.floor(self.tab_position_range[1])
+        return {i: '' for i in range(int(min_tab_position), int(max_tab_position) + 1, 40)}
+
 
 class _TapeCurrentCollector(_CurrentCollector):
     """
@@ -856,7 +941,7 @@ class _TapeCurrentCollector(_CurrentCollector):
         if self._update_properties:
             self._calculate_all_properties()
 
-  
+        
 class PunchedCurrentCollector(_TabbedCurrentCollector):
     """
     A class representing a punched current collector used in z-fold and flat sheet cells
@@ -970,7 +1055,6 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         xmid = (xmin + xmax) / 2
         y = self._datum[1] - self._y_body_length/2 - pad * self._y_body_length
         fig.add_annotation(x=xmax, ax=xmin, y=y, ay=y, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-        fig.add_annotation(x=xmin, ax=xmax, y=y, ay=y, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
         fig.add_annotation(x=xmid, y=y, xref='x', yref='y', showarrow=False, yshift=-12, text=f'Width: {self.x_body_length} mm')
 
         # height line
@@ -979,11 +1063,10 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         ymax = ymin + self._y_body_length
         ymid = (ymin + ymax) / 2
         fig.add_annotation(x=x, ax=x, y=ymax, ay=ymin, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-        fig.add_annotation(x=x, ax=x, y=ymin, ay=ymax, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
         fig.add_annotation(x=x, y=ymid, xref='x', yref='y', showarrow=False, xshift=-12, text=f'Height: {self.y_body_length} mm', textangle=-90)
 
         # tab position line
-        y = self._datum[1] - self._y_body_length/2 + self._y_body_length + self._tab_height + (4 * pad * self._y_body_length)
+        y = self._datum[1] - self._y_body_length/2 + self._y_body_length + self._tab_height + (3 * pad * self._y_body_length)
         xmin = self._datum[0] - self._x_body_length / 2
         xmax = xmin + self._tab_position
         xmid = (xmin + xmax) / 2
@@ -996,7 +1079,6 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         xmax = xmin + self._tab_width
         xmid = (xmin + xmax) / 2
         fig.add_annotation(x=xmax, ax=xmin, y=y, ay=y, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-        fig.add_annotation(x=xmin, ax=xmax, y=y, ay=y, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
         fig.add_annotation(x=xmid, y=y, xref='x', yref='y', showarrow=False, yshift=12, text=f'Tab Width: {self.tab_width} mm')
 
         # tab height line 
@@ -1011,7 +1093,6 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         ymax = ymin + self._tab_height
         ymid = (ymin + ymax) / 2
         fig.add_annotation(x=x, ax=x, y=ymax, ay=ymin, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-        fig.add_annotation(x=x, ax=x, y=ymin, ay=ymax, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
         fig.add_annotation(x=x, y=ymid, xref='x', yref='y', showarrow=False, xshift=xshift, text=f'Tab Height: {self.tab_height} mm')
 
         return fig
@@ -1171,39 +1252,98 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         return fig
     
     def get_a_side_view(self, **kwargs) -> go.Figure:
-        return self._get_view(**kwargs)
+        return self._get_view(title='A Side View', **kwargs)
 
     def get_b_side_view(self, **kwargs) -> go.Figure:
-        return self._get_view(**kwargs)
+        return self._get_view(title='B Side View', **kwargs)
+
+    @property
+    def cost_range(self):
+        return (0, 1)
+
+    @property
+    def cost_marks(self) -> Dict[int, str]:
+        min_cost = np.ceil(self.cost_range[0])
+        max_cost = np.floor(self.cost_range[1])
+        return {i: '' for i in (0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)}
+
+    @property
+    def mass_range(self) -> Tuple[float, float]:
+        min = 1e-4
+        max = 202e-3
+        return (round(min * KG_TO_G, 2), round(max * KG_TO_G, 2))
+
+    @property
+    def mass_marks(self) -> Dict[int, str]:
+        min_mass = np.ceil(self.mass_range[0])
+        max_mass = np.floor(self.mass_range[1])
+        return {i: '' for i in range(int(min_mass), int(max_mass) + 1, 30)}
 
     @property
     def width(self) -> float:
         return self.x_body_length
     
+    @width.setter
+    def width(self, width: float) -> None:
+
+        if not isinstance(width, (int, float)):
+            raise TypeError("Width must be a number.")
+        
+        if width <= 0:
+            raise ValueError("Width cannot be negative or equal to 0.")
+        
+        self.x_body_length = width
+
+        if self._update_properties:
+            self._calculate_all_properties()
+
+    @property
+    def width_range(self) -> Tuple[float, float]:
+        min = 0.01
+        max = 0.8
+        return (round(min * M_TO_MM, 2), round(max * M_TO_MM, 2))
+
+    @property
+    def width_marks(self) -> Dict[int, str]:
+        min_width = np.ceil(self.width_range[0])
+        max_width = np.floor(self.width_range[1])
+        return {i: '' for i in range(int(min_width), int(max_width) + 1, 30)}
+
     @property
     def height(self) -> float:
         return self.y_body_length
 
-    @property
-    def tab_position(self) -> float:
-        return round(self._tab_position * M_TO_MM, 2)
+    @height.setter
+    def height(self, height: float) -> None:
 
-    @tab_position.setter
-    def tab_position(self, tab_position: float) -> None:
+        if not isinstance(height, (int, float)):
+            raise TypeError("Height must be a number.")
 
-        if not isinstance(tab_position, (int, float)):
-            raise TypeError("Tab position must be a number.")
-        
-        self._tab_position = float(tab_position) * MM_TO_M
-        
-        if self._tab_position - self._tab_width / 2 < 0:
-            raise ValueError("Tab position cannot be less than half the tab width.")
-        
-        if self._tab_position + self._tab_width / 2 > self.x_body_length:
-            raise ValueError("Tab position plus half the tab width cannot be greater than the length of the current collector.")
-        
+        if height <= 0:
+            raise ValueError("Height cannot be negative or equal to 0.")
+
+        self.y_body_length = height
+
         if self._update_properties:
             self._calculate_all_properties()
+
+    @property
+    def height_marks(self) -> Dict[int, str]:
+        min_height = np.ceil(self.height_range[0])
+        max_height = np.floor(self.height_range[1])
+        return {i: '' for i in range(int(min_height), int(max_height) + 1, 30)}
+
+    @property
+    def height_range(self) -> Tuple[float, float]:
+        min = 0.01
+        max = 0.8
+        return (round(min * M_TO_MM, 2), round(max * M_TO_MM, 2))
+
+    @property
+    def coated_area_range(self):
+        min = 0,
+        max = 1.4,
+        return (round(min[0] * M_TO_CM**2, 1), round(max[0] * M_TO_CM**2, 1))
 
 
 class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
@@ -1692,10 +1832,9 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         ymin = self._datum[1] - self._y_body_length / 2
         ymax = ymin + self._y_body_length + self._tab_height
         ymid = (ymin + ymax) / 2
-
         fig.add_annotation(x=x, ax=x, y=ymax, ay=ymin, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
         fig.add_annotation(x=x, ax=x, y=ymin, ay=ymax, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-        fig.add_annotation(x=x, y=ymid, xref='x', yref='y', showarrow=False, xshift=-12, text=f'Height: {self.total_height} mm', textangle=-90)
+        fig.add_annotation(x=x, y=ymid, xref='x', yref='y', showarrow=False, xshift=-12, text=f'Height: {self.y_body_length} mm', textangle=-90)
 
         return fig
 
@@ -1715,6 +1854,27 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         fig = self._add_length_dimension(fig, pad=pad, aspect_ratio=aspect_ratio)
         fig = self._add_height_dimension(fig, pad=pad)
         return fig
+
+    @property
+    def coated_width(self) -> float:
+        return round(self._coated_width * M_TO_MM, 2)
+    
+    @coated_width.setter
+    def coated_width(self, coated_width: float) -> None:
+
+        if not isinstance(coated_width, (int, float)):
+            raise TypeError("Coated width must be a number.")
+        
+        if coated_width < 0:
+            raise ValueError("Coated width cannot be negative.")
+        
+        self._coated_width = float(coated_width) * MM_TO_M
+        
+        if self._coated_width > self._y_body_length:
+            raise ValueError("Coated width cannot be greater than the width of the current collector.")
+        
+        if self._update_properties:
+            self._calculate_all_properties()
 
     @property
     def width(self) -> float:
@@ -2337,4 +2497,5 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
 
         if self._update_properties:
             self._calculate_all_properties()
+
 

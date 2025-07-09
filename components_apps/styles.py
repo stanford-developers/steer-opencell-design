@@ -7,12 +7,7 @@ DROPDOWN_STYLE = {'width': '50%'}
 BUTTON_STYLE = {'margin-left': '10px', 'background-color': 'white', 'border': '1px solid #ccc', 'padding': '5px 10px', 'cursor': 'pointer'}
 INPUT_STYLE = {'width': '16%', 'margin-left': '10px'}
 TEXT_INPUT_STYLE = {'width': '100%', 'margin-left': '10px', 'margin-bottom': '15px'}
-
-SEPARATOR_COLOR = "#FAF9D9"
-CATHODE_COLOR = "#8D3833"
-ANODE_COLOR = "#353535"
-CURRENT_COLLECTOR_COLOR = '#C0C0C0'
-LID_COLOR = "#8D8D8D"
+DIV_STYLE = {'margin-left': '20px', 'margin-right': '20px', 'width': 'calc(100)'}
 
 RIGHT_PANEL_COLOR = '#e3e5e6'
 
