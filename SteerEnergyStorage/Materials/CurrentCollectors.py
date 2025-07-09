@@ -1,7 +1,6 @@
 from SteerEnergyStorage.Materials.RawMaterials import CurrentCollectorMaterial
 
-from SteerEnergyStorage.Utils import get_area_from_trace
-from SteerEnergyStorage.Utils import build_square_df
+from SteerEnergyStorage.Utils import get_area_from_trace, build_square_df, rotate_coordinates
 from SteerEnergyStorage.Constants import *
 from App.styles import *
 
@@ -64,16 +63,29 @@ class _CurrentCollector(ABC):
         self.name = name
 
         # Shading patterns
-        self._am_fill_pattern = dict(shape='/', size=20, solidity=0.6, fgcolor=self._material._color)
-        self._in_fill_pattern = dict(shape='\\', size=10, solidity=0.6, fgcolor=self._material._color)
+        self._a_am_fill_pattern = dict(shape='/', size=20, solidity=0.6, fgcolor=self._material._color)
+        self._b_am_fill_pattern = dict(shape='\\', size=20, solidity=0.6, fgcolor=self._material._color)
+        self._a_in_fill_pattern = dict(shape='\\', size=10, solidity=0.6, fgcolor=self._material._color)
+        self._b_in_fill_pattern = dict(shape='/', size=10, solidity=0.6, fgcolor=self._material._color)
 
-    def _calculate_traces_and_areas(self) -> None:
-        self._body_trace, self._body_area = self._get_body_trace()
-        self._a_side_coated_area_trace, self._a_side_coated_area = self._get_a_side_coated_area_trace()
-        self._b_side_coated_area_trace, self._b_side_coated_area = self._get_b_side_coated_area_trace()
-        self._a_side_insulation_area_trace, self._a_side_insulation_area = self._get_a_side_insulation_area_trace()
-        self._b_side_insulation_area_trace, self._b_side_insulation_area = self._get_b_side_insulation_area_trace()
-        self._coated_area = self._a_side_coated_area + self._b_side_coated_area        
+    def _calculate_coordinates(self) -> None:
+        self._body_coordinates = self._get_body_coordinates()
+        self._a_side_coated_coordinates = self._get_a_side_coated_coordinates()
+        self._b_side_coated_coordinates = self._get_b_side_coated_coordinates()
+        self._a_side_insulation_coordinates = self._get_a_side_insulation_coordinates()
+        self._b_side_insulation_coordinates = self._get_b_side_insulation_coordinates()
+
+    def _calculate_areas(self) -> None:
+        self._body_a_side_area = get_area_from_trace(self._body_coordinates.query('side == "a"'))
+        self._body_b_side_area = get_area_from_trace(self._body_coordinates.query('side == "b"'))
+        self._body_area = self._body_a_side_area + self._body_b_side_area
+
+        self._a_side_coated_area = get_area_from_trace(self._a_side_coated_coordinates)
+        self._b_side_coated_area = get_area_from_trace(self._b_side_coated_coordinates)
+        self._coated_area = self._a_side_coated_area + self._b_side_coated_area
+
+        self._a_side_insulation_area = get_area_from_trace(self._a_side_insulation_coordinates)
+        self._b_side_insulation_area = get_area_from_trace(self._b_side_insulation_coordinates)
         self._insulation_area = self._a_side_insulation_area + self._b_side_insulation_area
 
     def _calculate_bulk_properties(self) -> None:
@@ -82,8 +94,50 @@ class _CurrentCollector(ABC):
         self._cost = self._mass * self._material._specific_cost     
 
     def _calculate_all_properties(self) -> None:
-        self._calculate_traces_and_areas()
+        self._calculate_coordinates()
+        self._calculate_areas()
         self._calculate_bulk_properties()
+
+    def _extrude_footprint(self, area_trace: pd.DataFrame) -> pd.DataFrame:
+        """
+        Extrude the footprint of the current collector to create the A and B side coordinates.
+        The A side is at z = datum[2] + thickness / 2 and the B side is at z = datum[2] - thickness / 2.
+        The notch height is set to the tab height.
+        The coordinates are returned as a DataFrame with columns ['x', 'y', 'z'].
+
+        Parameters
+        ----------
+        area_trace : pd.DataFrame
+            The area trace DataFrame to extrude.
+        """
+        # a side footprint
+        a_side_footprint = (
+            area_trace
+            .assign(
+                z = self._datum[2] + self._thickness / 2,
+                side = 'a'
+            )
+        )
+
+        # b side footprint
+        b_side_footprint = (
+            area_trace
+            .assign(
+                z = self._datum[2] - self._thickness / 2,
+                side = 'b'
+            )
+        )
+
+        # Concatenate the A and B side footprints
+        coordinates = (
+            pd
+            .concat(
+                [a_side_footprint, b_side_footprint],
+                ignore_index=True
+            )
+        )
+
+        return coordinates
 
     def _get_end_trace(self) -> go.Scatter:
         
@@ -105,6 +159,27 @@ class _CurrentCollector(ABC):
         )
 
         return trace
+
+    def flip(self, axis: str) -> pd.DataFrame:
+        
+        if axis not in ['x', 'y', 'z']:
+            raise ValueError("Axis must be 'x', 'y', or 'z'.")
+
+        # shift the datum to the origin
+        old_datum = self._datum
+        self._datum = (0, 0, 0)
+
+        # rotate the coordinates around the specified axis
+        self._body_coordinates = rotate_coordinates(self._body_coordinates, axis, 180)
+        self._a_side_coated_coordinates = rotate_coordinates(self._a_side_coated_coordinates, axis, 180)
+        self._b_side_coated_coordinates = rotate_coordinates(self._b_side_coated_coordinates, axis, 180)
+        self._a_side_insulation_coordinates = rotate_coordinates(self._a_side_insulation_coordinates, axis, 180)
+        self._b_side_insulation_coordinates = rotate_coordinates(self._b_side_insulation_coordinates, axis, 180)
+
+        # shift the datum back to its original position
+        self._datum = old_datum
+
+        return self
 
     def get_end_view(self, **kwargs) -> go.Figure:
         """
@@ -135,6 +210,13 @@ class _CurrentCollector(ABC):
         return based
 
     @abstractmethod
+    def _get_footprint(self) -> pd.DataFrame:
+        """
+        Get the footprint of the current collector.
+        """
+        pass
+
+    @abstractmethod
     def get_a_side_view(self, paper_bgcolor='white', plot_bgcolor='white', **kwargs) -> go.Figure:
         """
         Visualize the current collector.
@@ -149,35 +231,35 @@ class _CurrentCollector(ABC):
         pass
 
     @abstractmethod
-    def _get_body_trace(self) -> go.Scatter:
+    def _get_body_coordinates(self) -> go.Scatter:
         """
         Get the body trace of the current collector.
         """
         pass
 
     @abstractmethod
-    def _get_a_side_coated_area_trace(self) -> go.Scatter:
+    def _get_a_side_coated_coordinates(self) -> go.Scatter:
         """
         Get the coated area trace of the current collector.
         """
         pass
 
     @abstractmethod
-    def _get_b_side_coated_area_trace(self) -> go.Scatter:
+    def _get_b_side_coated_coordinates(self) -> go.Scatter:
         """
         Get the coated area trace of the current collector.
         """
         pass
 
     @abstractmethod
-    def _get_a_side_insulation_area_trace(self) -> go.Scatter:
+    def _get_a_side_insulation_coordinates(self) -> go.Scatter:
         """
         Get the insulation area trace of the current collector.
         """
         pass
 
     @abstractmethod
-    def _get_b_side_insulation_area_trace(self) -> go.Scatter:
+    def _get_b_side_insulation_coordinates(self) -> go.Scatter:
         """
         Get the insulation area trace of the current collector.
         """
@@ -188,7 +270,80 @@ class _CurrentCollector(ABC):
         """
         Get the datum of the current collector.
         """
-        return self._datum
+        return (
+            round(self._datum[0] * M_TO_MM, 2),
+            round(self._datum[1] * M_TO_MM, 2),
+            round(self._datum[2] * M_TO_MM, 2)
+        )
+
+    @property
+    def datum_x(self) -> float:
+        """
+        Get the x-coordinate of the datum in mm.
+        """
+        return round(self._datum[0] * M_TO_MM, 2)
+    
+    @property
+    def datum_x_range(self) -> Tuple[float, float]:
+        """
+        Get the x-coordinate range of the datum in mm.
+        """
+        return (-100, 100)
+    
+    @property
+    def datum_x_marks(self) -> Dict[int, str]:
+        """
+        Get the x-coordinate marks for the slider.
+        """
+        min_datum = np.ceil(self.datum_x_range[0])
+        max_datum = np.floor(self.datum_x_range[1])
+        return {i: '' for i in range(int(min_datum), int(max_datum) + 1, 20)}
+
+    @property
+    def datum_y(self) -> float:
+        """
+        Get the y-coordinate of the datum in mm.
+        """
+        return round(self._datum[1] * M_TO_MM, 2)
+
+    @property
+    def datum_y_range(self) -> Tuple[float, float]:
+        """
+        Get the y-coordinate range of the datum in mm.
+        """
+        return (-100, 100)
+    
+    @property
+    def datum_y_marks(self) -> Dict[int, str]:
+        """
+        Get the y-coordinate marks for the slider.
+        """
+        min_datum = np.ceil(self.datum_y_range[0])
+        max_datum = np.floor(self.datum_y_range[1])
+        return {i: '' for i in range(int(min_datum), int(max_datum) + 1, 20)}
+
+    @property
+    def datum_z(self) -> float:
+        """
+        Get the z-coordinate of the datum in mm.
+        """
+        return round(self._datum[2] * M_TO_MM, 2)
+
+    @property
+    def datum_z_range(self) -> Tuple[float, float]:
+        """
+        Get the z-coordinate range of the datum in mm.
+        """
+        return (-100, 100)
+    
+    @property
+    def datum_z_marks(self) -> Dict[int, str]:
+        """
+        Get the z-coordinate marks for the slider.
+        """
+        min_datum = np.ceil(self.datum_z_range[0])
+        max_datum = np.floor(self.datum_z_range[1])
+        return {i: '' for i in range(int(min_datum), int(max_datum) + 1, 20)}
 
     @datum.setter
     def datum(self, datum: Tuple[float, float, float]) -> None:
@@ -201,10 +356,47 @@ class _CurrentCollector(ABC):
         if not all(isinstance(coord, (int, float)) for coord in datum):
             raise TypeError("All coordinates in datum must be numbers.")
         
-        self._datum = (float(datum[0]) * MM_TO_M, float(datum[1]) * MM_TO_M, float(datum[2]) * MM_TO_M)
+        self._datum = (
+            float(datum[0]) * MM_TO_M, 
+            float(datum[1]) * MM_TO_M, 
+            float(datum[2]) * MM_TO_M
+        )
 
         if self._update_properties:
-            self._calculate_all_properties()
+            self._calculate_coordinates()
+
+    @datum_x.setter
+    def datum_x(self, x: float) -> None:
+        """
+        Set the x-coordinate of the datum, converting mm to m.
+        """
+        self.datum = (
+            x,
+            self.datum_y,
+            self.datum_z
+        )
+
+    @datum_y.setter
+    def datum_y(self, y: float) -> None:
+        """
+        Set the y-coordinate of the datum, converting mm to m.
+        """
+        self.datum = (
+            self.datum_x,
+            y,
+            self.datum_z
+        )
+
+    @datum_z.setter
+    def datum_z(self, z: float) -> None:
+        """
+        Set the z-coordinate of the datum, converting mm to m.
+        """
+        self.datum = (
+            self.datum_x,
+            self.datum_y,
+            z
+        )
 
     @property
     def material(self) -> CurrentCollectorMaterial:
@@ -222,7 +414,7 @@ class _CurrentCollector(ABC):
         self._material = material
 
         if self._update_properties:
-            self._calculate_all_properties()
+            self._calculate_bulk_properties()
 
     @property
     def x_body_length(self) -> float:
@@ -276,7 +468,8 @@ class _CurrentCollector(ABC):
         self._thickness = float(thickness) * UM_TO_M
 
         if self._update_properties:
-            self._calculate_all_properties()
+            self._calculate_coordinates()
+            self._calculate_bulk_properties()
 
     @property
     def thickness_range(self):
@@ -309,7 +502,8 @@ class _CurrentCollector(ABC):
         self._insulation_width = float(insulation_width) * MM_TO_M
 
         if self._update_properties:
-            self._calculate_traces_and_areas()
+            self._calculate_coordinates()
+            self._calculate_areas()
 
     @property
     def insulation_width_range(self) -> Tuple[float, float]:
@@ -377,20 +571,105 @@ class _CurrentCollector(ABC):
         return round(self._a_side_coated_area * M_TO_CM**2, 2)
     
     @property
+    def a_side_coated_coordinates(self) -> pd.DataFrame:
+        """
+        Get the A side coated coordinates of the current collector.
+        """
+        return (
+            self
+            ._a_side_coated_coordinates
+            .filter(
+                ['x', 'y', 'z']
+            ).assign(
+                x = lambda x: (x['x'] * M_TO_MM).round(10),
+                y = lambda x: (x['y'] * M_TO_MM).round(10),
+                z = lambda x: (x['z'] * M_TO_MM).round(10)
+            )
+        )
+
+    @property
     def b_side_coated_area(self) -> float:
         return round(self._b_side_coated_area * M_TO_CM**2, 2)
+
+    @property
+    def b_side_coated_coordinates(self) -> pd.DataFrame:
+        """
+        Get the B side coated coordinates of the current collector.
+        """
+        return (
+            self
+            ._b_side_coated_coordinates
+            .filter(
+                ['x', 'y', 'z']
+            ).assign(
+                x = lambda x: (x['x'] * M_TO_MM).round(10),
+                y = lambda x: (x['y'] * M_TO_MM).round(10),
+                z = lambda x: (x['z'] * M_TO_MM).round(10)
+            )
+        )
 
     @property
     def body_area(self) -> float:
         return round(self._body_area * M_TO_CM**2, 2)
 
     @property
+    def body_coordinates(self) -> pd.DataFrame:
+        """
+        Get the body coordinates of the current collector.
+        """
+        return (
+            self
+            ._body_coordinates
+            .filter(
+                ['x', 'y', 'z', 'side']
+            ).assign(
+                x = lambda x: (x['x'] * M_TO_MM).round(10),
+                y = lambda x: (x['y'] * M_TO_MM).round(10),
+                z = lambda x: (x['z'] * M_TO_MM).round(10)
+            )
+        )
+
+    @property
     def a_side_insulation_area(self) -> float:
         return round(self._a_side_insulation_area * M_TO_CM**2, 2)
-    
+
+    @property
+    def a_side_insulation_coordinates(self) -> pd.DataFrame:
+        """
+        Get the A side insulation coordinates of the current collector.
+        """
+        return (
+            self
+            ._a_side_insulation_coordinates
+            .filter(
+                ['x', 'y', 'z']
+            ).assign(
+                x = lambda x: (x['x'] * M_TO_MM).round(10),
+                y = lambda x: (x['y'] * M_TO_MM).round(10),
+                z = lambda x: (x['z'] * M_TO_MM).round(10)
+            )
+        )
+
     @property
     def b_side_insulation_area(self) -> float:
         return round(self._b_side_insulation_area * M_TO_CM**2, 2)
+
+    @property
+    def b_side_insulation_coordinates(self) -> pd.DataFrame:
+        """
+        Get the B side insulation coordinates of the current collector.
+        """
+        return (
+            self
+            ._b_side_insulation_coordinates
+            .filter(
+                ['x', 'y', 'z']
+            ).assign(
+                x = lambda x: (x['x'] * M_TO_MM).round(10),
+                y = lambda x: (x['y'] * M_TO_MM).round(10),
+                z = lambda x: (x['z'] * M_TO_MM).round(10)
+            )
+        )
 
     @property
     def insulation_area(self) -> float:
@@ -470,27 +749,6 @@ class _TabbedCurrentCollector(_CurrentCollector):
         self.tab_height = tab_height
         self.coated_tab_height = coated_tab_height
         self._total_height = self._y_body_length + self._tab_height
-
-    def _get_end_trace(self) -> go.Scatter:
-        
-        coordinates = build_square_df(
-            x=self._datum[1] - self._y_body_length / 2,
-            y=self._datum[2] - self._thickness / 2,
-            x_width=self._y_body_length + self._tab_height,
-            y_width=self._thickness
-        )
-
-        trace = go.Scatter(
-            x=coordinates['x'], 
-            y=coordinates['y'], 
-            mode='lines', 
-            name='End', 
-            line=dict(width=1, color='black'), 
-            fillcolor=self._material._color, 
-            fill='toself'
-        )
-
-        return trace
 
     @property
     def tab_width(self) -> float:
@@ -580,7 +838,8 @@ class _TabbedCurrentCollector(_CurrentCollector):
             raise ValueError("Covered tab height on the top side cannot be greater than the tab height.")
         
         if self._update_properties:
-            self._calculate_all_properties()
+            self._calculate_coordinates()
+            self._calculate_areas()
 
     @property
     def coated_tab_height_range(self) -> Tuple[float, float]:
@@ -620,7 +879,7 @@ class _TabbedCurrentCollector(_CurrentCollector):
             raise ValueError("Tab position plus half the tab width cannot be greater than the length of the current collector.")
         
         if self._update_properties:
-            self._calculate_all_properties()
+            self._calculate_coordinates()
 
     @property
     def tab_position_range(self) -> Tuple[float, float]:
@@ -1003,6 +1262,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         
         self.tab_position = tab_position
         self._calculate_all_properties()
+
         self._update_properties = True
 
     def _get_footprint(
@@ -1097,25 +1357,20 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
         return fig
 
-    def _get_body_trace(self) -> go.Scatter:
+    def _get_body_coordinates(self) -> go.Scatter:
 
-        body_coordinates = self._get_footprint(notch_height=self._tab_height)
+        body_coordinates = (
+            self
+            ._get_footprint(notch_height=self._tab_height)
+            .pipe(self._extrude_footprint)
+        )
 
-        trace = go.Scatter(
-            x=body_coordinates['x'], 
-            y=body_coordinates['y'], 
-            mode='lines', 
-            name='Body', 
-            line=dict(width=1, color='black'), 
-            fillcolor=self._material._color, 
-            fill='toself'
-            )
-        
-        area = get_area_from_trace(trace)
-
-        return trace, area
+        return body_coordinates
     
-    def _get_coated_area_trace(self) -> go.Scatter:
+    def _get_coated_area_coordinates(self, side: str) -> go.Scatter:
+
+        if side not in ['a', 'b']:
+            raise ValueError("Side must be 'a' or 'b'.")
 
         _y_coat_end = self._y_body_length + self._coated_tab_height - self._insulation_width
 
@@ -1126,32 +1381,28 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
             notch = 0
             y_depth = _y_coat_end
 
-        coated_area = self._get_footprint(
-            notch_height=notch, 
-            y_depth=y_depth
+        coated_area_coordinates = (
+            self
+            ._get_footprint(
+                notch_height=notch,
+                y_depth=y_depth
+            ).assign(
+                z = self._body_coordinates.query('side == @side')['z'].values[0],
+                side = side
             )
-
-        trace = go.Scatter(
-            x=coated_area['x'], 
-            y=coated_area['y'], 
-            mode='lines', 
-            name='Coated Area', 
-            line=dict(width=1, color='black'), 
-            fillcolor='black', 
-            fill='toself', 
-            fillpattern=self._am_fill_pattern
         )
 
-        area = get_area_from_trace(trace)
-        
-        return trace, area
+        return coated_area_coordinates
 
-    def _get_insulation_area_trace(self) -> go.Scatter:
+    def _get_insulation_coordinates(self, side: str) -> go.Scatter:
         """
         Returns a Plotly Scatter trace representing the insulation area.
         The shape depends on whether the insulation is entirely above, below,
         or straddling the body length.
         """
+        if side not in ['a', 'b']:
+            raise ValueError("Side must be 'a' or 'b'.")
+
         _y_insulation_start = self._datum[1] + self._y_body_length/2 + self._coated_tab_height - self._insulation_width
         _y_insulation_end = _y_insulation_start + self._insulation_width
 
@@ -1189,73 +1440,140 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
                 y_start=self._y_body_length + self._coated_tab_height - self._insulation_width
             )
 
-        trace = go.Scatter(
-            x=insulation_area['x'],
-            y=insulation_area['y'],
-            mode='lines',
-            name='Insulation Strip',
-            line=dict(width=1, color='black'),
-            fill='toself',
-            fillcolor='white',
-            fillpattern=self._in_fill_pattern
+        insulation_coordinates = (
+            insulation_area
+            .assign(
+                z = self._body_coordinates.query('side == @side')['z'].values[0],
+                side = side
+            )
         )
 
-        area = get_area_from_trace(trace)
+        return insulation_coordinates
 
-        return trace, area
-
-    def _get_a_side_insulation_area_trace(self) -> go.Scatter:
+    def _get_a_side_insulation_coordinates(self) -> go.Scatter:
         """
         Returns a Plotly Scatter trace representing the insulation area on the B side.
         The B side is the same as the A side in this case.
         """
-        return self._get_insulation_area_trace()
+        return self._get_insulation_coordinates(side='a')
     
-    def _get_b_side_insulation_area_trace(self) -> go.Scatter:
+    def _get_b_side_insulation_coordinates(self) -> go.Scatter:
         """
         Returns a Plotly Scatter trace representing the insulation area on the B side.
         The B side is the same as the A side in this case.
         """
-        return self._get_insulation_area_trace()
+        return self._get_insulation_coordinates(side='b')
 
-    def _get_a_side_coated_area_trace(self) -> go.Scatter:
+    def _get_a_side_coated_coordinates(self) -> go.Scatter:
         """
         Returns a Plotly Scatter trace representing the coated area on the A side.
         """
-        return self._get_coated_area_trace()
+        return self._get_coated_area_coordinates(side='a')
     
-    def _get_b_side_coated_area_trace(self) -> go.Scatter:
+    def _get_b_side_coated_coordinates(self) -> go.Scatter:
         """
         Returns a Plotly Scatter trace representing the coated area on the B side.
         The B side is the same as the A side in this case.
         """
-        return self._get_coated_area_trace()
+        return self._get_coated_area_coordinates(side='b')
 
-    def _get_view(self, with_dimensions: bool = True, **kwargs) -> go.Figure:
+    def get_top_down_view(self, with_dimensions: bool = False, **kwargs) -> go.Figure:
 
+        # initiate figure
         fig = go.Figure()
-        fig.add_trace(self._body_trace)
-        fig.add_trace(self._a_side_coated_area_trace)
-        fig.add_trace(self._a_side_insulation_area_trace)
+
+        # get the side with the maximum z value
+        body_coordinates = self.body_coordinates.query('z == z.max()')
+
+        # make the body trace
+        body_trace = go.Scatter(
+            x=body_coordinates['x'],
+            y=body_coordinates['y'],
+            mode='lines',
+            name='Body',
+            line=dict(color='black', width=1),
+            fill='toself',
+            fillcolor=self._material.color,
+            legendgroup='Body',
+            showlegend=True
+        )
+
+        # figure out which side that is
+        side = body_coordinates['side'].values[0]
+
+        # get the coordinates for the coated area and insulation area
+        if side == 'a':
+            coated_area_coordinates = self.a_side_coated_coordinates
+            insulation_area_coordinates = self.a_side_insulation_coordinates
+        else:
+            coated_area_coordinates = self.b_side_coated_coordinates
+            insulation_area_coordinates = self.b_side_insulation_coordinates
+
+        # make the coated area trace
+        coated_area_trace = go.Scatter(
+            x=coated_area_coordinates['x'], 
+            y=coated_area_coordinates['y'], 
+            mode='lines', 
+            name='Coated Area', 
+            line=dict(width=1, color='black'), 
+            fillcolor='black', 
+            fill='toself', 
+            fillpattern=self._a_am_fill_pattern if side == 'a' else self._b_am_fill_pattern,
+        )
+
+        # make the insulation area trace
+        insulation_area_trace = go.Scatter(
+            x=insulation_area_coordinates['x'],
+            y=insulation_area_coordinates['y'],
+            mode='lines',
+            name='Insulation Area',
+            line=dict(color='black', width=1),
+            fill='toself',
+            fillcolor='white',
+            legendgroup='Insulation Area',
+            showlegend=True,
+            fillpattern=self._a_in_fill_pattern if side == 'a' else self._b_in_fill_pattern,
+        )
+
+        # add traces to the figure
+        fig.add_trace(body_trace)
+        fig.add_trace(coated_area_trace)
+        fig.add_trace(insulation_area_trace)
 
         if with_dimensions:
             fig = self._add_dimensions(fig=fig)
 
         fig.update_layout(
-            xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='', showticklabels=False),
-            yaxis=dict(showgrid=False, zeroline=False, title='', showticklabels=False),
+            xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title=''),
+            yaxis=dict(showgrid=False, zeroline=False, title=''),
             paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
             plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
+            title=kwargs.get('title', f'Top Down View, {side.upper()} Side'),
             **kwargs
         )
 
         return fig
     
     def get_a_side_view(self, **kwargs) -> go.Figure:
-        return self._get_view(title='A Side View', **kwargs)
+
+        top_side = self._body_coordinates.query('z == z.max()')['side'].values[0]
+
+        if top_side == 'a':
+            return self.get_top_down_view(**kwargs)
+        else:
+            raise ValueError("A side is not the top side of the current collector.")
 
     def get_b_side_view(self, **kwargs) -> go.Figure:
-        return self._get_view(title='B Side View', **kwargs)
+
+        top_side = self._body_coordinates.query('z == z.max()')['side'].values[0]
+
+        if top_side == 'b':
+            return self.get_top_down_view(**kwargs)
+        else:
+            self.flip('y')
+            figure = self.get_top_down_view(**kwargs)
+            self.flip('y')
+            return figure
 
     @property
     def cost_range(self):

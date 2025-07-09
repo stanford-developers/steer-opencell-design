@@ -63,3 +63,43 @@ def build_square_df(x: float, y: float, x_width: float, y_width: float) -> pd.Da
         'y': [y, y + y_width, y + y_width, y, y]
     })
 
+def rotate_coordinates(df: pd.DataFrame, axis: str, angle: float) -> pd.DataFrame:
+    """
+    Rotate the 3D coordinates ('x', 'y', 'z') in a DataFrame around the specified axis.
+
+    :param df: DataFrame containing at least 'x', 'y', 'z' columns
+    :param axis: Axis to rotate around ('x', 'y', or 'z')
+    :param angle: Angle in degrees
+    :return: A new DataFrame with rotated coordinates and other columns unchanged
+    """
+    angle_rad = np.radians(angle)
+    cos_a = np.cos(angle_rad)
+    sin_a = np.sin(angle_rad)
+
+    if axis == 'x':
+        R = np.array([[1, 0, 0],
+                      [0, cos_a, -sin_a],
+                      [0, sin_a, cos_a]])
+    elif axis == 'y':
+        R = np.array([[cos_a, 0, sin_a],
+                      [0, 1, 0],
+                      [-sin_a, 0, cos_a]])
+    elif axis == 'z':
+        R = np.array([[cos_a, -sin_a, 0],
+                      [sin_a, cos_a, 0],
+                      [0, 0, 1]])
+    else:
+        raise ValueError("Axis must be 'x', 'y', or 'z'.")
+
+    # Copy DataFrame to avoid modifying in-place
+    df_rotated = df.copy()
+
+    # Perform rotation
+    coords = df[['x', 'y', 'z']].to_numpy()
+    rotated_coords = coords @ R.T
+
+    # Assign rotated values back
+    df_rotated[['x', 'y', 'z']] = rotated_coords
+
+    return df_rotated
+
