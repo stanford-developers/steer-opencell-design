@@ -211,6 +211,44 @@ cathode_punched_design_parameters = ds.html.Div(
             title = 'Coated Area (both sides) (cm²)'
         )(),
 
+        
+        ds.html.Br(), ds.html.Br(),
+        ds.html.H5('Datums', style={'font-weight': 'bold'}),
+        ds.html.Br(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'punched_current_collector'},
+            min_val = 0,
+            max_val = 1,
+            step = 0.001,
+            mark_interval = 0.2,
+            property_name = 'datum_x',
+            slider_disable = False,
+            title = 'X (mm)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'punched_current_collector'},
+            min_val = 0,
+            max_val = 1,
+            step = 0.001,
+            mark_interval = 0.2,
+            property_name = 'datum_y',
+            slider_disable = False,
+            title = 'Y (mm)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'punched_current_collector'},
+            min_val = 0,
+            max_val = 1,
+            step = 0.01,
+            mark_interval = 0.2,
+            property_name = 'datum_z',
+            slider_disable = False,
+            title = 'Z (mm)'
+        )(),
+
     ]
 )
 
@@ -271,6 +309,15 @@ cathode_current_collector_layout = ds.html.Div([
     cathode_plots,
     
 ], style={'display': 'flex', 'flex-direction': 'row', 'padding': '20px', 'width': 'calc(100%)'})
+
+
+
+
+
+
+
+
+
 
 
 anode_current_collector_layout = ds.html.Div([

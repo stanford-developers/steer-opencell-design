@@ -23,6 +23,9 @@ PUNCHED_PARAMETER_LIST = [
     'cost',
     'mass',
     'coated_area',
+    'datum_x',
+    'datum_y',
+    'datum_z',
 ]
 
 CC_MATERIAL_PARAMETER_LIST = [
@@ -53,7 +56,6 @@ def update_punched_current_collector(
     input_values,
     slider_values
 ):
-    print('triggered')
     try:
         material = cache.get(current_collector_material_data['cache_key'])
         triggered_id = ctx.triggered_id
@@ -152,6 +154,8 @@ def update_cathode_current_collector_design_parameters(design):
         Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
         Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'min'),
         Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'max'),
+        Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'input'}, 'min'),
+        Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'input'}, 'max'),
         Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'marks')
     ],
     [
@@ -176,7 +180,8 @@ def update_punched_current_collector(
         # Handle material updates
         if triggered_id == 'cathode_current_collector_material_store':
             material = cache.get(material_data['cache_key'])
-            current_collector.material = material
+            property = 'material'
+            value = material
 
         # Handle slider/input updates
         elif isinstance(triggered_id, dict) and 'property' in triggered_id:
@@ -184,10 +189,6 @@ def update_punched_current_collector(
             property_index = PUNCHED_PARAMETER_LIST.index(property)
             value = slider_values[property_index] if triggered_id['subtype'] == 'slider' else input_values[property_index]
             current_collector.__setattr__(property, value)
-
-        # Update cache and generate parameter list
-        new_cc_key = str(uuid4())
-        cache.set(new_cc_key, current_collector)
 
         parameter_list = [current_collector.__getattribute__(param) for param in PUNCHED_PARAMETER_LIST]
         min_values = [current_collector.__getattribute__(f"{param}_range")[0] for param in PUNCHED_PARAMETER_LIST]
@@ -206,10 +207,16 @@ def update_punched_current_collector(
 
         marks_list = [current_collector.__getattribute__(f"{param}_marks") for param in PUNCHED_PARAMETER_LIST]
 
+        # Update cache and generate parameter list
+        new_cc_key = str(uuid4())
+        cache.set(new_cc_key, current_collector)
+
         return (
             {'cache_key': new_cc_key},
             parameter_list,
             parameter_list,
+            min_values,
+            max_values,
             min_values,
             max_values,
             marks_list,
