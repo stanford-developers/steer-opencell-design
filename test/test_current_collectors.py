@@ -1,4 +1,6 @@
 import unittest
+from pickle import loads, dumps
+from base64 import b64decode, b64encode 
 from SteerEnergyStorage.Materials.RawMaterials import CurrentCollectorMaterial
 from SteerEnergyStorage.Materials.CurrentCollectors import PunchedCurrentCollector, NotchedCurrentCollector, TablessCurrentCollector, WeldTab, TabWeldedCurrentCollector
 
@@ -57,8 +59,8 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         self.current_collector.datum = (100, 50, 0)
         fig_b = self.current_collector.get_top_down_view()
 
-        fig_a.show()
-        fig_b.show()
+        # fig_a.show()
+        # fig_b.show()
         
         self.assertTrue(True)
 
@@ -68,10 +70,28 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         fig_a = self.current_collector.get_top_down_view()
         fig_b = self.current_collector.flip('y').get_top_down_view()
 
-        fig_a.show()
-        fig_b.show()
+        # fig_a.show()
+        # fig_b.show()
 
         self.assertTrue(True)
+
+    def test_pickle_unpickle(self):
+        
+        serialized = dumps(self.current_collector)
+        encoded = b64encode(serialized).decode('utf-8')
+        decoded = b64decode(encoded)
+        deserialized = loads(decoded)
+
+        self.assertEqual(self.current_collector.mass, deserialized.mass)
+        self.assertEqual(self.current_collector.cost, deserialized.cost)
+        self.assertEqual(self.current_collector.material.name, deserialized.material.name)
+        self.assertEqual(self.current_collector.width, deserialized.width)
+        self.assertEqual(self.current_collector.height, deserialized.height)
+
+    def test_setters(self):
+
+        self.current_collector.width = 200
+        self.assertEqual(self.current_collector.width, 200)
 
 
 class TestNotchedCurrentCollector(unittest.TestCase):
