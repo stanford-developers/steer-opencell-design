@@ -48,6 +48,7 @@ class SliderWithTextInput:
             step=self.step,
             disabled=self.slider_disable,
             marks={int(i): "" for i in np.arange(self.min_val, self.max_val + self.mark_interval, self.mark_interval)},
+            updatemode='mouseup'
         )
 
     def _make_input(self):

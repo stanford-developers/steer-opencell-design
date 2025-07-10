@@ -13,6 +13,7 @@ from copy import deepcopy
 from pickle import dumps, loads
 import base64
 import numpy as np
+import time
 
 
 class _CurrentCollector(ABC):
@@ -69,6 +70,7 @@ class _CurrentCollector(ABC):
         self._b_in_fill_pattern = dict(shape='/', size=10, solidity=0.6, fgcolor=self._material._color)
 
     def _calculate_coordinates(self) -> None:
+
         self._body_coordinates = self._get_body_coordinates()
         self._a_side_coated_coordinates = self._get_a_side_coated_coordinates()
         self._b_side_coated_coordinates = self._get_b_side_coated_coordinates()
@@ -94,6 +96,7 @@ class _CurrentCollector(ABC):
         self._cost = self._mass * self._material._specific_cost     
 
     def _calculate_all_properties(self) -> None:
+
         self._calculate_coordinates()
         self._calculate_areas()
         self._calculate_bulk_properties()
@@ -161,7 +164,14 @@ class _CurrentCollector(ABC):
         return trace
 
     def flip(self, axis: str) -> pd.DataFrame:
-        
+        """
+        Function to rotate the current collector around a specified axis by 180 degrees.
+
+        Parameters
+        ----------
+        axis : str
+            The axis to rotate around. Must be 'x', 'y', or 'z'.
+        """
         if axis not in ['x', 'y', 'z']:
             raise ValueError("Axis must be 'x', 'y', or 'z'.")
 
@@ -468,8 +478,7 @@ class _CurrentCollector(ABC):
         self._thickness = float(thickness) * UM_TO_M
 
         if self._update_properties:
-            self._calculate_coordinates()
-            self._calculate_bulk_properties()
+            self._calculate_all_properties()
 
     @property
     def thickness_range(self):
@@ -511,8 +520,12 @@ class _CurrentCollector(ABC):
         Get the insulation width range in mm.
         """
         min = 0
-        max = self._y_body_length / 4
-        return (round(min * M_TO_MM, 2), round(max * M_TO_MM, 2))
+        max = self._y_body_length / 4 - 0.01
+        
+        return (
+            round(min * M_TO_MM, 1), 
+            round(max * M_TO_MM, 1)
+            )
 
     @property
     def insulation_width_marks(self) -> Dict[int, str]:
@@ -558,6 +571,14 @@ class _CurrentCollector(ABC):
         return round(self._coated_area * M_TO_CM**2, 1)
 
     @property
+    def coated_area_range(self):
+
+        return (
+            round(0 * M_TO_CM**2, 1), 
+            round(self._body_area * M_TO_CM**2, 1)
+        )
+
+    @property
     def coated_area_marks(self) -> Dict[int, str]:
         """
         Get the coated area marks for the slider.
@@ -565,6 +586,15 @@ class _CurrentCollector(ABC):
         min_coated = np.ceil(self.coated_area_range[0])
         max_coated = np.floor(self.coated_area_range[1])
         return {i: '' for i in range(int(min_coated), int(max_coated) + 1, 1000)}
+
+    @property
+    def insulation_area_marks(self) -> Dict[int, str]:
+        """
+        Get the insulation area marks for the slider.
+        """
+        min_insulation = np.ceil(self.insulation_area_range[0])
+        max_insulation = np.floor(self.insulation_area_range[1])
+        return {i: '' for i in range(int(min_insulation), int(max_insulation) + 1, 1000)}
 
     @property
     def a_side_coated_area(self) -> float:
@@ -806,9 +836,14 @@ class _TabbedCurrentCollector(_CurrentCollector):
 
     @property
     def tab_height_range(self) -> Tuple[float, float]:
+
         min = 0.01
-        max = 0.1
-        return (round(min * M_TO_MM, 2), round(max * M_TO_MM, 2))
+        max = self._y_body_length / 4 - 0.01
+
+        return (
+            round(min * M_TO_MM, 1), 
+            round(max * M_TO_MM, 1)
+        )
 
     @property
     def tab_height_marks(self) -> Dict[int, str]:
@@ -843,9 +878,14 @@ class _TabbedCurrentCollector(_CurrentCollector):
 
     @property
     def coated_tab_height_range(self) -> Tuple[float, float]:
+
         min = 0
-        max = self._tab_height
-        return (round(min * M_TO_MM, 2), round(max * M_TO_MM, 2))
+        max = self._tab_height / 2 - 0.1*MM_TO_M
+
+        return (
+            round(min * M_TO_MM, 1), 
+            round(max * M_TO_MM, 1)
+        )
 
     @property
     def coated_tab_height_marks(self) -> Dict[int, str]:
@@ -883,8 +923,8 @@ class _TabbedCurrentCollector(_CurrentCollector):
 
     @property
     def tab_position_range(self) -> Tuple[float, float]:
-        min = self._tab_width/2
-        max = self._x_body_length - self._tab_width/2
+        min = self._tab_width/2 + 0.1*MM_TO_M
+        max = self._x_body_length - self._tab_width/2 - 0.1*MM_TO_M
         return (round(min * M_TO_MM, 1), round(max * M_TO_MM, 1))
 
     @property
@@ -1197,9 +1237,6 @@ class _TapeCurrentCollector(_CurrentCollector):
         
         self.y_body_length = width
 
-        if self._update_properties:
-            self._calculate_all_properties()
-
         
 class PunchedCurrentCollector(_TabbedCurrentCollector):
     """
@@ -1222,7 +1259,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         """
         Initialize an object that represents a punched current collector.
         
-        Parameters:
+        Parameters
         ----------
         material: CurrentCollectorMaterial
             Material of the current collector.
@@ -1273,39 +1310,47 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         ) -> pd.DataFrame:
         """
         Get the footprint of the current collector.
-
-        :param start_position: Tuple[float, float]: starting position of the current collector in mm, default is (-x_body_length/2, -y_body_length/2)
-        :param notch_height: float: height of the notch in mm, default is self.tab_height
         """
-        y_depth = self._y_body_length if y_depth is None else y_depth
-        
-        x_steps = [0, 
-                   self._tab_position - self._tab_width/2, 
-                   0, 
-                   self._tab_width, 
-                   0, 
-                   self._x_body_length - self._tab_position - self._tab_width/2, 
-                   0, 
-                   -self._x_body_length]
-        
-        y_steps = [y_depth,
-                   0,
-                   notch_height,
-                   0,
-                   -notch_height,
-                   0,
-                   -y_depth,
-                   0]
-        
-        start_position = (self._datum[0] - self._x_body_length / 2, self._datum[1] - self._y_body_length / 2 + y_start)
-        coordinates = [start_position]
-        
-        for x, y in zip(x_steps, y_steps):
-            new_x = coordinates[-1][0] + x
-            new_y = coordinates[-1][1] + y
-            coordinates.append((new_x, new_y))
+        # Cache attribute access
+        x_len = self._x_body_length
+        y_len = self._y_body_length
+        tab_pos = self._tab_position
+        tab_width = self._tab_width
+        datum_x, datum_y, datum_z = self._datum
 
-        return pd.DataFrame(coordinates, columns=['x', 'y'])
+        y_depth = y_len if y_depth is None else y_depth
+        notch_height = self._tab_height if notch_height is None else notch_height
+
+        start_x = datum_x - x_len / 2
+        start_y = datum_y - y_len / 2 + y_start
+
+        x_steps = np.array([
+            0,
+            tab_pos - tab_width / 2,
+            0,
+            tab_width,
+            0,
+            x_len - tab_pos - tab_width / 2,
+            0,
+            -x_len
+        ])
+
+        y_steps = np.array([
+            y_depth,
+            0,
+            notch_height,
+            0,
+            -notch_height,
+            0,
+            -y_depth,
+            0
+        ])
+
+        # Cumulative sum to get coordinates
+        x_coords = np.cumsum(np.insert(x_steps, 0, start_x))
+        y_coords = np.cumsum(np.insert(y_steps, 0, start_y))
+
+        return pd.DataFrame({'x': x_coords, 'y': y_coords})
 
     def _add_dimensions(self, fig: go.Figure, pad: float = 0.05) -> go.Figure:
 
@@ -1359,12 +1404,8 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
     def _get_body_coordinates(self) -> go.Scatter:
 
-        body_coordinates = (
-            self
-            ._get_footprint(notch_height=self._tab_height)
-            .pipe(self._extrude_footprint)
-        )
-
+        footprint = self._get_footprint(notch_height=self._tab_height)
+        body_coordinates = self._extrude_footprint(footprint)
         return body_coordinates
     
     def _get_coated_area_coordinates(self, side: str) -> go.Scatter:
@@ -1514,7 +1555,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
             x=coated_area_coordinates['x'], 
             y=coated_area_coordinates['y'], 
             mode='lines', 
-            name='Coated Area', 
+            name='A Side Coated Area' if side == 'a' else 'B Side Coated Area', 
             line=dict(width=1, color='black'), 
             fillcolor='black', 
             fill='toself', 
@@ -1526,7 +1567,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
             x=insulation_area_coordinates['x'],
             y=insulation_area_coordinates['y'],
             mode='lines',
-            name='Insulation Area',
+            name='A Side Insulation Area' if side == 'a' else 'B Side Insulation Area',
             line=dict(color='black', width=1),
             fill='toself',
             fillcolor='white',
@@ -1548,7 +1589,6 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
             yaxis=dict(showgrid=False, zeroline=False, title=''),
             paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
             plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
-            title=kwargs.get('title', f'Top Down View, {side.upper()} Side'),
             **kwargs
         )
 
@@ -1577,25 +1617,39 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
     @property
     def cost_range(self):
-        return (0, 1)
+        min = 0
+        max = self._cost + (1/self._cost)/20
+        return (min, max)
 
     @property
     def cost_marks(self) -> Dict[int, str]:
-        min_cost = np.ceil(self.cost_range[0])
-        max_cost = np.floor(self.cost_range[1])
-        return {i: '' for i in (0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1)}
+        min_cost = self.cost_range[0]
+        max_cost = self.cost_range[1]
+        delta = 0.1
+        num_steps = int(round((max_cost - min_cost) / delta)) + 1
+        values = np.linspace(min_cost, max_cost, num_steps).round(10).tolist()
+        return {i: '' for i in values}
 
     @property
     def mass_range(self) -> Tuple[float, float]:
-        min = 1e-4
-        max = 202e-3
-        return (round(min * KG_TO_G, 2), round(max * KG_TO_G, 2))
+
+        min = 0
+        hyp_max = 0.1
+        max = hyp_max * (1 - np.exp(-0.5/self._mass))
+
+        return (
+            round(min * KG_TO_G, 2), 
+            round(max * KG_TO_G, 2)
+        )
 
     @property
     def mass_marks(self) -> Dict[int, str]:
-        min_mass = np.ceil(self.mass_range[0])
-        max_mass = np.floor(self.mass_range[1])
-        return {i: '' for i in range(int(min_mass), int(max_mass) + 1, 30)}
+        min_mass = self.mass_range[0]
+        max_mass = self.mass_range[1]
+        delta = 10
+        num_steps = int(round((max_mass - min_mass) / delta)) + 1
+        values = np.linspace(min_mass, max_mass, num_steps).round(10).tolist()
+        return {i: '' for i in values}
 
     @property
     def width(self) -> float:
@@ -1612,14 +1666,14 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         
         self.x_body_length = width
 
-        if self._update_properties:
-            self._calculate_all_properties()
-
     @property
     def width_range(self) -> Tuple[float, float]:
-        min = 0.01
-        max = 0.8
-        return (round(min * M_TO_MM, 2), round(max * M_TO_MM, 2))
+        min = 0
+        max = 1
+        return (
+            round(min * M_TO_MM, 2), 
+            round(max * M_TO_MM, 2)
+        )
 
     @property
     def width_marks(self) -> Dict[int, str]:
@@ -1642,9 +1696,6 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
         self.y_body_length = height
 
-        if self._update_properties:
-            self._calculate_all_properties()
-
     @property
     def height_marks(self) -> Dict[int, str]:
         min_height = np.ceil(self.height_range[0])
@@ -1653,15 +1704,20 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
     @property
     def height_range(self) -> Tuple[float, float]:
-        min = 0.01
-        max = 0.8
-        return (round(min * M_TO_MM, 2), round(max * M_TO_MM, 2))
+        min = 0
+        max = 0.5
+        return (
+            round(min * M_TO_MM, 2), 
+            round(max * M_TO_MM, 2)
+        )
 
     @property
-    def coated_area_range(self):
-        min = 0,
-        max = 1.4,
-        return (round(min[0] * M_TO_CM**2, 1), round(max[0] * M_TO_CM**2, 1))
+    def insulation_area_range(self):
+
+        return (
+            round(0 * M_TO_CM**2, 1), 
+            round(self._body_area * M_TO_CM**2, 1)
+        )
 
 
 class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
@@ -2428,6 +2484,7 @@ class WeldTab:
         
         if self._update_properties:
             self._calculate_all_properties()
+    
     @property
     def volume(self) -> float:
         return round(self._volume * M_TO_CM**3, 2)

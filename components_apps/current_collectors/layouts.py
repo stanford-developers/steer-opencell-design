@@ -18,6 +18,31 @@ CURRENT_COLLECTOR_MATERIALS = dm.get_current_collector_materials(most_recent=Tru
 CURRENT_COLLECTOR_DESIGNS = ['Punched','Notched','Tabless','Tabbed']
 
 
+cathode_download_buttons = ds.html.Div([
+
+    ds.html.H5('Download/Upload Options', style={'font-weight': 'bold'}),
+
+    ds.html.Div([
+        ds.html.Button('Download', id='download_cathode_current_collector_button', style=BUTTON_STYLE),
+        ds.dcc.Download(id='download_cathode_current_collector'),
+    ], style=BUTTON_DIV_STYLE),
+
+    ds.html.Br(),
+
+    ds.html.Div([
+        ds.dcc.Upload(
+            id='upload_cathode_current_collector', 
+            children=[
+                ds.html.A('Select File for upload', style=BUTTON_STYLE)
+            ]
+        ),
+    ], style=BUTTON_DIV_STYLE),
+
+    ds.html.Br(), ds.html.Br(), ds.html.Br(),
+
+])
+
+
 cathode_current_collector_material_parameters = ds.html.Div(
 
     id = 'cathode_current_collector_material_parameters',
@@ -211,6 +236,17 @@ cathode_punched_design_parameters = ds.html.Div(
             title = 'Coated Area (both sides) (cm²)'
         )(),
 
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'punched_current_collector'},
+            min_val = 0,
+            max_val = 10000,
+            step = 0.1,
+            mark_interval = 200,
+            property_name = 'insulation_area',
+            slider_disable = True,
+            title = 'Insulation Area (both sides) (cm²)'
+        )(),
+
         
         ds.html.Br(), ds.html.Br(),
         ds.html.H5('Datums', style={'font-weight': 'bold'}),
@@ -295,6 +331,7 @@ cathode_current_collector_layout = ds.html.Div([
         
         ds.html.Br(), ds.html.Br(), ds.html.Br(), 
 
+        cathode_download_buttons,
         cathode_current_collector_material_parameters,
         cathode_current_collector_design_parameters,
         cathode_punched_design_parameters,

@@ -8,6 +8,7 @@ BUTTON_STYLE = {'margin-left': '10px', 'background-color': 'white', 'border': '1
 INPUT_STYLE = {'width': '16%', 'margin-left': '10px'}
 TEXT_INPUT_STYLE = {'width': '100%', 'margin-left': '10px', 'margin-bottom': '15px'}
 DIV_STYLE = {'margin-left': '20px', 'margin-right': '20px', 'width': 'calc(100)'}
+BUTTON_DIV_STYLE = {'display': 'flex', 'gap': '10px', 'margin-left': '-10px'}
 
 RIGHT_PANEL_COLOR = '#e3e5e6'
 
