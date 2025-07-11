@@ -75,6 +75,16 @@ class TestPunchedCurrentCollector(unittest.TestCase):
 
         self.assertTrue(True)
 
+    def test_views(self):
+
+        fig_a = self.current_collector.get_a_side_view()
+        fig_b = self.current_collector.get_b_side_view()
+
+        fig_a.show()
+        fig_b.show()
+
+        self.assertTrue(True)
+
     def test_pickle_unpickle(self):
         
         serialized = dumps(self.current_collector)
