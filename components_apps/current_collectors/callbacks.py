@@ -189,9 +189,7 @@ def update_punched_current_collector(
             property_index = PUNCHED_PARAMETER_LIST.index(property)
             value = slider_values[property_index] if triggered_id['subtype'] == 'slider' else input_values[property_index]
 
-            start_time = time.time()
             current_collector.__setattr__(property, value)
-            print(f"Updated {property} in {time.time() - start_time:.5f} seconds")
 
             # Validate dependent properties
             for param in PUNCHED_PARAMETER_LIST:

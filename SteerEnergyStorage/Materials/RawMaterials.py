@@ -375,4 +375,3 @@ class SeparatorMaterial(_RawMaterial):
         return material
 
 
-

@@ -9,8 +9,6 @@ app = ds.Dash(
     external_stylesheets=[BOOTSTRAP_THEME]
 )
 
-app.server.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
-
 # Initialize the cache
 cache.init_app(app.server)
 

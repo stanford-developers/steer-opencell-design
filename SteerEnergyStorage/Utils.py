@@ -28,13 +28,10 @@ def get_colorway(color1, color2, n):
 
     return colors
 
-def get_area_from_trace(trace: go.Scatter) -> float:
+def get_area_from_points(x: np.ndarray, y: np.ndarray) -> float:
         """
-        Calculate the area of a closed shape defined by a Plotly Scatter trace.
+        Calculate the area of a closed shape defined by the coordinates in x and y using the shoelace formula.
         """
-        x = np.array(trace.x)
-        y = np.array(trace.y)
-
         if len(x) < 3 or len(y) < 3:
             raise ValueError("Trace must contain at least 3 points to form a closed shape.")
         
@@ -48,30 +45,38 @@ def get_area_from_trace(trace: go.Scatter) -> float:
 
         return float(area)
 
-def build_square_df(x: float, y: float, x_width: float, y_width: float) -> pd.DataFrame:
+def build_square_array(x: float, y: float, x_width: float, y_width: float) -> np.ndarray:
     """
-    Build a DataFrame representing a square or rectangle defined by its bottom-left corner (x, y)
+    Build a NumPy array representing a square or rectangle defined by its bottom-left corner (x, y)
     and its width and height.
 
-    :param x: float, x-coordinate of the bottom-left corner
-    :param y: float, y-coordinate of the bottom-left corner
-    :param x_width: float, width of the square/rectangle
-    :param y_width: float, height of the square/rectangle
+    Parameters
+    ----------
+    x : float
+        The x-coordinate of the bottom-left corner of the square.
+    y : float
+        The y-coordinate of the bottom-left corner of the square.
+    x_width : float
+        The width of the square.
+    y_width : float
+        The height of the square.
     """
-    return pd.DataFrame({
-        'x': [x, x, x + x_width, x + x_width, x],
-        'y': [y, y + y_width, y + y_width, y, y]
-    })
+    x_coords = [x, x, x + x_width, x + x_width, x]
+    y_coords = [y, y + y_width, y + y_width, y, y]
+    return x_coords, y_coords
 
-def rotate_coordinates(df: pd.DataFrame, axis: str, angle: float) -> pd.DataFrame:
+def rotate_coordinates(coords: np.ndarray, axis: str, angle: float) -> np.ndarray:
     """
-    Rotate the 3D coordinates ('x', 'y', 'z') in a DataFrame around the specified axis.
+    Rotate a (N, 3) NumPy array of 3D coordinates around the specified axis.
 
-    :param df: DataFrame containing at least 'x', 'y', 'z' columns
+    :param coords: NumPy array of shape (N, 3), where columns are x, y, z
     :param axis: Axis to rotate around ('x', 'y', or 'z')
     :param angle: Angle in degrees
-    :return: A new DataFrame with rotated coordinates and other columns unchanged
+    :return: Rotated NumPy array of shape (N, 3)
     """
+    if coords.shape[1] != 3:
+        raise ValueError("Input array must have shape (N, 3) for x, y, z coordinates")
+
     angle_rad = np.radians(angle)
     cos_a = np.cos(angle_rad)
     sin_a = np.sin(angle_rad)
@@ -91,15 +96,5 @@ def rotate_coordinates(df: pd.DataFrame, axis: str, angle: float) -> pd.DataFram
     else:
         raise ValueError("Axis must be 'x', 'y', or 'z'.")
 
-    # Copy DataFrame to avoid modifying in-place
-    df_rotated = df.copy()
-
-    # Perform rotation
-    coords = df[['x', 'y', 'z']].to_numpy()
-    rotated_coords = coords @ R.T
-
-    # Assign rotated values back
-    df_rotated[['x', 'y', 'z']] = rotated_coords
-
-    return df_rotated
+    return coords @ R.T
 
