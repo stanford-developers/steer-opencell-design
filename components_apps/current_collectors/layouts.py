@@ -1,46 +1,14 @@
 import dash as ds
 from styles import *
-from pathlib import Path
 
 from general.custom_components import SliderWithTextInput
+from components_apps.database_service import CURRENT_COLLECTOR_MATERIALS
 
 from SteerEnergyStorage.Materials.CurrentCollectors import *
 from SteerEnergyStorage.Materials.RawMaterials import *
 
-# get current collector materials from the database
-from SteerEnergyStorage.DataManager import DataManager
-CURRENT_DIR = Path(__file__).resolve().parent
-DATA_PATH = CURRENT_DIR / '..' / '..' / 'Data' / 'database.db'
-dm = DataManager(DATA_PATH)
 
-
-CURRENT_COLLECTOR_MATERIALS = dm.get_current_collector_materials(most_recent=True)['name'].tolist()
 CURRENT_COLLECTOR_DESIGNS = ['Punched','Notched','Tabless','Tabbed']
-
-
-cathode_download_buttons = ds.html.Div([
-
-    ds.html.H5('Download/Upload Options', style={'font-weight': 'bold'}),
-
-    ds.html.Div([
-        ds.html.Button('Download', id='download_cathode_current_collector_button', style=BUTTON_STYLE),
-        ds.dcc.Download(id='download_cathode_current_collector'),
-    ], style=BUTTON_DIV_STYLE),
-
-    ds.html.Br(),
-
-    ds.html.Div([
-        ds.dcc.Upload(
-            id='upload_cathode_current_collector', 
-            children=[
-                ds.html.A('Select File for upload', style=BUTTON_STYLE)
-            ]
-        ),
-    ], style=BUTTON_DIV_STYLE),
-
-    ds.html.Br(), ds.html.Br(), ds.html.Br(),
-
-])
 
 
 cathode_current_collector_material_parameters = ds.html.Div(
@@ -331,7 +299,6 @@ cathode_current_collector_layout = ds.html.Div([
         
         ds.html.Br(), ds.html.Br(), ds.html.Br(), 
 
-        cathode_download_buttons,
         cathode_current_collector_material_parameters,
         cathode_current_collector_design_parameters,
         cathode_punched_design_parameters,
