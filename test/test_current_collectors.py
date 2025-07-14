@@ -149,7 +149,7 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[0], 6), 0.02)
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[1], 6), 0.08)
         self.assertEqual(round(self.current_collector._coated_tab_height, 6), 0.002)
-        self.assertEqual(round(self.current_collector.body_area, 6), 3366)
+        self.assertEqual(round(self.current_collector.body_area, 6), 6732)
         self.assertEqual(round(self.current_collector.coated_area, 6), 3079.3 + 3074)
         self.assertEqual(round(self.current_collector.insulation_area, 6), 185.8)
         self.assertEqual(self.current_collector.cost, 0.168)

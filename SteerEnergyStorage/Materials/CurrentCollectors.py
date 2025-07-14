@@ -252,6 +252,38 @@ class _CurrentCollector(ABC):
         pickled = dumps(self)
         based = base64.b64encode(pickled).decode('utf-8')
         return based
+    
+    def _get_body_coordinates(self) -> go.Scatter:
+        x, y = self._get_footprint(notch_height=self._tab_height)
+        x, y, z, side = self._extrude_footprint(x, y)
+        self._body_coordinates = np.column_stack((x, y, z))
+        self._body_coordinates_side = side
+
+    def _get_a_side_coated_coordinates(self) -> Tuple[go.Scatter, float]:
+        self._a_side_coated_coordinates = self._get_coated_area_coordinates(side='a')
+
+    def _get_b_side_coated_coordinates(self) -> Tuple[go.Scatter, float]:
+        self._b_side_coated_coordinates = self._get_coated_area_coordinates(side='b')
+
+    def _get_a_side_insulation_coordinates(self) -> go.Scatter:
+        self._a_side_insulation_coordinates = self._get_insulation_coordinates(side='a')
+    
+    def _get_b_side_insulation_coordinates(self) -> go.Scatter:
+        self._b_side_insulation_coordinates = self._get_insulation_coordinates(side='b')
+
+    @abstractmethod
+    def _get_coated_area_coordinates(self, side: str = 'a') -> np.ndarray:
+        """
+        Get the coordinates of the coated area for a given side ('a' or 'b').
+        """
+        pass
+
+    @abstractmethod
+    def _get_insulation_coordinates(self, side: str = 'a') -> np.ndarray:
+        """
+        Get the coordinates of the insulation area for a given side ('a' or 'b').
+        """
+        pass
 
     @abstractmethod
     def _get_footprint(self) -> pd.DataFrame:
@@ -271,41 +303,6 @@ class _CurrentCollector(ABC):
     def get_b_side_view(self, paper_bgcolor='white', plot_bgcolor='white', **kwargs) -> go.Figure:
         """
         Visualize the current collector from the B side.
-        """
-        pass
-
-    @abstractmethod
-    def _get_body_coordinates(self) -> go.Scatter:
-        """
-        Get the body trace of the current collector.
-        """
-        pass
-
-    @abstractmethod
-    def _get_a_side_coated_coordinates(self) -> go.Scatter:
-        """
-        Get the coated area trace of the current collector.
-        """
-        pass
-
-    @abstractmethod
-    def _get_b_side_coated_coordinates(self) -> go.Scatter:
-        """
-        Get the coated area trace of the current collector.
-        """
-        pass
-
-    @abstractmethod
-    def _get_a_side_insulation_coordinates(self) -> go.Scatter:
-        """
-        Get the insulation area trace of the current collector.
-        """
-        pass
-
-    @abstractmethod
-    def _get_b_side_insulation_coordinates(self) -> go.Scatter:
-        """
-        Get the insulation area trace of the current collector.
         """
         pass
 
@@ -805,6 +802,39 @@ class _TabbedCurrentCollector(_CurrentCollector):
         self.tab_height = tab_height
         self.coated_tab_height = coated_tab_height
         self._total_height = self._y_body_length + self._tab_height
+
+    def _get_coated_area_coordinates(self, side: str) -> np.ndarray:
+        """
+        Return coated area coordinates for the specified side as a regular NumPy array [x, y, z].
+        """
+        if side not in ['a', 'b']:
+            raise ValueError("Side must be 'a' or 'b'.")
+
+        _y_coat_end = self._y_body_length + self._coated_tab_height - self._insulation_width
+
+        if _y_coat_end > self._y_body_length:
+            notch = self._coated_tab_height - self._insulation_width
+            y_depth = self._y_body_length
+        else:
+            notch = 0
+            y_depth = _y_coat_end
+
+        # Get x, y coordinates as separate 1D arrays
+        x, y = self._get_footprint(notch_height=notch, y_depth=y_depth)  # each of shape (N,)
+
+        # Get z value from body coordinates
+        idx = np.where(self._body_coordinates_side == side)[0]
+        if len(idx) == 0:
+            raise ValueError(f"No body coordinates found for side '{side}'")
+        z_value = self._body_coordinates[idx[0], 2]
+
+        # Create z array
+        z = np.full_like(x, z_value)
+
+        # Combine into (N, 3) array
+        coated_area = np.column_stack((x, y, z))
+
+        return coated_area
 
     @property
     def tab_width(self) -> float:
@@ -1429,46 +1459,6 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
         return fig
 
-    def _get_body_coordinates(self) -> None:
-
-        x, y = self._get_footprint(notch_height=self._tab_height)
-        x, y, z, side = self._extrude_footprint(x, y)
-        self._body_coordinates = np.column_stack((x, y, z))
-        self._body_coordinates_side = side
-    
-    def _get_coated_area_coordinates(self, side: str) -> np.ndarray:
-        """
-        Return coated area coordinates for the specified side as a regular NumPy array [x, y, z].
-        """
-        if side not in ['a', 'b']:
-            raise ValueError("Side must be 'a' or 'b'.")
-
-        _y_coat_end = self._y_body_length + self._coated_tab_height - self._insulation_width
-
-        if _y_coat_end > self._y_body_length:
-            notch = self._coated_tab_height - self._insulation_width
-            y_depth = self._y_body_length
-        else:
-            notch = 0
-            y_depth = _y_coat_end
-
-        # Get x, y coordinates as separate 1D arrays
-        x, y = self._get_footprint(notch_height=notch, y_depth=y_depth)  # each of shape (N,)
-
-        # Get z value from body coordinates
-        idx = np.where(self._body_coordinates_side == side)[0]
-        if len(idx) == 0:
-            raise ValueError(f"No body coordinates found for side '{side}'")
-        z_value = self._body_coordinates[idx[0], 2]
-
-        # Create z array
-        z = np.full_like(x, z_value)
-
-        # Combine into (N, 3) array
-        coated_area = np.column_stack((x, y, z))
-
-        return coated_area
-
     def _get_insulation_coordinates(self, side: str) -> np.ndarray:
         """
         Returns a NumPy array representing the insulation area.
@@ -1531,33 +1521,6 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
         # Stack into final (N, 4) array
         return np.column_stack((x, y, z))
-
-    def _get_a_side_insulation_coordinates(self) -> go.Scatter:
-        """
-        Returns a Plotly Scatter trace representing the insulation area on the B side.
-        The B side is the same as the A side in this case.
-        """
-        self._a_side_insulation_coordinates = self._get_insulation_coordinates(side='a')
-    
-    def _get_b_side_insulation_coordinates(self) -> go.Scatter:
-        """
-        Returns a Plotly Scatter trace representing the insulation area on the B side.
-        The B side is the same as the A side in this case.
-        """
-        self._b_side_insulation_coordinates = self._get_insulation_coordinates(side='b')
-
-    def _get_a_side_coated_coordinates(self) -> go.Scatter:
-        """
-        Returns a Plotly Scatter trace representing the coated area on the A side.
-        """
-        self._a_side_coated_coordinates = self._get_coated_area_coordinates(side='a')
-    
-    def _get_b_side_coated_coordinates(self) -> go.Scatter:
-        """
-        Returns a Plotly Scatter trace representing the coated area on the B side.
-        The B side is the same as the A side in this case.
-        """
-        self._b_side_coated_coordinates = self._get_coated_area_coordinates(side='b')
 
     def get_top_down_view(self, with_dimensions: bool = False, **kwargs) -> go.Figure:
 
@@ -1872,7 +1835,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         if tab_ends[-1] > self._datum[0] + self._x_body_length / 2:
             tab_ends[-1] = self._datum[0] + self._x_body_length / 2
 
-        self._tab_positions = list(zip(tab_starts, tab_ends))
+        self._tab_positions = np.column_stack((tab_starts, tab_ends))
 
     def _calculate_all_properties(self):
         self._calculate_tab_positions()
@@ -1948,10 +1911,10 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         pts.append((x1, y0))
         pts.append((x0, y0))
 
-        # pack to DataFrame, then apply global datum offset
-        df = pd.DataFrame(pts, columns=("x", "y")).reset_index(drop=True)
+        x = np.array([p[0] for p in pts], dtype=float)
+        y = np.array([p[1] for p in pts], dtype=float)
 
-        return df
+        return x, y
 
     def _add_dimensions(self, fig: go.Figure, pad: float = 0.05, aspect_ratio: float = 3) -> go.Figure:
         """
@@ -1985,66 +1948,8 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
             fig.add_annotation(x=xmid, y=y, xref='x', yref='y', showarrow=False, yshift=12, text=f'Tab Width: {self.tab_width} mm')
 
         return fig
-    
-    def _get_body_trace(self) -> go.Scatter:
 
-        coordinates = self._get_footprint(
-            notch_height=self._tab_height
-        )
-
-        trace = go.Scatter(
-            x=coordinates['x'], 
-            y=coordinates['y'], 
-            mode='lines', 
-            name='Body', 
-            line=dict(width=1, color='black'), 
-            fillcolor=self._material._color, 
-            fill='toself'
-        )
-
-        area = get_area_from_points(trace)
-
-        return trace, area
-
-    def _get_coated_area_trace(self, bare_lengths: Tuple[float, float]) -> Tuple[go.Scatter, float]:
-
-        _y_coat_end = self._y_body_length + self._coated_tab_height - self._insulation_width
-
-        if _y_coat_end > self._y_body_length:
-            notch = self._coated_tab_height - (self._insulation_width)
-            y_depth = self._y_body_length
-        else:
-            notch = 0
-            y_depth = _y_coat_end
-
-        coated_area = self._get_footprint(
-            notch_height=notch, 
-            y_depth=y_depth,
-            bare_lengths=bare_lengths
-            )
-
-        trace = go.Scatter(
-            x=coated_area['x'], 
-            y=coated_area['y'], 
-            mode='lines', 
-            name='Coated Area', 
-            line=dict(width=1, color='black'), 
-            fillcolor='black', 
-            fill='toself', 
-            fillpattern=self._am_fill_pattern
-        )
-
-        area = get_area_from_points(trace)
-        
-        return trace, area
-
-    def _get_a_side_coated_area_trace(self) -> Tuple[go.Scatter, float]:
-        return self._get_coated_area_trace(bare_lengths=self._bare_lengths_a_side)
-
-    def _get_b_side_coated_area_trace(self) -> Tuple[go.Scatter, float]:
-        return self._get_coated_area_trace(bare_lengths=self._bare_lengths_b_side)
-
-    def _get_insulation_area_trace(self, side: str = 'a') -> Tuple[go.Scatter, float]:
+    def _get_insulation_coordinates(self, side: str = 'a') -> Tuple[go.Scatter, float]:
         """
         Return insulation trace and area for a given side ('a' or 'b').
         Handles three cases: (1) above body, (2) below body, (3) straddling edge.
@@ -2090,7 +1995,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         # Case 2: Insulation entirely below the body
         elif round(y_ins_end, 10) <= round(y_body_top, 10):
 
-            insulation_area = build_square_array(
+            x, y = build_square_array(
                 x_width = x_end - x_start,
                 y_width = self._insulation_width,
                 x = x_start,
@@ -2101,7 +2006,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         else:
             notch = y_ins_end - y_body_top
             depth = y_body_top - y_ins_start
-            insulation_area = self._get_footprint(
+            x, y = self._get_footprint(
                 notch_height=notch,
                 y_depth=depth,
                 y_start=y_ins_start,
@@ -2109,40 +2014,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
                 x_end=x_end
             )
 
-        # Helper for converting area df to go.Scatter
-        def get_trace(area_df: pd.DataFrame) -> go.Scatter:
-
-            return go.Scatter(
-                x=area_df['x'],
-                y=area_df['y'],
-                mode='lines',
-                name='Insulation Strip',
-                line=dict(width=1, color='black'),
-                fill='toself',
-                fillcolor='white',
-                fillpattern=self._in_fill_pattern
-            )
-
-        trace = get_trace(insulation_area)
-
-        if 'tab_number' not in insulation_area.columns:
-            area = get_area_from_points(trace)
-        else:
-            area = (
-                insulation_area
-                .dropna()
-                .groupby('tab_number')
-                .apply(lambda df: get_area_from_points(get_trace(df[['x', 'y']])))
-                .sum()
-            )
-
-        return trace, area
-    
-    def _get_a_side_insulation_area_trace(self) -> Tuple[go.Scatter, float]:
-        return self._get_insulation_area_trace(side='a')
-
-    def _get_b_side_insulation_area_trace(self) -> Tuple[go.Scatter, float]:
-        return self._get_insulation_area_trace(side='b')
+        return np.column_stack((x, y))
 
     @property
     def tab_positions(self) -> list:
