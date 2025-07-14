@@ -6,7 +6,8 @@ from styles import *
 # Initialize the dash app
 app = ds.Dash(
     __name__, 
-    external_stylesheets=[BOOTSTRAP_THEME]
+    external_stylesheets=[BOOTSTRAP_THEME],
+    prevent_initial_callbacks="initial_duplicate"
 )
 
 # Initialize the cache
