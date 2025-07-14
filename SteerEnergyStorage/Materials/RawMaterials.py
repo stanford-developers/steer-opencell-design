@@ -3,8 +3,10 @@ from pickle import dumps, loads
 
 from SteerEnergyStorage.Constants import *
 from SteerEnergyStorage.DataManager import DataManager
+
 from pathlib import Path
 from copy import deepcopy
+import numpy as np
 
 
 class _RawMaterial:
@@ -30,10 +32,14 @@ class _RawMaterial:
         color : str
             Color of the material.
         """
+        self._update_ranges = True
+
         self.density = density
         self.specific_cost = specific_cost
         self.name = name
         self.color = color
+
+        self._update_ranges = False
 
         self._last_updated = dt.now()
 
@@ -53,6 +59,22 @@ class _RawMaterial:
         
         self._density = density * G_TO_KG / CM_TO_M**3
 
+        if self._update_ranges:
+            self._density_range = (self._density * 0.8, self._density * 1.2)
+            min = np.ceil(self._density_range[0])
+            max = np.floor(self._density_range[1])
+            self._density_marks = {i: '' for i in range(int(min), int(max) + 1, 200)}
+
+    @property
+    def density_range(self):
+        min = self._density_range[0]
+        max = self._density_range[1]
+        return (round(min * (KG_TO_G / M_TO_CM**3), 2), round(max * (KG_TO_G / M_TO_CM**3), 2))
+
+    @property
+    def density_marks(self):
+        return {i * (KG_TO_G / M_TO_CM**3): '' for i in self._density_marks.keys()}
+
     @property
     def specific_cost(self):
         return self._specific_cost
@@ -66,6 +88,24 @@ class _RawMaterial:
             raise ValueError("Specific cost must be greater than zero.")
         
         self._specific_cost = specific_cost
+
+        if self._update_ranges:
+            self._specific_cost_range = (self._specific_cost * 0.5, self._specific_cost * 3)
+            min = np.ceil(self._specific_cost_range[0])
+            max = np.floor(self._specific_cost_range[1])
+            self._specific_cost_marks = {i: '' for i in np.arange(min, max + 0.2, 0.2)}
+
+    @property
+    def specific_cost_range(self):
+        min = self._specific_cost_range[0]
+        max = self._specific_cost_range[1]
+        return (round(min, 2), round(max, 2))
+
+    @property
+    def specific_cost_marks(self):
+        min = np.ceil(self.specific_cost_range[0])
+        max = np.floor(self.specific_cost_range[1])
+        return {i: '' for i in range(int(min), int(max) + 1, 2)}
 
     @property
     def name(self):
@@ -333,6 +373,5 @@ class SeparatorMaterial(_RawMaterial):
         material = deepcopy(loads(data['object'].iloc[0]))
 
         return material
-
 
 

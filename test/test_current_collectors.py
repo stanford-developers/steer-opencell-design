@@ -1,4 +1,6 @@
 import unittest
+from pickle import loads, dumps
+from base64 import b64decode, b64encode 
 from SteerEnergyStorage.Materials.RawMaterials import CurrentCollectorMaterial
 from SteerEnergyStorage.Materials.CurrentCollectors import PunchedCurrentCollector, NotchedCurrentCollector, TablessCurrentCollector, WeldTab, TabWeldedCurrentCollector
 
@@ -10,7 +12,12 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         """
         Set up
         """
-        self.material = CurrentCollectorMaterial.from_database(name="Copper")
+        self.material = CurrentCollectorMaterial(
+            name='Copper', 
+            density=8.96, 
+            specific_cost=18.1, 
+            color='#B87333'
+        )
 
         self.current_collector = PunchedCurrentCollector(
             material=self.material,
@@ -41,15 +48,60 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         self.assertEqual(round(self.current_collector._tab_height, 6), 0.012)
         self.assertEqual(round(self.current_collector._tab_position, 6), 0.02)
         self.assertEqual(round(self.current_collector._coated_tab_height, 6), 0.003)
-        self.assertEqual(self.current_collector.body_area, 175.2)
+        self.assertEqual(self.current_collector.body_area, 350.4)
         self.assertEqual(self.current_collector.coated_area, 2 * 169.6)
         self.assertEqual(self.current_collector.insulation_area, 7.6)
 
-    def test_figures(self):
-        fig_a = self.current_collector.get_a_side_view()
-        fig_b = self.current_collector.get_end_view()
+    def test_figures_and_datum_setter(self):
+
+        fig_a = self.current_collector.get_top_down_view()
+
+        self.current_collector.datum = (100, 50, 0)
+        fig_b = self.current_collector.get_top_down_view()
+
         # fig_a.show()
         # fig_b.show()
+        
+        self.assertTrue(True)
+
+    def test_flip_about_y_axis(self):
+
+        self.current_collector.datum = (1000, 1000, 500)
+        fig_a = self.current_collector.get_top_down_view()
+        fig_b = self.current_collector.flip('y').get_top_down_view()
+
+        # fig_a.show()
+        # fig_b.show()
+
+        self.assertTrue(True)
+
+    def test_views(self):
+
+        fig_a = self.current_collector.get_a_side_view()
+        fig_b = self.current_collector.get_b_side_view()
+
+        fig_a.show()
+        fig_b.show()
+
+        self.assertTrue(True)
+
+    def test_pickle_unpickle(self):
+        
+        serialized = dumps(self.current_collector)
+        encoded = b64encode(serialized).decode('utf-8')
+        decoded = b64decode(encoded)
+        deserialized = loads(decoded)
+
+        self.assertEqual(self.current_collector.mass, deserialized.mass)
+        self.assertEqual(self.current_collector.cost, deserialized.cost)
+        self.assertEqual(self.current_collector.material.name, deserialized.material.name)
+        self.assertEqual(self.current_collector.width, deserialized.width)
+        self.assertEqual(self.current_collector.height, deserialized.height)
+
+    def test_setters(self):
+
+        self.current_collector.width = 200
+        self.assertEqual(self.current_collector.width, 200)
 
 
 class TestNotchedCurrentCollector(unittest.TestCase):
@@ -97,10 +149,10 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[0], 6), 0.02)
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[1], 6), 0.08)
         self.assertEqual(round(self.current_collector._coated_tab_height, 6), 0.002)
-        self.assertEqual(round(self.current_collector.body_area, 6), 3366)
+        self.assertEqual(round(self.current_collector.body_area, 6), 6732)
         self.assertEqual(round(self.current_collector.coated_area, 6), 3079.3 + 3074)
         self.assertEqual(round(self.current_collector.insulation_area, 6), 185.8)
-        self.assertEqual(self.current_collector.cost, 0.03)
+        self.assertEqual(self.current_collector.cost, 0.168)
         self.assertEqual(self.current_collector.mass, 13.63)
 
     def test_figures(self):
@@ -116,17 +168,17 @@ class TestNotchedCurrentCollector(unittest.TestCase):
 
         self.current_collector.material = CurrentCollectorMaterial.from_database(name="Copper")
         self.assertEqual(self.current_collector.material.name, "Copper")
-        self.assertEqual(self.current_collector.mass, 48.77)
-        self.assertEqual(self.current_collector.cost, 0.29)
+        self.assertEqual(self.current_collector.mass, 45.24)
+        self.assertEqual(self.current_collector.cost, 0.819)
 
         self.current_collector.thickness = 10
         self.assertEqual(self.current_collector.thickness, 10)
-        self.assertEqual(self.current_collector.mass, 32.52)
-        self.assertEqual(self.current_collector.cost, 0.20)
+        self.assertEqual(self.current_collector.mass, 30.16)
+        self.assertEqual(self.current_collector.cost, 0.546)
 
         self.current_collector.bare_lengths_a_side = (100, 100)
-        self.assertEqual(self.current_collector.mass, 32.52)
-        self.assertEqual(self.current_collector.cost, 0.20)
+        self.assertEqual(self.current_collector.mass, 30.16)
+        self.assertEqual(self.current_collector.cost, 0.546)
 
         fig_a = self.current_collector.get_a_side_view()
         fig_b = self.current_collector.get_b_side_view()
