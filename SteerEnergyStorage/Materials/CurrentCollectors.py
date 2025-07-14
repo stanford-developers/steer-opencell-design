@@ -860,7 +860,7 @@ class _TabbedCurrentCollector(_CurrentCollector):
     @property
     def tab_width_range(self) -> Tuple[float, float]:
         min = 0.01
-        max = self._x_body_length
+        max = self._x_body_length - 0.1*MM_TO_M
         return (round(min * M_TO_MM, 2), round(max * M_TO_MM, 2))
 
     @property
