@@ -35,6 +35,8 @@ CC_MATERIAL_PARAMETER_LIST = [
     'specific_cost',
 ]
 
+
+
 @callback(
     [
         Output('cathode_current_collector_material_store', 'data'),
@@ -49,28 +51,49 @@ CC_MATERIAL_PARAMETER_LIST = [
         Input('cathode_material_selector', 'value'),
         Input('cathode_current_collector_material_store', 'data'),
         Input({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'input'}, 'value'),
-        Input({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'slider'}, 'value')
+        Input({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'slider'}, 'value'),
+        Input('cell_store', 'data'),
     ]
 )
-def update_punched_current_collector(
+def update_cathode_current_collector_material(
     material_selector,
     current_collector_material_data,
     input_values,
-    slider_values
+    slider_values,
+    cell_data
 ):
+    
+    triggered_id = ctx.triggered_id
+    print(f"Triggered ID: {triggered_id}")
     try:
-        material = cache.get(current_collector_material_data['cache_key'])
-        triggered_id = ctx.triggered_id
+        # If the cell store is triggered, get the current collector material from the cell
+        if triggered_id == 'cell_store':
+            cell = cache.get(cell_data['cache_key'])
+            material = cell.material
 
+        # If the material selector is triggered, get the material from the database
         if triggered_id == 'cathode_material_selector':
             material = CurrentCollectorMaterial.from_database(material_selector)
 
         # Handle slider/input updates
         elif isinstance(triggered_id, dict) and 'property' in triggered_id:
+
             property = triggered_id['property']
             property_index = CC_MATERIAL_PARAMETER_LIST.index(property)
             value = slider_values[property_index] if triggered_id['subtype'] == 'slider' else input_values[property_index]
-            material.__setattr__(property, value)
+
+            # try and get the current collector material from the cache
+            try:
+                material = cache.get(current_collector_material_data['cache_key'])
+                material.__setattr__(property, value)
+            except Exception as e:
+                try:
+                    material = CurrentCollectorMaterial(
+                        name=material_selector,
+                        **{param: value for param, value in zip(CC_MATERIAL_PARAMETER_LIST, input_values)}
+                    )
+                except Exception as e:
+                    print(f"Error creating CurrentCollectorMaterial: {e}")
 
         # Update cache and generate parameter list
         new_cc_key = str(uuid4())
@@ -249,87 +272,4 @@ def update_cathode_current_collector_plots(data):
     except Exception as e:
         print(f"Error in callback: {e}")
         return no_update, no_update
-
-
-@callback(
-    Output('download_cathode_current_collector', 'data'),
-    Input('download_cathode_current_collector_button', 'n_clicks'),
-    State('cathode_current_collector_store', 'data'),
-    prevent_initial_call=True
-)
-def download_cathode_current_collector(n_clicks, current_collector_data):
-    
-    try:
-        # Retrieve the current collector object from the cache
-        current_collector = cache.get(current_collector_data['cache_key'])
-
-        # Serialize the object using pickle
-        try:
-            serialized_data = pickle.dumps(current_collector)
-        except Exception as serialize_error:
-            print(f"Error serializing current collector: {serialize_error}")
-            return None
-        
-        # base64 encode the serialized data
-        try:
-            encoded_data = base64.b64encode(serialized_data).decode('utf-8')
-        except Exception as encode_error:
-            print(f"Error encoding serialized data to base64: {encode_error}")
-            return None
-
-        # Return the serialized data as a downloadable file
-        return dict(
-            content=encoded_data,
-            filename='current_collector.pkl'
-        )
-    
-    except Exception as e:
-        print(f"Error in download callback: {e}")
-        return None
-    
-
-@callback(
-    Output('cathode_current_collector_store', 'data', allow_duplicate=True),
-    Input('upload_cathode_current_collector', 'contents'),
-    prevent_initial_call=True
-)
-def upload_cathode_current_collector(contents):
-
-    try:
-        if contents is None:
-            return no_update
-
-        # Extract the uploaded file content
-        content_type, content_string = contents.split(',')
-
-        print(f"Content type: {content_type[:100]}")
-
-        # Decode the base64 content
-        try:
-            decoded_data = base64.b64decode(base64.b64decode(content_string))
-        except Exception as decode_error:
-            print(f"Error decoding base64 content: {decode_error}")
-            return no_update
-
-        # Deserialize the object using pickle
-        try:
-            current_collector = pickle.loads(decoded_data)
-        except Exception as deserialize_error:
-            print(f"Error deserializing pickle data: {deserialize_error}")
-            return no_update
-
-        # Generate a new cache key
-        new_cc_key = str(uuid4())
-
-        # Store the object in the cache
-        cache.set(new_cc_key, current_collector)
-        
-        # Return the cache key to update the store
-        return {'cache_key': new_cc_key}
-
-    except Exception as e:
-        print(f"Error in upload callback: {e}")
-        return no_update
-    
-
 

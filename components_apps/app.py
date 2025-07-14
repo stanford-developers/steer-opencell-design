@@ -17,8 +17,6 @@ cache.init_app(app.server)
 app.config.suppress_callback_exceptions = True
 app.title = 'SteerCellDesignTool'
 
-
-
 # Import components
 from general.callbacks import *
 from current_collectors.callbacks import *
@@ -31,6 +29,7 @@ def create_app():
         stores,
         thumbnail,
         header,
+        cell_type,
         tabs
     ])
 
@@ -44,7 +43,5 @@ if __name__ == '__main__':
 
 def run():
     app.run_server(debug=True)
-
-
 
 
