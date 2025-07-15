@@ -153,11 +153,15 @@ def update_cell_name_options(electrochemical_reference, internal_construction, f
 def update_cell_schematic(form_factor, internal_construction):
 
     if ctx.triggered_id == 'form_factor_dropdown':
+        
         if form_factor == 'Cylindrical':
             return [html.Img(src='/assets/cylindrical_encapsulation.png', style={'width': '50vw'})]
 
+        elif form_factor == 'Prismatic':
+            return [html.Img(src='/assets/prismatic.png', style={'width': '50vw'})]
+
     else:
-        return no_update
+        return [no_update]
 
 
 @callback(
@@ -266,4 +270,33 @@ def upload_cell(contents):
         return no_update
     
 
- 
+@callback(
+    [
+        Output('cell_type_panel', 'style'),
+        Output('tabs_panel', 'style'),
+    ],
+    [
+        Input('continue_to_design', 'n_clicks'),
+        Input('back_to_cell_type', 'n_clicks'),
+    ],
+    [
+        State('cell_type_panel', 'style'),
+        State('tabs_panel', 'style'),
+    ],
+    prevent_initial_call=True
+)
+def show_and_hide_cell_type_and_tabs(continue_clicks, back_clicks, continue_style, back_style):
+    """
+    Show or hide the cell type and tabs based on button clicks.
+    """
+    ctx_id = ctx.triggered_id
+
+    if ctx_id == 'continue_to_design':
+        continue_style['display'] = 'none'
+        back_style['display'] = 'block'
+
+    elif ctx_id == 'back_to_cell_type':
+        continue_style['display'] = 'flex'
+        back_style['display'] = 'none'
+
+    return continue_style, back_style
