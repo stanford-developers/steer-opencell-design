@@ -1589,8 +1589,8 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
             fig = self._add_dimensions(fig=fig)
 
         fig.update_layout(
-            xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title=''),
-            yaxis=dict(showgrid=False, zeroline=False, title=''),
+            xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='X (mm)'),
+            yaxis=dict(showgrid=False, zeroline=False, title='Y (mm)'),
             paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
             plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
             **kwargs
