@@ -1,9 +1,9 @@
 import dash as ds
 from styles import *
 
-from current_collectors.layouts import *
-from general.store import *
-from components_apps.database_service import *
+from App.current_collectors.layouts import *
+from App.general.store import *
+from App.database_service import *
 
 
 stores = ds.html.Div([

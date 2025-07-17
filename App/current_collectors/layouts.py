@@ -1,8 +1,8 @@
 import dash as ds
 from styles import *
 
-from general.custom_components import SliderWithTextInput
-from components_apps.database_service import CURRENT_COLLECTOR_MATERIALS
+from App.general.custom_components import SliderWithTextInput
+from App.database_service import CURRENT_COLLECTOR_MATERIALS
 
 from SteerEnergyStorage.Materials.CurrentCollectors import *
 from SteerEnergyStorage.Materials.RawMaterials import *
