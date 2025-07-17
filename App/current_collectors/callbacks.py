@@ -1,15 +1,15 @@
 from dash import callback, Input, Output, ctx, State, no_update, MATCH, ALL
-import base64
-import pickle
-import time
 
+from SteerEnergyStorage.Materials.CurrentCollectors import _TapeCurrentCollector
 from cache_service import cache
 from uuid import uuid4
 
+from SteerEnergyStorage.Materials.CurrentCollectors import _TapeCurrentCollector
 from SteerEnergyStorage.Materials.CurrentCollectors import *
 from SteerEnergyStorage.Materials.RawMaterials import *
 
-from App.current_collectors.layouts import *
+from current_collectors.layouts import *
+from current_collectors.callbacks import CURRENT_COLLECTOR_DESIGNS
 
 
 PUNCHED_PARAMETER_LIST = [
@@ -36,11 +36,68 @@ CC_MATERIAL_PARAMETER_LIST = [
 ]
 
 
+@callback(
+    [
+        Output('cathode_current_collector_design', 'options'),
+        Output('cathode_current_collector_design_div', 'style'),
+        Output('cathode_current_collector_design', 'value'),
+    ],
+    [
+        Input('cell_store', 'data'),
+    ],
+    [
+        State('cathode_current_collector_design_div', 'style'),
+        State('cathode_current_collector_design', 'options')
+    ],
+    prevent_initial_call=True
+)
+def update_cathode_dropdown_and_design(data, current_style, current_options):
+    """
+    Update the cathode current collector design dropdown menu options, style, and value
+    based on the current collector store data.
+    """
+    # get the cell from the cache
+    cell = cache.get(data['cache_key'])
+
+    # get the current collector from the cell
+    current_collector = cell
+
+    # If the current collector is None, return no_update
+    if current_collector is None:
+        return current_options, current_style, no_update
+
+    # Initialize outputs
+    options = []
+    value = None
+
+    # Determine the type of the current collector and update outputs accordingly
+    if isinstance(current_collector, PunchedCurrentCollector):
+        current_style['display'] = 'none'
+        options = [{'label': 'Punched', 'value': 'punched'}]
+        value = 'punched'
+    elif isinstance(current_collector, NotchedCurrentCollector):
+        current_style['display'] = 'block'
+        options = [{'label': item, 'value': item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != 'Punched']
+        value = 'notched'
+    elif isinstance(current_collector, TablessCurrentCollector):
+        current_style['display'] = 'block'
+        options = [{'label': item, 'value': item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != 'Punched']
+        value = 'tabless'
+    elif isinstance(current_collector, TabWeldedCurrentCollector):
+        current_style['display'] = 'block'
+        options = [{'label': item, 'value': item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != 'Punched']
+        value = 'tabbed'
+    elif isinstance(current_collector, _TapeCurrentCollector):
+        current_style['display'] = 'none'
+        options = [{'label': item, 'value': item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != 'Punched']
+
+    return options, current_style, value
+
 
 @callback(
     [
-        Output('cathode_current_collector_material_store', 'data'),
-        Output('cathode_material_selector', 'value'),
+        Output('cell_store', 'data', allow_duplicate=True),
+        Output('cathode_current_collector_material_selector', 'value'),
         Output({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'input'}, 'value'),
         Output({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'slider'}, 'value'),
         Output({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'slider'}, 'min'),
@@ -48,100 +105,113 @@ CC_MATERIAL_PARAMETER_LIST = [
         Output({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'slider'}, 'marks'),
     ],
     [
-        Input('cathode_material_selector', 'value'),
-        Input('cathode_current_collector_material_store', 'data'),
+        Input('cell_store', 'data'),
+        Input('cathode_current_collector_material_selector', 'value'),
         Input({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'input'}, 'value'),
         Input({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'slider'}, 'value'),
-        Input('cell_store', 'data'),
     ],
     prevent_initial_call=True
 )
 def update_cathode_current_collector_material(
+    cell_data,
     material_selector,
-    current_collector_material_data,
     input_values,
-    slider_values,
-    cell_data
+    slider_values
 ):
     
+    def generate_material_parameters(material):
+        """Helper function to generate parameter lists for the material."""
+        parameter_list = [getattr(material, param) for param in CC_MATERIAL_PARAMETER_LIST]
+        min_values = [getattr(material, f"{param}_range")[0] for param in CC_MATERIAL_PARAMETER_LIST]
+        max_values = [getattr(material, f"{param}_range")[1] for param in CC_MATERIAL_PARAMETER_LIST]
+        marks_list = [getattr(material, f"{param}_marks") for param in CC_MATERIAL_PARAMETER_LIST]
+        return parameter_list, min_values, max_values, marks_list
+
     triggered_id = ctx.triggered_id
+    cell = cache.get(cell_data['cache_key'])
 
     # If the cell store is triggered, get the current collector material from the cell
     if triggered_id == 'cell_store':
-        cell = cache.get(cell_data['cache_key'])
+
+        # get the material from the cell
         material = cell.material
 
-    # If the material selector is triggered, get the material from the database
-    if triggered_id == 'cathode_material_selector':
+        # generate the parameter lists
+        parameter_list, min_values, max_values, marks_list = generate_material_parameters(material)
+        
+        # and return the values
+        return (
+            no_update,
+            material.name,
+            parameter_list,
+            parameter_list,
+            min_values,
+            max_values,
+            marks_list
+        )
+
+    # If the material selector is triggered, update the material
+    elif triggered_id == 'cathode_current_collector_material_selector':
+
+        # get the new material from the database
         material = CurrentCollectorMaterial.from_database(material_selector)
+
+        # assign the material to the cell
+        cell.material = material
+
+        # make the new key and store in cache
+        new_cc_key = str(uuid4())
+        cache.set(new_cc_key, cell)
+
+        # generate the parameter lists
+        parameter_list, min_values, max_values, marks_list = generate_material_parameters(material)
+
+        # and return the values
+        return (
+            {'cache_key': new_cc_key},
+            material.name,
+            parameter_list,
+            parameter_list,
+            min_values,
+            max_values,
+            marks_list
+        )
 
     # Handle slider/input updates
     elif isinstance(triggered_id, dict) and 'property' in triggered_id:
 
+        # determine which property was triggered
         property = triggered_id['property']
         property_index = CC_MATERIAL_PARAMETER_LIST.index(property)
         value = slider_values[property_index] if triggered_id['subtype'] == 'slider' else input_values[property_index]
 
-        # try and get the current collector material from the cache
-        try:
-            material = cache.get(current_collector_material_data['cache_key'])
-            material.__setattr__(property, value)
-        except Exception as e:
-            try:
-                material = CurrentCollectorMaterial(
-                    name=material_selector,
-                    **{param: value for param, value in zip(CC_MATERIAL_PARAMETER_LIST, input_values)}
-                )
-            except Exception as e:
-                print(f"Error creating CurrentCollectorMaterial: {e}")
+        # get the material
+        material = cell.material
 
-    # Update cache and generate parameter list
-    new_cc_key = str(uuid4())
-    cache.set(new_cc_key, material)
+        # set the property of the material
+        setattr(material, property, value)
 
-    parameter_list = [material.__getattribute__(param) for param in CC_MATERIAL_PARAMETER_LIST]
-    min_values = [material.__getattribute__(f"{param}_range")[0] for param in CC_MATERIAL_PARAMETER_LIST]
-    max_values = [material.__getattribute__(f"{param}_range")[1] for param in CC_MATERIAL_PARAMETER_LIST]
-    marks_list = [material.__getattribute__(f"{param}_marks") for param in CC_MATERIAL_PARAMETER_LIST]
+        # assign the material back to the cell
+        cell.material = material
 
-    return (
-        {'cache_key': new_cc_key},
-        material.name,
-        parameter_list,
-        parameter_list,
-        min_values,
-        max_values,
-        marks_list
-    )
+        # make the new key and store in cache
+        new_cc_key = str(uuid4())
+        cache.set(new_cc_key, cell)
 
+        # generate the parameter lists
+        parameter_list, min_values, max_values, marks_list = generate_material_parameters(material)
 
-@callback(
-    Output('cathode_current_collector_design', 'value'),
-    [
-        Input('cathode_current_collector_store', 'data'),
-        Input('cathode_current_collector_store', 'modified_timestamp')
-    ],
-    prevent_initial_call=True
-)
-def update_cathode_current_collector_design(data, data_ts):
-    """
-    Update the cathode current collector design based on the current collector store data.
-    """
-    try:
-        current_collector = cache.get(data['cache_key'])
+        # return the updated values
+        return (
+            {'cache_key': new_cc_key},
+            material.name,
+            parameter_list,
+            parameter_list,
+            min_values,
+            max_values,
+            marks_list
+        )
 
-        if type(current_collector) == PunchedCurrentCollector:
-            return 'punched'
-        elif type(current_collector) == NotchedCurrentCollector:
-            return 'notched'
-        elif type(current_collector) == TablessCurrentCollector:
-            return 'tabless'
-        elif type(current_collector) == TabWeldedCurrentCollector:
-            return 'tabbed'
-
-    except Exception as e:
-        return None
-    
 
 @callback(
     [Output('cathode_punched_design_parameters', 'style'),
@@ -173,7 +243,7 @@ def update_cathode_current_collector_design_parameters(design):
 
 @callback(
     [
-        Output('cathode_current_collector_store', 'data'),
+        Output('cell_store', 'data', allow_duplicate=True),
         Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
         Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
         Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'min'),
@@ -183,48 +253,72 @@ def update_cathode_current_collector_design_parameters(design):
         Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'marks')
     ],
     [
-        Input('cathode_current_collector_store', 'data'),
-        Input('cathode_current_collector_material_store', 'data'),
+        Input('cell_store', 'data'),
         Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
         Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
-        Input('cell_store', 'data'),
     ],
     prevent_initial_call=True
 )
 def update_punched_current_collector(
-    current_collector_data,
-    material_data,
+    cell_data,
     input_values,
-    slider_values,
-    cell_data
+    slider_values
 ):
     
+    def generate_parameters(current_collector):
+        """Helper function to generate parameter lists for the material."""
+        parameter_list = [getattr(current_collector, param) for param in PUNCHED_PARAMETER_LIST]
+        min_values = [getattr(current_collector, f"{param}_range")[0] for param in PUNCHED_PARAMETER_LIST]
+        max_values = [getattr(current_collector, f"{param}_range")[1] for param in PUNCHED_PARAMETER_LIST]
+        marks_list = [getattr(current_collector, f"{param}_marks") for param in PUNCHED_PARAMETER_LIST]
+        return parameter_list, min_values, max_values, marks_list
+
     triggered_id = ctx.triggered_id
+    cell = cache.get(cell_data['cache_key'])
+
+    # get the cathode current collector from the cell
+    current_collector = cell
+
+    # Check if the current collector is a PunchedCurrentCollector. If not, return no_update
+    if type(current_collector) != PunchedCurrentCollector:
+        return (
+            no_update,
+            [no_update] * len(PUNCHED_PARAMETER_LIST),
+            [no_update] * len(PUNCHED_PARAMETER_LIST),
+            [no_update] * len(PUNCHED_PARAMETER_LIST),
+            [no_update] * len(PUNCHED_PARAMETER_LIST),
+            [no_update] * len(PUNCHED_PARAMETER_LIST),
+            [no_update] * len(PUNCHED_PARAMETER_LIST),
+            [no_update] * len(PUNCHED_PARAMETER_LIST),
+        )
 
     # If the cell store is triggered, get the current collector from the cell
     if triggered_id == 'cell_store':
-        cell = cache.get(cell_data['cache_key'])
-        current_collector = cell
-    
-    # else get the current collector from the cache
-    else:
-        try:
-            current_collector = cache.get(current_collector_data['cache_key'])
-        except Exception as e:
-            print(f"Error retrieving current collector from cache: {e}")
-            return no_update, no_update*len(PUNCHED_PARAMETER_LIST), no_update*len(PUNCHED_PARAMETER_LIST), no_update*len(PUNCHED_PARAMETER_LIST), no_update*len(PUNCHED_PARAMETER_LIST),
+        
+        # generate the parameter lists
+        value_list, min_values, max_values, marks_list = generate_parameters(current_collector)
 
-    # Handle material updates
-    if triggered_id == 'cathode_current_collector_material_store':
-        material = cache.get(material_data['cache_key'])
-        current_collector.material = material
-
+        return (
+            no_update,
+            value_list,
+            value_list,
+            min_values,
+            max_values,
+            min_values,
+            max_values,
+            marks_list,
+        )
+        
     # Handle slider/input updates
     elif isinstance(triggered_id, dict) and 'property' in triggered_id:
+
+        # determine which property was triggered
         property = triggered_id['property']
         property_index = PUNCHED_PARAMETER_LIST.index(property)
         value = slider_values[property_index] if triggered_id['subtype'] == 'slider' else input_values[property_index]
-        current_collector.__setattr__(property, value)
+
+        # set the property of the current collector
+        setattr(current_collector, property, value)
 
         # Validate dependent properties
         for param in PUNCHED_PARAMETER_LIST:
@@ -236,25 +330,26 @@ def update_punched_current_collector(
                 elif param_value > param_range[1]:
                     current_collector.__setattr__(param, param_range[1])
 
-    value_list = [current_collector.__getattribute__(param) for param in PUNCHED_PARAMETER_LIST]
-    min_values = [current_collector.__getattribute__(f"{param}_range")[0] for param in PUNCHED_PARAMETER_LIST]
-    max_values = [current_collector.__getattribute__(f"{param}_range")[1] for param in PUNCHED_PARAMETER_LIST]
-    marks_list = [current_collector.__getattribute__(f"{param}_marks") for param in PUNCHED_PARAMETER_LIST]
+        value_list, min_values, max_values, marks_list = generate_parameters(current_collector)
 
-    # Update cache and generate parameter list
-    new_cc_key = str(uuid4())
-    cache.set(new_cc_key, current_collector)
+        # update the cell data with the new current collector
+        cell = current_collector
 
-    return (
-        {'cache_key': new_cc_key},
-        value_list,
-        value_list,
-        min_values,
-        max_values,
-        min_values,
-        max_values,
-        marks_list,
-    )
+        # make the new key and store in cache
+        cell_data['cache_key'] = str(uuid4())
+        cache.set(cell_data['cache_key'], cell)
+
+        # return the updated values
+        return (
+            {'cache_key': cell_data['cache_key']},
+            value_list,
+            value_list,
+            min_values,
+            max_values,
+            min_values,
+            max_values,
+            marks_list,
+        )
 
 
 @callback(
@@ -263,25 +358,25 @@ def update_punched_current_collector(
         Output('cathode_b_side_plot', 'figure'),
     ],
     [
-        Input('cathode_current_collector_store', 'data'),
+        Input('cell_store', 'data'),
         Input('continue_to_design', 'n_clicks'),
     ],
     prevent_initial_call=True
 )
-def update_cathode_current_collector_plots(data, tab_value):
+def update_cathode_current_collector_plots(cell_data, tab_value):
     """
     Update the cathode current collector plots based on the current collector store data.
     """
+    # get the cell from the cache
+    cell = cache.get(cell_data['cache_key'])
 
-    try:
-        current_collector = cache.get(data['cache_key'])
-        a_side_plot = current_collector.get_a_side_view(with_dimensions=False)
-        b_side_plot = current_collector.get_b_side_view(with_dimensions=False)
+    # get the current collector from the cell
+    current_collector = cell
 
-        return a_side_plot, b_side_plot
-    
-    except Exception as e:
-        print(f"Error in callback: {e}")
-        return no_update, no_update
+    # get the plots from the current collector
+    a_side_plot = current_collector.get_a_side_view(with_dimensions=False)
+    b_side_plot = current_collector.get_b_side_view(with_dimensions=False)
 
+    # return the plots
+    return a_side_plot, b_side_plot
 

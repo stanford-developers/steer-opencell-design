@@ -1,8 +1,8 @@
 import dash as ds
 from styles import *
 
-from App.general.custom_components import SliderWithTextInput
-from App.database_service import CURRENT_COLLECTOR_MATERIALS
+from general.custom_components import SliderWithTextInput
+from database_service import CURRENT_COLLECTOR_MATERIALS
 
 from SteerEnergyStorage.Materials.CurrentCollectors import *
 from SteerEnergyStorage.Materials.RawMaterials import *
@@ -20,7 +20,7 @@ cathode_current_collector_material_parameters = ds.html.Div(
         ds.html.H5('Select material', style={'font-weight': 'bold'}),
 
         ds.dcc.Dropdown(
-            id='cathode_material_selector', 
+            id='cathode_current_collector_material_selector', 
             placeholder='Select Cathode Current Collector Material',
             style={'width': 'calc(50%)'},
             options=[{'label': material, 'value': material} for material in CURRENT_COLLECTOR_MATERIALS]
@@ -55,19 +55,26 @@ cathode_current_collector_material_parameters = ds.html.Div(
 )
 
 
-cathode_current_collector_design_parameters = ds.html.Div([
+cathode_current_collector_design_parameters = ds.html.Div(
 
-    ds.html.H5('Select design', style={'font-weight': 'bold'}),
-        ds.dcc.Dropdown(
-            id='cathode_current_collector_design',
-            placeholder='Select Cathode Current Collector Design',
-            style={'width': 'calc(50%)'},
-            options=[{'label': design, 'value': design.lower()} for design in CURRENT_COLLECTOR_DESIGNS]
-        ),
+    id = 'cathode_current_collector_design_div',
+    
+    children=[
 
-    ds.html.Br(), ds.html.Br(),
+        ds.html.H5('Select design', style={'font-weight': 'bold'}),
+            ds.dcc.Dropdown(
+                id='cathode_current_collector_design',
+                placeholder='Select Cathode Current Collector Design',
+                style={'width': 'calc(50%)'},
+                options=[{'label': design, 'value': design.lower()} for design in CURRENT_COLLECTOR_DESIGNS]
+            ),
 
-])
+        ds.html.Br(), ds.html.Br(),
+
+    ], 
+
+    style={}
+)
 
 
 cathode_punched_design_parameters = ds.html.Div(
