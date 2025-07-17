@@ -9,7 +9,7 @@ from uuid import uuid4
 from SteerEnergyStorage.Materials.CurrentCollectors import *
 from SteerEnergyStorage.Materials.RawMaterials import *
 
-from current_collectors.layouts import *
+from App.current_collectors.layouts import *
 
 
 PUNCHED_PARAMETER_LIST = [

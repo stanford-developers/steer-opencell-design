@@ -3,7 +3,9 @@ from pathlib import Path
 from base64 import b64decode
 from uuid import uuid4
 from pickle import loads
-from cache_service import cache
+
+from App.cache_service import cache
+
 from SteerEnergyStorage.DataManager import DataManager
 
 
