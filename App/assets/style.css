@@ -25,3 +25,39 @@
     background-color: #ffffff; 
     outline: none; 
 }
+
+
+
+/* Base tab style */
+.tab-style {
+    background-color: black;
+    border: none;
+    padding: 12px 20px;
+    font-size: 16px;
+    color: #555;
+    cursor: pointer;
+    transition: color 0.2s, border-bottom 0.2s;
+    border-bottom: 2px solid transparent;
+}
+
+/* Hover effect */
+.tab-style:hover {
+    color: #000;
+    border-bottom: 2px solid #ccc;
+}
+
+/* Selected tab */
+.tab-selected {
+    color: #000;
+    border-bottom: 2px solid #007bff; /* Blue highlight */
+    font-weight: 500;
+    background-color: white;
+}
+
+/* Tabs container: optional cleanup */
+.dash-tabs {
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 10px;
+}
+
+
