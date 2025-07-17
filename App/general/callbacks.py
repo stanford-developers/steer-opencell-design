@@ -1,10 +1,11 @@
-from dash import callback, Output, Input, State, no_update, ctx, html
+from dash import callback, Output, Input, State, no_update, ctx, ALL
 from pathlib import Path
 from base64 import b64decode
 from uuid import uuid4
 from pickle import loads
 
-from App.cache_service import cache
+from cache_service import cache
+from App.general.store import LANDING_PAGE_IMAGE_URLS
 
 from SteerEnergyStorage.DataManager import DataManager
 
@@ -144,26 +145,50 @@ def update_cell_name_options(electrochemical_reference, internal_construction, f
 
 @callback(
     [
-        Output('cell_schematic', 'children')
+        Output({'type': 'cell_schematic_image', 'key': ALL}, 'style'),
     ],
     [
+        Input('form_factor_dropdown', 'options'),
+        Input('internal_construction_dropdown', 'options'),
+        Input('electrochemical_reference_dropdown', 'options'),
         Input('form_factor_dropdown', 'value'),
         Input('internal_construction_dropdown', 'value'),
+        Input('electrochemical_reference_dropdown', 'value'),
     ],
-    prevent_initial_call=True
+    [
+        State({'type': 'cell_schematic_image', 'key': ALL}, 'style'),
+    ]
 )
-def update_cell_schematic(form_factor, internal_construction):
+def update_landing_image_alpha(
+    form_factor_options, 
+    internal_construction_options, 
+    electrochemical_reference_options, 
+    form_factor_value,
+    internal_construction_value,
+    electrochemical_reference_value,
+    current_styles
+):
+    # Ensure current_styles is initialized correctly
+    if not current_styles:
+        current_styles = [{'width': '40%', 'opacity': '20%'} for _ in LANDING_PAGE_IMAGE_URLS]
 
-    if ctx.triggered_id == 'form_factor_dropdown':
-        
-        if form_factor == 'Cylindrical':
-            return [html.Img(src='/assets/cylindrical_encapsulation.png', style={'width': '50vw'})]
+    # Flatten options into a single list
+    available_options = [item['value'] for item in form_factor_options + internal_construction_options + electrochemical_reference_options]
 
-        elif form_factor == 'Prismatic':
-            return [html.Img(src='/assets/prismatic.png', style={'width': '50vw'})]
+    # Reset all styles to default opacity (10%)
+    for style in current_styles:
+        style['opacity'] = '10%'
 
-    else:
-        return [no_update]
+    # Update styles for matching keys in available options
+    for idx, key in enumerate(LANDING_PAGE_IMAGE_URLS.keys()):
+        if key in available_options:
+            current_styles[idx]['opacity'] = '50%'  # Set to 50% if key is in available options
+
+        # Set opacity to 100% if the key matches any of the value inputs
+        if key in [form_factor_value, internal_construction_value, electrochemical_reference_value]:
+            current_styles[idx]['opacity'] = '100%'
+
+    return [current_styles]
 
 
 @callback(
@@ -177,53 +202,47 @@ def update_cell_schematic(form_factor, internal_construction):
 )
 def get_cell_from_database(contents):
 
-    try:
-
-        if contents is None:
-            return no_update
-
-        # try establish connection to the database
-        try:
-            CURRENT_DIR = Path(__file__).resolve().parent
-            DATA_PATH = CURRENT_DIR / '..' / '..' / 'Data' / 'database.db'
-            dm = DataManager(DATA_PATH)
-        except Exception as e:
-            print(f"Error initializing DataManager: {e}")
-            return no_update
-        
-        # try and get the serialized cell data from the database
-        try:
-            cell_data = dm.get_data('cells').query(f"name == '{contents}'").iloc[0]['object']
-        except Exception as e:
-            print(f"Error fetching cell data from database: {e}")
-            return no_update
-        
-        # Decode the base64 content
-        try:
-            decoded_data = b64decode(cell_data)
-        except Exception as decode_error:
-            print(f"Error decoding base64 content: {decode_error}")
-            return no_update
-
-        # Deserialize the object using pickle
-        try:
-            current_collector = loads(decoded_data)
-        except Exception as deserialize_error:
-            print(f"Error deserializing pickle data: {deserialize_error}")
-            return no_update
-
-        # Generate a new cache key
-        new_cc_key = str(uuid4())
-
-        # Store the object in the cache
-        cache.set(new_cc_key, current_collector)
-        
-        # Return the cache key to update the store
-        return [{'cache_key': new_cc_key}]
-
-    except Exception as e:
-        print(f"Error in upload callback: {e}")
+    if contents is None:
         return no_update
+
+    # try establish connection to the database
+    try:
+        CURRENT_DIR = Path(__file__).resolve().parent
+        DATA_PATH = CURRENT_DIR / '..' / '..' / 'Data' / 'database.db'
+        dm = DataManager(DATA_PATH)
+    except Exception as e:
+        print(f"Error initializing DataManager: {e}")
+        return no_update
+    
+    # try and get the serialized cell data from the database
+    try:
+        cell_data = dm.get_data('cells').query(f"name == '{contents}'").iloc[0]['object']
+    except Exception as e:
+        print(f"Error fetching cell data from database: {e}")
+        return no_update
+    
+    # Decode the base64 content
+    try:
+        decoded_data = b64decode(cell_data)
+    except Exception as decode_error:
+        print(f"Error decoding base64 content: {decode_error}")
+        return no_update
+
+    # Deserialize the object using pickle
+    try:
+        cell = loads(decoded_data)
+    except Exception as deserialize_error:
+        print(f"Error deserializing pickle data: {deserialize_error}")
+        return no_update
+
+    # Generate a new cache key
+    new_cc_key = str(uuid4())
+
+    # Store the object in the cache
+    cache.set(new_cc_key, cell)
+
+    # Return the cache key to update the store
+    return [{'cache_key': new_cc_key}]
     
 
 @callback(
@@ -302,3 +321,5 @@ def show_and_hide_cell_type_and_tabs(continue_clicks, back_clicks, continue_styl
         back_style['display'] = 'none'
 
     return continue_style, back_style
+
+
