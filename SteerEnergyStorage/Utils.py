@@ -45,7 +45,7 @@ def get_area_from_points(x: np.ndarray, y: np.ndarray) -> float:
 
         return float(area)
 
-def build_square_array(x: float, y: float, x_width: float, y_width: float) -> np.ndarray:
+def build_square_array(x: float, y: float, x_width: float, y_width: float) -> Tuple[np.ndarray, np.ndarray]:
     """
     Build a NumPy array representing a square or rectangle defined by its bottom-left corner (x, y)
     and its width and height.
@@ -98,3 +98,17 @@ def rotate_coordinates(coords: np.ndarray, axis: str, angle: float) -> np.ndarra
 
     return coords @ R.T
 
+def order_coordinates_clockwise(df: pd.DataFrame, plane='xy') -> pd.DataFrame:
+
+        axis_1 = plane[0]
+        axis_2 = plane[1]
+
+        cx = df[axis_1].mean()
+        cy = df[axis_2].mean()
+
+        angles = np.arctan2(df[axis_2] - cy, df[axis_1] - cx)
+
+        df['angle'] = angles
+        df_sorted = df.sort_values(by='angle').drop(columns='angle').reset_index(drop=True)
+
+        return df_sorted
