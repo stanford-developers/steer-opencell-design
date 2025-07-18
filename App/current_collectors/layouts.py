@@ -265,8 +265,189 @@ cathode_punched_design_parameters = ds.html.Div(
 
 
 cathode_notched_design_parameters = ds.html.Div(
-    id='cathode_notched_design_parameters',
-    children=[ds.html.P('Notched design parameters will be added here.', style={'font-style': 'italic'})]
+    
+    id='cathode_notched_design_parameters', 
+    children=[
+
+        ds.html.Br(), ds.html.Br(), 
+        ds.html.H5('Body', style={'font-weight': 'bold'}),
+        ds.html.Br(), 
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
+            min_val = 0,
+            max_val = 500,
+            step = 0.1,
+            mark_interval = 30,
+            property_name = 'length',
+            title = 'Length (mm)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
+            min_val = 0,
+            max_val = 500,
+            step = 0.1,
+            mark_interval = 30,
+            property_name = 'width',
+            title = 'Width (mm)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
+            min_val = 0,
+            max_val = 20,
+            step = 0.1,
+            mark_interval = 10,
+            property_name = 'thickness',
+            title = 'Thickness (\u03bcm)'
+        )(),
+
+        ds.html.Br(), ds.html.Br(), 
+        ds.html.H5('Tab', style={'font-weight': 'bold'}),
+        ds.html.Br(), 
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
+            min_val = 0,
+            max_val = 100,
+            step = 0.1,
+            mark_interval = 30,
+            property_name = 'tab_width',
+            title = 'Tab Width (mm)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
+            min_val = 0,
+            max_val = 100,
+            step = 0.1,
+            mark_interval = 30,
+            property_name = 'tab_height',
+            title = 'Tab Height (mm)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
+            min_val = 0,
+            max_val = 100,
+            step = 0.1,
+            mark_interval = 30,
+            property_name = 'tab_spacing',
+            title = 'Tab Spacing (mm)'
+        )(),
+
+        ds.html.Br(), ds.html.Br(), 
+        ds.html.H5('Coating', style={'font-weight': 'bold'}),
+        ds.html.Br(), 
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
+            min_val = 0,
+            max_val = 100,
+            step = 0.1,
+            mark_interval = 30,
+            property_name = 'coated_tab_height',
+            title = 'Coated Tab Height (mm)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
+            min_val = 0,
+            max_val = 100,
+            step = 0.1,
+            mark_interval = 30,
+            property_name = 'insulation_width',
+            title = 'Insulation Width (mm)'
+        )(),
+
+        ds.html.Br(), ds.html.Br(), 
+        ds.html.H5('Derived', style={'font-weight': 'bold'}),
+        ds.html.Br(), 
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
+            min_val = 0,
+            max_val = 20,
+            step = 0.001,
+            mark_interval = 2,
+            property_name = 'cost',
+            slider_disable = True,
+            title = 'Cost ($)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
+            min_val = 0,
+            max_val = 20,
+            step = 0.01,
+            mark_interval = 2,
+            property_name = 'mass',
+            slider_disable = True,
+            title = 'Mass (g)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
+            min_val = 0,
+            max_val = 10000,
+            step = 0.1,
+            mark_interval = 200,
+            property_name = 'coated_area',
+            slider_disable = True,
+            title = 'Coated Area (both sides) (cm²)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
+            min_val = 0,
+            max_val = 10000,
+            step = 0.1,
+            mark_interval = 200,
+            property_name = 'insulation_area',
+            slider_disable = True,
+            title = 'Insulation Area (both sides) (cm²)'
+        )(),
+
+        
+        ds.html.Br(), ds.html.Br(),
+        ds.html.H5('Datums', style={'font-weight': 'bold'}),
+        ds.html.Br(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
+            min_val = 0,
+            max_val = 1,
+            step = 0.001,
+            mark_interval = 0.2,
+            property_name = 'datum_x',
+            slider_disable = False,
+            title = 'X (mm)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
+            min_val = 0,
+            max_val = 1,
+            step = 0.001,
+            mark_interval = 0.2,
+            property_name = 'datum_y',
+            slider_disable = False,
+            title = 'Y (mm)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
+            min_val = 0,
+            max_val = 1,
+            step = 0.01,
+            mark_interval = 0.2,
+            property_name = 'datum_z',
+            slider_disable = False,
+            title = 'Z (mm)'
+        )(),
+
+    ]
 )
 
 
@@ -288,13 +469,19 @@ cathode_plots = ds.html.Div([
     ds.dcc.Graph(
         id='cathode_a_side_plot', 
         style={'width': '50vw', 'height': '40vw'},
-        responsive=True
+        responsive=True,
+        config={
+            'modeBarButtonsToRemove': ['autoScale2d', 'resetScale2d']
+        }
     ),
 
     ds.dcc.Graph(
         id='cathode_b_side_plot', 
         style={'width': '50vw', 'height': '40vw'},
-        responsive=True
+        responsive=True,
+        config={
+            'modeBarButtonsToRemove': ['autoScale2d', 'resetScale2d']
+        }
     ),
 
 ], style={'display': 'flex', 'flex-direction': 'column'})

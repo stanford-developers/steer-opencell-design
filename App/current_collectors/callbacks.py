@@ -30,6 +30,24 @@ PUNCHED_PARAMETER_LIST = [
     'datum_z',
 ]
 
+NOTCHED_PARAMETER_LIST = [
+    'length',
+    'width',
+    'thickness',
+    'tab_width',
+    'tab_height',
+    'tab_spacing',
+    'coated_tab_height',
+    'insulation_width',
+    'cost',
+    'mass',
+    'coated_area',
+    'insulation_area',
+    'datum_x',
+    'datum_y',
+    'datum_z',
+]
+
 CC_MATERIAL_PARAMETER_LIST = [
     'density',
     'specific_cost',
@@ -354,6 +372,117 @@ def update_punched_current_collector(
 
 @callback(
     [
+        Output('cell_store', 'data', allow_duplicate=True),
+        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
+        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
+        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'min'),
+        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'max'),
+        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input'}, 'min'),
+        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input'}, 'max'),
+        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'marks')
+    ],
+    [
+        Input('cell_store', 'data'),
+        Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
+        Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
+    ],
+    prevent_initial_call=True
+)
+def update_notched_current_collector(
+    cell_data,
+    input_values,
+    slider_values
+):
+    
+    def generate_parameters(current_collector):
+        """Helper function to generate parameter lists for the material."""
+        parameter_list = [getattr(current_collector, param) for param in NOTCHED_PARAMETER_LIST]
+        min_values = [getattr(current_collector, f"{param}_range")[0] for param in NOTCHED_PARAMETER_LIST]
+        max_values = [getattr(current_collector, f"{param}_range")[1] for param in NOTCHED_PARAMETER_LIST]
+        marks_list = [getattr(current_collector, f"{param}_marks") for param in NOTCHED_PARAMETER_LIST]
+        return parameter_list, min_values, max_values, marks_list
+
+    triggered_id = ctx.triggered_id
+    cell = cache.get(cell_data['cache_key'])
+
+    # get the cathode current collector from the cell
+    current_collector = cell
+
+    # Check if the current collector is a NotchedCurrentCollector. If not, return no_update
+    if type(current_collector) != NotchedCurrentCollector:
+        return (
+            no_update,
+            [no_update] * len(NOTCHED_PARAMETER_LIST),
+            [no_update] * len(NOTCHED_PARAMETER_LIST),
+            [no_update] * len(NOTCHED_PARAMETER_LIST),
+            [no_update] * len(NOTCHED_PARAMETER_LIST),
+            [no_update] * len(NOTCHED_PARAMETER_LIST),
+            [no_update] * len(NOTCHED_PARAMETER_LIST),
+            [no_update] * len(NOTCHED_PARAMETER_LIST),
+        )
+
+    # If the cell store is triggered, get the current collector from the cell
+    if triggered_id == 'cell_store':
+        
+        # generate the parameter lists
+        value_list, min_values, max_values, marks_list = generate_parameters(current_collector)
+
+        return (
+            no_update,
+            value_list,
+            value_list,
+            min_values,
+            max_values,
+            min_values,
+            max_values,
+            marks_list,
+        )
+        
+    # Handle slider/input updates
+    elif isinstance(triggered_id, dict) and 'property' in triggered_id:
+
+        # determine which property was triggered
+        property = triggered_id['property']
+        property_index = NOTCHED_PARAMETER_LIST.index(property)
+        value = slider_values[property_index] if triggered_id['subtype'] == 'slider' else input_values[property_index]
+
+        # set the property of the current collector
+        setattr(current_collector, property, value)
+
+        # Validate dependent properties
+        for param in NOTCHED_PARAMETER_LIST:
+            if param != property:  # Skip the updated property
+                param_range = current_collector.__getattribute__(f"{param}_range")
+                param_value = current_collector.__getattribute__(param)
+                if param_value < param_range[0]:
+                    current_collector.__setattr__(param, param_range[0])
+                elif param_value > param_range[1]:
+                    current_collector.__setattr__(param, param_range[1])
+
+        value_list, min_values, max_values, marks_list = generate_parameters(current_collector)
+
+        # update the cell data with the new current collector
+        cell = current_collector
+
+        # make the new key and store in cache
+        cell_data['cache_key'] = str(uuid4())
+        cache.set(cell_data['cache_key'], cell)
+
+        # return the updated values
+        return (
+            {'cache_key': cell_data['cache_key']},
+            value_list,
+            value_list,
+            min_values,
+            max_values,
+            min_values,
+            max_values,
+            marks_list,
+        )
+
+
+@callback(
+    [
         Output('cathode_a_side_plot', 'figure'),
         Output('cathode_b_side_plot', 'figure'),
     ],
@@ -363,7 +492,7 @@ def update_punched_current_collector(
     ],
     prevent_initial_call=True
 )
-def update_cathode_current_collector_plots(cell_data, tab_value):
+def update_cathode_current_collector_plots(cell_data, continue_to_design):
     """
     Update the cathode current collector plots based on the current collector store data.
     """
