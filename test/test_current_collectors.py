@@ -80,8 +80,8 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         fig_a = self.current_collector.get_a_side_view()
         fig_b = self.current_collector.get_b_side_view()
 
-        fig_a.show()
-        fig_b.show()
+        # fig_a.show()
+        # fig_b.show()
 
         self.assertTrue(True)
 
@@ -156,13 +156,15 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         self.assertEqual(self.current_collector.mass, 13.63)
 
     def test_figures(self):
-        fig_a = self.current_collector.get_a_side_view()
-        fig_b = self.current_collector.get_b_side_view()
-        fig_c = self.current_collector.get_end_view()
+        fig_a = self.current_collector._get_full_top_down_view(with_dimensions=False)
+        fig_b = self.current_collector.get_top_down_view(with_dimensions=False)
+        fig_c = self.current_collector.get_a_side_view(with_dimensions=False)
+        fig_d = self.current_collector.get_b_side_view(with_dimensions=False)
 
         # fig_a.show()
         # fig_b.show()
         # fig_c.show()
+        # fig_d.show()
 
     def test_setters(self):
 
@@ -186,7 +188,7 @@ class TestNotchedCurrentCollector(unittest.TestCase):
 
         # fig_a.show()
         # fig_b.show()
-        # fig_c.show()
+        fig_c.show()
 
     def test_datum_shifter(self):
 
