@@ -1,5 +1,5 @@
 import dash as ds
-from App.cache_service import cache
+from cache_service import cache
 
 from styles import *
 

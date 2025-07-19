@@ -1,16 +1,18 @@
 import dash as ds
 
+LANDING_PAGE_IMAGE_URLS = {
+    'Pouch': '/assets/Pouch.png',
+    'Prismatic': '/assets/Prismatic.png',
+    'Cylindrical': '/assets/Cylindrical.png',
+    'Stacked': '/assets/Stacked.png',
+    'Wound': '/assets/Wound.png',
+    'Flat Wound': '/assets/Flat Wound.png',
+    'Na/Na+': '/assets/NaNa+.png',
+    'Li/Li+': '/assets/LiLi+.png',
+    'Zn/Zn2+': '/assets/ZnZn2+.png',
+}
+
 cell_store = ds.dcc.Store(
     id = 'cell_store',
     data = {'cache_key': None}
-)
-
-cathode_current_collector_material_store = ds.dcc.Store(
-    id='cathode_current_collector_material_store',
-    data={'cache_key': None}
-)
-
-cathode_current_collector_store = ds.dcc.Store(
-    data={'cache_key': None}, 
-    id='cathode_current_collector_store'
 )
