@@ -1,7 +1,7 @@
 import dash as ds
 from styles import *
 
-from general.custom_components import SliderWithTextInput
+from general.custom_components import SliderWithTextInput, RangeSliderWithTextInput
 from database_service import CURRENT_COLLECTOR_MATERIALS
 
 from SteerEnergyStorage.Materials.CurrentCollectors import *
@@ -373,6 +373,26 @@ cathode_notched_design_parameters = ds.html.Div(
             mark_interval = 30,
             property_name = 'insulation_width',
             title = 'Insulation Width (mm)'
+        )(),
+
+        RangeSliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
+            min_val = 0,
+            max_val = 5000,
+            step = 1,
+            mark_interval = 500,
+            property_name = 'a_side_coated_section',
+            title = 'A Side Coated Section (mm)'
+        )(),
+
+        RangeSliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
+            min_val = 0,
+            max_val = 5000,
+            step = 1,
+            mark_interval = 500,
+            property_name = 'b_side_coated_section',
+            title = 'B Side Coated Section (mm)'
         )(),
 
         ds.html.Br(), ds.html.Br(), 
