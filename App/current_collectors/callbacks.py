@@ -48,6 +48,11 @@ NOTCHED_PARAMETER_LIST = [
     'datum_z',
 ]
 
+TAPE_RANGE_SLIDER_PARAMETERS = [
+    'a_side_coated_section',
+    'b_side_coated_section',
+]
+
 CC_MATERIAL_PARAMETER_LIST = [
     'density',
     'specific_cost',
@@ -410,6 +415,12 @@ def update_punched_current_collector(
         Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input'}, 'min'),
         Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input'}, 'max'),
         Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'marks'),
+        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'value'),
+        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input_start'}, 'value'),
+        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input_end'}, 'value'),
+        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'min'),
+        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'max'),
+        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'marks'),
     ],
     [
         Input('cell_store', 'data'),
@@ -417,6 +428,10 @@ def update_punched_current_collector(
         Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
         Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'action': 'flip_x'}, 'n_clicks'),
         Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'action': 'flip_y'}, 'n_clicks'),
+        # Add range slider inputs
+        Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'value'),
+        Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input_start'}, 'value'),
+        Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input_end'}, 'value'),
     ],
     prevent_initial_call=True
 )
@@ -425,7 +440,10 @@ def update_notched_current_collector(
     input_values,
     slider_values,
     flip_x,
-    flip_y
+    flip_y,
+    rangeslider_values,
+    input_start_values,
+    input_end_values
 ):
     
     def generate_parameters(current_collector):
@@ -435,6 +453,16 @@ def update_notched_current_collector(
         max_values = [getattr(current_collector, f"{param}_range")[1] for param in NOTCHED_PARAMETER_LIST]
         marks_list = [getattr(current_collector, f"{param}_marks") for param in NOTCHED_PARAMETER_LIST]
         return parameter_list, min_values, max_values, marks_list
+    
+    def generate_rangeslider_values(current_collector):
+        """Generate the values for the range slider."""
+        parameter_list = [getattr(current_collector, param) for param in TAPE_RANGE_SLIDER_PARAMETERS]
+        start_list = [p[0] for p in parameter_list]
+        end_list = [p[1] for p in parameter_list]
+        min_val = [getattr(current_collector, f"{param}_range")[0] for param in TAPE_RANGE_SLIDER_PARAMETERS]
+        max_val = [getattr(current_collector, f"{param}_range")[1] for param in TAPE_RANGE_SLIDER_PARAMETERS]
+        range_marks_list = [getattr(current_collector, f"{param}_marks") for param in TAPE_RANGE_SLIDER_PARAMETERS]
+        return parameter_list, start_list, end_list, min_val, max_val, range_marks_list
 
     triggered_id = ctx.triggered_id
     cell = cache.get(cell_data['cache_key'])
@@ -453,6 +481,12 @@ def update_notched_current_collector(
             [no_update] * len(NOTCHED_PARAMETER_LIST),
             [no_update] * len(NOTCHED_PARAMETER_LIST),
             [no_update] * len(NOTCHED_PARAMETER_LIST),
+            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
+            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
+            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
+            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
+            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
+            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
         )
 
     # If the cell store is triggered, get the current collector from the cell
@@ -460,6 +494,9 @@ def update_notched_current_collector(
         
         # generate the parameter lists
         value_list, min_values, max_values, marks_list = generate_parameters(current_collector)
+
+        # generate the range slider values
+        range_value_list, start_list, end_list, min_val, max_val, range_marks_list = generate_rangeslider_values(current_collector)
 
         return (
             no_update,
@@ -470,6 +507,12 @@ def update_notched_current_collector(
             min_values,
             max_values,
             marks_list,
+            range_value_list,
+            start_list,
+            end_list,
+            min_val,
+            max_val,
+            range_marks_list
         )
         
     # Handle slider/input updates
@@ -477,13 +520,34 @@ def update_notched_current_collector(
 
         # determine which property was triggered
         property = triggered_id['property']
-        property_index = NOTCHED_PARAMETER_LIST.index(property)
-        value = slider_values[property_index] if triggered_id['subtype'] == 'slider' else input_values[property_index]
+        
+        # Handle range slider properties
+        if property in TAPE_RANGE_SLIDER_PARAMETERS:
 
-        # set the property of the current collector
-        setattr(current_collector, property, value)
+            range_property_index = TAPE_RANGE_SLIDER_PARAMETERS.index(property)
+            
+            if triggered_id['subtype'] == 'rangeslider':
+                # Range slider was moved
+                value = rangeslider_values[range_property_index]
+            elif triggered_id['subtype'] == 'input_start':
+                # Start input was changed
+                current_value = getattr(current_collector, property)
+                value = (input_start_values[range_property_index], current_value[1])
+            elif triggered_id['subtype'] == 'input_end':
+                # End input was changed
+                current_value = getattr(current_collector, property)
+                value = (current_value[0], input_end_values[range_property_index])
+            
+            # Set the property as a tuple
+            setattr(current_collector, property, value)
+            
+        # Handle regular slider/input properties  
+        elif property in NOTCHED_PARAMETER_LIST:
+            property_index = NOTCHED_PARAMETER_LIST.index(property)
+            value = slider_values[property_index] if triggered_id['subtype'] == 'slider' else input_values[property_index]
+            setattr(current_collector, property, value)
 
-        # Validate dependent properties
+        # Validate dependent properties for regular parameters only
         for param in NOTCHED_PARAMETER_LIST:
             if param != property:  # Skip the updated property
                 param_range = current_collector.__getattribute__(f"{param}_range")
@@ -494,6 +558,7 @@ def update_notched_current_collector(
                     current_collector.__setattr__(param, param_range[1])
 
         value_list, min_values, max_values, marks_list = generate_parameters(current_collector)
+        range_value_list, start_list, end_list, min_val, max_val, range_marks_list = generate_rangeslider_values(current_collector)
 
         # update the cell data with the new current collector
         cell = current_collector
@@ -512,6 +577,12 @@ def update_notched_current_collector(
             min_values,
             max_values,
             marks_list,
+            range_value_list,
+            start_list,
+            end_list, 
+            min_val,
+            max_val,
+            range_marks_list
         )
     
     elif isinstance(triggered_id, dict) and 'action' in triggered_id:
@@ -538,6 +609,12 @@ def update_notched_current_collector(
             [no_update] * len(NOTCHED_PARAMETER_LIST),
             [no_update] * len(NOTCHED_PARAMETER_LIST),
             [no_update] * len(NOTCHED_PARAMETER_LIST),
+            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
+            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
+            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
+            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
+            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
+            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
         )
 
 

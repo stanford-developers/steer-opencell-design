@@ -1443,8 +1443,8 @@ class _TapeCurrentCollector(_CurrentCollector):
         coated area, and the second float being the end point along the tape of the coated area.
         """
         return (
-            round(self._bare_lengths_a_side[0] * M_TO_MM, 2),
-            round(self._x_body_length - self._bare_lengths_a_side[1] * M_TO_MM, 2)
+            round(self._bare_lengths_a_side[0] * M_TO_MM, 1),
+            round((self._x_body_length - self._bare_lengths_a_side[1]) * M_TO_MM, 1)
         )
     
     @property
@@ -1455,14 +1455,14 @@ class _TapeCurrentCollector(_CurrentCollector):
         return (0, self.x_body_length)
     
     @property
-    def a_side_coated_section_markers(self) -> Dict[int, str]:
+    def a_side_coated_section_marks(self) -> Dict[int, str]:
         """
         Get the A side coated section markers for the slider.
         """
         min_section = np.ceil(self.a_side_coated_section_range[0])
         max_section = np.floor(self.a_side_coated_section_range[1])
-        return {i: '' for i in range(int(min_section), int(max_section) + 1, 400)}
-    
+        return {i: '' for i in range(int(min_section), int(max_section) + 1, 500)}
+
     @a_side_coated_section.setter
     def a_side_coated_section(self, section: Tuple[float, float]) -> None:
         """
@@ -1473,8 +1473,8 @@ class _TapeCurrentCollector(_CurrentCollector):
         section: Tuple[float, float]
             A tuple containing the start and end points of the coated section along the tape in mm.
         """
-        if not isinstance(section, tuple) or len(section) != 2:
-            raise TypeError("A side coated section must be a tuple of two floats.")
+        if not isinstance(section, (tuple, list)) or len(section) != 2:
+            raise TypeError("A side coated section must be a tuple or list of two floats.")
         
         if any(not isinstance(length, (int, float)) for length in section):
             raise TypeError("A side coated section must contain numbers.")
@@ -1497,8 +1497,8 @@ class _TapeCurrentCollector(_CurrentCollector):
         coated area, and the second float being the end point along the tape of the coated area.
         """
         return (
-            round(self._bare_lengths_b_side[0] * M_TO_MM, 2),
-            round(self._x_body_length - self._bare_lengths_b_side[1] * M_TO_MM, 2)
+            round(self._bare_lengths_b_side[0] * M_TO_MM, 1),
+            round((self._x_body_length - self._bare_lengths_b_side[1]) * M_TO_MM, 1)
         )
 
     @property
@@ -1509,13 +1509,13 @@ class _TapeCurrentCollector(_CurrentCollector):
         return (0, self.x_body_length)
 
     @property
-    def b_side_coated_section_markers(self) -> Dict[int, str]:
+    def b_side_coated_section_marks(self) -> Dict[int, str]:
         """
         Get the B side coated section markers for the slider.
         """
         min_section = np.ceil(self.b_side_coated_section_range[0])
         max_section = np.floor(self.b_side_coated_section_range[1])
-        return {i: '' for i in range(int(min_section), int(max_section) + 1, 400)}
+        return {i: '' for i in range(int(min_section), int(max_section) + 1, 500)}
 
     @b_side_coated_section.setter
     def b_side_coated_section(self, section: Tuple[float, float]) -> None:
@@ -1527,8 +1527,8 @@ class _TapeCurrentCollector(_CurrentCollector):
         section: Tuple[float, float]
             A tuple containing the start and end points of the coated section along the tape in mm.
         """
-        if not isinstance(section, tuple) or len(section) != 2:
-            raise TypeError("B side coated section must be a tuple of two floats.")
+        if not isinstance(section, (tuple, list)) or len(section) != 2:
+            raise TypeError("B side coated section must be a tuple or list of two floats.")
 
         if any(not isinstance(length, (int, float)) for length in section):
             raise TypeError("B side coated section must contain numbers.")
