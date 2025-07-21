@@ -1437,6 +1437,114 @@ class _TapeCurrentCollector(_CurrentCollector):
             self._calculate_all_properties()
 
     @property
+    def a_side_coated_section(self):
+        """
+        Property inidcating the length of the current collector that is coated on the A side. Given as a tuple, with the first float being the start point along the tape of the 
+        coated area, and the second float being the end point along the tape of the coated area.
+        """
+        return (
+            round(self._bare_lengths_a_side[0] * M_TO_MM, 2),
+            round(self._x_body_length - self._bare_lengths_a_side[1] * M_TO_MM, 2)
+        )
+    
+    @property
+    def a_side_coated_section_range(self) -> Tuple[float, float]:
+        """
+        Get the range of the A side coated section in mm.
+        """
+        return (0, self.x_body_length)
+    
+    @property
+    def a_side_coated_section_markers(self) -> Dict[int, str]:
+        """
+        Get the A side coated section markers for the slider.
+        """
+        min_section = np.ceil(self.a_side_coated_section_range[0])
+        max_section = np.floor(self.a_side_coated_section_range[1])
+        return {i: '' for i in range(int(min_section), int(max_section) + 1, 400)}
+    
+    @a_side_coated_section.setter
+    def a_side_coated_section(self, section: Tuple[float, float]) -> None:
+        """
+        Set the A side coated section.
+        
+        Parameters:
+        ----------
+        section: Tuple[float, float]
+            A tuple containing the start and end points of the coated section along the tape in mm.
+        """
+        if not isinstance(section, tuple) or len(section) != 2:
+            raise TypeError("A side coated section must be a tuple of two floats.")
+        
+        if any(not isinstance(length, (int, float)) for length in section):
+            raise TypeError("A side coated section must contain numbers.")
+        
+        if any(length < 0 for length in section):
+            raise ValueError("A side coated section cannot have negative values.")
+        
+        self._bare_lengths_a_side = (
+            float(section[0]) * MM_TO_M,
+            self._x_body_length - float(section[1]) * MM_TO_M
+        )
+        
+        if self._update_properties:
+            self._calculate_all_properties()
+    
+    @property
+    def b_side_coated_section(self):
+        """
+        Property inidcating the length of the current collector that is coated on the B side. Given as a tuple, with the first float being the start point along the tape of the 
+        coated area, and the second float being the end point along the tape of the coated area.
+        """
+        return (
+            round(self._bare_lengths_b_side[0] * M_TO_MM, 2),
+            round(self._x_body_length - self._bare_lengths_b_side[1] * M_TO_MM, 2)
+        )
+
+    @property
+    def b_side_coated_section_range(self) -> Tuple[float, float]:
+        """
+        Get the range of the B side coated section in mm.
+        """
+        return (0, self.x_body_length)
+
+    @property
+    def b_side_coated_section_markers(self) -> Dict[int, str]:
+        """
+        Get the B side coated section markers for the slider.
+        """
+        min_section = np.ceil(self.b_side_coated_section_range[0])
+        max_section = np.floor(self.b_side_coated_section_range[1])
+        return {i: '' for i in range(int(min_section), int(max_section) + 1, 400)}
+
+    @b_side_coated_section.setter
+    def b_side_coated_section(self, section: Tuple[float, float]) -> None:
+        """
+        Set the B side coated section.
+
+        Parameters:
+        ----------
+        section: Tuple[float, float]
+            A tuple containing the start and end points of the coated section along the tape in mm.
+        """
+        if not isinstance(section, tuple) or len(section) != 2:
+            raise TypeError("B side coated section must be a tuple of two floats.")
+
+        if any(not isinstance(length, (int, float)) for length in section):
+            raise TypeError("B side coated section must contain numbers.")
+
+        if any(length < 0 for length in section):
+            raise ValueError("B side coated section cannot have negative values.")
+
+        self._bare_lengths_b_side = (
+            float(section[0]) * MM_TO_M,
+            self._x_body_length - float(section[1]) * MM_TO_M
+        )
+
+        if self._update_properties:
+            self._calculate_all_properties()
+
+    @property
     def length(self) -> float:
         return self.x_body_length
     
