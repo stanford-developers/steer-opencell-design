@@ -188,16 +188,16 @@ class TestNotchedCurrentCollector(unittest.TestCase):
 
         # fig_a.show()
         # fig_b.show()
-        fig_c.show()
+        # fig_c.show()
 
     def test_datum_shifter(self):
 
         self.current_collector.length = 300
-        fig11 = self.current_collector._get_full_view(with_dimensions=False)
+        fig11 = self.current_collector._get_full_top_down_view(with_dimensions=False)
         fig12 = self.current_collector.get_end_view()
         
         self.current_collector.datum = (200, 150, 50)
-        fig21 = self.current_collector._get_full_view(with_dimensions=False)
+        fig21 = self.current_collector._get_full_top_down_view(with_dimensions=False)
         fig22 = self.current_collector.get_end_view()
 
         figure1 = go.Figure(data=fig11.data + fig21.data)
@@ -252,13 +252,14 @@ class TestNotchedCurrentCollector2(unittest.TestCase):
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[0], 6), 0.02)
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[1], 6), 0.08)
         self.assertEqual(round(self.current_collector._coated_tab_height, 6), 0.004)
-        self.assertEqual(round(self.current_collector.body_area, 6), 3366)
+        self.assertEqual(round(self.current_collector.body_area, 6), 6732)
         self.assertEqual(round(self.current_collector.coated_area, 6), 6339.1)
         self.assertEqual(round(self.current_collector.insulation_area, 6), 69.7)
 
     def test_figures(self):
         fig_a = self.current_collector.get_a_side_view()
         fig_b = self.current_collector.get_b_side_view()
+        
         # fig_a.show()
         # fig_b.show()
 

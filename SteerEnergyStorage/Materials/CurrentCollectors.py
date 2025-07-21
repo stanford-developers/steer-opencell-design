@@ -839,6 +839,8 @@ class _CurrentCollector(ABC):
                 x = lambda x: (x['x'] * M_TO_MM).round(10),
                 y = lambda x: (x['y'] * M_TO_MM).round(10),
                 z = lambda x: (x['z'] * M_TO_MM).round(10)
+            ).astype(
+                {'x': float, 'y': float, 'z': float}
             )
         )
 
@@ -859,6 +861,8 @@ class _CurrentCollector(ABC):
                 x = lambda x: (x['x'] * M_TO_MM).round(10),
                 y = lambda x: (x['y'] * M_TO_MM).round(10),
                 z = lambda x: (x['z'] * M_TO_MM).round(10)
+            ).astype(
+                {'x': float, 'y': float, 'z': float}
             )
         )
 
@@ -2009,9 +2013,9 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         self._tab_positions = np.column_stack((tab_starts, tab_ends))
 
-    def _calculate_all_properties(self):
+    def _calculate_coordinates(self):
         self._calculate_tab_positions()
-        super()._calculate_all_properties()
+        super()._calculate_coordinates()
 
     def _get_footprint(
             self,
@@ -2121,9 +2125,9 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         return fig
 
-    def _get_insulation_coordinates(self, side: str = 'a') -> Tuple[go.Scatter, float]:
+    def _get_insulation_coordinates(self, side: str = 'a') -> np.ndarray:
         """
-        Return insulation trace and area for a given side ('a' or 'b').
+        Return insulation coordinates for a given side ('a' or 'b') as numpy array.
         Handles three cases: (1) above body, (2) below body, (3) straddling edge.
         """
         # Compute insulation Y-range
@@ -2140,40 +2144,49 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         # Case 1: Insulation entirely above the body
         if round(y_ins_start, 5) >= round(y_body_top, 5):
-            insulation_area = pd.DataFrame(columns=['x', 'y'])
+
+            all_x = []
+            all_y = []
+            
             for idx, (ts, te) in enumerate(self._tab_positions):
+
+                ts = float(ts)
+                te = float(te)
+                
                 # Clip tab to coated region
                 if te < x_start or ts > x_end:
                     continue
+                
                 s = max(ts, x_start)
                 e = min(te, x_end)
 
-                tab_df = build_square_array(
+                # Get coordinates for this tab's insulation rectangle
+                tab_x, tab_y = build_square_array(
                     x_width=e - s,
                     y_width=self._insulation_width,
                     x=s,
                     y=y_ins_start
                 )
                 
-                tab_df = tab_df.assign(tab_number=idx + 1)
-
-                # Concatenate with spacer row for plotly breaks
-                insulation_area = pd.concat(
-                    [insulation_area, 
-                     tab_df, 
-                     pd.DataFrame([[None]*len(tab_df.columns)], columns=tab_df.columns)
-                     ],
-                    ignore_index=True
-                )
+                # Add to lists
+                all_x.extend(tab_x)
+                all_y.extend(tab_y)
+                
+                # Add None values to break the fill for multiple rectangles
+                if idx < len(self._tab_positions) - 1:  # Don't add break after last tab
+                    all_x.append(None)
+                    all_y.append(None)
+            
+            x = np.array(all_x)
+            y = np.array(all_y)
 
         # Case 2: Insulation entirely below the body
         elif round(y_ins_end, 10) <= round(y_body_top, 10):
-
             x, y = build_square_array(
-                x_width = x_end - x_start,
-                y_width = self._insulation_width,
-                x = x_start,
-                y = y_ins_start
+                x_width=x_end - x_start,
+                y_width=self._insulation_width,
+                x=x_start,
+                y=y_ins_start
             )
 
         # Case 3: Insulation straddles the top of the body
@@ -2196,10 +2209,11 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         
         z_val = self._body_coordinates[idx[0], 2]
 
-        # Create z and side columns
-        z = np.full_like(x, z_val)
+        # Create z array (handle None values in x/y arrays)
+        z = np.full_like(x, z_val, dtype=object)
+        z[x == None] = None  # Keep None values as None
 
-        # Stack into final (N, 4) array
+        # Stack into final (N, 3) array
         return np.column_stack((x, y, z))
 
     @property
