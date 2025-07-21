@@ -260,6 +260,20 @@ cathode_punched_design_parameters = ds.html.Div(
             title = 'Z (mm)'
         )(),
 
+        ds.html.Button(
+            id={'electrode': 'cathode', 'object': 'punched_current_collector', 'action': 'flip_x'},
+            children='Flip X',
+            style=BUTTON_STYLE | {'width': 'calc(30%)'}
+        ),
+
+        ds.html.Br(), ds.html.Br(),
+
+        ds.html.Button(
+            id={'electrode': 'cathode', 'object': 'punched_current_collector', 'action': 'flip_y'},
+            children='Flip Y',
+            style=BUTTON_STYLE | {'width': 'calc(30%)'}
+        ),
+
     ]
 )
 
@@ -447,6 +461,20 @@ cathode_notched_design_parameters = ds.html.Div(
             title = 'Z (mm)'
         )(),
 
+        ds.html.Button(
+            id={'electrode': 'cathode', 'object': 'notched_current_collector', 'action': 'flip_x'},
+            children='Flip X',
+            style=BUTTON_STYLE | {'width': 'calc(30%)'}
+        ),
+
+        ds.html.Br(), ds.html.Br(),
+
+        ds.html.Button(
+            id={'electrode': 'cathode', 'object': 'notched_current_collector', 'action': 'flip_y'},
+            children='Flip Y',
+            style=BUTTON_STYLE | {'width': 'calc(30%)'}
+        ),
+
     ]
 )
 
@@ -477,6 +505,15 @@ cathode_plots = ds.html.Div([
 
     ds.dcc.Graph(
         id='cathode_b_side_plot', 
+        style={'width': '50vw', 'height': '40vw'},
+        responsive=True,
+        config={
+            'modeBarButtonsToRemove': ['autoScale2d', 'resetScale2d']
+        }
+    ),
+
+    ds.dcc.Graph(
+        id='cathode_top_down_plot', 
         style={'width': '50vw', 'height': '40vw'},
         responsive=True,
         config={

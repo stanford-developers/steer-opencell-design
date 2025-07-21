@@ -1,5 +1,5 @@
 import dash as ds
-from cache_service import cache
+from App.cache_service import cache
 
 from styles import *
 
@@ -9,9 +9,6 @@ app = ds.Dash(
     external_stylesheets=[BOOTSTRAP_THEME],
     prevent_initial_callbacks="initial_duplicate"
 )
-
-# Initialize the cache
-cache.init_app(app.server)
 
 # Suppress callback exceptions for easier debugging
 app.config.suppress_callback_exceptions = True
@@ -24,6 +21,8 @@ from general.layouts import *
 
 # Set high level layout
 def create_app():
+
+    cache.init_app(app.server)
 
     app.layout = ds.html.Div([
         stores,
