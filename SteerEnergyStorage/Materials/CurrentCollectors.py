@@ -681,7 +681,7 @@ class _CurrentCollector(ABC):
         Get the insulation width range in mm.
         """
         min = 0
-        max = self._y_body_length / 4 - 0.01
+        max = self._y_body_length / 2 - 0.001
         
         return (
             round(min * M_TO_MM, 1), 
@@ -904,7 +904,7 @@ class _CurrentCollector(ABC):
 
     @property
     def width_range(self) -> Tuple[float, float]:
-        min = 0
+        min = 0.03
         max = 1
         return (
             round(min * M_TO_MM, 2), 
@@ -2376,6 +2376,31 @@ class TablessCurrentCollector(NotchedCurrentCollector):
     def coated_width(self) -> float:
         return round(self._coated_width * M_TO_MM, 2)
     
+    @property
+    def coated_width_range(self) -> Tuple[float, float]:
+        """
+        Get the coated width range in mm.
+        """
+        min = (self._y_body_length + self._tab_height) * (4/5)
+        max = self._y_body_length + self._tab_height
+
+        return (
+            round(min * M_TO_MM, 2), 
+            round(max * M_TO_MM, 2)
+        )
+    
+    @property
+    def coated_width_marks(self) -> Dict[int, str]:
+        """
+        Get the coated width marks in mm.
+        """
+        min_width = self.coated_width_range[0]
+        max_width = self.coated_width_range[1]
+        delta = 5
+        num_steps = int(round((max_width - min_width) / delta)) + 1
+        values = np.linspace(min_width, max_width, num_steps).round(10).tolist()
+        return {i: '' for i in values}
+
     @coated_width.setter
     def coated_width(self, coated_width: float) -> None:
 
@@ -2384,18 +2409,40 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         
         if coated_width < 0:
             raise ValueError("Coated width cannot be negative.")
+
+        # Calculate the change in coated width (in mm)
+        delta_coated_width_mm = self.coated_width - float(coated_width)
+
+        print(delta_coated_width_mm)
+
+        # Adjust body length and tab height (these setters expect mm)
+        self.y_body_length = self.y_body_length - delta_coated_width_mm
+        self.tab_height = self.tab_height + delta_coated_width_mm
         
+        # Store the internal value in meters
         self._coated_width = float(coated_width) * MM_TO_M
-        
-        if self._coated_width > self._y_body_length:
-            raise ValueError("Coated width cannot be greater than the width of the current collector.")
-        
-        if self._update_properties:
-            self._calculate_all_properties()
 
     @property
     def width(self) -> float:
         return round((self._y_body_length + self._tab_height) * M_TO_MM, 2)
+
+    @width.setter
+    def width(self, width: float) -> None:
+        if not isinstance(width, (int, float)):
+            raise TypeError("Width must be a number.")
+        
+        if width <= 0:
+            raise ValueError("Width cannot be negative or equal to 0.")
+
+        new_y_length = width - self.tab_height
+        self.y_body_length = new_y_length
+        
+        # Automatically adjust coated_width if it's now too large
+        max_coated_width = self._y_body_length
+        if self._coated_width > max_coated_width:
+            self._coated_width = max_coated_width
+            if self._update_properties:
+                self._calculate_all_properties()
 
 
 class WeldTab:
