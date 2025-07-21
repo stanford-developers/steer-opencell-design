@@ -108,8 +108,8 @@ class RangeSliderWithTextInput:
         self.slider_disable = slider_disable
 
         self.slider_id = self._make_id('rangeslider')
-        self.input_min_id = self._make_id('input_min')
-        self.input_max_id = self._make_id('input_max')
+        self.input_start_id = self._make_id('input_start')
+        self.input_end_id = self._make_id('input_end')
 
     def _make_id(self, subtype: str):
         return {**self.id_base, 'subtype': subtype, 'property': self.property_name}
@@ -126,9 +126,9 @@ class RangeSliderWithTextInput:
             updatemode='mouseup'
         )
 
-    def _make_min_input(self):
+    def _make_start_input(self):
         return ds.dcc.Input(
-            id=self.input_min_id,
+            id=self.input_start_id,
             type='number',
             value=self.default_val[0],
             step=self.step,
@@ -136,9 +136,9 @@ class RangeSliderWithTextInput:
             disabled=self.slider_disable,
         )
 
-    def _make_max_input(self):
+    def _make_end_input(self):
         return ds.dcc.Input(
-            id=self.input_max_id,
+            id=self.input_end_id,
             type='number',
             value=self.default_val[1],
             step=self.step,
@@ -153,10 +153,10 @@ class RangeSliderWithTextInput:
             ds.html.P(slider_title, style={'margin-left': '20px', 'margin-bottom': '0px'}),
             ds.html.Div([self._make_range_slider()], style={'margin-bottom': '-18px'}),
             ds.html.Div([
-                ds.html.Span("Min:", style={'margin-left': '20px', 'margin-right': '5px'}),
-                self._make_min_input(),
-                ds.html.Span("Max:", style={'margin-left': '15px', 'margin-right': '5px'}),
-                self._make_max_input(),
+                ds.html.Span("Start:", style={'margin-left': '20px', 'margin-right': '5px'}),
+                self._make_start_input(),
+                ds.html.Span("End:", style={'margin-left': '15px', 'margin-right': '5px'}),
+                self._make_end_input(),
             ], style={'display': 'flex', 'align-items': 'center'}),
             ds.html.Br(), ds.html.Br()
         ], style={'width': self.div_width, 'margin-left': '-20px'})
@@ -165,6 +165,6 @@ class RangeSliderWithTextInput:
     def components(self):
         return {
             'rangeslider': self.slider_id, 
-            'input_min': self.input_min_id, 
-            'input_max': self.input_max_id
+            'input_start': self.input_start_id, 
+            'input_end': self.input_end_id
         }
