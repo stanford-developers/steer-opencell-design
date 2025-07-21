@@ -280,7 +280,7 @@ class TestTablessCurrentCollector(unittest.TestCase):
             coated_width=100,
             bare_lengths_a_side=(15, 80),
             bare_lengths_b_side=(30, 140),
-            insulation_width=3
+            insulation_width=8
         )
         
     def test_current_collector(self):
@@ -301,9 +301,20 @@ class TestTablessCurrentCollector(unittest.TestCase):
         fig_a = self.current_collector.get_a_side_view()
         fig_b = self.current_collector.get_b_side_view()
         fig_c = self.current_collector.get_end_view()
+        fig_d = self.current_collector._get_full_top_down_view(with_dimensions=False)
         # fig_a.show()
         # fig_b.show()
         # fig_c.show()
+        # fig_d.show()
+
+    def test_width_setter(self):
+        """
+        Test width setter
+        """
+        self.current_collector.width = 120
+        self.assertEqual(self.current_collector.width, 120)
+        self.current_collector.width = 30
+        self.assertEqual(self.current_collector.width, 30)
 
 
 class TestWeldTab(unittest.TestCase):
