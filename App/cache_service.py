@@ -6,4 +6,3 @@ cache = Cache(
         'CACHE_DEFAULT_TIMEOUT': 3000,
     }
 )
-

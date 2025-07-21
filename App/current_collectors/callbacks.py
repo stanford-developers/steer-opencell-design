@@ -274,13 +274,17 @@ def update_cathode_current_collector_design_parameters(design):
         Input('cell_store', 'data'),
         Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
         Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
+        Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'action': 'flip_x'}, 'n_clicks'),
+        Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'action': 'flip_y'}, 'n_clicks'),
     ],
     prevent_initial_call=True
 )
 def update_punched_current_collector(
     cell_data,
     input_values,
-    slider_values
+    slider_values,
+    flip_x,
+    flip_y
 ):
     
     def generate_parameters(current_collector):
@@ -368,6 +372,32 @@ def update_punched_current_collector(
             max_values,
             marks_list,
         )
+    
+    elif isinstance(triggered_id, dict) and 'action' in triggered_id:
+
+        # Handle flip actions
+        if triggered_id['action'] == 'flip_x':
+            current_collector.flip(axis='x')
+        elif triggered_id['action'] == 'flip_y':
+            current_collector.flip(axis='y')
+            
+        # update the cell data with the new current collector
+        cell = current_collector
+
+        # make the new key and store in cache
+        cell_data['cache_key'] = str(uuid4())
+        cache.set(cell_data['cache_key'], cell)
+
+        return (
+            {'cache_key': cell_data['cache_key']},
+            [no_update] * len(PUNCHED_PARAMETER_LIST),
+            [no_update] * len(PUNCHED_PARAMETER_LIST),
+            [no_update] * len(PUNCHED_PARAMETER_LIST),
+            [no_update] * len(PUNCHED_PARAMETER_LIST),
+            [no_update] * len(PUNCHED_PARAMETER_LIST),
+            [no_update] * len(PUNCHED_PARAMETER_LIST),
+            [no_update] * len(PUNCHED_PARAMETER_LIST),
+        )
 
 
 @callback(
@@ -385,13 +415,17 @@ def update_punched_current_collector(
         Input('cell_store', 'data'),
         Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
         Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
+        Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'action': 'flip_x'}, 'n_clicks'),
+        Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'action': 'flip_y'}, 'n_clicks'),
     ],
     prevent_initial_call=True
 )
 def update_notched_current_collector(
     cell_data,
     input_values,
-    slider_values
+    slider_values,
+    flip_x,
+    flip_y
 ):
     
     def generate_parameters(current_collector):
@@ -479,12 +513,39 @@ def update_notched_current_collector(
             max_values,
             marks_list,
         )
+    
+    elif isinstance(triggered_id, dict) and 'action' in triggered_id:
+
+        # Handle flip actions
+        if triggered_id['action'] == 'flip_x':
+            current_collector.flip(axis='x')
+        elif triggered_id['action'] == 'flip_y':
+            current_collector.flip(axis='y')
+            
+        # update the cell data with the new current collector
+        cell = current_collector
+
+        # make the new key and store in cache
+        cell_data['cache_key'] = str(uuid4())
+        cache.set(cell_data['cache_key'], cell)
+
+        return (
+            {'cache_key': cell_data['cache_key']},
+            [no_update] * len(NOTCHED_PARAMETER_LIST),
+            [no_update] * len(NOTCHED_PARAMETER_LIST),
+            [no_update] * len(NOTCHED_PARAMETER_LIST),
+            [no_update] * len(NOTCHED_PARAMETER_LIST),
+            [no_update] * len(NOTCHED_PARAMETER_LIST),
+            [no_update] * len(NOTCHED_PARAMETER_LIST),
+            [no_update] * len(NOTCHED_PARAMETER_LIST),
+        )
 
 
 @callback(
     [
         Output('cathode_a_side_plot', 'figure'),
         Output('cathode_b_side_plot', 'figure'),
+        Output('cathode_top_down_plot', 'figure'),
     ],
     [
         Input('cell_store', 'data'),
@@ -503,9 +564,10 @@ def update_cathode_current_collector_plots(cell_data, continue_to_design):
     current_collector = cell
 
     # get the plots from the current collector
-    a_side_plot = current_collector.get_a_side_view(with_dimensions=False)
-    b_side_plot = current_collector.get_b_side_view(with_dimensions=False)
+    a_side_plot = current_collector.get_a_side_view(with_dimensions=False, title='A-Side Current Collector View')
+    b_side_plot = current_collector.get_b_side_view(with_dimensions=False, title='B-Side Current Collector View')
+    top_down_plot = current_collector.get_top_down_view(with_dimensions=False, title='Top-Down Current Collector View')
 
     # return the plots
-    return a_side_plot, b_side_plot
+    return a_side_plot, b_side_plot, top_down_plot
 
