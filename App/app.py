@@ -42,5 +42,3 @@ if __name__ == '__main__':
 
 def run():
     app.run_server(debug=True)
-
-
