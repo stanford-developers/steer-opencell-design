@@ -4,16 +4,16 @@ import pathlib
 import re
 
 root = pathlib.Path(__file__).parent
-init = root / "SteerEnergyStorage" / "__init__.py"
+init = root / "OpenCell" / "__init__.py"
 version = re.search(r'__version__\s*=\s*"([^"]+)"', init.read_text()).group(1)
 
 setup(
-    name='SteerEnergyStorage',
+    name='OpenCell',
     version=version, 
     description='Modelling energy storage from cell to site',
     author='Nicholas Siemons',
     author_email='nsiemons@stanford.edu',
-    url="https://github.com/nicholas9182/SteerEnergyStorage/",
+    url="https://github.com/nicholas9182/OpenCell/",
     packages=find_packages(),
     install_requires=[
         "pandas",
@@ -23,7 +23,9 @@ setup(
         "shapely",
         "plotly",
         "dash",
-        "dash_bootstrap_components"
+        "dash_bootstrap_components",
+        "flask_caching",
+        "nbformat"
     ],
     scripts=[],
     classifiers=[ 

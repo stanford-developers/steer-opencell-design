@@ -12,7 +12,7 @@ app = ds.Dash(
 
 # Suppress callback exceptions for easier debugging
 app.config.suppress_callback_exceptions = True
-app.title = 'SteerCellDesignTool'
+app.title = 'OpenCell'
 
 # Import components
 from general.callbacks import *
