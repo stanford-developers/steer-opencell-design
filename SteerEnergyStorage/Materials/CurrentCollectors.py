@@ -836,9 +836,9 @@ class _CurrentCollector(ABC):
                 self._a_side_insulation_coordinates,
                 columns=['x', 'y', 'z']
             ).assign(
-                x = lambda x: (x['x'] * M_TO_MM).round(10),
-                y = lambda x: (x['y'] * M_TO_MM).round(10),
-                z = lambda x: (x['z'] * M_TO_MM).round(10)
+                x = lambda x: (x['x'].astype(float) * M_TO_MM).round(10),
+                y = lambda x: (x['y'].astype(float) * M_TO_MM).round(10),
+                z = lambda x: (x['z'].astype(float) * M_TO_MM).round(10)
             ).astype(
                 {'x': float, 'y': float, 'z': float}
             )
@@ -858,9 +858,9 @@ class _CurrentCollector(ABC):
                 self._b_side_insulation_coordinates,
                 columns=['x', 'y', 'z']
             ).assign(
-                x = lambda x: (x['x'] * M_TO_MM).round(10),
-                y = lambda x: (x['y'] * M_TO_MM).round(10),
-                z = lambda x: (x['z'] * M_TO_MM).round(10)
+                x = lambda x: (x['x'].astype(float) * M_TO_MM).round(10),
+                y = lambda x: (x['y'].astype(float) * M_TO_MM).round(10),
+                z = lambda x: (x['z'].astype(float) * M_TO_MM).round(10)
             ).astype(
                 {'x': float, 'y': float, 'z': float}
             )
