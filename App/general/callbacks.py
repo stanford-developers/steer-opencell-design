@@ -8,7 +8,7 @@ from App.database_service import DATA_PATH
 from cache_service import cache
 from App.general.store import LANDING_PAGE_IMAGE_URLS
 
-from SteerEnergyStorage.DataManager import DataManager
+from OpenCell.DataManager import DataManager
 
 
 @callback(

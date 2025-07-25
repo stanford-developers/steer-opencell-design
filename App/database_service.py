@@ -1,4 +1,4 @@
-from SteerEnergyStorage.DataManager import DataManager
+from OpenCell.DataManager import DataManager
 from pathlib import Path
 
 # get current collector materials from the database

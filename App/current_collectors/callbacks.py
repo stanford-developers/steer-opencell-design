@@ -1,12 +1,12 @@
 from dash import callback, Input, Output, ctx, State, no_update, MATCH, ALL
 
-from SteerEnergyStorage.Materials.CurrentCollectors import _TapeCurrentCollector
+from OpenCell.Materials.CurrentCollectors import _TapeCurrentCollector
 from cache_service import cache
 from uuid import uuid4
 
-from SteerEnergyStorage.Materials.CurrentCollectors import _TapeCurrentCollector
-from SteerEnergyStorage.Materials.CurrentCollectors import *
-from SteerEnergyStorage.Materials.RawMaterials import *
+from OpenCell.Materials.CurrentCollectors import _TapeCurrentCollector
+from OpenCell.Materials.CurrentCollectors import *
+from OpenCell.Materials.RawMaterials import *
 
 from current_collectors.layouts import *
 from current_collectors.callbacks import CURRENT_COLLECTOR_DESIGNS
