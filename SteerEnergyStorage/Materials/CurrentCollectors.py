@@ -1616,7 +1616,6 @@ class _TapeCurrentCollector(_CurrentCollector):
         )
 
 
-        
 class PunchedCurrentCollector(_TabbedCurrentCollector):
     """
     A class representing a punched current collector used in z-fold and flat sheet cells
@@ -2298,8 +2297,8 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         """
         Initialize an object that represents a tabless current collector.
         
-        Parameters:
-        -----------
+        Parameters
+        ----------
         material: CurrentCollectorMaterial: 
             Material of the current collector.
         length: float:
@@ -2410,14 +2409,14 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         if coated_width < 0:
             raise ValueError("Coated width cannot be negative.")
 
-        # Calculate the change in coated width (in mm)
-        delta_coated_width_mm = self.coated_width - float(coated_width)
+        # Check if this is the first time setting (initialization)
+        if hasattr(self, '_coated_width'):
+            # Calculate the change in coated width (in mm)
+            delta_coated_width_mm = self.coated_width - float(coated_width)
 
-        print(delta_coated_width_mm)
-
-        # Adjust body length and tab height (these setters expect mm)
-        self.y_body_length = self.y_body_length - delta_coated_width_mm
-        self.tab_height = self.tab_height + delta_coated_width_mm
+            # Adjust body length and tab height (these setters expect mm)
+            self.y_body_length = self.y_body_length - delta_coated_width_mm
+            self.tab_height = self.tab_height + delta_coated_width_mm
         
         # Store the internal value in meters
         self._coated_width = float(coated_width) * MM_TO_M
