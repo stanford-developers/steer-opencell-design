@@ -4,9 +4,9 @@ from base64 import b64decode
 from uuid import uuid4
 from pickle import loads
 
-from App.database_service import DATA_PATH
+from database_service import DATA_PATH
 from cache_service import cache
-from App.general.store import LANDING_PAGE_IMAGE_URLS
+from general.store import LANDING_PAGE_IMAGE_URLS
 
 from OpenCell.DataManager import DataManager
 

@@ -1,11 +1,11 @@
 import unittest
 import plotly.express as px
-from SteerEnergyStorage.Formulations.ElectrodeFormulations import ElectrodeFormulation
-from SteerEnergyStorage.Constructions.Electrodes import Cathode, Anode
-from SteerEnergyStorage.Formulations.ElectrodeAssemblies import FlatJellyRoll, CylindricalJellyRoll
-from SteerEnergyStorage.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
-from SteerEnergyStorage.Materials.CurrentCollectors import NotchedCurrentCollector
-from SteerEnergyStorage.Materials.Separators import Separator
+from OpenCell.Formulations.ElectrodeFormulations import ElectrodeFormulation
+from OpenCell.Constructions.Electrodes import Cathode, Anode
+from OpenCell.Formulations.ElectrodeAssemblies import FlatJellyRoll, CylindricalJellyRoll
+from OpenCell.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
+from OpenCell.Materials.CurrentCollectors import NotchedCurrentCollector
+from OpenCell.Materials.Separators import Separator
 
 import pandas as pd
 

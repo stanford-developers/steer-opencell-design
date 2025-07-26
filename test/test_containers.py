@@ -1,12 +1,12 @@
 import unittest
 import plotly.express as px
-from SteerEnergyStorage.Constructions.Containers import PrismaticCase, PrismaticLid, PrismaticShell, CylindricalCanister, CylindricalCase, CylindricalLidAssembly, CylindricalTerminalConnector
-from SteerEnergyStorage.Formulations.ElectrodeFormulations import ElectrodeFormulation
-from SteerEnergyStorage.Constructions.Electrodes import Cathode, Anode
-from SteerEnergyStorage.Materials.other import Terminal
-from SteerEnergyStorage.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
-from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector
-from SteerEnergyStorage.Materials.Separators import Separator
+from OpenCell.Constructions.Containers import PrismaticCase, PrismaticLid, PrismaticShell, CylindricalCanister, CylindricalCase, CylindricalLidAssembly, CylindricalTerminalConnector
+from OpenCell.Formulations.ElectrodeFormulations import ElectrodeFormulation
+from OpenCell.Constructions.Electrodes import Cathode, Anode
+from OpenCell.Materials.other import Terminal
+from OpenCell.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
+from OpenCell.Materials.CurrentCollectors import CurrentCollector
+from OpenCell.Materials.Separators import Separator
 
 
 class TestCylindricalCase(unittest.TestCase):

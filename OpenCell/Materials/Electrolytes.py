@@ -1,4 +1,4 @@
-from SteerEnergyStorage.Constants import *
+from OpenCell.Constants import *
 
 
 class Electrolyte:

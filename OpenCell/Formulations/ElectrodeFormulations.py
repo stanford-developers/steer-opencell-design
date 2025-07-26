@@ -1,7 +1,7 @@
-from SteerEnergyStorage.Materials.ElectrodeMaterials import _ActiveMaterial, Binder, ConductiveAdditive, CathodeMaterial, AnodeMaterial
+from OpenCell.Materials.ElectrodeMaterials import _ActiveMaterial, Binder, ConductiveAdditive, CathodeMaterial, AnodeMaterial
 
-from SteerEnergyStorage.Utils import get_colorway
-from SteerEnergyStorage.Constants import *
+from OpenCell.Utils import get_colorway
+from OpenCell.Constants import *
 
 import pandas as pd
 import numpy as np

@@ -1,10 +1,10 @@
-from SteerEnergyStorage.Formulations.ElectrodeAssemblies import Stack, CylindricalJellyRoll, FlatJellyRoll, _JellyRoll
-from SteerEnergyStorage.Materials.Electrolytes import Electrolyte
-from SteerEnergyStorage.Constructions.Containers import Pouch, PrismaticCase, CylindricalCase
+from OpenCell.Formulations.ElectrodeAssemblies import Stack, CylindricalJellyRoll, FlatJellyRoll, _JellyRoll
+from OpenCell.Materials.Electrolytes import Electrolyte
+from OpenCell.Constructions.Containers import Pouch, PrismaticCase, CylindricalCase
 
 from App.styles import *
-from SteerEnergyStorage.Constants import *
-from SteerEnergyStorage.Utils import get_colorway
+from OpenCell.Constants import *
+from OpenCell.Utils import get_colorway
 
 import pandas as pd
 import numpy as np

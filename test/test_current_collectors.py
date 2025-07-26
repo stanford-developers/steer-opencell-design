@@ -1,10 +1,12 @@
 import unittest
 from pickle import loads, dumps
 from base64 import b64decode, b64encode 
-from SteerEnergyStorage.Materials.RawMaterials import CurrentCollectorMaterial
-from SteerEnergyStorage.Materials.CurrentCollectors import PunchedCurrentCollector, NotchedCurrentCollector, TablessCurrentCollector, WeldTab, TabWeldedCurrentCollector
+
+from OpenCell.Materials.RawMaterials import CurrentCollectorMaterial
+from OpenCell.Materials.CurrentCollectors import PunchedCurrentCollector, NotchedCurrentCollector, TablessCurrentCollector, WeldTab, TabWeldedCurrentCollector
 
 import plotly.graph_objects as go
+
 
 class TestPunchedCurrentCollector(unittest.TestCase):
 
@@ -161,10 +163,10 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         fig_c = self.current_collector.get_a_side_view(with_dimensions=False)
         fig_d = self.current_collector.get_b_side_view(with_dimensions=False)
 
-        # fig_a.show()
-        # fig_b.show()
-        # fig_c.show()
-        # fig_d.show()
+        # fig_a.show(render_mode='browser')
+        # fig_b.show(render_mode='browser')
+        # fig_c.show(render_mode='browser')
+        # fig_d.show(render_mode='browser')
 
     def test_setters(self):
 
@@ -343,8 +345,7 @@ class TestWeldTab(unittest.TestCase):
         self.assertEqual(round(self.weldtab._width, 6), 0.005)
         self.assertEqual(round(self.weldtab._length, 6), 0.115)
         self.assertEqual(round(self.weldtab._thickness, 6), 0.00002)
-        self.assertEqual(self.weldtab._area, 0.000575)
-        self.assertEqual(self.weldtab._side_area, 2.3e-6)
+        self.assertEqual(self.weldtab._body_area, 0.00115)
 
     def test_plots(self):
         """
@@ -352,8 +353,8 @@ class TestWeldTab(unittest.TestCase):
         """
         fig1 = self.weldtab.get_view()
         fig2 = self.weldtab.get_side_view()
-        # fig1.show()
-        # fig2.show()
+        fig1.show()
+        fig2.show()
 
 
 class TestTabWeldedCurrentCollector(unittest.TestCase):

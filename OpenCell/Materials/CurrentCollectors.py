@@ -1,6 +1,6 @@
 from OpenCell.Materials.RawMaterials import CurrentCollectorMaterial
 
-from OpenCell.Utils import get_area_from_points, build_square_array, rotate_coordinates, order_coordinates_clockwise
+from OpenCell.Utils import CoordinateManager
 from OpenCell.Constants import *
 from App.styles import *
 
@@ -69,8 +69,12 @@ class _CurrentCollector(ABC):
         self._a_in_fill_pattern = dict(shape='\\', size=10, solidity=0.6, fgcolor=self._material._color)
         self._b_in_fill_pattern = dict(shape='/', size=10, solidity=0.6, fgcolor=self._material._color)
 
-    def _calculate_coordinates(self) -> None:
+    def _calculate_all_properties(self) -> None:
+        self._calculate_coordinates()
+        self._calculate_areas()
+        self._calculate_bulk_properties()
 
+    def _calculate_coordinates(self) -> None:
         self._get_body_coordinates()
         self._get_a_side_coated_coordinates()
         self._get_b_side_coated_coordinates()
@@ -80,7 +84,7 @@ class _CurrentCollector(ABC):
     def _calculate_areas(self) -> None:
 
         # calculate the area of the a side
-        body_a_side_area = get_area_from_points(
+        body_a_side_area = CoordinateManager.get_area_from_points(
             self._body_coordinates[self._body_coordinates_side == 'a'][:,0],
             self._body_coordinates[self._body_coordinates_side == 'a'][:,1]
         )
@@ -89,13 +93,13 @@ class _CurrentCollector(ABC):
         self._body_area = body_a_side_area * 2
 
         # calculate the area of the a side coated area
-        self._a_side_coated_area = get_area_from_points(
+        self._a_side_coated_area = CoordinateManager.get_area_from_points(
             self._a_side_coated_coordinates[:, 0],
             self._a_side_coated_coordinates[:, 1]
         )
 
         # calculate the area of the b side coated area
-        self._b_side_coated_area = get_area_from_points(
+        self._b_side_coated_area = CoordinateManager.get_area_from_points(
             self._b_side_coated_coordinates[:, 0],
             self._b_side_coated_coordinates[:, 1]
         )
@@ -103,13 +107,13 @@ class _CurrentCollector(ABC):
         self._coated_area = self._a_side_coated_area + self._b_side_coated_area
 
         # calculate the area of the a side insulation area
-        self._a_side_insulation_area = get_area_from_points(
+        self._a_side_insulation_area = CoordinateManager.get_area_from_points(
             self._a_side_insulation_coordinates[:, 0],
             self._a_side_insulation_coordinates[:, 1]
         )
 
         # calculate the area of the b side insulation area
-        self._b_side_insulation_area = get_area_from_points(
+        self._b_side_insulation_area = CoordinateManager.get_area_from_points(
             self._b_side_insulation_coordinates[:, 0],
             self._b_side_insulation_coordinates[:, 1]
         )
@@ -121,51 +125,9 @@ class _CurrentCollector(ABC):
         self._mass = self._volume * self._material._density
         self._cost = self._mass * self._material._specific_cost     
 
-    def _calculate_all_properties(self) -> None:
-
-        self._calculate_coordinates()
-        self._calculate_areas()
-        self._calculate_bulk_properties()
-
-    def _extrude_footprint(
-            self, 
-            x: np.ndarray, 
-            y: np.ndarray
-        ) -> Tuple[
-            np.ndarray, 
-            np.ndarray, 
-            np.ndarray, 
-            np.ndarray
-        ]:
-        """
-        Extrude the 2D footprint to 3D and label each point with its side ('a' or 'b').
-
-        Parameters
-        ----------
-        x : np.ndarray
-            Array of x coordinates (length N)
-        y : np.ndarray
-            Array of y coordinates (length N)
-
-        Returns
-        -------
-        Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
-            Arrays of x, y, z, and side for both A and B sides (each of length 2N)
-        """
-        z_a = self._datum[2] + self._thickness / 2
-        z_b = self._datum[2] - self._thickness / 2
-
-        # Repeat x and y coordinates for both sides
-        x_full = np.concatenate([x, x])
-        y_full = np.concatenate([y, y])
-        z_full = np.concatenate([np.full_like(x, z_a), np.full_like(x, z_b)])
-        side_full = np.array(['a'] * len(x) + ['b'] * len(x))
-
-        return x_full, y_full, z_full, side_full
-
     def _get_end_trace(self) -> go.Scatter:
         
-        coordinates = build_square_array(
+        coordinates = CoordinateManager.build_square_array(
             x=self._datum[1] - self._y_body_length / 2,
             y=self._datum[2] - self._thickness / 2,
             x_width=self._y_body_length,
@@ -186,61 +148,12 @@ class _CurrentCollector(ABC):
 
     def _get_full_top_down_view(self, with_dimensions: bool = False, **kwargs) -> go.Figure:
 
-        # initiate figure
         fig = go.Figure()
 
-        # get the side with the maximum z value
-        body_coordinates = self.body_coordinates.query('z == z.max()')
-
-        # make the body trace
-        body_trace = go.Scatter(
-            x=body_coordinates['x'],
-            y=body_coordinates['y'],
-            mode='lines',
-            name='Body',
-            line=dict(color='black', width=1),
-            fill='toself',
-            fillcolor=self._material.color,
-            legendgroup='Body',
-            showlegend=True
-        )
-
-        # figure out which side that is
-        side = body_coordinates['side'].values[0]
-
-        # get the coordinates for the coated area and insulation area
-        if side == 'a':
-            coated_area_coordinates = self.a_side_coated_coordinates
-            insulation_area_coordinates = self.a_side_insulation_coordinates
-        else:
-            coated_area_coordinates = self.b_side_coated_coordinates
-            insulation_area_coordinates = self.b_side_insulation_coordinates
-
-        # make the coated area trace
-        coated_area_trace = go.Scatter(
-            x=coated_area_coordinates['x'], 
-            y=coated_area_coordinates['y'], 
-            mode='lines', 
-            name='A Side Coated Area' if side == 'a' else 'B Side Coated Area', 
-            line=dict(width=1, color='black'), 
-            fillcolor='black', 
-            fill='toself', 
-            fillpattern=self._a_am_fill_pattern if side == 'a' else self._b_am_fill_pattern,
-        )
-
-        # make the insulation area trace
-        insulation_area_trace = go.Scatter(
-            x=insulation_area_coordinates['x'],
-            y=insulation_area_coordinates['y'],
-            mode='lines',
-            name='A Side Insulation Area' if side == 'a' else 'B Side Insulation Area',
-            line=dict(color='black', width=1),
-            fill='toself',
-            fillcolor='white',
-            legendgroup='Insulation Area',
-            showlegend=True,
-            fillpattern=self._a_in_fill_pattern if side == 'a' else self._b_in_fill_pattern,
-        )
+        # get the traces for the body, coated area, and insulation area
+        body_trace = self.top_down_body_trace
+        coated_area_trace = self.top_down_coated_area_trace
+        insulation_area_trace = self.top_down_insulation_area_trace
 
         # add traces to the figure
         fig.add_trace(body_trace)
@@ -262,7 +175,7 @@ class _CurrentCollector(ABC):
 
     def _get_body_coordinates(self) -> go.Scatter:
         x, y = self._get_footprint(notch_height=self._tab_height)
-        x, y, z, side = self._extrude_footprint(x, y)
+        x, y, z, side = CoordinateManager.extrude_footprint(x, y, self._datum, self._thickness)
         self._body_coordinates = np.column_stack((x, y, z))
         self._body_coordinates_side = side
 
@@ -334,11 +247,11 @@ class _CurrentCollector(ABC):
         self._datum = (0, 0, 0)
 
         # rotate the coordinates around the specified axis
-        self._body_coordinates = rotate_coordinates(self._body_coordinates, rotation_axis, 180)
-        self._a_side_coated_coordinates = rotate_coordinates(self._a_side_coated_coordinates, rotation_axis, 180)
-        self._b_side_coated_coordinates = rotate_coordinates(self._b_side_coated_coordinates, rotation_axis, 180)
-        self._a_side_insulation_coordinates = rotate_coordinates(self._a_side_insulation_coordinates, rotation_axis, 180)
-        self._b_side_insulation_coordinates = rotate_coordinates(self._b_side_insulation_coordinates, rotation_axis, 180)
+        self._body_coordinates = CoordinateManager.rotate_coordinates(self._body_coordinates, rotation_axis, 180)
+        self._a_side_coated_coordinates = CoordinateManager.rotate_coordinates(self._a_side_coated_coordinates, rotation_axis, 180)
+        self._b_side_coated_coordinates = CoordinateManager.rotate_coordinates(self._b_side_coated_coordinates, rotation_axis, 180)
+        self._a_side_insulation_coordinates = CoordinateManager.rotate_coordinates(self._a_side_insulation_coordinates, rotation_axis, 180)
+        self._b_side_insulation_coordinates = CoordinateManager.rotate_coordinates(self._b_side_insulation_coordinates, rotation_axis, 180)
 
         # shift the datum back to its original position
         self._datum = old_datum
@@ -350,11 +263,11 @@ class _CurrentCollector(ABC):
         Returns a Plotly Figure representing the end view of the punched current collector.
         The end view is a rectangle representing the end of the current collector.
         """
-        body_coordinates = order_coordinates_clockwise(self.body_coordinates, plane='yz')
-        a_side_coated_coordinates = order_coordinates_clockwise(self.a_side_coated_coordinates, plane='yz')
-        b_side_coated_coordinates = order_coordinates_clockwise(self.b_side_coated_coordinates, plane='yz')
-        a_side_insulation_coordinates = order_coordinates_clockwise(self.a_side_insulation_coordinates, plane='yz')
-        b_side_insulation_coordinates = order_coordinates_clockwise(self.b_side_insulation_coordinates, plane='yz')
+        body_coordinates = CoordinateManager.order_coordinates_clockwise(self.body_coordinates, plane='yz')
+        a_side_coated_coordinates = CoordinateManager.order_coordinates_clockwise(self.a_side_coated_coordinates, plane='yz')
+        b_side_coated_coordinates = CoordinateManager.order_coordinates_clockwise(self.b_side_coated_coordinates, plane='yz')
+        a_side_insulation_coordinates = CoordinateManager.order_coordinates_clockwise(self.a_side_insulation_coordinates, plane='yz')
+        b_side_insulation_coordinates = CoordinateManager.order_coordinates_clockwise(self.b_side_insulation_coordinates, plane='yz')
 
         names = [
             'Body',
@@ -435,6 +348,77 @@ class _CurrentCollector(ABC):
         Get the footprint of the current collector.
         """
         pass
+
+    @property
+    def top_down_body_trace(self) -> go.Scatter:
+
+        # get the side with the maximum z value
+        body_coordinates = self.body_coordinates.query('z == z.max()')
+
+        # make the body trace
+        body_trace = go.Scatter(
+            x=body_coordinates['x'],
+            y=body_coordinates['y'],
+            mode='lines',
+            name='Body',
+            line=dict(color='black', width=1),
+            fill='toself',
+            fillcolor=self._material.color,
+            legendgroup='Body',
+            showlegend=True
+        )
+
+        return body_trace
+
+    @property
+    def top_down_coated_area_trace(self) -> go.Scatter:
+
+        side = self.top_side
+        coated_area_coordinates = self.a_side_coated_coordinates if side == 'a' else self.b_side_coated_coordinates
+
+        # make the coated area trace
+        coated_area_trace = go.Scatter(
+            x=coated_area_coordinates['x'], 
+            y=coated_area_coordinates['y'], 
+            mode='lines', 
+            name='A Side Coated Area' if side == 'a' else 'B Side Coated Area',
+            line=dict(width=1, color='black'), 
+            fillcolor='black', 
+            fill='toself', 
+            fillpattern=self._a_am_fill_pattern if side == 'a' else self._b_am_fill_pattern,
+        )
+
+        return coated_area_trace
+
+    @property
+    def top_down_insulation_area_trace(self) -> go.Scatter:
+
+        side = self.top_side
+        insulation_area_coordinates = self.a_side_insulation_coordinates if side == 'a' else self.b_side_insulation_coordinates
+
+        # make the insulation area trace
+        insulation_area_trace = go.Scatter(
+            x=insulation_area_coordinates['x'], 
+            y=insulation_area_coordinates['y'], 
+            mode='lines', 
+            name='A Side Insulation Area' if side == 'a' else 'B Side Insulation Area',
+            line=dict(color='black', width=1), 
+            fill='toself', 
+            fillcolor='white', 
+            fillpattern=self._a_in_fill_pattern if side == 'a' else self._b_in_fill_pattern,
+        )
+
+        return insulation_area_trace
+
+    @property
+    def top_side(self) -> str:
+        """
+        Get the top side of the current collector based on the z-coordinates.
+        """
+        z_coords = self._body_coordinates[:, 2]
+        z_a = z_coords[self._body_coordinates_side == 'a'].mean()
+        z_b = z_coords[self._body_coordinates_side == 'b'].mean()
+        return 'a' if z_a > z_b else 'b'
 
     @property
     def datum(self) -> Tuple[float, float, float]:
@@ -1677,7 +1661,6 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         
         self.tab_position = tab_position
         self._calculate_all_properties()
-
         self._update_properties = True
 
     def _get_footprint(
@@ -1803,7 +1786,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
             x0 = self._datum[0] - self._x_body_length / 2 + self._tab_position - self._tab_width / 2
             y0 = _y_insulation_start
 
-            x, y = build_square_array(
+            x, y = CoordinateManager.build_square_array(
                 x=x0,
                 y=y0,
                 x_width=self._tab_width,
@@ -1814,7 +1797,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
             x0 = self._datum[0] - self._x_body_length / 2
             y0 = _y_insulation_start
 
-            x, y = build_square_array(
+            x, y = CoordinateManager.build_square_array(
                 x=x0,
                 y=y0,
                 x_width=self._x_body_length,
@@ -2160,7 +2143,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
                 e = min(te, x_end)
 
                 # Get coordinates for this tab's insulation rectangle
-                tab_x, tab_y = build_square_array(
+                tab_x, tab_y = CoordinateManager.build_square_array(
                     x_width=e - s,
                     y_width=self._insulation_width,
                     x=s,
@@ -2181,7 +2164,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         # Case 2: Insulation entirely below the body
         elif round(y_ins_end, 10) <= round(y_body_top, 10):
-            x, y = build_square_array(
+            x, y = CoordinateManager.build_square_array(
                 x_width=x_end - x_start,
                 y_width=self._insulation_width,
                 x=x_start,
@@ -2474,84 +2457,43 @@ class WeldTab:
         self._update_properties = True
 
     def _calculate_all_properties(self) -> None:
+        self._calculate_coordinates()
+        self._calculate_areas()
+        self._calculate_bulk_properties()
+
+    def _calculate_bulk_properties(self) -> None:
         """
-        Calculate the properties of the tab.
+        Calculate the bulk properties of the tab.
         """
-        self._trace, self._area = self._get_trace()
-        self._side_trace, self._side_area = self._get_side_trace()
-        self._volume = self._area * self._thickness
+        self._volume = self._body_area * self._thickness
         self._mass = self._volume * self._material._density
         self._cost = self._mass * self._material._specific_cost
 
-    def _get_footprint(self) -> pd.DataFrame:
-
-        x_coords = [self._datum[0] - self._width / 2,
-                    self._datum[0] + self._width / 2,
-                    self._datum[0] + self._width / 2,
-                    self._datum[0] - self._width / 2,
-                    self._datum[0] - self._width / 2]
-        
-        y_coords = [self._datum[1] - self._length / 2,
-                    self._datum[1] - self._length / 2,
-                    self._datum[1] + self._length / 2,
-                    self._datum[1] + self._length / 2,
-                    self._datum[1] - self._length / 2]
-    
-        return pd.DataFrame({'x': x_coords, 'y': y_coords})
-
-    def _get_sideprint(self) -> pd.DataFrame:
-
-        x_coords = [self._datum[1] - self._length / 2,
-                    self._datum[1] + self._length / 2,
-                    self._datum[1] + self._length / 2,
-                    self._datum[1] - self._length / 2,
-                    self._datum[1] - self._length / 2]
-        
-        y_coords = [self._datum[2] - self._thickness / 2,
-                    self._datum[2] - self._thickness / 2,
-                    self._datum[2] + self._thickness / 2,
-                    self._datum[2] + self._thickness / 2,
-                    self._datum[2] - self._thickness / 2]
-    
-        return pd.DataFrame({'x': x_coords, 'y': y_coords})
-
-    def _get_trace(self) -> go.Scatter:
+    def _calculate_coordinates(self) -> None:
         """
-        Returns a Plotly Scatter trace representing the weld tab area.
+        Calculate the coordinates of the weld tab based on its dimensions and datum.
         """
-        coordinates = self._get_footprint()
-
-        trace = go.Scatter(
-            x=coordinates['x'], 
-            y=coordinates['y'], 
-            mode='lines', 
-            name='Weld Tab', 
-            line=dict(width=1, color='black'), 
-            fillcolor=self._material._color, 
-            fill='toself'
+        x, y = CoordinateManager.build_square_array(
+            self._datum[0] - self._width / 2,
+            self._datum[1] - self._length / 2,
+            self._width,
+            self._length
         )
 
-        area = get_area_from_points(trace)
+        x, y, z, side = CoordinateManager.extrude_footprint(x, y, self._datum, self._thickness)
+        self._body_coordinates = np.column_stack((x, y, z))
+        self._body_coordinates_side = side
 
-        return trace, area
-    
-    def _get_side_trace(self) -> go.Scatter:
+    def _calculate_areas(self) -> None:
 
-        coordinates = self._get_sideprint()
-
-        trace = go.Scatter(
-            x=coordinates['x'], 
-            y=coordinates['y'], 
-            mode='lines', 
-            name='Weld Tab', 
-            line=dict(width=0.5, color='black'), 
-            fillcolor=self._material._color, 
-            fill='toself'
+        # calculate the area of the a side
+        body_a_side_area = CoordinateManager.get_area_from_points(
+            self._body_coordinates[self._body_coordinates_side == 'a'][:,0],
+            self._body_coordinates[self._body_coordinates_side == 'a'][:,1]
         )
 
-        area = get_area_from_points(trace)
-
-        return trace, area
+        # calculate the total upper and lower area of the body
+        self._body_area = body_a_side_area * 2
     
     def get_view(self, **kwargs) -> go.Figure:
         """
@@ -2603,7 +2545,7 @@ class WeldTab:
         self._datum = (float(datum[0]) * MM_TO_M, float(datum[1]) * MM_TO_M, float(datum[2]) * MM_TO_M)
 
         if self._update_properties:
-            self._calculate_all_properties()
+            self._calculate_coordinates()
 
     @property
     def material(self) -> CurrentCollectorMaterial:
@@ -2687,8 +2629,8 @@ class WeldTab:
         return round(self._cost, 2)
 
     @property
-    def area(self) -> float:
-        return round(self._area * M_TO_MM**2, 2)
+    def body_area(self) -> float:
+        return round(self._body_area * M_TO_MM**2, 2)
 
 
 class TabWeldedCurrentCollector(_TapeCurrentCollector):
@@ -2824,7 +2766,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             fill='toself'
         )
 
-        area = get_area_from_points(trace)
+        area = CoordinateManager.get_area_from_points(trace)
         
         return trace, area
 
@@ -2886,12 +2828,12 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
                 coated_area
                 .dropna()
                 .groupby('tab_number')
-                .apply(lambda df: get_area_from_points(go.Scatter(x=df['x'], y=df['y'], mode='lines')))
+                .apply(lambda df: CoordinateManager.get_area_from_points(go.Scatter(x=df['x'], y=df['y'], mode='lines')))
                 .sum()
             )
 
         else:
-            area = get_area_from_points(trace)
+            area = CoordinateManager.get_area_from_points(trace)
 
         return trace, area
 

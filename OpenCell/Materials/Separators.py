@@ -1,12 +1,12 @@
-from SteerEnergyStorage.Materials.RawMaterials import SeparatorMaterial
+from OpenCell.Materials.RawMaterials import SeparatorMaterial
 
 from plotly import graph_objects as go
 from typing import Tuple
 from copy import deepcopy
 
 from App.styles import *
-from SteerEnergyStorage.Constants import *
-from SteerEnergyStorage.Utils import *
+from OpenCell.Constants import *
+from OpenCell.Utils import *
 
 
 class Separator:
@@ -114,7 +114,7 @@ class Separator:
         else:
             length = self._length
         
-        coordinates = build_square_df(
+        coordinates = CoordinateManager.build_square_df(
             x=self._datum[0] - length / 2,
             y=self._datum[1] - self._width / 2,
             x_width=length,
@@ -148,7 +148,7 @@ class Separator:
         if self._folded:
             return None # TODO: Implement side view for folded separators
 
-        coordinates = build_square_df(
+        coordinates = CoordinateManager.build_square_df(
             x=self._datum[0] - self._length / 2,
             y=self._datum[2] - self._thickness / 2,
             x_width=self._length,
