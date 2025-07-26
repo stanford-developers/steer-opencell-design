@@ -1,9 +1,9 @@
-from SteerEnergyStorage.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation, _ElectrodeFormulation
-from SteerEnergyStorage.Materials.CurrentCollectors import _CurrentCollector
-from SteerEnergyStorage.Materials.RawMaterials import InsulationMaterial
+from OpenCell.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation, _ElectrodeFormulation
+from OpenCell.Materials.CurrentCollectors import _CurrentCollector
+from OpenCell.Materials.RawMaterials import InsulationMaterial
 
-from SteerEnergyStorage.Constants import *
-from SteerEnergyStorage.Utils import *
+from OpenCell.Constants import *
+from OpenCell.Utils import *
 
 import pandas as pd
 import numpy as np

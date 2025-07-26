@@ -1,6 +1,6 @@
 import unittest
-from SteerEnergyStorage.Materials.Separators import Separator
-from SteerEnergyStorage.Materials.RawMaterials import SeparatorMaterial
+from OpenCell.Materials.Separators import Separator
+from OpenCell.Materials.RawMaterials import SeparatorMaterial
 
 import pandas as pd
 import plotly.express as px

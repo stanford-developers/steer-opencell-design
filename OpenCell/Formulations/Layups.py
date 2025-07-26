@@ -1,9 +1,9 @@
-from SteerEnergyStorage.Constructions.Electrodes import Anode, Cathode
-from SteerEnergyStorage.Materials.Separators import Separator
-from SteerEnergyStorage.Materials.CurrentCollectors import TabWeldedCurrentCollector, NotchedCurrentCollector
+from OpenCell.Constructions.Electrodes import Anode, Cathode
+from OpenCell.Materials.Separators import Separator
+from OpenCell.Materials.CurrentCollectors import TabWeldedCurrentCollector, NotchedCurrentCollector
 
 from App.styles import *
-from SteerEnergyStorage.Constants import *
+from OpenCell.Constants import *
 
 from copy import deepcopy
 from copy import copy

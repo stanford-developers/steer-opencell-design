@@ -1,14 +1,15 @@
 import unittest
 import plotly.express as px
-from SteerEnergyStorage.Formulations.ElectrodeFormulations import ElectrodeFormulation
-from SteerEnergyStorage.Constructions.Electrodes import Cathode, Anode
-from SteerEnergyStorage.Formulations.ElectrodeAssemblies import Stack
-from SteerEnergyStorage.Constructions.Cells import StackedPrismaticCell
-from SteerEnergyStorage.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
-from SteerEnergyStorage.Materials.CurrentCollectors import CurrentCollector
-from SteerEnergyStorage.Materials.Separators import Separator
-from SteerEnergyStorage.Materials.Electrolytes import Electrolyte
-from SteerEnergyStorage.Constructions.Containers import PrismaticCase, PrismaticLid, PrismaticShell
+
+from OpenCell.Formulations.ElectrodeFormulations import ElectrodeFormulation
+from OpenCell.Constructions.Electrodes import Cathode, Anode
+from OpenCell.Formulations.ElectrodeAssemblies import Stack
+from OpenCell.Constructions.Cells import StackedPrismaticCell
+from OpenCell.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
+
+from OpenCell.Materials.Separators import Separator
+from OpenCell.Materials.Electrolytes import Electrolyte
+from OpenCell.Constructions.Containers import PrismaticCase, PrismaticLid, PrismaticShell
 
 import datetime as dt
 

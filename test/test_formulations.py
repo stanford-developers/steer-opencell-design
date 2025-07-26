@@ -1,6 +1,6 @@
 import unittest
-from SteerEnergyStorage.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation
-from SteerEnergyStorage.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
+from OpenCell.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation
+from OpenCell.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
 
 import pandas as pd
 import plotly.express as px

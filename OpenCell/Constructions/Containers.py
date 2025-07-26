@@ -1,12 +1,12 @@
-from SteerEnergyStorage.Materials.other import Laminate, Tape, Terminal
-from SteerEnergyStorage.Constructions.Electrodes import Cathode, Anode
-from SteerEnergyStorage.Materials.Separators import Separator
-from SteerEnergyStorage.Formulations.ElectrodeAssemblies import Stack
+from OpenCell.Materials.other import Laminate, Tape, Terminal
+from OpenCell.Constructions.Electrodes import Cathode, Anode
+from OpenCell.Materials.Separators import Separator
+from OpenCell.Formulations.ElectrodeAssemblies import Stack
 
-from SteerEnergyStorage.DataManager import DataManager
+from OpenCell.DataManager import DataManager
 
 from App.styles import *
-from SteerEnergyStorage.Constants import *
+from OpenCell.Constants import *
 
 from pathlib import Path
 from copy import deepcopy
