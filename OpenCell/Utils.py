@@ -461,7 +461,7 @@ class ValidationMixin:
                              "Must be an instance of CurrentCollectorMaterial.")
 
     @staticmethod
-    def validate_weld_tab(tab: 'WeldTab') -> None:
+    def validate_weld_tab(tab) -> None:
         """
         Validate the weld tab.
 
