@@ -188,27 +188,21 @@ class TestNotchedCurrentCollector(unittest.TestCase):
 
         fig_a = self.current_collector.get_a_side_view()
         fig_b = self.current_collector.get_b_side_view()
-        fig_c = self.current_collector.get_end_view()
 
         # fig_a.show()
         # fig_b.show()
-        # fig_c.show()
 
     def test_datum_shifter(self):
 
         self.current_collector.length = 300
         fig11 = self.current_collector._get_full_top_down_view(with_dimensions=False)
-        fig12 = self.current_collector.get_end_view()
         
         self.current_collector.datum = (200, 150, 50)
         fig21 = self.current_collector._get_full_top_down_view(with_dimensions=False)
-        fig22 = self.current_collector.get_end_view()
 
         figure1 = go.Figure(data=fig11.data + fig21.data)
-        figure2 = go.Figure(data=fig12.data + fig22.data)
         
         # figure1.show()
-        # figure2.show()
 
 
 class TestNotchedCurrentCollector2(unittest.TestCase):
@@ -310,7 +304,7 @@ class TestTablessCurrentCollector(unittest.TestCase):
 
         # fig_a.show(renderer='browser')
         # fig_b.show(renderer='browser')
-        fig_c.show(renderer='browser')
+        # fig_c.show(renderer='browser')
         # fig_d.show(renderer='browser')
 
     def test_width_setter(self):
@@ -357,8 +351,9 @@ class TestWeldTab(unittest.TestCase):
         """
         fig1 = self.weldtab.get_view()
         fig2 = self.weldtab.get_side_view()
-        fig1.show()
-        fig2.show()
+
+        # fig1.show()
+        # fig2.show()
 
 
 class TestTabWeldedCurrentCollector(unittest.TestCase):
@@ -411,19 +406,35 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         self.assertEqual(round(self.current_collector._bare_lengths_a_side[1], 6), 0.08)
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[0], 6), 0.02)
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[1], 6), 0.08)
-        self.assertEqual(self.current_collector.body_area, 885.6)
-        self.assertEqual(self.current_collector.coated_area, 1436.4)
-        self.assertEqual(self.current_collector.insulation_area, 0)
+        self.assertEqual(self.current_collector.body_area, 1771.2)
+        self.assertEqual(self.current_collector.coated_area, 1431.0)
 
     def test_plots(self):
         """
         Test plots
         """
-        fig1 = self.current_collector.get_a_side_view()
-        fig2 = self.current_collector.get_b_side_view()
-        fig3 = self.current_collector.get_end_view()
+        fig1 = self.current_collector._get_full_top_down_view(with_dimensions=False)
+        fig2 = self.current_collector.get_a_side_view()
+        fig3 = self.current_collector.get_b_side_view()
+
         # fig1.show()
         # fig2.show()
         # fig3.show()
- 
+
+    def test_length_setter(self):
+        self.current_collector.length = 2000
+        self.assertEqual(self.current_collector.length, 2000)
+        fig1 = self.current_collector._get_full_top_down_view(with_dimensions=False)
+        # fig1.show()
+
+    def test_material_setter(self):
+        
+        new_material = CurrentCollectorMaterial.from_database(name="Aluminum")
+        tab = self.current_collector.weld_tab
+        tab.material = new_material
+        self.current_collector.weld_tab = tab
+        self.assertEqual(self.current_collector.weld_tab.material.name, "Aluminum")
+
+        fig1 = self.current_collector.get_a_side_view()
+        # fig1.show()
 

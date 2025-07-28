@@ -5,8 +5,6 @@ import pandas as pd
 from typing import Tuple, Iterable
 from functools import wraps
 
-from OpenCell.Materials.RawMaterials import CurrentCollectorMaterial
-
 
 def calculate_coordinates(func):
     """
@@ -61,6 +59,20 @@ def calculate_areas(func):
         if hasattr(self, '_update_properties') and self._update_properties:
             self._calculate_coordinates()
             self._calculate_areas()
+        return result
+    return wrapper
+
+
+def calculate_weld_tab_properties(func):
+    """
+    Decorator to recalculate weld tab properties after a method call.
+    This is useful for methods that modify the weld tab geometry or material.
+    """
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        result = func(self, *args, **kwargs)
+        if hasattr(self, '_update_properties') and self._update_properties:
+            self._calculate_weld_tab_properties()
         return result
     return wrapper
 
@@ -321,6 +333,86 @@ class CoordinateMixin:
         side_full = np.array(['a'] * len(x) + ['b'] * len(x))
 
         return x_full, y_full, z_full, side_full
+    
+    @staticmethod
+    def remove_skip_coat_area(
+        x_coords: np.ndarray, 
+        y_coords: np.ndarray, 
+        weld_tab_positions: np.ndarray, 
+        skip_coat_width: float
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        Remove skip coat areas around weld tab positions from coordinates.
+        
+        Parameters
+        ----------
+        x_coords : np.ndarray
+            Array of x coordinates defining the boundary
+        y_coords : np.ndarray  
+            Array of y coordinates defining the boundary
+        weld_tab_positions : np.ndarray
+            Array of x positions where weld tabs are located
+        skip_coat_width : float
+            Width of the skip coat area around each weld tab
+            
+        Returns
+        -------
+        Tuple[np.ndarray, np.ndarray]
+            Modified x and y coordinate arrays with None separators between segments
+        """
+        if len(x_coords) == 0 or len(y_coords) == 0:
+            return np.array([]), np.array([])
+        
+        x_min, x_max = np.min(x_coords), np.max(x_coords)
+        y_min, y_max = np.min(y_coords), np.max(y_coords)
+        
+        # Filter weld tab positions to only include those within bounds
+        valid_positions = weld_tab_positions[
+            (weld_tab_positions + skip_coat_width >= x_min) & (weld_tab_positions - skip_coat_width <= x_max)
+        ]
+        
+        # If no valid positions, return original rectangle
+        if len(valid_positions) == 0:
+            rect_x = [x_min, x_max, x_max, x_min, x_min]
+            rect_y = [y_min, y_min, y_max, y_max, y_min]
+            return np.array(rect_x, dtype=object), np.array(rect_y, dtype=object)
+        
+        # Sort weld tab cut positions
+        cuts = np.sort(valid_positions)
+        half_width = skip_coat_width / 2
+        
+        # Build kept horizontal segments by removing [cut - half, cut + half] around each cut
+        segments = []
+        start = x_min
+        
+        for cut in cuts:
+            end = cut - half_width
+            if end > start:
+                segments.append((start, end))
+            start = cut + half_width
+        
+        # Add final segment if there's remaining space
+        if start < x_max:
+            segments.append((start, x_max))
+        
+        # Build rectangles for each kept segment with None separators
+        x_result = []
+        y_result = []
+        
+        for i, (segment_start, segment_end) in enumerate(segments):
+            # Create rectangle coordinates: bottom-left -> bottom-right -> top-right -> top-left -> close
+            rect_x = [segment_start, segment_end, segment_end, segment_start, segment_start]
+            rect_y = [y_min, y_min, y_max, y_max, y_min]
+            
+            x_result.extend(rect_x)
+            y_result.extend(rect_y)
+            
+            # Add None separator (except for the last segment)
+            if i < len(segments) - 1:  # Fixed: use index comparison
+                x_result.append(None)
+                y_result.append(None)
+        
+        return np.array(x_result, dtype=object), np.array(y_result, dtype=object)
 
 
 class ValidationMixin:
@@ -361,11 +453,33 @@ class ValidationMixin:
         ValueError
             If the material is not a valid current collector material.
         """
+        from OpenCell.Materials.RawMaterials import CurrentCollectorMaterial
+
         if type(material) is not CurrentCollectorMaterial:
 
             raise ValueError(f"Invalid current collector material: {material}. "
                              "Must be an instance of CurrentCollectorMaterial.")
-            
+
+    @staticmethod
+    def validate_weld_tab(tab: 'WeldTab') -> None:
+        """
+        Validate the weld tab.
+
+        Parameters
+        ----------
+        tab : WeldTab
+            The weld tab to validate.
+
+        Raises
+        ------
+        ValueError
+            If the weld tab is not valid.
+        """
+        from OpenCell.Materials.CurrentCollectors import WeldTab
+        
+        if not isinstance(tab, WeldTab):
+            raise ValueError(f"Invalid weld tab: {tab}. Must be an instance of WeldTab.")
+
     @staticmethod
     def validate_positive_float(value: float, name: str) -> None:
         """
