@@ -351,6 +351,16 @@ cathode_notched_design_parameters = ds.html.Div(
             title = 'Tab Spacing (mm)'
         )(),
 
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
+            min_val = 0,
+            max_val = 100,
+            step = 0.1,
+            mark_interval = 30,
+            property_name = 'tab_gap',
+            title = 'Tab Gap (mm)'
+        )(),
+
         ds.html.Br(), ds.html.Br(), 
         ds.html.H5('Coating', style={'font-weight': 'bold'}),
         ds.html.Br(), 
