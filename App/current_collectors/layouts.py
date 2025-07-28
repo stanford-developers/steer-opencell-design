@@ -17,7 +17,7 @@ cathode_current_collector_material_parameters = ds.html.Div(
 
     children=[
 
-        ds.html.H5('Select material', style={'font-weight': 'bold'}),
+        ds.html.H5('Select current collector material', style={'font-weight': 'bold'}),
 
         ds.dcc.Dropdown(
             id='cathode_current_collector_material_selector', 
@@ -699,8 +699,202 @@ cathode_tabless_design_parameters = ds.html.Div(
 
 
 cathode_tabbed_design_parameters = ds.html.Div(
+    
     id='cathode_tabbed_design_parameters',
-    children=[ds.html.P('Tabbed design parameters will be added here.', style={'font-style': 'italic'})]
+    
+    children=[
+
+        ds.html.Br(), ds.html.Br(), 
+        ds.html.H5('Body', style={'font-weight': 'bold'}),
+        ds.html.Br(), 
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
+            min_val = 0,
+            max_val = 500,
+            step = 0.1,
+            mark_interval = 30,
+            property_name = 'length',
+            title = 'Length (mm)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
+            min_val = 0,
+            max_val = 500,
+            step = 0.1,
+            mark_interval = 30,
+            property_name = 'width',
+            title = 'Width (mm)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
+            min_val = 0,
+            max_val = 20,
+            step = 0.1,
+            mark_interval = 10,
+            property_name = 'thickness',
+            title = 'Thickness (\u03bcm)'
+        )(),
+
+        ds.html.Br(), ds.html.Br(),
+        ds.html.H5('Tab Material', style={'font-weight': 'bold'}),
+        ds.html.Br(),
+
+        ds.dcc.Dropdown(
+            id='cathode_current_collector_tab_material_selector', 
+            placeholder='Select Cathode Current Collector Material',
+            style={'width': 'calc(50%)'},
+            options=[{'label': material, 'value': material} for material in CURRENT_COLLECTOR_MATERIALS]
+        ),
+
+        ds.html.Br(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'tab_material'},
+            min_val = 0,
+            max_val = 500,
+            step = 0.01,
+            mark_interval = 30,
+            property_name = 'density',
+            title = 'Density (kg/m³)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'tab_material'},
+            min_val = 0,
+            max_val = 500,
+            step = 0.01,
+            mark_interval = 30,
+            property_name = 'specific_cost',
+            title = 'Specific Cost (€/kg)'
+        )(),
+
+        ds.html.Br(), ds.html.Br(), 
+        ds.html.H5('Coating', style={'font-weight': 'bold'}),
+        ds.html.Br(), 
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
+            min_val = 0,
+            max_val = 200,
+            step = 0.1,
+            mark_interval = 10,
+            property_name = 'skip_coat_width',
+            title = 'Width of Tab Skip Coats (mm)'
+        )(),
+
+        RangeSliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
+            min_val = 0,
+            max_val = 5000,
+            step = 0.1,
+            mark_interval = 500,
+            property_name = 'a_side_coated_section',
+            title = 'A Side Coated Section (mm)'
+        )(),
+
+        RangeSliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
+            min_val = 0,
+            max_val = 5000,
+            step = 0.1,
+            mark_interval = 500,
+            property_name = 'b_side_coated_section',
+            title = 'B Side Coated Section (mm)'
+        )(),
+
+        ds.html.Br(), ds.html.Br(), 
+        ds.html.H5('Derived', style={'font-weight': 'bold'}),
+        ds.html.Br(), 
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
+            min_val = 0,
+            max_val = 20,
+            step = 0.001,
+            mark_interval = 2,
+            property_name = 'cost',
+            slider_disable = True,
+            title = 'Cost ($)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
+            min_val = 0,
+            max_val = 20,
+            step = 0.01,
+            mark_interval = 2,
+            property_name = 'mass',
+            slider_disable = True,
+            title = 'Mass (g)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
+            min_val = 0,
+            max_val = 10000,
+            step = 0.1,
+            mark_interval = 200,
+            property_name = 'coated_area',
+            slider_disable = True,
+            title = 'Coated Area (both sides) (cm²)'
+        )(),
+
+        ds.html.Br(), ds.html.Br(),
+        ds.html.H5('Datums', style={'font-weight': 'bold'}),
+        ds.html.Br(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
+            min_val = 0,
+            max_val = 1,
+            step = 0.001,
+            mark_interval = 0.2,
+            property_name = 'datum_x',
+            slider_disable = False,
+            title = 'X (mm)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
+            min_val = 0,
+            max_val = 1,
+            step = 0.001,
+            mark_interval = 0.2,
+            property_name = 'datum_y',
+            slider_disable = False,
+            title = 'Y (mm)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
+            min_val = 0,
+            max_val = 1,
+            step = 0.01,
+            mark_interval = 0.2,
+            property_name = 'datum_z',
+            slider_disable = False,
+            title = 'Z (mm)'
+        )(),
+
+        ds.html.Button(
+            id={'electrode': 'cathode', 'object': 'tabbed_current_collector', 'action': 'flip_x'},
+            children='Flip X',
+            style=BUTTON_STYLE | {'width': 'calc(30%)'}
+        ),
+
+        ds.html.Br(), ds.html.Br(),
+
+        ds.html.Button(
+            id={'electrode': 'cathode', 'object': 'tabbed_current_collector', 'action': 'flip_y'},
+            children='Flip Y',
+            style=BUTTON_STYLE | {'width': 'calc(30%)'}
+        ),
+
+    ]
+
 )
 
 
