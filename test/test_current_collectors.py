@@ -6,6 +6,8 @@ from OpenCell.Materials.RawMaterials import CurrentCollectorMaterial
 from OpenCell.Materials.CurrentCollectors import PunchedCurrentCollector, NotchedCurrentCollector, TablessCurrentCollector, WeldTab, TabWeldedCurrentCollector
 
 import plotly.graph_objects as go
+import plotly.io as pio
+pio.renderers.default = "browser"
 
 
 class TestPunchedCurrentCollector(unittest.TestCase):
@@ -163,10 +165,10 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         fig_c = self.current_collector.get_a_side_view(with_dimensions=False)
         fig_d = self.current_collector.get_b_side_view(with_dimensions=False)
 
-        # fig_a.show(render_mode='browser')
-        # fig_b.show(render_mode='browser')
-        # fig_c.show(render_mode='browser')
-        # fig_d.show(render_mode='browser')
+        # fig_a.show(renderer='browser')
+        # fig_b.show(renderer='browser')
+        # fig_c.show(renderer='browser')
+        # fig_d.show(renderer='browser')
 
     def test_setters(self):
 
@@ -300,14 +302,16 @@ class TestTablessCurrentCollector(unittest.TestCase):
         self.assertEqual(round(self.current_collector._coated_width, 6), 0.1)
 
     def test_figures(self):
+
         fig_a = self.current_collector.get_a_side_view()
         fig_b = self.current_collector.get_b_side_view()
-        fig_c = self.current_collector.get_end_view()
+        fig_c = self.current_collector.get_right_left_view()
         fig_d = self.current_collector._get_full_top_down_view(with_dimensions=False)
-        # fig_a.show()
-        # fig_b.show()
-        # fig_c.show()
-        # fig_d.show()
+
+        # fig_a.show(renderer='browser')
+        # fig_b.show(renderer='browser')
+        fig_c.show(renderer='browser')
+        # fig_d.show(renderer='browser')
 
     def test_width_setter(self):
         """

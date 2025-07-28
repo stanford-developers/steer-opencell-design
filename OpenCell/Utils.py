@@ -2,10 +2,70 @@ import plotly.colors as pc
 import numpy as np
 import plotly.graph_objects as go
 import pandas as pd
-from typing import Tuple
+from typing import Tuple, Iterable
+from functools import wraps
+
+from OpenCell.Materials.RawMaterials import CurrentCollectorMaterial
 
 
-class ColorManager:
+def calculate_coordinates(func):
+    """
+    Decorator to recalculate spatial properties after a method call.
+    This is useful for methods that modify the geometry of a component.
+    """
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        result = func(self, *args, **kwargs)
+        if hasattr(self, '_update_properties') and self._update_properties:
+            self._calculate_coordinates()
+        return result
+    return wrapper
+
+
+def calculate_bulk_properties(func):
+    """
+    Decorator to recalculate bulk properties after a method call.
+    This is useful for methods that modify the material properties.
+    """
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        result = func(self, *args, **kwargs)
+        if hasattr(self, '_update_properties') and self._update_properties:
+            self._calculate_bulk_properties()
+        return result
+    return wrapper
+
+
+def calculate_all_properties(func):
+    """
+    Decorator to recalculate both spatial and bulk properties after a method call.
+    This is useful for methods that modify both geometry and material properties.
+    """
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        result = func(self, *args, **kwargs)
+        if hasattr(self, '_update_properties') and self._update_properties:
+            self._calculate_all_properties()
+        return result
+    return wrapper
+
+
+def calculate_areas(func):
+    """
+    Decorator to recalculate areas after a method call.
+    This is useful for methods that modify the geometry of a component.
+    """
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        result = func(self, *args, **kwargs)
+        if hasattr(self, '_update_properties') and self._update_properties:
+            self._calculate_coordinates()
+            self._calculate_areas()
+        return result
+    return wrapper
+
+
+class ColorMixin:
     """
     A class to manage colors, including conversion between hex and RGB formats,
     and generating color gradients.
@@ -34,14 +94,14 @@ class ColorManager:
 
         # Interpolate and convert to hex
         colors = [
-            ColorManager.rgb_tuple_to_hex(tuple(((1 - t) * rgb1 + t * rgb2).astype(int)))
+            ColorMixin.rgb_tuple_to_hex(tuple(((1 - t) * rgb1 + t * rgb2).astype(int)))
             for t in np.linspace(0, 1, n)
         ]
 
         return colors
 
 
-class CoordinateManager:
+class CoordinateMixin:
     """
     A class to manage and manipulate 3D coordinates.
     Provides methods for rotation, area calculation, and coordinate ordering.
@@ -76,7 +136,7 @@ class CoordinateManager:
                 valid_coords = coords[valid_mask].astype(float)
                 
                 # Apply rotation to valid coordinates
-                rotated_valid = CoordinateManager._rotate_valid_coordinates(valid_coords, axis, angle)
+                rotated_valid = CoordinateMixin._rotate_valid_coordinates(valid_coords, axis, angle)
                 
                 # Put rotated coordinates back in result
                 result[valid_mask] = rotated_valid
@@ -85,7 +145,7 @@ class CoordinateManager:
         
         else:
             # No None values - use original logic
-            return CoordinateManager._rotate_valid_coordinates(coords.astype(float), axis, angle)
+            return CoordinateMixin._rotate_valid_coordinates(coords.astype(float), axis, angle)
 
     @staticmethod
     def build_square_array(x: float, y: float, x_width: float, y_width: float) -> Tuple[np.ndarray, np.ndarray]:
@@ -201,7 +261,7 @@ class CoordinateManager:
                     
                     # Calculate area for this segment if it has enough points
                     if len(segment_x) >= 3:
-                        area = CoordinateManager._calculate_single_area(segment_x, segment_y)
+                        area = CoordinateMixin._calculate_single_area(segment_x, segment_y)
                         total_area += area
                         
                 start_idx = none_idx + 1
@@ -211,14 +271,14 @@ class CoordinateManager:
                 segment_x = x[start_idx:]
                 segment_y = y[start_idx:]
                 if len(segment_x) >= 3:
-                    area = CoordinateManager._calculate_single_area(segment_x, segment_y)
+                    area = CoordinateMixin._calculate_single_area(segment_x, segment_y)
                     total_area += area
                     
             return total_area
         
         else:
             # Single shape - use original logic
-            return CoordinateManager._calculate_single_area(x, y)
+            return CoordinateMixin._calculate_single_area(x, y)
 
     @staticmethod
     def extrude_footprint(
@@ -261,4 +321,142 @@ class CoordinateManager:
         side_full = np.array(['a'] * len(x) + ['b'] * len(x))
 
         return x_full, y_full, z_full, side_full
+
+
+class ValidationMixin:
+
+    @staticmethod
+    def validate_datum(datum: np.ndarray) -> None:
+        """
+        Validate the datum point for extrusion.
+
+        Parameters
+        ----------
+        datum : np.ndarray
+            Datum point for extrusion (shape (3,))
+
+        Raises
+        ------
+        ValueError
+            If the datum does not have exactly 3 coordinates.
+        """
+        if type(datum) is not tuple and len(datum) != 3:
+            raise ValueError("Datum must be a 3D point with exactly 3 coordinates.")
+        
+        if not all(isinstance(coord, (int, float)) for coord in datum):
+            raise TypeError("All coordinates in datum must be numbers.")
+    
+    @staticmethod
+    def validate_current_collector_material(material: str) -> None:
+        """
+        Validate the current collector material.
+
+        Parameters
+        ----------
+        material : str
+            The material to validate.
+
+        Raises
+        ------
+        ValueError
+            If the material is not a valid current collector material.
+        """
+        if type(material) is not CurrentCollectorMaterial:
+
+            raise ValueError(f"Invalid current collector material: {material}. "
+                             "Must be an instance of CurrentCollectorMaterial.")
+            
+    @staticmethod
+    def validate_positive_float(value: float, name: str) -> None:
+        """
+        Validate that a value is a positive float.
+
+        Parameters
+        ----------
+        value : float
+            The value to validate.
+        name : str
+            The name of the parameter for error messages.
+
+        Raises
+        ------
+        ValueError
+            If the value is not a positive float.
+        """
+        if not isinstance(value, (int, float)):
+            raise ValueError(f"{name} must be a positive float. Provided: {value}.")
+        
+    @staticmethod
+    def validate_string(value: str, name: str) -> None:
+        """
+        Validate that a value is a string.
+
+        Parameters
+        ----------
+        value : str
+            The value to validate.
+        name : str
+            The name of the parameter for error messages.
+
+        Raises
+        ------
+        TypeError
+            If the value is not a string.
+        """
+        if not isinstance(value, str):
+            raise TypeError(f"{name} must be a string. Provided: {value}.")
+        
+    @staticmethod
+    def validate_two_iterable_of_floats(value: tuple, name: str) -> None:
+        """
+        Validate that a value is a tuple of two iterables.
+
+        Parameters
+        ----------
+        value : tuple
+            The value to validate.
+        name : str
+            The name of the parameter for error messages.
+
+        Raises
+        ------
+        TypeError
+            If the value is not a tuple of two floats.
+        """
+        # Accept both tuples and lists
+        if not isinstance(value, (tuple, list)) or len(value) != 2:
+            raise TypeError(f"{name} must be a tuple or list of two numbers. Provided: {value}.")
+        
+        # Check if all values are numeric (int or float)
+        if not all(isinstance(v, (int, float)) for v in value):
+            raise TypeError(f"{name} must be a tuple or list of two numbers. Provided: {value}.")
+        
+        # Check if all values are non-negative
+        if not all(v >= 0 for v in value):
+            raise ValueError(f"{name} must be a tuple or list of two non-negative numbers. Provided: {value}.")
+        
+    @staticmethod
+    def validate_positive_float_list(value: list, name: str) -> None:
+        """
+        Validate that a value is a list of positive floats.
+
+        Parameters
+        ----------
+        value : list
+            The value to validate.
+        name : str
+            The name of the parameter for error messages.
+
+        Raises
+        ------
+        TypeError
+            If the value is not a list of positive floats.
+        """
+        if not isinstance(value, list) or not all(isinstance(v, (int, float)) and v > 0 for v in value):
+            raise TypeError(f"{name} must be a list of positive floats. Provided: {value}.")
+        
+        if len(value) == 0:
+            raise ValueError(f"{name} must not be an empty list. Provided: {value}.")
+        
+
 

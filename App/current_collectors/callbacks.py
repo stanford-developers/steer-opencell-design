@@ -37,6 +37,7 @@ NOTCHED_PARAMETER_LIST = [
     'tab_width',
     'tab_height',
     'tab_spacing',
+    'tab_gap',
     'coated_tab_height',
     'insulation_width',
     'cost',
