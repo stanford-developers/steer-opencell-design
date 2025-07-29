@@ -105,7 +105,7 @@ class _RawMaterial:
     def specific_cost_marks(self):
         min = np.ceil(self.specific_cost_range[0])
         max = np.floor(self.specific_cost_range[1])
-        return {i: '' for i in range(int(min), int(max) + 1, 2)}
+        return {i: '' for i in range(int(min), int(max) + 1, 5)}
 
     @property
     def name(self):

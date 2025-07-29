@@ -311,10 +311,30 @@ class TestTablessCurrentCollector(unittest.TestCase):
         """
         Test width setter
         """
-        self.current_collector.width = 120
-        self.assertEqual(self.current_collector.width, 120)
-        self.current_collector.width = 30
-        self.assertEqual(self.current_collector.width, 30)
+        fig1 = self.current_collector._get_full_top_down_view(with_dimensions=False)
+        self.assertEqual(self.current_collector.coated_width, 100)
+
+        self.current_collector.width = 208
+        fig2 = self.current_collector._get_full_top_down_view(with_dimensions=False)
+        self.assertEqual(self.current_collector.width, 208)
+        self.assertEqual(self.current_collector.coated_width, 200)
+
+        # fig1.show()
+        # fig2.show()
+
+    def test_tab_height_setter(self):
+        """
+        Test tab height setter
+        """
+        fig1 = self.current_collector._get_full_top_down_view(with_dimensions=False)
+        self.assertEqual(self.current_collector.tab_height, 8)
+
+        self.current_collector.tab_height = 20
+        fig2 = self.current_collector._get_full_top_down_view(with_dimensions=False)
+        self.assertEqual(self.current_collector.tab_height, 20)
+        
+        fig1.show()
+        fig2.show()
 
 
 class TestWeldTab(unittest.TestCase):
