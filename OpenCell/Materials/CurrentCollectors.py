@@ -1535,6 +1535,10 @@ class _TapeCurrentCollector(_CurrentCollector):
     @length.setter
     def length(self, length: float) -> None:
         self.validate_positive_float(length, "length")
+
+        if hasattr(self, '_weld_tabs'):
+            self._weld_tab_positions = [p * MM_TO_M for p in self.weld_tab_positions if p <= length]
+
         self.x_body_length = length
 
 
@@ -3039,7 +3043,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         self._weld_tab = weld_tab
 
     @weld_tab_positions.setter
-    @calculate_areas
+    @calculate_all_properties
     def weld_tab_positions(self, weld_tab_positions: Iterable[float]) -> None:
 
         self.validate_positive_float_list(weld_tab_positions, "weld_tab_positions")

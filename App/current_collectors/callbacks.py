@@ -334,6 +334,7 @@ def update_tabless_current_collector(cell_data, input_values, slider_values, fli
         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'max'),
         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'marks'),
         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': 'tab_weld_side', 'subtype': 'radioitem'}, 'value'),
+        Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': 'weld_tab_positions', 'subtype': 'text_input'}, 'value'),
     ],
     [
         Input('cell_store', 'data'),
@@ -345,13 +346,14 @@ def update_tabless_current_collector(cell_data, input_values, slider_values, fli
         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input_start'}, 'value'),
         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input_end'}, 'value'),
         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': 'tab_weld_side', 'subtype': 'radioitem'}, 'value'),
+        Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': 'weld_tab_positions', 'subtype': 'text_input'}, 'value'),
     ],
     prevent_initial_call=True
 )
 def update_tabbed_current_collector(
     cell_data, input_values, slider_values, flip_x, flip_y, 
     rangeslider_values, input_start_values, input_end_values, 
-    tab_weld_side
+    tab_weld_side, tab_positions_text
 ):
 
     callback_function = create_generic_current_collector_callback(
@@ -368,7 +370,8 @@ def update_tabbed_current_collector(
         rangeslider_values,
         input_start_values,
         input_end_values,
-        tab_weld_side
+        tab_weld_side,
+        tab_positions_text
     )
 
     return response
