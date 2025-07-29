@@ -569,6 +569,16 @@ cathode_tabless_design_parameters = ds.html.Div(
             max_val = 100,
             step = 0.1,
             mark_interval = 30,
+            property_name = 'tab_height',
+            title = 'Tab Height (mm)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'tabless_current_collector'},
+            min_val = 0,
+            max_val = 100,
+            step = 0.1,
+            mark_interval = 30,
             property_name = 'insulation_width',
             title = 'Insulation Width (mm)'
         )(),
@@ -739,7 +749,7 @@ cathode_tabbed_design_parameters = ds.html.Div(
         )(),
 
         ds.html.Br(), ds.html.Br(),
-        ds.html.H5('Tab Material', style={'font-weight': 'bold'}),
+        ds.html.H5('Tab Parameters', style={'font-weight': 'bold'}),
         ds.html.Br(),
 
         ds.dcc.Dropdown(
@@ -758,7 +768,7 @@ cathode_tabbed_design_parameters = ds.html.Div(
             step = 0.01,
             mark_interval = 30,
             property_name = 'density',
-            title = 'Density (kg/m³)'
+            title = 'Tab Material Density (kg/m³)'
         )(),
 
         SliderWithTextInput(
@@ -768,8 +778,50 @@ cathode_tabbed_design_parameters = ds.html.Div(
             step = 0.01,
             mark_interval = 30,
             property_name = 'specific_cost',
-            title = 'Specific Cost (€/kg)'
+            title = 'Tab Material Specific Cost (€/kg)'
         )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
+            min_val = 0,
+            max_val = 20,
+            step = 0.1,
+            mark_interval = 10,
+            property_name = 'tab_width',
+            title = 'Tab Width (mm)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
+            min_val = 0,
+            max_val = 20,
+            step = 0.1,
+            mark_interval = 10,
+            property_name = 'tab_length',
+            title = 'Tab Length (mm)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
+            min_val = 0,
+            max_val = 20,
+            step = 0.1,
+            mark_interval = 10,
+            property_name = 'tab_overhang',
+            title = 'Tab Overhang (mm)'
+        )(),
+
+        ds.html.Br(),
+        ds.html.P('Tab Weld Side'),
+        ds.dcc.RadioItems(
+            id={'electrode': 'cathode', 'object': 'tabbed_current_collector', 'subtype': 'radioitem', 'property': 'tab_weld_side'},
+            options=[
+                {'label': 'A Side', 'value': 'a'},
+                {'label': 'B Side', 'value': 'b'}
+            ],
+            value='a'
+        ),
+        ds.html.Br(),
 
         ds.html.Br(), ds.html.Br(), 
         ds.html.H5('Coating', style={'font-weight': 'bold'}),

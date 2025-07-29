@@ -846,15 +846,17 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
     def cost_marks(self) -> Dict[int, str]:
         min_cost = self.cost_range[0]
         max_cost = self.cost_range[1]
-        delta = 0.1
+        delta = 0.5
         num_steps = int(round((max_cost - min_cost) / delta)) + 1
         values = np.linspace(min_cost, max_cost, num_steps).round(10).tolist()
         return {i: '' for i in values}
 
     @property
     def width_range(self) -> Tuple[float, float]:
-        min = 0.03
-        max = 1
+        
+        min = 0.05
+        max = 0.3
+
         return (
             round(min * M_TO_MM, 2), 
             round(max * M_TO_MM, 2)
@@ -1044,17 +1046,6 @@ class _TabbedCurrentCollector(_CurrentCollector):
         return round(self._tab_width * M_TO_MM, 2)
 
     @property
-    def tab_width_range(self) -> Tuple[float, float]:
-        
-        min = 0.01
-        max = 0.5
-        
-        return (
-            round(min * M_TO_MM, 2), 
-            round(max * M_TO_MM, 2)
-        )
-
-    @property
     def tab_width_marks(self) -> Dict[int, str]:
         """
         Get the tab width marks for the slider.
@@ -1070,8 +1061,8 @@ class _TabbedCurrentCollector(_CurrentCollector):
     @property
     def tab_height_range(self) -> Tuple[float, float]:
 
-        min = 0.01
-        max = self._y_body_length / 4 - 0.01
+        min = 0.003
+        max = 0.03
 
         return (
             round(min * M_TO_MM, 1), 
@@ -1269,6 +1260,7 @@ class _TapeCurrentCollector(_CurrentCollector):
 
         return fig
 
+    # TODO: improve this function. Axes seem strange when overriding a previous figure in dash
     def get_top_down_view(
         self, 
         aspect_ratio: float = 3, 
@@ -1813,6 +1805,17 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
             round(max * M_TO_MM, 2)
         )
 
+    @property
+    def tab_width_range(self) -> Tuple[float, float]:
+        
+        min = 0.01
+        max = self._x_body_length - 0.01
+        
+        return (
+            round(min * M_TO_MM, 2), 
+            round(max * M_TO_MM, 2)
+        )
+
     @width.setter
     def width(self, width: float) -> None:
         self.validate_positive_float(width, "width")
@@ -2196,6 +2199,17 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
     def coated_area_b_side(self) -> float:
         return round(self._coated_area_b_side * M_TO_MM**2, 2)
 
+    @property
+    def tab_width_range(self) -> Tuple[float, float]:
+        
+        min = 0.01
+        max = 0.5
+        
+        return (
+            round(min * M_TO_MM, 2), 
+            round(max * M_TO_MM, 2)
+        )
+
     @tab_spacing.setter
     @calculate_all_properties
     def tab_spacing(self, tab_spacing: float) -> None:
@@ -2329,20 +2343,16 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 
     @property
     def coated_width(self) -> float:
-        return round(self._coated_width * M_TO_MM, 2)
+        return round(self._coated_width * M_TO_MM, 1)
     
     @property
     def coated_width_range(self) -> Tuple[float, float]:
         """
         Get the coated width range in mm.
         """
-        min = (self._y_body_length + self._tab_height) * (4/5)
-        max = self._y_body_length + self._tab_height
-
-        return (
-            round(min * M_TO_MM, 2), 
-            round(max * M_TO_MM, 2)
-        )
+        min = self.width - self.tab_height_range[1]
+        max = self.width - self.tab_height_range[0]
+        return (min, max)
     
     @property
     def coated_width_marks(self) -> Dict[int, str]:
@@ -2360,12 +2370,17 @@ class TablessCurrentCollector(NotchedCurrentCollector):
     def width(self) -> float:
         return round((self._y_body_length + self._tab_height) * M_TO_MM, 2)
 
+    @property
+    def tab_height(self) -> float:
+        return round(self._tab_height * M_TO_MM, 2)
+
     @width.setter
     def width(self, width: float) -> None:
         
         self.validate_positive_float(width, "width")
 
         new_y_length = width - self.tab_height
+        self._coated_width = new_y_length * MM_TO_M
         self.y_body_length = new_y_length
         
         # Automatically adjust coated_width if it's now too large
@@ -2380,17 +2395,33 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 
         self.validate_positive_float(coated_width, "coated_width")
 
-        # Check if this is the first time setting (initialization)
-        if hasattr(self, '_coated_width'):
-            # Calculate the change in coated width (in mm)
-            delta_coated_width_mm = self.coated_width - float(coated_width)
-
-            # Adjust body length and tab height (these setters expect mm)
-            self.y_body_length = self.y_body_length - delta_coated_width_mm
-            self.tab_height = self.tab_height + delta_coated_width_mm
+        # Store the current total width
+        current_total_width = self.width
         
-        # Store the internal value in meters
+        # Set the new coated width
         self._coated_width = float(coated_width) * MM_TO_M
+        
+        # Calculate new tab height to maintain total width
+        new_tab_height = current_total_width - coated_width
+        
+        # Validate the new tab height is positive
+        if new_tab_height < 0:
+            raise ValueError(f"Coated width {coated_width} mm is too large. Maximum allowed is {current_total_width} mm.")
+        
+        # Update tab height and y_body_length
+        self._tab_height = new_tab_height * MM_TO_M
+        self._y_body_length = self._coated_width  # y_body_length equals coated_width
+
+    @tab_height.setter
+    def tab_height(self, tab_height: float) -> None:
+        
+        self.validate_positive_float(tab_height, "tab_height")
+        tab_height_delta = float(tab_height) - self.tab_height
+        _tab_height_delta = tab_height_delta * MM_TO_M
+
+        self._coated_width -= _tab_height_delta
+        self._tab_height += _tab_height_delta
+        self.y_body_length -= tab_height_delta
 
 
 class WeldTab(ValidationMixin, CoordinateMixin):
@@ -2881,6 +2912,25 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         return round(self._tab_overhang * M_TO_MM, 2)
 
     @property
+    def tab_overhang_range(self) -> Tuple[float, float]:
+        """
+        Returns the overhang range of the weld tab in mm.
+        """
+        return (0, self.weld_tab.length/2)
+
+    @property
+    def tab_overhang_marks(self) -> Dict[int, str]:
+        """
+        Returns the overhang marks of the weld tab in mm.
+        """
+        min_overhang = self.tab_overhang_range[0]
+        max_overhang = self.tab_overhang_range[1]
+        delta = 5
+        num_steps = int(round((max_overhang - min_overhang) / delta)) + 1
+        values = np.linspace(min_overhang, max_overhang, num_steps).round(10).tolist()
+        return {i: '' for i in values}
+
+    @property
     def weld_tab(self) -> list:
         """
         Returns a list of WeldTab objects representing the weld tabs on the current collector.
@@ -2893,6 +2943,94 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         Returns a list of WeldTab objects representing the weld tabs on the current collector.
         """
         return self._weld_tabs
+
+    @property
+    def tab_width(self) -> float:
+        """
+        Returns the width of the weld tab in mm.
+        """
+        return self.weld_tab.width
+
+    @property
+    def tab_width_range(self) -> Tuple[float, float]:
+        """
+        Returns the width range of the weld tab in mm.
+        """
+        return (1, self.skip_coat_width)
+
+    @property
+    def tab_width_marks(self) -> Dict[int, str]:
+        """
+        Returns the width marks of the weld tab in mm.
+        """
+        min_width = self.tab_width_range[0]
+        max_width = self.tab_width_range[1]
+        delta = 5
+        num_steps = int(round((max_width - min_width) / delta)) + 1
+        values = np.linspace(min_width, max_width, num_steps).round(10).tolist()
+        return {i: '' for i in values}
+
+    @property
+    def tab_length(self) -> float:
+        """
+        Returns the length of the weld tab in mm.
+        """
+        return self.weld_tab.length
+    
+    @property
+    def tab_length_range(self) -> Tuple[float, float]:
+        """
+        Returns the length range of the weld tab in mm.
+        """
+        return (self.tab_overhang, self.y_body_length + self.tab_overhang)
+    
+    @property
+    def tab_length_marks(self) -> Dict[int, str]:
+        """
+        Returns the length marks of the weld tab in mm.
+        """
+        min_length = self.tab_length_range[0]
+        max_length = self.tab_length_range[1]
+        delta = 5
+        num_steps = int(round((max_length - min_length) / delta)) + 1
+        values = np.linspace(min_length, max_length, num_steps).round(10).tolist()
+        return {i: '' for i in values}
+
+    @tab_overhang.setter
+    @calculate_weld_tab_properties
+    def tab_overhang(self, tab_overhang: float) -> None:
+        """
+        Set the overhang of the weld tab on the current collector.
+        
+        Parameters
+        ----------
+        tab_overhang : float
+            The overhang of the weld tab in mm.
+        """
+        self.validate_positive_float(tab_overhang, "tab_overhang")
+        
+        # Convert to internal units (meters)
+        self._tab_overhang = float(tab_overhang) * MM_TO_M
+        
+        if self._tab_overhang > self.weld_tab.length / 2:
+            raise ValueError("Tab overhang cannot be greater than half the length of the weld tab.")
+
+    @tab_width.setter
+    @calculate_all_properties
+    def tab_width(self, tab_width: float) -> None:
+        self.validate_positive_float(tab_width, "tab_width")
+        self.weld_tab.width = tab_width
+
+    @tab_length.setter
+    @calculate_all_properties
+    def tab_length(self, tab_length: float) -> None:
+
+        self.validate_positive_float(tab_length, "tab_length")
+        
+        if tab_length < self.tab_overhang:
+            raise ValueError("Tab length cannot be less than the tab overhang.")
+        
+        self.weld_tab.length = tab_length
 
     @weld_tab.setter
     @calculate_all_properties

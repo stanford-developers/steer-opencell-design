@@ -1,6 +1,5 @@
 from dash import callback, Input, Output, ctx, State, no_update, MATCH, ALL
 
-from OpenCell.Materials.CurrentCollectors import _TapeCurrentCollector
 from cache_service import cache
 from uuid import uuid4
 
@@ -10,142 +9,8 @@ from OpenCell.Materials.RawMaterials import *
 
 from current_collectors.layouts import *
 from current_collectors.callbacks import CURRENT_COLLECTOR_DESIGNS
-
-
-
-PUNCHED_PARAMETER_LIST = [
-    'width',
-    'height',
-    'thickness',
-    'tab_width',
-    'tab_height',
-    'tab_position',
-    'coated_tab_height',
-    'insulation_width',
-    'cost',
-    'mass',
-    'coated_area',
-    'insulation_area',
-    'datum_x',
-    'datum_y',
-    'datum_z',
-]
-
-PUNCHED_SETTABLE_PARAMETERS = [
-    'width',
-    'height',
-    'thickness',
-    'tab_width',
-    'tab_height',
-    'tab_position',
-    'coated_tab_height',
-    'insulation_width',
-    'datum_x',
-    'datum_y',
-    'datum_z',
-]
-
-
-
-NOTCHED_PARAMETER_LIST = [
-    'length',
-    'width',
-    'thickness',
-    'tab_width',
-    'tab_height',
-    'tab_spacing',
-    'tab_gap',
-    'coated_tab_height',
-    'insulation_width',
-    'cost',
-    'mass',
-    'coated_area',
-    'insulation_area',
-    'datum_x',
-    'datum_y',
-    'datum_z',
-]
-
-NOTCHED_SETTABLE_PARAMETERS = [
-    'length',
-    'width',
-    'thickness',
-    'tab_width',
-    'tab_height',
-    'tab_spacing',
-    'tab_gap',
-    'coated_tab_height',
-    'insulation_width',
-    'datum_x',
-    'datum_y',
-    'datum_z',
-]
-
-
-
-TABLESS_PARAMETER_LIST = [
-    'length',
-    'width',
-    'thickness',
-    'coated_width',
-    'insulation_width',
-    'cost',
-    'mass',
-    'coated_area',
-    'insulation_area',
-    'datum_x',
-    'datum_y',
-    'datum_z',
-]
-
-TABLESS_SETTABLE_PARAMETERS = [
-    'length',
-    'width',
-    'thickness',
-    'coated_width',
-    'insulation_width',
-    'datum_x',
-    'datum_y',
-    'datum_z',
-]
-
-
-
-TABBED_PARAMETER_LIST = [
-    'length',
-    'width',
-    'thickness',
-    'skip_coat_width',
-    'cost',
-    'mass',
-    'coated_area',
-    'datum_x',
-    'datum_y',
-    'datum_z',
-]
-
-TABBED_SETTABLE_PARAMETERS = [
-    'length',
-    'width',
-    'thickness',
-    'skip_coat_width',
-    'datum_x',
-    'datum_y',
-    'datum_z',
-]
-
-
-
-TAPE_RANGE_SLIDER_PARAMETERS = [
-    'a_side_coated_section',
-    'b_side_coated_section',
-]
-
-CC_MATERIAL_PARAMETER_LIST = [
-    'density',
-    'specific_cost',
-]
-
+from current_collectors.callback_helpers import create_generic_current_collector_callback, create_material_callback, get_current_collector_from_cell
+from general.enumerated_classes import CollectorType, ElectrodeType, MaterialType
 
 
 @callback(
@@ -231,101 +96,18 @@ def update_cathode_current_collector_material(
     slider_values
 ):
     
-    def generate_material_parameters(material):
-        """Helper function to generate parameter lists for the material."""
-        parameter_list = [getattr(material, param) for param in CC_MATERIAL_PARAMETER_LIST]
-        min_values = [getattr(material, f"{param}_range")[0] for param in CC_MATERIAL_PARAMETER_LIST]
-        max_values = [getattr(material, f"{param}_range")[1] for param in CC_MATERIAL_PARAMETER_LIST]
-        marks_list = [getattr(material, f"{param}_marks") for param in CC_MATERIAL_PARAMETER_LIST]
-        return parameter_list, min_values, max_values, marks_list
+    callback_function = create_material_callback(
+        MaterialType.CATHODE_CURRENT_COLLECTOR
+    )
 
-    triggered_id = ctx.triggered_id
-    cell = cache.get(cell_data['cache_key'])
-    current_collector = cell
+    response = callback_function(
+        cell_data,
+        material_selector,
+        input_values,
+        slider_values
+    )
 
-    # If the cell store is triggered, get the current collector material from the cell
-    if triggered_id == 'cell_store':
-
-        # get the material from the current_collector
-        material = current_collector.material
-
-        # generate the parameter lists
-        parameter_list, min_values, max_values, marks_list = generate_material_parameters(material)
-        
-        # and return the values
-        return (
-            no_update,
-            material.name,
-            parameter_list,
-            parameter_list,
-            min_values,
-            max_values,
-            marks_list
-        )
-
-    # If the material selector is triggered, update the material
-    elif triggered_id == 'cathode_current_collector_material_selector':
-
-        # get the new material from the database
-        material = CurrentCollectorMaterial.from_database(material_selector)
-
-        # assign the material to the current_collector
-        current_collector.material = material
-
-        # make the new key and store in cache
-        cell = current_collector
-        new_cc_key = str(uuid4())
-        cache.set(new_cc_key, cell)
-
-        # generate the parameter lists
-        parameter_list, min_values, max_values, marks_list = generate_material_parameters(material)
-
-        # and return the values
-        return (
-            {'cache_key': new_cc_key},
-            material.name,
-            parameter_list,
-            parameter_list,
-            min_values,
-            max_values,
-            marks_list
-        )
-
-    # Handle slider/input updates
-    elif isinstance(triggered_id, dict) and 'property' in triggered_id:
-
-        # determine which property was triggered
-        property = triggered_id['property']
-        property_index = CC_MATERIAL_PARAMETER_LIST.index(property)
-        value = slider_values[property_index] if triggered_id['subtype'] == 'slider' else input_values[property_index]
-
-        # get the material
-        material = current_collector.material
-
-        # set the property of the material
-        setattr(material, property, value)
-
-        # assign the material back to the current_collector
-        current_collector.material = material
-
-        # make the new key and store in cache
-        cell = current_collector
-        new_cc_key = str(uuid4())
-        cache.set(new_cc_key, cell)
-
-        # generate the parameter lists
-        parameter_list, min_values, max_values, marks_list = generate_material_parameters(material)
-
-        # return the updated values
-        return (
-            {'cache_key': new_cc_key},
-            material.name,
-            parameter_list,
-            parameter_list,
-            min_values,
-            max_values,
-            marks_list
-        )
+    return response
 
 
 @callback(
@@ -353,116 +135,18 @@ def update_cathode_current_collector_tab_material(
     slider_values
 ):
     
-    def generate_material_parameters(material):
-        """Helper function to generate parameter lists for the material."""
-        parameter_list = [getattr(material, param) for param in CC_MATERIAL_PARAMETER_LIST]
-        min_values = [getattr(material, f"{param}_range")[0] for param in CC_MATERIAL_PARAMETER_LIST]
-        max_values = [getattr(material, f"{param}_range")[1] for param in CC_MATERIAL_PARAMETER_LIST]
-        marks_list = [getattr(material, f"{param}_marks") for param in CC_MATERIAL_PARAMETER_LIST]
-        return parameter_list, min_values, max_values, marks_list
+    callback_function = create_material_callback(
+        MaterialType.CATHODE_CURRENT_COLLECTOR_TAB
+    )
 
-    triggered_id = ctx.triggered_id
-    cell = cache.get(cell_data['cache_key'])
-    current_collector = cell
+    response = callback_function(
+        cell_data,
+        material_selector,
+        input_values,
+        slider_values
+    )
 
-    # no update if the current collector is not a TabWeldedCurrentCollector and doesnt have a weld tab
-    try:
-        weld_tab = current_collector.weld_tab
-    except Exception:
-        return (
-            no_update,
-            no_update,
-            [no_update] * len(CC_MATERIAL_PARAMETER_LIST),
-            [no_update] * len(CC_MATERIAL_PARAMETER_LIST),
-            [no_update] * len(CC_MATERIAL_PARAMETER_LIST),
-            [no_update] * len(CC_MATERIAL_PARAMETER_LIST),
-            [no_update] * len(CC_MATERIAL_PARAMETER_LIST),
-        )
-
-    # If the cell store is triggered, get the current collector material from the cell
-    if triggered_id == 'cell_store':
-
-        # get the material from tab
-        material = weld_tab.material
-
-        # generate the parameter lists
-        parameter_list, min_values, max_values, marks_list = generate_material_parameters(material)
-        
-        # and return the values
-        return (
-            no_update,
-            material.name,
-            parameter_list,
-            parameter_list,
-            min_values,
-            max_values,
-            marks_list
-        )
-
-    # If the material selector is triggered, update the material
-    elif triggered_id == 'cathode_current_collector_tab_material_selector':
-
-        # get the new material from the database
-        material = CurrentCollectorMaterial.from_database(material_selector)
-
-        # make the new key and store in cache
-        weld_tab.material = material
-        current_collector.weld_tab = weld_tab
-        cell = current_collector
-
-        new_cc_key = str(uuid4())
-        cache.set(new_cc_key, cell)
-
-        # generate the parameter lists
-        parameter_list, min_values, max_values, marks_list = generate_material_parameters(material)
-
-        # and return the values
-        return (
-            {'cache_key': new_cc_key},
-            material.name,
-            parameter_list,
-            parameter_list,
-            min_values,
-            max_values,
-            marks_list
-        )
-
-    # Handle slider/input updates
-    elif isinstance(triggered_id, dict) and 'property' in triggered_id:
-
-        # determine which property was triggered
-        property = triggered_id['property']
-        property_index = CC_MATERIAL_PARAMETER_LIST.index(property)
-        value = slider_values[property_index] if triggered_id['subtype'] == 'slider' else input_values[property_index]
-
-        # get the material
-        material = weld_tab.material
-
-        # set the property of the material
-        setattr(material, property, value)
-
-        # assign the material back to the current_collector
-        weld_tab.material = material
-
-        # make the new key and store in cache
-        current_collector.weld_tab = weld_tab
-        cell = current_collector
-        new_cc_key = str(uuid4())
-        cache.set(new_cc_key, cell)
-
-        # generate the parameter lists
-        parameter_list, min_values, max_values, marks_list = generate_material_parameters(material)
-
-        # return the updated values
-        return (
-            {'cache_key': new_cc_key},
-            material.name,
-            parameter_list,
-            parameter_list,
-            min_values,
-            max_values,
-            marks_list
-        )
+    return response
 
 
 @callback(
@@ -513,125 +197,22 @@ def update_cathode_current_collector_design_parameters(design):
     ],
     prevent_initial_call=True
 )
-def update_punched_current_collector(
-    cell_data,
-    input_values,
-    slider_values,
-    flip_x,
-    flip_y
-):
-    
-    def generate_parameters(current_collector):
-        """Helper function to generate parameter lists for the material."""
-        parameter_list = [getattr(current_collector, param) for param in PUNCHED_PARAMETER_LIST]
-        min_values = [getattr(current_collector, f"{param}_range")[0] for param in PUNCHED_PARAMETER_LIST]
-        max_values = [getattr(current_collector, f"{param}_range")[1] for param in PUNCHED_PARAMETER_LIST]
-        marks_list = [getattr(current_collector, f"{param}_marks") for param in PUNCHED_PARAMETER_LIST]
-        return parameter_list, min_values, max_values, marks_list
+def update_punched_current_collector(cell_data, input_values, slider_values, flip_x, flip_y):
 
-    triggered_id = ctx.triggered_id
-    cell = cache.get(cell_data['cache_key'])
+    callback_function = create_generic_current_collector_callback(
+        CollectorType.PUNCHED,
+        ElectrodeType.CATHODE
+    )
 
-    # get the cathode current collector from the cell
-    current_collector = cell
+    response = callback_function(
+        cell_data,
+        input_values,
+        slider_values,
+        flip_x,
+        flip_y
+    )
 
-    # Check if the current collector is a PunchedCurrentCollector. If not, return no_update
-    if type(current_collector) != PunchedCurrentCollector:
-        return (
-            no_update,
-            [no_update] * len(PUNCHED_PARAMETER_LIST),
-            [no_update] * len(PUNCHED_PARAMETER_LIST),
-            [no_update] * len(PUNCHED_PARAMETER_LIST),
-            [no_update] * len(PUNCHED_PARAMETER_LIST),
-            [no_update] * len(PUNCHED_PARAMETER_LIST),
-            [no_update] * len(PUNCHED_PARAMETER_LIST),
-            [no_update] * len(PUNCHED_PARAMETER_LIST),
-        )
-
-    # If the cell store is triggered, get the current collector from the cell
-    if triggered_id == 'cell_store':
-        
-        # generate the parameter lists
-        value_list, min_values, max_values, marks_list = generate_parameters(current_collector)
-
-        return (
-            no_update,
-            value_list,
-            value_list,
-            min_values,
-            max_values,
-            min_values,
-            max_values,
-            marks_list,
-        )
-        
-    # Handle slider/input updates
-    elif isinstance(triggered_id, dict) and 'property' in triggered_id:
-
-        # determine which property was triggered
-        property = triggered_id['property']
-        property_index = PUNCHED_PARAMETER_LIST.index(property)
-        value = slider_values[property_index] if triggered_id['subtype'] == 'slider' else input_values[property_index]
-
-        # set the property of the current collector
-        setattr(current_collector, property, value)
-
-        # Validate dependent properties
-        for param in PUNCHED_SETTABLE_PARAMETERS:
-            if param != property:  # Skip the updated property
-                param_range = getattr(current_collector, f"{param}_range")
-                param_value = getattr(current_collector, param)
-                if param_value < param_range[0]:
-                    setattr(current_collector, param, param_range[0])
-                elif param_value > param_range[1]:
-                    setattr(current_collector, param, param_range[1])
-
-        value_list, min_values, max_values, marks_list = generate_parameters(current_collector)
-
-        # update the cell data with the new current collector
-        cell = current_collector
-
-        # make the new key and store in cache
-        cell_data['cache_key'] = str(uuid4())
-        cache.set(cell_data['cache_key'], cell)
-
-        # return the updated values
-        return (
-            {'cache_key': cell_data['cache_key']},
-            value_list,
-            value_list,
-            min_values,
-            max_values,
-            min_values,
-            max_values,
-            marks_list,
-        )
-    
-    elif isinstance(triggered_id, dict) and 'action' in triggered_id:
-
-        # Handle flip actions
-        if triggered_id['action'] == 'flip_x':
-            current_collector.flip(axis='x')
-        elif triggered_id['action'] == 'flip_y':
-            current_collector.flip(axis='y')
-            
-        # update the cell data with the new current collector
-        cell = current_collector
-
-        # make the new key and store in cache
-        cell_data['cache_key'] = str(uuid4())
-        cache.set(cell_data['cache_key'], cell)
-
-        return (
-            {'cache_key': cell_data['cache_key']},
-            [no_update] * len(PUNCHED_PARAMETER_LIST),
-            [no_update] * len(PUNCHED_PARAMETER_LIST),
-            [no_update] * len(PUNCHED_PARAMETER_LIST),
-            [no_update] * len(PUNCHED_PARAMETER_LIST),
-            [no_update] * len(PUNCHED_PARAMETER_LIST),
-            [no_update] * len(PUNCHED_PARAMETER_LIST),
-            [no_update] * len(PUNCHED_PARAMETER_LIST),
-        )
+    return response
 
 
 @callback(
@@ -664,187 +245,25 @@ def update_punched_current_collector(
     ],
     prevent_initial_call=True
 )
-def update_notched_current_collector(
-    cell_data,
-    input_values,
-    slider_values,
-    flip_x,
-    flip_y,
-    rangeslider_values,
-    input_start_values,
-    input_end_values
-):
-    
-    def generate_parameters(current_collector):
-        """Helper function to generate parameter lists for the material."""
-        parameter_list = [getattr(current_collector, param) for param in NOTCHED_PARAMETER_LIST]
-        min_values = [getattr(current_collector, f"{param}_range")[0] for param in NOTCHED_PARAMETER_LIST]
-        max_values = [getattr(current_collector, f"{param}_range")[1] for param in NOTCHED_PARAMETER_LIST]
-        marks_list = [getattr(current_collector, f"{param}_marks") for param in NOTCHED_PARAMETER_LIST]
-        return parameter_list, min_values, max_values, marks_list
-    
-    def generate_rangeslider_values(current_collector):
-        """Generate the values for the range slider."""
-        parameter_list = [getattr(current_collector, param) for param in TAPE_RANGE_SLIDER_PARAMETERS]
-        start_list = [p[0] for p in parameter_list]
-        end_list = [p[1] for p in parameter_list]
-        min_val = [getattr(current_collector, f"{param}_range")[0] for param in TAPE_RANGE_SLIDER_PARAMETERS]
-        max_val = [getattr(current_collector, f"{param}_range")[1] for param in TAPE_RANGE_SLIDER_PARAMETERS]
-        range_marks_list = [getattr(current_collector, f"{param}_marks") for param in TAPE_RANGE_SLIDER_PARAMETERS]
-        return parameter_list, start_list, end_list, min_val, max_val, range_marks_list
+def update_notched_current_collector(cell_data, input_values, slider_values, flip_x, flip_y, rangeslider_values, input_start_values, input_end_values):
 
-    triggered_id = ctx.triggered_id
-    cell = cache.get(cell_data['cache_key'])
+    callback_function = create_generic_current_collector_callback(
+        CollectorType.NOTCHED,
+        ElectrodeType.CATHODE
+    )
 
-    # get the cathode current collector from the cell
-    current_collector = cell
+    response = callback_function(
+        cell_data,
+        input_values,
+        slider_values,
+        flip_x,
+        flip_y,
+        rangeslider_values,
+        input_start_values,
+        input_end_values
+    )
 
-    # Check if the current collector is a NotchedCurrentCollector. If not, return no_update
-    if type(current_collector) != NotchedCurrentCollector:
-        return (
-            no_update,
-            [no_update] * len(NOTCHED_PARAMETER_LIST),
-            [no_update] * len(NOTCHED_PARAMETER_LIST),
-            [no_update] * len(NOTCHED_PARAMETER_LIST),
-            [no_update] * len(NOTCHED_PARAMETER_LIST),
-            [no_update] * len(NOTCHED_PARAMETER_LIST),
-            [no_update] * len(NOTCHED_PARAMETER_LIST),
-            [no_update] * len(NOTCHED_PARAMETER_LIST),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-        )
-
-    # If the cell store is triggered, get the current collector from the cell
-    if triggered_id == 'cell_store':
-        
-        # generate the parameter lists
-        value_list, min_values, max_values, marks_list = generate_parameters(current_collector)
-
-        # generate the range slider values
-        range_value_list, start_list, end_list, min_val, max_val, range_marks_list = generate_rangeslider_values(current_collector)
-
-        return (
-            no_update,
-            value_list,
-            value_list,
-            min_values,
-            max_values,
-            min_values,
-            max_values,
-            marks_list,
-            range_value_list,
-            start_list,
-            end_list,
-            min_val,
-            max_val,
-            range_marks_list
-        )
-        
-    # Handle slider/input updates
-    elif isinstance(triggered_id, dict) and 'property' in triggered_id:
-
-        # determine which property was triggered
-        property = triggered_id['property']
-        
-        # Handle range slider properties
-        if property in TAPE_RANGE_SLIDER_PARAMETERS:
-
-            range_property_index = TAPE_RANGE_SLIDER_PARAMETERS.index(property)
-            
-            if triggered_id['subtype'] == 'rangeslider':
-                # Range slider was moved
-                value = rangeslider_values[range_property_index]
-            elif triggered_id['subtype'] == 'input_start':
-                # Start input was changed
-                current_value = getattr(current_collector, property)
-                value = (input_start_values[range_property_index], current_value[1])
-            elif triggered_id['subtype'] == 'input_end':
-                # End input was changed
-                current_value = getattr(current_collector, property)
-                value = (current_value[0], input_end_values[range_property_index])
-            
-            # Set the property as a tuple
-            setattr(current_collector, property, value)
-            
-        # Handle regular slider/input properties  
-        elif property in NOTCHED_PARAMETER_LIST:
-            property_index = NOTCHED_PARAMETER_LIST.index(property)
-            value = slider_values[property_index] if triggered_id['subtype'] == 'slider' else input_values[property_index]
-            setattr(current_collector, property, value)
-
-        # Validate dependent properties for regular parameters only
-        for param in NOTCHED_SETTABLE_PARAMETERS:
-            if param != property:  # Skip the updated property
-                param_range = getattr(current_collector, f"{param}_range")
-                param_value = getattr(current_collector, param)
-                if param_value < param_range[0]:
-                    setattr(current_collector, param, param_range[0])
-                elif param_value > param_range[1]:
-                    setattr(current_collector, param, param_range[1])
-
-        value_list, min_values, max_values, marks_list = generate_parameters(current_collector)
-        range_value_list, start_list, end_list, min_val, max_val, range_marks_list = generate_rangeslider_values(current_collector)
-
-        # update the cell data with the new current collector
-        cell = current_collector
-
-        # make the new key and store in cache
-        cell_data['cache_key'] = str(uuid4())
-        cache.set(cell_data['cache_key'], cell)
-
-        # return the updated values
-        return (
-            {'cache_key': cell_data['cache_key']},
-            value_list,
-            value_list,
-            min_values,
-            max_values,
-            min_values,
-            max_values,
-            marks_list,
-            range_value_list,
-            start_list,
-            end_list, 
-            min_val,
-            max_val,
-            range_marks_list
-        )
-    
-    elif isinstance(triggered_id, dict) and 'action' in triggered_id:
-
-        # Handle flip actions
-        if triggered_id['action'] == 'flip_x':
-            current_collector.flip(axis='x')
-        elif triggered_id['action'] == 'flip_y':
-            current_collector.flip(axis='y')
-            
-        # update the cell data with the new current collector
-        cell = current_collector
-
-        # make the new key and store in cache
-        cell_data['cache_key'] = str(uuid4())
-        cache.set(cell_data['cache_key'], cell)
-
-        return (
-            {'cache_key': cell_data['cache_key']},
-            [no_update] * len(NOTCHED_PARAMETER_LIST),
-            [no_update] * len(NOTCHED_PARAMETER_LIST),
-            [no_update] * len(NOTCHED_PARAMETER_LIST),
-            [no_update] * len(NOTCHED_PARAMETER_LIST),
-            [no_update] * len(NOTCHED_PARAMETER_LIST),
-            [no_update] * len(NOTCHED_PARAMETER_LIST),
-            [no_update] * len(NOTCHED_PARAMETER_LIST),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-        )
+    return response
 
 
 @callback(
@@ -877,188 +296,25 @@ def update_notched_current_collector(
     ],
     prevent_initial_call=True
 )
-def update_tabless_current_collector(
-    cell_data,
-    input_values,
-    slider_values,
-    flip_x,
-    flip_y,
-    rangeslider_values,
-    input_start_values,
-    input_end_values
-):
-    
-    def generate_parameters(current_collector):
-        """Helper function to generate parameter lists for the material."""
-        parameter_list = [getattr(current_collector, param) for param in TABLESS_PARAMETER_LIST]
-        min_values = [getattr(current_collector, f"{param}_range")[0] for param in TABLESS_PARAMETER_LIST]
-        max_values = [getattr(current_collector, f"{param}_range")[1] for param in TABLESS_PARAMETER_LIST]
-        marks_list = [getattr(current_collector, f"{param}_marks") for param in TABLESS_PARAMETER_LIST]
-        return parameter_list, min_values, max_values, marks_list
-    
-    def generate_rangeslider_values(current_collector):
-        """Generate the values for the range slider."""
-        parameter_list = [getattr(current_collector, param) for param in TAPE_RANGE_SLIDER_PARAMETERS]
-        start_list = [p[0] for p in parameter_list]
-        end_list = [p[1] for p in parameter_list]
-        min_val = [getattr(current_collector, f"{param}_range")[0] for param in TAPE_RANGE_SLIDER_PARAMETERS]
-        max_val = [getattr(current_collector, f"{param}_range")[1] for param in TAPE_RANGE_SLIDER_PARAMETERS]
-        range_marks_list = [getattr(current_collector, f"{param}_marks") for param in TAPE_RANGE_SLIDER_PARAMETERS]
-        return parameter_list, start_list, end_list, min_val, max_val, range_marks_list
+def update_tabless_current_collector(cell_data, input_values, slider_values, flip_x, flip_y, rangeslider_values, input_start_values, input_end_values):
 
-    triggered_id = ctx.triggered_id
-    cell = cache.get(cell_data['cache_key'])
+    callback_function = create_generic_current_collector_callback(
+        CollectorType.TABLESS,
+        ElectrodeType.CATHODE
+    )
 
-    # get the cathode current collector from the cell
-    current_collector = cell
+    response = callback_function(
+        cell_data,
+        input_values,
+        slider_values,
+        flip_x,
+        flip_y,
+        rangeslider_values,
+        input_start_values,
+        input_end_values
+    )
 
-    # Check if the current collector is a TablessCurrentCollector. If not, return no_update
-    if type(current_collector) != TablessCurrentCollector:
-        return (
-            no_update,
-            [no_update] * len(TABLESS_PARAMETER_LIST),
-            [no_update] * len(TABLESS_PARAMETER_LIST),
-            [no_update] * len(TABLESS_PARAMETER_LIST),
-            [no_update] * len(TABLESS_PARAMETER_LIST),
-            [no_update] * len(TABLESS_PARAMETER_LIST),
-            [no_update] * len(TABLESS_PARAMETER_LIST),
-            [no_update] * len(TABLESS_PARAMETER_LIST),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-        )
-
-    # If the cell store is triggered, get the current collector from the cell
-    if triggered_id == 'cell_store':
-        
-        # generate the parameter lists
-        value_list, min_values, max_values, marks_list = generate_parameters(current_collector)
-
-        # generate the range slider values
-        range_value_list, start_list, end_list, min_val, max_val, range_marks_list = generate_rangeslider_values(current_collector)
-
-        return (
-            no_update,
-            value_list,
-            value_list,
-            min_values,
-            max_values,
-            min_values,
-            max_values,
-            marks_list,
-            range_value_list,
-            start_list,
-            end_list,
-            min_val,
-            max_val,
-            range_marks_list
-        )
-        
-    # Handle slider/input updates
-    elif isinstance(triggered_id, dict) and 'property' in triggered_id:
-
-        # determine which property was triggered
-        property = triggered_id['property']
-        
-        # Handle range slider properties
-        if property in TAPE_RANGE_SLIDER_PARAMETERS:
-
-            range_property_index = TAPE_RANGE_SLIDER_PARAMETERS.index(property)
-            
-            if triggered_id['subtype'] == 'rangeslider':
-                # Range slider was moved
-                value = rangeslider_values[range_property_index]
-            elif triggered_id['subtype'] == 'input_start':
-                # Start input was changed
-                current_value = getattr(current_collector, property)
-                value = (input_start_values[range_property_index], current_value[1])
-            elif triggered_id['subtype'] == 'input_end':
-                # End input was changed
-                current_value = getattr(current_collector, property)
-                value = (current_value[0], input_end_values[range_property_index])
-            
-            # Set the property as a tuple
-            setattr(current_collector, property, value)
-            
-        # Handle regular slider/input properties  
-        elif property in TABLESS_PARAMETER_LIST:
-            property_index = TABLESS_PARAMETER_LIST.index(property)
-            value = slider_values[property_index] if triggered_id['subtype'] == 'slider' else input_values[property_index]
-            setattr(current_collector, property, value)
-
-        # Validate dependent properties for regular parameters only
-        for param in TABLESS_SETTABLE_PARAMETERS:
-            if param != property:  # Skip the updated property
-                param_range = getattr(current_collector, f"{param}_range")
-                param_value = getattr(current_collector, param)
-                if param_value < param_range[0]:
-                    setattr(current_collector, param, param_range[0])
-                elif param_value > param_range[1]:
-                    print(param)
-                    setattr(current_collector, param, param_range[1])
-
-        value_list, min_values, max_values, marks_list = generate_parameters(current_collector)
-        range_value_list, start_list, end_list, min_val, max_val, range_marks_list = generate_rangeslider_values(current_collector)
-
-        # update the cell data with the new current collector
-        cell = current_collector
-
-        # make the new key and store in cache
-        cell_data['cache_key'] = str(uuid4())
-        cache.set(cell_data['cache_key'], cell)
-
-        # return the updated values
-        return (
-            {'cache_key': cell_data['cache_key']},
-            value_list,
-            value_list,
-            min_values,
-            max_values,
-            min_values,
-            max_values,
-            marks_list,
-            range_value_list,
-            start_list,
-            end_list, 
-            min_val,
-            max_val,
-            range_marks_list
-        )
-    
-    elif isinstance(triggered_id, dict) and 'action' in triggered_id:
-
-        # Handle flip actions
-        if triggered_id['action'] == 'flip_x':
-            current_collector.flip(axis='x')
-        elif triggered_id['action'] == 'flip_y':
-            current_collector.flip(axis='y')
-            
-        # update the cell data with the new current collector
-        cell = current_collector
-
-        # make the new key and store in cache
-        cell_data['cache_key'] = str(uuid4())
-        cache.set(cell_data['cache_key'], cell)
-
-        return (
-            {'cache_key': cell_data['cache_key']},
-            [no_update] * len(TABLESS_PARAMETER_LIST),
-            [no_update] * len(TABLESS_PARAMETER_LIST),
-            [no_update] * len(TABLESS_PARAMETER_LIST),
-            [no_update] * len(TABLESS_PARAMETER_LIST),
-            [no_update] * len(TABLESS_PARAMETER_LIST),
-            [no_update] * len(TABLESS_PARAMETER_LIST),
-            [no_update] * len(TABLESS_PARAMETER_LIST),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-        )
+    return response
 
 
 @callback(
@@ -1077,6 +333,7 @@ def update_tabless_current_collector(
         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'min'),
         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'max'),
         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'marks'),
+        Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': 'tab_weld_side', 'subtype': 'radioitem'}, 'value'),
     ],
     [
         Input('cell_store', 'data'),
@@ -1084,196 +341,37 @@ def update_tabless_current_collector(
         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'action': 'flip_x'}, 'n_clicks'),
         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'action': 'flip_y'}, 'n_clicks'),
-        # Add range slider inputs
         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'value'),
         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input_start'}, 'value'),
         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input_end'}, 'value'),
+        Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': 'tab_weld_side', 'subtype': 'radioitem'}, 'value'),
     ],
     prevent_initial_call=True
 )
 def update_tabbed_current_collector(
-    cell_data,
-    input_values,
-    slider_values,
-    flip_x,
-    flip_y,
-    rangeslider_values,
-    input_start_values,
-    input_end_values
+    cell_data, input_values, slider_values, flip_x, flip_y, 
+    rangeslider_values, input_start_values, input_end_values, 
+    tab_weld_side
 ):
-    
-    def generate_parameters(current_collector):
-        """Helper function to generate parameter lists for the material."""
-        parameter_list = [getattr(current_collector, param) for param in TABBED_PARAMETER_LIST]
-        min_values = [getattr(current_collector, f"{param}_range")[0] for param in TABBED_PARAMETER_LIST]
-        max_values = [getattr(current_collector, f"{param}_range")[1] for param in TABBED_PARAMETER_LIST]
-        marks_list = [getattr(current_collector, f"{param}_marks") for param in TABBED_PARAMETER_LIST]
-        return parameter_list, min_values, max_values, marks_list
-    
-    def generate_rangeslider_values(current_collector):
-        """Generate the values for the range slider."""
-        parameter_list = [getattr(current_collector, param) for param in TAPE_RANGE_SLIDER_PARAMETERS]
-        start_list = [p[0] for p in parameter_list]
-        end_list = [p[1] for p in parameter_list]
-        min_val = [getattr(current_collector, f"{param}_range")[0] for param in TAPE_RANGE_SLIDER_PARAMETERS]
-        max_val = [getattr(current_collector, f"{param}_range")[1] for param in TAPE_RANGE_SLIDER_PARAMETERS]
-        range_marks_list = [getattr(current_collector, f"{param}_marks") for param in TAPE_RANGE_SLIDER_PARAMETERS]
-        return parameter_list, start_list, end_list, min_val, max_val, range_marks_list
 
-    triggered_id = ctx.triggered_id
-    cell = cache.get(cell_data['cache_key'])
+    callback_function = create_generic_current_collector_callback(
+        CollectorType.TABBED,
+        ElectrodeType.CATHODE
+    )
 
-    # get the cathode current collector from the cell
-    current_collector = cell
+    response = callback_function(
+        cell_data,
+        input_values,
+        slider_values,
+        flip_x,
+        flip_y,
+        rangeslider_values,
+        input_start_values,
+        input_end_values,
+        tab_weld_side
+    )
 
-    # Check if the current collector is a TablessCurrentCollector. If not, return no_update
-    if type(current_collector) != TabWeldedCurrentCollector:
-
-        return (
-            no_update,
-            [no_update] * len(TABBED_PARAMETER_LIST),
-            [no_update] * len(TABBED_PARAMETER_LIST),
-            [no_update] * len(TABBED_PARAMETER_LIST),
-            [no_update] * len(TABBED_PARAMETER_LIST),
-            [no_update] * len(TABBED_PARAMETER_LIST),
-            [no_update] * len(TABBED_PARAMETER_LIST),
-            [no_update] * len(TABBED_PARAMETER_LIST),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-        )
-
-    # If the cell store is triggered, get the current collector from the cell
-    if triggered_id == 'cell_store':
-        
-        # generate the parameter lists
-        value_list, min_values, max_values, marks_list = generate_parameters(current_collector)
-
-        # generate the range slider values
-        range_value_list, start_list, end_list, min_val, max_val, range_marks_list = generate_rangeslider_values(current_collector)
-
-        return (
-            no_update,
-            value_list,
-            value_list,
-            min_values,
-            max_values,
-            min_values,
-            max_values,
-            marks_list,
-            range_value_list,
-            start_list,
-            end_list,
-            min_val,
-            max_val,
-            range_marks_list
-        )
-        
-    # Handle slider/input updates
-    elif isinstance(triggered_id, dict) and 'property' in triggered_id:
-
-        # determine which property was triggered
-        property = triggered_id['property']
-        
-        # Handle range slider properties
-        if property in TAPE_RANGE_SLIDER_PARAMETERS:
-
-            range_property_index = TAPE_RANGE_SLIDER_PARAMETERS.index(property)
-            
-            if triggered_id['subtype'] == 'rangeslider':
-                # Range slider was moved
-                value = rangeslider_values[range_property_index]
-            elif triggered_id['subtype'] == 'input_start':
-                # Start input was changed
-                current_value = getattr(current_collector, property)
-                value = (input_start_values[range_property_index], current_value[1])
-            elif triggered_id['subtype'] == 'input_end':
-                # End input was changed
-                current_value = getattr(current_collector, property)
-                value = (current_value[0], input_end_values[range_property_index])
-            
-            # Set the property as a tuple
-            setattr(current_collector, property, value)
-            
-        # Handle regular slider/input properties  
-        elif property in TABBED_PARAMETER_LIST:
-            property_index = TABBED_PARAMETER_LIST.index(property)
-            value = slider_values[property_index] if triggered_id['subtype'] == 'slider' else input_values[property_index]
-            setattr(current_collector, property, value)
-
-        # Validate dependent properties for regular parameters only
-        for param in TABBED_SETTABLE_PARAMETERS:
-            if param != property:  # Skip the updated property
-                param_range = getattr(current_collector, f"{param}_range")
-                param_value = getattr(current_collector, param)
-                if param_value < param_range[0]:
-                    setattr(current_collector, param, param_range[0])
-                elif param_value > param_range[1]:
-                    print(param)
-                    setattr(current_collector, param, param_range[1])
-
-        value_list, min_values, max_values, marks_list = generate_parameters(current_collector)
-        range_value_list, start_list, end_list, min_val, max_val, range_marks_list = generate_rangeslider_values(current_collector)
-
-        # update the cell data with the new current collector
-        cell = current_collector
-
-        # make the new key and store in cache
-        cell_data['cache_key'] = str(uuid4())
-        cache.set(cell_data['cache_key'], cell)
-
-        # return the updated values
-        return (
-            {'cache_key': cell_data['cache_key']},
-            value_list,
-            value_list,
-            min_values,
-            max_values,
-            min_values,
-            max_values,
-            marks_list,
-            range_value_list,
-            start_list,
-            end_list, 
-            min_val,
-            max_val,
-            range_marks_list
-        )
-    
-    elif isinstance(triggered_id, dict) and 'action' in triggered_id:
-
-        # Handle flip actions
-        if triggered_id['action'] == 'flip_x':
-            current_collector.flip(axis='x')
-        elif triggered_id['action'] == 'flip_y':
-            current_collector.flip(axis='y')
-            
-        # update the cell data with the new current collector
-        cell = current_collector
-
-        # make the new key and store in cache
-        cell_data['cache_key'] = str(uuid4())
-        cache.set(cell_data['cache_key'], cell)
-
-        return (
-            {'cache_key': cell_data['cache_key']},
-            [no_update] * len(TABBED_PARAMETER_LIST),
-            [no_update] * len(TABBED_PARAMETER_LIST),
-            [no_update] * len(TABBED_PARAMETER_LIST),
-            [no_update] * len(TABBED_PARAMETER_LIST),
-            [no_update] * len(TABBED_PARAMETER_LIST),
-            [no_update] * len(TABBED_PARAMETER_LIST),
-            [no_update] * len(TABBED_PARAMETER_LIST),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-            [no_update] * len(TAPE_RANGE_SLIDER_PARAMETERS),
-        )
+    return response
 
 
 @callback(
@@ -1296,7 +394,7 @@ def update_cathode_current_collector_plots(cell_data, continue_to_design):
     cell = cache.get(cell_data['cache_key'])
 
     # get the current collector from the cell
-    current_collector = cell
+    current_collector = get_current_collector_from_cell(cell, ElectrodeType.CATHODE)
 
     # get the plots from the current collector
     a_side_plot = current_collector.get_a_side_view(with_dimensions=False, title='A-Side Current Collector View')
