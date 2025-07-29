@@ -192,19 +192,43 @@ class TriggerRouter:
     @staticmethod
     def get_trigger_type(triggered_id) -> TriggerType:
         """Determine the type of trigger."""
+        
         if triggered_id == TriggerType.CELL_STORE.value:
             return TriggerType.CELL_STORE
+        
         elif isinstance(triggered_id, dict):
-            if 'subtype' in triggered_id and triggered_id['subtype'] == SubType.RADIOITEM.value:
-                return TriggerType.RADIOITEM
+
+            if 'subtype' in triggered_id:
+                subtype = triggered_id['subtype']
+                
+                # Handle RadioItems separately
+                if subtype == SubType.RADIOITEM.value:
+                    return TriggerType.RADIOITEM
+                
+                # All other subtypes with 'property' are property updates
+                elif 'property' in triggered_id:
+                    return TriggerType.PROPERTY
+                
+                else:
+                    print(f"❌ DEBUG TriggerRouter: Subtype '{subtype}' without property not matched")
+            
             elif 'property' in triggered_id:
                 return TriggerType.PROPERTY
+            
             elif 'action' in triggered_id:
                 return TriggerType.ACTION
+            
+            else:
+                print(f"❌ DEBUG TriggerRouter: Dict has no recognized keys")
+
+        else:
+            print(f"❌ DEBUG TriggerRouter: Not a string or dict")
         
+        print(f"❌ DEBUG TriggerRouter: No match found, raising ValueError")
         raise ValueError(f"Unknown trigger type: {triggered_id}")
 
-
+  
+# Update create_no_update_response to include text input
 def create_no_update_response(config: CurrentCollectorConfig) -> Tuple:
     """Create a no_update response for a given collector configuration."""
     num_params = len(config.parameter_list)
@@ -232,9 +256,10 @@ def create_no_update_response(config: CurrentCollectorConfig) -> Tuple:
             [no_update] * num_range_params,  # rangeslider marks (list)
         ])
     
-    # Add no_update for RadioItems (only for tabbed collector)
+    # Add no_update for RadioItems and text input (only for tabbed collector)
     if config.collector_type.__name__ == 'TabWeldedCurrentCollector':
-        response.append(no_update)
+        response.append(no_update)  # RadioItems
+        response.append(no_update)  # Text input
     
     return tuple(response)
 
@@ -273,9 +298,14 @@ def handle_cell_store_update(current_collector, config: CurrentCollectorConfig) 
         )
         response.extend([range_values, start_list, end_list, min_val, max_val, range_marks])
     
-    # Add the current tab_weld_side value (ONLY for tabbed collectors)
+    # Add the current tab_weld_side value AND text input (ONLY for tabbed collectors)
     if config.collector_type.__name__ == 'TabWeldedCurrentCollector':
         response.append(current_collector.tab_weld_side)
+        
+        # Use consistent property name
+        tab_positions = getattr(current_collector, 'weld_tab_positions', [])
+        formatted_text = format_tab_positions(tab_positions)
+        response.append(formatted_text)
     
     return tuple(response)
 
@@ -288,15 +318,22 @@ def handle_property_update(
     slider_values: list,
     rangeslider_values: list = None,
     input_start_values: list = None,
-    input_end_values: list = None
+    input_end_values: list = None,
+    tab_positions_text: str = None  # Add this parameter
 ) -> Tuple:
     """Handle property updates for any collector type."""
     
     property_name = triggered_id['property']
     subtype = SubType(triggered_id['subtype']) 
+
+    # Handle text input for tab positions
+    if subtype == SubType.TEXT_INPUT and property_name == 'weld_tab_positions':
+        positions = parse_tab_positions(tab_positions_text)
+        setattr(current_collector, property_name, positions)
     
     # Handle range slider properties
-    if config.range_slider_parameters and property_name in config.range_slider_parameters:
+    elif config.range_slider_parameters and property_name in config.range_slider_parameters:
+
         range_property_index = config.range_slider_parameters.index(property_name)
         
         if subtype == SubType.RANGESLIDER:
@@ -349,9 +386,13 @@ def handle_property_update(
         )
         response.extend([range_values, start_list, end_list, min_val, max_val, range_marks])
     
-    # Add the current tab_weld_side value (ONLY for tabbed collectors)
+    # Add the current tab_weld_side value AND text input (ONLY for tabbed collectors)
     if config.collector_type.__name__ == 'TabWeldedCurrentCollector':
         response.append(current_collector.tab_weld_side)
+        
+        # Add formatted tab positions text
+        tab_positions = getattr(current_collector, 'weld_tab_positions', [])
+        response.append(format_tab_positions(tab_positions))
     
     return tuple(response)
 
@@ -481,12 +522,38 @@ def handle_side_selector_update(
         )
         response.extend([range_values, start_list, end_list, min_val, max_val, range_marks])
     
-    # Add the current tab_weld_side value
+    # Add the current tab_weld_side value AND text input
     response.append(current_collector.tab_weld_side)
+    
+    # Add formatted tab positions text
+    tab_positions = getattr(current_collector, 'tab_positions', [])
+    response.append(format_tab_positions(tab_positions))
     
     return tuple(response)
 
-def create_generic_current_collector_callback(config_key: CollectorType, electrode: ElectrodeType) -> callable:
+def parse_tab_positions(text_input: str) -> List[float]:
+    """Parse comma-separated tab positions from text input."""
+    if not text_input or not text_input.strip():
+        return []
+    
+    try:
+        # Split by comma and clean up whitespace
+        positions = [x.strip() for x in text_input.split(',') if x.strip()]
+        # Convert to float and filter out invalid values
+        positions = [float(x) for x in positions if x.replace('.', '').replace('-', '').isdigit()]
+        # Sort positions and remove duplicates
+        positions = sorted(list(set(positions)))
+        return positions
+    except (ValueError, AttributeError):
+        return []  # Return empty list if parsing fails
+    
+def format_tab_positions(positions: List[float]) -> str:
+    """Format list of positions as comma-separated string."""
+    if not positions:
+        return ''
+    return ', '.join([str(pos) for pos in sorted(positions)])
+
+def create_generic_current_collector_callback(config_key: CollectorType, electrode_key: ElectrodeType) -> callable:
     """Factory function to create current collector callbacks."""
     
     config = COLLECTOR_CONFIGS[config_key]
@@ -500,38 +567,44 @@ def create_generic_current_collector_callback(config_key: CollectorType, electro
         rangeslider_values=None, 
         input_start_values=None, 
         input_end_values=None,
-        tab_weld_side=None
+        tab_weld_side=None,
+        tab_positions_text=None  # Add this parameter
     ) -> Tuple:
         
+        # Get the triggered ID
         triggered_id = ctx.triggered_id
-        
-        cell = cache.get(cell_data['cache_key'])
-        current_collector = get_current_collector_from_cell(cell, electrode)
 
-        # Type check
+        # Get the cell from cache
+        cell = cache.get(cell_data['cache_key'])
+
+        # get the current collector from the cell, either cathode or anode depending on electrode
+        current_collector = get_current_collector_from_cell(cell, electrode_key)
+
+        # If the current collector is not of the right type, then return no_updates 
         if type(current_collector) != config.collector_type:
             return create_no_update_response(config)
 
-        # Use enum-based routing
-        try:
-            trigger_type = TriggerRouter.get_trigger_type(triggered_id)
-        except ValueError:
-            return create_no_update_response(config)
-        
+        # Map the triggered ID to the appropriate action using ENUMS
+        trigger_type = TriggerRouter.get_trigger_type(triggered_id)
+
         # Handle different triggers using enum
+        # trigger if the cell store is updated
         if trigger_type == TriggerType.CELL_STORE:
-            response = handle_cell_store_update(current_collector, config)
-            return response
+            return handle_cell_store_update(current_collector, config)
+        
+        # trigger if the weld_tab_side selector is updated
         elif trigger_type == TriggerType.RADIOITEM:
-            response = handle_side_selector_update(triggered_id, current_collector, config, cell, tab_weld_side)
-            return response
+            return handle_side_selector_update(triggered_id, current_collector, config, cell, tab_weld_side)
+        
+        # trigger if a property is updated
         elif trigger_type == TriggerType.PROPERTY:
-            response = handle_property_update(
+            return handle_property_update(
                 triggered_id, current_collector, config, cell,
                 input_values, slider_values, rangeslider_values,
-                input_start_values, input_end_values
+                input_start_values, input_end_values, tab_positions_text
             )
-            return response
+        
+        # trigger if an action is performed, e.g. flip
         elif trigger_type == TriggerType.ACTION:
             return handle_flip_action(triggered_id, current_collector, config, cell)
         

@@ -25,10 +25,11 @@ class TriggerType(Enum):
 class SubType(Enum):
     SLIDER = 'slider'
     INPUT = 'input'
-    RANGESLIDER = 'range_slider'
+    RANGESLIDER = 'rangeslider'
     INPUT_START = 'input_start'
     INPUT_END = 'input_end'
     RADIOITEM = 'radioitem'
+    TEXT_INPUT = 'text_input'
 
 class ActionType(Enum):
     FLIP_X = 'flip_x'

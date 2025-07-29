@@ -814,12 +814,22 @@ cathode_tabbed_design_parameters = ds.html.Div(
         ds.html.Br(),
         ds.html.P('Tab Weld Side'),
         ds.dcc.RadioItems(
-            id={'electrode': 'cathode', 'object': 'tabbed_current_collector', 'subtype': 'radioitem', 'property': 'tab_weld_side'},
+            id={'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': 'tab_weld_side', 'subtype': 'radioitem'},
             options=[
                 {'label': 'A Side', 'value': 'a'},
                 {'label': 'B Side', 'value': 'b'}
             ],
             value='a'
+        ),
+        ds.html.Br(),
+
+        ds.html.Br(),
+        ds.html.P('Tab Positions Relative to Start of Tape (mm). Enter positions as a comma-separated list (e.g., "0, 100, 200")'),
+        ds.dcc.Input(
+            id={'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': 'weld_tab_positions', 'subtype': 'text_input'},
+            type='text',
+            style={'width': '60%', 'marginBottom': '10px'},
+            debounce=True  
         ),
         ds.html.Br(),
 
