@@ -681,6 +681,40 @@ def create_material_callback(material_type: MaterialType) -> callable:
 
 
 
+def convert_current_collector(current_collector: Type, target_type_name: str):
+    """Convert current collector from one type to another using from_* constructors."""
+    
+    # Get the current type name
+    current_type_name = type(current_collector).__name__
+
+    # Define conversion methods for each source -> target combination
+    conversion_map = {
+        # From NotchedCurrentCollector  
+        ('NotchedCurrentCollector', 'TablessCurrentCollector'): lambda cc: TablessCurrentCollector.from_notched(cc),
+        ('NotchedCurrentCollector', 'TabWeldedCurrentCollector'): lambda cc: TabWeldedCurrentCollector.from_notched(cc),
+        
+        # From TablessCurrentCollector
+        ('TablessCurrentCollector', 'NotchedCurrentCollector'): lambda cc: NotchedCurrentCollector.from_tabless(cc),
+        ('TablessCurrentCollector', 'TabWeldedCurrentCollector'): lambda cc: TabWeldedCurrentCollector.from_tabless(cc),
+        
+        # From TabWeldedCurrentCollector
+        ('TabWeldedCurrentCollector', 'NotchedCurrentCollector'): lambda cc: NotchedCurrentCollector.from_tab_welded(cc),
+        ('TabWeldedCurrentCollector', 'TablessCurrentCollector'): lambda cc: TablessCurrentCollector.from_tab_welded(cc),
+    }
+
+    # Generate the conversion key
+    conversion_key = (current_type_name, target_type_name)
+
+    # create the function to convert
+    converter = conversion_map[conversion_key]
+
+    # create the new current collector using the converter
+    new_current_collector = converter(current_collector)
+
+    return new_current_collector
+
+
+
 def get_current_collector_from_cell(cell: Type, electrode: str) -> Type:
     """Get the current collector from the cell based on the electrode type."""
     
