@@ -63,13 +63,8 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         self.insulation_width = insulation_width
         self.name = name
 
-        # Shading patterns
-        self._a_am_fill_pattern = dict(shape='/', size=20, solidity=0.6, fgcolor=self._material._color)
-        self._b_am_fill_pattern = dict(shape='\\', size=20, solidity=0.6, fgcolor=self._material._color)
-        self._a_in_fill_pattern = dict(shape='\\', size=10, solidity=0.6, fgcolor=self._material._color)
-        self._b_in_fill_pattern = dict(shape='/', size=10, solidity=0.6, fgcolor=self._material._color)
-
     def _calculate_all_properties(self) -> None:
+
         self._calculate_coordinates()
         self._calculate_areas()
         self._calculate_bulk_properties()
@@ -110,6 +105,7 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         self._coated_area = self._a_side_coated_area + self._b_side_coated_area
 
         if hasattr(self, '_a_side_insulation_coordinates') and hasattr(self, '_b_side_insulation_coordinates'):
+
             # calculate the area of the a side insulation area
             self._a_side_insulation_area = self.get_area_from_points(
                 self._a_side_insulation_coordinates[:, 0],
@@ -124,10 +120,23 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
 
             self._insulation_area = self._a_side_insulation_area + self._b_side_insulation_area
 
+        else:
+            self._a_side_insulation_area = 0
+            self._b_side_insulation_area = 0
+            self._insulation_area = 0
+
     def _calculate_bulk_properties(self) -> None:
         self._volume = self._body_area/2 * self._thickness
         self._mass = self._volume * self._material._density
         self._cost = self._mass * self._material._specific_cost     
+
+    def _calculate_fill_patterns(self) -> None:
+
+        # Shading patterns
+        self._a_am_fill_pattern = dict(shape='/', size=20, solidity=0.6, fgcolor=self._material._color)
+        self._b_am_fill_pattern = dict(shape='\\', size=20, solidity=0.6, fgcolor=self._material._color)
+        self._a_in_fill_pattern = dict(shape='\\', size=10, solidity=0.6, fgcolor=self._material._color)
+        self._b_in_fill_pattern = dict(shape='/', size=10, solidity=0.6, fgcolor=self._material._color)
 
     def _get_full_top_down_view(
             self, 
@@ -879,6 +888,7 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
     def material(self, material: CurrentCollectorMaterial) -> None:
         self.validate_current_collector_material(material)
         self._material = material
+        self._calculate_fill_patterns()
 
     @datum_x.setter
     def datum_x(self, x: float) -> None:
@@ -1902,7 +1912,47 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         self.tab_spacing = tab_spacing
         self._calculate_all_properties()
         self._update_properties = True
-        
+
+    @classmethod
+    def from_tabless(cls, tabless: 'TablessCurrentCollector') -> 'NotchedCurrentCollector':
+        """
+        Create a NotchedCurrentCollector from a TablessCurrentCollector.
+        """
+        return cls(
+            material = tabless.material,
+            length = tabless.x_body_length,
+            width = tabless.y_body_length,
+            thickness = tabless.thickness,
+            tab_width = 50,
+            tab_spacing = 100,
+            tab_height = tabless.tab_height,
+            coated_tab_height = 0,
+            bare_lengths_a_side = tabless.bare_lengths_a_side,
+            bare_lengths_b_side = tabless.bare_lengths_b_side,
+            insulation_width = tabless.insulation_width,
+            datum = tabless.datum,
+        )
+
+    @classmethod
+    def from_tab_welded(cls, tab_welded: 'TabWeldedCurrentCollector') -> 'NotchedCurrentCollector':
+        """
+        Create a NotchedCurrentCollector from a TabWeldedCurrentCollector.
+        """
+        return cls(
+            material=tab_welded.material,
+            length=tab_welded.x_body_length,
+            width=tab_welded.y_body_length - 10,
+            thickness=tab_welded.thickness,
+            tab_width=50,
+            tab_spacing=100,
+            tab_height=10,
+            coated_tab_height=0,
+            bare_lengths_a_side=tab_welded.bare_lengths_a_side,
+            bare_lengths_b_side=tab_welded.bare_lengths_b_side,
+            insulation_width=0,
+            datum=tab_welded.datum,
+        )
+
     def _calculate_tab_positions(self) -> None:
         """
         Function to calculate the positions of the tabs along the length of the current collector.
@@ -2315,6 +2365,40 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         self.coated_width = coated_width
         self._update_properties = True
     
+    @classmethod
+    def from_notched(cls, notched: 'NotchedCurrentCollector') -> 'TablessCurrentCollector':
+        """
+        Create a TablessCurrentCollector from a NotchedCurrentCollector.
+        """
+        return cls(
+            material=notched.material,
+            length=notched.x_body_length,
+            width=notched.y_body_length + notched.tab_height,
+            coated_width=notched.y_body_length,
+            thickness=notched.thickness,
+            bare_lengths_a_side=notched.bare_lengths_a_side,
+            bare_lengths_b_side=notched.bare_lengths_b_side,
+            insulation_width=notched.insulation_width,
+            datum=notched.datum,
+        )
+
+    @classmethod
+    def from_tab_welded(cls, tab_welded: 'TabWeldedCurrentCollector') -> 'TablessCurrentCollector':
+        """
+        Create a TablessCurrentCollector from a TabWeldedCurrentCollector.
+        """
+        return cls(
+            material=tab_welded.material,
+            length=tab_welded.x_body_length,
+            width=tab_welded.y_body_length,
+            coated_width=tab_welded.y_body_length - 10,
+            thickness=tab_welded.thickness,
+            bare_lengths_a_side=tab_welded.bare_lengths_a_side,
+            bare_lengths_b_side=tab_welded.bare_lengths_b_side,
+            insulation_width=0,
+            datum=tab_welded.datum,
+        )
+
     def _add_height_dimension(self, fig: go.Figure, pad: float = 0.05) -> go.Figure:
 
         # Height line
@@ -2420,12 +2504,18 @@ class TablessCurrentCollector(NotchedCurrentCollector):
     def tab_height(self, tab_height: float) -> None:
         
         self.validate_positive_float(tab_height, "tab_height")
-        tab_height_delta = float(tab_height) - self.tab_height
-        _tab_height_delta = tab_height_delta * MM_TO_M
+        
+        if hasattr(self, '_update_properties') and self._update_properties and hasattr(self, '_tab_height'):
+            # Update existing value
+            tab_height_delta = float(tab_height) - self.tab_height
+            _tab_height_delta = tab_height_delta * MM_TO_M
 
-        self._coated_width -= _tab_height_delta
-        self._tab_height += _tab_height_delta
-        self.y_body_length -= tab_height_delta
+            self._coated_width -= _tab_height_delta
+            self._tab_height += _tab_height_delta
+            self.y_body_length -= tab_height_delta
+        else:
+            # Initial setting during initialization
+            self._tab_height = float(tab_height) * MM_TO_M
 
 
 class WeldTab(ValidationMixin, CoordinateMixin):
@@ -2739,6 +2829,60 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
 
         self._calculate_all_properties()
         self._update_properties = True
+
+    @classmethod
+    def from_notched(cls, notched: 'NotchedCurrentCollector') -> 'TabWeldedCurrentCollector':
+        """
+        Create a TabWeldedCurrentCollector from a NotchedCurrentCollector.
+        """
+        tab = WeldTab(
+            material=notched.material,
+            width=10,
+            length=notched.y_body_length + notched.tab_height,
+            thickness=notched.thickness
+        )
+
+        return cls(
+            material=notched.material,
+            length=notched.x_body_length,
+            width=notched.y_body_length + notched.tab_height,
+            thickness=notched.thickness,
+            weld_tab=tab,
+            weld_tab_positions=[10, notched.x_body_length/2, notched.x_body_length - 10],
+            tab_overhang=20,
+            skip_coat_width=30,
+            tab_weld_side='a',
+            bare_lengths_a_side=notched.bare_lengths_a_side,
+            bare_lengths_b_side=notched.bare_lengths_b_side,
+            datum=notched.datum
+        )
+    
+    @classmethod
+    def from_tabless(cls, tabless: 'TablessCurrentCollector') -> 'TabWeldedCurrentCollector':
+        """
+        Create a TabWeldedCurrentCollector from a TablessCurrentCollector.
+        """
+        tab = WeldTab(
+            material=tabless.material,
+            width=10,
+            length=tabless.y_body_length + tabless.tab_height,
+            thickness=tabless.thickness
+        )
+
+        return cls(
+            material=tabless.material,
+            length=tabless.x_body_length,
+            width=tabless.y_body_length + tabless.tab_height,
+            thickness=tabless.thickness,
+            weld_tab=tab,
+            weld_tab_positions=[10, tabless.x_body_length/2, tabless.x_body_length - 10],
+            tab_overhang=20,
+            skip_coat_width=30,
+            tab_weld_side='a',
+            bare_lengths_a_side=tabless.bare_lengths_a_side,
+            bare_lengths_b_side=tabless.bare_lengths_b_side,
+            datum=tabless.datum
+        )
 
     def _calculate_all_properties(self) -> None:
         self._calculate_weld_tab_properties()

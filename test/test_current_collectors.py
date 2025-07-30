@@ -204,6 +204,10 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         
         # figure1.show()
 
+    def test_to_tabless(self):
+        new_current_collector = TablessCurrentCollector.from_notched(self.current_collector)
+        self.assertIsInstance(new_current_collector, TablessCurrentCollector)
+
 
 class TestNotchedCurrentCollector2(unittest.TestCase):
 
@@ -336,6 +340,10 @@ class TestTablessCurrentCollector(unittest.TestCase):
         fig1.show()
         fig2.show()
 
+    def test_to_notched(self):
+        new_current_collector = NotchedCurrentCollector.from_tabless(self.current_collector)
+        self.assertIsInstance(new_current_collector, NotchedCurrentCollector)
+
 
 class TestWeldTab(unittest.TestCase):
 
@@ -457,4 +465,12 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
 
         fig1 = self.current_collector.get_a_side_view()
         # fig1.show()
+
+    def test_to_notched(self):
+        new_current_collector = NotchedCurrentCollector.from_tab_welded(self.current_collector)
+        self.assertIsInstance(new_current_collector, NotchedCurrentCollector)
+
+    def test_to_tabless(self):
+        new_current_collector = TablessCurrentCollector.from_tab_welded(self.current_collector)
+        self.assertIsInstance(new_current_collector, TablessCurrentCollector)
 

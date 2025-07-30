@@ -9,7 +9,7 @@ from OpenCell.Materials.RawMaterials import *
 
 from current_collectors.layouts import *
 from current_collectors.callbacks import CURRENT_COLLECTOR_DESIGNS
-from current_collectors.callback_helpers import create_generic_current_collector_callback, create_material_callback, get_current_collector_from_cell
+from current_collectors.callback_helpers import create_generic_current_collector_callback, create_material_callback, get_current_collector_from_cell, set_current_collector_to_cell
 from general.enumerated_classes import CollectorType, ElectrodeType, MaterialType
 
 
@@ -28,7 +28,7 @@ from general.enumerated_classes import CollectorType, ElectrodeType, MaterialTyp
     ],
     prevent_initial_call=True
 )
-def update_cathode_dropdown_and_design(data, current_style, current_options):
+def update_cathode_dropdown_options(data, current_style, current_options):
     """
     Update the cathode current collector design dropdown menu options, style, and value
     based on the current collector store data.
@@ -37,38 +37,96 @@ def update_cathode_dropdown_and_design(data, current_style, current_options):
     cell = cache.get(data['cache_key'])
 
     # get the current collector from the cell
-    current_collector = cell
+    current_collector = get_current_collector_from_cell(cell, ElectrodeType.CATHODE)
 
     # If the current collector is None, return no_update
     if current_collector is None:
         return current_options, current_style, no_update
 
-    # Initialize outputs
-    options = []
-    value = None
+    # Define type mappings
+    type_config = {
+        PunchedCurrentCollector: {
+            'display': 'none',
+            'options': [{'label': 'Punched', 'value': 'punched'}],
+            'value': 'punched'
+        },
+        NotchedCurrentCollector: {
+            'display': 'block',
+            'options': [{'label': item, 'value': item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != 'Punched'],
+            'value': 'notched'
+        },
+        TablessCurrentCollector: {
+            'display': 'block',
+            'options': [{'label': item, 'value': item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != 'Punched'],
+            'value': 'tabless'
+        },
+        TabWeldedCurrentCollector: {
+            'display': 'block',
+            'options': [{'label': item, 'value': item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != 'Punched'],
+            'value': 'tabbed'
+        }
+    }
 
-    # Determine the type of the current collector and update outputs accordingly
-    if type(current_collector) == PunchedCurrentCollector:
-        current_style['display'] = 'none'
-        options = [{'label': 'Punched', 'value': 'punched'}]
-        value = 'punched'
-    elif type(current_collector) == NotchedCurrentCollector:
-        current_style['display'] = 'block'
-        options = [{'label': item, 'value': item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != 'Punched']
-        value = 'notched'
-    elif type(current_collector) == TablessCurrentCollector:
-        current_style['display'] = 'block'
-        options = [{'label': item, 'value': item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != 'Punched']
-        value = 'tabless'
-    elif type(current_collector) == TabWeldedCurrentCollector:
-        current_style['display'] = 'block'
-        options = [{'label': item, 'value': item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != 'Punched']
-        value = 'tabbed'
-    elif type(current_collector) == _TapeCurrentCollector:
-        current_style['display'] = 'none'
-        options = [{'label': item, 'value': item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != 'Punched']
+    # Get configuration for current collector type
+    collector_type = type(current_collector)
 
-    return options, current_style, value
+    # get the configuration for the current collector type
+    config = type_config.get(collector_type)
+
+    # set the style according to the config display value
+    current_style['display'] = config['display']
+    
+    return config['options'], current_style, config['value']
+
+
+@callback(
+    Output('cell_store', 'data', allow_duplicate=True),
+    Input('cathode_current_collector_design', 'value'),
+    State('cell_store', 'data'),
+    prevent_initial_call=True
+)
+def update_current_collector_design(design_value, cell_data):
+    """Handle current collector design changes and convert between types."""
+    
+    # Check if design_value or cell_data is None
+    if not design_value or not cell_data:
+        return no_update
+    
+    # if design_value is punched, return no_update
+    if design_value == 'punched':
+        return no_update
+
+    # Get current cell and collector
+    cell = cache.get(cell_data['cache_key'])
+    current_collector = get_current_collector_from_cell(cell, ElectrodeType.CATHODE)
+
+    type_name = type(current_collector).__name__
+
+    # Map design values to collector types
+    design_to_type = {
+        'notched': 'NotchedCurrentCollector', 
+        'tabless': 'TablessCurrentCollector',
+        'tabbed': 'TabWeldedCurrentCollector'
+    }
+    
+    # get the name of the target collector type
+    target_type_name = design_to_type.get(design_value) 
+
+    # If already the correct type, no conversion needed
+    if type_name == target_type_name:
+        return no_update
+    
+    # Import function to convert current collector
+    from current_collectors.callback_helpers import convert_current_collector
+
+    # Do the conversion
+    new_collector = convert_current_collector(current_collector, target_type_name)
+
+    # Assign the new current collector to the cell and get the key
+    new_cache_key = set_current_collector_to_cell(cell, new_collector)
+
+    # Update the dash store with the new cell key
+    return {'cache_key': new_cache_key}
 
 
 @callback(
@@ -96,9 +154,7 @@ def update_cathode_current_collector_material(
     slider_values
 ):
     
-    callback_function = create_material_callback(
-        MaterialType.CATHODE_CURRENT_COLLECTOR
-    )
+    callback_function = create_material_callback(MaterialType.CATHODE_CURRENT_COLLECTOR)
 
     response = callback_function(
         cell_data,
@@ -135,9 +191,7 @@ def update_cathode_current_collector_tab_material(
     slider_values
 ):
     
-    callback_function = create_material_callback(
-        MaterialType.CATHODE_CURRENT_COLLECTOR_TAB
-    )
+    callback_function = create_material_callback(MaterialType.CATHODE_CURRENT_COLLECTOR_TAB)
 
     response = callback_function(
         cell_data,
