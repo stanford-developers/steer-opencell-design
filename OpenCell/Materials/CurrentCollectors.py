@@ -662,12 +662,12 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         Get the insulation width range in mm.
         """
         min = 0
-        max = self._y_body_length / 2 - 0.001
+        max = self._y_body_length / 4 - 0.001
         
         return (
             round(min * M_TO_MM, 1), 
             round(max * M_TO_MM, 1)
-            )
+        )
 
     @property
     def insulation_width_marks(self) -> Dict[int, str]:
@@ -3073,7 +3073,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         min_overhang = self.tab_overhang_range[0]
         max_overhang = self.tab_overhang_range[1]
-        delta = 5
+        delta = 20
         num_steps = int(round((max_overhang - min_overhang) / delta)) + 1
         values = np.linspace(min_overhang, max_overhang, num_steps).round(10).tolist()
         return {i: '' for i in values}
@@ -3139,7 +3139,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         min_length = self.tab_length_range[0]
         max_length = self.tab_length_range[1]
-        delta = 5
+        delta = 20
         num_steps = int(round((max_length - min_length) / delta)) + 1
         values = np.linspace(min_length, max_length, num_steps).round(10).tolist()
         return {i: '' for i in values}

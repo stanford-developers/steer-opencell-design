@@ -21,6 +21,7 @@ class TriggerType(Enum):
     PROPERTY = 'property'
     ACTION = 'action'
     RADIOITEM = 'radioitem'
+    COMPONENT_SELECTOR = 'component_selector'
 
 class SubType(Enum):
     SLIDER = 'slider'
