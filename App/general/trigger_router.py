@@ -1,0 +1,83 @@
+from enum import Enum
+
+from general.enumerated_classes import SubType, TriggerType
+
+
+class TriggerRouter:
+    """Routes callback triggers to appropriate handlers using enums."""
+    
+    # Define string patterns for component selectors
+    COMPONENT_SELECTOR_PATTERNS = [
+        '_material_selector',
+        '_design_selector', 
+        '_type_selector',
+    ]
+    
+    @staticmethod
+    def get_trigger_type(triggered_id) -> TriggerType:
+        """Determine the type of trigger."""
+        
+        if triggered_id is None:
+            return None
+            
+        # Handle string triggers
+        if isinstance(triggered_id, str):
+            return TriggerRouter._handle_string_trigger(triggered_id)
+        
+        # Handle dict triggers
+        elif isinstance(triggered_id, dict):
+            return TriggerRouter._handle_dict_trigger(triggered_id)
+        
+        raise ValueError(f"Unknown trigger type: {triggered_id}")
+    
+    @staticmethod
+    def _handle_string_trigger(triggered_id: str) -> TriggerType:
+        """Handle string-based triggers."""
+        
+        # Check for exact enum matches first
+        if triggered_id == TriggerType.CELL_STORE.value:
+            return TriggerType.CELL_STORE
+        
+        # Check for component selector patterns
+        for pattern in TriggerRouter.COMPONENT_SELECTOR_PATTERNS:
+            if triggered_id.endswith(pattern):
+                return TriggerType.COMPONENT_SELECTOR
+        
+        raise ValueError(f"Unknown string trigger: {triggered_id}")
+    
+    @staticmethod
+    def _handle_dict_trigger(triggered_id: dict) -> TriggerType:
+        """Handle dictionary-based triggers."""
+        
+        if 'subtype' in triggered_id:
+            subtype = triggered_id['subtype']
+            
+            # Handle RadioItems separately
+            if subtype == SubType.RADIOITEM.value:
+                return TriggerType.RADIOITEM
+            
+            # All other subtypes with 'property' are property updates
+            elif 'property' in triggered_id:
+                return TriggerType.PROPERTY
+            
+        elif 'property' in triggered_id:
+            return TriggerType.PROPERTY
+        
+        elif 'action' in triggered_id:
+            return TriggerType.ACTION
+        
+        raise ValueError(f"Unknown dict trigger: {triggered_id}")
+    
+    @staticmethod
+    def is_component_selector(triggered_id: str) -> bool:
+        """Check if trigger is a component selector."""
+        return any(triggered_id.endswith(pattern) for pattern in TriggerRouter.COMPONENT_SELECTOR_PATTERNS)
+    
+    @staticmethod
+    def get_component_type_from_selector(triggered_id: str) -> str:
+        """Extract component type from selector ID."""
+        for pattern in TriggerRouter.COMPONENT_SELECTOR_PATTERNS:
+            if triggered_id.endswith(pattern):
+                return triggered_id.replace(pattern, '')
+            
+        return triggered_id

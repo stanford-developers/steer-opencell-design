@@ -32,6 +32,52 @@ warnings = ds.html.Div([
 ], style=DIV_STYLE)
 
 
+cell_type_button_panel = ds.html.Div(
+    
+        ds.html.Div(
+            id='cell_schematic', 
+            children = [
+                ds.html.Button(
+                    children=[
+                        ds.html.Img(
+                            id={'type': 'cell_schematic_image', 'key': j},
+                            src=i, 
+                            style={
+                                'width': '50%', 
+                                'height': 'auto',
+                                'display': 'block',
+                                'margin': '20px auto'  # Centers horizontally and adds vertical margin
+                            }
+                        )
+                    ],
+                    id={'type': 'cell_schematic_button', 'key': j},
+                    style={
+                        'border': 'none',
+                        'background': 'none',
+                        'padding': '20px',
+                        'cursor': 'pointer',
+                        'width': '100%',
+                        'height': 'auto',
+                        'border-radius': '8px',
+                        'transition': 'transform 0.2s ease, box-shadow 0.2s ease',
+                        'text-align': 'center'  # Centers inline/block content
+                    },
+                    className='cell-schematic-button'  # For CSS hover effects
+                ) 
+                for (j, i) in LANDING_PAGE_IMAGE_URLS.items()
+            ],
+            style={
+                "display": "grid",
+                "gridTemplateColumns": "repeat(3, 1fr)",
+                "gap": "10px",
+                'margin-top': '-20px',
+                'margin-left': '100px',
+            }
+        ),
+        style={'flex': '1', 'padding': '20px', 'justify-content': 'center', 'align-items': 'left', 'width': '10%', 'margin-top': '-100px'}
+)
+
+
 cell_type = ds.html.Div(
     
     id='cell_type_panel',
@@ -96,29 +142,12 @@ cell_type = ds.html.Div(
         ),
 
         ds.html.Div(style={'height': '100px'})
-        ], style={'flex': '0 0 35%', 'padding': '20px', 'justify-content': 'center', 'align-items': 'center', 'padding-top': '-400px'}),
-
-    ds.html.Div(
-        ds.html.Div(
-            id='cell_schematic', 
-            children = [ds.html.Img(
-                src=i, 
-                id={'type': 'cell_schematic_image', 'key': j},
-                style={'width': '40%'}) 
-                for (j, i) in LANDING_PAGE_IMAGE_URLS.items()
-            ],
-            style={
-                "display": "grid",
-                "gridTemplateColumns": "repeat(3, 1fr)",
-                "gap": "10px",
-                'margin-top': '-20px',
-                'margin-left': '100px',
-            }
-        ),
-        style={'flex': '1', 'padding': '20px', 'justify-content': 'center', 'align-items': 'left', 'width': '10%'}
+        ], style={'flex': '0 0 35%', 'padding': '20px', 'justify-content': 'center', 'align-items': 'center', 'padding-top': '-400px'}
     ),
-    
-], style={'display': 'flex', 'flex-direction': 'row', 'padding': '100px', 'width': '100%'})
+
+    cell_type_button_panel,
+        
+], style={'display': 'flex', 'flex-direction': 'row', 'padding': '100px', 'width': '90%'})
 
 
 tabs = ds.html.Div(

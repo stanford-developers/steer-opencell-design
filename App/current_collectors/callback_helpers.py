@@ -1,235 +1,17 @@
-from dataclasses import dataclass
-from enum import Enum, auto
-import re
-from typing import Type, List, Optional, Tuple
+from typing import Type, List, Tuple
 from dash import no_update, ctx
 
-from cache_service import cache
-from uuid import uuid4
-
 from OpenCell.Materials.CurrentCollectors import *
+
 from general.enumerated_classes import *
-
-
-PUNCHED_PARAMETER_LIST = [
-    'width',
-    'height',
-    'thickness',
-    'tab_width',
-    'tab_height',
-    'tab_position',
-    'coated_tab_height',
-    'insulation_width',
-    'cost',
-    'mass',
-    'coated_area',
-    'insulation_area',
-    'datum_x',
-    'datum_y',
-    'datum_z',
-]
-
-PUNCHED_SETTABLE_PARAMETERS = [
-    'width',
-    'height',
-    'thickness',
-    'tab_width',
-    'tab_height',
-    'tab_position',
-    'coated_tab_height',
-    'insulation_width',
-    'datum_x',
-    'datum_y',
-    'datum_z',
-]
-
-
-NOTCHED_PARAMETER_LIST = [
-    'length',
-    'width',
-    'thickness',
-    'tab_width',
-    'tab_height',
-    'tab_spacing',
-    'tab_gap',
-    'coated_tab_height',
-    'insulation_width',
-    'cost',
-    'mass',
-    'coated_area',
-    'insulation_area',
-    'datum_x',
-    'datum_y',
-    'datum_z',
-]
-
-NOTCHED_SETTABLE_PARAMETERS = [
-    'length',
-    'width',
-    'thickness',
-    'tab_width',
-    'tab_height',
-    'tab_spacing',
-    'tab_gap',
-    'coated_tab_height',
-    'insulation_width',
-    'datum_x',
-    'datum_y',
-    'datum_z',
-]
-
-
-TABLESS_PARAMETER_LIST = [
-    'length',
-    'width',
-    'thickness',
-    'coated_width',
-    'tab_height',
-    'insulation_width',
-    'cost',
-    'mass',
-    'coated_area',
-    'insulation_area',
-    'datum_x',
-    'datum_y',
-    'datum_z',
-]
-
-TABLESS_SETTABLE_PARAMETERS = [
-    'length',
-    'width',
-    'thickness',
-    'coated_width',
-    'tab_height',
-    'insulation_width',
-    'datum_x',
-    'datum_y',
-    'datum_z',
-]
-
-
-TABBED_PARAMETER_LIST = [
-    'length',
-    'width',
-    'thickness',
-    'tab_width',
-    'tab_length',
-    'tab_overhang',
-    'skip_coat_width',
-    'cost',
-    'mass',
-    'coated_area',
-    'datum_x',
-    'datum_y',
-    'datum_z',
-]
-
-TABBED_SETTABLE_PARAMETERS = [
-    'length',
-    'width',
-    'thickness',
-    'tab_width',
-    'tab_length',
-    'tab_overhang',
-    'tab_weld_side',
-    'skip_coat_width',
-    'datum_x',
-    'datum_y',
-    'datum_z',
-]
-
-
-TAPE_RANGE_SLIDER_PARAMETERS = [
-    'a_side_coated_section',
-    'b_side_coated_section',
-]
-
-CC_MATERIAL_PARAMETER_LIST = [
-    'density',
-    'specific_cost',
-]
-
-
-@dataclass
-class CurrentCollectorConfig:
-    """Configuration for different current collector types."""
-    collector_type: Type
-    parameter_list: List[str]
-    settable_parameters: List[str]
-    range_slider_parameters: Optional[List[str]] = None
-
-
-# Define configurations
-COLLECTOR_CONFIGS = {
-    CollectorType.PUNCHED: CurrentCollectorConfig(
-        collector_type=PunchedCurrentCollector,
-        parameter_list=PUNCHED_PARAMETER_LIST,
-        settable_parameters=PUNCHED_SETTABLE_PARAMETERS
-    ),
-    CollectorType.NOTCHED: CurrentCollectorConfig(
-        collector_type=NotchedCurrentCollector,
-        parameter_list=NOTCHED_PARAMETER_LIST,
-        settable_parameters=NOTCHED_SETTABLE_PARAMETERS,
-        range_slider_parameters=TAPE_RANGE_SLIDER_PARAMETERS
-    ),
-    CollectorType.TABLESS: CurrentCollectorConfig(
-        collector_type=TablessCurrentCollector,
-        parameter_list=TABLESS_PARAMETER_LIST,
-        settable_parameters=TABLESS_SETTABLE_PARAMETERS,
-        range_slider_parameters=TAPE_RANGE_SLIDER_PARAMETERS
-    ),
-    CollectorType.TABBED: CurrentCollectorConfig(
-        collector_type=TabWeldedCurrentCollector,
-        parameter_list=TABBED_PARAMETER_LIST,
-        settable_parameters=TABBED_SETTABLE_PARAMETERS,
-        range_slider_parameters=TAPE_RANGE_SLIDER_PARAMETERS
-    )
-}
-
-class TriggerRouter:
-    """Routes callback triggers to appropriate handlers using enums."""
-    
-    @staticmethod
-    def get_trigger_type(triggered_id) -> TriggerType:
-        """Determine the type of trigger."""
-        
-        if triggered_id == TriggerType.CELL_STORE.value:
-            return TriggerType.CELL_STORE
-        
-        elif isinstance(triggered_id, dict):
-
-            if 'subtype' in triggered_id:
-                subtype = triggered_id['subtype']
-                
-                # Handle RadioItems separately
-                if subtype == SubType.RADIOITEM.value:
-                    return TriggerType.RADIOITEM
-                
-                # All other subtypes with 'property' are property updates
-                elif 'property' in triggered_id:
-                    return TriggerType.PROPERTY
-                
-                else:
-                    print(f"❌ DEBUG TriggerRouter: Subtype '{subtype}' without property not matched")
-            
-            elif 'property' in triggered_id:
-                return TriggerType.PROPERTY
-            
-            elif 'action' in triggered_id:
-                return TriggerType.ACTION
-            
-            else:
-                print(f"❌ DEBUG TriggerRouter: Dict has no recognized keys")
-
-        else:
-            print(f"❌ DEBUG TriggerRouter: Not a string or dict")
-        
-        print(f"❌ DEBUG TriggerRouter: No match found, raising ValueError")
-        raise ValueError(f"Unknown trigger type: {triggered_id}")
+from general.callback_helpers import get_cell_from_cache
+from general.trigger_router import TriggerRouter, TriggerType
+from current_collectors.configs import COLLECTOR_CONFIGS
+from current_collectors.parameter_lists import CC_MATERIAL_PARAMETER_LIST
 
   
 # Update create_no_update_response to include text input
-def create_no_update_response(config: CurrentCollectorConfig) -> Tuple:
+def create_no_update_response(config: Type) -> Tuple:
     """Create a no_update response for a given collector configuration."""
     num_params = len(config.parameter_list)
     num_range_params = len(config.range_slider_parameters) if config.range_slider_parameters else 0
@@ -263,19 +45,19 @@ def create_no_update_response(config: CurrentCollectorConfig) -> Tuple:
     
     return tuple(response)
 
-def handle_cell_store_update(current_collector, config: CurrentCollectorConfig) -> Tuple:
+def handle_cell_store_update(object: Type, config: Type) -> Tuple:
     """Handle cell store update for any collector type."""
     
     # IMPORTANT: Validate all dependent properties first
     validate_dependent_properties(
-        current_collector, 
+        object,
         config.settable_parameters, 
         None
     )
     
     # Generate basic parameters
     value_list, min_values, max_values, marks_list = generate_parameters(
-        current_collector, 
+        object, 
         config.parameter_list
     )
     
@@ -294,16 +76,16 @@ def handle_cell_store_update(current_collector, config: CurrentCollectorConfig) 
     # Add range slider values if applicable
     if config.range_slider_parameters:
         range_values, start_list, end_list, min_val, max_val, range_marks = generate_rangeslider_values(
-            current_collector, config.range_slider_parameters
+            object, config.range_slider_parameters
         )
         response.extend([range_values, start_list, end_list, min_val, max_val, range_marks])
     
     # Add the current tab_weld_side value AND text input (ONLY for tabbed collectors)
     if config.collector_type.__name__ == 'TabWeldedCurrentCollector':
-        response.append(current_collector.tab_weld_side)
-        
+        response.append(object.tab_weld_side)
+
         # Use consistent property name
-        tab_positions = getattr(current_collector, 'weld_tab_positions', [])
+        tab_positions = getattr(object, 'weld_tab_positions', [])
         formatted_text = format_tab_positions(tab_positions)
         response.append(formatted_text)
     
@@ -312,7 +94,7 @@ def handle_cell_store_update(current_collector, config: CurrentCollectorConfig) 
 def handle_property_update(
     triggered_id: dict,
     current_collector,
-    config: CurrentCollectorConfig,
+    config: Type,
     cell: Type,
     input_values: list,
     slider_values: list,
@@ -399,7 +181,7 @@ def handle_property_update(
 def handle_flip_action(
     triggered_id: dict,
     current_collector,
-    config: CurrentCollectorConfig,
+    config: Type,
     cell: dict
 ) -> Tuple:
     """Handle flip actions for any collector type."""
@@ -484,7 +266,7 @@ def validate_dependent_properties(object, settable_params: list, updated_propert
 def handle_side_selector_update(
     triggered_id: dict,
     current_collector,
-    config: CurrentCollectorConfig,
+    config: Type,
     cell: Type,
     tab_weld_side: str
 ) -> Tuple:
@@ -575,7 +357,7 @@ def create_generic_current_collector_callback(config_key: CollectorType, electro
         triggered_id = ctx.triggered_id
 
         # Get the cell from cache
-        cell = cache.get(cell_data['cache_key'])
+        cell = get_cell_from_cache(cell_data['cache_key'])
 
         # get the current collector from the cell, either cathode or anode depending on electrode
         current_collector = get_current_collector_from_cell(cell, electrode_key)
@@ -598,6 +380,7 @@ def create_generic_current_collector_callback(config_key: CollectorType, electro
         
         # trigger if a property is updated
         elif trigger_type == TriggerType.PROPERTY:
+
             return handle_property_update(
                 triggered_id, current_collector, config, cell,
                 input_values, slider_values, rangeslider_values,
@@ -651,34 +434,77 @@ def create_material_callback(material_type: MaterialType) -> callable:
         raise ValueError(f"Unknown material type: {material_type}")
 
     def update_material(cell_data, material_selector, input_values, slider_values):
+
+        # get the triggered ID
         triggered_id = ctx.triggered_id
-        cell = cache.get(cell_data['cache_key'])
-        material = get_material_from_cell(material_type, cell)
 
-        if material is None:
-            return create_material_no_update_response()
+        # get the cell from cache
+        cell = get_cell_from_cache(cell_data['cache_key'])
 
-        if triggered_id == 'cell_store':
+        # Get the trigger type using the TriggerRouter
+        trigger_type = TriggerRouter.get_trigger_type(triggered_id)
+
+        # if the cell store is updated
+        if trigger_type == TriggerType.CELL_STORE:
+
+            # get the material from the cell
+            material = get_material_from_cell(material_type, cell)
+
+            # If material doesn't exist (e.g., tab material on non-tabbed collector), return no_update
+            if material is None:
+                return create_material_no_update_response()
+
+            # get the parameters for the material
             parameter_list, min_values, max_values, marks_list = generate_parameters(material, CC_MATERIAL_PARAMETER_LIST)
+            
+            # return the no_update response with the material name and parameters
             return (no_update, material.name, parameter_list, parameter_list, min_values, max_values, marks_list)
         
-        elif triggered_id == f'{material_type.value}_material_selector':  # Use .value
+        # if the material selector is updated
+        elif trigger_type == TriggerType.COMPONENT_SELECTOR:
+
+            # get the material from the database using the selector
             material = CurrentCollectorMaterial.from_database(material_selector)
+
+            # get the parameters for the material
             parameter_list, min_values, max_values, marks_list = generate_parameters(material, CC_MATERIAL_PARAMETER_LIST)
+
+            # set the material to the cell
             new_cc_key = set_material_to_cell(material_type, cell, material)
+            
+            # return the new cell cache key, material name, and parameters
             return ({'cache_key': new_cc_key}, material.name, parameter_list, parameter_list, min_values, max_values, marks_list)
         
-        elif isinstance(triggered_id, dict) and 'property' in triggered_id:
-            property = triggered_id['property']
-            property_index = CC_MATERIAL_PARAMETER_LIST.index(property)
-            value = slider_values[property_index] if triggered_id['subtype'] == 'slider' else input_values[property_index]
-            setattr(material, property, value)
+        # if a proprty is updated
+        elif trigger_type == TriggerType.PROPERTY:
+
+            # determine the property and subtype from the triggered ID
+            property_name = triggered_id['property']
+
+            # get the index of the property in the CC_MATERIAL_PARAMETER_LIST
+            property_index = CC_MATERIAL_PARAMETER_LIST.index(property_name)
+
+            # determine the subtype from the triggered ID
+            subtype = SubType(triggered_id['subtype'])
+            
+            # get the value of the new property
+            value = slider_values[property_index] if subtype == SubType.SLIDER else input_values[property_index]
+
+            # set the new value to the material
+            setattr(material, property_name, value)
+
+            # set the material to the cell
             new_cc_key = set_material_to_cell(material_type, cell, material)
+
+            # calculate new parameters for the material
             parameter_list, min_values, max_values, marks_list = generate_parameters(material, CC_MATERIAL_PARAMETER_LIST)
+            
+            # return the new cell cache key, material name, and parameters
             return ({'cache_key': new_cc_key}, material.name, parameter_list, parameter_list, min_values, max_values, marks_list)
 
-    return update_material
+        return create_material_no_update_response()
 
+    return update_material
 
 
 def convert_current_collector(current_collector: Type, target_type_name: str):
@@ -753,14 +579,10 @@ def get_cathode_current_collector_material(cell: Type) -> CurrentCollectorMateri
 
 def set_current_collector_to_cell(cell: Type, current_collector: Type) -> str:
     """Set the current collector to the cell and return a new cache key."""
-    try:
-        cell = current_collector
-        new_cc_key = str(uuid4())
-        cache.set(new_cc_key, cell)
-        return new_cc_key
-    except Exception as e:
-        print(f"Error setting current collector: {e}")
-        return None
+    from general.callback_helpers import set_cell_to_cache
+    cell = current_collector
+    new_key = set_cell_to_cache(cell)
+    return new_key
 
 def set_material_to_cell(material_type: MaterialType, cell: Type, material: Type) -> str:
     
@@ -775,33 +597,27 @@ def set_material_to_cell(material_type: MaterialType, cell: Type, material: Type
 
 def set_cathode_current_collector_tab_material(cell: Type, material: CurrentCollectorMaterial) -> str:
     """Set the current collector tab material for the cell."""
-    try:
-        current_collector = cell
-        weld_tab = current_collector.weld_tab
-        weld_tab.material = material
-        current_collector.weld_tab = weld_tab
-        cell = current_collector
+    from general.callback_helpers import set_cell_to_cache
 
-        new_cc_key = str(uuid4())
-        cache.set(new_cc_key, cell)
-        return new_cc_key
-    except Exception as e:
-        print(f"Error setting current collector material: {e}")
-        return None
-    
+    current_collector = cell
+    weld_tab = current_collector.weld_tab
+    weld_tab.material = material
+    current_collector.weld_tab = weld_tab
+    cell = current_collector
+
+    new_key = set_cell_to_cache(cell)
+    return new_key
+
 def set_cathode_current_collector_material(cell: Type, material: CurrentCollectorMaterial) -> str:
     """Set the current collector material for the cell."""
-    try:
-        current_collector = cell
-        current_collector.material = material
-        cell = current_collector
+    from general.callback_helpers import set_cell_to_cache
 
-        new_cc_key = str(uuid4())
-        cache.set(new_cc_key, cell)
-        return new_cc_key
-    except Exception as e:
-        print(f"Error setting current collector material: {e}")
-        return None
-    
+    current_collector = cell
+    current_collector.material = material
+    cell = current_collector
+
+    new_key = set_cell_to_cache(cell)
+    return new_key
+
 
 

@@ -61,3 +61,11 @@
 }
 
 
+.cell-schematic-button:hover {
+    transform: scale(1.05);
+}
+
+.cell-schematic-button:active {
+    transform: scale(0.98);
+}
+

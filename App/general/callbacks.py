@@ -1,25 +1,35 @@
+from certifi import contents
 from dash import callback, Output, Input, State, no_update, ctx, ALL
 from pathlib import Path
 from base64 import b64decode
 from uuid import uuid4
 from pickle import loads
+from typing import List, Tuple, Dict
 
-from database_service import DATA_PATH
 from cache_service import cache
-from general.store import LANDING_PAGE_IMAGE_URLS
 
-from OpenCell.DataManager import DataManager
+from general.store import LANDING_PAGE_IMAGE_URLS
+from general.callback_helpers import get_internal_construction_options, get_electrochemical_reference_options, get_cell_name_options
 
 
 @callback(
-    [Output('cathode_cc', 'style'),
-     Output('anode_cc', 'style'),
-     Output('warnings', 'style')],
-     Input('tabs-container', 'value'),
+    [
+        Output('cathode_cc', 'style'),
+        Output('anode_cc', 'style'),
+        Output('warnings', 'style')
+    ],
+    Input('tabs-container', 'value'),
     prevent_initial_call=True
 )
-def show_tab_content(active_tab):
+def show_tab_content(active_tab) -> List:
+    """
+    Function to show or hide main content based on the active tab.
 
+    Parameters
+    ----------
+    active_tab : str
+        The ID of the currently active tab.
+    """
     styles = {'display': 'none'}
     active_style = {'display': 'block'}
 
@@ -31,118 +41,136 @@ def show_tab_content(active_tab):
 
 
 @callback(
-    Output('internal_construction_dropdown', 'options'),
-    Input('form_factor_dropdown', 'value'),
+    [
+        Output('internal_construction_dropdown', 'options'),
+        Output('form_factor_dropdown', 'value'),
+    ],
+    [
+        Input('form_factor_dropdown', 'value'),
+        Input({'type': 'cell_schematic_button', 'key': ALL}, 'n_clicks')
+    ],
+    [
+        State('form_factor_dropdown', 'options'),
+    ],
     prevent_initial_call=True
 )
-def update_internal_construction_options(form_factor):
-
-    try:
-        # get current collector materials from the database
-        CURRENT_DIR = Path(__file__).resolve().parent
-        DATA_PATH = CURRENT_DIR / '..' / '..' / 'Data' / 'database.db'
-        dm = DataManager(DATA_PATH)
-        
-    except Exception as e:
-        print(f"Error initializing DataManager: {e}")
-        return no_update
-
-    try:
-
-        options = (
-            dm
-            .get_data('cells')
-            .query(f"form_factor == '{form_factor}'")
-            .filter(['internal_construction'])
-            .drop_duplicates()
-            .internal_construction
-            .tolist()
-        )
-
-        return [{'label': option, 'value': option} for option in options]
+def update_internal_construction_options(
+    form_factor, 
+    form_factor_schematic_button_clicks, 
+    form_factor_options
+) -> Tuple[List[dict], str]:
     
-    except Exception as e:
-        print(f"Error fetching internal construction options: {e}")
-        return no_update
-        
+    # get the triggered ID to determine which input caused the callback
+    trigger = ctx.triggered_id
 
-@callback(
-    Output('electrochemical_reference_dropdown', 'options'),
-    Input('internal_construction_dropdown', 'value'),
-    State('form_factor_dropdown', 'value'),
-    prevent_initial_call=True
-)
-def update_electrochemical_reference_options(internal_construction, form_factor):
-
-    try:
-        # get current collector materials from the database
-        CURRENT_DIR = Path(__file__).resolve().parent
-        DATA_PATH = CURRENT_DIR / '..' / '..' / 'Data' / 'database.db'
-        dm = DataManager(DATA_PATH)
-
-    except Exception as e:
-        print(f"Error initializing DataManager: {e}")
-        return no_update
-
-    try:
-
-        options = (
-            dm
-            .get_data('cells')
-            .query(f"form_factor == '{form_factor}'")
-            .query(f"internal_construction == '{internal_construction}'")
-            .filter(['reference'])
-            .drop_duplicates()
-            .reference
-            .tolist()
-        )
-
-        return [{'label': option, 'value': option} for option in options]
+    # If the form factor dropdown is triggered, return options based on the selected form factor
+    if trigger == 'form_factor_dropdown':
+        return get_internal_construction_options(form_factor), no_update
     
-    except Exception as e:
-        print(f"Error fetching electrochemical reference options: {e}")
-        return no_update
+    # If a cell schematic button is clicked, return options based on the button key
+    elif isinstance(trigger, dict) and trigger['type'] == 'cell_schematic_button':
+
+        form_factor = trigger['key']
+
+        # If the form factor is not in the options, return no update
+        if form_factor not in [option['value'] for option in form_factor_options]:
+            return no_update, no_update
+        
+        # Otherwise, return the options based on the form factor
+        return get_internal_construction_options(form_factor), form_factor
+    
+    else:
+        # If no valid trigger, return no update
+        return no_update, no_update
 
 
 @callback(
-    Output('cell_name_dropdown', 'options'),
-    Input('electrochemical_reference_dropdown', 'value'),
-    State('internal_construction_dropdown', 'value'),
-    State('form_factor_dropdown', 'value'),
+    [
+        Output('electrochemical_reference_dropdown', 'options'),
+        Output('internal_construction_dropdown', 'value'),
+    ],
+    [
+        Input('internal_construction_dropdown', 'value'),
+        Input({'type': 'cell_schematic_button', 'key': ALL}, 'n_clicks')
+    ],
+    [
+        State('form_factor_dropdown', 'value'),
+        State('internal_construction_dropdown', 'options'),
+    ],
     prevent_initial_call=True
 )
-def update_cell_name_options(electrochemical_reference, internal_construction, form_factor):
+def update_electrochemical_reference_options(
+    internal_construction, 
+    internal_construction_button_clicks, 
+    form_factor, 
+    internal_construction_options
+):
+    trigger = ctx.triggered_id
 
-    try:
-        # get current collector materials from the database
-        CURRENT_DIR = Path(__file__).resolve().parent
-        DATA_PATH = CURRENT_DIR / '..' / '..' / 'Data' / 'database.db'
-        dm = DataManager(DATA_PATH)
+    # If the internal construction dropdown is triggered, return options based on the selected internal construction
+    if trigger == 'internal_construction_dropdown':
+        return get_electrochemical_reference_options(internal_construction, form_factor), no_update
 
-    except Exception as e:
-        print(f"Error initializing DataManager: {e}")
-        return no_update
+    elif isinstance(trigger, dict) and trigger['type'] == 'cell_schematic_button':
 
-    try:
+        internal_construction = trigger['key']
 
-        options = (
-            dm
-            .get_data('cells')
-            .query(f"form_factor == '{form_factor}'")
-            .query(f"internal_construction == '{internal_construction}'")
-            .query(f"reference == '{electrochemical_reference}'")
-            .filter(['name'])
-            .drop_duplicates()
-            .name
-            .tolist()
-        )
-
-        return [{'label': option, 'value': option} for option in options]
-
-    except Exception as e:
-        print(f"Error fetching cell name options: {e}")
-        return no_update
+        # If the internal construction is not in the options, return no update
+        if internal_construction not in [option['value'] for option in internal_construction_options]:
+            return no_update, no_update
+        
+        # Otherwise, return the options based on the internal construction and form factor
+        return get_electrochemical_reference_options(internal_construction, form_factor), internal_construction
     
+    else:
+        # If no valid trigger, return no update
+        return no_update, no_update
+
+
+@callback(
+    [
+        Output('cell_name_dropdown', 'options'),
+        Output('electrochemical_reference_dropdown', 'value'),
+    ],
+    [
+        Input('electrochemical_reference_dropdown', 'value'),
+        Input({'type': 'cell_schematic_button', 'key': ALL}, 'n_clicks'),
+    ],
+    [
+        State('internal_construction_dropdown', 'value'),
+        State('form_factor_dropdown', 'value'),
+        State('electrochemical_reference_dropdown', 'options'),
+    ],
+    prevent_initial_call=True
+)
+def update_cell_name_options(
+    electrochemical_reference, 
+    electrochemical_reference_button_clicks, 
+    internal_construction, 
+    form_factor, 
+    electrochemical_reference_options
+):
+
+    trigger = ctx.triggered_id
+
+    # If the electrochemical reference dropdown is triggered, return options based on the selected electrochemical reference
+    if trigger == 'electrochemical_reference_dropdown':
+        return get_cell_name_options(internal_construction, electrochemical_reference, form_factor), no_update
+    
+    elif isinstance(trigger, dict) and trigger['type'] == 'cell_schematic_button':
+        electrochemical_reference = trigger['key']
+
+        # If the electrochemical reference is not in the options, return no update
+        if electrochemical_reference not in [option['value'] for option in electrochemical_reference_options]:
+            return no_update, no_update
+        
+        # Otherwise, return the options based on the electrochemical reference, internal construction, and form factor
+        return get_cell_name_options(internal_construction, electrochemical_reference, form_factor), electrochemical_reference
+
+    else:
+        # If no valid trigger, return no update
+        return no_update, no_update
+
 
 @callback(
     [
@@ -201,50 +229,25 @@ def update_landing_image_alpha(
     ],
     prevent_initial_call=True
 )
-def get_cell_from_database(contents):
+def get_cell_from_database(cell_name: str) -> Dict:
+    """
+    Callback to fetch the cell from the database based on the selected cell name.
 
-    if contents is None:
+    Parameters
+    ----------
+    contents : str
+        The selected cell name from the dropdown.
+    """
+    from general.callback_helpers import get_cell_from_database, set_cell_to_cache
+
+    # If contents is None, return no update
+    if cell_name is None:
         return no_update
 
-    # try establish connection to the database
-    try:
-        CURRENT_DIR = Path(__file__).resolve().parent
-        DATA_PATH = CURRENT_DIR / '..' / '..' / 'Data' / 'database.db'
-        dm = DataManager(DATA_PATH)
-    except Exception as e:
-        print(f"Error initializing DataManager: {e}")
-        return no_update
-    
-    # try and get the serialized cell data from the database
-    try:
-        cell_data = dm.get_data('cells').query(f"name == '{contents}'").iloc[0]['object']
-    except Exception as e:
-        print(f"Error fetching cell data from database: {e}")
-        return no_update
-    
-    # Decode the base64 content
-    try:
-        decoded_data = b64decode(cell_data)
-    except Exception as decode_error:
-        print(f"Error decoding base64 content: {decode_error}")
-        return no_update
+    cell = get_cell_from_database(cell_name)
+    new_key = set_cell_to_cache(cell)
+    return [{'cache_key': new_key}]
 
-    # Deserialize the object using pickle
-    try:
-        cell = loads(decoded_data)
-    except Exception as deserialize_error:
-        print(f"Error deserializing pickle data: {deserialize_error}")
-        return no_update
-
-    # Generate a new cache key
-    new_cc_key = str(uuid4())
-
-    # Store the object in the cache
-    cache.set(new_cc_key, cell)
-
-    # Return the cache key to update the store
-    return [{'cache_key': new_cc_key}]
-    
 
 @callback(
     [
@@ -255,42 +258,43 @@ def get_cell_from_database(contents):
     ],
     prevent_initial_call=True
 )
-def upload_cell(contents):
+def upload_cell(pickled_cell):
+    """
+    Callback to handle the upload of a cell object from a file.
 
-    try:
-        if contents is None:
-            return no_update
-
-        # Extract the uploaded file content
-        content_type, content_string = contents.split(',')
-
-        # Decode the base64 content
-        try:
-            decoded_data = b64decode(b64decode(content_string))
-        except Exception as decode_error:
-            print(f"Error decoding base64 content: {decode_error}")
-            return no_update
-
-        # Deserialize the object using pickle
-        try:
-            current_collector = loads(decoded_data)
-        except Exception as deserialize_error:
-            print(f"Error deserializing pickle data: {deserialize_error}")
-            return no_update
-
-        # Generate a new cache key
-        new_cc_key = str(uuid4())
-
-        # Store the object in the cache
-        cache.set(new_cc_key, current_collector)
-        
-        # Return the cache key to update the store
-        return [{'cache_key': new_cc_key}]
-
-    except Exception as e:
-        print(f"Error in upload callback: {e}")
-        return no_update
+    Parameters
+    ----------
+    pickled_cell : str
+        The base64 encoded string of the pickled cell object.
     
+    Returns
+    -------
+    List[Dict]
+        A list containing a dictionary with the cache key of the uploaded cell.
+    """
+    from general.callback_helpers import set_cell_to_cache
+
+    # If pickled_cell is None, return no update
+    if pickled_cell is None:
+        return no_update
+
+    # Extract the uploaded file content
+    content_type, content_string = pickled_cell.split(',')
+
+    # Decode the base64 content
+    try:
+        decoded_data = b64decode(b64decode(content_string))
+    except Exception as decode_error:
+        print(f"Error decoding base64 content: {decode_error}")
+        return no_update
+
+    cell = loads(decoded_data)
+
+    new_key = set_cell_to_cache(cell)
+    
+    # Return the cache key to update the store
+    return [{'cache_key': new_key}]
+
 
 @callback(
     [
