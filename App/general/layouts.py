@@ -1,9 +1,9 @@
 import dash as ds
 from styles import *
 
-from App.current_collectors.layouts import *
-from App.general.store import *
-from App.database_service import *
+from current_collectors.layouts import *
+from general.store import *
+from database_service import *
 
 
 stores = ds.html.Div([
@@ -181,6 +181,8 @@ tabs = ds.html.Div(
     ds.html.Div(id='warnings', children=[warnings], style={'display': 'none'}),
 
 ], style = DIV_STYLE | {'display': 'none'})
+
+
 
 
 
