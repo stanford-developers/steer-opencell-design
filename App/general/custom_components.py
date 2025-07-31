@@ -168,3 +168,6 @@ class RangeSliderWithTextInput:
             'input_start': self.input_start_id, 
             'input_end': self.input_end_id
         }
+    
+
+    

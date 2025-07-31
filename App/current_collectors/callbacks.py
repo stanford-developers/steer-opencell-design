@@ -9,7 +9,8 @@ from OpenCell.Materials.RawMaterials import *
 
 from current_collectors.layouts import *
 from current_collectors.callbacks import CURRENT_COLLECTOR_DESIGNS
-from current_collectors.callback_helpers import create_generic_current_collector_callback, create_material_callback, get_current_collector_from_cell, set_current_collector_to_cell
+from current_collectors.callback_helpers import create_generic_current_collector_callback, create_material_callback
+from current_collectors.cell_operations import get_current_collector_from_cell, set_current_collector_to_cell
 from general.enumerated_classes import CollectorType, ElectrodeType, MaterialType
 
 
