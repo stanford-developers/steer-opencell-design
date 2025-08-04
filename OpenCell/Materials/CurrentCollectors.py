@@ -1,16 +1,29 @@
 from OpenCell.Materials.RawMaterials import CurrentCollectorMaterial
 
-from OpenCell.Utils import CoordinateMixin, ValidationMixin, calculate_coordinates, calculate_bulk_properties, calculate_all_properties, calculate_areas, calculate_weld_tab_properties
+from OpenCell.Decorators import (
+    calculate_coordinates, 
+    calculate_bulk_properties, 
+    calculate_all_properties, 
+    calculate_areas, 
+    calculate_weld_tab_properties
+)
+
+from OpenCell.Mixins import (
+    CoordinateMixin, 
+    ValidationMixin, 
+)
+
 from OpenCell.Constants import *
 from App.styles import *
 
 from abc import ABC, abstractmethod
-from typing import Tuple, Optional, Iterable, Dict, List
-import plotly.graph_objects as go
+from typing import Tuple, Optional, Iterable, Dict
 from plotly.subplots import make_subplots
-import pandas as pd
 from copy import deepcopy
 from pickle import dumps, loads
+
+import plotly.graph_objects as go
+import pandas as pd
 import base64
 import numpy as np
 import time

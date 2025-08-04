@@ -3,7 +3,7 @@ from OpenCell.Materials.CurrentCollectors import _CurrentCollector
 from OpenCell.Materials.RawMaterials import InsulationMaterial
 
 from OpenCell.Constants import *
-from OpenCell.Utils import *
+from OpenCell.Decorators import *
 
 import pandas as pd
 import numpy as np

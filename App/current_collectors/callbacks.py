@@ -119,15 +119,19 @@ def update_current_collector_design(design_value, cell_data):
     
     # Import function to convert current collector
     from current_collectors.callback_helpers import convert_current_collector
+    from general.callback_helpers import set_cell_to_cache
 
     # Do the conversion
     new_collector = convert_current_collector(current_collector, target_type_name)
 
     # Assign the new current collector to the cell and get the key
-    new_cache_key = set_current_collector_to_cell(cell, new_collector)
+    new_cell = set_current_collector_to_cell(cell, new_collector)
+
+    # Generate a new cache key
+    new_key = set_cell_to_cache(new_cell)
 
     # Update the dash store with the new cell key
-    return {'cache_key': new_cache_key}
+    return {'cache_key': new_key}
 
 
 @callback(

@@ -4,7 +4,7 @@ from OpenCell.Constructions.Containers import Pouch, PrismaticCase, CylindricalC
 
 from App.styles import *
 from OpenCell.Constants import *
-from OpenCell.Utils import get_colorway
+from OpenCell.Decorators import get_colorway
 
 import pandas as pd
 import numpy as np
