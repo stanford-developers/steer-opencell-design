@@ -1,4 +1,5 @@
 import sqlite3 as sql
+from pathlib import Path
 import pandas as pd
 
 H_TO_S = 3600
@@ -7,9 +8,10 @@ G_TO_KG = 1e-3
 
 class DataManager:
     
-    def __init__(self, db_path: str):
-        self._db_path = db_path
-        self._connection = sql.connect(db_path)
+    def __init__(self):
+
+        self._db_path = (Path(__file__).parent / '../Data/database.db').resolve()
+        self._connection = sql.connect(self._db_path)
         self._cursor = self._connection.cursor()
 
     def create_table(self, table_name: str, columns: dict):
@@ -136,12 +138,18 @@ class DataManager:
         :param most_recent: If True, returns only the most recent entry.
         :return: DataFrame with insulation materials.
         """
-        data = (self
-                .get_data(table_name='insulation_materials')
-                .groupby('name', group_keys=False)
-                .apply(lambda x: x.sort_values('date', ascending=False).head(1) if most_recent else x)
-                .reset_index(drop=True)
-                ) 
+        data = (
+            self
+            .get_data(
+                table_name='insulation_materials'
+            ).groupby(
+                'name', group_keys=False
+            ).apply(
+                lambda x: x.sort_values('date', ascending=False).head(1) if most_recent else x
+            ).reset_index(
+                drop=True
+            )
+        ) 
         
         return data
 

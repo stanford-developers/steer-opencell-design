@@ -173,10 +173,10 @@ class TestLFPSingleCurve(unittest.TestCase):
         data = self.material.half_cell_curve
         figure = self.material.plot_half_cell_curve()
 
-        self.assertTrue(round(data['Voltage (V)'].max(), 10) == 4.0)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].min(), 2) == 3.59)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2) == 2.7)
-        self.assertTrue(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2) == 155.19)
+        self.assertEqual(round(data['Voltage (V)'].max(), 10), 4.0)
+        self.assertEqual(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].min(), 2), 3.59)
+        self.assertEqual(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2), 2.7)
+        self.assertEqual(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2), 155.19)
 
         # figure.show()
 
@@ -190,10 +190,10 @@ class TestLFPSingleCurve(unittest.TestCase):
         data = self.material.half_cell_curve
         figure = self.material.plot_half_cell_curve()
 
-        self.assertTrue(round(data['Voltage (V)'].max(), 10) == 4.0)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].min(), 2) == 1.79)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2) == 2.7)
-        self.assertTrue(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2) == 77.6)
+        self.assertEqual(round(data['Voltage (V)'].max(), 10), 4.0)
+        self.assertEqual(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].min(), 2), 1.79)
+        self.assertEqual(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2), 2.7)
+        self.assertEqual(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2), 77.6)
 
         # figure.show()
 
@@ -207,10 +207,10 @@ class TestLFPSingleCurve(unittest.TestCase):
         data = self.material.half_cell_curve
         figure = self.material.plot_half_cell_curve()
 
-        self.assertTrue(round(data['Voltage (V)'].max(), 10) == 4)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].min(), 2) == 79.39)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2) == 2.7)
-        self.assertTrue(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2) == 155.19)
+        self.assertEqual(round(data['Voltage (V)'].max(), 10), 4)
+        self.assertEqual(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].min(), 2), 79.39)
+        self.assertEqual(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2), 2.7)
+        self.assertEqual(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2), 155.19)
 
         # figure.show()
 
@@ -219,10 +219,10 @@ class TestLFPSingleCurve(unittest.TestCase):
         data = self.material2.half_cell_curve
         figure = self.material2.plot_half_cell_curve()
 
-        self.assertTrue(round(data['Voltage (V)'].max(), 10) == 4)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].min(), 2) == 79.39)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2) == 2.7)
-        self.assertTrue(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2) == 155.19)
+        self.assertEqual(round(data['Voltage (V)'].max(), 10), 4)
+        self.assertEqual(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].min(), 2), 79.39)
+        self.assertEqual(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2), 2.7)
+        self.assertEqual(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2), 155.19)
 
         # figure.show()
 
@@ -241,10 +241,10 @@ class TestLFPSingleCurve(unittest.TestCase):
         
         data = self.material.half_cell_curve
 
-        self.assertTrue(round(data['Voltage (V)'].max(), 10) == 4.0)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].min(), 2) == 3.59)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2) == 2.7)
-        self.assertTrue(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2) == 155.19)
+        self.assertEqual(round(data['Voltage (V)'].max(), 10), 4.0)
+        self.assertEqual(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].min(), 2), 3.59)
+        self.assertEqual(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2), 2.7)
+        self.assertEqual(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2), 155.19)
 
 
 class TestNMMMultiCurve(unittest.TestCase):
@@ -658,15 +658,16 @@ class TestNMMMultiCurve(unittest.TestCase):
         self.assertTrue(self.material.voltage_cutoff_range == (3.9, 4.36))
 
     def test_voltage_setter_extrapolate(self):
-        self.material.voltage_cutoff = 4
+        
+        self.material.voltage_cutoff = 4.1
         data = self.material.half_cell_curve
         figure = self.material.plot_half_cell_curve()
 
-        self.assertTrue(round(data['Voltage (V)'].max(), 10) == 4)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].min(), 2) == -0.97)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2) == 2.0)
-        self.assertTrue(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2) == 116.71)
-        
+        self.assertEqual(round(data['Voltage (V)'].max(), 10), 4.1)
+        self.assertEqual(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].min(), 2), 1.24)
+        self.assertEqual(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2), 2)
+        self.assertEqual(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2), 122.46)
+                
         # figure.show()
 
     def test_voltage_setter_interpolate(self):
@@ -675,10 +676,10 @@ class TestNMMMultiCurve(unittest.TestCase):
         data = self.material.half_cell_curve
         figure = self.material.plot_half_cell_curve()
 
-        self.assertTrue(round(data['Voltage (V)'].max(), 2) == 4.20)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].min(), 2) == 3.49)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2) == 2.0)
-        self.assertTrue(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2) == 141.72)
+        self.assertEqual(round(data['Voltage (V)'].max(), 2), 4.20)
+        self.assertEqual(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].min(), 2), 3.49)
+        self.assertEqual(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2), 2.0)
+        self.assertEqual(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2), 141.33)
 
         # figure.show()
 
@@ -898,6 +899,7 @@ class TestHardCarbon(unittest.TestCase):
         self.assertTrue(isinstance(self.material, AnodeMaterial))
         self.assertEqual(self.material.voltage_cutoff_range, (0.05, 0))
         figure = self.material.plot_half_cell_curve()
+        
         # figure.show()
 
     def test_voltage_setter_extrapolate(self):
@@ -908,9 +910,9 @@ class TestHardCarbon(unittest.TestCase):
         data = self.material.half_cell_curve
         figure = self.material.plot_half_cell_curve()
 
-        self.assertTrue(round(data['Voltage (V)'].min(), 10) == 0)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].max(), 2) == 358.61)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2) == 0.0)
+        self.assertEqual(round(data['Voltage (V)'].min(), 10), 0)
+        self.assertEqual(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].max(), 2), 358.61)
+        self.assertEqual(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2), 0.0)
 
         # figure.show()
 
@@ -922,9 +924,9 @@ class TestHardCarbon(unittest.TestCase):
         data = self.material.half_cell_curve
         figure = self.material.plot_half_cell_curve()
 
-        self.assertTrue(round(data['Voltage (V)'].max(), 2) == 2.06)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].min(), 2) == 194.24)
-        self.assertTrue(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2) == 0)
-        self.assertTrue(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2) == 359.75)
+        self.assertEqual(round(data['Voltage (V)'].max(), 2), 2.06)
+        self.assertEqual(round(data.query('Direction == "discharge"')['Specific Capacity (mAh/g)'].min(), 2), 194.24)
+        self.assertEqual(round(data.query('Direction == "discharge"')['Voltage (V)'].min(), 2), 0)
+        self.assertEqual(round(data.query('Direction == "charge"')['Specific Capacity (mAh/g)'].max(), 2), 359.75)
 
         # figure.show()

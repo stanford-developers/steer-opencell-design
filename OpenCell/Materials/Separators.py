@@ -6,7 +6,7 @@ from copy import deepcopy
 
 from App.styles import *
 from OpenCell.Constants import *
-from OpenCell.Utils import *
+from OpenCell.Decorators import *
 
 
 class Separator:

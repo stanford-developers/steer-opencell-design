@@ -337,8 +337,8 @@ class TestTablessCurrentCollector(unittest.TestCase):
         fig2 = self.current_collector._get_full_top_down_view(with_dimensions=False)
         self.assertEqual(self.current_collector.tab_height, 20)
         
-        fig1.show()
-        fig2.show()
+        # fig1.show()
+        # fig2.show()
 
     def test_to_notched(self):
         new_current_collector = NotchedCurrentCollector.from_tabless(self.current_collector)

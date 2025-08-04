@@ -1,17 +1,17 @@
 from OpenCell.Materials.ElectrodeMaterials import _ActiveMaterial, Binder, ConductiveAdditive, CathodeMaterial, AnodeMaterial
 
-from OpenCell.Utils import get_colorway
+from OpenCell.Decorators import *
 from OpenCell.Constants import *
+from OpenCell.Mixins import ValidationMixin
 
 import pandas as pd
 import numpy as np
-import plotly.express as px
 import plotly.graph_objects as go
 from typing import Dict, Optional
 
 
 
-class _ElectrodeFormulation:
+class _ElectrodeFormulation(ValidationMixin):
     
     def __init__(
             self, 
@@ -47,17 +47,30 @@ class _ElectrodeFormulation:
         self.name = name
 
         self._check_formulation()
-        self._get_properties()
+        self._calculate_all_properties()
 
-    def _get_properties(self) -> None:
+    def _calculate_all_properties(self) -> None:
         """
         Retrieve the properties of the electrode formulation.
         This method is called to ensure that all properties are calculated and available.
         """
-        self._calculate_density()
+        self._get_bulk_properties()
+        self._get_breakdowns()
+        self._get_voltage_operation_window()
+        self._check_formulation()
+        self._calculate_half_cell_curve()
+
+    def _get_breakdowns(self) -> None:
+        """
+        Retrieve the breakdowns of the electrode formulation.
+        This method is called to ensure that all breakdowns are calculated and available.
+        """
         self._get_density_breakdown()
-        self._calculate_specific_cost()
         self._get_specific_cost_breakdown()
+
+    def _get_bulk_properties(self) -> None:
+        self._calculate_density()
+        self._calculate_specific_cost()
         self._get_color()
 
     def _calculate_density(self) -> float:
@@ -131,6 +144,21 @@ class _ElectrodeFormulation:
 
         self._color = rgb_to_hex(avg_rgb)
 
+    def _get_voltage_operation_window(self) -> None:
+
+        # Get the voltage operation window from each active material
+        voltage_operation_windows = [material._voltage_operation_window for material in self._active_materials.keys()]
+
+        # Determine the common voltage operation window
+        starts, middles, ends = zip(*voltage_operation_windows)
+        common_start = max(starts) if type(self) == CathodeFormulation else min(starts)
+        common_end = min(ends) if type(self) == CathodeFormulation else max(ends)
+
+        if (common_start <= common_end and type(self) == CathodeFormulation) or (common_start >= common_end and type(self) == AnodeFormulation):
+            self._voltage_operation_window = (common_start, common_end)
+        else:
+            raise ValueError("The active materials have incompatible voltage cutoff ranges.")
+
     def _check_formulation(self) -> None:
         """
         Validate the electrode formulation to ensure it meets the required criteria.
@@ -201,6 +229,141 @@ class _ElectrodeFormulation:
 
         self._density_breakdown = active_material_density_breakdown | binder_density_breakdown | conductive_additive_density_breakdown
 
+    def _calculate_half_cell_curve(self, voltage: Optional[float] = None) -> None:
+        """
+        Calculate the half-cell curve for the cathode formulation based on the active materials
+        and their weight fractions, treating charge and discharge curves separately.
+
+        Parameters
+        ----------
+        voltage : Optional[float]
+            The maximum voltage for the half-cell curve. If not provided, it will be set to
+            the maximum voltage from the active materials' voltage cutoff range.
+        """
+        
+        def safe_interp(target_values, x_vals, y_vals):
+            """Safe interpolation that handles decreasing x values."""
+            if len(x_vals) <= 1:
+                return np.full_like(target_values, np.nan)
+            
+            # Check if x values are decreasing
+            if x_vals[0] > x_vals[-1] or np.mean(np.diff(x_vals)) < 0:
+                # Sort by x values (ascending) and reorder y accordingly
+                sort_idx = np.argsort(x_vals)
+                return np.interp(target_values, x_vals[sort_idx], y_vals[sort_idx])
+            else:
+                # Normal case - x values already increasing
+                return np.interp(target_values, x_vals, y_vals)
+        
+        # If just one material, then get that materials half-cell curve
+        if len(self._active_materials) == 1:
+            material = next(iter(self._active_materials))
+            weight_frac = self._active_materials[material]
+            curve = material._half_cell_curve.copy()
+            curve[:,0] *= weight_frac
+            self._half_cell_curve = curve
+            return 
+
+        # Determine common charge/discharge voltage ranges
+        def get_common_voltage_range(direction: str):
+            direction_value = 1 if direction == 'charge' else -1
+            v_starts = []
+            v_ends = []
+
+            for material in self._active_materials:
+                direction_mask = material._half_cell_curve[:, 2] == direction_value
+                direction_curve = material._half_cell_curve[direction_mask]
+                
+                if len(direction_curve) > 0:
+                    voltages = direction_curve[:, 1]
+                    v_starts.append(voltages.min())
+                    v_ends.append(voltages.max())
+
+            if not v_starts:  # No data for this direction
+                return np.array([])
+                
+            v_start = max(v_starts)
+            v_end = min(v_ends)
+            
+            # Ensure valid range
+            if v_start >= v_end:
+                return np.array([v_start])
+                
+            return np.linspace(v_start, v_end, num=100)
+
+        v_charge_grid = get_common_voltage_range('charge')
+        v_discharge_grid = get_common_voltage_range('discharge')
+
+        charge_dfs = []
+        discharge_dfs = []
+
+        # Interpolate each material's contribution and weight by mass fraction
+        for material, weight_frac in self._active_materials.items():
+
+            curve = material._half_cell_curve.copy()
+            curve[:, 0] *= weight_frac
+
+            charge_curve = curve[curve[:, 2] == 1]
+            discharge_curve = curve[curve[:, 2] == -1]
+
+            # Safe interpolation for charge curve
+            if len(charge_curve) > 0 and len(v_charge_grid) > 0:
+                charge_interp = safe_interp(
+                    v_charge_grid, 
+                    charge_curve[:, 1],  # voltage (x)
+                    charge_curve[:, 0]   # capacity (y)
+                )
+            else:
+                charge_interp = np.full_like(v_charge_grid, 0.0)
+
+            # Safe interpolation for discharge curve
+            if len(discharge_curve) > 0 and len(v_discharge_grid) > 0:
+                discharge_interp = safe_interp(
+                    v_discharge_grid, 
+                    discharge_curve[:, 1],  # voltage (x)
+                    discharge_curve[:, 0]   # capacity (y)
+                )
+            else:
+                discharge_interp = np.full_like(v_discharge_grid, 0.0)
+
+            charge_dfs.append(charge_interp)
+            discharge_dfs.append(discharge_interp)
+
+        # Sum across interpolated curves
+        summed_charge_capacity = np.sum(charge_dfs, axis=0) if charge_dfs else np.array([])
+        summed_discharge_capacity = np.sum(discharge_dfs, axis=0) if discharge_dfs else np.array([])
+
+        # Assemble final half-cell curve - always charge first, then discharge
+        curves_to_stack = []
+
+        # Always add charge curve first (if it exists) - sorted from lowest to highest specific capacity
+        if len(summed_charge_capacity) > 0:
+            charge_df = np.column_stack([
+                summed_charge_capacity, 
+                v_charge_grid, 
+                np.ones_like(v_charge_grid)
+            ])
+            # Sort charge curve by specific capacity (ascending - lowest to highest)
+            charge_df = charge_df[np.argsort(charge_df[:, 0])]
+            curves_to_stack.append(charge_df)
+
+        # Then add discharge curve (if it exists) - sorted from highest to lowest specific capacity
+        if len(summed_discharge_capacity) > 0:
+            discharge_df = np.column_stack([
+                summed_discharge_capacity,
+                v_discharge_grid,
+                -np.ones_like(v_discharge_grid)
+            ])
+            # Sort discharge curve by specific capacity (descending - highest to lowest)
+            discharge_df = discharge_df[np.argsort(discharge_df[:, 0])[::-1]]
+            curves_to_stack.append(discharge_df)
+
+        if curves_to_stack:
+            self._half_cell_curve = np.vstack(curves_to_stack)
+        else:
+            # Fallback empty curve
+            self._half_cell_curve = np.array([]).reshape(0, 3)
+
     def plot_half_cell_curve(self, add_materials: bool = False, **kwargs):
 
         figure = go.Figure()
@@ -217,10 +380,9 @@ class _ElectrodeFormulation:
         )
 
         if add_materials:
-            
             for material in self._active_materials.keys():
-
-                material_curve = material.half_cell_curve.assign()
+                
+                material_curve = material.half_cell_curve
 
                 figure.add_trace(
                     go.Scatter(
@@ -241,240 +403,21 @@ class _ElectrodeFormulation:
 
         return figure
 
-    def _calculate_half_cell_curve(self, voltage: Optional[float] = None) -> None:
-        """
-        Calculate the half-cell curve for the cathode formulation based on the active materials
-        and their weight fractions, treating charge and discharge curves separately.
-
-        Parameters
-        ----------
-        voltage : Optional[float]
-            The maximum voltage for the half-cell curve. If not provided, it will be set to
-            the maximum voltage from the active materials' voltage cutoff range.
-        """
-        # Single-material shortcut
-        if len(self._active_materials) == 1:
-            
-            material = next(iter(self._active_materials))
-            weight_frac = self._active_materials[material]
-
-            self._half_cell_curve = (
-                material
-                ._half_cell_curve
-                .copy()
-                .assign(
-                    specific_capacity=lambda x: x['specific_capacity'] * weight_frac,
-                )
-            )
-
-            return
-
-        # Determine common charge/discharge voltage ranges
-        def get_common_voltage_range(direction: str):
-
-            v_start = max([
-                material
-                ._half_cell_curve
-                .query(f'direction == "{direction}"')['voltage']
-                .min()
-                for material in self._active_materials
-            ])
-
-            v_end = min([
-                material._half_cell_curve
-                .query(f'direction == "{direction}"')['voltage']
-                .max()
-                for material in self._active_materials
-            ])
-
-            return np.linspace(v_start, v_end, num=100)
-
-        v_charge_grid = get_common_voltage_range('charge')
-        v_discharge_grid = get_common_voltage_range('discharge')
-
-        charge_dfs = []
-        discharge_dfs = []
-
-        # Interpolate each material’s contribution and weight by mass fraction
-        for material, weight_frac in self._active_materials.items():
-
-            df = material._half_cell_curve.copy()
-            df['specific_capacity'] *= weight_frac
-
-            ascending = True if isinstance(self, CathodeFormulation) else False
-            charge_curve = df.query('direction == "charge"').sort_values(by='specific_capacity', ascending=ascending)
-            discharge_curve = df.query('direction == "discharge"').sort_values(by='specific_capacity', ascending=ascending)
-
-            charge_interp = np.interp(
-                v_charge_grid, 
-                charge_curve['voltage'], 
-                charge_curve['specific_capacity']
-            )
-
-            discharge_interp = np.interp(
-                v_discharge_grid, 
-                discharge_curve['voltage'], 
-                discharge_curve['specific_capacity']
-            )
-
-            charge_dfs.append(charge_interp)
-            discharge_dfs.append(discharge_interp)
-
-        # Sum across interpolated curves
-        summed_charge_capacity = np.sum(charge_dfs, axis=0)
-        summed_discharge_capacity = np.sum(discharge_dfs, axis=0)
-
-        # Assemble final half-cell curve
-        charge_df = pd.DataFrame({
-            'voltage': v_charge_grid,
-            'specific_capacity': summed_charge_capacity,
-            'direction': 'charge'
-        })
-
-        discharge_df = pd.DataFrame({
-            'voltage': v_discharge_grid,
-            'specific_capacity': summed_discharge_capacity,
-            'direction': 'discharge'
-        })
-
-        # sort the values
-        if isinstance(self, CathodeFormulation):
-            charge_df = charge_df.sort_values(by='voltage', ascending=True)
-            discharge_df = discharge_df.sort_values(by='voltage', ascending=False)
-        elif isinstance(self, AnodeFormulation):
-            charge_df = charge_df.sort_values(by='voltage', ascending=False)
-            discharge_df = discharge_df.sort_values(by='voltage', ascending=True)
-
-        final_df = pd.concat([charge_df, discharge_df], ignore_index=True)
-        final_df['index_for_order'] = final_df.groupby('direction').cumcount()
-
-        self._half_cell_curve = (
-            final_df
-            .sort_values(by=['direction', 'index_for_order'])
-            .drop(columns='index_for_order')
-        )
-
     @property
     def name(self) -> Optional[str]:
         return self._name.replace("_", " ").title()
 
-    @name.setter
-    def name(self, name: str):
-
-        if not isinstance(name, str):
-            raise TypeError(f"Expected a string for name, got {type(name)}.")
-        if not name.strip():
-            raise ValueError("Name cannot be an empty string.")
-        
-        self._name = name
-
     @property
     def active_materials(self) -> Dict[_ActiveMaterial, float]:
         return {key: value * 100 for key, value in self._active_materials.items()}
-    
-    @active_materials.setter
-    def active_materials(self, active_materials: Dict[_ActiveMaterial, float]):
-
-        if len(active_materials) == 0:
-            raise ValueError("You must include at least one active material in the formulation.")
-
-        for key, value in active_materials.items():
-
-            if not isinstance(key, _ActiveMaterial):
-                raise TypeError(f"Expected an instance of _ActiveMaterial, got {type(key)}.")
-            if not isinstance(value, (int, float)):
-                raise TypeError(f"Expected a numeric value for mass fraction, got {type(value)}.")
-            if value < 0 or value > 100:
-                raise ValueError(f"Mass fraction for {key.name} must be between 0 and 100, got {value}.")
-
-        if self._update_properties:
-            
-            try:
-                original = self._active_materials
-                self._active_materials = {key: value / 100 for key, value in active_materials.items()}
-                self._check_formulation()
-            except ValueError as e:
-                self._active_materials = original
-                raise e
-
-            self._get_properties()
-
-        else:
-            self._active_materials = {key: value / 100 for key, value in active_materials.items()}
-
-        voltage_cutoff_ranges = [material._voltage_cutoff_range for material in self._active_materials.keys()]
-        starts, ends = zip(*voltage_cutoff_ranges)
-        common_start = max(starts) if type(self) == CathodeFormulation else min(starts)
-        common_end = min(ends) if type(self) == CathodeFormulation else max(ends)
-
-        if (common_start <= common_end and type(self) == CathodeFormulation) or (common_start >= common_end and type(self) == AnodeFormulation):
-            self._voltage_cutoff_range = (common_start, common_end)
-        else:
-            raise ValueError("The active materials have incompatible voltage cutoff ranges.")
 
     @property
     def binders(self) -> Dict[Binder, float]:
         return {key: value * 100 for key, value in self._binders.items()} if self._binders != {} else {} 
-    
-    @binders.setter
-    def binders(self, binders: Optional[Dict[Binder, float]] = None):
-
-        if binders != {}:        
-
-            for key, value in binders.items():
-                if not isinstance(key, Binder):
-                    raise TypeError(f"Expected an instance of Binder, got {type(key)}.")
-                if not isinstance(value, (int, float)):
-                    raise TypeError(f"Expected a numeric value for mass fraction, got {type(value)}.")
-                if value < 0 or value > 100:
-                    raise ValueError(f"Mass fraction for {key.name} must be between 0 and 100, got {value}.")
-        
-        if self._update_properties:
-
-            try:
-                original = self._binders
-                self._binders = {key: value / 100 for key, value in binders.items()}
-                self._check_formulation()
-            except ValueError as e:
-                self._binders = original
-                raise e
-
-            self._get_properties()
-
-        else:
-            self._binders = {key: value / 100 for key, value in binders.items()}
 
     @property
     def conductive_additives(self) -> Dict[ConductiveAdditive, float]:
         return {key: value * 100 for key, value in self._conductive_additives.items()} if self._conductive_additives != {} else {}
-    
-    @conductive_additives.setter
-    def conductive_additives(self, conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None):
-
-        if conductive_additives != {}:
-
-            for key, value in conductive_additives.items():
-                if not isinstance(key, ConductiveAdditive):
-                    raise TypeError(f"Expected an instance of ConductiveAdditive, got {type(key)}.")
-                if not isinstance(value, (int, float)):
-                    raise TypeError(f"Expected a numeric value for mass fraction, got {type(value)}.")
-                if value < 0 or value > 100:
-                    raise ValueError(f"Mass fraction for {key.name} must be between 0 and 100, got {value}.")
-            
-        if self._update_properties:
-
-            try:
-                original = self._conductive_additives
-                self._conductive_additives = {key: value / 100 for key, value in conductive_additives.items()}
-                self._check_formulation()
-            except ValueError as e:
-                self._conductive_additives = original
-                raise e
-
-            self._get_properties()
-
-        else:
-            self._conductive_additives = {key: value / 100 for key, value in conductive_additives.items() if key is not None}
 
     @property
     def voltage_cutoff(self) -> float:
@@ -483,29 +426,7 @@ class _ElectrodeFormulation:
         
         :return: float: maximum voltage of the half cell curves
         """
-        return round(float(self.half_cell_curves['Maximum Voltage (V)'].max()), 3)
-
-    @voltage_cutoff.setter
-    def voltage_cutoff(self, voltage: float):
-        """
-        Set the voltage cutoff for the half cell curves.
-        
-        :param voltage: float: maximum voltage of the half cell curves
-        """
-        if voltage is None:
-            voltage = max(self._voltage_cutoff_range) if type(self) == CathodeFormulation else min(self._voltage_cutoff_range)
-
-        if not isinstance(voltage, (float, int)):
-            raise ValueError("Voltage cutoff must be a float")
-        
-        if voltage < min(self._voltage_cutoff_range) or voltage > max(self._voltage_cutoff_range):
-            raise ValueError(f"Voltage cutoff must be within the range {self.voltage_cutoff_range}")
-        
-        # set the voltage cutoff for each active material
-        for material in self._active_materials:
-            material.voltage_cutoff = voltage
-
-        self._calculate_half_cell_curve(voltage)
+        return round(self._voltage_cutoff, 3)
 
     @property
     def density(self) -> float:
@@ -524,39 +445,110 @@ class _ElectrodeFormulation:
         return {key: round(value * KG_TO_G / (M_TO_CM ** 3), 4) for key, value in self._density_breakdown.items()}
 
     @property
-    def voltage_cutoff_range(self) -> tuple:
+    def voltage_operating_window(self) -> tuple:
         """
         Get the valid voltage range for the half cell curves.
         
         :return: tuple: (minimum voltage, maximum voltage)
         """
-        return (round(self._voltage_cutoff_range[0], 3), round(self._voltage_cutoff_range[1], 3))
+        return (
+            round(self._voltage_operating_window[0], 3), 
+            round(self._voltage_operating_window[1], 3)
+        )
 
     @property
     def half_cell_curve(self) -> pd.DataFrame:
 
-        if not hasattr(self, '_half_cell_curve'):
-            raise ValueError(f"A half cell curve for {self.name} has not been calculated yet. Please set a voltage cutoff or a maximum specific capacity before accessing this property.")
-
-        data = (self
-                ._half_cell_curve
-                .assign(
-                    specific_capacity = lambda x: x['specific_capacity'] * (S_TO_H * A_TO_mA / KG_TO_G),
-                )
-                .rename(
-                    columns={
-                        'specific_capacity': 'Specific Capacity (mAh/g)', 
-                        'voltage': 'Voltage (V)', 
-                        'direction': 'Direction',
-                        }
-                    )
-                )
-        
-        return data
+        return (
+            pd.DataFrame(
+                self._half_cell_curve,
+                columns=['specific_capacity', 'voltage', 'direction']
+            )
+            .assign(
+                direction = lambda x: np.where(x['direction'] == 1, 'charge', 'discharge'),
+                specific_capacity = lambda x: x['specific_capacity'] * (S_TO_H * A_TO_mA / KG_TO_G),
+            ).rename(
+                columns={
+                    'specific_capacity': 'Specific Capacity (mAh/g)', 
+                    'voltage': 'Voltage (V)', 
+                    'direction': 'Direction',
+                }
+            ).round(
+                4
+            )
+        )
 
     @property
     def color(self) -> str:
         return self._color
+
+    @name.setter
+    def name(self, name: str):
+        self.validate_string(name, "Name")        
+        self._name = name
+
+    @conductive_additives.setter
+    @calculate_all_properties
+    def conductive_additives(self, conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None):
+
+        if conductive_additives != {}:
+
+            for key, value in conductive_additives.items():
+                self.validate_conductive_additive(key)
+                self.validate_percentage(value, f"Mass fraction for {key.name}")
+
+        self._conductive_additives = {key: value / 100 for key, value in conductive_additives.items() if key is not None}
+        
+    @binders.setter
+    def binders(self, binders: Optional[Dict[Binder, float]] = None):
+
+        if binders != {}:        
+
+            for key, value in binders.items():
+                self.validate_binder(key)
+                self.validate_percentage(value, f"Mass fraction for {key.name}")
+        
+        self._binders = {key: value / 100 for key, value in binders.items()}
+ 
+    @active_materials.setter
+    @calculate_all_properties
+    def active_materials(self, active_materials: Dict[_ActiveMaterial, float]):
+
+        # Check if active_materials is empty
+        if len(active_materials) == 0:
+            raise ValueError("You must include at least one active material in the formulation.")
+
+        # Check the types and values of the active materials
+        for key, value in active_materials.items():
+            self.validate_active_material(key)
+            self.validate_percentage(value, f"Mass fraction for {key.name}")
+
+        self._active_materials = {key: value / 100 for key, value in active_materials.items()}
+        self._get_voltage_operation_window()
+
+    @voltage_cutoff.setter
+    @calculate_half_cell_curve
+    def voltage_cutoff(self, voltage: float):
+        """
+        Set the voltage cutoff for the half cell curves.
+        
+        :param voltage: float: maximum voltage of the half cell curves
+        """
+        self._get_voltage_operation_window()
+
+        if voltage is None:
+            voltage = max(self._voltage_operation_window) if type(self) == CathodeFormulation else min(self._voltage_operation_window)
+
+        self.validate_positive_float(voltage, "Voltage cutoff")
+        
+        if voltage < min(self._voltage_operation_window) or voltage > max(self._voltage_operation_window):
+            raise ValueError(f"Voltage cutoff must be within the range {self._voltage_operation_window}")
+        
+        # set the voltage cutoff for each active material
+        for material in self._active_materials:
+            material.voltage_cutoff = voltage
+
+        self._voltage_cutoff = voltage
 
     def __str__(self) -> str:
         return self._name if self._name else "Electrode Formulation"
@@ -645,4 +637,6 @@ class AnodeFormulation(_ElectrodeFormulation):
         )
         
         self._update_properties = True
+
+
 

@@ -5,25 +5,9 @@ from uuid import uuid4
 
 from general.enumerated_classes import CategoricalProperty
 
+from OpenCell.DataManager import DataManager
+
 ### Database Helpers ###
-
-def get_data_manager() -> Type:
-    """
-    Establish a connection to the database.
-    
-    Returns
-    -------
-    DataManager
-        An instance of DataManager connected to the database.
-    """
-    from OpenCell.DataManager import DataManager
-    
-    # Establish the connection to the database
-    CURRENT_DIR = Path(__file__).resolve().parent
-    DATA_PATH = CURRENT_DIR / '..' / '..' / 'Data' / 'database.db'
-    dm = DataManager(DATA_PATH)
-    return dm
-
 def get_internal_construction_options(form_factor):
     """
     Fetch internal construction options based on the form factor.
@@ -39,7 +23,7 @@ def get_internal_construction_options(form_factor):
         A list of dictionaries containing the internal construction options.
     """    
     options = (
-        get_data_manager()
+        DataManager()
         .get_data('cells')
         .query(f"form_factor == '{form_factor}'")
         .filter(['internal_construction'])
@@ -68,7 +52,7 @@ def get_electrochemical_reference_options(internal_construction, form_factor):
         A list of dictionaries containing the electrochemical reference options.
     """
     options = (
-        get_data_manager()
+        DataManager()
         .get_data('cells')
         .query(f"form_factor == '{form_factor}'")
         .query(f"internal_construction == '{internal_construction}'")
@@ -100,7 +84,7 @@ def get_cell_name_options(internal_construction, electrochemical_reference, form
         A list of dictionaries containing the cell name options.
     """
     options = (
-        get_data_manager()
+        DataManager()
         .get_data('cells')
         .query(f"form_factor == '{form_factor}'")
         .query(f"internal_construction == '{internal_construction}'")
@@ -135,12 +119,9 @@ def get_cell_from_database(cell_name: str) -> Type:
     from base64 import b64decode
     from pickle import loads
 
-    # get datamanage
-    dm = get_data_manager()
-
     # get the pickled cell data from the database
     pickled_cell = (
-        dm
+        DataManager()
         .get_data('cells')
         .query(f"name == '{cell_name}'")
         .iloc[0]
