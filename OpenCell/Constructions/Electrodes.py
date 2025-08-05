@@ -4,6 +4,7 @@ from OpenCell.Materials.RawMaterials import InsulationMaterial
 
 from OpenCell.Constants import *
 from OpenCell.Decorators import *
+from OpenCell.Mixins import ValidationMixin, CoordinateMixin
 
 import pandas as pd
 import numpy as np
@@ -12,7 +13,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 
-class _Electrode:
+class _Electrode(ValidationMixin, CoordinateMixin):
     """
     Base class for electrodes, representing the common properties and methods of an electrode.
     """
@@ -61,13 +62,74 @@ class _Electrode:
         self.insulation_material = insulation_material
         self.insulation_thickness = insulation_thickness
         self.datum = datum
+        self.voltage_cutoff = voltage_cutoff
 
+        self._calculate_all_properties()
+
+    def _calculate_all_properties(self) -> None:
+        self._calculate_bulk_properties()
+        self._calculate_half_cell_curve()
+        self._calculate_coordinates()
+
+    def _calculate_half_cell_curve(self) -> None:
+
+        # get the half cell curve from the formulation
+        curve = self._formulation._half_cell_curve.copy()
+
+        # calculate the capacity
+        capacity = curve[:, 0] * self._coating_mass
+
+        # calculate the areal capacity
+        areal_capacity = capacity / self._current_collector._coated_area
+        
+        # set 
+        self._half_cell_curve = np.column_stack([curve, capacity, areal_capacity])
+
+    def _calculate_bulk_properties(self) -> None:
         self._calculate_porosity()
         self._calculate_thickness_properties()
         self._calculate_mass_properties()
         self._calculate_cost_properties()
 
-        self.voltage_cutoff = voltage_cutoff
+    def _calculate_coordinates(self) -> None:
+        """Calculate coating and insulation coordinates for both sides of the electrode."""
+        
+        def _calculate_side_coordinates(side: str) -> None:
+            """Calculate coordinates for one side (a or b)."""
+            side_multiplier = 1 if side == 'a' else -1
+            
+            # Calculate coating coordinates
+            coating_coordinates = getattr(self._current_collector, f'_{side}_side_coated_coordinates')
+
+            coating_datum = (
+                self._datum[0], 
+                self._datum[1], 
+                self._datum[2] + side_multiplier * (self._current_collector._thickness / 2 + self._coating_thickness / 2)
+            )
+            
+            x, y, z, _ = self.extrude_footprint(
+                coating_coordinates[:, 0],
+                coating_coordinates[:, 1],
+                coating_datum,
+                self._coating_thickness,
+            )
+
+            setattr(self, f'_{side}_side_coating_coordinates', np.column_stack([x, y, z]))
+            
+            # Calculate insulation coordinates
+            insulation_coordinates = getattr(self._current_collector, f'_{side}_side_insulation_coordinates')
+            
+            x, y, z, _ = self.extrude_footprint(
+                insulation_coordinates[:, 0],
+                insulation_coordinates[:, 1],
+                coating_datum,  # Use same datum as coating
+                self._insulation_thickness,
+            )
+            setattr(self, f'_{side}_side_insulation_coordinates', np.column_stack([x, y, z]))
+        
+        # Calculate for both sides
+        _calculate_side_coordinates('a')
+        _calculate_side_coordinates('b')
 
     def _calculate_mass_properties(self) -> None:
         """
@@ -101,25 +163,22 @@ class _Electrode:
         """
         Calculate the thickness properties of the electrode.
         """
-        self._minimum_coating_thickness = self._mass_loading / self._formulation._density
-        self._minimum_coating_volume = self._current_collector._coated_area * self._minimum_coating_thickness
-
         self._coating_thickness = self._mass_loading / self._calender_density
         self._coating_volume = self._current_collector._coated_area * self._coating_thickness
         self._thickness = self._coating_thickness * 2 + self._current_collector._thickness
         self._pore_volume = self._coating_volume * self._porosity
 
-        if self._insulation_thickness > self._coating_thickness:
+        _minimum_coating_thickness = self._mass_loading / self._formulation._density
+        self._minimum_coating_volume = _minimum_coating_thickness * self._current_collector._coated_area
 
-            raise ValueError(f"""Insulation thickness of {self.insulation_thickness} um cannot be 
-                             greater than coating thickness of {self.coating_thickness}. Increase 
-                             your mass loading or decrease insulation thickness.""")
-        
-        if self._coating_thickness < self._minimum_coating_thickness:
+        if self._coating_thickness < _minimum_coating_thickness:
 
             raise ValueError(f"""Your caldender density of {self.calender_density} g/cm^3 is too high, 
                              leading to negative porosity. Decrease your calender density below 
                              {self._formulation._density} g/cm^3.""")
+        
+        if self._insulation_thickness > self._coating_thickness:
+            raise ValueError("Insulation thickness cannot be greater than coating thickness")
 
     def _calculate_porosity(self) -> None:
         """
@@ -145,34 +204,45 @@ class _Electrode:
 
         self._porosity = porosity
 
-    def _get_top_down_view(self, side: str = 'a', **kwargs) -> pd.DataFrame:
+    def _get_full_top_down_view(self, **kwargs) -> pd.DataFrame:
         """
         Helper method to get a top-down view of the electrode.
         """
-        if side == 'a':
-            figure = self._current_collector.get_a_side_view(**kwargs)
-        elif side == 'b':
-            figure = self._current_collector.get_b_side_view(**kwargs)
-        else:
-            raise ValueError("Side must be either 'a' or 'b'.")
-        
-        for trace in figure.data:
-
-            if trace.name == "Coated Area":
-                trace.name = self._formulation.name
-                trace.fill = 'toself'
-                trace.fillcolor = self._formulation._color
-                trace.fillpattern = None
-
-            elif trace.name == "Insulation Strip":
-                trace.name = self._insulation_material.name if self._insulation_material else 'No Insulation'
-                trace.fill = 'toself'
-                trace.fillcolor = self._insulation_material._color if self._insulation_material else 'rgba(0,0,0,0)'
-                trace.fillpattern = None
-
+        figure = self._current_collector._get_full_top_down_view(**kwargs)
+        figure.data = [trace for trace in figure.data if trace.name == "Body"]
+        figure.data[0].name = self.current_collector.name
+        figure.add_trace(self.top_down_coating_trace)
+        figure.add_trace(self.top_down_insulation_trace)
         return figure
 
-    def plot_half_cell_curve(self, areal: bool = False, **kwargs) -> None:
+    def _get_full_right_left_view(self, **kwargs) -> pd.DataFrame:
+        figure = self._current_collector.get_right_left_view(**kwargs)
+        figure.data = [trace for trace in figure.data if trace.name == "Body"]
+        figure.data[0].name = self.current_collector.name
+        figure.add_trace(self.right_left_a_side_coating_trace)
+        figure.add_trace(self.right_left_b_side_coating_trace)
+        figure.add_trace(self.right_left_a_side_insulation_trace)
+        figure.add_trace(self.right_left_b_side_insulation_trace)
+        return figure
+
+    @calculate_coordinates
+    def flip(self, axis: str) -> None:
+        """
+        Function to rotate the electrode around a specified axis by 180 degrees
+        around the current datum position.
+
+        Parameters
+        ----------
+        axis : str
+            The axis to rotate around. Must be 'x' or 'y'.
+        """
+        if axis not in ['x', 'y']:
+            raise ValueError("Axis must be 'x' or 'y'.")
+
+        # Flip the current collector first (this handles all current collector coordinates)
+        self._current_collector.flip(axis)
+        
+    def plot_half_cell_curve(self, areal: bool = True, **kwargs) -> None:
         """
         Plot the half cell curve of the electrode.
 
@@ -181,15 +251,12 @@ class _Electrode:
         areal : bool, optional
             If True, plot the areal capacity instead of the specific capacity (default is False).
         """
-        if not hasattr(self, '_half_cell_curve'):
-            raise ValueError(f"A half cell curve for {self.name} has not been calculated yet. Please set a voltage cutoff before plotting.")
-
-        x = 'Capacity (Ah)' if not areal else 'Areal Capacity (mAh/cm²)'
+        x_col = 'Capacity (Ah)' if not areal else 'Areal Capacity (mAh/cm²)'
 
         fig = px.line(
             self.half_cell_curve, 
             y='Voltage (V)', 
-            x=x, 
+            x=x_col, 
             line_shape='spline', 
             template='presentation', 
             **kwargs
@@ -201,84 +268,206 @@ class _Electrode:
 
         return fig    
 
-    def get_a_side_view(self, **kwargs) -> go.Figure:
-        """
-        Get a side view of the electrode.
-        """
-        figure = self._get_top_down_view(side='a', **kwargs)
+    def get_top_down_view(self, **kwargs) -> go.Figure:
+        figure = self.current_collector.get_top_down_view(**kwargs)
+        figure.data = [trace for trace in figure.data if trace.name == "Body"]
+        figure.add_trace(self.top_down_coating_trace)
+        figure.add_trace(self.top_down_insulation_trace)
         return figure
+
+    def get_a_side_view(self, **kwargs) -> go.Figure:
+
+        if self.top_side == 'a':
+            return self.get_top_down_view(**kwargs)
+        else:
+            self.flip('y')
+            figure = self.get_top_down_view(**kwargs)
+            self.flip('y')
+            return figure
 
     def get_b_side_view(self, **kwargs) -> go.Figure:
+
+        if self.top_side == 'b':
+            return self.get_top_down_view(**kwargs)
+        else:
+            self.flip('y')
+            figure = self.get_top_down_view(**kwargs)
+            self.flip('y')
+            return figure
+
+    def get_cross_section(self, **kwargs) -> go.Figure:
         """
-        Get a side view of the electrode.
+        Get a cross-section view of the electrode, zoomed in around the datum.
         """
-        figure = self._get_top_down_view(side='b', **kwargs)
+        figure = self._get_full_right_left_view(**kwargs)
+        
+        # Get datum coordinates in mm (for plotting)
+        datum_y = self.datum[1]  # y-coordinate of datum
+        datum_z = self.datum[2]  # z-coordinate of datum
+        
+        # Get total thickness in mm (electrode thickness includes coating on both sides + current collector)
+        total_thickness_mm = self.thickness * UM_TO_MM
+        
+        # Calculate zoom range (1.5x the thickness)
+        zoom_range = total_thickness_mm * 1.5
+        half_range = zoom_range / 2
+        
+        # Set axis ranges centered on datum
+        y_range = [datum_y - half_range, datum_y + half_range]
+        
+        # Update layout to zoom in and lock aspect ratio
+        figure.update_layout(
+            xaxis=dict(
+                range = y_range,
+                scaleanchor="y",  # Lock aspect ratio
+                scaleratio=1,
+            ),
+            yaxis=dict(
+                scaleratio=1,
+            ),
+            **kwargs
+        )
+        
         return figure
 
-    def get_end_view(self, **kwargs) -> go.Figure:
+    @property
+    def right_left_a_side_insulation_trace(self) -> pd.DataFrame:
         """
-        Get a side view of the electrode, including coatings and insulation.
+        Get the coordinates of the a side insulated area.
         """
-        figure = self._current_collector.get_end_view(**kwargs)
+        # get the coordinates
+        a_side_insulation_coordinates = self.order_coordinates_clockwise(self.a_side_insulation_coordinates, plane='yz')
 
-        def add_patch(trace, y_base, y_thickness, material, showlegend):
-
-            y_data = trace.y
-            df = build_square_df(
-                x=min(y_data),
-                y=y_base,
-                x_width=max(y_data) - min(y_data),
-                y_width=y_thickness
-            )
-            
-            figure.add_trace(
-                go.Scatter(
-                    x=df['x'],
-                    y=df['y'],
-                    fill='toself',
-                    fillcolor=material._color,
-                    mode='lines',
-                    name=material.name,
-                    line=dict(color='black', width=0.5),
-                    showlegend=showlegend,
-                    legendgroup=material.name
-                )
-            )
-
-        # Add coatings
-        add_patch(
-            self._current_collector._a_side_coated_area_trace,
-            self._current_collector._datum[2] + self._current_collector._thickness / 2,
-            self._coating_thickness,
-            self._formulation,
+        # make the trace
+        a_side_insulation_trace = go.Scatter(
+            x=a_side_insulation_coordinates['y'],
+            y=a_side_insulation_coordinates['z'],
+            mode='lines',
+            name='A Side Insulated Area',
+            line=dict(width=1, color='black'),
+            fill='toself',
+            fillcolor=self._insulation_material._color,
+            legendgroup='A Side Insulated Area',
             showlegend=True
         )
-        add_patch(
-            self._current_collector._b_side_coated_area_trace,
-            self._current_collector._datum[2] - self._current_collector._thickness / 2,
-            -self._coating_thickness,
-            self._formulation,
-            showlegend=False
+
+        return a_side_insulation_trace
+    
+    @property
+    def right_left_b_side_insulation_trace(self) -> pd.DataFrame:
+        """
+        Get the coordinates of the b side insulated area.
+        """
+        # get the coordinates
+        b_side_insulation_coordinates = self.order_coordinates_clockwise(self.b_side_insulation_coordinates, plane='yz')
+
+        # make the trace
+        b_side_insulation_trace = go.Scatter(
+            x=b_side_insulation_coordinates['y'],
+            y=b_side_insulation_coordinates['z'],
+            mode='lines',
+            name='B Side Insulated Area',
+            line=dict(width=1, color='black'),
+            fill='toself',
+            fillcolor=self._insulation_material._color,
+            legendgroup='B Side Insulated Area',
+            showlegend=True
         )
 
-        # Add insulation if present
-        if self._insulation_material:
-            add_patch(
-                self._current_collector._a_side_insulation_area_trace,
-                self._current_collector._datum[2] + self._current_collector._thickness / 2,
-                self._insulation_thickness,
-                self._insulation_material,
-                showlegend=True
-            )
-            add_patch(
-                self._current_collector._b_side_insulation_area_trace,
-                self._current_collector._datum[2] - self._current_collector._thickness / 2,
-                -self._insulation_thickness,
-                self._insulation_material,
-                showlegend=False
-            )
+        return b_side_insulation_trace
 
-        return figure
+    @property
+    def right_left_a_side_coating_trace(self) -> pd.DataFrame:
+        """
+        Get the coordinates of the a side coated area.
+        """
+        # get the coordinates
+        a_side_coating_coordinates = self.order_coordinates_clockwise(self.a_side_coating_coordinates, plane='yz')
+
+        # make the trace
+        a_side_coating_trace = go.Scatter(
+            x=a_side_coating_coordinates['y'],
+            y=a_side_coating_coordinates['z'],
+            mode='lines',
+            name='A Side Coated Area',
+            line=dict(width=1, color='black'),
+            fill='toself',
+            fillcolor=self._formulation._color,
+            legendgroup='A Side Coated Area',
+            showlegend=True
+        )
+
+        return a_side_coating_trace
+
+    @property
+    def right_left_b_side_coating_trace(self) -> pd.DataFrame:
+        """
+        Get the coordinates of the b side coated area.
+        """
+        # get the coordinates
+        b_side_coating_coordinates = self.order_coordinates_clockwise(self.b_side_coating_coordinates, plane='yz')
+
+        # make the trace
+        b_side_coating_trace = go.Scatter(
+            x=b_side_coating_coordinates['y'],
+            y=b_side_coating_coordinates['z'],
+            mode='lines',
+            name='B Side Coated Area',
+            line=dict(width=1, color='black'),
+            fill='toself',
+            fillcolor=self._formulation._color,
+            legendgroup='B Side Coated Area',
+            showlegend=True
+        )
+
+        return b_side_coating_trace
+
+    @property
+    def top_side(self) -> str:
+        return self._current_collector.top_side
+
+    @property
+    def top_down_coating_trace(self) -> go.Scatter:
+
+        side = self.current_collector.top_side
+        coated_area_coordinates = self.a_side_coating_coordinates if side == 'a' else self.b_side_coating_coordinates
+
+        # make the coated area trace
+        coated_area_trace = go.Scatter(
+            x=coated_area_coordinates['x'], 
+            y=coated_area_coordinates['y'], 
+            mode='lines', 
+            name='A Side Coating' if side == 'a' else 'B Side Coating',
+            line=dict(width=1, color='black'), 
+            fillcolor=self.formulation.color, 
+            fill='toself',
+        )
+
+        return coated_area_trace
+
+    @property
+    def top_down_insulation_trace(self) -> go.Scatter:
+        """
+        Get the top-down insulation trace of the electrode.
+        """
+        if not self._insulation_material:
+            return None
+
+        side = self.current_collector.top_side
+        insulation_coordinates = self.a_side_insulation_coordinates if side == 'a' else self.b_side_insulation_coordinates
+
+        # make the insulation area trace
+        insulation_area_trace = go.Scatter(
+            x=insulation_coordinates['x'], 
+            y=insulation_coordinates['y'], 
+            mode='lines', 
+            name='A Side Insulation' if side == 'a' else 'B Side Insulation',
+            line=dict(width=1, color='black'), 
+            fillcolor=self.insulation_material.color, 
+            fill='toself',
+        )
+
+        return insulation_area_trace
 
     @property
     def datum(self) -> Tuple[float, float, float]:
@@ -292,115 +481,18 @@ class _Electrode:
             round(self._datum[1] * M_TO_MM, 1),
             round(self._datum[2] * M_TO_MM, 1)
         )
-    
-    @datum.setter
-    def datum(self, datum: Tuple[float, float, float]):
-        """
-        Set the datum of the electrode.
-
-        :param datum: Tuple containing the x, y, z coordinates of the electrode's datum.
-        """
-        if not isinstance(datum, tuple) or len(datum) != 3:
-            raise TypeError("Datum must be a tuple of three floats (x, y, z coordinates)")
-        
-        self._datum = tuple(d * MM_TO_M for d in datum)
-        self._current_collector.datum = datum
 
     @property
     def formulation(self) -> _ElectrodeFormulation:
-        """
-        Get the formulation of the electrode.
-
-        :return: Formulation of the electrode.
-        """
         return self._formulation
-    
-    @formulation.setter
-    def formulation(self, formulation: _ElectrodeFormulation):
-
-        if not isinstance(formulation, _ElectrodeFormulation):
-            raise TypeError("Formulation must be an ElectrodeFormulation object")
-
-        self._formulation = formulation
-
-        if self._update_properties:
-            self._calculate_porosity()
-            self._calculate_thickness_properties()
-            self._calculate_mass_properties()
-            self._calculate_cost_properties()
 
     @property
     def voltage_cutoff(self) -> float:
-        """
-        Get the maximum voltage of the half cell curves.
-        
-        :return: float: maximum voltage of the half cell curves
-        """
-        return round(float(self.half_cell_curves['Maximum Voltage (V)'].max()), 3)
-
-    @voltage_cutoff.setter
-    def voltage_cutoff(self, voltage: float):
-        """
-        Set the voltage cutoff for the half cell curves.
-        
-        :param voltage: float: maximum voltage of the half cell curves
-        """
-        self._formulation.voltage_cutoff = voltage
-        self._voltage_cutoff = voltage
-        
-        data = (
-            self
-            ._formulation
-            ._half_cell_curve
-            .assign(
-                capacity = lambda x: x['specific_capacity'] * self._coating_mass,
-                areal_capacity = lambda x: x['capacity'] / (self._current_collector._coated_area),
-            ).drop(
-                columns=['specific_capacity']
-            )
-        )
-
-        self._half_cell_curve = data
+        return round(self._voltage_cutoff, 3)
 
     @property
     def insulation_material(self) -> InsulationMaterial:
-        """
-        Get the insulation material of the electrode.
-
-        :return: Insulation material of the electrode.
-        """
         return self._insulation_material
-    
-    @insulation_material.setter
-    def insulation_material(self, insulation_material: InsulationMaterial):
-        """
-        Check if the insulation material is valid.
-
-        Parameters:
-        ----------
-        insulation_material : InsulationMaterial
-            The insulation material to check.
-
-        Raises:
-        -------
-        TypeError: If the insulation material is not an InsulationMaterial object.
-        ValueError: If the insulation material is not provided when the current collector has an insulation width.
-        ----------
-        """
-        if insulation_material is not None and not isinstance(insulation_material, InsulationMaterial):
-            raise TypeError("Insulation material must be an InsulationMaterial object")
-        
-        if self._current_collector._insulation_area != 0 and insulation_material is None:
-            raise ValueError("Insulation material must be provided if the current collector has an insulation width")
-        
-        if self._current_collector._insulation_area == 0 and insulation_material is not None:
-            raise ValueError("Insulation material cannot be provided if the current collector does not have an insulation area")
-        
-        self._insulation_material = insulation_material
-
-        if self._update_properties:
-            self._calculate_mass_properties()
-            self._calculate_cost_properties()
 
     @property
     def properties(self) -> Dict[str, Any]:
@@ -427,37 +519,17 @@ class _Electrode:
         """
         return round(self._insulation_thickness * M_TO_UM, 2)
 
-    @insulation_thickness.setter
-    def insulation_thickness(self, insulation_thickness: float):
+    @property
+    def insulation_thickness_range(self) -> Tuple[float, float]:
         """
-        Check if the insulation thickness is valid.
+        Get the range of insulation thickness of the electrode.
 
-        Parameters:
-        ----------
-        insulation_thickness : float
-            The thickness of the insulation material in micrometers.
-        
-        Raises:
-        -------
-        TypeError: If the insulation thickness is not a number.
-        ValueError: If the insulation thickness is less than zero.
-        ----------
+        :return: Tuple containing the minimum and maximum insulation thickness in micrometers.
         """
-        if not isinstance(insulation_thickness, (int, float)):
-            raise TypeError("Insulation thickness must be a number")
-        
-        if insulation_thickness < 0:
-            raise ValueError("Insulation thickness must be greater than or equal to zero")
-        
-        if self._insulation_material is not None and insulation_thickness == 0:
-            raise ValueError("Insulation thickness must be greater than zero if insulation material is provided")
-        
-        self._insulation_thickness = insulation_thickness * UM_TO_M
-
-        if self._update_properties:
-            self._calculate_thickness_properties()
-            self._calculate_mass_properties()
-            self._calculate_cost_properties()
+        return (
+            0, 
+            self._coating_thickness * M_TO_UM
+        )
 
     @property
     def coating_thickness(self) -> float:
@@ -489,28 +561,29 @@ class _Electrode:
     @property
     def half_cell_curve(self) -> pd.DataFrame:
 
-        if not hasattr(self, '_half_cell_curve'):
-            raise ValueError(f"A half cell curve for {self.name} has not been calculated yet. Please set a voltage cutoff or a maximum specific capacity before accessing this property.")
-
-        data = (self
-                ._half_cell_curve
-                .assign(
-                    capacity = lambda x: x['capacity'] * (S_TO_H),
-                    areal_capacity = lambda x: x['areal_capacity'] * ((S_TO_H * A_TO_mA)/M_TO_CM**2),
-                ).filter(
+        return (
+            pd.DataFrame(
+                self._half_cell_curve,
+                columns=['specific_capacity', 'voltage', 'direction', 'capacity', 'areal_capacity']
+            )
+            .assign(
+                direction = lambda x: np.where(x['direction'] == 1, 'charge', 'discharge'),
+                specific_capacity = lambda x: x['specific_capacity'] * (S_TO_H * A_TO_mA / KG_TO_G),
+                capacity = lambda x: x['capacity'] * (S_TO_H),
+                areal_capacity = lambda x: x['areal_capacity'] * (S_TO_H * A_TO_mA / M_TO_CM**2)
+            ).filter(
                     items=['capacity', 'voltage', 'direction', 'areal_capacity']
-                )
-                .rename(
-                    columns={
-                        'capacity': 'Capacity (Ah)', 
-                        'voltage': 'Voltage (V)', 
-                        'direction': 'Direction',
-                        'areal_capacity': 'Areal Capacity (mAh/cm²)'
-                        }
-                    )
-                )
-        
-        return data
+            ).rename(
+                columns={
+                    'capacity': 'Capacity (Ah)', 
+                    'voltage': 'Voltage (V)', 
+                    'direction': 'Direction',
+                    'areal_capacity': 'Areal Capacity (mAh/cm²)'
+                }
+            ).round(
+                4
+            )
+        )
 
     @property
     def porosity(self) -> float:
@@ -530,20 +603,69 @@ class _Electrode:
         """
         return round(self._calender_density * (KG_TO_G / M_TO_CM**3), 2)
 
-    @calender_density.setter
-    def calender_density(self, calender_density: float):
+    @property
+    def a_side_insulation_coordinates(self) -> pd.DataFrame:
+        """
+        Get the A side insulation coordinates of the current collector.
+        """
+        return (
+            pd.DataFrame(
+                self._a_side_insulation_coordinates,
+                columns=['x', 'y', 'z']
+            ).assign(
+                x = lambda x: (x['x'].astype(float) * M_TO_MM).round(10),
+                y = lambda x: (x['y'].astype(float) * M_TO_MM).round(10),
+                z = lambda x: (x['z'].astype(float) * M_TO_MM).round(10)
+            )
+        )
+    
+    @property
+    def b_side_insulation_coordinates(self) -> pd.DataFrame:
+        """
+        Get the B side insulation coordinates of the current collector.
+        """
+        return (
+            pd.DataFrame(
+                self._b_side_insulation_coordinates,
+                columns=['x', 'y', 'z']
+            ).assign(
+                x = lambda x: (x['x'].astype(float) * M_TO_MM).round(10),
+                y = lambda x: (x['y'].astype(float) * M_TO_MM).round(10),
+                z = lambda x: (x['z'].astype(float) * M_TO_MM).round(10)
+            )
+        )
 
-        if not isinstance(calender_density, (int, float)):
-            raise TypeError("Calender density must be a number")
+    @property
+    def a_side_coating_coordinates(self) -> pd.DataFrame:
+        """
+        Get the A side coating coordinates of the current collector.
+        """
+        return (
+            pd.DataFrame(
+                self._a_side_coating_coordinates,
+                columns=['x', 'y', 'z']
+            ).assign(
+                x = lambda x: (x['x'].astype(float) * M_TO_MM).round(10),
+                y = lambda x: (x['y'].astype(float) * M_TO_MM).round(10),
+                z = lambda x: (x['z'].astype(float) * M_TO_MM).round(10)
+            )
+        ) 
 
-        if calender_density <= 0:
-            raise ValueError("Calender density must be greater than zero")
-
-        self._calender_density = calender_density * (G_TO_KG / CM_TO_M**3)
-
-        if self._update_properties:
-            self._calculate_porosity()
-            self._calculate_thickness_properties()
+    @property
+    def b_side_coating_coordinates(self) -> pd.DataFrame:
+        """
+        Get the B side coating coordinates of the current collector.
+        """
+        return (
+            pd.DataFrame(
+                self._b_side_coating_coordinates,
+                columns=['x', 'y', 'z']
+            ).assign(
+                x = lambda x: (x['x'].astype(float) * M_TO_MM).round(10),
+                y = lambda x: (x['y'].astype(float) * M_TO_MM).round(10),
+                z = lambda x: (x['z'].astype(float) * M_TO_MM).round(10)
+            )
+        ) 
 
     @property
     def mass_loading(self) -> float:
@@ -554,22 +676,6 @@ class _Electrode:
         """
         return round(self._mass_loading * (KG_TO_MG / M_TO_CM**2), 2)
 
-    @mass_loading.setter
-    def mass_loading(self, mass_loading: float):
-
-        if not isinstance(mass_loading, (int, float)):
-            raise TypeError("Mass loading must be a number")
-
-        if mass_loading <= 0:
-            raise ValueError("Mass loading must be greater than zero")
-        
-        self._mass_loading = mass_loading * (MG_TO_KG / CM_TO_M**2)
-
-        if self._update_properties:
-            self._calculate_thickness_properties()
-            self._calculate_mass_properties()
-            self._calculate_cost_properties()
-
     @property
     def current_collector(self) -> _CurrentCollector:
         """
@@ -579,20 +685,6 @@ class _Electrode:
         """
         return self._current_collector
     
-    @current_collector.setter
-    def current_collector(self, current_collector: _CurrentCollector):
-
-        if not isinstance(current_collector, _CurrentCollector):
-            raise TypeError("Current collector must be a CurrentCollector object")
-
-        self._current_collector = current_collector
-
-        if self._update_properties:
-            self._calculate_porosity()
-            self._calculate_thickness_properties()
-            self._calculate_mass_properties()
-            self._calculate_cost_properties()
-
     @property
     def name(self) -> str:
         """
@@ -601,14 +693,6 @@ class _Electrode:
         :return: Name of the electrode.
         """
         return self._name
-
-    @name.setter
-    def name(self, name: str):
-
-        if not isinstance(name, str):
-            raise TypeError("Name must be a string")
-        
-        self._name = name
 
     @property
     def coating_mass(self) -> float:
@@ -639,12 +723,74 @@ class _Electrode:
 
     @property
     def cost(self) -> float:
-        """
-        Get the cost of the electrode.
-
-        :return: Cost of the electrode.
-        """
         return round(self._cost, 2)
+   
+    @formulation.setter
+    @calculate_all_properties
+    def formulation(self, formulation: _ElectrodeFormulation):
+        self.validate_formulations(formulation)
+        self._formulation = formulation
+
+    @voltage_cutoff.setter
+    @calculate_half_cell_curve
+    def voltage_cutoff(self, voltage: float):
+        self.formulation.voltage_cutoff = voltage
+        self._voltage_cutoff = voltage
+        
+    @calender_density.setter
+    @calculate_volumes
+    def calender_density(self, calender_density: float):
+        self.validate_positive_float(calender_density, 'calender density')        
+        self._calender_density = calender_density * (G_TO_KG / CM_TO_M**3)
+
+    @insulation_material.setter
+    @calculate_bulk_properties
+    def insulation_material(self, insulation_material: InsulationMaterial):
+
+        self.validate_insulation_material(insulation_material)
+
+        if self._current_collector._insulation_area != 0 and insulation_material is None:
+            raise ValueError("Insulation material must be provided if the current collector has an insulation width")
+        
+        if self._current_collector._insulation_area == 0 and insulation_material is not None:
+            raise ValueError("Insulation material cannot be provided if the current collector does not have an insulation area")
+        
+        self._insulation_material = insulation_material
+
+    @insulation_thickness.setter
+    @calculate_volumes
+    def insulation_thickness(self, insulation_thickness: float):
+        self.validate_positive_float(insulation_thickness, 'insulation thickness')
+        self._insulation_thickness = insulation_thickness * UM_TO_M
+
+    @mass_loading.setter
+    @calculate_all_properties
+    def mass_loading(self, mass_loading: float):
+        self.validate_positive_float(mass_loading, 'mass loading')        
+        self._mass_loading = mass_loading * (MG_TO_KG / CM_TO_M**2)
+
+    @current_collector.setter
+    @calculate_all_properties
+    def current_collector(self, current_collector: _CurrentCollector):
+        self.validate_current_collector(current_collector)
+        self._current_collector = current_collector
+
+    @name.setter
+    def name(self, name: str):
+        self.validate_string(name, 'name')
+        self._name = name
+
+    @datum.setter
+    @calculate_coordinates
+    def datum(self, datum: Tuple[float, float, float]):
+        """
+        Set the datum of the electrode.
+
+        :param datum: Tuple containing the x, y, z coordinates of the electrode's datum.
+        """
+        self.validate_datum(datum)
+        self._datum = tuple(d * MM_TO_M for d in datum)
+        self.current_collector.datum = datum
 
     def __str__(self) -> str:
         return self._name

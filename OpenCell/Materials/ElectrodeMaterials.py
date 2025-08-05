@@ -750,6 +750,7 @@ class _ActiveMaterial(_Material, DataMixin):
         :param scaling: float: scaling factor for reversible capacity
         """
         self.validate_fraction(scaling, 'Reversible capacity scaling')
+        
         original_scaling = self._reversible_capacity_scaling if hasattr(self, '_reversible_capacity_scaling') else 1.0
         self._reversible_capacity_scaling = scaling
         
