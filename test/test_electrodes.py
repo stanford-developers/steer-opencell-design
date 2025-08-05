@@ -232,18 +232,16 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
         self.assertEqual(round(sum([a for a in self.cathode._cost_breakdown.values()]), 2), round(self.cathode._cost, 2))
 
     def test_half_cell_curve(self):
-        figure1 = self.cathode.plot_half_cell_curve()
+        figure1 = self.cathode.plot_half_cell_curve(areal=False)
         figure2 = self.cathode.plot_half_cell_curve(areal=True)
         # figure1.show()
         # figure2.show()
 
     def test_views(self):
-        figure1 = self.cathode.get_a_side_view(width=900, height=600)
-        figure2 = self.cathode.get_b_side_view(width=900, height=600)
-        figure3 = self.cathode.get_end_view(width=900, height=600)
+        figure1 = self.cathode.get_a_side_view()
+        figure2 = self.cathode.get_b_side_view()
         # figure1.show()
         # figure2.show()
-        # figure3.show()
 
 
 class testAnodeTabWelded(unittest.TestCase):
@@ -309,7 +307,7 @@ class testAnodeTabWelded(unittest.TestCase):
             {'Synthetic Graphite': 97.73, 
              'CMC': 0.77, 
              'Super P': 0.96, 
-             'Tab Welded Current Collector': 46.37}
+             'Tab Welded Current Collector': 44.19}
         )
 
         self.assertEqual(
@@ -317,7 +315,7 @@ class testAnodeTabWelded(unittest.TestCase):
             {'Synthetic Graphite': 0.22, 
              'CMC': 0.05, 
              'Super P': 0.07, 
-             'Tab Welded Current Collector': 0.28}
+             'Tab Welded Current Collector': 0.81}
         )
 
         self.assertEqual(round(sum([a for a in self.anode._mass_breakdown.values()]), 2), round(self.anode._mass, 2))
@@ -325,7 +323,7 @@ class testAnodeTabWelded(unittest.TestCase):
 
     def test_half_cell_curve(self):
 
-        figure1 = self.anode.plot_half_cell_curve()
+        figure1 = self.anode.plot_half_cell_curve(areal=False)
         figure2 = self.anode.plot_half_cell_curve(areal=True)
 
         # figure1.show()
@@ -333,9 +331,9 @@ class testAnodeTabWelded(unittest.TestCase):
 
     def test_views(self):
 
-        figure1 = self.anode.get_a_side_view(width=900, height=600)
-        figure2 = self.anode.get_b_side_view(width=900, height=600)
-        figure3 = self.anode.get_end_view(width=900, height=600)
+        figure1 = self.anode.get_a_side_view()
+        figure2 = self.anode.get_b_side_view()
+        figure3 = self.anode._get_full_top_down_view()
 
         # figure1.show()
         # figure2.show()
