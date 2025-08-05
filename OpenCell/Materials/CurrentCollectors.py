@@ -77,13 +77,14 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         self.name = name
 
     def _calculate_all_properties(self) -> None:
-
         self._calculate_coordinates()
         self._calculate_areas()
         self._calculate_bulk_properties()
 
     def _calculate_coordinates(self) -> None:
-
+        """
+        When calculating the coordinates, we assume the cc is lying flat in the xy-plane with the a side pointing upwards.
+        """
         self._get_body_coordinates()
         self._get_a_side_coated_coordinates()
         self._get_b_side_coated_coordinates()
@@ -95,9 +96,10 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
     def _calculate_areas(self) -> None:
 
         # calculate the area of the a side
+        mask = self._body_coordinates_side == 'a'
         body_a_side_area = self.get_area_from_points(
-            self._body_coordinates[self._body_coordinates_side == 'a'][:,0],
-            self._body_coordinates[self._body_coordinates_side == 'a'][:,1]
+            self._body_coordinates[mask][:,0],
+            self._body_coordinates[mask][:,1]
         )
 
         # calculate the total upper and lower area of the body
@@ -253,14 +255,15 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
             self.flip('y')
             return figure
 
-    def flip(self, axis: str) -> pd.DataFrame:
+    def flip(self, axis: str) -> None:
         """
-        Function to rotate the current collector around a specified axis by 180 degrees.
+        Function to rotate the current collector around a specified axis by 180 degrees
+        around the current datum position.
 
         Parameters
         ----------
         axis : str
-            The axis to rotate around. Must be 'x', 'y', or 'z'.
+            The axis to rotate around. Must be 'x' or 'y'.
         """
         if axis not in ['x', 'y']:
             raise ValueError("Axis must be 'x' or 'y'.")
@@ -272,31 +275,23 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
 
         rotation_axis = axis_map[axis]
 
-        # shift the datum to the origin
-        old_datum = self._datum
-        self._datum = (0, 0, 0)
-
-        # rotate the coordinates around the specified axis
-        self._body_coordinates = self.rotate_coordinates(self._body_coordinates, rotation_axis, 180)
-        self._a_side_coated_coordinates = self.rotate_coordinates(self._a_side_coated_coordinates, rotation_axis, 180)
-        self._b_side_coated_coordinates = self.rotate_coordinates(self._b_side_coated_coordinates, rotation_axis, 180)
+        # Keep datum as the center of rotation - don't move it to origin
+        # Rotate coordinates around the current datum position
+        self._body_coordinates = self.rotate_coordinates(self._body_coordinates, rotation_axis, 180, center=self._datum)
+        self._a_side_coated_coordinates = self.rotate_coordinates(self._a_side_coated_coordinates, rotation_axis, 180, center=self._datum)
+        self._b_side_coated_coordinates = self.rotate_coordinates(self._b_side_coated_coordinates, rotation_axis, 180, center=self._datum)
 
         if hasattr(self, '_a_side_insulation_coordinates'):
-            self._a_side_insulation_coordinates = self.rotate_coordinates(self._a_side_insulation_coordinates, rotation_axis, 180)
+            self._a_side_insulation_coordinates = self.rotate_coordinates(self._a_side_insulation_coordinates, rotation_axis, 180, center=self._datum)
         if hasattr(self, '_b_side_insulation_coordinates'):
-            self._b_side_insulation_coordinates = self.rotate_coordinates(self._b_side_insulation_coordinates, rotation_axis, 180)
+            self._b_side_insulation_coordinates = self.rotate_coordinates(self._b_side_insulation_coordinates, rotation_axis, 180, center=self._datum)
 
         if hasattr(self, '_weld_tabs'):
             for tab in self._weld_tabs:
-                tab._body_coordinates = self.rotate_coordinates(tab._body_coordinates, rotation_axis, 180)
+                tab._body_coordinates = self.rotate_coordinates(tab._body_coordinates, rotation_axis, 180, center=self._datum)
                 tab_datum_array = np.array([[tab._datum[0], tab._datum[1], tab._datum[2]]])
-                rotated_datum = self.rotate_coordinates(tab_datum_array, rotation_axis, 180)
+                rotated_datum = self.rotate_coordinates(tab_datum_array, rotation_axis, 180, center=self._datum)
                 tab._datum = tuple(rotated_datum[0])
-
-        # shift the datum back to its original position
-        self._datum = old_datum
-
-        return self
 
     def get_right_left_view(self, **kwargs) -> go.Figure:
         """
@@ -894,7 +889,11 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
     @calculate_all_properties
     def datum(self, datum: Tuple[float, float, float]) -> None:
         self.validate_datum(datum)
-        self._datum = (float(datum[0]) * MM_TO_M, float(datum[1]) * MM_TO_M, float(datum[2]) * MM_TO_M)
+        self._datum = (
+            float(datum[0]) * MM_TO_M, 
+            float(datum[1]) * MM_TO_M, 
+            float(datum[2]) * MM_TO_M
+        )
 
     @material.setter
     @calculate_bulk_properties

@@ -83,7 +83,7 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
              'CMC': 0.0, 
              'Super P': 0.01, 
              'Graphite': 0.0, 
-             'Punched Current Collector': 0.01, 
+             'Punched Current Collector': 0.03, 
              'Aluminium Oxide, 95%': 0.01}
         )
 
@@ -105,18 +105,38 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
 
     def test_views(self):
 
-        figure1 = self.cathode.get_a_side_view(width=900, height=600)
-        figure2 = self.cathode.get_b_side_view(width=900, height=600)
-        figure3 = self.cathode.get_end_view(width=900, height=600)
+        figure0 = self.cathode._get_full_top_down_view()
+        figure1 = self.cathode.get_top_down_view()
+        figure2 = self.cathode.get_a_side_view()
+        figure3 = self.cathode.get_b_side_view()
+        figure4 = self.cathode._get_full_right_left_view()
+        figure5 = self.cathode.get_cross_section()
+        # figure1 = self.cathode.get_a_side_view(width=900, height=600)
+        # figure2 = self.cathode.get_b_side_view(width=900, height=600)
+        # figure3 = self.cathode.get_end_view(width=900, height=600)
         
+        # figure0.show()
+        # figure1.show()
+        # figure2.show()
+        # figure3.show()
+        # figure4.show()
+        # figure5.show()
+
+    def test_flip(self):
+
+        figure1 = self.cathode._get_full_top_down_view()
+        self.cathode.flip('x')
+        figure2 = self.cathode._get_full_top_down_view()
+        self.cathode.flip('y')
+        figure3 = self.cathode._get_full_top_down_view()
+
         # figure1.show()
         # figure2.show()
         # figure3.show()
 
     def test_datum_setter(self):
 
-        figure1 = self.cathode.get_a_side_view(with_dimensions=False)
-        figurea = self.cathode.get_end_view()
+        figure1 = self.cathode._get_full_top_down_view()
         
         new_datum = (
             self.cathode._current_collector.x_body_length,
@@ -126,14 +146,11 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
 
         self.cathode.datum = new_datum
 
-        figure2 = self.cathode.get_a_side_view(with_dimensions=False)
-        figureb = self.cathode.get_end_view()
+        figure2 = self.cathode._get_full_top_down_view()
 
         figure_top = go.Figure(data=figure1.data + figure2.data)
-        figure_end = go.Figure(data=figurea.data + figureb.data)
         
         # figure_top.show()
-        # figure_end.show()
 
 
 class TestCathodeTwoMaterialNotched(unittest.TestCase):

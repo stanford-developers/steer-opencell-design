@@ -48,7 +48,7 @@ class CoordinateMixin:
     Provides methods for rotation, area calculation, and coordinate ordering.
     """
     @staticmethod
-    def rotate_coordinates(coords: np.ndarray, axis: str, angle: float) -> np.ndarray:
+    def rotate_coordinates(coords: np.ndarray, axis: str, angle: float, center: tuple = None) -> np.ndarray:
         """
         Rotate a (N, 3) NumPy array of 3D coordinates around the specified axis.
         Can handle coordinates with None values (preserves None positions).
@@ -56,10 +56,19 @@ class CoordinateMixin:
         :param coords: NumPy array of shape (N, 3), where columns are x, y, z
         :param axis: Axis to rotate around ('x', 'y', or 'z')
         :param angle: Angle in degrees
+        :param center: Point to rotate around as (x, y, z) tuple. If None, rotates around origin.
         :return: Rotated NumPy array of shape (N, 3)
         """
         if coords.shape[1] != 3:
             raise ValueError("Input array must have shape (N, 3) for x, y, z coordinates")
+
+        # Validate center parameter
+        if center is not None:
+            if not isinstance(center, (tuple, list)) or len(center) != 3:
+                raise ValueError("Center must be a tuple or list of 3 coordinates (x, y, z)")
+            if not all(isinstance(coord, (int, float)) for coord in center):
+                raise TypeError("All center coordinates must be numbers")
+            center = np.array(center, dtype=float)
 
         # Check if we have None values
         has_nones = np.any(pd.isna(coords[:, 0])) if hasattr(pd, 'isna') else np.any(coords[:, 0] == None)
@@ -77,7 +86,7 @@ class CoordinateMixin:
                 valid_coords = coords[valid_mask].astype(float)
                 
                 # Apply rotation to valid coordinates
-                rotated_valid = CoordinateMixin._rotate_valid_coordinates(valid_coords, axis, angle)
+                rotated_valid = CoordinateMixin._rotate_around_center(valid_coords, axis, angle, center)
                 
                 # Put rotated coordinates back in result
                 result[valid_mask] = rotated_valid
@@ -85,8 +94,32 @@ class CoordinateMixin:
             return result
         
         else:
-            # No None values - use original logic
-            return CoordinateMixin._rotate_valid_coordinates(coords.astype(float), axis, angle)
+            # No None values - use rotation with center
+            return CoordinateMixin._rotate_around_center(coords.astype(float), axis, angle, center)
+
+    @staticmethod
+    def _rotate_around_center(coords: np.ndarray, axis: str, angle: float, center: np.ndarray = None) -> np.ndarray:
+        """
+        Rotate coordinates around a specified center point.
+        
+        :param coords: NumPy array of shape (N, 3) with valid coordinates
+        :param axis: Axis to rotate around ('x', 'y', or 'z')
+        :param angle: Angle in degrees
+        :param center: Center point as np.array of shape (3,). If None, rotates around origin.
+        :return: Rotated coordinates
+        """
+        if center is None:
+            # Rotate around origin - use existing method
+            return CoordinateMixin._rotate_valid_coordinates(coords, axis, angle)
+        
+        # Translate coordinates to center at origin
+        translated_coords = coords - center
+        
+        # Rotate around origin
+        rotated_coords = CoordinateMixin._rotate_valid_coordinates(translated_coords, axis, angle)
+        
+        # Translate back to original position
+        return rotated_coords + center
 
     @staticmethod
     def build_square_array(x: float, y: float, x_width: float, y_width: float) -> Tuple[np.ndarray, np.ndarray]:
@@ -345,6 +378,66 @@ class CoordinateMixin:
 
 
 class ValidationMixin:
+
+    @staticmethod
+    def validate_formulations(value: Type) -> None:
+        """
+        Validate that a value is an instance of _ElectrodeFormulation.
+
+        Parameters
+        ----------
+        value : Type
+            The value to validate.
+
+        Raises
+        ------
+        TypeError
+            If the value is not an instance of _ElectrodeFormulation.
+        """
+        from OpenCell.Formulations.ElectrodeFormulations import _ElectrodeFormulation
+
+        if not isinstance(value, _ElectrodeFormulation):
+            raise TypeError(f"Expected an instance of _ElectrodeFormulation. Provided: {type(value)}.")
+
+    @staticmethod
+    def validate_insulation_material(value: Type) -> None:
+        """
+        Validate that a value is an instance of InsulationMaterial.
+
+        Parameters
+        ----------
+        value : Type
+            The value to validate.
+
+        Raises
+        ------
+        TypeError
+            If the value is not an instance of InsulationMaterial.
+        """
+        from OpenCell.Materials.RawMaterials import InsulationMaterial
+
+        if not isinstance(value, InsulationMaterial):
+            raise TypeError(f"Expected an instance of InsulationMaterial. Provided: {type(value)}.")
+
+    @staticmethod
+    def validate_current_collector(value: Type) -> None:
+        """
+        Validate that a value is an instance of _CurrentCollector.
+        
+        Parameters
+        ----------
+        value : Type
+            The value to validate.
+
+        Raises
+        ------
+        TypeError
+            If the value is not an instance of _CurrentCollector.
+        """
+        from OpenCell.Materials.CurrentCollectors import _CurrentCollector
+
+        if not isinstance(value, _CurrentCollector):
+            raise TypeError(f"Expected an instance of _CurrentCollector. Provided: {type(value)}.")
 
     @staticmethod
     def validate_active_material(value: Type) -> None:
