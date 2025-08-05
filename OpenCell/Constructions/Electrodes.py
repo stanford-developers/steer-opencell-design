@@ -8,9 +8,10 @@ from OpenCell.Mixins import ValidationMixin, CoordinateMixin
 
 import pandas as pd
 import numpy as np
-from typing import Dict, Any, Tuple
 import plotly.express as px
 import plotly.graph_objects as go
+from copy import deepcopy
+from typing import Dict, Any, Tuple
 
 
 class _Electrode(ValidationMixin, CoordinateMixin):
@@ -116,16 +117,22 @@ class _Electrode(ValidationMixin, CoordinateMixin):
 
             setattr(self, f'_{side}_side_coating_coordinates', np.column_stack([x, y, z]))
             
-            # Calculate insulation coordinates
-            insulation_coordinates = getattr(self._current_collector, f'_{side}_side_insulation_coordinates')
-            
-            x, y, z, _ = self.extrude_footprint(
-                insulation_coordinates[:, 0],
-                insulation_coordinates[:, 1],
-                coating_datum,  # Use same datum as coating
-                self._insulation_thickness,
-            )
-            setattr(self, f'_{side}_side_insulation_coordinates', np.column_stack([x, y, z]))
+            if hasattr(self._current_collector, f'_{side}_side_insulation_coordinates'):
+                # Calculate insulation coordinates
+                insulation_coordinates = getattr(self._current_collector, f'_{side}_side_insulation_coordinates')
+                
+                x, y, z, _ = self.extrude_footprint(
+                    insulation_coordinates[:, 0],
+                    insulation_coordinates[:, 1],
+                    coating_datum,  # Use same datum as coating
+                    self._insulation_thickness,
+                )
+
+                setattr(self, f'_{side}_side_insulation_coordinates', np.column_stack([x, y, z]))
+
+            else:
+                # If no insulation coordinates, set to empty array
+                setattr(self, f'_{side}_side_insulation_coordinates', None)
         
         # Calculate for both sides
         _calculate_side_coordinates('a')
@@ -209,20 +216,25 @@ class _Electrode(ValidationMixin, CoordinateMixin):
         Helper method to get a top-down view of the electrode.
         """
         figure = self._current_collector._get_full_top_down_view(**kwargs)
-        figure.data = [trace for trace in figure.data if trace.name == "Body"]
-        figure.data[0].name = self.current_collector.name
+        figure.data = [trace for trace in figure.data if trace.name == "Body" or trace.name == "Tab"]
         figure.add_trace(self.top_down_coating_trace)
-        figure.add_trace(self.top_down_insulation_trace)
+
+        if hasattr(self, '_a_side_insulation_coordinates') and self._a_side_insulation_coordinates is not None:
+            figure.add_trace(self.top_down_insulation_trace)
+        
         return figure
 
     def _get_full_right_left_view(self, **kwargs) -> pd.DataFrame:
         figure = self._current_collector.get_right_left_view(**kwargs)
-        figure.data = [trace for trace in figure.data if trace.name == "Body"]
-        figure.data[0].name = self.current_collector.name
+        figure.data = [trace for trace in figure.data if trace.name == "Body" or trace.name == "Tab"]
         figure.add_trace(self.right_left_a_side_coating_trace)
         figure.add_trace(self.right_left_b_side_coating_trace)
-        figure.add_trace(self.right_left_a_side_insulation_trace)
-        figure.add_trace(self.right_left_b_side_insulation_trace)
+
+        if hasattr(self, '_a_side_insulation_coordinates') and self._a_side_insulation_coordinates is not None:
+            figure.add_trace(self.right_left_a_side_insulation_trace)
+        if hasattr(self, '_b_side_insulation_coordinates') and self._b_side_insulation_coordinates is not None:
+            figure.add_trace(self.right_left_b_side_insulation_trace)
+            
         return figure
 
     @calculate_coordinates
@@ -269,10 +281,49 @@ class _Electrode(ValidationMixin, CoordinateMixin):
         return fig    
 
     def get_top_down_view(self, **kwargs) -> go.Figure:
+        
         figure = self.current_collector.get_top_down_view(**kwargs)
-        figure.data = [trace for trace in figure.data if trace.name == "Body"]
-        figure.add_trace(self.top_down_coating_trace)
-        figure.add_trace(self.top_down_insulation_trace)
+        figure.data = [trace for trace in figure.data if trace.name == "Body" or trace.name == "Tab"]
+        
+        # Get the traces to add
+        coating_trace = self.top_down_coating_trace
+        insulation_trace = self.top_down_insulation_trace
+        
+        # Check if this is a subplot figure by looking for subplot annotations
+        is_subplot = hasattr(figure, '_grid_ref') and figure._grid_ref is not None
+        
+        if is_subplot:
+            # Get the number of subplots
+            rows = len(figure._grid_ref)
+            cols = len(figure._grid_ref[0]) if rows > 0 else 0
+            
+            # Add traces to each subplot
+            for row in range(1, rows + 1):
+                for col in range(1, cols + 1):
+                    # Create deep copies of the traces for each subplot
+                    coating_trace_copy = deepcopy(coating_trace)
+                    insulation_trace_copy = deepcopy(insulation_trace)
+                    
+                    # Set legend properties - only show in legend for first subplot
+                    is_first_subplot = (row == 1 and col == 1)
+                    
+                    coating_trace_copy.showlegend = is_first_subplot
+                    coating_trace_copy.legendgroup = coating_trace.name
+                    
+                    if insulation_trace_copy:
+                        insulation_trace_copy.showlegend = is_first_subplot
+                        insulation_trace_copy.legendgroup = insulation_trace.name
+                    
+                    # Add traces to specific subplot
+                    figure.add_trace(coating_trace_copy, row=row, col=col)
+                    if insulation_trace_copy:  # Check if insulation exists
+                        figure.add_trace(insulation_trace_copy, row=row, col=col)
+        else:
+            # Regular figure - add traces normally
+            figure.add_trace(coating_trace)
+            if insulation_trace:  # Check if insulation exists
+                figure.add_trace(insulation_trace)
+        
         return figure
 
     def get_a_side_view(self, **kwargs) -> go.Figure:
@@ -745,9 +796,9 @@ class _Electrode(ValidationMixin, CoordinateMixin):
 
     @insulation_material.setter
     @calculate_bulk_properties
-    def insulation_material(self, insulation_material: InsulationMaterial):
+    def insulation_material(self, insulation_material: InsulationMaterial | None):
 
-        self.validate_insulation_material(insulation_material)
+        self.validate_insulation_material(insulation_material) if insulation_material else None
 
         if self._current_collector._insulation_area != 0 and insulation_material is None:
             raise ValueError("Insulation material must be provided if the current collector has an insulation width")

@@ -1285,7 +1285,7 @@ class _TapeCurrentCollector(_CurrentCollector):
     # TODO: improve this function. Axes seem strange when overriding a previous figure in dash
     def get_top_down_view(
         self, 
-        aspect_ratio: float = 3, 
+        aspect_ratio: float = 4, 
         side: str = 'a',
         with_dimensions: bool = False, 
         **kwargs
