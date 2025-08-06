@@ -1,12 +1,9 @@
-from certifi import contents
-from dash import callback, Output, Input, State, no_update, ctx, ALL
-from pathlib import Path
+from dash import callback, Output, Input, State, no_update, ctx, ALL, html
+import dash_bootstrap_components as dbc
+from datetime import datetime as dt
 from base64 import b64decode
-from uuid import uuid4
 from pickle import loads
 from typing import List, Tuple, Dict
-
-from cache_service import cache
 
 from general.store import LANDING_PAGE_IMAGE_URLS
 from general.callback_helpers import get_internal_construction_options, get_electrochemical_reference_options, get_cell_name_options
@@ -14,29 +11,49 @@ from general.callback_helpers import get_internal_construction_options, get_elec
 
 @callback(
     [
-        Output('cathode_cc', 'style'),
-        Output('anode_cc', 'style'),
-        Output('warnings', 'style')
+        Output('cathode_tab', 'style'),
+        Output('anode_tab', 'style'),
+        Output('electrode_assembly_tab', 'style'),
+        Output('warnings_tab', 'style')
     ],
-    Input('tabs-container', 'value'),
+    Input('main-tabs-container', 'value'),
     prevent_initial_call=True
 )
-def show_tab_content(active_tab) -> List:
+def show_main_tab_content(active_tab) -> List:
     """
     Function to show or hide main content based on the active tab.
-
-    Parameters
-    ----------
-    active_tab : str
-        The ID of the currently active tab.
     """
     styles = {'display': 'none'}
     active_style = {'display': 'block'}
 
     return [
-        active_style if active_tab == 'cathode_cc' else styles,
-        active_style if active_tab == 'anode_cc' else styles,
+        active_style if active_tab == 'cathode' else styles,
+        active_style if active_tab == 'anode' else styles,
+        active_style if active_tab == 'electrode_assembly' else styles,
         active_style if active_tab == 'warnings' else styles,
+    ]
+
+
+@callback(
+    [
+        Output('cathode_current_collector_tab', 'style'),
+        Output('cathode_formulation_tab', 'style'),
+        Output('cathode_electrode_tab', 'style')
+    ],
+    Input('cathode-tabs-container', 'value'),
+    prevent_initial_call=True
+)
+def show_cathode_tab_content(active_tab):
+    """
+    Function to show or hide cathode sub-tab content based on the active tab.
+    """
+    styles = {'display': 'none'}
+    active_style = {'display': 'block'}
+
+    return [
+        active_style if active_tab == 'cathode_current_collector' else styles,
+        active_style if active_tab == 'cathode_formulation' else styles,
+        active_style if active_tab == 'cathode_electrode' else styles,
     ]
 
 
@@ -328,3 +345,67 @@ def show_and_hide_cell_type_and_tabs(continue_clicks, back_clicks, continue_styl
     return continue_style, back_style
 
 
+@callback(
+    Output('warnings_tab', 'children'),
+    Input('warnings_store', 'data'),
+)
+def update_warnings_tab(warnings_data):
+
+    if not warnings_data:
+
+        return html.Div([
+            html.Br(), html.Br(),
+            html.H4("No Warnings"),
+        ])
+    
+    warning_cards = []
+
+    for warning in warnings_data:
+
+        severity_color = {
+            'Warning': 'warning',
+            'Error': 'danger',
+            'UserWarning': 'info'
+        }.get(warning['category'], 'secondary')
+        
+        card = dbc.Card([
+            dbc.CardHeader([
+                html.H5(f"{warning['category']}", className=f"text-{severity_color}"),
+                html.Small(
+                    dt.fromtimestamp(warning['timestamp']).strftime('%H:%M:%S'),
+                    className="text-muted"
+                )
+            ]),
+            dbc.CardBody([
+                html.P(warning['message']),
+                html.Small(f"Source: {warning.get('source', 'Unknown')}", className="text-muted")
+            ])
+        ], className=f"border-{severity_color} mb-2")
+        
+        warning_cards.append(card)
+    
+    return html.Div([
+        html.Br(), html.Br(),
+        *warning_cards,
+        html.Br(),
+    ])
+
+
+@callback(
+    Output('main-tabs-container', 'children'),
+    Input('warnings_store', 'data'),
+    State('main-tabs-container', 'children')
+)
+def update_warnings_tab_label(warnings_data, current_tabs):
+    """Update the warnings tab label to show warning count."""
+    warning_count = len(warnings_data) if warnings_data else 0
+    
+    # Update the warnings tab label
+    for tab in current_tabs:
+        if tab['props']['value'] == 'warnings':
+            if warning_count > 0:
+                tab['props']['label'] = f"Warnings ({warning_count})"
+            else:
+                tab['props']['label'] = "Warnings"
+    
+    return current_tabs

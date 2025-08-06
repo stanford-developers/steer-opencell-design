@@ -19,6 +19,8 @@ UM_TO_M = 1e-6
 MM_TO_CM = 1e-1
 CM_TO_MM = 1e1
 UM_TO_MM = 1e-3
+mG_TO_G = 1e-3
+CM_TO_UM = 1e4
 
 # Current units
 A_TO_mA = 1e3

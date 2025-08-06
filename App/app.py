@@ -17,6 +17,8 @@ app.title = 'OpenCell'
 # Import components
 from general.callbacks import *
 from current_collectors.callbacks import *
+from electrodes.callbacks import *
+
 from general.layouts import *
 
 # Set high level layout
@@ -29,7 +31,7 @@ def create_app():
         thumbnail,
         header,
         cell_type,
-        tabs
+        main_tabs
     ])
 
     return app
