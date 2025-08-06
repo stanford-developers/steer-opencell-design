@@ -20,11 +20,9 @@ from abc import ABC, abstractmethod
 from typing import Tuple, Optional, Iterable, Dict
 from plotly.subplots import make_subplots
 from copy import deepcopy
-from pickle import dumps, loads
 
 import plotly.graph_objects as go
 import pandas as pd
-import base64
 import numpy as np
 import time
 
@@ -307,22 +305,14 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         figure.add_trace(self.right_left_b_side_insulation_coordinates)
 
         figure.update_layout(
-            xaxis=dict(showgrid=False, zeroline=False, title='', showticklabels=False, scaleanchor="y"),
-            yaxis=dict(showgrid=False, zeroline=False, title='', showticklabels=False),
+            xaxis=dict(showgrid=False, zeroline=False, title='X (mm)', scaleanchor="y"),
+            yaxis=dict(showgrid=False, zeroline=False, title='Y (mm)'),
             paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
             plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
             **kwargs
         )
 
         return figure
-    
-    def pickle(self) -> bytes:
-        """
-        Serialize the current collector object to bytes.
-        """
-        pickled = dumps(self)
-        based = base64.b64encode(pickled).decode('utf-8')
-        return based
 
     @abstractmethod
     def _get_coated_area_coordinates(self, side: str = 'a') -> np.ndarray:

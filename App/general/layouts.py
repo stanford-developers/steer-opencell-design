@@ -1,13 +1,18 @@
 import dash as ds
 from styles import *
 
-from current_collectors.layouts import *
-from general.store import *
-from database_service import *
+from current_collectors.layouts import cathode_current_collector_layout
+from formulations.layouts import cathode_formulation_layout
+from electrodes.layouts import cathode_electrode_layout
+from electrode_assembly.layouts import electrode_assembly_layout
+
+from general.store import cell_store, warnings_store, LANDING_PAGE_IMAGE_URLS
+from database_service import FORM_FACTOR_OPTIONS
 
 
 stores = ds.html.Div([
     cell_store,
+    warnings_store
 ])
 
 
@@ -26,9 +31,6 @@ header = ds.html.Div([
 
 
 warnings = ds.html.Div([
-    ds.html.Br(), ds.html.Br(),
-    ds.html.H3('Warnings'),
-    ds.html.P('This is a placeholder for warnings.'),
 ], style=DIV_STYLE)
 
 
@@ -150,38 +152,75 @@ cell_type = ds.html.Div(
 ], style={'display': 'flex', 'flex-direction': 'row', 'padding': '100px', 'width': '90%'})
 
 
-tabs = ds.html.Div(
+cathode_tabs_div = ds.html.Div(
+
+    id='cathode_tabs_panel',
+
+    children=[
+        ds.dcc.Tabs(
+            id='cathode-tabs-container',
+            children=[
+                ds.dcc.Tab(label='Current Collector', value='cathode_current_collector', className='tab-style', selected_className='tab-selected-style'),
+                ds.dcc.Tab(label='Formulation', value='cathode_formulation', className='tab-style', selected_className='tab-selected-style'),
+                ds.dcc.Tab(label='Electrode', value='cathode_electrode', className='tab-style', selected_className='tab-selected-style')
+            ],
+            value='cathode_current_collector',
+        ),
+
+        ds.html.Div(id='cathode_current_collector_tab', children=[cathode_current_collector_layout], style={'display': 'block'}),
+        ds.html.Div(id='cathode_formulation_tab', children=[cathode_formulation_layout], style={'display': 'none'}),
+        ds.html.Div(id='cathode_electrode_tab', children=[cathode_electrode_layout], style={'display': 'none'}),
+
+    ], style = DIV_STYLE | {'display': 'block'}
+
+)
+
+
+anode_tabs_div = ds.html.Div(
+
+    id='anode_tabs_panel',
+
+    children=[
+        ds.html.P("This is the anode tabs panel.")
+    ], style = DIV_STYLE | {'display': 'block'}
+
+)
+
+
+main_tabs = ds.html.Div(
     
     id='tabs_panel',
 
     children=[
 
-    ds.html.Br(), 
+        ds.html.Br(), 
 
-    ds.html.Button(
-            id='back_to_cell_type',
-            children='\u2190 Back to Cell Type',
-            style=BUTTON_STYLE | {'width': '10%', 'border': 'none'},
-    ),
+        ds.html.Button(
+                id='back_to_cell_type',
+                children='\u2190 Back to Cell Type',
+                style=BUTTON_STYLE | {'width': '10%', 'border': 'none'},
+        ),
 
-    ds.html.Br(), ds.html.Br(), 
+        ds.html.Br(), ds.html.Br(), 
 
-    ds.dcc.Tabs(
-        id='tabs-container',
-        children=[
-            ds.dcc.Tab(label='Cathode Current Collector', value='cathode_cc', className='tab-style', selected_className='tab-selected-style'),
-            ds.dcc.Tab(label='Anode Current Collector', value='anode_cc', className='tab-style', selected_className='tab-selected-style'),
-            ds.dcc.Tab(label='Warnings', value='warnings', className='tab-style', selected_className='tab-selected-style')
-        ],
-        value='cathode_cc',
-    ),
+        ds.dcc.Tabs(
+            id='main-tabs-container',
+            children=[
+                ds.dcc.Tab(label='Cathode', value='cathode', className='tab-style', selected_className='tab-selected-style'),
+                ds.dcc.Tab(label='Anode', value='anode', className='tab-style', selected_className='tab-selected-style'),
+                ds.dcc.Tab(label='Electrode Assembly', value='electrode_assembly', className='tab-style', selected_className='tab-selected-style'),
+                ds.dcc.Tab(label='Warnings', value='warnings', className='tab-style', selected_className='tab-selected-style')
+            ],
+            value='cathode',
+        ),
 
-    ds.html.Div(id='cathode_cc', children=[cathode_current_collector_layout], style={'display': 'block'}),
-    ds.html.Div(id='anode_cc', children=[anode_current_collector_layout], style={'display': 'none'}),
-    ds.html.Div(id='warnings', children=[warnings], style={'display': 'none'}),
+        ds.html.Div(id='cathode_tab', children=[cathode_tabs_div], style={'display': 'block'}),
+        ds.html.Div(id='anode_tab', children=[anode_tabs_div], style={'display': 'none'}),
+        ds.html.Div(id='electrode_assembly_tab', children=[electrode_assembly_layout], style={'display': 'none'}),
+        ds.html.Div(id='warnings_tab', children=[warnings], style={'display': 'none'}),
 
-], style = DIV_STYLE | {'display': 'none'})
-
+    ], style = DIV_STYLE | {'display': 'none'}
+)
 
 
 

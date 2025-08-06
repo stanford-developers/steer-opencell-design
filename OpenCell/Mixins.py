@@ -6,6 +6,7 @@ from typing import Tuple, Type
 from OpenCell.Constants import ALLOWED_REFERENCE
 from scipy.interpolate import PchipInterpolator
 
+
 class ColorMixin:
     """
     A class to manage colors, including conversion between hex and RGB formats,
@@ -784,4 +785,27 @@ class DataMixin:
             new_array = np.minimum.accumulate(new_array)
 
         return new_array
-    
+
+
+class SerializerMixin:
+
+    def serialize(self) -> str:
+        """
+        Serialize an object to a string representation.
+        
+        Parameters
+        ----------
+        obj : Type
+            The object to serialize.
+        
+        Returns
+        -------
+        str
+            The serialized string representation of the object.
+        """
+        import base64
+        from pickle import dumps
+
+        pickled = dumps(self)
+        based = base64.b64encode(pickled).decode('utf-8')
+        return based 

@@ -453,7 +453,6 @@ cathode_notched_design_parameters = ds.html.Div(
             title = 'Insulation Area (both sides) (cm²)'
         )(),
 
-        
         ds.html.Br(), ds.html.Br(),
         ds.html.H5('Datums', style={'font-weight': 'bold'}),
         ds.html.Br(),
@@ -964,7 +963,7 @@ cathode_plots = ds.html.Div([
 
 
     ds.dcc.Graph(
-        id='cathode_a_side_plot', 
+        id='cathode_current_collector_a_side_plot', 
         style={'width': '50vw', 'height': '40vw'},
         responsive=True,
         config={
@@ -973,7 +972,7 @@ cathode_plots = ds.html.Div([
     ),
 
     ds.dcc.Graph(
-        id='cathode_b_side_plot', 
+        id='cathode_current_collector_b_side_plot', 
         style={'width': '50vw', 'height': '40vw'},
         responsive=True,
         config={
@@ -982,7 +981,7 @@ cathode_plots = ds.html.Div([
     ),
 
     ds.dcc.Graph(
-        id='cathode_top_down_plot', 
+        id='cathode_current_collector_top_down_plot', 
         style={'width': '50vw', 'height': '40vw'},
         responsive=True,
         config={

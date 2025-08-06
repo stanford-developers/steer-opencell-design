@@ -438,9 +438,9 @@ def update_tabbed_current_collector(
 
 @callback(
     [
-        Output('cathode_a_side_plot', 'figure'),
-        Output('cathode_b_side_plot', 'figure'),
-        Output('cathode_top_down_plot', 'figure'),
+        Output('cathode_current_collector_a_side_plot', 'figure'),
+        Output('cathode_current_collector_b_side_plot', 'figure'),
+        Output('cathode_current_collector_top_down_plot', 'figure'),
     ],
     [
         Input('cell_store', 'data'),

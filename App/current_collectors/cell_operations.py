@@ -26,9 +26,11 @@ def get_current_collector_from_cell(cell: Type, electrode: ElectrodeType) -> Typ
     """
     
     if electrode == ElectrodeType.CATHODE:
-        return cell
+        current_collector = cell.current_collector
+        return current_collector
     elif electrode == ElectrodeType.ANODE:
-        return cell
+        current_collector = cell.current_collector
+        return current_collector
     else:
         raise ValueError(f"Unknown electrode type: {electrode}")
 
@@ -67,7 +69,7 @@ def get_cathode_current_collector_tab_material(cell: Type) -> CurrentCollectorMa
         The current cell object from the cache.
     """
     try:
-        material = cell.weld_tab.material
+        material = cell.current_collector.weld_tab.material
         return material
     except Exception:
         return None
@@ -87,7 +89,7 @@ def get_cathode_current_collector_material(cell: Type) -> CurrentCollectorMateri
     CurrentCollectorMaterial
         The current collector material associated with the cell.
     """
-    material = cell.material
+    material = cell.current_collector.material
     return material
 
 
@@ -107,8 +109,7 @@ def set_current_collector_to_cell(cell: Type, current_collector: Type) -> str:
     cell : Type
         The updated cell object with the current collector set.
     """
-    cell = current_collector
-
+    cell.current_collector = current_collector
     return cell
 
 
@@ -156,14 +157,13 @@ def set_cathode_current_collector_tab_material_to_cell(cell: Type, material: Cur
     cell : Type
         The updated cell object with the current collector tab material set.
     """
-    from general.callback_helpers import set_cell_to_cache
-
-    current_collector = cell
+    cathode = cell
+    current_collector = cathode.current_collector
     weld_tab = current_collector.weld_tab
     weld_tab.material = material
     current_collector.weld_tab = weld_tab
-    cell = current_collector
-
+    cathode.current_collector = current_collector
+    cell = cathode
     return cell
 
 
@@ -183,11 +183,11 @@ def set_cathode_current_collector_material_to_cell(cell: Type, material: Current
     cell : Type
         The updated cell object with the current collector material set.
     """
-    from general.callback_helpers import set_cell_to_cache
-
-    current_collector = cell
+    cathode = cell
+    current_collector = cathode.current_collector
     current_collector.material = material
-    cell = current_collector
-
+    cathode.current_collector = current_collector
+    cell = cathode
     return cell
+
 

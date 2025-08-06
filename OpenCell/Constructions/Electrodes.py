@@ -4,17 +4,18 @@ from OpenCell.Materials.RawMaterials import InsulationMaterial
 
 from OpenCell.Constants import *
 from OpenCell.Decorators import *
-from OpenCell.Mixins import ValidationMixin, CoordinateMixin
+from OpenCell.Mixins import ValidationMixin, CoordinateMixin, SerializerMixin
 
 import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
+import warnings
 from copy import deepcopy
 from typing import Dict, Any, Tuple
 
 
-class _Electrode(ValidationMixin, CoordinateMixin):
+class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
     """
     Base class for electrodes, representing the common properties and methods of an electrode.
     """
@@ -185,7 +186,10 @@ class _Electrode(ValidationMixin, CoordinateMixin):
                              {self._formulation._density} g/cm^3.""")
         
         if self._insulation_thickness > self._coating_thickness:
-            raise ValueError("Insulation thickness cannot be greater than coating thickness")
+
+            warnings.warn(f"""Insulation thickness is greater than the coating thickness on {self.name}. 
+                          Reduce the insulation thickness ({self.insulation_thickness}  um) 
+                          or increase the coating thickness ({self.coating_thickness}  um)""", UserWarning)
 
     def _calculate_porosity(self) -> None:
         """
@@ -200,11 +204,11 @@ class _Electrode(ValidationMixin, CoordinateMixin):
         binder_fractions = [v for v in self._formulation._binders.values()]
         binder_densities = [b._density for b in self._formulation._binders.keys()]
 
-        theoretical_specific_volume = sum(amf / amd for amf, amd in zip(active_mass_fractions, active_mass_densities)) + \
-                                      sum(caf / cad for caf, cad in zip(conductive_aids_fractions, conductive_aids_densities)) + \
-                                      sum(bf / bd for bf, bd in zip(binder_fractions, binder_densities))
-        
-        porosity = 1 - (theoretical_specific_volume * self._calender_density)
+        self._theoretical_specific_volume = sum(amf / amd for amf, amd in zip(active_mass_fractions, active_mass_densities)) + \
+                                            sum(caf / cad for caf, cad in zip(conductive_aids_fractions, conductive_aids_densities)) + \
+                                            sum(bf / bd for bf, bd in zip(binder_fractions, binder_densities))
+
+        porosity = 1 - (self._theoretical_specific_volume * self._calender_density)
 
         if porosity < 0:
             raise ValueError("Porosity cannot be negative. Check the mass fractions and densities of the components.")
@@ -589,7 +593,33 @@ class _Electrode(ValidationMixin, CoordinateMixin):
 
         :return: Coating thickness of the electrode in micrometers.
         """
-        return round(self._coating_thickness * M_TO_UM, 2)
+        return round(self._coating_thickness * M_TO_UM, 1)
+
+    @property
+    def coating_thickness_range(self) -> Tuple[float, float]:
+        """
+        Get the range of coating thickness of the electrode.
+
+        :return: Tuple containing the minimum and maximum coating thickness in micrometers.
+        """
+        minimum_coating_thickness = (self.mass_loading_range[0]*mG_TO_G / self.calender_density_range[1]) * CM_TO_UM
+        maximum_coating_thickness = (self.mass_loading_range[1]*mG_TO_G / self.calender_density_range[0]) * CM_TO_UM
+
+        return (
+            round(minimum_coating_thickness, 1), 
+            round(maximum_coating_thickness, 1)
+        )
+    
+    @property
+    def coating_thickness_marks(self) -> Dict[str, float]:
+        """
+        Get the coating thickness marks of the electrode.
+
+        :return: Dictionary containing the coating thickness marks.
+        """
+        min = np.ceil(self.coating_thickness_range[0])
+        max = np.floor(self.coating_thickness_range[1])
+        return {i: '' for i in range(int(min), int(max) + 1, 40)}
 
     @property
     def cost_breakdown(self) -> Dict[str, Any]:
@@ -643,7 +673,18 @@ class _Electrode(ValidationMixin, CoordinateMixin):
 
         :return: Porosity of the electrode.
         """
-        return round(self._porosity * 100, 2)
+        return round(self._porosity * 100, 1)
+    
+    @property
+    def porosity_marks(self) -> Dict[str, float]:
+        """
+        Get the porosity marks of the electrode.
+
+        :return: Dictionary containing the porosity marks.
+        """
+        min = np.ceil(self.porosity_range[0])
+        max = np.floor(self.porosity_range[1])
+        return {i: '' for i in range(int(min), int(max) + 1, 10)}
     
     @property
     def calender_density(self) -> float:
@@ -653,6 +694,35 @@ class _Electrode(ValidationMixin, CoordinateMixin):
         :return: Calender density of the electrode.
         """
         return round(self._calender_density * (KG_TO_G / M_TO_CM**3), 2)
+
+    @property
+    def calender_density_range(self) -> Tuple[float, float]:
+        """
+        Get the range of calender density of the electrode.
+
+        :return: Tuple containing the minimum and maximum calender density in g/cm³.
+        """
+        min_porosity = self.porosity_range[0] / 100
+        max_porosity = self.porosity_range[1] / 100
+
+        _max_calender_density = (1 - min_porosity) / self._theoretical_specific_volume
+        _min_calender_density = (1 - max_porosity) / self._theoretical_specific_volume
+
+        max_calender_density = round(_max_calender_density * (KG_TO_G / M_TO_CM**3), 2)
+        min_calender_density = round(_min_calender_density * (KG_TO_G / M_TO_CM**3), 2)
+
+        return (min_calender_density, max_calender_density)
+
+    @property
+    def calender_density_marks(self) -> Dict[str, float]:
+        """
+        Get the calender density marks of the electrode.
+
+        :return: Dictionary containing the calender density marks.
+        """
+        min = np.ceil(self.calender_density_range[0])
+        max = np.floor(self.calender_density_range[1])
+        return {i: '' for i in range(int(min), int(max) + 1, 1)}
 
     @property
     def a_side_insulation_coordinates(self) -> pd.DataFrame:
@@ -728,6 +798,26 @@ class _Electrode(ValidationMixin, CoordinateMixin):
         return round(self._mass_loading * (KG_TO_MG / M_TO_CM**2), 2)
 
     @property
+    def mass_loading_range(self) -> Tuple[float, float]:
+        """
+        Get the range of mass loading of the electrode.
+
+        :return: Tuple containing the minimum and maximum mass loading in mg/cm².
+        """
+        return (0, 60)
+
+    @property
+    def mass_loading_marks(self) -> Dict[str, float]:
+        """
+        Get the mass loading marks of the electrode.
+
+        :return: Dictionary containing the mass loading marks.
+        """
+        min = np.ceil(self.mass_loading_range[0])
+        max = np.floor(self.mass_loading_range[1])
+        return {i: '' for i in range(int(min), int(max) + 1, 10)}
+
+    @property
     def current_collector(self) -> _CurrentCollector:
         """
         Get the current collector of the electrode.
@@ -764,18 +854,184 @@ class _Electrode(ValidationMixin, CoordinateMixin):
         return round(self._mass * KG_TO_G, 2)
 
     @property
+    def mass_range(self) -> Tuple[float, float]:
+
+        min = 0
+        hyp_max = 1
+        max = hyp_max * (1 - np.exp(-0.5/self._mass))
+
+        return (
+            round(min * KG_TO_G, 2), 
+            round(max * KG_TO_G, 2)
+        )
+
+    @property
+    def mass_marks(self) -> Dict[int, str]:
+        min_mass = self.mass_range[0]
+        max_mass = self.mass_range[1]
+        delta = 80
+        num_steps = int(round((max_mass - min_mass) / delta)) + 1
+        values = np.linspace(min_mass, max_mass, num_steps).round(10).tolist()
+        return {i: '' for i in values}
+
+    @property
     def thickness(self) -> float:
         """
         Get the thickness of the electrode.
 
         :return: Thickness of the electrode.
         """
-        return round(self._thickness * M_TO_UM, 2)
+        return round(self._thickness * M_TO_UM, 1)
+
+    @property
+    def thickness_range(self) -> Tuple[float, float]:
+        """
+        Get the range of thickness of the electrode.
+
+        :return: Tuple containing the minimum and maximum thickness in micrometers.
+        """
+        return (
+            self.coating_thickness_range[0]*2 + self.current_collector.thickness,
+            self.coating_thickness_range[1]*2 + self.current_collector.thickness
+        )
+
+    @property
+    def thickness_marks(self) -> Dict[str, float]:
+        """
+        Get the thickness marks of the electrode.
+
+        :return: Dictionary containing the thickness marks.
+        """
+        min = np.ceil(self.thickness_range[0])
+        max = np.floor(self.thickness_range[1])
+        return {i: '' for i in range(int(min), int(max) + 1, 40)}
 
     @property
     def cost(self) -> float:
         return round(self._cost, 2)
    
+    @property
+    def cost_range(self):
+        min = 0
+        max = self._cost + (1/self._cost)/5
+        return (min, max)
+
+    @property
+    def cost_marks(self) -> Dict[str, float]:
+        """
+        Get the cost marks of the electrode.
+
+        :return: Dictionary containing the cost marks.
+        """
+        min = np.ceil(self.cost_range[0])
+        max = np.floor(self.cost_range[1])
+        return {i: '' for i in range(int(min), int(max) + 1, 1)}
+
+    @property
+    def datum_x(self) -> float:
+        """
+        Get the x-coordinate of the datum in mm.
+        """
+        return round(self._datum[0] * M_TO_MM, 2)
+    
+    @property
+    def datum_x_range(self) -> Tuple[float, float]:
+        """
+        Get the x-coordinate range of the datum in mm.
+        """
+        return (-100, 100)
+    
+    @property
+    def datum_x_marks(self) -> Dict[int, str]:
+        """
+        Get the x-coordinate marks for the slider.
+        """
+        min_datum = np.ceil(self.datum_x_range[0])
+        max_datum = np.floor(self.datum_x_range[1])
+        return {i: '' for i in range(int(min_datum), int(max_datum) + 1, 20)}
+
+    @property
+    def datum_y(self) -> float:
+        """
+        Get the y-coordinate of the datum in mm.
+        """
+        return round(self._datum[1] * M_TO_MM, 2)
+
+    @property
+    def datum_y_range(self) -> Tuple[float, float]:
+        """
+        Get the y-coordinate range of the datum in mm.
+        """
+        return (-100, 100)
+    
+    @property
+    def datum_y_marks(self) -> Dict[int, str]:
+        """
+        Get the y-coordinate marks for the slider.
+        """
+        min_datum = np.ceil(self.datum_y_range[0])
+        max_datum = np.floor(self.datum_y_range[1])
+        return {i: '' for i in range(int(min_datum), int(max_datum) + 1, 20)}
+
+    @property
+    def datum_z(self) -> float:
+        """
+        Get the z-coordinate of the datum in mm.
+        """
+        return round(self._datum[2] * M_TO_MM, 2)
+
+    @property
+    def datum_z_range(self) -> Tuple[float, float]:
+        """
+        Get the z-coordinate range of the datum in mm.
+        """
+        return (-100, 100)
+    
+    @property
+    def datum_z_marks(self) -> Dict[int, str]:
+        """
+        Get the z-coordinate marks for the slider.
+        """
+        min_datum = np.ceil(self.datum_z_range[0])
+        max_datum = np.floor(self.datum_z_range[1])
+        return {i: '' for i in range(int(min_datum), int(max_datum) + 1, 20)}
+
+    @thickness.setter
+    @calculate_all_properties
+    def thickness(self, thickness: float):
+        self.validate_positive_float(thickness, 'thickness')
+        new_coating_thickness = (thickness - self.current_collector.thickness)/2
+        self.coating_thickness = new_coating_thickness
+
+    @coating_thickness.setter
+    @calculate_all_properties
+    def coating_thickness(self, coating_thickness: float):
+        """
+        Set the coating thickness of the electrode. This will change only the mass loading and not the calender density.
+
+        :param coating_thickness: Coating thickness of the electrode in micrometers.
+        """
+        self.validate_positive_float(coating_thickness, 'coating thickness')
+
+        old_coating_thickness = self.coating_thickness
+        coating_thickness_ratio = coating_thickness / old_coating_thickness
+
+        self._coating_thickness = coating_thickness * UM_TO_M
+        self._mass_loading *= coating_thickness_ratio
+
+    @porosity.setter
+    @calculate_all_properties
+    def porosity(self, porosity: float):
+        """
+        Set the porosity of the electrode.
+
+        :param porosity: Porosity of the electrode in percentage.
+        """
+        self.validate_percentage(porosity, 'porosity')
+        porosity_fraction = porosity / 100
+        new_calender_density = (1 - porosity_fraction) / self._theoretical_specific_volume
+        self._calender_density = new_calender_density
+
     @formulation.setter
     @calculate_all_properties
     def formulation(self, formulation: _ElectrodeFormulation):
@@ -981,6 +1237,15 @@ class Anode(_Electrode):
 
         self._bottom_overhang = new_bottom_overhang * MM_TO_M
 
+    @property
+    def porosity_range(self) -> Tuple[float, float]:
+        """
+        Get the range of porosity of the electrode.
+
+        :return: Tuple containing the minimum and maximum porosity in percentage.
+        """
+        return (25, 50)
+
 
 class Cathode(_Electrode):
     """
@@ -1032,6 +1297,12 @@ class Cathode(_Electrode):
 
         self._update_properties = True
 
+    @property
+    def porosity_range(self) -> Tuple[float, float]:
+        """
+        Get the range of porosity of the electrode.
 
-
+        :return: Tuple containing the minimum and maximum porosity in percentage.
+        """
+        return (20, 60)
     
