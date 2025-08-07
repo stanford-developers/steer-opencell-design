@@ -5,7 +5,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from OpenCell.DataManager import DataManager
+from steer_opencell_design.DataManager import DataManager
 
 dm = DataManager()
 

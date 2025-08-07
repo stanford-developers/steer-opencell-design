@@ -1,15 +1,15 @@
 import unittest
 import plotly.express as px
-from OpenCell.Formulations.ElectrodeFormulations import ElectrodeFormulation
-from OpenCell.Constructions.Electrodes import Cathode, Anode
-from OpenCell.Formulations.ElectrodeAssemblies import Stack
-from OpenCell.Constructions.Cells import StackedPouchCell
-from OpenCell.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
-from OpenCell.Materials.CurrentCollectors import CurrentCollector
-from OpenCell.Materials.Separators import Separator
-from OpenCell.Materials.Electrolytes import Electrolyte
-from OpenCell.Constructions.Containers import Pouch
-from OpenCell.Materials.other import Laminate, Tape, Terminal
+from steer_opencell_design.Formulations.ElectrodeFormulations import ElectrodeFormulation
+from steer_opencell_design.Constructions.Electrodes import Cathode, Anode
+from steer_opencell_design.Formulations.ElectrodeAssemblies import Stack
+from steer_opencell_design.Constructions.Cells import StackedPouchCell
+from steer_opencell_design.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
+from steer_opencell_design.Materials.CurrentCollectors import CurrentCollector
+from steer_opencell_design.Materials.Separators import Separator
+from steer_opencell_design.Materials.Electrolytes import Electrolyte
+from steer_opencell_design.Constructions.Containers import Pouch
+from steer_opencell_design.Materials.other import Laminate, Tape, Terminal
 
 class TestStandard(unittest.TestCase):
 

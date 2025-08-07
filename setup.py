@@ -4,16 +4,16 @@ import pathlib
 import re
 
 root = pathlib.Path(__file__).parent
-init = root / "OpenCell" / "__init__.py"
+init = root / "steer_opencell_design" / "__init__.py"
 version = re.search(r'__version__\s*=\s*"([^"]+)"', init.read_text()).group(1)
 
 setup(
-    name='OpenCell',
+    name='steer-opencell-design',
     version=version, 
-    description='Modelling energy storage from cell to site',
+    description='Modelling energy storage from cell to site - STEER OpenCell Design',
     author='Nicholas Siemons',
     author_email='nsiemons@stanford.edu',
-    url="https://github.com/nicholas9182/OpenCell/",
+    url="https://github.com/nicholas9182/steer-opencell-design/",
     packages=find_packages(),
     install_requires=[
         "pandas",
@@ -36,7 +36,7 @@ setup(
     python_requires=">=3.10",
     entry_points={
         'console_scripts': [
-            'launch_dash_app=dash_app.app:run',
+            'launch_dash_app=App.app:run',
         ],
     }
 )

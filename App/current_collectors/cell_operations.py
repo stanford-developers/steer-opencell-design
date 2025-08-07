@@ -1,6 +1,6 @@
 from typing import Type
 from general.enumerated_classes import MaterialType, ElectrodeType
-from OpenCell.Materials.RawMaterials import CurrentCollectorMaterial
+from steer_opencell_design.Materials.RawMaterials import CurrentCollectorMaterial
 
 
 def get_current_collector_from_cell(cell: Type, electrode: ElectrodeType) -> Type:

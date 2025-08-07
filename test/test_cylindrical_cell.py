@@ -1,15 +1,15 @@
 import unittest
 import plotly.express as px
-from OpenCell.Formulations.ElectrodeFormulations import ElectrodeFormulation
-from OpenCell.Constructions.Electrodes import Cathode, Anode
-from OpenCell.Materials.Electrolytes import Electrolyte
-from OpenCell.Formulations.ElectrodeAssemblies import CylindricalJellyRoll
-from OpenCell.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
-from OpenCell.Materials.CurrentCollectors import NotchedCurrentCollector
-from OpenCell.Materials.Separators import Separator
-from OpenCell.Constructions.Containers import CylindricalCanister, CylindricalCase, CylindricalTerminalConnector, CylindricalLidAssembly
-from OpenCell.Materials.other import Terminal
-from OpenCell.Constructions.Cells import CylindricalCell
+from steer_opencell_design.Formulations.ElectrodeFormulations import ElectrodeFormulation
+from steer_opencell_design.Constructions.Electrodes import Cathode, Anode
+from steer_opencell_design.Materials.Electrolytes import Electrolyte
+from steer_opencell_design.Formulations.ElectrodeAssemblies import CylindricalJellyRoll
+from steer_opencell_design.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
+from steer_opencell_design.Materials.CurrentCollectors import NotchedCurrentCollector
+from steer_opencell_design.Materials.Separators import Separator
+from steer_opencell_design.Constructions.Containers import CylindricalCanister, CylindricalCase, CylindricalTerminalConnector, CylindricalLidAssembly
+from steer_opencell_design.Materials.other import Terminal
+from steer_opencell_design.Constructions.Cells import CylindricalCell
 
 import pandas as pd
 

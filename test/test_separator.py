@@ -1,6 +1,6 @@
 import unittest
-from OpenCell.Materials.Separators import Separator
-from OpenCell.Materials.RawMaterials import SeparatorMaterial
+from steer_opencell_design.Materials.Separators import Separator
+from steer_opencell_design.Materials.RawMaterials import SeparatorMaterial
 
 import pandas as pd
 import plotly.express as px

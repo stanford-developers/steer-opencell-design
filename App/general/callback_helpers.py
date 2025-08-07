@@ -1,11 +1,9 @@
-from dash import no_update, ctx
-from pathlib import Path
 from typing import Type, Tuple, List, Dict
 from uuid import uuid4
 
 from general.enumerated_classes import CategoricalProperty
 
-from OpenCell.DataManager import DataManager
+from steer_opencell_design.DataManager import DataManager
 
 ### Database Helpers ###
 def get_internal_construction_options(form_factor):

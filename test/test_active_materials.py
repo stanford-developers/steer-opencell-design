@@ -2,7 +2,7 @@ import unittest
 from io import StringIO
 import pandas as pd
 import plotly.express as px
-from OpenCell.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial
+from steer_opencell_design.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial
 
 
 class TestLFPSingleCurve(unittest.TestCase):

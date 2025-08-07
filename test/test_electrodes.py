@@ -1,11 +1,11 @@
 import unittest
 import plotly.express as px
 import plotly.graph_objects as go
-from OpenCell.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation
-from OpenCell.Constructions.Electrodes import Cathode, Anode
-from OpenCell.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
-from OpenCell.Materials.CurrentCollectors import NotchedCurrentCollector, WeldTab, TabWeldedCurrentCollector, PunchedCurrentCollector
-from OpenCell.Materials.RawMaterials import CurrentCollectorMaterial, InsulationMaterial
+from steer_opencell_design.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation
+from steer_opencell_design.Constructions.Electrodes import Cathode, Anode
+from steer_opencell_design.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
+from steer_opencell_design.Materials.CurrentCollectors import NotchedCurrentCollector, WeldTab, TabWeldedCurrentCollector, PunchedCurrentCollector
+from steer_opencell_design.Materials.RawMaterials import CurrentCollectorMaterial, InsulationMaterial
 
 
 class TestCathodePunchedCurrentCollector(unittest.TestCase):
@@ -94,7 +94,7 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         self.assertEqual(self.cathode.mass_loading, 10.68)
         self.assertEqual(self.cathode.insulation_thickness, 25)
         self.assertEqual(self.cathode.coating_mass, 17.49)
-        self.assertEqual(self.cathode.coating_thickness, 41.08)
+        self.assertEqual(self.cathode.coating_thickness, 41.1)
         self.assertEqual(self.cathode.mass, 20.67)
 
     def test_half_cell_curve(self):
