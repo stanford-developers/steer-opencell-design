@@ -1,7 +1,7 @@
 from typing import Type, List, Tuple
 from dash import no_update, ctx
 
-from OpenCell.Materials.CurrentCollectors import *
+from steer_opencell_design.Materials.CurrentCollectors import *
 
 from general.enumerated_classes import *
 from general.callback_helpers import get_cell_from_cache

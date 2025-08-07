@@ -1,6 +1,6 @@
 import unittest
-from OpenCell.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation
-from OpenCell.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
+from steer_opencell_design.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation
+from steer_opencell_design.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
 
 
 

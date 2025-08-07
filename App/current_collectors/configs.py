@@ -1,7 +1,7 @@
 from typing import Type, List, Optional
 from dataclasses import dataclass
 
-from OpenCell.Materials.CurrentCollectors import (
+from steer_opencell_design.Materials.CurrentCollectors import (
     PunchedCurrentCollector, 
     NotchedCurrentCollector, 
     TablessCurrentCollector, 

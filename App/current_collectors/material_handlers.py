@@ -6,7 +6,7 @@ from current_collectors.callback_helpers import create_material_no_update_respon
 from App.current_collectors.cell_operations import get_material_from_cell, set_material_to_cell
 from general.enumerated_classes import MaterialType, SubType
 from general.callback_helpers import generate_parameters, set_cell_to_cache
-from OpenCell.Materials.CurrentCollectors import CurrentCollectorMaterial
+from steer_opencell_design.Materials.CurrentCollectors import CurrentCollectorMaterial
 
 
 

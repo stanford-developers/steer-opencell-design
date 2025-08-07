@@ -2,8 +2,8 @@ import unittest
 from pickle import loads, dumps
 from base64 import b64decode, b64encode 
 
-from OpenCell.Materials.RawMaterials import CurrentCollectorMaterial
-from OpenCell.Materials.CurrentCollectors import PunchedCurrentCollector, NotchedCurrentCollector, TablessCurrentCollector, WeldTab, TabWeldedCurrentCollector
+from steer_opencell_design.Materials.RawMaterials import CurrentCollectorMaterial
+from steer_opencell_design.Materials.CurrentCollectors import PunchedCurrentCollector, NotchedCurrentCollector, TablessCurrentCollector, WeldTab, TabWeldedCurrentCollector
 
 import plotly.graph_objects as go
 import plotly.io as pio
