@@ -1,12 +1,11 @@
+from steer_core.Constants.Units import *
+
 from steer_opencell_design.Materials.RawMaterials import SeparatorMaterial
 
 from plotly import graph_objects as go
 from typing import Tuple
 from copy import deepcopy
-
 from App.styles import *
-from steer_opencell_design.Constants import *
-from steer_opencell_design.Decorators import *
 
 
 class Separator:
