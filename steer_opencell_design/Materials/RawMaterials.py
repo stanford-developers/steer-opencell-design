@@ -1,11 +1,11 @@
+from steer_core.Constants.Units import *
+from steer_core.DataManager import DataManager
+from steer_core.Mixins.Validators import ValidationMixin
+
 from datetime import datetime as dt
 from pickle import dumps, loads
-
-from steer_opencell_design.Constants import *
-from steer_opencell_design.DataManager import DataManager
-from steer_opencell_design.Mixins import ValidationMixin
-
 from copy import deepcopy
+
 import numpy as np
 
 

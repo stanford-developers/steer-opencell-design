@@ -1,30 +1,28 @@
+# import core mixins
+from steer_core.Mixins.Coordinates import CoordinateMixin
+from steer_core.Mixins.Validators import ValidationMixin
+
+# import core decorators
+from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
+from steer_core.Decorators.Coordinates import calculate_coordinates, calculate_areas
+from steer_core.Decorators.Objects import calculate_weld_tab_properties
+
+# import core units
+from steer_core.Constants.Units import *
+
 from steer_opencell_design.Materials.RawMaterials import CurrentCollectorMaterial
 
-from steer_opencell_design.Decorators import (
-    calculate_coordinates, 
-    calculate_bulk_properties, 
-    calculate_all_properties, 
-    calculate_areas, 
-    calculate_weld_tab_properties
-)
-
-from steer_opencell_design.Mixins import (
-    CoordinateMixin, 
-    ValidationMixin, 
-)
-
-from steer_opencell_design.Constants import *
+# import base functions
 from App.styles import *
-
 from abc import ABC, abstractmethod
 from typing import Tuple, Optional, Iterable, Dict
 from plotly.subplots import make_subplots
 from copy import deepcopy
 
+# import base packages
 import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
-import time
 
 
 class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
