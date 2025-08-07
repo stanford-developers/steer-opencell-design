@@ -3,7 +3,8 @@ from uuid import uuid4
 
 from general.enumerated_classes import CategoricalProperty
 
-from steer_opencell_design.DataManager import DataManager
+from steer_core.DataManager import DataManager
+
 
 ### Database Helpers ###
 def get_internal_construction_options(form_factor):

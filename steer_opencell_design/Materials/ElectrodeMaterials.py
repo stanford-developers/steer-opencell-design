@@ -1,8 +1,9 @@
-from steer_opencell_design.DataManager import DataManager
+from steer_core.DataManager import DataManager
+from steer_core.Constants.Units import *
+from steer_core.Decorators.Electrochemical import calculate_half_cell_curves_properties
+from steer_core.Mixins.Data import DataMixin
+
 from steer_opencell_design.Materials.RawMaterials import _Material
-from steer_opencell_design.Constants import *
-from steer_opencell_design.Decorators import calculate_half_cell_curves_properties, calculate_all_properties
-from steer_opencell_design.Mixins import DataMixin
 
 import pandas as pd
 import numpy as np
