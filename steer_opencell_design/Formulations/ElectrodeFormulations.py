@@ -3,7 +3,7 @@ from steer_core.Decorators.Electrochemical import calculate_half_cell_curve
 from steer_core.Constants.Units import *
 from steer_core.Mixins.Validators import ValidationMixin
 
-from steer_opencell_design.Materials.ElectrodeMaterials import _ActiveMaterial, Binder, ConductiveAdditive, CathodeMaterial, AnodeMaterial
+from steer_materials.CellMaterials.Electrode import _ActiveMaterial, Binder, ConductiveAdditive
 
 import pandas as pd
 import numpy as np
@@ -230,7 +230,7 @@ class _ElectrodeFormulation(ValidationMixin):
 
         self._density_breakdown = active_material_density_breakdown | binder_density_breakdown | conductive_additive_density_breakdown
 
-    def _calculate_half_cell_curve(self, voltage: Optional[float] = None) -> None:
+    def _calculate_half_cell_curve(self) -> None:
         """
         Calculate the half-cell curve for the cathode formulation based on the active materials
         and their weight fractions, treating charge and discharge curves separately.

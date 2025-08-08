@@ -1,7 +1,13 @@
 import dash as ds
 from cache_service import cache
-
 from styles import *
+
+import sys
+import os
+# Ensure the App directory is in sys.path
+app_dir = os.path.dirname(os.path.abspath(__file__))
+if app_dir not in sys.path:
+    sys.path.insert(0, app_dir)
 
 # Initialize the dash app
 app = ds.Dash(
@@ -44,3 +50,5 @@ if __name__ == '__main__':
 
 def run():
     app.run_server(debug=True)
+
+

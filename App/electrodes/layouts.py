@@ -1,5 +1,5 @@
 import dash as ds
-from general.custom_components import SliderWithTextInput, RangeSliderWithTextInput
+from steer_core.Apps.Components.CompoundComponents import SliderWithTextInput
 from styles import BUTTON_STYLE
 
 
