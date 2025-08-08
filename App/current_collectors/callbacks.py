@@ -1,11 +1,8 @@
 from dash import callback, Input, Output, ctx, State, no_update, MATCH, ALL
 
 from cache_service import cache
-from uuid import uuid4
 
-from steer_opencell_design.Materials.CurrentCollectors import _TapeCurrentCollector
 from steer_opencell_design.Materials.CurrentCollectors import *
-from steer_opencell_design.Materials.RawMaterials import *
 
 from current_collectors.layouts import *
 from current_collectors.callbacks import CURRENT_COLLECTOR_DESIGNS

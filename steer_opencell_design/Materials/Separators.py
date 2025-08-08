@@ -1,7 +1,7 @@
 from steer_core.Constants.Units import *
 from steer_core.Mixins.Coordinates import CoordinateMixin
 
-from steer_opencell_design.Materials.RawMaterials import SeparatorMaterial
+from steer_materials.CellMaterials.Base import SeparatorMaterial
 
 from plotly import graph_objects as go
 from typing import Tuple

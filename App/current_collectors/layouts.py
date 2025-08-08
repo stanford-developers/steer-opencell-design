@@ -1,12 +1,8 @@
 import dash as ds
 from styles import *
 
-from general.custom_components import SliderWithTextInput, RangeSliderWithTextInput
+from steer_core.Apps.Components.CompoundComponents import SliderWithTextInput, RangeSliderWithTextInput
 from database_service import CURRENT_COLLECTOR_MATERIALS
-
-from steer_opencell_design.Materials.CurrentCollectors import *
-from steer_opencell_design.Materials.RawMaterials import *
-
 
 CURRENT_COLLECTOR_DESIGNS = ['Punched','Notched','Tabless','Tabbed']
 

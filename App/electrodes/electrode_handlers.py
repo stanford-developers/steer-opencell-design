@@ -5,13 +5,10 @@ from typing import Type, Tuple
 from general.callback_helpers import validate_dependent_properties, generate_parameters
 from general.enumerated_classes import SubType
 from general.callback_helpers import set_cell_to_cache
-from general.context_managers import capture_warnings
+from steer_core.Apps.ContextManagers import capture_warnings
 
 from electrodes.cell_operations import set_electrode_to_cell
 from electrodes.parameter_lists import ELECTRODE_SETTABLE_PARAMETERS, ELECTRODE_PARAMETER_LIST
-
-import warnings
-import time
 
 
 def handle_cell_store_update(object: Type, existing_warnings: list) -> Tuple:

@@ -10,7 +10,8 @@ from steer_core.Decorators.Objects import calculate_weld_tab_properties
 # import core units
 from steer_core.Constants.Units import *
 
-from steer_opencell_design.Materials.RawMaterials import CurrentCollectorMaterial
+# import materials
+from steer_materials.CellMaterials.Base import CurrentCollectorMaterial
 
 # import base functions
 from App.styles import *

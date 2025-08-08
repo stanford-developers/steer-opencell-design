@@ -2,7 +2,6 @@ from typing import Type, Tuple, List, Dict
 from uuid import uuid4
 
 from general.enumerated_classes import CategoricalProperty
-
 from steer_core.DataManager import DataManager
 
 

@@ -1,6 +1,5 @@
 from typing import Type
 from general.enumerated_classes import MaterialType, ElectrodeType
-from steer_opencell_design.Materials.RawMaterials import CurrentCollectorMaterial
 
 
 def get_current_collector_from_cell(cell: Type, electrode: ElectrodeType) -> Type:
@@ -59,7 +58,7 @@ def get_material_from_cell(material_type: MaterialType, cell: Type) -> Type:
         raise ValueError(f"Unknown material type: {material_type}")
 
 
-def get_cathode_current_collector_tab_material(cell: Type) -> CurrentCollectorMaterial:
+def get_cathode_current_collector_tab_material(cell: Type) -> Type:
     """
     Get the current collector tab material from the cell.
 
@@ -75,7 +74,7 @@ def get_cathode_current_collector_tab_material(cell: Type) -> CurrentCollectorMa
         return None
 
 
-def get_cathode_current_collector_material(cell: Type) -> CurrentCollectorMaterial:
+def get_cathode_current_collector_material(cell: Type) -> Type:
     """
     Get the current collector material from the cell.
 
@@ -141,7 +140,7 @@ def set_material_to_cell(material_type: MaterialType, cell: Type, material: Type
     return cell
 
 
-def set_cathode_current_collector_tab_material_to_cell(cell: Type, material: CurrentCollectorMaterial) -> Type:
+def set_cathode_current_collector_tab_material_to_cell(cell: Type, material: Type) -> Type:
     """
     Set the current collector tab material for the cell.
 
@@ -167,7 +166,7 @@ def set_cathode_current_collector_tab_material_to_cell(cell: Type, material: Cur
     return cell
 
 
-def set_cathode_current_collector_material_to_cell(cell: Type, material: CurrentCollectorMaterial) -> Type:
+def set_cathode_current_collector_material_to_cell(cell: Type, material: Type) -> Type:
     """
     Set the current collector material for the cell.
 
