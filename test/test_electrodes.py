@@ -1,11 +1,12 @@
 import unittest
-import plotly.express as px
 import plotly.graph_objects as go
+
 from steer_opencell_design.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation
-from steer_opencell_design.Constructions.Electrodes import Cathode, Anode
-from steer_opencell_design.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
-from steer_opencell_design.Materials.CurrentCollectors import NotchedCurrentCollector, WeldTab, TabWeldedCurrentCollector, PunchedCurrentCollector
-from steer_opencell_design.Materials.RawMaterials import CurrentCollectorMaterial, InsulationMaterial
+from steer_opencell_design.Components.Electrodes import Cathode, Anode
+from steer_opencell_design.Components.CurrentCollectors import NotchedCurrentCollector, WeldTab, TabWeldedCurrentCollector, PunchedCurrentCollector
+
+from steer_materials.CellMaterials.Base import CurrentCollectorMaterial, InsulationMaterial
+from steer_materials.CellMaterials.Electrode import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
 
 
 class TestCathodePunchedCurrentCollector(unittest.TestCase):

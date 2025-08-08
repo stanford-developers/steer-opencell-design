@@ -4,7 +4,7 @@ from base64 import b64decode, b64encode
 
 from steer_materials.CellMaterials.Base import CurrentCollectorMaterial
 
-from steer_opencell_design.Materials.CurrentCollectors import PunchedCurrentCollector, NotchedCurrentCollector, TablessCurrentCollector, WeldTab, TabWeldedCurrentCollector
+from steer_opencell_design.Components.CurrentCollectors import PunchedCurrentCollector, NotchedCurrentCollector, TablessCurrentCollector, WeldTab, TabWeldedCurrentCollector
 
 import plotly.graph_objects as go
 import plotly.io as pio

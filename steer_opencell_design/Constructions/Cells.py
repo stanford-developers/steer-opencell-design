@@ -1,6 +1,6 @@
-from steer_opencell_design.Formulations.ElectrodeAssemblies import Stack, CylindricalJellyRoll, FlatJellyRoll, _JellyRoll
-from steer_opencell_design.Materials.Electrolytes import Electrolyte
-from steer_opencell_design.Constructions.Containers import Pouch, PrismaticCase, CylindricalCase
+from steer_opencell_design.Constructions.ElectrodeAssemblies import Stack, CylindricalJellyRoll, FlatJellyRoll, _JellyRoll
+from steer_opencell_design.Components.Electrolytes import Electrolyte
+from steer_opencell_design.Components.Containers import Pouch, PrismaticCase, CylindricalCase
 
 from App.styles import *
 from steer_opencell_design.Constants import *

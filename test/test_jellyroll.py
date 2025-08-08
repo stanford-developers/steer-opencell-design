@@ -1,11 +1,11 @@
 import unittest
 import plotly.express as px
 from steer_opencell_design.Formulations.ElectrodeFormulations import ElectrodeFormulation
-from steer_opencell_design.Constructions.Electrodes import Cathode, Anode
-from steer_opencell_design.Formulations.ElectrodeAssemblies import FlatJellyRoll, CylindricalJellyRoll
-from steer_opencell_design.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
-from steer_opencell_design.Materials.CurrentCollectors import NotchedCurrentCollector
-from steer_opencell_design.Materials.Separators import Separator
+from steer_opencell_design.Components.Electrodes import Cathode, Anode
+from steer_opencell_design.Constructions.ElectrodeAssemblies import FlatJellyRoll, CylindricalJellyRoll
+from steer_opencell_design.Components.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
+from steer_opencell_design.Components.CurrentCollectors import NotchedCurrentCollector
+from steer_opencell_design.Components.Separators import Separator
 
 import pandas as pd
 

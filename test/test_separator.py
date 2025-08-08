@@ -1,6 +1,6 @@
 import unittest
-from steer_opencell_design.Materials.Separators import Separator
-from steer_opencell_design.Materials.RawMaterials import SeparatorMaterial
+from steer_opencell_design.Components.Separators import Separator
+from steer_opencell_design.Components.RawMaterials import SeparatorMaterial
 
 import pandas as pd
 import plotly.express as px

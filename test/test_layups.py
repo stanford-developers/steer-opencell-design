@@ -2,12 +2,12 @@ import unittest
 import plotly.express as px
 import plotly.graph_objects as go
 from steer_opencell_design.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation
-from steer_opencell_design.Constructions.Electrodes import Cathode, Anode
-from steer_opencell_design.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
-from steer_opencell_design.Materials.CurrentCollectors import NotchedCurrentCollector, WeldTab, TabWeldedCurrentCollector, PunchedCurrentCollector
-from steer_opencell_design.Materials.RawMaterials import CurrentCollectorMaterial, InsulationMaterial, SeparatorMaterial
-from steer_opencell_design.Formulations.Layups import Layup
-from steer_opencell_design.Materials.Separators import Separator
+from steer_opencell_design.Components.Electrodes import Cathode, Anode
+from steer_opencell_design.Components.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
+from steer_opencell_design.Components.CurrentCollectors import NotchedCurrentCollector, WeldTab, TabWeldedCurrentCollector, PunchedCurrentCollector
+from steer_opencell_design.Components.RawMaterials import CurrentCollectorMaterial, InsulationMaterial, SeparatorMaterial
+from steer_opencell_design.Constructions.Layups import Layup
+from steer_opencell_design.Components.Separators import Separator
 
 
 class TestCathodeTwoMaterialNotched(unittest.TestCase):

@@ -2,14 +2,14 @@ import unittest
 import plotly.express as px
 
 from steer_opencell_design.Formulations.ElectrodeFormulations import ElectrodeFormulation
-from steer_opencell_design.Constructions.Electrodes import Cathode, Anode
-from steer_opencell_design.Formulations.ElectrodeAssemblies import Stack
+from steer_opencell_design.Components.Electrodes import Cathode, Anode
+from steer_opencell_design.Constructions.ElectrodeAssemblies import Stack
 from steer_opencell_design.Constructions.Cells import StackedPrismaticCell
-from steer_opencell_design.Materials.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
+from steer_opencell_design.Components.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
 
-from steer_opencell_design.Materials.Separators import Separator
-from steer_opencell_design.Materials.Electrolytes import Electrolyte
-from steer_opencell_design.Constructions.Containers import PrismaticCase, PrismaticLid, PrismaticShell
+from steer_opencell_design.Components.Separators import Separator
+from steer_opencell_design.Components.Electrolytes import Electrolyte
+from steer_opencell_design.Components.Containers import PrismaticCase, PrismaticLid, PrismaticShell
 
 import datetime as dt
 

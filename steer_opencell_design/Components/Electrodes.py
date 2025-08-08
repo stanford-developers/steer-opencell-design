@@ -9,7 +9,7 @@ from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Constants.Units import *
 
 from steer_opencell_design.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation, _ElectrodeFormulation
-from steer_opencell_design.Materials.CurrentCollectors import _CurrentCollector
+from steer_opencell_design.Components.CurrentCollectors import _CurrentCollector
 
 from steer_materials.CellMaterials.Base import InsulationMaterial
 
