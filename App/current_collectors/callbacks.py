@@ -2,7 +2,7 @@ from dash import callback, Input, Output, ctx, State, no_update, MATCH, ALL
 
 from cache_service import cache
 
-from steer_opencell_design.Materials.CurrentCollectors import *
+from steer_opencell_design.Components.CurrentCollectors import *
 
 from current_collectors.layouts import *
 from current_collectors.callbacks import CURRENT_COLLECTOR_DESIGNS

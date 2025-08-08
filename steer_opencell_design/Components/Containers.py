@@ -1,7 +1,7 @@
-from steer_opencell_design.Materials.other import Laminate, Tape, Terminal
-from steer_opencell_design.Constructions.Electrodes import Cathode, Anode
-from steer_opencell_design.Materials.Separators import Separator
-from steer_opencell_design.Formulations.ElectrodeAssemblies import Stack
+from steer_opencell_design.Components.other import Laminate, Tape, Terminal
+from steer_opencell_design.Components.Electrodes import Cathode, Anode
+from steer_opencell_design.Components.Separators import Separator
+from steer_opencell_design.Constructions.ElectrodeAssemblies import Stack
 
 from steer_opencell_design.DataManager import DataManager
 

@@ -1,6 +1,6 @@
-from steer_opencell_design.Constructions.Electrodes import Anode, Cathode
-from steer_opencell_design.Materials.Separators import Separator
-from steer_opencell_design.Materials.CurrentCollectors import CurrentCollector, TabWeldedCurrentCollector, NotchedCurrentCollector
+from steer_opencell_design.Components.Electrodes import Anode, Cathode
+from steer_opencell_design.Components.Separators import Separator
+from steer_opencell_design.Components.CurrentCollectors import CurrentCollector, TabWeldedCurrentCollector, NotchedCurrentCollector
 
 from App.styles import *
 from steer_opencell_design.Constants import *
