@@ -153,7 +153,7 @@ def update_cathode_current_collector_material(
     cell_data,
     material_selector,
     input_values,
-    slider_values
+    slider_values,
 ):
     
     callback_function = create_material_callback(MaterialType.CATHODE_CURRENT_COLLECTOR)
