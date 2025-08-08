@@ -1,4 +1,5 @@
 from steer_core.Constants.Units import *
+from steer_core.Mixins.Coordinates import CoordinateMixin
 
 from steer_opencell_design.Materials.RawMaterials import SeparatorMaterial
 
@@ -8,7 +9,7 @@ from copy import deepcopy
 from App.styles import *
 
 
-class Separator:
+class Separator(CoordinateMixin):
 
     def __init__(
             self,  
@@ -113,7 +114,7 @@ class Separator:
         else:
             length = self._length
         
-        coordinates = CoordinateManager.build_square_df(
+        coordinates = self.build_square_df(
             x=self._datum[0] - length / 2,
             y=self._datum[1] - self._width / 2,
             x_width=length,
@@ -147,7 +148,7 @@ class Separator:
         if self._folded:
             return None # TODO: Implement side view for folded separators
 
-        coordinates = CoordinateManager.build_square_df(
+        coordinates = self.build_square_df(
             x=self._datum[0] - self._length / 2,
             y=self._datum[2] - self._thickness / 2,
             x_width=self._length,
