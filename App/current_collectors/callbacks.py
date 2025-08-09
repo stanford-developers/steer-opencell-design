@@ -6,7 +6,8 @@ from steer_opencell_design.Components.CurrentCollectors import *
 
 from current_collectors.layouts import *
 from current_collectors.callbacks import CURRENT_COLLECTOR_DESIGNS
-from current_collectors.callback_helpers import create_generic_current_collector_callback, create_material_callback
+from current_collectors.callback_helpers import create_generic_current_collector_callback
+from general.callback_helpers import create_material_callback
 from current_collectors.cell_operations import get_current_collector_from_cell, set_current_collector_to_cell
 from general.enumerated_classes import CollectorType, ElectrodeType, MaterialType
 
@@ -250,10 +251,11 @@ def update_cathode_current_collector_design_parameters(design):
         Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
         Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'action': 'flip_x'}, 'n_clicks'),
         Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'action': 'flip_y'}, 'n_clicks'),
+        Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'action': 'rotate'}, 'n_clicks')
     ],
     prevent_initial_call=True
 )
-def update_punched_current_collector(cell_data, input_values, slider_values, flip_x, flip_y):
+def update_punched_current_collector(cell_data, input_values, slider_values, flip_x, flip_y, rotate):
 
     callback_function = create_generic_current_collector_callback(
         CollectorType.PUNCHED,
@@ -265,7 +267,8 @@ def update_punched_current_collector(cell_data, input_values, slider_values, fli
         input_values,
         slider_values,
         flip_x,
-        flip_y
+        flip_y,
+        rotate
     )
 
     return response

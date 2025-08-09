@@ -146,7 +146,7 @@ def handle_property_update(
     
     return tuple(response)
 
-def handle_flip_action(
+def handle_action(
     triggered_id: dict,
     current_collector,
     config: Type,
@@ -161,7 +161,9 @@ def handle_flip_action(
         current_collector.flip(axis='x')
     elif action == ActionType.FLIP_Y:
         current_collector.flip(axis='y')
-    
+    elif action == ActionType.ROTATE:
+        current_collector.rotate_90()
+
     # Update cache
     new_cell = set_current_collector_to_cell(cell, current_collector)
     

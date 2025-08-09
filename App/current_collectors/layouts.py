@@ -270,6 +270,14 @@ cathode_punched_design_parameters = ds.html.Div(
             style=BUTTON_STYLE | {'width': 'calc(30%)'}
         ),
 
+        ds.html.Br(), ds.html.Br(),
+
+        ds.html.Button(
+            id={'electrode': 'cathode', 'object': 'punched_current_collector', 'action': 'rotate'},
+            children='Rotate 90°',
+            style=BUTTON_STYLE | {'width': 'calc(30%)'}
+        ),
+
     ]
 )
 
