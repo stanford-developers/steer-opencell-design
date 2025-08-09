@@ -1,6 +1,51 @@
 import dash as ds
 from steer_core.Apps.Components.SliderComponents import SliderWithTextInput
 from styles import BUTTON_STYLE
+from database_service import INSULATION_MATERIALS
+
+
+cathode_insulation_material_parameters = ds.html.Div(
+
+    id = 'cathode_insulation_material_parameters',
+
+    children=[
+
+        ds.html.H5('Select insulation material', style={'font-weight': 'bold'}),
+
+        ds.dcc.Dropdown(
+            id='cathode_insulation_material_selector', 
+            placeholder='Select Cathode Insulation Material',
+            style={'width': 'calc(50%)'},
+            options=[{'label': material, 'value': material} for material in INSULATION_MATERIALS]
+        ),
+
+        ds.html.Br(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'insulation_material'},
+            min_val = 0,
+            max_val = 500,
+            step = 0.01,
+            mark_interval = 30,
+            property_name = 'density',
+            title = 'Density (kg/m³)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'insulation_material'},
+            min_val = 0,
+            max_val = 500,
+            step = 0.01,
+            mark_interval = 30,
+            property_name = 'specific_cost',
+            title = 'Specific Cost (€/kg)'
+        )(),
+
+        ds.html.Br(), ds.html.Br(),
+
+    ]
+
+)
 
 
 cathode_design_parameters = ds.html.Div(
@@ -20,7 +65,8 @@ cathode_design_parameters = ds.html.Div(
             step = 0.01,
             mark_interval = 30,
             property_name = 'mass_loading',
-            title = 'Mass Loading (mg/cm²)'
+            title = 'Mass Loading (mg/cm²)',
+            message='will impact the coating and total thickness'
         )(),
 
         SliderWithTextInput(
@@ -30,7 +76,8 @@ cathode_design_parameters = ds.html.Div(
             step = 0.1,
             mark_interval = 2,
             property_name = 'thickness',
-            title = 'Thickness (µm)'
+            title = 'Total Thickness (µm)',
+            message='will impact the coating thickness and mass loading'
         )(),
 
         SliderWithTextInput(
@@ -40,7 +87,8 @@ cathode_design_parameters = ds.html.Div(
             step = 0.1,
             mark_interval = 2,
             property_name = 'coating_thickness',
-            title = 'Coating Thickness (µm)'
+            title = 'Coating Thickness (µm)',
+            message='will impact the total thickness and mass loading'
         )(),
 
         SliderWithTextInput(
@@ -50,7 +98,8 @@ cathode_design_parameters = ds.html.Div(
             step = 0.01,
             mark_interval = 30,
             property_name = 'calender_density',
-            title = 'Calender Density (g/cm³)'
+            title = 'Calender Density (g/cm³)',
+            message='will impact the porosity and thicknesses'
         )(),
 
         SliderWithTextInput(
@@ -60,7 +109,8 @@ cathode_design_parameters = ds.html.Div(
             step = 0.1,
             mark_interval = 30,
             property_name = 'porosity',
-            title = 'Porosity (%)'
+            title = 'Porosity (%)',
+            message='will impact the calender density and thicknesses'
         )(),
 
         ds.html.Br(), ds.html.Br(), 
@@ -193,9 +243,8 @@ cathode_electrode_layout = ds.html.Div([
     ds.html.Div([
         
         ds.html.Br(), ds.html.Br(), ds.html.Br(), 
-
+        cathode_insulation_material_parameters,
         cathode_design_parameters,
-
         ds.html.Div(style={'height': '200px'})
 
         ], style={'flex': '1', 'padding': '20px', 'width': 'calc(50%)'}),

@@ -1,5 +1,4 @@
 from typing import Type
-
 from general.enumerated_classes import ElectrodeType
 
 def get_electrode_from_cell(cell: Type, electrode: ElectrodeType) -> Type:

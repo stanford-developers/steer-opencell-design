@@ -262,7 +262,7 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         axis : str
             The axis to rotate around. Must be 'x' or 'y'.
         """
-        if axis not in ['x', 'y']:
+        if axis not in ['x', 'y', '']:
             raise ValueError("Axis must be 'x' or 'y'.")
 
         axis_map = {
@@ -302,8 +302,12 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         figure.add_trace(self.right_left_body_trace)
         figure.add_trace(self.right_left_a_side_coated_coordinates)
         figure.add_trace(self.right_left_b_side_coated_coordinates)
-        figure.add_trace(self.right_left_a_side_insulation_coordinates)
-        figure.add_trace(self.right_left_b_side_insulation_coordinates)
+
+        if hasattr(self, '_right_left_a_side_insulation_coordinates') and self._right_left_a_side_insulation_coordinates is not None:
+            figure.add_trace(self.right_left_a_side_insulation_coordinates)
+
+        if hasattr(self, '_right_left_b_side_insulation_coordinates') and self._right_left_b_side_insulation_coordinates is not None:
+            figure.add_trace(self.right_left_b_side_insulation_coordinates)
 
         figure.update_layout(
             xaxis=dict(showgrid=False, zeroline=False, title='X (mm)', scaleanchor="y"),
@@ -1786,6 +1790,30 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
     def get_top_down_view(self, with_dimensions: bool = False, **kwargs) -> go.Figure:
         return self._get_full_top_down_view(with_dimensions=with_dimensions, **kwargs)
+
+    def rotate_90(self) -> None:
+        """
+        Rotate the current collector by 90 degrees in the clockwise direction.
+        """
+        # Keep datum as the center of rotation - don't move it to origin
+        # Rotate coordinates around the current datum position
+        self._body_coordinates = self.rotate_coordinates(self._body_coordinates, 'z', -90, center=self._datum)
+        self._a_side_coated_coordinates = self.rotate_coordinates(self._a_side_coated_coordinates, 'z', -90, center=self._datum)
+        self._b_side_coated_coordinates = self.rotate_coordinates(self._b_side_coated_coordinates, 'z', -90, center=self._datum)
+
+        if hasattr(self, '_a_side_insulation_coordinates'):
+            self._a_side_insulation_coordinates = self.rotate_coordinates(self._a_side_insulation_coordinates, 'z', -90, center=self._datum)
+        if hasattr(self, '_b_side_insulation_coordinates'):
+            self._b_side_insulation_coordinates = self.rotate_coordinates(self._b_side_insulation_coordinates, 'z', -90, center=self._datum)
+
+        if hasattr(self, '_weld_tabs'):
+            for tab in self._weld_tabs:
+                tab._body_coordinates = self.rotate_coordinates(tab._body_coordinates, 'z', -90, center=self._datum)
+                tab_datum_array = np.array([[tab._datum[0], tab._datum[1], tab._datum[2]]])
+                rotated_datum = self.rotate_coordinates(tab_datum_array, 'z', -90, center=self._datum)
+                tab._datum = tuple(rotated_datum[0])
+
+        return self
 
     @property
     def mass_range(self) -> Tuple[float, float]:
