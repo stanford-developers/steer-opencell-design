@@ -8,8 +8,7 @@ from general.callback_helpers import get_cell_from_cache
 from general.trigger_router import TriggerRouter, TriggerType
 
 from current_collectors.configs import COLLECTOR_CONFIGS
-from current_collectors.parameter_lists import CC_MATERIAL_PARAMETER_LIST
-from current_collectors.current_collector_handlers import *
+from current_collectors.handlers import *
 
 
 # =============================================================================
@@ -105,7 +104,7 @@ def create_generic_current_collector_callback(config_key: CollectorType, electro
         
         # trigger if an action is performed, e.g. flip
         elif trigger_type == TriggerType.ACTION:
-            return handle_flip_action(triggered_id, current_collector, config, cell)
+            return handle_action(triggered_id, current_collector, config, cell)
         
         # Fallback
         return create_no_update_response(config)
@@ -143,67 +142,5 @@ def convert_current_collector(current_collector: Type, target_type_name: str):
     new_current_collector = converter(current_collector)
 
     return new_current_collector
-
-
-
-# =============================================================================
-# Current Collector Materials Helpers
-# =============================================================================
-
-def create_material_no_update_response() -> Tuple:
-    """Create a no_update response specifically for material callbacks."""
-    # Material callbacks have exactly 7 outputs:
-    # 1. cache_key (single value)
-    # 2. material_selector value (single value) 
-    # 3. input values (list)
-    # 4. slider values (list)
-    # 5. slider mins (list)
-    # 6. slider maxs (list)
-    # 7. marks (list)
-    
-    num_material_params = len(CC_MATERIAL_PARAMETER_LIST)  # Should be 2
-    
-    return (
-        no_update,  # cache_key
-        no_update,  # material_selector value
-        [no_update] * num_material_params,  # input values
-        [no_update] * num_material_params,  # slider values
-        [no_update] * num_material_params,  # slider mins
-        [no_update] * num_material_params,  # slider maxs
-        [no_update] * num_material_params,  # marks
-    )
-
-def create_material_callback(material_type: MaterialType) -> callable:
-    """Factory for creating material update callbacks."""
-
-    def update_material(cell_data, material_name, input_values, slider_values):
-
-        from current_collectors.material_handlers import (
-            handle_cell_store_update, 
-            handle_selector_update, 
-            handle_property_update
-        )
-
-        # get the triggered ID
-        triggered_id = ctx.triggered_id
-
-        # get the cell from cache
-        cell = get_cell_from_cache(cell_data['cache_key'])
-
-        # Get the trigger type using the TriggerRouter
-        trigger_type = TriggerRouter.get_trigger_type(triggered_id)
-
-        if trigger_type == TriggerType.CELL_STORE:
-            return handle_cell_store_update(cell, material_type)
-
-        elif trigger_type == TriggerType.COMPONENT_SELECTOR:
-            return handle_selector_update(material_name, cell, material_type)
-
-        elif trigger_type == TriggerType.PROPERTY:
-            return handle_property_update(triggered_id, cell, material_type, slider_values, input_values)
-
-        return create_material_no_update_response()
-
-    return update_material
 
 

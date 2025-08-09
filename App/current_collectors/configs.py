@@ -12,7 +12,7 @@ from general.enumerated_classes import (
     CollectorType
 )
 
-from current_collectors.parameter_lists import (
+from current_collectors.lists import (
     PUNCHED_PARAMETER_LIST,
     PUNCHED_SETTABLE_PARAMETERS,
     NOTCHED_PARAMETER_LIST,
