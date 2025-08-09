@@ -1,7 +1,9 @@
 from typing import Type, Tuple, List, Dict
 from uuid import uuid4
+from dash import ctx
 
-from general.enumerated_classes import CategoricalProperty
+from general.enumerated_classes import CategoricalProperty, MaterialType, TriggerType
+from general.trigger_router import TriggerRouter
 from steer_core.DataManager import DataManager
 
 
@@ -270,4 +272,41 @@ def validate_dependent_properties(object, settable_params: list, updated_propert
             except AttributeError:
                 # Handle case where range doesn't exist
                 continue
+
+def create_material_callback(material_type: MaterialType) -> callable:
+    """Factory for creating material update callbacks."""
+
+    def update_material(cell_data, material_name, input_values, slider_values):
+
+        from materials.handlers import (
+            handle_cell_store_update, 
+            handle_selector_update, 
+            handle_property_update
+        )
+
+        from current_collectors.callback_helpers import create_no_update_response
+
+        # get the triggered ID
+        triggered_id = ctx.triggered_id
+
+        # get the cell from cache
+        cell = get_cell_from_cache(cell_data['cache_key'])
+
+        # Get the trigger type using the TriggerRouter
+        trigger_type = TriggerRouter.get_trigger_type(triggered_id)
+
+        if trigger_type == TriggerType.CELL_STORE:
+            return handle_cell_store_update(cell, material_type)
+
+        elif trigger_type == TriggerType.COMPONENT_SELECTOR:
+            return handle_selector_update(material_name, cell, material_type)
+
+        elif trigger_type == TriggerType.PROPERTY:
+            return handle_property_update(triggered_id, cell, material_type, slider_values, input_values)
+
+        return create_no_update_response()
+
+    return update_material
+
+
 

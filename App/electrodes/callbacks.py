@@ -3,8 +3,48 @@ from dash import callback, Input, Output, ALL, State
 from electrodes.cell_operations import get_electrode_from_cell
 from electrodes.callback_helpers import create_electrode_callback
 
-from general.enumerated_classes import ElectrodeType
+from general.enumerated_classes import ElectrodeType, MaterialType
+from general.callback_helpers import create_material_callback
 from cache_service import cache
+
+
+
+@callback(
+    [
+        Output('cell_store', 'data', allow_duplicate=True),
+        Output('cathode_insulation_material_selector', 'value'),
+        Output({'electrode': 'cathode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'input'}, 'value'),
+        Output({'electrode': 'cathode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'slider'}, 'value'),
+        Output({'electrode': 'cathode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'slider'}, 'min'),
+        Output({'electrode': 'cathode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'slider'}, 'max'),
+        Output({'electrode': 'cathode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'slider'}, 'marks'),
+    ],
+    [
+        Input('cell_store', 'data'),
+        Input('cathode_insulation_material_selector', 'value'),
+        Input({'electrode': 'cathode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'input'}, 'value'),
+        Input({'electrode': 'cathode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'slider'}, 'value'),
+    ],
+    prevent_initial_call=True
+)
+def update_cathode_insulation_material(
+    cell_data,
+    material_selector,
+    input_values,
+    slider_values,
+):
+    
+    callback_function = create_material_callback(MaterialType.CATHODE_INSULATION)
+
+    response = callback_function(
+        cell_data,
+        material_selector,
+        input_values,
+        slider_values
+    )
+
+    return response
+
 
 
 @callback(

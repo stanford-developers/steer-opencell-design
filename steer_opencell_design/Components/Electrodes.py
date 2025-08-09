@@ -609,8 +609,8 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
 
         :return: Tuple containing the minimum and maximum coating thickness in micrometers.
         """
-        minimum_coating_thickness = (self.mass_loading_range[0]*mG_TO_G / self.calender_density_range[1]) * CM_TO_UM
-        maximum_coating_thickness = (self.mass_loading_range[1]*mG_TO_G / self.calender_density_range[0]) * CM_TO_UM
+        minimum_coating_thickness = (self.mass_loading_range[0]*mG_TO_G / self.calender_density) * CM_TO_UM
+        maximum_coating_thickness = (self.mass_loading_range[1]*mG_TO_G / self.calender_density) * CM_TO_UM
 
         return (
             round(minimum_coating_thickness, 1), 
@@ -1002,6 +1002,18 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         min_datum = np.ceil(self.datum_z_range[0])
         max_datum = np.floor(self.datum_z_range[1])
         return {i: '' for i in range(int(min_datum), int(max_datum) + 1, 20)}
+
+    @datum_x.setter
+    def datum_x(self, x: float) -> None:
+        self.datum = (x, self.datum_y, self.datum_z)
+
+    @datum_y.setter
+    def datum_y(self, y: float) -> None:
+        self.datum = (self.datum_x, y, self.datum_z)
+
+    @datum_z.setter
+    def datum_z(self, z: float) -> None:
+        self.datum = (self.datum_x, self.datum_y, z)
 
     @thickness.setter
     @calculate_all_properties

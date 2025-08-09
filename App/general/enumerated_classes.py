@@ -27,6 +27,7 @@ class TriggerType(Enum):
 class ActionType(Enum):
     FLIP_X = 'flip_x'
     FLIP_Y = 'flip_y'
+    ROTATE = 'rotate'
 
 class TabWeldSide(Enum):
     A_SIDE = 'a'
@@ -67,5 +68,6 @@ class MaterialType(Enum):
     CATHODE_CURRENT_COLLECTOR_TAB = 'cathode_current_collector_tab'
     ANODE_CURRENT_COLLECTOR = 'anode_current_collector'
     ANODE_CURRENT_COLLECTOR_TAB = 'anode_current_collector_tab'
-
+    CATHODE_INSULATION = 'cathode_insulation'
+    ANODE_INSULATION = 'anode_insulation'
 

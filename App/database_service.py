@@ -11,4 +11,5 @@ dm = DataManager()
 
 FORM_FACTOR_OPTIONS = dm.get_data('cells')['form_factor'].unique().tolist()
 CURRENT_COLLECTOR_MATERIALS = dm.get_current_collector_materials(most_recent=True)['name'].tolist()
+INSULATION_MATERIALS = dm.get_insulation_materials(most_recent=True)['name'].tolist()
 
