@@ -1,4 +1,4 @@
-from dash import callback, Input, Output, ctx, State, no_update, MATCH, ALL
+from dash import callback, Input, Output, ctx, State, no_update, MATCH, ALL, clientside_callback
 
 from cache_service import cache
 
@@ -11,6 +11,13 @@ from general.callback_helpers import create_material_callback
 from current_collectors.cell_operations import get_current_collector_from_cell, set_current_collector_to_cell
 from general.enumerated_classes import CollectorType, ElectrodeType, MaterialType
 
+
+clientside_callback(
+    "window.dash_clientside.slider_sync.sync_drag_to_input",
+    Output({'electrode': 'cathode', 'object': 'material', 'property': MATCH, 'subtype': 'input'}, 'value'),
+    Input({'electrode': 'cathode', 'object': 'material', 'property': MATCH, 'subtype': 'slider'}, 'drag_value'),
+    prevent_initial_call=True
+)
 
 @callback(
     [
@@ -136,7 +143,7 @@ def update_current_collector_design(design_value, cell_data):
     [
         Output('cell_store', 'data', allow_duplicate=True),
         Output('cathode_current_collector_material_selector', 'value'),
-        Output({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'input'}, 'value'),
+        # Output({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'input'}, 'value'),
         Output({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'slider'}, 'value'),
         Output({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'slider'}, 'min'),
         Output({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'slider'}, 'max'),
@@ -166,303 +173,307 @@ def update_cathode_current_collector_material(
         slider_values
     )
 
+    response_list = list(response)
+    response = response_list[:2] + response_list[3:]
+    response = tuple(response)
+
     return response
 
 
-@callback(
-    [
-        Output('cell_store', 'data', allow_duplicate=True),
-        Output('cathode_current_collector_tab_material_selector', 'value'),
-        Output({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'input'}, 'value'),
-        Output({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'slider'}, 'value'),
-        Output({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'slider'}, 'min'),
-        Output({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'slider'}, 'max'),
-        Output({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'slider'}, 'marks'),
-    ],
-    [
-        Input('cell_store', 'data'),
-        Input('cathode_current_collector_tab_material_selector', 'value'),
-        Input({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'input'}, 'value'),
-        Input({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'slider'}, 'value'),
-    ],
-    prevent_initial_call=True
-)
-def update_cathode_current_collector_tab_material(
-    cell_data,
-    material_selector,
-    input_values,
-    slider_values
-):
+# @callback(
+#     [
+#         Output('cell_store', 'data', allow_duplicate=True),
+#         Output('cathode_current_collector_tab_material_selector', 'value'),
+#         Output({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'input'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'slider'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'slider'}, 'min'),
+#         Output({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'slider'}, 'max'),
+#         Output({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'slider'}, 'marks'),
+#     ],
+#     [
+#         Input('cell_store', 'data'),
+#         Input('cathode_current_collector_tab_material_selector', 'value'),
+#         Input({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'input'}, 'value'),
+#         Input({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'slider'}, 'value'),
+#     ],
+#     prevent_initial_call=True
+# )
+# def update_cathode_current_collector_tab_material(
+#     cell_data,
+#     material_selector,
+#     input_values,
+#     slider_values
+# ):
     
-    callback_function = create_material_callback(MaterialType.CATHODE_CURRENT_COLLECTOR_TAB)
+#     callback_function = create_material_callback(MaterialType.CATHODE_CURRENT_COLLECTOR_TAB)
 
-    response = callback_function(
-        cell_data,
-        material_selector,
-        input_values,
-        slider_values
-    )
+#     response = callback_function(
+#         cell_data,
+#         material_selector,
+#         input_values,
+#         slider_values
+#     )
 
-    return response
-
-
-@callback(
-    [Output('cathode_punched_design_parameters', 'style'),
-     Output('cathode_notched_design_parameters', 'style'),
-     Output('cathode_tabless_design_parameters', 'style'),
-     Output('cathode_tabbed_design_parameters', 'style')],
-    Input('cathode_current_collector_design', 'value'),
-    prevent_initial_call=True
-)
-def update_cathode_current_collector_design_parameters(design):
-    """
-    Update the cathode current collector design parameters based on the current collector store data.
-    """
-    styles = {'display': 'none'}
-    active_style = {'display': 'block'}
-
-    if design is None:
-        return [no_update] * 4
-
-    if design == 'punched':
-        return [active_style, styles, styles, styles]
-    elif design == 'notched':
-        return [styles, active_style, styles, styles]
-    elif design == 'tabless':
-        return [styles, styles, active_style, styles]
-    elif design == 'tabbed':
-        return [styles, styles, styles, active_style]
+#     return response
 
 
-@callback(
-    [
-        Output('cell_store', 'data', allow_duplicate=True),
-        Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
-        Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
-        Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'min'),
-        Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'max'),
-        Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'input'}, 'min'),
-        Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'input'}, 'max'),
-        Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'marks')
-    ],
-    [
-        Input('cell_store', 'data'),
-        Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
-        Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
-        Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'action': 'flip_x'}, 'n_clicks'),
-        Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'action': 'flip_y'}, 'n_clicks'),
-        Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'action': 'rotate'}, 'n_clicks')
-    ],
-    prevent_initial_call=True
-)
-def update_punched_current_collector(cell_data, input_values, slider_values, flip_x, flip_y, rotate):
+# @callback(
+#     [Output('cathode_punched_design_parameters', 'style'),
+#      Output('cathode_notched_design_parameters', 'style'),
+#      Output('cathode_tabless_design_parameters', 'style'),
+#      Output('cathode_tabbed_design_parameters', 'style')],
+#     Input('cathode_current_collector_design', 'value'),
+#     prevent_initial_call=True
+# )
+# def update_cathode_current_collector_design_parameters(design):
+#     """
+#     Update the cathode current collector design parameters based on the current collector store data.
+#     """
+#     styles = {'display': 'none'}
+#     active_style = {'display': 'block'}
 
-    callback_function = create_generic_current_collector_callback(
-        CollectorType.PUNCHED,
-        ElectrodeType.CATHODE
-    )
+#     if design is None:
+#         return [no_update] * 4
 
-    response = callback_function(
-        cell_data,
-        input_values,
-        slider_values,
-        flip_x,
-        flip_y,
-        rotate
-    )
-
-    return response
+#     if design == 'punched':
+#         return [active_style, styles, styles, styles]
+#     elif design == 'notched':
+#         return [styles, active_style, styles, styles]
+#     elif design == 'tabless':
+#         return [styles, styles, active_style, styles]
+#     elif design == 'tabbed':
+#         return [styles, styles, styles, active_style]
 
 
-@callback(
-    [
-        Output('cell_store', 'data', allow_duplicate=True),
-        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
-        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
-        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'min'),
-        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'max'),
-        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input'}, 'min'),
-        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input'}, 'max'),
-        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'marks'),
-        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'value'),
-        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input_start'}, 'value'),
-        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input_end'}, 'value'),
-        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'min'),
-        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'max'),
-        Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'marks'),
-    ],
-    [
-        Input('cell_store', 'data'),
-        Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
-        Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
-        Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'action': 'flip_x'}, 'n_clicks'),
-        Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'action': 'flip_y'}, 'n_clicks'),
-        # Add range slider inputs
-        Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'value'),
-        Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input_start'}, 'value'),
-        Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input_end'}, 'value'),
-    ],
-    prevent_initial_call=True
-)
-def update_notched_current_collector(cell_data, input_values, slider_values, flip_x, flip_y, rangeslider_values, input_start_values, input_end_values):
+# @callback(
+#     [
+#         Output('cell_store', 'data', allow_duplicate=True),
+#         Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'min'),
+#         Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'max'),
+#         Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'input'}, 'min'),
+#         Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'input'}, 'max'),
+#         Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'marks')
+#     ],
+#     [
+#         Input('cell_store', 'data'),
+#         Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
+#         Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
+#         Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'action': 'flip_x'}, 'n_clicks'),
+#         Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'action': 'flip_y'}, 'n_clicks'),
+#         Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'action': 'rotate'}, 'n_clicks')
+#     ],
+#     prevent_initial_call=True
+# )
+# def update_punched_current_collector(cell_data, input_values, slider_values, flip_x, flip_y, rotate):
 
-    callback_function = create_generic_current_collector_callback(
-        CollectorType.NOTCHED,
-        ElectrodeType.CATHODE
-    )
+#     callback_function = create_generic_current_collector_callback(
+#         CollectorType.PUNCHED,
+#         ElectrodeType.CATHODE
+#     )
 
-    response = callback_function(
-        cell_data,
-        input_values,
-        slider_values,
-        flip_x,
-        flip_y,
-        rangeslider_values,
-        input_start_values,
-        input_end_values
-    )
+#     response = callback_function(
+#         cell_data,
+#         input_values,
+#         slider_values,
+#         flip_x,
+#         flip_y,
+#         rotate
+#     )
 
-    return response
+#     return response
 
 
-@callback(
-    [
-        Output('cell_store', 'data', allow_duplicate=True),
-        Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
-        Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
-        Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'slider'}, 'min'),
-        Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'slider'}, 'max'),
-        Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input'}, 'min'),
-        Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input'}, 'max'),
-        Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'slider'}, 'marks'),
-        Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'value'),
-        Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input_start'}, 'value'),
-        Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input_end'}, 'value'),
-        Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'min'),
-        Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'max'),
-        Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'marks'),
-    ],
-    [
-        Input('cell_store', 'data'),
-        Input({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
-        Input({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
-        Input({'electrode': 'cathode', 'object': 'tabless_current_collector', 'action': 'flip_x'}, 'n_clicks'),
-        Input({'electrode': 'cathode', 'object': 'tabless_current_collector', 'action': 'flip_y'}, 'n_clicks'),
-        # Add range slider inputs
-        Input({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'value'),
-        Input({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input_start'}, 'value'),
-        Input({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input_end'}, 'value'),
-    ],
-    prevent_initial_call=True
-)
-def update_tabless_current_collector(cell_data, input_values, slider_values, flip_x, flip_y, rangeslider_values, input_start_values, input_end_values):
+# @callback(
+#     [
+#         Output('cell_store', 'data', allow_duplicate=True),
+#         Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'min'),
+#         Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'max'),
+#         Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input'}, 'min'),
+#         Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input'}, 'max'),
+#         Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'marks'),
+#         Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input_start'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input_end'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'min'),
+#         Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'max'),
+#         Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'marks'),
+#     ],
+#     [
+#         Input('cell_store', 'data'),
+#         Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
+#         Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
+#         Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'action': 'flip_x'}, 'n_clicks'),
+#         Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'action': 'flip_y'}, 'n_clicks'),
+#         # Add range slider inputs
+#         Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'value'),
+#         Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input_start'}, 'value'),
+#         Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input_end'}, 'value'),
+#     ],
+#     prevent_initial_call=True
+# )
+# def update_notched_current_collector(cell_data, input_values, slider_values, flip_x, flip_y, rangeslider_values, input_start_values, input_end_values):
 
-    callback_function = create_generic_current_collector_callback(
-        CollectorType.TABLESS,
-        ElectrodeType.CATHODE
-    )
+#     callback_function = create_generic_current_collector_callback(
+#         CollectorType.NOTCHED,
+#         ElectrodeType.CATHODE
+#     )
 
-    response = callback_function(
-        cell_data,
-        input_values,
-        slider_values,
-        flip_x,
-        flip_y,
-        rangeslider_values,
-        input_start_values,
-        input_end_values
-    )
+#     response = callback_function(
+#         cell_data,
+#         input_values,
+#         slider_values,
+#         flip_x,
+#         flip_y,
+#         rangeslider_values,
+#         input_start_values,
+#         input_end_values
+#     )
 
-    return response
-
-
-@callback(
-    [
-        Output('cell_store', 'data', allow_duplicate=True),
-        Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
-        Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
-        Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'slider'}, 'min'),
-        Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'slider'}, 'max'),
-        Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input'}, 'min'),
-        Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input'}, 'max'),
-        Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'slider'}, 'marks'),
-        Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'value'),
-        Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input_start'}, 'value'),
-        Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input_end'}, 'value'),
-        Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'min'),
-        Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'max'),
-        Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'marks'),
-        Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': 'tab_weld_side', 'subtype': 'radioitem'}, 'value'),
-        Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': 'weld_tab_positions', 'subtype': 'text_input'}, 'value'),
-    ],
-    [
-        Input('cell_store', 'data'),
-        Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
-        Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
-        Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'action': 'flip_x'}, 'n_clicks'),
-        Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'action': 'flip_y'}, 'n_clicks'),
-        Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'value'),
-        Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input_start'}, 'value'),
-        Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input_end'}, 'value'),
-        Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': 'tab_weld_side', 'subtype': 'radioitem'}, 'value'),
-        Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': 'weld_tab_positions', 'subtype': 'text_input'}, 'value'),
-    ],
-    prevent_initial_call=True
-)
-def update_tabbed_current_collector(
-    cell_data, input_values, slider_values, flip_x, flip_y, 
-    rangeslider_values, input_start_values, input_end_values, 
-    tab_weld_side, tab_positions_text
-):
-
-    callback_function = create_generic_current_collector_callback(
-        CollectorType.TABBED,
-        ElectrodeType.CATHODE
-    )
-
-    response = callback_function(
-        cell_data,
-        input_values,
-        slider_values,
-        flip_x,
-        flip_y,
-        rangeslider_values,
-        input_start_values,
-        input_end_values,
-        tab_weld_side,
-        tab_positions_text
-    )
-
-    return response
+#     return response
 
 
-@callback(
-    [
-        Output('cathode_current_collector_a_side_plot', 'figure'),
-        Output('cathode_current_collector_b_side_plot', 'figure'),
-        Output('cathode_current_collector_top_down_plot', 'figure'),
-    ],
-    [
-        Input('cell_store', 'data'),
-        Input('continue_to_design', 'n_clicks'),
-    ],
-    prevent_initial_call=True
-)
-def update_cathode_current_collector_plots(cell_data, continue_to_design):
-    """
-    Update the cathode current collector plots based on the current collector store data.
-    """
-    # get the cell from the cache
-    cell = cache.get(cell_data['cache_key'])
+# @callback(
+#     [
+#         Output('cell_store', 'data', allow_duplicate=True),
+#         Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'slider'}, 'min'),
+#         Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'slider'}, 'max'),
+#         Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input'}, 'min'),
+#         Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input'}, 'max'),
+#         Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'slider'}, 'marks'),
+#         Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input_start'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input_end'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'min'),
+#         Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'max'),
+#         Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'marks'),
+#     ],
+#     [
+#         Input('cell_store', 'data'),
+#         Input({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
+#         Input({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
+#         Input({'electrode': 'cathode', 'object': 'tabless_current_collector', 'action': 'flip_x'}, 'n_clicks'),
+#         Input({'electrode': 'cathode', 'object': 'tabless_current_collector', 'action': 'flip_y'}, 'n_clicks'),
+#         # Add range slider inputs
+#         Input({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'value'),
+#         Input({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input_start'}, 'value'),
+#         Input({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input_end'}, 'value'),
+#     ],
+#     prevent_initial_call=True
+# )
+# def update_tabless_current_collector(cell_data, input_values, slider_values, flip_x, flip_y, rangeslider_values, input_start_values, input_end_values):
 
-    # get the current collector from the cell
-    current_collector = get_current_collector_from_cell(cell, ElectrodeType.CATHODE)
+#     callback_function = create_generic_current_collector_callback(
+#         CollectorType.TABLESS,
+#         ElectrodeType.CATHODE
+#     )
 
-    # get the plots from the current collector
-    a_side_plot = current_collector.get_a_side_view(with_dimensions=False, title='A-Side Current Collector View')
-    b_side_plot = current_collector.get_b_side_view(with_dimensions=False, title='B-Side Current Collector View')
-    top_down_plot = current_collector.get_top_down_view(with_dimensions=False, title='Top-Down Current Collector View')
+#     response = callback_function(
+#         cell_data,
+#         input_values,
+#         slider_values,
+#         flip_x,
+#         flip_y,
+#         rangeslider_values,
+#         input_start_values,
+#         input_end_values
+#     )
 
-    # return the plots
-    return a_side_plot, b_side_plot, top_down_plot
+#     return response
+
+
+# @callback(
+#     [
+#         Output('cell_store', 'data', allow_duplicate=True),
+#         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'slider'}, 'min'),
+#         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'slider'}, 'max'),
+#         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input'}, 'min'),
+#         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input'}, 'max'),
+#         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'slider'}, 'marks'),
+#         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input_start'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input_end'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'min'),
+#         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'max'),
+#         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'marks'),
+#         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': 'tab_weld_side', 'subtype': 'radioitem'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': 'weld_tab_positions', 'subtype': 'text_input'}, 'value'),
+#     ],
+#     [
+#         Input('cell_store', 'data'),
+#         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input'}, 'value'),
+#         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
+#         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'action': 'flip_x'}, 'n_clicks'),
+#         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'action': 'flip_y'}, 'n_clicks'),
+#         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'rangeslider'}, 'value'),
+#         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input_start'}, 'value'),
+#         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input_end'}, 'value'),
+#         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': 'tab_weld_side', 'subtype': 'radioitem'}, 'value'),
+#         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': 'weld_tab_positions', 'subtype': 'text_input'}, 'value'),
+#     ],
+#     prevent_initial_call=True
+# )
+# def update_tabbed_current_collector(
+#     cell_data, input_values, slider_values, flip_x, flip_y, 
+#     rangeslider_values, input_start_values, input_end_values, 
+#     tab_weld_side, tab_positions_text
+# ):
+
+#     callback_function = create_generic_current_collector_callback(
+#         CollectorType.TABBED,
+#         ElectrodeType.CATHODE
+#     )
+
+#     response = callback_function(
+#         cell_data,
+#         input_values,
+#         slider_values,
+#         flip_x,
+#         flip_y,
+#         rangeslider_values,
+#         input_start_values,
+#         input_end_values,
+#         tab_weld_side,
+#         tab_positions_text
+#     )
+
+#     return response
+
+
+# @callback(
+#     [
+#         Output('cathode_current_collector_a_side_plot', 'figure'),
+#         Output('cathode_current_collector_b_side_plot', 'figure'),
+#         Output('cathode_current_collector_top_down_plot', 'figure'),
+#     ],
+#     [
+#         Input('cell_store', 'data'),
+#         Input('continue_to_design', 'n_clicks'),
+#     ],
+#     prevent_initial_call=True
+# )
+# def update_cathode_current_collector_plots(cell_data, continue_to_design):
+#     """
+#     Update the cathode current collector plots based on the current collector store data.
+#     """
+#     # get the cell from the cache
+#     cell = cache.get(cell_data['cache_key'])
+
+#     # get the current collector from the cell
+#     current_collector = get_current_collector_from_cell(cell, ElectrodeType.CATHODE)
+
+#     # get the plots from the current collector
+#     a_side_plot = current_collector.get_a_side_view(with_dimensions=False, title='A-Side Current Collector View')
+#     b_side_plot = current_collector.get_b_side_view(with_dimensions=False, title='B-Side Current Collector View')
+#     top_down_plot = current_collector.get_top_down_view(with_dimensions=False, title='Top-Down Current Collector View')
+
+#     # return the plots
+#     return a_side_plot, b_side_plot, top_down_plot
 
