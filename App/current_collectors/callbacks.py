@@ -234,8 +234,7 @@ def update_punched_current_collector(
     input_steps
     ):
 
-    #TODO - getting triggered multiple times ! 
-    print('triggered')
+    print('triggereds')
 
     callback_function = create_generic_current_collector_callback(
         CollectorType.PUNCHED,
@@ -419,33 +418,33 @@ def update_punched_current_collector(
 #     return response
 
 
-# @callback(
-#     [
-#         Output('cathode_current_collector_a_side_plot', 'figure'),
-#         Output('cathode_current_collector_b_side_plot', 'figure'),
-#         Output('cathode_current_collector_top_down_plot', 'figure'),
-#     ],
-#     [
-#         Input('cell_store', 'data'),
-#         Input('continue_to_design', 'n_clicks'),
-#     ],
-#     prevent_initial_call=True
-# )
-# def update_cathode_current_collector_plots(cell_data, continue_to_design):
-#     """
-#     Update the cathode current collector plots based on the current collector store data.
-#     """
-#     # get the cell from the cache
-#     cell = cache.get(cell_data['cache_key'])
+@callback(
+    [
+        Output('cathode_current_collector_a_side_plot', 'figure'),
+        Output('cathode_current_collector_b_side_plot', 'figure'),
+        Output('cathode_current_collector_top_down_plot', 'figure'),
+    ],
+    [
+        Input('cell_store', 'data'),
+        Input('continue_to_design', 'n_clicks'),
+    ],
+    prevent_initial_call=True
+)
+def update_cathode_current_collector_plots(cell_data, continue_to_design):
+    """
+    Update the cathode current collector plots based on the current collector store data.
+    """
+    # get the cell from the cache
+    cell = cache.get(cell_data['cache_key'])
 
-#     # get the current collector from the cell
-#     current_collector = get_current_collector_from_cell(cell, ElectrodeType.CATHODE)
+    # get the current collector from the cell
+    current_collector = get_current_collector_from_cell(cell, ElectrodeType.CATHODE)
 
-#     # get the plots from the current collector
-#     a_side_plot = current_collector.get_a_side_view(with_dimensions=False, title='A-Side Current Collector View')
-#     b_side_plot = current_collector.get_b_side_view(with_dimensions=False, title='B-Side Current Collector View')
-#     top_down_plot = current_collector.get_top_down_view(with_dimensions=False, title='Top-Down Current Collector View')
+    # get the plots from the current collector
+    a_side_plot = current_collector.get_a_side_view(with_dimensions=False, title='A-Side Current Collector View')
+    b_side_plot = current_collector.get_b_side_view(with_dimensions=False, title='B-Side Current Collector View')
+    top_down_plot = current_collector.get_top_down_view(with_dimensions=False, title='Top-Down Current Collector View')
 
-#     # return the plots
-#     return a_side_plot, b_side_plot, top_down_plot
+    # return the plots
+    return a_side_plot, b_side_plot, top_down_plot
 
