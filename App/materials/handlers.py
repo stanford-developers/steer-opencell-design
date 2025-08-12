@@ -5,9 +5,11 @@ from current_collectors.lists import CC_MATERIAL_PARAMETER_LIST
 from materials.callback_helpers import create_no_update_response
 from materials.cell_operations import get_material_from_cell, set_material_to_cell
 from general.enumerated_classes import MaterialType, SubType
-from general.callback_helpers import generate_parameters, set_cell_to_cache
+from general.callback_helpers import generate_parameters
+from general.cell_operations import set_cell_to_cache
 from steer_opencell_design.Components.CurrentCollectors import CurrentCollectorMaterial
 
+from steer_core.Apps.Utils.SliderControls import create_slider_config, are_slider_input_values_incompatible
 
 
 def handle_cell_store_update(
@@ -23,10 +25,30 @@ def handle_cell_store_update(
         return create_no_update_response()
 
     # get the parameters for the material
-    parameter_list, min_values, max_values, marks_list = generate_parameters(material, CC_MATERIAL_PARAMETER_LIST)
-    
+    parameter_list, min_values, max_values = generate_parameters(material, CC_MATERIAL_PARAMETER_LIST)
+
+    # get the slider configurations
+    slider_configs = create_slider_config(min_values, max_values, parameter_list)
+    min_values = slider_configs['min_vals']
+    max_values = slider_configs['max_vals']
+    step_values = slider_configs['step_vals']
+    mark_values = slider_configs['mark_vals']
+    slider_values = slider_configs['grid_slider_vals']
+    input_values = slider_configs['grid_input_vals']
+    input_steps = slider_configs['input_step_vals']
+
     # return the no_update response with the material name and parameters
-    return (no_update, material.name, parameter_list, parameter_list, min_values, max_values, marks_list)
+    return (
+        no_update, 
+        material.name, 
+        slider_values, 
+        min_values, 
+        max_values, 
+        mark_values, 
+        step_values, 
+        input_values, 
+        input_steps
+    )
 
 
 def handle_selector_update(
@@ -38,7 +60,7 @@ def handle_selector_update(
     Handle updates to the material selector.
 
     Parameters
-    ----------
+    ----------s
     material_selector : str
         The selected material name from the dropdown.
     cell : Type
@@ -50,7 +72,16 @@ def handle_selector_update(
     material = CurrentCollectorMaterial.from_database(material_name)
 
     # get the parameters for the material
-    parameter_list, min_values, max_values, marks_list = generate_parameters(material, CC_MATERIAL_PARAMETER_LIST)
+    parameter_list, min_values, max_values = generate_parameters(material, CC_MATERIAL_PARAMETER_LIST)
+
+    # get the slider configurations
+    slider_configs = create_slider_config(min_values, max_values, parameter_list)
+    min_values = slider_configs['min_vals']
+    max_values = slider_configs['max_vals']
+    step_values = slider_configs['step_vals']
+    mark_values = slider_configs['mark_vals']
+    slider_values = slider_configs['grid_vals']
+    input_steps = slider_configs['input_step_vals']
 
     # set the material to the cell
     new_cell = set_material_to_cell(material_type, cell, material)
@@ -62,19 +93,64 @@ def handle_selector_update(
     return (
         {'cache_key': new_key},
         material.name,
-        parameter_list, 
-        parameter_list, 
-        min_values, 
-        max_values, 
-        marks_list
+        slider_values,
+        min_values,
+        max_values,
+        mark_values,
+        step_values,
+        parameter_list,
+        input_steps
     )
+
+
+def handle_drag_value_update(
+        triggered_id: dict, 
+        drag_values: List[float], 
+        slider_steps: List[float], 
+        input_steps: List[float], 
+        input_values: List[float]
+    ) -> Tuple:
+    """
+    Handle updates to the drag value of a slider.
+
+    Parameters
+    ----------
+    triggered_id : dict
+        The ID of the component that triggered the event.
+    drag_values : List[float]
+        The current values of the sliders being dragged.
+
+    Returns
+    -------
+    Tuple
+        A tuple containing the updated values for the affected components.
+    """
+    # get the name of the property that triggered the event
+    property_name = triggered_id['property']
+
+    # get the index of the property in the CC_MATERIAL_PARAMETER_LIST
+    property_index = CC_MATERIAL_PARAMETER_LIST.index(property_name)
+
+    drag_value = drag_values[property_index]
+    slider_step = slider_steps[property_index]
+    input_step = input_steps[property_index]
+    input_value = input_values[property_index]
+
+    # create a no response
+    default_response = create_no_update_response()
+
+    if are_slider_input_values_incompatible(drag_value, input_value, slider_step, input_step):
+        default_response[-2][property_index] = drag_values[property_index]
+
+    return default_response
+
 
 def handle_property_update(
         triggered_id: dict,
         cell: Type,
         material_type: MaterialType,
-        slider_values: List[float],
-        input_values: List[float]
+        input_values: List[str],
+        slider_values: List[float]
 ) -> Tuple:
     
     # determine the property and subtype from the triggered ID
@@ -102,17 +178,29 @@ def handle_property_update(
     new_key = set_cell_to_cache(new_cell)
 
     # calculate new parameters for the material
-    parameter_list, min_values, max_values, marks_list = generate_parameters(material, CC_MATERIAL_PARAMETER_LIST)
+    parameter_list, min_values, max_values = generate_parameters(material, CC_MATERIAL_PARAMETER_LIST)
     
+    # get the slider configurations
+    slider_configs = create_slider_config(min_values, max_values, parameter_list)
+    slider_vals = slider_configs['grid_slider_vals']
+    input_vals = slider_configs['grid_input_vals']
+    min_values = slider_configs['min_vals']
+    max_values = slider_configs['max_vals']
+    step_values = slider_configs['step_vals']
+    mark_values = slider_configs['mark_vals']
+    input_steps = slider_configs['input_step_vals']
+
     # return the new cell cache key, material name, and parameters
     return (
         {'cache_key': new_key}, 
         material.name, 
-        parameter_list, 
-        parameter_list, 
+        slider_vals, 
         min_values, 
-        max_values, 
-        marks_list
+        max_values,
+        mark_values,
+        step_values,
+        input_vals,
+        input_steps
     )
 
 

@@ -1,9 +1,6 @@
 from typing import Type, Tuple, List, Dict
-from uuid import uuid4
-from dash import ctx
 
-from general.enumerated_classes import CategoricalProperty, MaterialType, TriggerType
-from general.trigger_router import TriggerRouter
+from general.enumerated_classes import CategoricalProperty
 from steer_core.DataManager import DataManager
 
 
@@ -99,90 +96,6 @@ def get_cell_name_options(internal_construction, electrochemical_reference, form
     return [{'label': option, 'value': option} for option in options]
 
 
-
-### Cell Helpers ###
-
-def get_cell_from_database(cell_name: str) -> Type:
-    """
-    Fetch a cell object from the database based on the cell name.
-
-    Parameters
-    ----------
-    cell_name : str
-        The name of the cell to fetch from the database.
-
-    Returns
-    -------
-    Type
-        The cell object retrieved from the database.
-    """
-    from base64 import b64decode
-    from pickle import loads
-
-    # get the pickled cell data from the database
-    pickled_cell = (
-        DataManager()
-        .get_data('cells')
-        .query(f"name == '{cell_name}'")
-        .iloc[0]
-        ['object']
-    )
-
-    # decode the base64 encoded data
-    cell = deserialize_object(pickled_cell)
-
-    return cell
-
-def set_cell_to_cache(cell: Type) -> str:
-    """
-    Store a cell object in the cache. Returns the new cache key.
-
-    Parameters
-    ----------
-    cell : Type
-        The cell object to store in the cache.
-
-    Returns
-    -------
-    str
-        The cache key assigned to the stored cell object.
-    """
-    from cache_service import cache
-
-    # Generate a new cache key
-    new_cc_key = str(uuid4())
-
-    # Store the object in the cache
-    cache.set(new_cc_key, cell)
-
-    # Return the cache key to update the store
-    return new_cc_key
-
-def get_cell_from_cache(cache_key: str) -> Type:
-    """
-    Retrieve a cell object from the cache using the cache key.
-
-    Parameters
-    ----------
-    cache_key : str
-        The cache key for the cell object.
-
-    Returns
-    -------
-    Type
-        The cell object retrieved from the cache.
-    """
-    from cache_service import cache
-
-    # Retrieve the object from the cache
-    cell = cache.get(cache_key)
-
-    if cell is None:
-        raise ValueError(f"No cell found in cache with key: {cache_key}")
-
-    return cell
-
-
 ### Serialization Helpers ###
 
 def deserialize_object(serialized_object: str) -> Type:
@@ -220,7 +133,6 @@ def generate_parameters(
     parameter_values = []
     min_values = []
     max_values = []
-    marks_list = []
     
     # Now use the enum
     categorical_properties = {prop.value for prop in CategoricalProperty}
@@ -228,18 +140,18 @@ def generate_parameters(
     for param in parameter_list:
         if param in categorical_properties:
             # Handle categorical properties
-            parameter_values.append(getattr(object, param))
+            value = getattr(object, param)
+            parameter_values.append(value)
             min_values.append(0)
             max_values.append(1)
-            marks_list.append({})
         else:
             # Handle numerical properties
-            parameter_values.append(getattr(object, param))
+            value = getattr(object, param)
+            parameter_values.append(value)
             min_values.append(getattr(object, f"{param}_range")[0])
             max_values.append(getattr(object, f"{param}_range")[1])
-            marks_list.append(getattr(object, f"{param}_marks"))
     
-    return parameter_values, min_values, max_values, marks_list
+    return parameter_values, min_values, max_values
 
 def generate_rangeslider_values(
         object, 
@@ -272,41 +184,4 @@ def validate_dependent_properties(object, settable_params: list, updated_propert
             except AttributeError:
                 # Handle case where range doesn't exist
                 continue
-
-def create_material_callback(material_type: MaterialType) -> callable:
-    """Factory for creating material update callbacks."""
-
-    def update_material(cell_data, material_name, input_values, slider_values):
-
-        from materials.handlers import (
-            handle_cell_store_update, 
-            handle_selector_update, 
-            handle_property_update
-        )
-
-        from current_collectors.callback_helpers import create_no_update_response
-
-        # get the triggered ID
-        triggered_id = ctx.triggered_id
-
-        # get the cell from cache
-        cell = get_cell_from_cache(cell_data['cache_key'])
-
-        # Get the trigger type using the TriggerRouter
-        trigger_type = TriggerRouter.get_trigger_type(triggered_id)
-
-        if trigger_type == TriggerType.CELL_STORE:
-            return handle_cell_store_update(cell, material_type)
-
-        elif trigger_type == TriggerType.COMPONENT_SELECTOR:
-            return handle_selector_update(material_name, cell, material_type)
-
-        elif trigger_type == TriggerType.PROPERTY:
-            return handle_property_update(triggered_id, cell, material_type, slider_values, input_values)
-
-        return create_no_update_response()
-
-    return update_material
-
-
 

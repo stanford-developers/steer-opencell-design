@@ -3,10 +3,58 @@ from typing import Type, Tuple, List
 from dash import no_update
 
 from general.enumerated_classes import SubType
-from general.callback_helpers import set_cell_to_cache, validate_dependent_properties, generate_parameters
+from general.callback_helpers import validate_dependent_properties, generate_parameters
+from general.cell_operations import set_cell_to_cache
 from general.enumerated_classes import ActionType
 from general.callback_helpers import generate_rangeslider_values
+
 from current_collectors.cell_operations import set_current_collector_to_cell
+
+from steer_core.Apps.Utils.SliderControls import create_slider_config, are_slider_input_values_incompatible
+
+
+def handle_drag_value_update(
+        triggered_id: dict, 
+        drag_values: List[float], 
+        config: Type, 
+        slider_steps: List[float], 
+        input_steps: List[float], 
+        input_values: List[float]
+    ) -> Tuple:
+    """
+    Handle updates to the drag value of a slider.
+
+    Parameters
+    ----------
+    triggered_id : dict
+        The ID of the component that triggered the event.
+    drag_values : List[float]
+        The current values of the sliders being dragged.
+
+    Returns
+    -------
+    Tuple
+        A tuple containing the updated values for the affected components.
+    """
+    # get the name of the property that triggered the event
+    property_name = triggered_id['property']
+
+    # get the index of the property in the CC_MATERIAL_PARAMETER_LIST
+    property_index = config.parameter_list.index(property_name)
+
+    # create a no response
+    from current_collectors.callback_helpers import create_no_update_response
+    default_response = create_no_update_response(config)
+
+    drag_value = drag_values[property_index]
+    slider_step = slider_steps[property_index]
+    input_step = input_steps[property_index]
+    input_value = input_values[property_index]
+
+    if are_slider_input_values_incompatible(drag_value, input_value, slider_step, input_step):
+        default_response[-2][property_index] = drag_values[property_index]
+
+    return default_response
 
 
 def handle_cell_store_update(object: Type, config: Type) -> Tuple:
@@ -20,21 +68,28 @@ def handle_cell_store_update(object: Type, config: Type) -> Tuple:
     )
     
     # Generate basic parameters
-    value_list, min_values, max_values, marks_list = generate_parameters(
-        object, 
-        config.parameter_list
-    )
+    parameter_list, min_values, max_values = generate_parameters(object, config.parameter_list)
     
+    # get the slider configurations
+    slider_configs = create_slider_config(min_values, max_values, parameter_list)
+    min_values = slider_configs['min_vals']
+    max_values = slider_configs['max_vals']
+    step_values = slider_configs['step_vals']
+    mark_values = slider_configs['mark_vals']
+    input_steps = slider_configs['input_step_vals']
+    slider_vals = slider_configs['grid_slider_vals']
+    input_vals = slider_configs['grid_input_vals']
+
     # Start building response
     response = [
         no_update,  # cache_key stays the same
-        value_list,  # input values
-        value_list,  # slider values
-        min_values,  # slider mins
-        max_values,  # slider maxs
-        min_values,  # input mins
-        max_values,  # input maxs
-        marks_list,  # marks
+        slider_vals,
+        min_values,
+        max_values,
+        mark_values,
+        step_values,
+        input_vals,
+        input_steps
     ]
     
     # Add range slider values if applicable
@@ -106,11 +161,19 @@ def handle_property_update(
     validate_dependent_properties(current_collector, config.settable_parameters, property_name)
     
     # Generate updated parameters
-    from current_collectors.callback_helpers import generate_parameters
-    value_list, min_values, max_values, marks_list = generate_parameters(
-        current_collector, config.parameter_list
-    )
+    from general.callback_helpers import generate_parameters
+    value_list, min_values, max_values = generate_parameters(current_collector, config.parameter_list)
     
+    # get the slider configurations
+    slider_configs = create_slider_config(min_values, max_values, value_list)
+    min_values = slider_configs['min_vals']
+    max_values = slider_configs['max_vals']
+    step_values = slider_configs['step_vals']
+    mark_values = slider_configs['mark_vals']
+    input_steps = slider_configs['input_step_vals']
+    slider_vals = slider_configs['grid_slider_vals']
+    input_vals = slider_configs['grid_input_vals']
+
     # Update cell
     new_cell = set_current_collector_to_cell(cell, current_collector)
     
@@ -120,13 +183,13 @@ def handle_property_update(
     # Build response
     response = [
         {'cache_key': new_key},
-        value_list,
-        value_list,
+        slider_vals,
         min_values,
         max_values,
-        min_values,
-        max_values,
-        marks_list,
+        mark_values,
+        step_values,
+        input_vals,
+        input_steps
     ]
     
     # Add range slider values if applicable

@@ -4,7 +4,7 @@ from typing import Type, Tuple
 
 from general.callback_helpers import validate_dependent_properties, generate_parameters
 from general.enumerated_classes import SubType, ActionType
-from general.callback_helpers import set_cell_to_cache
+from general.cell_operations import set_cell_to_cache
 
 from steer_core.Apps.ContextManagers import capture_warnings
 
