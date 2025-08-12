@@ -4,11 +4,11 @@ from dash import no_update, ctx
 from steer_opencell_design.Components.CurrentCollectors import *
 
 from general.enumerated_classes import *
-from general.callback_helpers import get_cell_from_cache
+from general.cell_operations import get_cell_from_cache
 from general.trigger_router import TriggerRouter, TriggerType
 
 from current_collectors.configs import COLLECTOR_CONFIGS
-from current_collectors.handlers import *
+from current_collectors.handlers import handle_action, handle_cell_store_update, handle_property_update, handle_side_selector_update, handle_drag_value_update
 
 
 # =============================================================================
@@ -22,13 +22,13 @@ def create_no_update_response(config: Type) -> Tuple:
     
     response = [
         no_update,  # cache_key (single value)
-        [no_update] * num_params,  # input values (list)
-        [no_update] * num_params,  # slider values (list)
-        [no_update] * num_params,  # slider mins (list)
-        [no_update] * num_params,  # slider maxs (list)
-        [no_update] * num_params,  # input mins (list)
-        [no_update] * num_params,  # input maxs (list)
-        [no_update] * num_params,  # marks (list)
+        [no_update] * num_params,  # slider values
+        [no_update] * num_params,  # slider mins
+        [no_update] * num_params,  # slider maxs
+        [no_update] * num_params,  # slider marks
+        [no_update] * num_params,  # slider steps
+        [no_update] * num_params,  # input values
+        [no_update] * num_params,  # input steps
     ]
     
     # Add range slider outputs if applicable
@@ -58,6 +58,9 @@ def create_generic_current_collector_callback(config_key: CollectorType, electro
         cell_data, 
         input_values, 
         slider_values, 
+        drag_values,
+        slider_steps,
+        input_steps,
         flip_x, 
         flip_y,
         rangeslider_values=None, 
@@ -71,6 +74,12 @@ def create_generic_current_collector_callback(config_key: CollectorType, electro
 
         # Get the triggered ID
         triggered_id = ctx.triggered_id
+
+        # get the component property that triggered it
+        prop_id = ctx.triggered[0]['prop_id'].split('.')[-1]
+
+        if prop_id == 'drag_value':
+            return handle_drag_value_update(triggered_id, drag_values, config, slider_steps, input_steps, input_values)
 
         # Get the cell from cache
         cell = get_cell_from_cache(cell_data['cache_key'])

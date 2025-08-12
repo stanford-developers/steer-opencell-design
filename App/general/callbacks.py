@@ -255,7 +255,7 @@ def get_cell_from_database(cell_name: str) -> Dict:
     contents : str
         The selected cell name from the dropdown.
     """
-    from general.callback_helpers import get_cell_from_database, set_cell_to_cache
+    from general.cell_operations import get_cell_from_database, set_cell_to_cache
 
     # If contents is None, return no update
     if cell_name is None:

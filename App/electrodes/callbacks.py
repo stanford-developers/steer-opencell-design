@@ -4,7 +4,7 @@ from electrodes.cell_operations import get_electrode_from_cell
 from electrodes.callback_helpers import create_electrode_callback
 
 from general.enumerated_classes import ElectrodeType, MaterialType
-from general.callback_helpers import create_material_callback
+from materials.callback_helpers import create_material_callback
 from cache_service import cache
 
 

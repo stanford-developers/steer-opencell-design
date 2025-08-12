@@ -2,7 +2,7 @@ from dash import ctx, no_update
 from typing import Tuple, Type
 
 from general.enumerated_classes import ElectrodeType
-from general.callback_helpers import get_cell_from_cache
+from general.cell_operations import get_cell_from_cache
 from general.trigger_router import TriggerRouter, TriggerType
 
 from electrodes.lists import ELECTRODE_PARAMETER_LIST, ELECTRODE_SETTABLE_PARAMETERS

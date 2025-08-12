@@ -47,7 +47,8 @@ def register_callbacks(app):
     callback_modules = [
         'general.callbacks',
         'current_collectors.callbacks', 
-        'electrodes.callbacks'
+        'electrodes.callbacks',
+        'materials.callbacks'
     ]
     
     for module_name in callback_modules:
