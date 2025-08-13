@@ -1316,7 +1316,7 @@ class _TapeCurrentCollector(_CurrentCollector):
         return self.y_body_length
     
     @width.setter
-    def width(self, width: float) -> N`one:
+    def width(self, width: float) -> None:
         self.validate_positive_float(width, "width")
         self.y_body_length = width
 
