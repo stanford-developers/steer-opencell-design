@@ -9,13 +9,6 @@ PUNCHED_PARAMETER_LIST = [
     'tab_position',
     'coated_tab_height',
     'insulation_width',
-    'cost',
-    'mass',
-    'coated_area',
-    'insulation_area',
-    'datum_x',
-    'datum_y',
-    'datum_z',
 ]
 
 PUNCHED_SETTABLE_PARAMETERS = [
@@ -27,9 +20,6 @@ PUNCHED_SETTABLE_PARAMETERS = [
     'tab_position',
     'coated_tab_height',
     'insulation_width',
-    'datum_x',
-    'datum_y',
-    'datum_z',
 ]
 
 
@@ -75,13 +65,6 @@ TABLESS_PARAMETER_LIST = [
     'coated_width',
     'tab_height',
     'insulation_width',
-    'cost',
-    'mass',
-    'coated_area',
-    'insulation_area',
-    'datum_x',
-    'datum_y',
-    'datum_z',
 ]
 
 TABLESS_SETTABLE_PARAMETERS = [
@@ -91,9 +74,6 @@ TABLESS_SETTABLE_PARAMETERS = [
     'coated_width',
     'tab_height',
     'insulation_width',
-    'datum_x',
-    'datum_y',
-    'datum_z',
 ]
 
 

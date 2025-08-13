@@ -567,15 +567,6 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         return (-100, 100)
     
     @property
-    def datum_x_marks(self) -> Dict[int, str]:
-        """
-        Get the x-coordinate marks for the slider.
-        """
-        min_datum = np.ceil(self.datum_x_range[0])
-        max_datum = np.floor(self.datum_x_range[1])
-        return {i: '' for i in range(int(min_datum), int(max_datum) + 1, 20)}
-
-    @property
     def datum_y(self) -> float:
         """
         Get the y-coordinate of the datum in mm.
@@ -590,36 +581,11 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         return (-100, 100)
     
     @property
-    def datum_y_marks(self) -> Dict[int, str]:
-        """
-        Get the y-coordinate marks for the slider.
-        """
-        min_datum = np.ceil(self.datum_y_range[0])
-        max_datum = np.floor(self.datum_y_range[1])
-        return {i: '' for i in range(int(min_datum), int(max_datum) + 1, 20)}
-
-    @property
     def datum_z(self) -> float:
         """
         Get the z-coordinate of the datum in mm.
         """
         return round(self._datum[2] * M_TO_MM, 2)
-
-    @property
-    def datum_z_range(self) -> Tuple[float, float]:
-        """
-        Get the z-coordinate range of the datum in mm.
-        """
-        return (-100, 100)
-    
-    @property
-    def datum_z_marks(self) -> Dict[int, str]:
-        """
-        Get the z-coordinate marks for the slider.
-        """
-        min_datum = np.ceil(self.datum_z_range[0])
-        max_datum = np.floor(self.datum_z_range[1])
-        return {i: '' for i in range(int(min_datum), int(max_datum) + 1, 20)}
 
     @property
     def material(self) -> CurrentCollectorMaterial:
@@ -647,13 +613,8 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         return (round(min * M_TO_UM, 2), round(max * M_TO_UM, 2))
 
     @property
-    def thickness_marks(self) -> Dict[int, str]:
-        """
-        Get the thickness marks for the slider.
-        """
-        min_thickness = np.ceil(self.thickness_range[0])
-        max_thickness = np.floor(self.thickness_range[1])
-        return {i: '' for i in range(int(min_thickness), int(max_thickness) + 1, 10)}
+    def thickness_hard_range(self):
+        return (0, 100)
 
     @property
     def insulation_width(self) -> float:
@@ -671,15 +632,6 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
             round(min * M_TO_MM, 1), 
             round(max * M_TO_MM, 1)
         )
-
-    @property
-    def insulation_width_marks(self) -> Dict[int, str]:
-        """
-        Get the insulation width marks for the slider.
-        """
-        min_insulation = np.ceil(self.insulation_width_range[0])
-        max_insulation = np.floor(self.insulation_width_range[1])
-        return {i: '' for i in range(int(min_insulation), int(max_insulation) + 1, 10)}
 
     @property
     def name(self) -> str:
@@ -704,40 +656,6 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
     @property
     def coated_area(self) -> float:
         return round(self._coated_area * M_TO_CM**2, 1)
-
-    @property
-    def coated_area_range(self):
-
-        return (
-            round(0 * M_TO_CM**2, 1), 
-            round(self._body_area * M_TO_CM**2, 1)
-        )
-
-    @property
-    def coated_area_marks(self) -> Dict[int, str]:
-        """
-        Get the coated area marks for the slider.
-        """
-        min_coated = np.ceil(self.coated_area_range[0])
-        max_coated = np.floor(self.coated_area_range[1])
-        return {i: '' for i in range(int(min_coated), int(max_coated) + 1, 1000)}
-
-    @property
-    def insulation_area_range(self):
-
-        return (
-            round(0 * M_TO_CM**2, 1), 
-            round(self._body_area * M_TO_CM**2, 1)
-        )
-
-    @property
-    def insulation_area_marks(self) -> Dict[int, str]:
-        """
-        Get the insulation area marks for the slider.
-        """
-        min_insulation = np.ceil(self.insulation_area_range[0])
-        max_insulation = np.floor(self.insulation_area_range[1])
-        return {i: '' for i in range(int(min_insulation), int(max_insulation) + 1, 1000)}
 
     @property
     def a_side_coated_area(self) -> float:
@@ -836,32 +754,8 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         return round(self._mass * KG_TO_G, 2)
 
     @property
-    def mass_marks(self) -> Dict[int, str]:
-        min_mass = self.mass_range[0]
-        max_mass = self.mass_range[1]
-        delta = 10
-        num_steps = int(round((max_mass - min_mass) / delta)) + 1
-        values = np.linspace(min_mass, max_mass, num_steps).round(10).tolist()
-        return {i: '' for i in values}
-
-    @property
     def cost(self) -> float:
         return round(self._cost, 3)
-    
-    @property
-    def cost_range(self):
-        min = 0
-        max = self._cost + (1/self._cost)/20
-        return (min, max)
-
-    @property
-    def cost_marks(self) -> Dict[int, str]:
-        min_cost = self.cost_range[0]
-        max_cost = self.cost_range[1]
-        delta = 0.5
-        num_steps = int(round((max_cost - min_cost) / delta)) + 1
-        values = np.linspace(min_cost, max_cost, num_steps).round(10).tolist()
-        return {i: '' for i in values}
 
     @property
     def width_range(self) -> Tuple[float, float]:
@@ -875,10 +769,8 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         )
 
     @property
-    def width_marks(self) -> Dict[int, str]:
-        min_width = np.ceil(self.width_range[0])
-        max_width = np.floor(self.width_range[1])
-        return {i: '' for i in range(int(min_width), int(max_width) + 1, 30)}
+    def width_hard_range(self) -> Tuple[float, float]:
+        return (0, 5000)
 
     @datum.setter
     @calculate_all_properties
@@ -1063,37 +955,20 @@ class _TabbedCurrentCollector(_CurrentCollector):
         return round(self._tab_width * M_TO_MM, 2)
 
     @property
-    def tab_width_marks(self) -> Dict[int, str]:
-        """
-        Get the tab width marks for the slider.
-        """
-        min_tab_width = np.ceil(self.tab_width_range[0])
-        max_tab_width = np.floor(self.tab_width_range[1])
-        return {i: '' for i in range(int(min_tab_width), int(max_tab_width) + 1, 40)}
-
-    @property
     def tab_height(self) -> float:
         return round(self._tab_height * M_TO_MM, 2)
 
     @property
     def tab_height_range(self) -> Tuple[float, float]:
 
-        min = 0.003
-        max = 0.03
-
         return (
-            round(min * M_TO_MM, 1), 
-            round(max * M_TO_MM, 1)
+            self.coated_tab_height + 3, 
+            self.coated_tab_height + self.y_body_length/4
         )
-
+    
     @property
-    def tab_height_marks(self) -> Dict[int, str]:
-        """
-        Get the tab height marks for the slider.
-        """
-        min_tab_height = np.ceil(self.tab_height_range[0])
-        max_tab_height = np.floor(self.tab_height_range[1])
-        return {i: '' for i in range(int(min_tab_height), int(max_tab_height) + 1, 40)}
+    def tab_height_hard_range(self) -> Tuple[float, float]:
+        return (self.tab_height_range[0], 100)
 
     @property
     def coated_tab_height(self) -> float:
@@ -1111,21 +986,22 @@ class _TabbedCurrentCollector(_CurrentCollector):
         )
 
     @property
-    def coated_tab_height_marks(self) -> Dict[int, str]:
-        """
-        Get the coated tab height marks for the slider.
-        """
-        min_coated_tab_height = np.ceil(self.coated_tab_height_range[0])
-        max_coated_tab_height = np.floor(self.coated_tab_height_range[1])
-        return {i: '' for i in range(int(min_coated_tab_height), int(max_coated_tab_height) + 1, 5)}
-
-    @property
     def total_height(self) -> float:
         return round(self._total_height * M_TO_MM, 2)
 
     @property
     def tab_position(self) -> float:
         return round(self._tab_position * M_TO_MM, 1)
+
+    @property
+    def tab_position_range(self) -> Tuple[float, float]:
+        return self.tab_position_hard_range
+
+    @property
+    def tab_position_hard_range(self) -> Tuple[float, float]:
+        min = self._tab_width/2 + 1*MM_TO_M
+        max = self._x_body_length - self._tab_width/2 - 1*MM_TO_M
+        return (round(min * M_TO_MM, 1), round(max * M_TO_MM, 1))
 
     @tab_position.setter
     def tab_position(self, tab_position: float) -> None:
@@ -1142,21 +1018,6 @@ class _TabbedCurrentCollector(_CurrentCollector):
         
         if self._update_properties:
             self._calculate_coordinates()
-
-    @property
-    def tab_position_range(self) -> Tuple[float, float]:
-        min = self._tab_width/2 + 0.1*MM_TO_M
-        max = self._x_body_length - self._tab_width/2 - 0.1*MM_TO_M
-        return (round(min * M_TO_MM, 1), round(max * M_TO_MM, 1))
-
-    @property
-    def tab_position_marks(self) -> Dict[int, str]:
-        """
-        Get the tab position marks for the slider.
-        """
-        min_tab_position = np.ceil(self.tab_position_range[0])
-        max_tab_position = np.floor(self.tab_position_range[1])
-        return {i: '' for i in range(int(min_tab_position), int(max_tab_position) + 1, 40)}
 
     @tab_width.setter
     @calculate_all_properties
@@ -1403,20 +1264,15 @@ class _TapeCurrentCollector(_CurrentCollector):
         )
     
     @property
-    def a_side_coated_section_range(self) -> Tuple[float, float]:
+    def a_side_coated_section_hard_range(self) -> Tuple[float, float]:
         """
         Get the range of the A side coated section in mm.
         """
         return (0, self.x_body_length)
-    
+
     @property
-    def a_side_coated_section_marks(self) -> Dict[int, str]:
-        """
-        Get the A side coated section markers for the slider.
-        """
-        min_section = np.ceil(self.a_side_coated_section_range[0])
-        max_section = np.floor(self.a_side_coated_section_range[1])
-        return {i: '' for i in range(int(min_section), int(max_section) + 1, 500)}
+    def a_side_coated_section_range(self) -> Tuple[float, float]:
+        return self.a_side_coated_section_hard_range
 
     @property
     def b_side_coated_section(self):
@@ -1430,67 +1286,39 @@ class _TapeCurrentCollector(_CurrentCollector):
         )
 
     @property
-    def b_side_coated_section_range(self) -> Tuple[float, float]:
+    def b_side_coated_section_hard_range(self) -> Tuple[float, float]:
         """
         Get the range of the B side coated section in mm.
         """
         return (0, self.x_body_length)
 
     @property
-    def b_side_coated_section_marks(self) -> Dict[int, str]:
-        """
-        Get the B side coated section markers for the slider.
-        """
-        min_section = np.ceil(self.b_side_coated_section_range[0])
-        max_section = np.floor(self.b_side_coated_section_range[1])
-        return {i: '' for i in range(int(min_section), int(max_section) + 1, 500)}
+    def b_side_coated_section_range(self) -> Tuple[float, float]:
+        return self.b_side_coated_section_hard_range
 
     @property
     def length(self) -> float:
         return self.x_body_length
     
     @property
-    def length_range(self) -> Tuple[float, float]:
+    def length_hard_range(self) -> Tuple[float, float]:
         """
         Get the length range in mm.
         """
-        return (0, 8000)
-
+        return (100, 10000)
+    
     @property
-    def length_marks(self) -> Dict[int, str]:
-        min_length = np.ceil(self.length_range[0])
-        max_length = np.floor(self.length_range[1])
-        return {i: '' for i in range(int(min_length), int(max_length) + 1, 500)}
-
-    @property
-    def mass_marks(self) -> Dict[int, str]:
-        min_mass = self.mass_range[0]
-        max_mass = self.mass_range[1]
-        delta = 100
-        num_steps = int(round((max_mass - min_mass) / delta)) + 1
-        values = np.linspace(min_mass, max_mass, num_steps).round(10).tolist()
-        return {i: '' for i in values}
+    def length_range(self) -> Tuple[float, float]:
+        return (100, 5000)
 
     @property
     def width(self) -> float:
         return self.y_body_length
     
     @width.setter
-    def width(self, width: float) -> None:
+    def width(self, width: float) -> N`one:
         self.validate_positive_float(width, "width")
         self.y_body_length = width
-
-    @property
-    def mass_range(self) -> Tuple[float, float]:
-
-        min = 0
-        hyp_max = 1
-        max = hyp_max * (1 - np.exp(-0.5/self._mass))
-
-        return (
-            round(min * KG_TO_G, 2), 
-            round(max * KG_TO_G, 2)
-        )
 
     @bare_lengths_a_side.setter
     @calculate_areas
@@ -1836,12 +1664,6 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         return self.y_body_length
 
     @property
-    def height_marks(self) -> Dict[int, str]:
-        min_height = np.ceil(self.height_range[0])
-        max_height = np.floor(self.height_range[1])
-        return {i: '' for i in range(int(min_height), int(max_height) + 1, 30)}
-
-    @property
     def height_range(self) -> Tuple[float, float]:
         min = 0
         max = 0.5
@@ -1851,7 +1673,11 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         )
 
     @property
-    def tab_width_range(self) -> Tuple[float, float]:
+    def height_hard_range(self) -> Tuple[float, float]:
+        return (0, 5000)
+
+    @property
+    def tab_width_hard_range(self) -> Tuple[float, float]:
         
         min = 0.01
         max = self._x_body_length - 0.01
@@ -1860,6 +1686,10 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
             round(min * M_TO_MM, 2), 
             round(max * M_TO_MM, 2)
         )
+
+    @property
+    def tab_width_range(self) -> Tuple[float, float]:
+        return self.tab_width_hard_range
 
     @width.setter
     def width(self, width: float) -> None:
@@ -2239,18 +2069,6 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         )
 
     @property
-    def tab_spacing_marks(self) -> Dict[int, str]:
-        """
-        Get the tab spacing marks in mm.
-        """
-        min_spacing = self.tab_spacing_range[0]
-        max_spacing = self.tab_spacing_range[1]
-        delta = 200
-        num_steps = int(round((max_spacing - min_spacing) / delta)) + 1
-        values = np.linspace(min_spacing, max_spacing, num_steps).round(10).tolist()
-        return {i: '' for i in values}
-
-    @property
     def tab_gap(self) -> float:
         return round(self._tab_gap * M_TO_MM, 2)
 
@@ -2263,18 +2081,6 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
             0.1,  # Minimum gap
             1000 - self.tab_width  # Maximum gap (based on max spacing minus tab width)
         )
-    
-    @property
-    def tab_gap_marks(self) -> Dict[int, str]:
-        """
-        Get the tab gap marks in mm.
-        """
-        min_gap = self.tab_gap_range[0]
-        max_gap = self.tab_gap_range[1]
-        delta = 50
-        num_steps = int(round((max_gap - min_gap) / delta)) + 1
-        values = np.linspace(min_gap, max_gap, num_steps).round(10).tolist()
-        return {i: '' for i in values}
 
     @property
     def coated_area_a_side(self) -> float:
@@ -2285,7 +2091,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         return round(self._coated_area_b_side * M_TO_MM**2, 2)
 
     @property
-    def tab_width_range(self) -> Tuple[float, float]:
+    def tab_width_hard_range(self) -> Tuple[float, float]:
         
         min = 0.01
         max = 0.5
@@ -2294,6 +2100,10 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
             round(min * M_TO_MM, 2), 
             round(max * M_TO_MM, 2)
         )
+
+    @property
+    def tab_width_range(self) -> Tuple[float, float]:
+        return self.tab_width_hard_range
 
     @tab_spacing.setter
     @calculate_all_properties
@@ -2473,18 +2283,6 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         max = self.width - self.tab_height_range[0]
         return (min, max)
     
-    @property
-    def coated_width_marks(self) -> Dict[int, str]:
-        """
-        Get the coated width marks in mm.
-        """
-        min_width = self.coated_width_range[0]
-        max_width = self.coated_width_range[1]
-        delta = 5
-        num_steps = int(round((max_width - min_width) / delta)) + 1
-        values = np.linspace(min_width, max_width, num_steps).round(10).tolist()
-        return {i: '' for i in values}
-
     @property
     def width(self) -> float:
         return round((self._y_body_length + self._tab_height) * M_TO_MM, 2)
@@ -3065,18 +2863,6 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         )
 
     @property
-    def skip_coat_width_marks(self) -> Dict[int, str]:
-        """
-        Get the skip coat width marks in mm.
-        """
-        min_width = self.skip_coat_width_range[0]
-        max_width = self.skip_coat_width_range[1]
-        delta = 5
-        num_steps = int(round((max_width - min_width) / delta)) + 1
-        values = np.linspace(min_width, max_width, num_steps).round(10).tolist()
-        return {i: '' for i in values}
-
-    @property
     def tab_weld_side(self) -> str:
         """
         Returns the side of the current collector where the weld tabs are located ('a' or 'b').
@@ -3096,18 +2882,6 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         Returns the overhang range of the weld tab in mm.
         """
         return (0, self.weld_tab.length/2)
-
-    @property
-    def tab_overhang_marks(self) -> Dict[int, str]:
-        """
-        Returns the overhang marks of the weld tab in mm.
-        """
-        min_overhang = self.tab_overhang_range[0]
-        max_overhang = self.tab_overhang_range[1]
-        delta = 20
-        num_steps = int(round((max_overhang - min_overhang) / delta)) + 1
-        values = np.linspace(min_overhang, max_overhang, num_steps).round(10).tolist()
-        return {i: '' for i in values}
 
     @property
     def weld_tab(self) -> list:
@@ -3138,18 +2912,6 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         return (1, self.skip_coat_width)
 
     @property
-    def tab_width_marks(self) -> Dict[int, str]:
-        """
-        Returns the width marks of the weld tab in mm.
-        """
-        min_width = self.tab_width_range[0]
-        max_width = self.tab_width_range[1]
-        delta = 5
-        num_steps = int(round((max_width - min_width) / delta)) + 1
-        values = np.linspace(min_width, max_width, num_steps).round(10).tolist()
-        return {i: '' for i in values}
-
-    @property
     def tab_length(self) -> float:
         """
         Returns the length of the weld tab in mm.
@@ -3163,18 +2925,6 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         return (self.tab_overhang, self.y_body_length + self.tab_overhang)
     
-    @property
-    def tab_length_marks(self) -> Dict[int, str]:
-        """
-        Returns the length marks of the weld tab in mm.
-        """
-        min_length = self.tab_length_range[0]
-        max_length = self.tab_length_range[1]
-        delta = 20
-        num_steps = int(round((max_length - min_length) / delta)) + 1
-        values = np.linspace(min_length, max_length, num_steps).round(10).tolist()
-        return {i: '' for i in values}
-
     @tab_overhang.setter
     @calculate_weld_tab_properties
     def tab_overhang(self, tab_overhang: float) -> None:

@@ -3,122 +3,61 @@ from dash import no_update, ctx
 
 from steer_opencell_design.Components.CurrentCollectors import *
 
+from general.callback_helpers import create_no_update_response
 from general.enumerated_classes import *
-from general.cell_operations import get_cell_from_cache
+from general.cell_operations import get_cell_from_cache, get_object_from_cell
 from general.trigger_router import TriggerRouter, TriggerType
+from general.handlers import handle_cell_store_update, handle_property_update
 
 from current_collectors.configs import COLLECTOR_CONFIGS
-from current_collectors.handlers import handle_action, handle_cell_store_update, handle_property_update, handle_side_selector_update, handle_drag_value_update
+from current_collectors.handlers import handle_side_selector_update
 
 
-# =============================================================================
-# Current Collector Callback Helpers
-# =============================================================================
-
-def create_no_update_response(config: Type) -> Tuple:
-    """Create a no_update response for a given collector configuration."""
-    num_params = len(config.parameter_list)
-    num_range_params = len(config.range_slider_parameters) if config.range_slider_parameters else 0
-    
-    response = [
-        no_update,  # cache_key (single value)
-        [no_update] * num_params,  # slider values
-        [no_update] * num_params,  # slider mins
-        [no_update] * num_params,  # slider maxs
-        [no_update] * num_params,  # slider marks
-        [no_update] * num_params,  # slider steps
-        [no_update] * num_params,  # input values
-        [no_update] * num_params,  # input steps
-    ]
-    
-    # Add range slider outputs if applicable
-    if config.range_slider_parameters:
-        response.extend([
-            [no_update] * num_range_params,  # rangeslider values (list)
-            [no_update] * num_range_params,  # input_start values (list)
-            [no_update] * num_range_params,  # input_end values (list)
-            [no_update] * num_range_params,  # rangeslider mins (list)
-            [no_update] * num_range_params,  # rangeslider maxs (list)
-            [no_update] * num_range_params,  # rangeslider marks (list)
-        ])
-    
-    # Add no_update for RadioItems and text input (only for tabbed collector)
-    if config.collector_type.__name__ == 'TabWeldedCurrentCollector':
-        response.append(no_update)  # RadioItems
-        response.append(no_update)  # Text input
-    
-    return tuple(response)
-
-def create_generic_current_collector_callback(config_key: CollectorType, electrode_key: ElectrodeType) -> callable:
+def create_generic_current_collector_callback(collector_type: CollectorType, electrode_type: ElectrodeType) -> callable:
     """Factory function to create current collector callbacks."""
     
-    config = COLLECTOR_CONFIGS[config_key]
+    config = COLLECTOR_CONFIGS[collector_type]
     
     def generic_update_current_collector(
         cell_data, 
         input_values, 
         slider_values, 
-        drag_values,
-        slider_steps,
-        input_steps,
-        flip_x, 
-        flip_y,
-        rangeslider_values=None, 
+        range_slider_values=None, 
         input_start_values=None, 
         input_end_values=None,
         tab_weld_side=None,
         tab_positions_text=None  # Add this parameter
     ) -> Tuple:
-        
-        from current_collectors.cell_operations import get_current_collector_from_cell
 
         # Get the triggered ID
         triggered_id = ctx.triggered_id
-
-        # get the component property that triggered it
-        prop_id = ctx.triggered[0]['prop_id'].split('.')[-1]
-
-        if prop_id == 'drag_value':
-            return handle_drag_value_update(triggered_id, drag_values, config, slider_steps, input_steps, input_values)
 
         # Get the cell from cache
         cell = get_cell_from_cache(cell_data['cache_key'])
 
         # get the current collector from the cell, either cathode or anode depending on electrode
-        current_collector = get_current_collector_from_cell(cell, electrode_key)
+        current_collector = get_object_from_cell(cell, config)
 
-        # If the current collector is not of the right type, then return no_updates 
-        if type(current_collector) != config.collector_type:
+        if config.collector_type != type(current_collector):
             return create_no_update_response(config)
 
         # Map the triggered ID to the appropriate action using ENUMS
         trigger_type = TriggerRouter.get_trigger_type(triggered_id)
 
-        # trigger if the cell store is updated
         if trigger_type == TriggerType.CELL_STORE:
             return handle_cell_store_update(current_collector, config)
-        
-        # trigger if the weld_tab_side selector is updated
-        elif trigger_type == TriggerType.RADIOITEM:
-            return handle_side_selector_update(triggered_id, current_collector, config, cell, tab_weld_side)
-        
-        # trigger if a property is updated
-        elif trigger_type == TriggerType.PROPERTY:
 
+        elif trigger_type == TriggerType.PROPERTY:
             return handle_property_update(
-                triggered_id, current_collector, config, cell,
-                input_values, slider_values, rangeslider_values,
-                input_start_values, input_end_values, tab_positions_text
+                triggered_id, cell, current_collector, config, 
+                input_values, slider_values, range_slider_values,
+                input_start_values, input_end_values
             )
-        
-        # trigger if an action is performed, e.g. flip
-        elif trigger_type == TriggerType.ACTION:
-            return handle_action(triggered_id, current_collector, config, cell)
-        
-        # Fallback
-        return create_no_update_response(config)
+
+        return create_no_update_response()
 
     return generic_update_current_collector
+
 
 def convert_current_collector(current_collector: Type, target_type_name: str):
     """Convert current collector from one type to another using from_* constructors."""
@@ -153,3 +92,26 @@ def convert_current_collector(current_collector: Type, target_type_name: str):
     return new_current_collector
 
 
+def format_tab_positions(positions: List[float]) -> str:
+    """Format list of positions as comma-separated string."""
+    if not positions:
+        return ''
+    return ', '.join([str(pos) for pos in sorted(positions)])
+
+
+def parse_tab_positions(text_input: str) -> List[float]:
+    """Parse comma-separated tab positions from text input."""
+    if not text_input or not text_input.strip():
+        return []
+    
+    try:
+        # Split by comma and clean up whitespace
+        positions = [x.strip() for x in text_input.split(',') if x.strip()]
+        # Convert to float and filter out invalid values
+        positions = [float(x) for x in positions if x.replace('.', '').replace('-', '').isdigit()]
+        # Sort positions and remove duplicates
+        positions = sorted(list(set(positions)))
+        return positions
+    except (ValueError, AttributeError):
+        return []  # Return empty list if parsing fails
+    
