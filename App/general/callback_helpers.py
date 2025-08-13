@@ -3,6 +3,7 @@ from typing import Type, Tuple, List, Dict
 from general.enumerated_classes import CategoricalProperty
 from steer_core.DataManager import DataManager
 
+from dash import no_update
 
 ### Database Helpers ###
 def get_internal_construction_options(form_factor):
@@ -124,16 +125,15 @@ def deserialize_object(serialized_object: str) -> Type:
 
 ### Callback Helpers ###
 
-def generate_parameters(
-    object, 
-    parameter_list: list
-) -> Tuple[List[float], List[float], List[float], List[Dict[int, str]]]:
+def generate_parameters(object, config: Type) -> Tuple[List[float], List[float], List[float], List[Dict[int, str]]]:
     
     """Generate parameter lists for any object."""
     parameter_values = []
     min_values = []
     max_values = []
     
+    parameter_list = config.parameter_list
+
     # Now use the enum
     categorical_properties = {prop.value for prop in CategoricalProperty}
     
@@ -164,24 +164,52 @@ def generate_rangeslider_values(
     parameter_list = [getattr(object, param) for param in range_params]
     start_list = [p[0] for p in parameter_list]
     end_list = [p[1] for p in parameter_list]
-    min_val = [getattr(object, f"{param}_range")[0] for param in range_params]
-    max_val = [getattr(object, f"{param}_range")[1] for param in range_params]
-    range_marks_list = [getattr(object, f"{param}_marks") for param in range_params]
-    
-    return parameter_list, start_list, end_list, min_val, max_val, range_marks_list
+    min_vals = [getattr(object, f"{param}_range")[0] for param in range_params]
+    max_vals = [getattr(object, f"{param}_range")[1] for param in range_params]
+    return start_list, end_list, min_vals, max_vals
 
-def validate_dependent_properties(object, settable_params: list, updated_property: str) -> None:
+def validate_dependent_properties(object, config: Type) -> None:
     """Validate and clamp dependent properties to their valid ranges."""
-    for param in settable_params:
-        if param != updated_property:
-            try:
-                param_range = getattr(object, f"{param}_range")
-                param_value = getattr(object, param)
-                if param_value < param_range[0]:
-                    setattr(object, param, param_range[0])
-                elif param_value > param_range[1]:
-                    setattr(object, param, param_range[1])
-            except AttributeError:
-                # Handle case where range doesn't exist
-                continue
+    for param in config.settable_parameters:
+        try:
+            param_range = getattr(object, f"{param}_hard_range")
+            param_value = getattr(object, param)
+            if param_value < param_range[0]:
+                setattr(object, param, param_range[0])
+            elif param_value > param_range[1]:
+                setattr(object, param, param_range[1])
+        except AttributeError:
+            # Handle case where range doesn't exist
+            continue
 
+def create_no_update_response(config) -> Tuple:
+
+    """Create a no_update response specifically for material callbacks."""
+    num_material_params = len(config.parameter_list)
+    
+    response = (
+        no_update,  # cache_key
+        [no_update] * num_material_params,  # slider values
+        [no_update] * num_material_params,  # slider mins
+        [no_update] * num_material_params,  # slider maxs
+        [no_update] * num_material_params,  # slider marks
+        [no_update] * num_material_params,  # slider steps
+        [no_update] * num_material_params,  # input steps
+    )
+
+    if hasattr(config, 'dropdown_menu') and config.dropdown_menu:
+        response += (no_update)
+
+    if hasattr(config, 'range_slider_parameters') and config.range_slider_parameters:
+        num_rangeslider_params = len(config.range_slider_parameters)
+        response += (
+            [no_update] * num_rangeslider_params,  # range_slider_values
+            [no_update] * num_rangeslider_params,  # range slider mins
+            [no_update] * num_rangeslider_params,  # range slider maxs
+            [no_update] * num_rangeslider_params,  # range slider marks
+            [no_update] * num_rangeslider_params,  # range slider steps
+            [no_update] * num_rangeslider_params,  # range slider start values
+            [no_update] * num_rangeslider_params,  # range slider end values
+        )
+
+    return response

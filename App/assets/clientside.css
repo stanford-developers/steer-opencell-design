@@ -1,0 +1,20 @@
+window.dash_clientside = Object.assign({}, window.dash_clientside, {
+    slider_sync: {
+        sync_drag_to_input: function(drag_values) {
+            if (!drag_values) return window.dash_clientside.no_update;
+            return drag_values;
+        },
+        
+        // Additional function for range slider start values
+        sync_range_start: function(drag_values) {
+            if (!drag_values || drag_values.length === 0) return window.dash_clientside.no_update;
+            return drag_values.map(range => range ? range[0] : null);
+        },
+        
+        // Additional function for range slider end values
+        sync_range_end: function(drag_values) {
+            if (!drag_values || drag_values.length === 0) return window.dash_clientside.no_update;
+            return drag_values.map(range => range ? range[1] : null);
+        }
+    }
+});

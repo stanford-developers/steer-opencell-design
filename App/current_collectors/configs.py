@@ -5,7 +5,8 @@ from steer_opencell_design.Components.CurrentCollectors import (
     PunchedCurrentCollector, 
     NotchedCurrentCollector, 
     TablessCurrentCollector, 
-    TabWeldedCurrentCollector
+    TabWeldedCurrentCollector,
+    _CurrentCollector
 )
 
 from general.enumerated_classes import (
@@ -31,6 +32,7 @@ class CurrentCollectorConfig:
     collector_type: Type
     parameter_list: List[str]
     settable_parameters: List[str]
+    cell_path: List[str]
     range_slider_parameters: Optional[List[str]] = None
 
 
@@ -39,25 +41,35 @@ COLLECTOR_CONFIGS = {
     CollectorType.PUNCHED: CurrentCollectorConfig(
         collector_type=PunchedCurrentCollector,
         parameter_list=PUNCHED_PARAMETER_LIST,
-        settable_parameters=PUNCHED_SETTABLE_PARAMETERS
+        settable_parameters=PUNCHED_SETTABLE_PARAMETERS,
+        cell_path=['current_collector'],
     ),
     CollectorType.NOTCHED: CurrentCollectorConfig(
         collector_type=NotchedCurrentCollector,
         parameter_list=NOTCHED_PARAMETER_LIST,
         settable_parameters=NOTCHED_SETTABLE_PARAMETERS,
-        range_slider_parameters=TAPE_RANGE_SLIDER_PARAMETERS
+        range_slider_parameters=TAPE_RANGE_SLIDER_PARAMETERS,
+        cell_path=['current_collector'],
     ),
     CollectorType.TABLESS: CurrentCollectorConfig(
         collector_type=TablessCurrentCollector,
         parameter_list=TABLESS_PARAMETER_LIST,
         settable_parameters=TABLESS_SETTABLE_PARAMETERS,
-        range_slider_parameters=TAPE_RANGE_SLIDER_PARAMETERS
+        range_slider_parameters=TAPE_RANGE_SLIDER_PARAMETERS,
+        cell_path=['current_collector'],
     ),
     CollectorType.TABBED: CurrentCollectorConfig(
         collector_type=TabWeldedCurrentCollector,
         parameter_list=TABBED_PARAMETER_LIST,
         settable_parameters=TABBED_SETTABLE_PARAMETERS,
-        range_slider_parameters=TAPE_RANGE_SLIDER_PARAMETERS
+        range_slider_parameters=TAPE_RANGE_SLIDER_PARAMETERS,
+        cell_path=['current_collector'],
+    ),
+    CollectorType.GENERIC: CurrentCollectorConfig(
+        collector_type=_CurrentCollector,
+        parameter_list=[],
+        settable_parameters=[],
+        cell_path=['current_collector']
     )
 }
 
