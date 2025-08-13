@@ -306,106 +306,6 @@ cathode_notched_design_parameters = ds.html.Div(
             property_name = 'b_side_coated_section',
             title = 'B Side Coated Section (mm)'
         )(),
-
-        ds.html.Br(), ds.html.Br(), 
-        ds.html.H5('Derived', style={'font-weight': 'bold'}),
-        ds.html.Br(), 
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.001,
-            mark_interval = 2,
-            property_name = 'cost',
-            slider_disable = True,
-            title = 'Cost ($)'
-        )(),
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.01,
-            mark_interval = 2,
-            property_name = 'mass',
-            slider_disable = True,
-            title = 'Mass (g)'
-        )(),
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 10000,
-            step = 0.1,
-            mark_interval = 200,
-            property_name = 'coated_area',
-            slider_disable = True,
-            title = 'Coated Area (both sides) (cm²)'
-        )(),
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 10000,
-            step = 0.1,
-            mark_interval = 200,
-            property_name = 'insulation_area',
-            slider_disable = True,
-            title = 'Insulation Area (both sides) (cm²)'
-        )(),
-
-        ds.html.Br(), ds.html.Br(),
-        ds.html.H5('Datums', style={'font-weight': 'bold'}),
-        ds.html.Br(),
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 1,
-            step = 0.001,
-            mark_interval = 0.2,
-            property_name = 'datum_x',
-            slider_disable = False,
-            title = 'X (mm)'
-        )(),
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 1,
-            step = 0.001,
-            mark_interval = 0.2,
-            property_name = 'datum_y',
-            slider_disable = False,
-            title = 'Y (mm)'
-        )(),
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 1,
-            step = 0.01,
-            mark_interval = 0.2,
-            property_name = 'datum_z',
-            slider_disable = False,
-            title = 'Z (mm)'
-        )(),
-
-        ds.html.Button(
-            id={'electrode': 'cathode', 'object': 'notched_current_collector', 'action': 'flip_x'},
-            children='Flip X',
-            style=BUTTON_STYLE | {'width': 'calc(30%)'}
-        ),
-
-        ds.html.Br(), ds.html.Br(),
-
-        ds.html.Button(
-            id={'electrode': 'cathode', 'object': 'notched_current_collector', 'action': 'flip_y'},
-            children='Flip Y',
-            style=BUTTON_STYLE | {'width': 'calc(30%)'}
-        ),
-
     ]
 )
 
@@ -437,7 +337,8 @@ cathode_tabless_design_parameters = ds.html.Div(
             step = 0.1,
             mark_interval = 30,
             property_name = 'width',
-            title = 'Width (mm)'
+            title = 'Width (mm)',
+            message='will influence allowed coated width, tab height and insulation width values'
         )(),
 
         SliderWithTextInput(
@@ -461,7 +362,8 @@ cathode_tabless_design_parameters = ds.html.Div(
             step = 0.1,
             mark_interval = 30,
             property_name = 'coated_width',
-            title = 'Coated Width (mm)'
+            title = 'Coated Width (mm)',
+            message='will influence the tab height (keeping tape width constant) and the allowed insulation width values'
         )(),
 
         SliderWithTextInput(
@@ -471,7 +373,8 @@ cathode_tabless_design_parameters = ds.html.Div(
             step = 0.1,
             mark_interval = 30,
             property_name = 'tab_height',
-            title = 'Tab Height (mm)'
+            title = 'Tab Height (mm)',
+            message='will influence the coated width (keeping tab width constant)'
         )(),
 
         SliderWithTextInput(

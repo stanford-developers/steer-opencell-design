@@ -1,5 +1,6 @@
 from typing import Type, List, Tuple
 from dash import no_update, ctx
+import time
 
 from steer_opencell_design.Components.CurrentCollectors import *
 
