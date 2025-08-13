@@ -182,6 +182,23 @@ def validate_dependent_properties(object, config: Type) -> None:
             # Handle case where range doesn't exist
             continue
 
+def validate_single_property(object, property_name: str, value: str, config: Type) -> None:
+
+    param_range = getattr(object, f"{property_name}_hard_range", None)
+
+    if param_range and property_name in config.parameter_list:
+        if value < param_range[0]:
+            return param_range[0]
+        elif value > param_range[1]:
+            return param_range[1]
+        else:
+            return value
+        
+    if param_range and property_name in config.range_slider_parameters:
+        lower_bound = value[0] if value[0] > param_range[0] else param_range[0]
+        upper_bound = value[1] if value[1] < param_range[1] else param_range[1]
+        return (lower_bound, upper_bound)
+
 def create_no_update_response(config) -> Tuple:
 
     """Create a no_update response specifically for material callbacks."""
@@ -213,3 +230,4 @@ def create_no_update_response(config) -> Tuple:
         )
 
     return response
+

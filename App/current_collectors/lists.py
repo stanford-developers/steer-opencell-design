@@ -33,13 +33,6 @@ NOTCHED_PARAMETER_LIST = [
     'tab_gap',
     'coated_tab_height',
     'insulation_width',
-    'cost',
-    'mass',
-    'coated_area',
-    'insulation_area',
-    'datum_x',
-    'datum_y',
-    'datum_z',
 ]
 
 NOTCHED_SETTABLE_PARAMETERS = [
@@ -52,9 +45,6 @@ NOTCHED_SETTABLE_PARAMETERS = [
     'tab_gap',
     'coated_tab_height',
     'insulation_width',
-    'datum_x',
-    'datum_y',
-    'datum_z',
 ]
 
 

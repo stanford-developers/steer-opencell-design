@@ -1,9 +1,15 @@
 from dash import no_update
 from typing import Type, Tuple, List, Any
+import time
 
 from general.enumerated_classes import SubType, TriggerType
-from general.callback_helpers import validate_dependent_properties, generate_parameters, generate_rangeslider_values
 from general.cell_operations import set_cell_to_cache, set_object_to_cell
+from general.callback_helpers import (
+    validate_dependent_properties, 
+    generate_parameters, 
+    generate_rangeslider_values, 
+    validate_single_property
+)
 
 from steer_core.Apps.Utils.SliderControls import create_slider_config, create_range_slider_config
 
@@ -114,9 +120,9 @@ def handle_property_update(
         config: Type,
         input_values: List[float],
         slider_values: List[float],
-        range_slider_values: List[float],
-        input_start_values: List[float],
-        input_end_values: List[float]
+        range_slider_values: List[float] = None,
+        input_start_values: List[float] = None,
+        input_end_values: List[float] = None
     ) -> Tuple:
 
     # determine the property and subtype from the triggered ID
@@ -144,6 +150,9 @@ def handle_property_update(
         value = range_slider_values[property_index]
         value[1] = input_end_values[property_index]
 
+    # Do a pre check to make sure the value is in an appropriate range
+    value = validate_single_property(object_instance, property_name, value, config)
+
     # set the new value to the object instance
     setattr(object_instance, property_name, value)
 
@@ -169,7 +178,7 @@ def handle_property_update(
     _add_dropdown_menu(response, object_instance, config)
     _add_range_slider_components(response, object_instance, config)
     _add_tabbed_collector_components(response, object_instance, config)
-    
+
     return tuple(response)
 
 
