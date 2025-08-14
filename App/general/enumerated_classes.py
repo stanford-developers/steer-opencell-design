@@ -62,6 +62,7 @@ class CollectorType(Enum):
 class ElectrodeType(Enum):
     CATHODE = 'cathode'
     ANODE = 'anode'
+    GENERIC = 'generic'
 
 class MaterialType(Enum):
     CATHODE_CURRENT_COLLECTOR = 'cathode_current_collector'

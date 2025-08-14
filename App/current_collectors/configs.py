@@ -22,6 +22,8 @@ from current_collectors.lists import (
     TABLESS_SETTABLE_PARAMETERS,
     TABBED_PARAMETER_LIST,
     TABBED_SETTABLE_PARAMETERS,
+    TABBED_RADIOITEM_PARAMETERS,
+    TABBED_TEXT_PARAMETERS,
     TAPE_RANGE_SLIDER_PARAMETERS
 )
 
@@ -34,6 +36,8 @@ class CurrentCollectorConfig:
     settable_parameters: List[str]
     cell_path: List[str]
     range_slider_parameters: Optional[List[str]] = None
+    radioitem_parameters: Optional[List[str]] = None
+    text_parameters: Optional[List[str]] = None
 
 
 # Define configurations
@@ -64,6 +68,8 @@ COLLECTOR_CONFIGS = {
         settable_parameters=TABBED_SETTABLE_PARAMETERS,
         range_slider_parameters=TAPE_RANGE_SLIDER_PARAMETERS,
         cell_path=['current_collector'],
+        radioitem_parameters=TABBED_RADIOITEM_PARAMETERS,
+        text_parameters=TABBED_TEXT_PARAMETERS
     ),
     CollectorType.GENERIC: CurrentCollectorConfig(
         collector_type=_CurrentCollector,

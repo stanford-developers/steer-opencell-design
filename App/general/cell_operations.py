@@ -88,6 +88,7 @@ def get_cell_from_cache(cache_key: str) -> Type:
 def set_object_to_cell(cell: Type, obj: Any, config: Type) -> Type:
     """
     Generic function to set any object to a cell based on configuration.
+    This version triggers setters for all intermediate objects in the path.
     
     Parameters
     ----------
@@ -121,74 +122,61 @@ def set_object_to_cell(cell: Type, obj: Any, config: Type) -> Type:
         
     For a simple property:
         config.cell_path = ['insulation_material']
+        
+    For setting the entire cell (replacement):
+        config.cell_path = [''] or config.cell_path = []
     """
     
     if not hasattr(config, 'cell_path'):
         raise AttributeError("Config must have a 'cell_path' attribute")
     
-    if not config.cell_path:
-        raise ValueError("Config cell_path cannot be empty")
+    # Handle direct cell replacement case
+    if not config.cell_path or (len(config.cell_path) == 1 and config.cell_path[0] == ''):
+        # Return the new object directly (replaces the entire cell)
+        return obj
     
-    # Navigate to the target location and set the object
+    # Build a path of objects for reassignment
+    object_path = [cell]
     current_obj = cell
     
-    # Navigate to the parent of the target
+    # Navigate and collect all intermediate objects
     for path_component in config.cell_path[:-1]:
         if not hasattr(current_obj, path_component):
             raise ValueError(f"Invalid cell path: '{path_component}' not found in {type(current_obj).__name__}")
         current_obj = getattr(current_obj, path_component)
+        object_path.append(current_obj)
     
-    # Set the final object
+    # Set the final object (this triggers the final setter)
     final_attribute = config.cell_path[-1]
     if not hasattr(current_obj, final_attribute):
         raise ValueError(f"Invalid cell path: '{final_attribute}' not found in {type(current_obj).__name__}")
     
     setattr(current_obj, final_attribute, obj)
     
+    # Now reassign all intermediate objects to trigger their setters
+    # Work backwards through the path
+    for i in range(len(config.cell_path) - 2, -1, -1):
+        parent_obj = object_path[i]
+        child_obj = object_path[i + 1]
+        attribute_name = config.cell_path[i]
+        
+        # This will trigger the setter for this attribute
+        setattr(parent_obj, attribute_name, child_obj)
+    
     return cell
 
 def get_object_from_cell(cell: Type, config: Type) -> Any:
     """
     Generic function to get any object from a cell based on configuration.
-    
-    Parameters
-    ----------
-    cell : Type
-        The cell object to read from.
-    config : Type
-        Configuration object that defines how to get the object from the cell.
-        Must have a 'cell_path' attribute that specifies the path to the object.
-        
-    Returns
-    -------
-    Any
-        The object retrieved from the cell.
-        
-    Raises
-    ------
-    AttributeError
-        If the config doesn't have the required 'cell_path' attribute.
-    ValueError
-        If the cell_path is invalid or the path doesn't exist in the cell.
-        
-    Examples
-    --------
-    For a current collector:
-        config.cell_path = ['current_collector']
-        
-    For a material with nested path:
-        config.cell_path = ['current_collector', 'weld_tab', 'material']
-        
-    For a simple property:
-        config.cell_path = ['insulation_material']
     """
-
     if not hasattr(config, 'cell_path'):
         raise AttributeError("Config must have a 'cell_path' attribute")
     
-    if not config.cell_path:
-        raise ValueError("Config cell_path cannot be empty")
-
+    # Handle direct cell access case
+    if (not config.cell_path or 
+        (len(config.cell_path) == 1 and config.cell_path[0] in ['', '__self__', '__root__'])):
+        return cell
+    
     # Navigate to the target object
     current_obj = cell
     

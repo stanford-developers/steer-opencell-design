@@ -1,5 +1,5 @@
 import dash as ds
-from steer_core.Apps.Components.SliderComponents import SliderWithTextInput
+from steer_core.Apps.Components.SliderComponents import SliderWithTextInput, SliderWithTextInputAndCheckbox
 from styles import BUTTON_STYLE
 from database_service import INSULATION_MATERIALS
 
@@ -65,30 +65,17 @@ cathode_design_parameters = ds.html.Div(
             step = 0.01,
             mark_interval = 30,
             property_name = 'mass_loading',
-            title = 'Mass Loading (mg/cm²)',
-            message='will impact the coating and total thickness'
+            title = 'Mass Loading (mg/cm²)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'electrode'},
             min_val = 0,
-            max_val = 20,
-            step = 0.1,
-            mark_interval = 2,
-            property_name = 'thickness',
-            title = 'Total Thickness (µm)',
-            message='will impact the coating thickness and mass loading'
-        )(),
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'cathode', 'object': 'electrode'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.1,
-            mark_interval = 2,
+            max_val = 500,
+            step = 0.01,
+            mark_interval = 30,
             property_name = 'coating_thickness',
-            title = 'Coating Thickness (µm)',
-            message='will impact the total thickness and mass loading'
+            title = 'Coating Thickness (µm)'
         )(),
 
         SliderWithTextInput(
@@ -98,8 +85,7 @@ cathode_design_parameters = ds.html.Div(
             step = 0.01,
             mark_interval = 30,
             property_name = 'calender_density',
-            title = 'Calender Density (g/cm³)',
-            message='will impact the porosity and thicknesses'
+            title = 'Calender Density (g/cm³)'
         )(),
 
         SliderWithTextInput(
@@ -109,87 +95,8 @@ cathode_design_parameters = ds.html.Div(
             step = 0.1,
             mark_interval = 30,
             property_name = 'porosity',
-            title = 'Porosity (%)',
-            message='will impact the calender density and thicknesses'
+            title = 'Porosity (%)'
         )(),
-
-        ds.html.Br(), ds.html.Br(), 
-        ds.html.H5('Derived Parameters', style={'font-weight': 'bold'}),
-        ds.html.Br(), 
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'cathode', 'object': 'electrode'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.001,
-            mark_interval = 2,
-            property_name = 'cost',
-            slider_disable = True,
-            title = 'Cost ($)'
-        )(),
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'cathode', 'object': 'electrode'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.01,
-            mark_interval = 2,
-            property_name = 'mass',
-            slider_disable = True,
-            title = 'Mass (g)'
-        )(),
-
-
-        ds.html.Br(), ds.html.Br(),
-        ds.html.H5('Datums', style={'font-weight': 'bold'}),
-        ds.html.Br(),
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'cathode', 'object': 'electrode'},
-            min_val = 0,
-            max_val = 1,
-            step = 0.001,
-            mark_interval = 0.2,
-            property_name = 'datum_x',
-            slider_disable = False,
-            title = 'X (mm)'
-        )(),
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'cathode', 'object': 'electrode'},
-            min_val = 0,
-            max_val = 1,
-            step = 0.001,
-            mark_interval = 0.2,
-            property_name = 'datum_y',
-            slider_disable = False,
-            title = 'Y (mm)'
-        )(),
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'cathode', 'object': 'electrode'},
-            min_val = 0,
-            max_val = 1,
-            step = 0.01,
-            mark_interval = 0.2,
-            property_name = 'datum_z',
-            slider_disable = False,
-            title = 'Z (mm)'
-        )(),
-
-        ds.html.Button(
-            id={'electrode': 'cathode', 'object': 'electrode', 'action': 'flip_x'},
-            children='Flip X',
-            style=BUTTON_STYLE | {'width': 'calc(30%)'}
-        ),
-
-        ds.html.Br(), ds.html.Br(),
-
-        ds.html.Button(
-            id={'electrode': 'cathode', 'object': 'electrode', 'action': 'flip_y'},
-            children='Flip Y',
-            style=BUTTON_STYLE | {'width': 'calc(30%)'}
-        ),
 
     ]
 
@@ -238,6 +145,36 @@ cathode_plots = ds.html.Div([
 ], style={'display': 'flex', 'flex-direction': 'column'})
 
 
+
+cathode_properties = ds.html.Div([
+    
+    ds.html.Br(),
+    ds.html.H5('Cathode Properties', style={'font-weight': 'bold'}),
+    ds.html.Br(),
+
+    # Container div for the properties table
+    ds.html.Div(
+        id='cathode_properties_div',
+        children=[
+            ds.html.P("Properties will be displayed here when calculated.", 
+                     style={'font-style': 'italic', 'color': '#666'})
+        ],
+        style={
+            'border': '1px solid #ddd',
+            'border-radius': '4px',
+            'padding': '15px',
+            'margin': '10px 0',
+            'background-color': '#f9f9f9',
+            'min-height': '200px',
+            'width': '80%'
+        }
+    ),
+
+], style={'padding': '20px', 'width': '100%'})
+
+
+
+
 cathode_electrode_layout = ds.html.Div([
 
     ds.html.Div([
@@ -245,6 +182,7 @@ cathode_electrode_layout = ds.html.Div([
         ds.html.Br(), ds.html.Br(), ds.html.Br(), 
         cathode_insulation_material_parameters,
         cathode_design_parameters,
+        cathode_properties,
         ds.html.Div(style={'height': '200px'})
 
         ], style={'flex': '1', 'padding': '20px', 'width': 'calc(50%)'}),
