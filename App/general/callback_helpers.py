@@ -1,9 +1,9 @@
-from typing import Type, Tuple, List, Dict
+from typing import Type, Tuple, List, Dict, Any, Optional, Union
 
 from general.enumerated_classes import CategoricalProperty
 from steer_core.DataManager import DataManager
 
-from dash import no_update
+from dash import no_update, dash_table, html
 
 ### Database Helpers ###
 def get_internal_construction_options(form_factor):
@@ -184,22 +184,28 @@ def validate_dependent_properties(object, config: Type) -> None:
 
 def validate_single_property(object, property_name: str, value: str, config: Type) -> None:
 
+    if hasattr(config, 'radioitem_parameters') and config.radioitem_parameters and property_name in config.radioitem_parameters:
+        return value
+
+    if hasattr(config, 'text_parameters') and config.text_parameters and property_name in config.text_parameters:
+        return value
+
     param_range = getattr(object, f"{property_name}_hard_range", None)
 
-    if param_range and property_name in config.parameter_list:
+    if param_range and hasattr(config, 'parameter_list') and config.parameter_list and property_name in config.parameter_list:
         if value < param_range[0]:
             return param_range[0]
         elif value > param_range[1]:
             return param_range[1]
         else:
             return value
-        
-    if param_range and property_name in config.range_slider_parameters:
+
+    if param_range and hasattr(config, 'range_slider_parameters') and config.range_slider_parameters and property_name in config.range_slider_parameters:
         lower_bound = value[0] if value[0] > param_range[0] else param_range[0]
         upper_bound = value[1] if value[1] < param_range[1] else param_range[1]
         return (lower_bound, upper_bound)
 
-def create_no_update_response(config) -> Tuple:
+def create_no_update_response(config, existing_warnings: List[str]) -> Tuple:
 
     """Create a no_update response specifically for material callbacks."""
     num_material_params = len(config.parameter_list)
@@ -215,7 +221,7 @@ def create_no_update_response(config) -> Tuple:
     )
 
     if hasattr(config, 'dropdown_menu') and config.dropdown_menu:
-        response += (no_update)
+        response += (no_update, )
 
     if hasattr(config, 'range_slider_parameters') and config.range_slider_parameters:
         num_rangeslider_params = len(config.range_slider_parameters)
@@ -229,5 +235,153 @@ def create_no_update_response(config) -> Tuple:
             [no_update] * num_rangeslider_params,  # range slider end values
         )
 
-    return response
+    if hasattr(config, 'radioitem_parameters') and config.radioitem_parameters:
+        num_radioitem_params = len(config.radioitem_parameters)
+        response += (
+            [no_update] * num_radioitem_params,  # radioitem values
+        )
 
+    if hasattr(config, 'text_parameters') and config.text_parameters:
+        num_text_params = len(config.text_parameters)
+        response += (
+            [no_update] * num_text_params,  # text item values
+        )
+
+    return (existing_warnings,) + tuple(response)
+
+
+## Output Helpers ##
+
+def create_properties_table(
+    properties: Optional[Dict[str, Any]], 
+    table_id: Optional[str] = None,
+    decimal_places: int = 4,
+    custom_styles: Optional[Dict[str, Any]] = None
+) -> Union[dash_table.DataTable, html.Div]:
+    """
+    Create a formatted DataTable from a properties dictionary.
+    
+    Parameters
+    ----------
+    properties : dict or None
+        Dictionary of property names and values to display
+    table_id : str, optional
+        ID for the DataTable component
+    decimal_places : int, default 4
+        Number of decimal places for float formatting
+    custom_styles : dict, optional
+        Custom styling overrides for the table
+        
+    Returns
+    -------
+    dash_table.DataTable or html.Div
+        Formatted table component or fallback message
+        
+    Examples
+    --------
+    >>> props = {'mass': 1.2345, 'volume': 0.0067, 'density': 2700}
+    >>> table = create_properties_table(props)
+    
+    >>> # With custom styling
+    >>> custom_styles = {'style_header': {'backgroundColor': 'blue'}}
+    >>> table = create_properties_table(props, custom_styles=custom_styles)
+    """
+    
+    if not properties or not isinstance(properties, dict):
+        return _create_fallback_message()
+    
+    # Convert dictionary to list of records for DataTable
+    table_data = []
+    for key, value in properties.items():
+        formatted_key = _format_property_name(key)
+        formatted_value = _format_property_value(value, decimal_places)
+        
+        table_data.append({
+            'Property': formatted_key,
+            'Value': formatted_value
+        })
+    
+    # Default styles
+    default_styles = _get_default_table_styles()
+    
+    # Merge custom styles if provided
+    if custom_styles:
+        for style_key, style_value in custom_styles.items():
+            if style_key in default_styles:
+                default_styles[style_key].update(style_value)
+            else:
+                default_styles[style_key] = style_value
+    
+    # Create table configuration
+    table_config = {
+        'data': table_data,
+        'columns': [
+            {"name": "Property", "id": "Property"},
+            {"name": "Value", "id": "Value"}
+        ],
+        **default_styles
+    }
+    
+    # Add ID if provided
+    if table_id:
+        table_config['id'] = table_id
+    
+    return dash_table.DataTable(**table_config)
+
+
+def _format_property_name(key: str) -> str:
+    """Format property name by replacing underscores and capitalizing."""
+    return key.replace('_', ' ').title()
+
+
+def _format_property_value(value: Any, decimal_places: int) -> str:
+    """Format property value based on its type."""
+    if isinstance(value, float):
+        return f"{value:.{decimal_places}f}"
+    elif isinstance(value, int):
+        return str(value)
+    elif isinstance(value, bool):
+        return "Yes" if value else "No"
+    elif value is None:
+        return "N/A"
+    else:
+        return str(value)
+
+
+def _get_default_table_styles() -> Dict[str, Dict[str, Any]]:
+    """Get default styling for properties tables."""
+    return {
+        'style_table': {
+            'overflowX': 'auto',
+            'border': '1px solid #ddd',
+            'borderRadius': '5px'
+        },
+        'style_cell': {
+            'textAlign': 'left',
+            'padding': '10px',
+            'border': '1px solid #ddd',
+            'fontFamily': 'Arial, sans-serif'
+        },
+        'style_header': {
+            'backgroundColor': '#f8f9fa',
+            'fontWeight': 'bold',
+            'border': '1px solid #ddd'
+        },
+        'style_data': {
+            'backgroundColor': '#ffffff',
+        }
+    }
+
+
+def _create_fallback_message() -> html.Div:
+    """Create fallback message when no properties are available."""
+    return html.Div([
+        html.P(
+            "No properties available", 
+            style={
+                'textAlign': 'center', 
+                'color': '#666', 
+                'fontStyle': 'italic'
+            }
+        )
+    ])

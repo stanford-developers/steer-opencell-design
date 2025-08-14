@@ -16,7 +16,7 @@ setup(
     url="https://github.com/nicholas9182/steer-opencell-design/",
     packages=find_packages(),
     install_requires=[
-        "pandas",
+        "pandas==2.1.4",
         "numpy",
         "datetime",
         "scipy",

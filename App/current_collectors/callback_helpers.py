@@ -11,7 +11,6 @@ from general.trigger_router import TriggerRouter, TriggerType
 from general.handlers import handle_cell_store_update, handle_property_update
 
 from current_collectors.configs import COLLECTOR_CONFIGS
-from current_collectors.handlers import handle_side_selector_update
 
 
 def create_generic_current_collector_callback(collector_type: CollectorType, electrode_type: ElectrodeType) -> callable:
@@ -20,14 +19,15 @@ def create_generic_current_collector_callback(collector_type: CollectorType, ele
     config = COLLECTOR_CONFIGS[collector_type]
     
     def generic_update_current_collector(
+        existing_warnings,
         cell_data, 
         input_values, 
         slider_values, 
         range_slider_values=None, 
         input_start_values=None, 
         input_end_values=None,
-        tab_weld_side=None,
-        tab_positions_text=None  # Add this parameter
+        radioitem_values=None,
+        textitem_values=None,  # Add this parameter
     ) -> Tuple:
 
         # Get the triggered ID
@@ -40,22 +40,25 @@ def create_generic_current_collector_callback(collector_type: CollectorType, ele
         current_collector = get_object_from_cell(cell, config)
 
         if config.collector_type != type(current_collector):
-            return create_no_update_response(config)
+            return create_no_update_response(config, existing_warnings)
 
         # Map the triggered ID to the appropriate action using ENUMS
         trigger_type = TriggerRouter.get_trigger_type(triggered_id)
 
         if trigger_type == TriggerType.CELL_STORE:
-            return handle_cell_store_update(current_collector, config)
+            return handle_cell_store_update(current_collector, config, existing_warnings)
 
         elif trigger_type == TriggerType.PROPERTY:
+
             return handle_property_update(
+                existing_warnings,
                 triggered_id, cell, current_collector, config, 
                 input_values, slider_values, range_slider_values,
-                input_start_values, input_end_values
+                input_start_values, input_end_values, radioitem_values,
+                textitem_values
             )
 
-        return create_no_update_response()
+        return create_no_update_response(config, existing_warnings)
 
     return generic_update_current_collector
 
@@ -93,26 +96,3 @@ def convert_current_collector(current_collector: Type, target_type_name: str):
     return new_current_collector
 
 
-def format_tab_positions(positions: List[float]) -> str:
-    """Format list of positions as comma-separated string."""
-    if not positions:
-        return ''
-    return ', '.join([str(pos) for pos in sorted(positions)])
-
-
-def parse_tab_positions(text_input: str) -> List[float]:
-    """Parse comma-separated tab positions from text input."""
-    if not text_input or not text_input.strip():
-        return []
-    
-    try:
-        # Split by comma and clean up whitespace
-        positions = [x.strip() for x in text_input.split(',') if x.strip()]
-        # Convert to float and filter out invalid values
-        positions = [float(x) for x in positions if x.replace('.', '').replace('-', '').isdigit()]
-        # Sort positions and remove duplicates
-        positions = sorted(list(set(positions)))
-        return positions
-    except (ValueError, AttributeError):
-        return []  # Return empty list if parsing fails
-    

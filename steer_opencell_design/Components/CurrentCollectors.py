@@ -16,7 +16,7 @@ from steer_materials.CellMaterials.Base import CurrentCollectorMaterial
 # import base functions
 from App.styles import *
 from abc import ABC, abstractmethod
-from typing import Tuple, Optional, Iterable, Dict
+from typing import Tuple, Optional, Iterable
 from plotly.subplots import make_subplots
 from copy import deepcopy
 
@@ -2303,19 +2303,16 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         All internal units in meters; bare_lengths come in mm.
         Optional x_start and x_end can restrict the x-bounds of the shape.
         """
-        # default y_depth to full body length if not passed in
+        # Default values
         y_depth = self._y_body_length if y_depth is None else y_depth
-
-        # default y_start to center-bottom if not passed in
         y_start = self._datum[1] - self._y_body_length / 2 if y_start is None else y_start
-
-        # default notch to tab_height if not passed in
         notch = self._tab_height if notch_height is None else notch_height
 
-        # bare lengths in m
-        bare_left, bare_right = (b for b in bare_lengths)
+        # Convert bare lengths to meters (they come in mm according to docstring)
+        bare_left = bare_lengths[0] * MM_TO_M if bare_lengths[0] != 0 else 0
+        bare_right = bare_lengths[1] * MM_TO_M if bare_lengths[1] != 0 else 0
 
-        # x bounds
+        # X bounds
         default_x0 = self._datum[0] - self._x_body_length / 2 + bare_left
         default_x1 = self._datum[0] + self._x_body_length / 2 - bare_right
         x0 = default_x0 if x_start is None else x_start
@@ -2325,40 +2322,55 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         y1 = y_start + y_depth
 
         pts = []
-        # bottom‐left
+        
+        # Start at bottom-left
         pts.append((x0, y0))
-        # up to top‐edge
+        # Go up to top edge
         pts.append((x0, y1))
 
-        # insert notches along the clipped range [x0, x1]
+        # Get valid tab positions within the x-range and sort them
+        valid_tabs = []
         for ts, te in self._tab_positions:
-            if te < x0 or ts > x1:
-                continue
-            s = max(ts, x0)
-            e = min(te, x1)
+            # Check if tab overlaps with our x-range
+            if te > x0 and ts < x1:
+                # Clip tab to our x-range
+                s = max(ts, x0)
+                e = min(te, x1)
+                if e > s:  # Valid tab after clipping
+                    valid_tabs.append((s, e))
+        
+        # Sort tabs by start position
+        valid_tabs.sort(key=lambda tab: tab[0])
 
-            # horizontal run to start of notch
-            if pts[-1] != (s, y1):
-                pts.append((s, y1))
+        # Process each valid tab
+        current_x = x0
+        
+        for tab_start, tab_end in valid_tabs:
+            # Horizontal run to start of notch (if needed)
+            if current_x < tab_start:
+                if pts[-1] != (current_x, y1):
+                    pts.append((current_x, y1))
+                pts.append((tab_start, y1))
+            
+            # Draw the notch
+            pts.append((tab_start, y1 + notch))
+            pts.append((tab_end, y1 + notch))
+            pts.append((tab_end, y1))
+            
+            # Update current position
+            current_x = tab_end
 
-            # draw the notch
-            pts.append((s, y1 + notch))
-            pts.append((e, y1 + notch))
-            pts.append((e, y1))
-
-            # advance to next horizontal
-            next_x = min(e + self._tab_gap, x1)
-            if next_x > pts[-1][0]:  # prevent duplicate point
-                pts.append((next_x, y1))
-
-        # finish the top edge
-        if pts[-1][1] == y1 and pts[-1][0] < x1:
+        # Finish the top edge to x1
+        if current_x < x1:
+            if pts[-1] != (current_x, y1):
+                pts.append((current_x, y1))
             pts.append((x1, y1))
 
-        # down & close
+        # Close the shape
         pts.append((x1, y0))
         pts.append((x0, y0))
 
+        # Convert to numpy arrays
         x = np.array([p[0] for p in pts], dtype=float)
         y = np.array([p[1] for p in pts], dtype=float)
 
@@ -3558,6 +3570,13 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             self._weld_tabs[0].width, 
             100
         )
+    
+    @property
+    def skip_coat_width_hard_range(self) -> Tuple[float, float]:
+        """
+        Get the skip coat width range in mm.
+        """
+        return (self._weld_tabs[0].width, 1000)
 
     @property
     def tab_weld_side(self) -> str:
@@ -3579,6 +3598,10 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         Returns the overhang range of the weld tab in mm.
         """
         return (0, self.weld_tab.length/2)
+    
+    @property
+    def tab_overhang_hard_range(self) -> Tuple[float, float]:
+        return (0, self.weld_tab.length)
 
     @property
     def weld_tab(self) -> list:
@@ -3626,6 +3649,61 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         return (self.tab_overhang, self.y_body_length + self.tab_overhang)
     
+    @property
+    def tab_length_hard_range(self) -> Tuple[float, float]:
+        return self.tab_length_range
+    
+    @property
+    def tab_positions_text(self) -> str:
+        """
+        Returns the weld tab positions as a formatted string in mm.
+        
+        Returns
+        -------
+        str
+            Comma-separated string of tab positions (e.g., "75.0, 150.0, 225.0")
+        """
+        positions = [str(round(pos * M_TO_MM, 2)) for pos in self._weld_tab_positions]
+        return ", ".join(positions)
+
+    @tab_positions_text.setter
+    def tab_positions_text(self, positions_text: str) -> None:
+        """
+        Set weld tab positions from a formatted string.
+        
+        Parameters
+        ----------
+        positions_text : str
+            Comma-separated string of tab positions in mm
+            Examples: "75.0, 150.0, 225.0" or "10,50,100" or "25.5, 75.25, 125"
+            
+        Raises
+        ------
+        ValueError
+            If the string cannot be parsed into valid numbers
+        """
+        try:
+            # Split by comma and strip whitespace
+            position_strings = [s.strip() for s in positions_text.split(',')]
+            
+            # Filter out empty strings
+            position_strings = [s for s in position_strings if s]
+            
+            if not position_strings:
+                raise ValueError("No valid positions found in the input string")
+            
+            # Convert to float list
+            positions_list = [float(pos) for pos in position_strings]
+            
+            # Use the existing setter for validation and conversion
+            self.weld_tab_positions = positions_list
+            
+        except ValueError as e:
+            if "could not convert string to float" in str(e):
+                raise ValueError(f"Invalid number format in tab positions: '{positions_text}'. Use comma-separated numbers like '75.0, 150.0, 225.0'")
+            else:
+                raise  # Re-raise other ValueError from weld_tab_positions setter
+
     @tab_overhang.setter
     @calculate_weld_tab_properties
     def tab_overhang(self, tab_overhang: float) -> None:

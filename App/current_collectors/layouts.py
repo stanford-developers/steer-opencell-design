@@ -1,7 +1,9 @@
 import dash as ds
 from styles import *
 
-from steer_core.Apps.Components.SliderComponents import SliderWithTextInput, RangeSliderWithTextInput
+from steer_core.Apps.Components.SliderComponents import SliderWithTextInput
+from steer_core.Apps.Components.RangeSliderComponents import RangeSliderWithTextInput
+
 from database_service import CURRENT_COLLECTOR_MATERIALS
 
 CURRENT_COLLECTOR_DESIGNS = ['Punched','Notched','Tabless','Tabbed']
@@ -531,7 +533,7 @@ cathode_tabbed_design_parameters = ds.html.Div(
         ds.html.Br(),
         ds.html.P('Tab Positions Relative to Start of Tape (mm). Enter positions as a comma-separated list (e.g., "0, 100, 200")'),
         ds.dcc.Input(
-            id={'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': 'weld_tab_positions', 'subtype': 'text_input'},
+            id={'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': 'tab_positions_text', 'subtype': 'text_input'},
             type='text',
             style={'width': '60%', 'marginBottom': '10px'},
             debounce=True  
@@ -572,94 +574,6 @@ cathode_tabbed_design_parameters = ds.html.Div(
             title = 'B Side Coated Section (mm)'
         )(),
 
-        ds.html.Br(), ds.html.Br(), 
-        ds.html.H5('Derived', style={'font-weight': 'bold'}),
-        ds.html.Br(), 
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.001,
-            mark_interval = 2,
-            property_name = 'cost',
-            slider_disable = True,
-            title = 'Cost ($)'
-        )(),
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.01,
-            mark_interval = 2,
-            property_name = 'mass',
-            slider_disable = True,
-            title = 'Mass (g)'
-        )(),
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
-            min_val = 0,
-            max_val = 10000,
-            step = 0.1,
-            mark_interval = 200,
-            property_name = 'coated_area',
-            slider_disable = True,
-            title = 'Coated Area (both sides) (cm²)'
-        )(),
-
-        ds.html.Br(), ds.html.Br(),
-        ds.html.H5('Datums', style={'font-weight': 'bold'}),
-        ds.html.Br(),
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
-            min_val = 0,
-            max_val = 1,
-            step = 0.001,
-            mark_interval = 0.2,
-            property_name = 'datum_x',
-            slider_disable = False,
-            title = 'X (mm)'
-        )(),
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
-            min_val = 0,
-            max_val = 1,
-            step = 0.001,
-            mark_interval = 0.2,
-            property_name = 'datum_y',
-            slider_disable = False,
-            title = 'Y (mm)'
-        )(),
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
-            min_val = 0,
-            max_val = 1,
-            step = 0.01,
-            mark_interval = 0.2,
-            property_name = 'datum_z',
-            slider_disable = False,
-            title = 'Z (mm)'
-        )(),
-
-        ds.html.Button(
-            id={'electrode': 'cathode', 'object': 'tabbed_current_collector', 'action': 'flip_x'},
-            children='Flip X',
-            style=BUTTON_STYLE | {'width': 'calc(30%)'}
-        ),
-
-        ds.html.Br(), ds.html.Br(),
-
-        ds.html.Button(
-            id={'electrode': 'cathode', 'object': 'tabbed_current_collector', 'action': 'flip_y'},
-            children='Flip Y',
-            style=BUTTON_STYLE | {'width': 'calc(30%)'}
-        ),
-
     ]
 
 )
@@ -689,7 +603,7 @@ cathode_current_collector_properties = ds.html.Div([
 
     # Container div for the properties table
     ds.html.Div(
-        id='cathode_current_collector_properties_table',
+        id='cathode_current_collector_properties_div',
         children=[
             ds.html.P("Properties will be displayed here when calculated.", 
                      style={'font-style': 'italic', 'color': '#666'})

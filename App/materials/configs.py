@@ -41,6 +41,13 @@ MATERIAL_CONFIGS = {
         settable_parameters=REGULAR_SETTABLE_PARAMETERS,
         cell_path=['insulation_material'],
         dropdown_menu=True
+    ),
+    MaterialType.CATHODE_CURRENT_COLLECTOR_TAB: MaterialConfig(
+        material_type=CurrentCollectorMaterial,
+        parameter_list=REGULAR_PARAMETER_LIST,
+        settable_parameters=REGULAR_SETTABLE_PARAMETERS,
+        cell_path=['current_collector', 'weld_tab', 'material'],
+        dropdown_menu=True
     )
 }
 
