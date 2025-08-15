@@ -27,7 +27,6 @@
 }
 
 
-
 /* Base tab style */
 .tab-style {
     background-color: black;
@@ -70,3 +69,22 @@
 }
 
 
+/* Optimize slider rendering */
+.slider-container {
+    will-change: transform;
+    contain: layout style;
+}
+
+/* Optimize input field updates */
+input[type="number"] {
+    will-change: contents;
+}
+
+/* Reduce repaints during dragging */
+.rc-slider {
+    will-change: transform;
+}
+
+.rc-slider-handle {
+    will-change: transform;
+}

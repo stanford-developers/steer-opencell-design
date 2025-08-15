@@ -9,29 +9,57 @@ app_dir = os.path.dirname(os.path.abspath(__file__))
 if app_dir not in sys.path:
     sys.path.insert(0, app_dir)
 
-# Initialize the dash app
-app = ds.Dash(
-    __name__, 
-    external_stylesheets=[BOOTSTRAP_THEME],
-    prevent_initial_callbacks="initial_duplicate"
-)
-
-# Suppress callback exceptions for easier debugging
-app.config.suppress_callback_exceptions = True
-app.title = 'OpenCell'
 
 # Import components
 from general.callbacks import *
 from current_collectors.callbacks import *
 from electrodes.callbacks import *
 
-from general.layouts import *
-
 # Set high level layout
 def create_app():
 
+    # Initialize the dash app
+    app = ds.Dash(
+        __name__, 
+        external_stylesheets=[BOOTSTRAP_THEME],
+        prevent_initial_callbacks="initial_duplicate"
+    )
+
+    # Suppress callback exceptions for easier debugging
+    app.config.suppress_callback_exceptions = True
+    app.title = 'OpenCell'
+
+    # Initialize the cache
     cache.init_app(app.server)
 
+    # Lazy load callbacks only when needed
+    register_callbacks(app)
+    register_layouts(app)
+
+    return app
+
+
+def register_callbacks(app):
+    """Register callbacks using importlib to avoid import * in function."""
+    import importlib
+    
+    # Import callback modules dynamically
+    callback_modules = [
+        'general.callbacks',
+        'current_collectors.callbacks', 
+        'electrodes.callbacks',
+        'materials.callbacks',
+        'general.clientside_callbacks'
+    ]
+    
+    for module_name in callback_modules:
+        importlib.import_module(module_name)
+
+
+def register_layouts(app):
+
+    from general.layouts import stores, thumbnail, header, cell_type, main_tabs
+    
     app.layout = ds.html.Div([
         stores,
         thumbnail,
@@ -39,8 +67,6 @@ def create_app():
         cell_type,
         main_tabs
     ])
-
-    return app
 
 
 if __name__ == '__main__':

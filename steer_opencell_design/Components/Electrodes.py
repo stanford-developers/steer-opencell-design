@@ -18,8 +18,18 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import warnings
+
 from copy import deepcopy
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Callable
+from enum import Enum
+from contextlib import contextmanager
+
+
+class ElectrodeControlMode(Enum):
+    """Control modes for electrode property interdependencies."""
+    MAINTAIN_CALENDER_DENSITY = "maintain_calender_density"      # Keep calender density constant (current behavior)
+    MAINTAIN_MASS_LOADING = "maintain_mass_loading"             # Keep mass loading constant
+    MAINTAIN_COATING_THICKNESS = "maintain_coating_thickness"   # Keep coating thickness constant
 
 
 class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
@@ -66,14 +76,115 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         self.name = name
         self.formulation = formulation
         self.current_collector = current_collector
+        
+        # Initialize control system BEFORE setting properties that interact
+        self._setup_control_system()
+        
         self.mass_loading = mass_loading
         self.calender_density = calender_density
         self.insulation_material = insulation_material
         self.insulation_thickness = insulation_thickness
         self.datum = datum
         self.voltage_cutoff = voltage_cutoff
-
+        
         self._calculate_all_properties()
+
+    def _setup_control_system(self) -> None:
+        """Initialize the electrode control system."""
+        # Control state
+        self._control_mode = ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY
+        
+        # Track if we're already in a dependency update to prevent infinite loops
+        self._updating_dependencies = False
+        
+        # Define the physics-based dependency relationships
+        self._dependency_rules = {
+            ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY: {
+                # Current behavior - calender density stays constant
+                # No rules needed as this is the default behavior
+            },
+            ElectrodeControlMode.MAINTAIN_MASS_LOADING: {
+                'coating_thickness': self._adjust_calender_density_for_coating_thickness,
+                'calender_density': self._adjust_coating_thickness_for_calender_density,
+            },
+            ElectrodeControlMode.MAINTAIN_COATING_THICKNESS: {
+                'mass_loading': self._adjust_calender_density_for_mass_loading,
+                'calender_density': self._adjust_mass_loading_for_calender_density,
+            }
+        }
+
+    def _should_trigger_dependency_update(self, property_name: str) -> bool:
+        """Check if dependency updates should be triggered for this property."""
+        return (
+            not self._updating_dependencies and  # Prevent infinite loops
+            self._control_mode in self._dependency_rules and
+            property_name in self._dependency_rules[self._control_mode]
+        )
+
+    def _execute_dependency_update(self, property_name: str, old_value: float, new_value: float):
+        """Execute the appropriate dependency update based on control mode."""
+        if not self._should_trigger_dependency_update(property_name):
+            return
+        
+        # Set flag to prevent recursive updates
+        self._updating_dependencies = True
+        
+        try:
+            update_function = self._dependency_rules[self._control_mode][property_name]
+            update_function(old_value, new_value)
+            
+        except Exception as e:
+            print(f"Error in dependency update for {property_name}: {e}")
+            raise
+        finally:
+            # Always reset the flag
+            self._updating_dependencies = False
+
+    # === MAINTAIN_MASS_LOADING Mode Methods ===
+    
+    def _adjust_calender_density_for_coating_thickness(self, old_coating_thickness: float, new_coating_thickness: float):
+        """Maintain mass loading when coating thickness changes by adjusting calender density."""
+        # mass_loading = calender_density * coating_thickness
+        # If mass_loading is constant: new_calender_density = mass_loading / new_coating_thickness
+        
+        current_mass_loading_si = self._mass_loading
+        new_coating_thickness_si = new_coating_thickness * UM_TO_M
+        new_calender_density = current_mass_loading_si / new_coating_thickness_si
+        
+        self._calender_density = new_calender_density
+
+    def _adjust_coating_thickness_for_calender_density(self, old_calender_density: float, new_calender_density: float):
+        """Maintain mass loading when calender density changes by adjusting coating thickness."""
+        # coating_thickness = mass_loading / calender_density
+        
+        current_mass_loading_si = self._mass_loading
+        new_calender_density_si = new_calender_density * (G_TO_KG / CM_TO_M**3)
+        new_coating_thickness = current_mass_loading_si / new_calender_density_si
+        
+        self._coating_thickness = new_coating_thickness
+
+    # === MAINTAIN_COATING_THICKNESS Mode Methods ===
+    
+    def _adjust_calender_density_for_mass_loading(self, old_mass_loading: float, new_mass_loading: float):
+        """Maintain coating thickness when mass loading changes by adjusting calender density."""
+        # coating_thickness = mass_loading / calender_density
+        # If coating_thickness is constant: new_calender_density = new_mass_loading / coating_thickness
+        
+        current_coating_thickness_m = self._coating_thickness
+        new_mass_loading_si = new_mass_loading * (MG_TO_KG / CM_TO_M**2)
+        new_calender_density = new_mass_loading_si / current_coating_thickness_m
+        
+        self._calender_density = new_calender_density
+
+    def _adjust_mass_loading_for_calender_density(self, old_calender_density: float, new_calender_density: float):
+        """Maintain coating thickness when calender density changes by adjusting mass loading."""
+        # mass_loading = calender_density * coating_thickness
+        
+        current_coating_thickness_m = self._coating_thickness
+        new_calender_density_si = new_calender_density * (G_TO_KG / CM_TO_M**3)
+        new_mass_loading = new_calender_density_si * current_coating_thickness_m
+        
+        self._mass_loading = new_mass_loading
 
     def _calculate_all_properties(self) -> None:
         self._calculate_bulk_properties()
@@ -564,12 +675,11 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         :return: Dictionary containing the properties of the electrode.
         """
         return {
+            'Cost': f"$ {self.cost}",
             'Mass': f"{self.mass} g",
             'Coating mass': f"{self.coating_mass} g",
             'Total thickness': f"{self.thickness} um",
             'Coating thickness': f"{self.coating_thickness} um",
-            'Porosity': f"{self.porosity} %",
-            'Cost': f"$ {self.cost}",
         }
 
     @property
@@ -609,14 +719,18 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
 
         :return: Tuple containing the minimum and maximum coating thickness in micrometers.
         """
-        minimum_coating_thickness = (self.mass_loading_range[0]*mG_TO_G / self.calender_density_range[1]) * CM_TO_UM
-        maximum_coating_thickness = (self.mass_loading_range[1]*mG_TO_G / self.calender_density_range[0]) * CM_TO_UM
+        minimum_coating_thickness = (self.mass_loading_range[0]*mG_TO_G / self.calender_density) * CM_TO_UM
+        maximum_coating_thickness = (self.mass_loading_range[1]*mG_TO_G / self.calender_density) * CM_TO_UM
 
         return (
             round(minimum_coating_thickness, 1), 
             round(maximum_coating_thickness, 1)
         )
     
+    @property
+    def coating_thickness_hard_range(self) -> Tuple[float, float]:
+        return self.coating_thickness_range
+
     @property
     def coating_thickness_marks(self) -> Dict[str, float]:
         """
@@ -719,6 +833,10 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         min_calender_density = round(_min_calender_density * (KG_TO_G / M_TO_CM**3), 2)
 
         return (min_calender_density, max_calender_density)
+    
+    @property
+    def calender_density_hard_range(self) -> Tuple[float, float]:
+        return self.calender_density_range
 
     @property
     def calender_density_marks(self) -> Dict[str, float]:
@@ -812,6 +930,15 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         :return: Tuple containing the minimum and maximum mass loading in mg/cm².
         """
         return (10, 30)
+    
+    @property
+    def mass_loading_hard_range(self) -> Tuple[float, float]:
+        """
+        Get the hard range of mass loading of the electrode.
+
+        :return: Tuple containing the minimum and maximum mass loading in mg/cm².
+        """
+        return (0, 40)
 
     @property
     def mass_loading_marks(self) -> Dict[str, float]:
@@ -1003,6 +1130,22 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         max_datum = np.floor(self.datum_z_range[1])
         return {i: '' for i in range(int(min_datum), int(max_datum) + 1, 20)}
 
+    @property
+    def porosity_hard_range(self) -> Tuple[float, float]:
+        return (10, 80)
+
+    @datum_x.setter
+    def datum_x(self, x: float) -> None:
+        self.datum = (x, self.datum_y, self.datum_z)
+
+    @datum_y.setter
+    def datum_y(self, y: float) -> None:
+        self.datum = (self.datum_x, y, self.datum_z)
+
+    @datum_z.setter
+    def datum_z(self, z: float) -> None:
+        self.datum = (self.datum_x, self.datum_y, z)
+
     @thickness.setter
     @calculate_all_properties
     def thickness(self, thickness: float):
@@ -1014,17 +1157,26 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
     @calculate_all_properties
     def coating_thickness(self, coating_thickness: float):
         """
-        Set the coating thickness of the electrode. This will change only the mass loading and not the calender density.
-
+        Set the coating thickness of the electrode. Behavior depends on control mode.
+        
         :param coating_thickness: Coating thickness of the electrode in micrometers.
         """
         self.validate_positive_float(coating_thickness, 'coating thickness')
 
-        old_coating_thickness = self.coating_thickness
-        coating_thickness_ratio = coating_thickness / old_coating_thickness
-
+        # Store old value for dependency calculations
+        old_coating_thickness = self.coating_thickness if hasattr(self, '_coating_thickness') else coating_thickness
+        
+        # Update the internal value
         self._coating_thickness = coating_thickness * UM_TO_M
-        self._mass_loading *= coating_thickness_ratio
+        
+        # Handle control modes
+        if not hasattr(self, '_control_mode') or self._control_mode == ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY:
+            # Legacy behavior: adjust mass loading to maintain calender density
+            coating_thickness_ratio = coating_thickness / old_coating_thickness
+            self._mass_loading *= coating_thickness_ratio
+        elif hasattr(self, '_execute_dependency_update'):
+            # Use control system for other modes
+            self._execute_dependency_update('coating_thickness', old_coating_thickness, coating_thickness)
 
     @porosity.setter
     @calculate_all_properties
@@ -1054,8 +1206,17 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
     @calender_density.setter
     @calculate_volumes
     def calender_density(self, calender_density: float):
-        self.validate_positive_float(calender_density, 'calender density')        
+        self.validate_positive_float(calender_density, 'calender density')
+        
+        # Store old value for dependency calculations
+        old_calender_density = self.calender_density if hasattr(self, '_calender_density') else calender_density
+        
+        # Update the internal value
         self._calender_density = calender_density * (G_TO_KG / CM_TO_M**3)
+        
+        # Execute dependency updates
+        if hasattr(self, '_execute_dependency_update'):
+            self._execute_dependency_update('calender_density', old_calender_density, calender_density)
 
     @insulation_material.setter
     @calculate_bulk_properties
@@ -1080,8 +1241,17 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
     @mass_loading.setter
     @calculate_all_properties
     def mass_loading(self, mass_loading: float):
-        self.validate_positive_float(mass_loading, 'mass loading')        
+        self.validate_positive_float(mass_loading, 'mass loading')
+        
+        # Store old value for dependency calculations
+        old_mass_loading = self.mass_loading if hasattr(self, '_mass_loading') else mass_loading
+        
+        # Update the internal value
         self._mass_loading = mass_loading * (MG_TO_KG / CM_TO_M**2)
+        
+        # Execute dependency updates
+        if hasattr(self, '_execute_dependency_update'):
+            self._execute_dependency_update('mass_loading', old_mass_loading, mass_loading)
 
     @current_collector.setter
     @calculate_all_properties
@@ -1105,6 +1275,41 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         self.validate_datum(datum)
         self._datum = tuple(d * MM_TO_M for d in datum)
         self.current_collector.datum = datum
+
+    # === Control System Methods ===
+    
+    def set_control_mode(self, mode: ElectrodeControlMode) -> None:
+        """Set the control mode for property interactions."""
+        if not isinstance(mode, ElectrodeControlMode):
+            raise ValueError(f"Mode must be an ElectrodeControlMode enum, got {type(mode)}")
+        
+        old_mode = self._control_mode
+        self._control_mode = mode
+        
+        print(f"Electrode control mode changed from '{old_mode.value}' to '{mode.value}'")
+
+    @property
+    def control_status(self) -> Dict[str, any]:
+        """Get current control system status."""
+        active_rules = self._dependency_rules.get(self._control_mode, {})
+        
+        return {
+            'control_mode': self._control_mode.value,
+            'active_dependency_rules': list(active_rules.keys()),
+            'currently_updating': self._updating_dependencies
+        }
+
+    @contextmanager
+    def temporary_control_mode(self, mode: ElectrodeControlMode):
+        """Temporarily change control mode."""
+        old_mode = self._control_mode
+        
+        try:
+            self.set_control_mode(mode)
+            yield
+        finally:
+            self._control_mode = old_mode
+            print(f"Restored control mode to '{old_mode.value}'")
 
     def __str__(self) -> str:
         return self._name
