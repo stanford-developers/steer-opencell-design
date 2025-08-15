@@ -1,5 +1,5 @@
 --extra-index-url https://dash.steerproject.org/packages
-pandas==2.2.2
+pandas==2.1.4
 numpy>=1.21.0
 scipy>=1.9.0
 shapely>=1.8.0

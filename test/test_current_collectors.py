@@ -108,6 +108,15 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         self.current_collector.width = 200
         self.assertEqual(self.current_collector.width, 200)
 
+    def test_rotate(self):
+        
+        figure1 = self.current_collector.get_top_down_view()
+        self.current_collector.rotate_90()
+        figure2 = self.current_collector.get_top_down_view()
+        
+        # figure1.show()
+        # figure2.show()
+
 
 class TestNotchedCurrentCollector(unittest.TestCase):
 

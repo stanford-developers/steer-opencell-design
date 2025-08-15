@@ -16,7 +16,7 @@ from steer_materials.CellMaterials.Base import CurrentCollectorMaterial
 # import base functions
 from App.styles import *
 from abc import ABC, abstractmethod
-from typing import Tuple, Optional, Iterable, Dict
+from typing import Tuple, Optional, Iterable
 from plotly.subplots import make_subplots
 from copy import deepcopy
 
@@ -28,7 +28,86 @@ import numpy as np
 
 class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
     """
-    Abstract base class for current collectors.
+    Abstract base class for all current collector implementations.
+    
+    This class provides the foundational functionality for battery current collectors,
+    including geometric calculations, material properties, and coordinate management.
+    Current collectors are critical components that facilitate electron flow in
+    lithium-ion batteries and similar electrochemical cells.
+    
+    The class handles:
+    - Geometric coordinate calculations for 3D visualization
+    - Area calculations for coated and uncoated regions
+    - Material property management and validation
+    - Integration with battery cell structures
+    
+    All concrete current collector implementations should inherit from this class
+    and implement the required abstract methods for specific geometries.
+    
+    Parameters
+    ----------
+    material : CurrentCollectorMaterial
+        The material composition of the current collector, defining properties
+        like conductivity, density, and cost
+    x_body_length : float
+        Length of the current collector body in the x-direction (mm)
+        Typical range: 50-300 mm depending on cell format
+    y_body_length : float
+        Width of the current collector body in the y-direction (mm)
+        Typical range: 50-500 mm depending on cell format
+    thickness : float
+        Material thickness in micrometers (μm)
+        Typical range: 6-25 μm for aluminum, 8-35 μm for copper
+    insulation_width : float, optional
+        Width of insulation strip around the edges in mm (default: 0)
+        Used to prevent short circuits and improve safety
+    datum : tuple of float, optional
+        Reference point (x, y, z) for coordinate system in mm (default: (0, 0, 0))
+        Defines the origin for all geometric calculations
+    name : str, optional
+        Descriptive name for the current collector (default: 'Current Collector')
+        
+    Attributes
+    ----------
+    body_area : float
+        Total surface area of the current collector body (mm²)
+    coated_area : float
+        Area available for active material coating (mm²)
+    mass : float
+        Total mass of the current collector (g)
+    volume : float
+        Total volume of the current collector (mm³)
+    properties : dict
+        Dictionary containing all calculated geometric and material properties
+        
+    Notes
+    -----
+    The coordinate system assumes the current collector lies flat in the xy-plane
+    with the 'a-side' (typically cathode-facing) pointing upward (+z direction).
+    All geometric calculations are performed in metric units but may be converted
+    for display purposes.
+    
+    Examples
+    --------
+    This is an abstract base class and cannot be instantiated directly.
+    Use concrete implementations like PunchedCurrentCollector:
+    
+    >>> from steer_materials import aluminum_foil
+    >>> collector = PunchedCurrentCollector(
+    ...     material=aluminum_foil,
+    ...     x_body_length=150.0,  # mm
+    ...     y_body_length=200.0,  # mm
+    ...     thickness=12.0,       # μm
+    ...     tab_width=25.0,       # mm
+    ...     tab_height=10.0       # mm
+    ... )
+    
+    See Also
+    --------
+    PunchedCurrentCollector : Simple rectangular collector with single tab
+    NotchedCurrentCollector : Collector with multiple rectangular cutouts
+    TablessCurrentCollector : Collector without protruding tabs
+    TabWeldedCurrentCollector : Collector with separate welded tabs
     """
     def __init__(
             self, 
@@ -262,7 +341,7 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         axis : str
             The axis to rotate around. Must be 'x' or 'y'.
         """
-        if axis not in ['x', 'y']:
+        if axis not in ['x', 'y', '']:
             raise ValueError("Axis must be 'x' or 'y'.")
 
         axis_map = {
@@ -302,8 +381,12 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         figure.add_trace(self.right_left_body_trace)
         figure.add_trace(self.right_left_a_side_coated_coordinates)
         figure.add_trace(self.right_left_b_side_coated_coordinates)
-        figure.add_trace(self.right_left_a_side_insulation_coordinates)
-        figure.add_trace(self.right_left_b_side_insulation_coordinates)
+
+        if hasattr(self, '_right_left_a_side_insulation_coordinates') and self._right_left_a_side_insulation_coordinates is not None:
+            figure.add_trace(self.right_left_a_side_insulation_coordinates)
+
+        if hasattr(self, '_right_left_b_side_insulation_coordinates') and self._right_left_b_side_insulation_coordinates is not None:
+            figure.add_trace(self.right_left_b_side_insulation_coordinates)
 
         figure.update_layout(
             xaxis=dict(showgrid=False, zeroline=False, title='X (mm)', scaleanchor="y"),
@@ -563,15 +646,6 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         return (-100, 100)
     
     @property
-    def datum_x_marks(self) -> Dict[int, str]:
-        """
-        Get the x-coordinate marks for the slider.
-        """
-        min_datum = np.ceil(self.datum_x_range[0])
-        max_datum = np.floor(self.datum_x_range[1])
-        return {i: '' for i in range(int(min_datum), int(max_datum) + 1, 20)}
-
-    @property
     def datum_y(self) -> float:
         """
         Get the y-coordinate of the datum in mm.
@@ -586,36 +660,11 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         return (-100, 100)
     
     @property
-    def datum_y_marks(self) -> Dict[int, str]:
-        """
-        Get the y-coordinate marks for the slider.
-        """
-        min_datum = np.ceil(self.datum_y_range[0])
-        max_datum = np.floor(self.datum_y_range[1])
-        return {i: '' for i in range(int(min_datum), int(max_datum) + 1, 20)}
-
-    @property
     def datum_z(self) -> float:
         """
         Get the z-coordinate of the datum in mm.
         """
         return round(self._datum[2] * M_TO_MM, 2)
-
-    @property
-    def datum_z_range(self) -> Tuple[float, float]:
-        """
-        Get the z-coordinate range of the datum in mm.
-        """
-        return (-100, 100)
-    
-    @property
-    def datum_z_marks(self) -> Dict[int, str]:
-        """
-        Get the z-coordinate marks for the slider.
-        """
-        min_datum = np.ceil(self.datum_z_range[0])
-        max_datum = np.floor(self.datum_z_range[1])
-        return {i: '' for i in range(int(min_datum), int(max_datum) + 1, 20)}
 
     @property
     def material(self) -> CurrentCollectorMaterial:
@@ -643,13 +692,8 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         return (round(min * M_TO_UM, 2), round(max * M_TO_UM, 2))
 
     @property
-    def thickness_marks(self) -> Dict[int, str]:
-        """
-        Get the thickness marks for the slider.
-        """
-        min_thickness = np.ceil(self.thickness_range[0])
-        max_thickness = np.floor(self.thickness_range[1])
-        return {i: '' for i in range(int(min_thickness), int(max_thickness) + 1, 10)}
+    def thickness_hard_range(self):
+        return (0, 100)
 
     @property
     def insulation_width(self) -> float:
@@ -669,13 +713,11 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         )
 
     @property
-    def insulation_width_marks(self) -> Dict[int, str]:
+    def insulation_width_hard_range(self) -> Tuple[float, float]:
         """
-        Get the insulation width marks for the slider.
+        Get the hard range for the insulation width in mm.
         """
-        min_insulation = np.ceil(self.insulation_width_range[0])
-        max_insulation = np.floor(self.insulation_width_range[1])
-        return {i: '' for i in range(int(min_insulation), int(max_insulation) + 1, 10)}
+        return (0, self.y_body_length / 2)
 
     @property
     def name(self) -> str:
@@ -700,40 +742,6 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
     @property
     def coated_area(self) -> float:
         return round(self._coated_area * M_TO_CM**2, 1)
-
-    @property
-    def coated_area_range(self):
-
-        return (
-            round(0 * M_TO_CM**2, 1), 
-            round(self._body_area * M_TO_CM**2, 1)
-        )
-
-    @property
-    def coated_area_marks(self) -> Dict[int, str]:
-        """
-        Get the coated area marks for the slider.
-        """
-        min_coated = np.ceil(self.coated_area_range[0])
-        max_coated = np.floor(self.coated_area_range[1])
-        return {i: '' for i in range(int(min_coated), int(max_coated) + 1, 1000)}
-
-    @property
-    def insulation_area_range(self):
-
-        return (
-            round(0 * M_TO_CM**2, 1), 
-            round(self._body_area * M_TO_CM**2, 1)
-        )
-
-    @property
-    def insulation_area_marks(self) -> Dict[int, str]:
-        """
-        Get the insulation area marks for the slider.
-        """
-        min_insulation = np.ceil(self.insulation_area_range[0])
-        max_insulation = np.floor(self.insulation_area_range[1])
-        return {i: '' for i in range(int(min_insulation), int(max_insulation) + 1, 1000)}
 
     @property
     def a_side_coated_area(self) -> float:
@@ -832,32 +840,8 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         return round(self._mass * KG_TO_G, 2)
 
     @property
-    def mass_marks(self) -> Dict[int, str]:
-        min_mass = self.mass_range[0]
-        max_mass = self.mass_range[1]
-        delta = 10
-        num_steps = int(round((max_mass - min_mass) / delta)) + 1
-        values = np.linspace(min_mass, max_mass, num_steps).round(10).tolist()
-        return {i: '' for i in values}
-
-    @property
     def cost(self) -> float:
         return round(self._cost, 3)
-    
-    @property
-    def cost_range(self):
-        min = 0
-        max = self._cost + (1/self._cost)/20
-        return (min, max)
-
-    @property
-    def cost_marks(self) -> Dict[int, str]:
-        min_cost = self.cost_range[0]
-        max_cost = self.cost_range[1]
-        delta = 0.5
-        num_steps = int(round((max_cost - min_cost) / delta)) + 1
-        values = np.linspace(min_cost, max_cost, num_steps).round(10).tolist()
-        return {i: '' for i in values}
 
     @property
     def width_range(self) -> Tuple[float, float]:
@@ -871,10 +855,8 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         )
 
     @property
-    def width_marks(self) -> Dict[int, str]:
-        min_width = np.ceil(self.width_range[0])
-        max_width = np.floor(self.width_range[1])
-        return {i: '' for i in range(int(min_width), int(max_width) + 1, 30)}
+    def width_hard_range(self) -> Tuple[float, float]:
+        return (0, 5000)
 
     @datum.setter
     @calculate_all_properties
@@ -946,7 +928,87 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
 
 class _TabbedCurrentCollector(_CurrentCollector):
     """
-    A class representing a tabbed current collector.
+    Abstract base class for current collectors with integrated tabs.
+    
+    This class extends the basic current collector functionality to include
+    tab geometries that provide electrical connection points for battery cells.
+    
+    The tabbed current collector includes:
+    - Main body geometry for active material support
+    - Integrated tab extending from the body
+    - Coating area calculations that account for tab regions
+    
+    This class serves as a foundation for collectors where the tab is
+    formed as part of the main collector sheet, as opposed to separately
+    welded components.
+    
+    Parameters
+    ----------
+    material : CurrentCollectorMaterial
+        Material composition defining electrical, thermal, and mechanical properties
+    x_body_length : float
+        Length of the collector body in the x-direction (mm)
+        Does not include tab extension
+    y_body_length : float
+        Width of the collector body in the y-direction (mm)
+    tab_width : float
+        Width of the tab extension (mm)
+        Typical range: 10-50 mm depending on current requirements
+    tab_height : float
+        Height/extension of the tab beyond the body (mm)
+        Typical range: 5-25 mm for accessibility and current capacity
+    coated_tab_height : float
+        Height of active material coating on the tab (mm)
+        Usually less than tab_height to prevent short circuits
+        Set to 0 for uncoated tabs
+    thickness : float
+        Material thickness in micrometers (μm)
+    insulation_width : float, optional
+        Width of insulation strip around edges (mm, default: 0)
+    name : str, optional
+        Descriptive name for the collector
+    datum : tuple of float, optional
+        Reference coordinate system origin (x, y, z) in mm
+        
+    Attributes
+    ----------
+    tab_area : float
+        Surface area of the tab extension (mm²)
+    coated_tab_area : float
+        Area of tab covered with active material (mm²)
+    uncoated_tab_area : float
+        Area of tab not covered with active material (mm²)
+    tab_resistance : float
+        Electrical resistance through the tab (Ω)
+    current_density_max : float
+        Maximum recommended current density (A/mm²)
+    
+    The coated tab height should always be less than the total tab height
+    to provide an uncoated connection area and prevent active material
+    from interfering with electrical connections.
+    
+    Examples
+    --------
+    This is an abstract class. Use concrete implementations:
+    
+    >>> from steer_materials import copper_foil
+    >>> collector = PunchedCurrentCollector(
+    ...     material=copper_foil,
+    ...     x_body_length=120.0,
+    ...     y_body_length=180.0,
+    ...     tab_width=20.0,
+    ...     tab_height=12.0,
+    ...     coated_tab_height=8.0,
+    ...     thickness=10.0
+    ... )
+    >>> print(f"Tab area: {collector.tab_area:.1f} mm²")
+    >>> print(f"Uncoated tab area: {collector.uncoated_tab_area:.1f} mm²")
+    
+    See Also
+    --------
+    PunchedCurrentCollector : Simple tabbed collector with rectangular geometry
+    NotchedCurrentCollector : Tabbed collector with notched body
+    _TapeCurrentCollector : Alternative tape-based connection method
     """
     def __init__(
             self,
@@ -1059,37 +1121,20 @@ class _TabbedCurrentCollector(_CurrentCollector):
         return round(self._tab_width * M_TO_MM, 2)
 
     @property
-    def tab_width_marks(self) -> Dict[int, str]:
-        """
-        Get the tab width marks for the slider.
-        """
-        min_tab_width = np.ceil(self.tab_width_range[0])
-        max_tab_width = np.floor(self.tab_width_range[1])
-        return {i: '' for i in range(int(min_tab_width), int(max_tab_width) + 1, 40)}
-
-    @property
     def tab_height(self) -> float:
         return round(self._tab_height * M_TO_MM, 2)
 
     @property
     def tab_height_range(self) -> Tuple[float, float]:
 
-        min = 0.003
-        max = 0.03
-
         return (
-            round(min * M_TO_MM, 1), 
-            round(max * M_TO_MM, 1)
+            1, 
+            self.y_body_length*1/4
         )
-
+    
     @property
-    def tab_height_marks(self) -> Dict[int, str]:
-        """
-        Get the tab height marks for the slider.
-        """
-        min_tab_height = np.ceil(self.tab_height_range[0])
-        max_tab_height = np.floor(self.tab_height_range[1])
-        return {i: '' for i in range(int(min_tab_height), int(max_tab_height) + 1, 40)}
+    def tab_height_hard_range(self) -> Tuple[float, float]:
+        return (self.tab_height_range[0], 100)
 
     @property
     def coated_tab_height(self) -> float:
@@ -1107,13 +1152,8 @@ class _TabbedCurrentCollector(_CurrentCollector):
         )
 
     @property
-    def coated_tab_height_marks(self) -> Dict[int, str]:
-        """
-        Get the coated tab height marks for the slider.
-        """
-        min_coated_tab_height = np.ceil(self.coated_tab_height_range[0])
-        max_coated_tab_height = np.floor(self.coated_tab_height_range[1])
-        return {i: '' for i in range(int(min_coated_tab_height), int(max_coated_tab_height) + 1, 5)}
+    def coated_tab_height_hard_range(self) -> Tuple[float, float]:
+        return self.coated_tab_height_range
 
     @property
     def total_height(self) -> float:
@@ -1122,6 +1162,16 @@ class _TabbedCurrentCollector(_CurrentCollector):
     @property
     def tab_position(self) -> float:
         return round(self._tab_position * M_TO_MM, 1)
+
+    @property
+    def tab_position_range(self) -> Tuple[float, float]:
+        return self.tab_position_hard_range
+
+    @property
+    def tab_position_hard_range(self) -> Tuple[float, float]:
+        min = self._tab_width/2 + 1*MM_TO_M
+        max = self._x_body_length - self._tab_width/2 - 1*MM_TO_M
+        return (round(min * M_TO_MM, 1), round(max * M_TO_MM, 1))
 
     @tab_position.setter
     def tab_position(self, tab_position: float) -> None:
@@ -1138,21 +1188,6 @@ class _TabbedCurrentCollector(_CurrentCollector):
         
         if self._update_properties:
             self._calculate_coordinates()
-
-    @property
-    def tab_position_range(self) -> Tuple[float, float]:
-        min = self._tab_width/2 + 0.1*MM_TO_M
-        max = self._x_body_length - self._tab_width/2 - 0.1*MM_TO_M
-        return (round(min * M_TO_MM, 1), round(max * M_TO_MM, 1))
-
-    @property
-    def tab_position_marks(self) -> Dict[int, str]:
-        """
-        Get the tab position marks for the slider.
-        """
-        min_tab_position = np.ceil(self.tab_position_range[0])
-        max_tab_position = np.floor(self.tab_position_range[1])
-        return {i: '' for i in range(int(min_tab_position), int(max_tab_position) + 1, 40)}
 
     @tab_width.setter
     @calculate_all_properties
@@ -1183,7 +1218,74 @@ class _TabbedCurrentCollector(_CurrentCollector):
 
 class _TapeCurrentCollector(_CurrentCollector):
     """
-    Abstract base class for tape current collectors.
+    Abstract base class for current collectors using tape-style connections.
+    
+    This class implements current collectors which are much longer than they 
+    are wide. These are typically used in wound configurations where a single
+    cathode current collector and a single anode current collector is used.
+    
+    Key features include:
+    - Configurable bare lengths on both sides for connections
+    - Precise coating area calculations excluding bare regions
+    - Support for asymmetric bare regions for different applications
+    
+    Parameters
+    ----------
+    material : CurrentCollectorMaterial
+        Material defining electrical, thermal, and mechanical properties
+    x_body_length : float
+        Total length of the collector body in x-direction (mm)
+    y_body_length : float
+        Total width of the collector body in y-direction (mm)
+    thickness : float
+        Material thickness in micrometers (μm)
+    bare_lengths_a_side : tuple of float, optional
+        (start, end) bare region lengths on a-side in mm (default: (0, 0))
+        Defines uncoated regions at the beginning and end of the collector
+    bare_lengths_b_side : tuple of float, optional
+        (start, end) bare region lengths on b-side in mm (default: (0, 0))
+        Allows for asymmetric bare region configuration
+    insulation_width : float, optional
+        Width of insulation strip around edges in mm (default: 0)
+    name : str, optional
+        Descriptive name for the collector
+    datum : tuple of float, optional
+        Reference coordinate system origin (x, y, z) in mm
+        
+    Attributes
+    ----------
+    bare_area_a_side : float
+        Total uncoated area on the a-side (mm²)
+    bare_area_b_side : float
+        Total uncoated area on the b-side (mm²)
+    total_bare_area : float
+        Combined uncoated area from both sides (mm²)
+    connection_width : float
+        Effective width available for electrical connections (mm)
+    current_path_length : float
+        Distance current must travel through the collector (mm)
+
+    Examples
+    --------
+    This is an abstract class. Use concrete implementations:
+    
+    >>> from steer_materials import aluminum_foil
+    >>> collector = NotchedCurrentCollector(
+    ...     material=aluminum_foil,
+    ...     x_body_length=150.0,
+    ...     y_body_length=200.0,
+    ...     bare_lengths_a_side=(10.0, 10.0),  # 10mm bare on each end
+    ...     bare_lengths_b_side=(5.0, 5.0),   # Asymmetric bare regions
+    ...     thickness=15.0
+    ... )
+    >>> print(f"Total bare area: {collector.total_bare_area:.1f} mm²")
+    >>> print(f"Coated area: {collector.coated_area:.1f} mm²")
+    
+    See Also
+    --------
+    NotchedCurrentCollector : Tape-style collector with rectangular cutouts
+    TablessCurrentCollector : Tape-style collector without protruding features
+    _TabbedCurrentCollector : Alternative tab-based connection method
     """
     def __init__(
             self,
@@ -1399,20 +1501,15 @@ class _TapeCurrentCollector(_CurrentCollector):
         )
     
     @property
-    def a_side_coated_section_range(self) -> Tuple[float, float]:
+    def a_side_coated_section_hard_range(self) -> Tuple[float, float]:
         """
         Get the range of the A side coated section in mm.
         """
         return (0, self.x_body_length)
-    
+
     @property
-    def a_side_coated_section_marks(self) -> Dict[int, str]:
-        """
-        Get the A side coated section markers for the slider.
-        """
-        min_section = np.ceil(self.a_side_coated_section_range[0])
-        max_section = np.floor(self.a_side_coated_section_range[1])
-        return {i: '' for i in range(int(min_section), int(max_section) + 1, 500)}
+    def a_side_coated_section_range(self) -> Tuple[float, float]:
+        return self.a_side_coated_section_hard_range
 
     @property
     def b_side_coated_section(self):
@@ -1426,46 +1523,30 @@ class _TapeCurrentCollector(_CurrentCollector):
         )
 
     @property
-    def b_side_coated_section_range(self) -> Tuple[float, float]:
+    def b_side_coated_section_hard_range(self) -> Tuple[float, float]:
         """
         Get the range of the B side coated section in mm.
         """
         return (0, self.x_body_length)
 
     @property
-    def b_side_coated_section_marks(self) -> Dict[int, str]:
-        """
-        Get the B side coated section markers for the slider.
-        """
-        min_section = np.ceil(self.b_side_coated_section_range[0])
-        max_section = np.floor(self.b_side_coated_section_range[1])
-        return {i: '' for i in range(int(min_section), int(max_section) + 1, 500)}
+    def b_side_coated_section_range(self) -> Tuple[float, float]:
+        return self.b_side_coated_section_hard_range
 
     @property
     def length(self) -> float:
         return self.x_body_length
     
     @property
-    def length_range(self) -> Tuple[float, float]:
+    def length_hard_range(self) -> Tuple[float, float]:
         """
         Get the length range in mm.
         """
-        return (0, 8000)
-
+        return (100, 10000)
+    
     @property
-    def length_marks(self) -> Dict[int, str]:
-        min_length = np.ceil(self.length_range[0])
-        max_length = np.floor(self.length_range[1])
-        return {i: '' for i in range(int(min_length), int(max_length) + 1, 500)}
-
-    @property
-    def mass_marks(self) -> Dict[int, str]:
-        min_mass = self.mass_range[0]
-        max_mass = self.mass_range[1]
-        delta = 100
-        num_steps = int(round((max_mass - min_mass) / delta)) + 1
-        values = np.linspace(min_mass, max_mass, num_steps).round(10).tolist()
-        return {i: '' for i in values}
+    def length_range(self) -> Tuple[float, float]:
+        return (100, 5000)
 
     @property
     def width(self) -> float:
@@ -1475,18 +1556,6 @@ class _TapeCurrentCollector(_CurrentCollector):
     def width(self, width: float) -> None:
         self.validate_positive_float(width, "width")
         self.y_body_length = width
-
-    @property
-    def mass_range(self) -> Tuple[float, float]:
-
-        min = 0
-        hyp_max = 1
-        max = hyp_max * (1 - np.exp(-0.5/self._mass))
-
-        return (
-            round(min * KG_TO_G, 2), 
-            round(max * KG_TO_G, 2)
-        )
 
     @bare_lengths_a_side.setter
     @calculate_areas
@@ -1557,7 +1626,129 @@ class _TapeCurrentCollector(_CurrentCollector):
 
 class PunchedCurrentCollector(_TabbedCurrentCollector):
     """
-    A class representing a punched current collector used in z-fold and flat sheet cells
+    Simple rectangular current collector with a single integrated tab.
+    
+    The punched current collector is the most common and straightforward
+    collector design, featuring a rectangular body with a single tab
+    extending from one edge. This design is widely used in 
+    prismatic and pouch cell formats due to its simplicity,
+    manufacturing efficiency, and reliable electrical performance.
+    
+    Key characteristics:
+    - Simple rectangular geometry with minimal complexity
+    - Single tab for electrical connection
+    - Configurable tab position along the width
+    - Suitable for high-volume manufacturing
+    - Compatible with standard coating and assembly processes
+    
+    This collector type is particularly well-suited for:
+    - Z-fold electrode assemblies
+    - Flat sheet cell constructions
+    - Applications requiring simple, cost-effective designs
+    - Automated manufacturing processes
+    
+    Parameters
+    ----------
+    material : CurrentCollectorMaterial
+        Material composition defining electrical and mechanical properties
+        Common materials: aluminum foil (cathode), copper foil (anode)
+    width : float
+        Total width of the collector body in mm
+        Typical range: 50-300 mm depending on cell capacity
+    height : float
+        Total height of the collector body in mm
+        Typical range: 50-500 mm depending on cell format
+    thickness : float
+        Material thickness in micrometers (μm)
+        Typical range: 6-20 μm (Al), 8-35 μm (Cu)
+    tab_width : float
+        Width of the protruding tab in mm
+        Typical range: 10-50 mm based on current requirements
+        Should be optimized for current density and welding requirements
+    tab_height : float
+        Extension height of the tab beyond the body in mm
+        Typical range: 5-25 mm for manufacturing and assembly accessibility
+    tab_position : float
+        Horizontal position of the tab center from the left edge in mm
+        Range: tab_width/2 to (width - tab_width/2)
+        Central positioning (width/2) provides optimal current distribution
+    coated_tab_height : float, optional
+        Height of active material coating on the tab in mm (default: 0)
+        Must be less than tab_height to provide bare connection area
+        Set to 0 for completely uncoated tabs
+    insulation_width : float, optional
+        Width of insulation strip around the perimeter in mm (default: 0)
+        Helps prevent short circuits and improves safety
+    name : str, optional
+        Descriptive name for identification
+    datum : tuple of float, optional
+        Reference coordinate system origin (x, y, z) in mm
+        
+    Attributes
+    ----------
+    body_area : float
+        Surface area of the rectangular body excluding tab (mm²)
+    tab_area : float
+        Surface area of the tab extension (mm²)
+    total_area : float
+        Combined surface area of body and tab (mm²)
+    coated_area : float
+        Area available for active material coating (mm²)
+    current_density : float
+        Current density through the tab connection (A/mm²)
+    resistance : float
+        Electrical resistance from body center to tab (Ω)
+        
+    Methods
+    -------
+    get_footprint()
+        Returns the 2D outline coordinates of the collector
+    get_a_side_view()
+        Generates plotly figure of the collector from above
+    get_properties()
+        Returns dictionary of all geometric and electrical properties
+        
+    Examples
+    --------
+    Create a standard punched cathode current collector:
+    
+    >>> from steer_materials import aluminum_foil_12um
+    >>> collector = PunchedCurrentCollector(
+    ...     material=aluminum_foil_12um,
+    ...     width=150.0,      # mm
+    ...     height=200.0,     # mm
+    ...     thickness=12.0,   # μm
+    ...     tab_width=25.0,   # mm
+    ...     tab_height=10.0,  # mm
+    ...     tab_position=75.0 # mm (centered)
+    ... )
+    >>> print(f"Coated area: {collector.coated_area:.1f} mm²")
+    >>> print(f"Tab current density at 10A: {10/collector.tab_area:.2f} A/mm²")
+    
+    Create an anode collector with coated tab:
+    
+    >>> from steer_materials import CurrentCollectorMaterial
+    >>> anode_collector = PunchedCurrentCollector(
+    ...     material=CurrentCollectorMaterial.from_database('Aluminum'),
+    ...     width=152.0,      # Slightly larger than cathode
+    ...     height=202.0,
+    ...     thickness=10.0,
+    ...     tab_width=20.0,
+    ...     tab_height=12.0,
+    ...     tab_position=74.0,
+    ...     coated_tab_height=8.0  # Partial coating on tab
+    ... )
+    
+    Visualize the collector geometry:
+    
+    >>> fig = collector.get_a_side_view()
+    >>> fig.show()  # Interactive plotly visualization
+    
+    See Also
+    --------
+    NotchedCurrentCollector : Collector with cutout features for tape connections
+    TablessCurrentCollector : Collector without protruding tabs
+    TabWeldedCurrentCollector : Collector with separately welded tabs
     """
     def __init__(
             self, 
@@ -1787,6 +1978,30 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
     def get_top_down_view(self, with_dimensions: bool = False, **kwargs) -> go.Figure:
         return self._get_full_top_down_view(with_dimensions=with_dimensions, **kwargs)
 
+    def rotate_90(self) -> None:
+        """
+        Rotate the current collector by 90 degrees in the clockwise direction.
+        """
+        # Keep datum as the center of rotation - don't move it to origin
+        # Rotate coordinates around the current datum position
+        self._body_coordinates = self.rotate_coordinates(self._body_coordinates, 'z', -90, center=self._datum)
+        self._a_side_coated_coordinates = self.rotate_coordinates(self._a_side_coated_coordinates, 'z', -90, center=self._datum)
+        self._b_side_coated_coordinates = self.rotate_coordinates(self._b_side_coated_coordinates, 'z', -90, center=self._datum)
+
+        if hasattr(self, '_a_side_insulation_coordinates'):
+            self._a_side_insulation_coordinates = self.rotate_coordinates(self._a_side_insulation_coordinates, 'z', -90, center=self._datum)
+        if hasattr(self, '_b_side_insulation_coordinates'):
+            self._b_side_insulation_coordinates = self.rotate_coordinates(self._b_side_insulation_coordinates, 'z', -90, center=self._datum)
+
+        if hasattr(self, '_weld_tabs'):
+            for tab in self._weld_tabs:
+                tab._body_coordinates = self.rotate_coordinates(tab._body_coordinates, 'z', -90, center=self._datum)
+                tab_datum_array = np.array([[tab._datum[0], tab._datum[1], tab._datum[2]]])
+                rotated_datum = self.rotate_coordinates(tab_datum_array, 'z', -90, center=self._datum)
+                tab._datum = tuple(rotated_datum[0])
+
+        return self
+
     @property
     def mass_range(self) -> Tuple[float, float]:
 
@@ -1808,12 +2023,6 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         return self.y_body_length
 
     @property
-    def height_marks(self) -> Dict[int, str]:
-        min_height = np.ceil(self.height_range[0])
-        max_height = np.floor(self.height_range[1])
-        return {i: '' for i in range(int(min_height), int(max_height) + 1, 30)}
-
-    @property
     def height_range(self) -> Tuple[float, float]:
         min = 0
         max = 0.5
@@ -1823,7 +2032,11 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         )
 
     @property
-    def tab_width_range(self) -> Tuple[float, float]:
+    def height_hard_range(self) -> Tuple[float, float]:
+        return (0, 5000)
+
+    @property
+    def tab_width_hard_range(self) -> Tuple[float, float]:
         
         min = 0.01
         max = self._x_body_length - 0.01
@@ -1832,6 +2045,10 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
             round(min * M_TO_MM, 2), 
             round(max * M_TO_MM, 2)
         )
+
+    @property
+    def tab_width_range(self) -> Tuple[float, float]:
+        return self.tab_width_hard_range
 
     @width.setter
     def width(self, width: float) -> None:
@@ -1846,8 +2063,87 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
 class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
     """
-    A notched current collector with tabs along the length.
-    Inherits from _TabbedCurrentCollector and _TapeCurrentCollector.
+    The notched current collector combines features from both tabbed and tape
+    connection methods. It features multiple tabs along its length for improved
+    current distribution and configurable bare regions for tape-style connections,
+    offering excellent flexibility for various cell architectures and connection
+    strategies.
+
+    Parameters
+    ----------
+    material : CurrentCollectorMaterial
+        Material composition defining electrical, thermal, and mechanical properties
+        Selection impacts resistance, cost, and compatibility with active materials
+    length : float
+        Total length of the collector in the primary direction (mm)
+        Determines the number of tabs that can be accommodated
+    width : float
+        Width of the collector perpendicular to the length (mm)
+        Affects current path lengths and collector resistance
+    thickness : float
+        Material thickness in micrometers (μm)
+        Impacts electrical resistance and mechanical stiffness
+    tab_width : float
+        Width of each individual tab (mm)
+        Should be optimized for current density and manufacturing constraints
+    tab_spacing : float
+        Center-to-center distance between adjacent tabs (mm)
+        Determines current distribution uniformity
+    tab_height : float
+        Extension height of tabs beyond the body (mm)
+        Must provide adequate access for welding and connections
+    coated_tab_height : float, optional
+        Height of active material coating on each tab (mm, default: 0)
+        Allows for energy density optimization while maintaining connections
+    bare_lengths_a_side : tuple of float, optional
+        (start, end) uncoated lengths on a-side for tape connections (mm)
+        Enables hybrid connection strategies
+    bare_lengths_b_side : tuple of float, optional
+        (start, end) uncoated lengths on b-side for tape connections (mm)
+        Provides flexibility for asymmetric designs
+    insulation_width : float, optional
+        Width of insulation strip around perimeter (mm, default: 0)
+    name : str, optional
+        Descriptive identifier for the collector
+    datum : tuple of float, optional
+        Reference coordinate system origin (x, y, z) in mm
+        
+    Examples
+    --------
+    Create a high-performance notched collector for an EV battery:
+    
+    >>> from steer_materials import copper_foil_12um
+    >>> collector = NotchedCurrentCollector(
+    ...     material=copper_foil_12um,
+    ...     length=2500.0,        # mm - large format cell
+    ...     width=180.0,         # mm
+    ...     thickness=12.0,      # μm
+    ...     tab_width=30.0,      # mm - wide tabs for high current
+    ...     tab_spacing=50.0,    # mm - 5 tabs total
+    ...     tab_height=15.0,     # mm
+    ...     coated_tab_height=10.0,  # Partially coated tabs
+    ...     bare_lengths_a_side=(15.0, 15.0),  # Tape connection option
+    ...     bare_lengths_b_side=(10.0, 10.0)
+    ... )
+    >>> print(f"Number of tabs: {collector.number_of_tabs}")
+    >>> print(f"Total tab area: {collector.total_tab_area:.1f} mm²")
+    >>> print(f"Effective resistance: {collector.effective_resistance:.6f} Ω")
+
+    >>> thermal_fig = collector.get_thermal_map()
+    >>> thermal_fig.show()
+    
+    Compare connection strategies:
+    
+    >>> print("Available connections:", collector.connection_flexibility.keys())
+    >>> # Output: ['tab_welding', 'tape_welding_a', 'tape_welding_b', 'hybrid']
+    
+    See Also
+    --------
+    PunchedCurrentCollector : Simple single-tab design
+    TablessCurrentCollector : Tape-only connection without tabs
+    TabWeldedCurrentCollector : Separate welded tab approach
+    _TabbedCurrentCollector : Base class for tab functionality
+    _TapeCurrentCollector : Base class for tape functionality
     """
     def __init__(
             self, 
@@ -2007,19 +2303,16 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         All internal units in meters; bare_lengths come in mm.
         Optional x_start and x_end can restrict the x-bounds of the shape.
         """
-        # default y_depth to full body length if not passed in
+        # Default values
         y_depth = self._y_body_length if y_depth is None else y_depth
-
-        # default y_start to center-bottom if not passed in
         y_start = self._datum[1] - self._y_body_length / 2 if y_start is None else y_start
-
-        # default notch to tab_height if not passed in
         notch = self._tab_height if notch_height is None else notch_height
 
-        # bare lengths in m
-        bare_left, bare_right = (b for b in bare_lengths)
+        # Convert bare lengths to meters (they come in mm according to docstring)
+        bare_left = bare_lengths[0] * MM_TO_M if bare_lengths[0] != 0 else 0
+        bare_right = bare_lengths[1] * MM_TO_M if bare_lengths[1] != 0 else 0
 
-        # x bounds
+        # X bounds
         default_x0 = self._datum[0] - self._x_body_length / 2 + bare_left
         default_x1 = self._datum[0] + self._x_body_length / 2 - bare_right
         x0 = default_x0 if x_start is None else x_start
@@ -2029,40 +2322,55 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         y1 = y_start + y_depth
 
         pts = []
-        # bottom‐left
+        
+        # Start at bottom-left
         pts.append((x0, y0))
-        # up to top‐edge
+        # Go up to top edge
         pts.append((x0, y1))
 
-        # insert notches along the clipped range [x0, x1]
+        # Get valid tab positions within the x-range and sort them
+        valid_tabs = []
         for ts, te in self._tab_positions:
-            if te < x0 or ts > x1:
-                continue
-            s = max(ts, x0)
-            e = min(te, x1)
+            # Check if tab overlaps with our x-range
+            if te > x0 and ts < x1:
+                # Clip tab to our x-range
+                s = max(ts, x0)
+                e = min(te, x1)
+                if e > s:  # Valid tab after clipping
+                    valid_tabs.append((s, e))
+        
+        # Sort tabs by start position
+        valid_tabs.sort(key=lambda tab: tab[0])
 
-            # horizontal run to start of notch
-            if pts[-1] != (s, y1):
-                pts.append((s, y1))
+        # Process each valid tab
+        current_x = x0
+        
+        for tab_start, tab_end in valid_tabs:
+            # Horizontal run to start of notch (if needed)
+            if current_x < tab_start:
+                if pts[-1] != (current_x, y1):
+                    pts.append((current_x, y1))
+                pts.append((tab_start, y1))
+            
+            # Draw the notch
+            pts.append((tab_start, y1 + notch))
+            pts.append((tab_end, y1 + notch))
+            pts.append((tab_end, y1))
+            
+            # Update current position
+            current_x = tab_end
 
-            # draw the notch
-            pts.append((s, y1 + notch))
-            pts.append((e, y1 + notch))
-            pts.append((e, y1))
-
-            # advance to next horizontal
-            next_x = min(e + self._tab_gap, x1)
-            if next_x > pts[-1][0]:  # prevent duplicate point
-                pts.append((next_x, y1))
-
-        # finish the top edge
-        if pts[-1][1] == y1 and pts[-1][0] < x1:
+        # Finish the top edge to x1
+        if current_x < x1:
+            if pts[-1] != (current_x, y1):
+                pts.append((current_x, y1))
             pts.append((x1, y1))
 
-        # down & close
+        # Close the shape
         pts.append((x1, y0))
         pts.append((x0, y0))
 
+        # Convert to numpy arrays
         x = np.array([p[0] for p in pts], dtype=float)
         y = np.array([p[1] for p in pts], dtype=float)
 
@@ -2211,16 +2519,8 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         )
 
     @property
-    def tab_spacing_marks(self) -> Dict[int, str]:
-        """
-        Get the tab spacing marks in mm.
-        """
-        min_spacing = self.tab_spacing_range[0]
-        max_spacing = self.tab_spacing_range[1]
-        delta = 200
-        num_steps = int(round((max_spacing - min_spacing) / delta)) + 1
-        values = np.linspace(min_spacing, max_spacing, num_steps).round(10).tolist()
-        return {i: '' for i in values}
+    def tab_spacing_hard_range(self) -> Tuple[float, float]:
+        return self.tab_spacing_range
 
     @property
     def tab_gap(self) -> float:
@@ -2235,18 +2535,10 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
             0.1,  # Minimum gap
             1000 - self.tab_width  # Maximum gap (based on max spacing minus tab width)
         )
-    
+
     @property
-    def tab_gap_marks(self) -> Dict[int, str]:
-        """
-        Get the tab gap marks in mm.
-        """
-        min_gap = self.tab_gap_range[0]
-        max_gap = self.tab_gap_range[1]
-        delta = 50
-        num_steps = int(round((max_gap - min_gap) / delta)) + 1
-        values = np.linspace(min_gap, max_gap, num_steps).round(10).tolist()
-        return {i: '' for i in values}
+    def tab_gap_hard_range(self) -> Tuple[float, float]:
+        return self.tab_gap_range
 
     @property
     def coated_area_a_side(self) -> float:
@@ -2257,7 +2549,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         return round(self._coated_area_b_side * M_TO_MM**2, 2)
 
     @property
-    def tab_width_range(self) -> Tuple[float, float]:
+    def tab_width_hard_range(self) -> Tuple[float, float]:
         
         min = 0.01
         max = 0.5
@@ -2266,6 +2558,10 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
             round(min * M_TO_MM, 2), 
             round(max * M_TO_MM, 2)
         )
+
+    @property
+    def tab_width_range(self) -> Tuple[float, float]:
+        return self.tab_width_hard_range
 
     @tab_spacing.setter
     @calculate_all_properties
@@ -2305,8 +2601,82 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
 class TablessCurrentCollector(NotchedCurrentCollector):
     """
-    A tabless current collector used in cylindrical and flatwound cells.
-    Inherits from NotchedCurrentCollector.
+    Streamlined current collector without protruding tabs.
+    
+    The tabless current collector represents the most space-efficient design,
+    eliminating protruding tabs entirely in favor of edge-based connections.
+    This design is particularly advantageous for cylindrical cells, flatwound
+    configurations, and applications where minimizing cell volume and complexity
+    are paramount.
+    
+    Key advantages of the tabless design:
+    - Simplified manufacturing with fewer cutting/forming operations
+    - Reduced risk of tab damage during handling and assembly
+    - Better suitability for automated winding and stacking processes
+    - Lower material waste during production
+    - Enhanced mechanical robustness
+    
+    This design is especially well-suited for:
+    - Cylindrical cells (18650, 21700, 4680 formats)
+    - Flatwound rectangular cells
+    - High-volume consumer applications
+    - Cells requiring consistent cylindrical geometry
+    - Applications where tab damage is a reliability concern
+    
+    Parameters
+    ----------
+    material : CurrentCollectorMaterial
+        Material composition for electrical and mechanical properties
+        Typically aluminum for cathodes, copper for anodes
+    length : float
+        Total length of the collector in the primary direction (mm)
+        For cylindrical cells, this determines the winding length
+    width : float
+        Total width of the collector (mm)
+        For cylindrical cells, this affects the electrode height
+    coated_width : float
+        Width of the region available for active material coating (mm)
+        Must be less than total width to provide bare connection strips
+    thickness : float
+        Material thickness in micrometers (μm)
+        Affects cell internal resistance and energy density
+    bare_lengths_a_side : tuple of float, optional
+        (start, end) uncoated lengths on a-side for connections (mm)
+        Provides flexibility for different cell termination strategies
+    bare_lengths_b_side : tuple of float, optional
+        (start, end) uncoated lengths on b-side for connections (mm)
+        Enables asymmetric designs for specific applications
+    insulation_width : float, optional
+        Width of insulation strip around edges (mm, default: 0)
+        Critical for preventing short circuits in tabless designs
+    name : str, optional
+        Descriptive identifier for the collector
+    datum : tuple of float, optional
+        Reference coordinate system origin (x, y, z) in mm
+
+    Examples
+    --------
+    Design a tabless collector for a 21700 cylindrical cell:
+    
+    >>> from steer_materials import CurrentCollectorMaterial
+    >>> collector = TablessCurrentCollector(
+    ...     material=CurrentCollectorMaterial.from_database('Aluminum'),
+    ...     length=650.0,        # mm - enough for multiple winds
+    ...     width=65.0,          # mm - fits 21700 height
+    ...     coated_width=60.0,   # mm - 2.5mm bare strips on edges
+    ...     thickness=15.0,      # μm
+    ...     bare_lengths_a_side=(10.0, 10.0),  # mm
+    ...     bare_lengths_b_side=(10.0, 10.0),  # mm
+    ...     insulation_width=0.5 # mm - prevent shorts
+    ... )
+    >>> print(f"Coated fraction: {collector.coated_fraction:.2%}")
+    >>> print(f"Connection strip width: {collector.connection_strip_width:.1f} mm")
+    
+    See Also
+    --------
+    PunchedCurrentCollector : Simple tabbed alternative
+    NotchedCurrentCollector : Multi-tab design with more connection points
+    TabWeldedCurrentCollector : Separate welded tab approach
     """
     def __init__(
             self, 
@@ -2434,7 +2804,7 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 
     @property
     def coated_width(self) -> float:
-        return round(self._coated_width * M_TO_MM, 1)
+        return round(self._coated_width * M_TO_MM, 2)
     
     @property
     def coated_width_range(self) -> Tuple[float, float]:
@@ -2446,16 +2816,15 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         return (min, max)
     
     @property
-    def coated_width_marks(self) -> Dict[int, str]:
+    def coated_width_hard_range(self) -> Tuple[float, float]:
         """
-        Get the coated width marks in mm.
+        Get the coated width range in mm.
         """
-        min_width = self.coated_width_range[0]
-        max_width = self.coated_width_range[1]
-        delta = 5
-        num_steps = int(round((max_width - min_width) / delta)) + 1
-        values = np.linspace(min_width, max_width, num_steps).round(10).tolist()
-        return {i: '' for i in values}
+        return (0, self.width)
+    
+    @property
+    def tab_height_range(self) -> Tuple[float, float]:
+        return (1, self.width*1/4)
 
     @property
     def width(self) -> float:
@@ -2522,6 +2891,93 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 
 
 class WeldTab(ValidationMixin, CoordinateMixin):
+    """
+    Specification and modeling class for separately manufactured welded tabs.
+    
+    The WeldTab class represents individual tab components that are manufactured
+    separately and subsequently welded to current collectors. This design approach
+    enables independent optimization of tab materials, geometry, and properties
+    while providing sophisticated control over electrical and mechanical
+    performance characteristics.
+
+    Parameters
+    ----------
+    material : CurrentCollectorMaterial
+        Material specification for the tab component
+        Defines electrical, thermal, and mechanical properties
+        Must be compatible with welding processes and base collector material
+    width : float
+        Tab width dimension in mm
+        Affects current carrying capacity and mechanical strength
+        Typical range: 10-100 mm depending on application requirements
+    length : float
+        Tab length dimension in mm
+        Determines contact area and current distribution characteristics
+        Typical range: 5-50 mm for most battery applications
+    thickness : float
+        Tab thickness in μm
+        Critical for electrical resistance and mechanical robustness
+        Typical range: 50-500 μm based on current requirements
+    datum : tuple of float, optional
+        Reference coordinate system origin (x, y, z) in mm
+        Default: (0, 0, 0) - places tab at coordinate system origin
+        
+    Examples
+    --------
+    Create a high-performance copper tab for EV applications:
+    
+    >>> from steer_materials import CurrentCollectorMaterial
+    >>> 
+    >>> # Design a robust tab for high current applications
+    >>> heavy_duty_tab = WeldTab(
+    ...     material=CurrentCollectorMaterial.from_database('Copper'),
+    ...     width=50.0,          # mm - wide for high current
+    ...     length=25.0,         # mm - substantial contact area
+    ...     thickness=200.0,     # μm - thick for low resistance
+    ...     datum=(0, 0, 0)      # Centered reference
+    ... )
+    >>> 
+    >>> print(f"Tab resistance: {heavy_duty_tab.electrical_resistance:.6f} Ω")
+    >>> print(f"Tab mass: {heavy_duty_tab.mass:.3f} g")
+    >>> print(f"Current capacity: {heavy_duty_tab.current_density_limit * heavy_duty_tab.body_area/2:.1f} A")
+    
+    Create a compact tab for space-constrained applications:
+    
+    >>> # Design for minimal size while maintaining performance
+    >>> compact_tab = WeldTab(
+    ...     material=CurrentCollectorMaterial.from_database('Copper'),
+    ...     width=20.0,          # mm - compact width
+    ...     length=15.0,         # mm - minimal length
+    ...     thickness=150.0,     # μm - optimized thickness
+    ...     datum=(10, 5, 0)     # Offset positioning
+    ... )
+    
+    Visualize tab geometry and validate design:
+    
+    >>> # Generate visualization plots
+    >>> top_view = heavy_duty_tab.get_view(
+    ...     title="Heavy Duty Tab - Top View",
+    ...     paper_bgcolor='lightgray'
+    ... )
+    >>> side_view = heavy_duty_tab.get_side_view(
+    ...     title="Heavy Duty Tab - Side View"
+    ... )
+    >>> 
+    >>> # Validate welding compatibility
+    >>> from steer_materials import aluminum_1235_foil
+    >>> compatibility = heavy_duty_tab.validate_welding_compatibility(
+    ...     aluminum_1235_foil
+    ... )
+    >>> if not compatibility['suitable']:
+    ...     print("Warning: Material incompatibility detected")
+    
+    See Also
+    --------
+    TabWeldedCurrentCollector : Current collector using welded tabs
+    CurrentCollectorMaterial : Material specification class
+    PunchedCurrentCollector : Alternative integrated tab design
+    NotchedCurrentCollector : Multiple integrated tab approach
+    """
 
     def __init__(
             self,
@@ -2763,7 +3219,86 @@ class WeldTab(ValidationMixin, CoordinateMixin):
 
 class TabWeldedCurrentCollector(_TapeCurrentCollector):
     """
-    A current collector with tabs welded on it.
+    Current collector with separately manufactured and welded tabs.
+    
+    The tab-welded current collector represents a design approach
+    where tabs are manufactured separately and then welded to the main collector
+    body. 
+    
+    Parameters
+    ----------
+    material : CurrentCollectorMaterial
+        Base material for the current collector body
+        Can be optimized independently from tab material
+    length : float
+        Total length of the collector body in mm
+        Defines the available space for tab positioning
+    width : float
+        Width of the collector body in mm
+        Affects current distribution and tab placement options
+    thickness : float
+        Thickness of the base collector material in μm
+        May differ from tab thickness for optimized performance
+    weld_tab : WeldTab
+        Specification object defining tab geometry, material, and properties
+        Encapsulates all tab-specific design parameters
+    weld_tab_positions : Iterable[float]
+        Array of tab center positions along the length in mm
+        Enables precise, flexible tab placement for optimal current distribution
+    skip_coat_width : float
+        Width of uncoated area around each tab in mm
+        Prevents coating interference with welding and ensures reliable connections
+    tab_overhang : float
+        Distance tabs extend beyond the collector body edge in mm
+        Provides access for external connections and welding operations
+    tab_weld_side : str, optional
+        Side of collector for tab welding ('a' or 'b', default: 'a')
+        Determines which surface receives the welded tabs
+    bare_lengths_a_side : tuple of float, optional
+        (start, end) uncoated regions on a-side in mm
+        Enables hybrid connection strategies combining tabs and tape methods
+    bare_lengths_b_side : tuple of float, optional
+        (start, end) uncoated regions on b-side in mm
+        Provides additional connection flexibility
+    name : str, optional
+        Descriptive identifier for the collector assembly
+    datum : tuple of float, optional
+        Reference coordinate system origin (x, y, z) in mm
+    
+    Examples
+    --------
+    Create a high-performance tab-welded collector for an EV application:
+    
+    >>> from steer_materials import CurrentCollectorMaterial
+    >>> 
+    >>> # Define the weld tab specification
+    >>> weld_tab = WeldTab(
+    ...     material=CurrentCollectorMaterial.from_database('Copper'),
+    ...     width=40.0,          # mm - wide for high current
+    ...     height=20.0,         # mm
+    ...     thickness=100.0      # μm - thick for low resistance
+    ... )
+    >>> 
+    >>> # Create collector with optimally positioned tabs
+    >>> collector = TabWeldedCurrentCollector(
+    ...     material=CurrentCollectorMaterial.from_database('Copper'),
+    ...     length=300.0,        # mm
+    ...     width=200.0,         # mm
+    ...     thickness=15.0,      # μm
+    ...     weld_tab=weld_tab,
+    ...     weld_tab_positions=[75.0, 150.0, 225.0],  # 3 evenly spaced tabs
+    ...     skip_coat_width=45.0,    # mm - larger than tab width
+    ...     tab_overhang=18.0,       # mm - accessible for connections
+    ...     tab_weld_side='a',
+    ...     bare_lengths_a_side=(20.0, 20.0)  # Additional tape connection option
+    ... )
+    
+    See Also
+    --------
+    PunchedCurrentCollector : Simpler integrated tab design
+    NotchedCurrentCollector : Multiple integrated tabs
+    TablessCurrentCollector : No-tab edge connection design
+    WeldTab : Specification class for welded tab components
     """
     def __init__(
             self,
@@ -3035,18 +3570,13 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             self._weld_tabs[0].width, 
             100
         )
-
+    
     @property
-    def skip_coat_width_marks(self) -> Dict[int, str]:
+    def skip_coat_width_hard_range(self) -> Tuple[float, float]:
         """
-        Get the skip coat width marks in mm.
+        Get the skip coat width range in mm.
         """
-        min_width = self.skip_coat_width_range[0]
-        max_width = self.skip_coat_width_range[1]
-        delta = 5
-        num_steps = int(round((max_width - min_width) / delta)) + 1
-        values = np.linspace(min_width, max_width, num_steps).round(10).tolist()
-        return {i: '' for i in values}
+        return (self._weld_tabs[0].width, 1000)
 
     @property
     def tab_weld_side(self) -> str:
@@ -3068,18 +3598,10 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         Returns the overhang range of the weld tab in mm.
         """
         return (0, self.weld_tab.length/2)
-
+    
     @property
-    def tab_overhang_marks(self) -> Dict[int, str]:
-        """
-        Returns the overhang marks of the weld tab in mm.
-        """
-        min_overhang = self.tab_overhang_range[0]
-        max_overhang = self.tab_overhang_range[1]
-        delta = 20
-        num_steps = int(round((max_overhang - min_overhang) / delta)) + 1
-        values = np.linspace(min_overhang, max_overhang, num_steps).round(10).tolist()
-        return {i: '' for i in values}
+    def tab_overhang_hard_range(self) -> Tuple[float, float]:
+        return (0, self.weld_tab.length)
 
     @property
     def weld_tab(self) -> list:
@@ -3110,16 +3632,8 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         return (1, self.skip_coat_width)
 
     @property
-    def tab_width_marks(self) -> Dict[int, str]:
-        """
-        Returns the width marks of the weld tab in mm.
-        """
-        min_width = self.tab_width_range[0]
-        max_width = self.tab_width_range[1]
-        delta = 5
-        num_steps = int(round((max_width - min_width) / delta)) + 1
-        values = np.linspace(min_width, max_width, num_steps).round(10).tolist()
-        return {i: '' for i in values}
+    def tab_width_hard_range(self) -> Tuple[float, float]:
+        return self.tab_width_range
 
     @property
     def tab_length(self) -> float:
@@ -3136,16 +3650,59 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         return (self.tab_overhang, self.y_body_length + self.tab_overhang)
     
     @property
-    def tab_length_marks(self) -> Dict[int, str]:
+    def tab_length_hard_range(self) -> Tuple[float, float]:
+        return self.tab_length_range
+    
+    @property
+    def tab_positions_text(self) -> str:
         """
-        Returns the length marks of the weld tab in mm.
+        Returns the weld tab positions as a formatted string in mm.
+        
+        Returns
+        -------
+        str
+            Comma-separated string of tab positions (e.g., "75.0, 150.0, 225.0")
         """
-        min_length = self.tab_length_range[0]
-        max_length = self.tab_length_range[1]
-        delta = 20
-        num_steps = int(round((max_length - min_length) / delta)) + 1
-        values = np.linspace(min_length, max_length, num_steps).round(10).tolist()
-        return {i: '' for i in values}
+        positions = [str(round(pos * M_TO_MM, 2)) for pos in self._weld_tab_positions]
+        return ", ".join(positions)
+
+    @tab_positions_text.setter
+    def tab_positions_text(self, positions_text: str) -> None:
+        """
+        Set weld tab positions from a formatted string.
+        
+        Parameters
+        ----------
+        positions_text : str
+            Comma-separated string of tab positions in mm
+            Examples: "75.0, 150.0, 225.0" or "10,50,100" or "25.5, 75.25, 125"
+            
+        Raises
+        ------
+        ValueError
+            If the string cannot be parsed into valid numbers
+        """
+        try:
+            # Split by comma and strip whitespace
+            position_strings = [s.strip() for s in positions_text.split(',')]
+            
+            # Filter out empty strings
+            position_strings = [s for s in position_strings if s]
+            
+            if not position_strings:
+                raise ValueError("No valid positions found in the input string")
+            
+            # Convert to float list
+            positions_list = [float(pos) for pos in position_strings]
+            
+            # Use the existing setter for validation and conversion
+            self.weld_tab_positions = positions_list
+            
+        except ValueError as e:
+            if "could not convert string to float" in str(e):
+                raise ValueError(f"Invalid number format in tab positions: '{positions_text}'. Use comma-separated numbers like '75.0, 150.0, 225.0'")
+            else:
+                raise  # Re-raise other ValueError from weld_tab_positions setter
 
     @tab_overhang.setter
     @calculate_weld_tab_properties

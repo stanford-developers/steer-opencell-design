@@ -2,45 +2,26 @@ from dash import ctx, no_update
 from typing import Tuple, Type
 
 from general.enumerated_classes import ElectrodeType
-from general.callback_helpers import get_cell_from_cache
+from general.cell_operations import get_cell_from_cache, get_object_from_cell
 from general.trigger_router import TriggerRouter, TriggerType
+from general.handlers import handle_cell_store_update, handle_property_update
+from general.callback_helpers import create_no_update_response
 
-from electrodes.parameter_lists import ELECTRODE_PARAMETER_LIST, ELECTRODE_SETTABLE_PARAMETERS
-from electrodes.electrode_handlers import handle_cell_store_update, handle_property_update, handle_flip_action
-
-
-def create_no_update_response() -> Tuple:
-    """Create a no_update response for a given electrode."""
-    num_params = len(ELECTRODE_PARAMETER_LIST)
-    
-    response = [
-        no_update,  # cache_key (single value)
-        [no_update] * num_params,  # input values (list)
-        [no_update] * num_params,  # slider values (list)
-        [no_update] * num_params,  # slider mins (list)
-        [no_update] * num_params,  # slider maxs (list)
-        [no_update] * num_params,  # input mins (list)
-        [no_update] * num_params,  # input maxs (list)
-        [no_update] * num_params,  # marks (list)
-    ]
-    
-    return tuple(response)
+from electrodes.configs import ELECTRODE_CONFIGS
 
 
 def create_electrode_callback(electrode_key: ElectrodeType) -> callable:
     """Factory function to create electrode callbacks."""
-    
+
+    config = ELECTRODE_CONFIGS[electrode_key]
+
     def generic_update_electrode(
+        existing_warnings: list,
         cell_data: dict, 
         input_values: list, 
         slider_values: list, 
-        flip_x: int, 
-        flip_y: int,
-        existing_warnings: list
     ) -> Tuple:
         
-        from electrodes.cell_operations import get_electrode_from_cell
-
         # Get the triggered ID
         triggered_id = ctx.triggered_id
 
@@ -48,27 +29,21 @@ def create_electrode_callback(electrode_key: ElectrodeType) -> callable:
         cell = get_cell_from_cache(cell_data['cache_key'])
 
         # get the electrode from the cell, either cathode or anode depending on electrode
-        electrode = get_electrode_from_cell(cell, electrode_key)
+        electrode = get_object_from_cell(cell, config)
 
         # Map the triggered ID to the appropriate action using ENUMS
         trigger_type = TriggerRouter.get_trigger_type(triggered_id)
 
         # trigger if the cell store is updated
         if trigger_type == TriggerType.CELL_STORE:
-            return handle_cell_store_update(electrode, existing_warnings)
+            return handle_cell_store_update(electrode, config, existing_warnings)
         
         # trigger if a property is updated
         elif trigger_type == TriggerType.PROPERTY:
-            return handle_property_update(triggered_id, electrode, cell, input_values, slider_values, existing_warnings)
+            return handle_property_update(existing_warnings, triggered_id, cell, electrode, config, input_values, slider_values)
 
-        # trigger if an action is performed, e.g. flip
-        elif trigger_type == TriggerType.ACTION:
-            return handle_flip_action(triggered_id, electrode, cell, existing_warnings)
-        
         # Fallback
-        return create_no_update_response()
+        return create_no_update_response(config, existing_warnings)
 
     return generic_update_electrode
-
-
 

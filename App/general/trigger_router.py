@@ -48,19 +48,8 @@ class TriggerRouter:
     @staticmethod
     def _handle_dict_trigger(triggered_id: dict) -> TriggerType:
         """Handle dictionary-based triggers."""
-        
-        if 'subtype' in triggered_id:
-            subtype = triggered_id['subtype']
-            
-            # Handle RadioItems separately
-            if subtype == SubType.RADIOITEM.value:
-                return TriggerType.RADIOITEM
-            
-            # All other subtypes with 'property' are property updates
-            elif 'property' in triggered_id:
-                return TriggerType.PROPERTY
-            
-        elif 'property' in triggered_id:
+
+        if 'property' in triggered_id:
             return TriggerType.PROPERTY
         
         elif 'action' in triggered_id:

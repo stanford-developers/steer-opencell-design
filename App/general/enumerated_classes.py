@@ -27,6 +27,7 @@ class TriggerType(Enum):
 class ActionType(Enum):
     FLIP_X = 'flip_x'
     FLIP_Y = 'flip_y'
+    ROTATE = 'rotate'
 
 class TabWeldSide(Enum):
     A_SIDE = 'a'
@@ -47,7 +48,6 @@ class PropertyCategory(Enum):
 
 
 
-
 # =============================================================================
 # Physical Component Enums
 # =============================================================================
@@ -57,15 +57,18 @@ class CollectorType(Enum):
     NOTCHED = 'notched'
     TABLESS = 'tabless'
     TABBED = 'tabbed'
+    GENERIC = 'generic'
 
 class ElectrodeType(Enum):
     CATHODE = 'cathode'
     ANODE = 'anode'
+    GENERIC = 'generic'
 
 class MaterialType(Enum):
     CATHODE_CURRENT_COLLECTOR = 'cathode_current_collector'
     CATHODE_CURRENT_COLLECTOR_TAB = 'cathode_current_collector_tab'
+    CATHODE_INSULATION = 'cathode_insulation'
     ANODE_CURRENT_COLLECTOR = 'anode_current_collector'
     ANODE_CURRENT_COLLECTOR_TAB = 'anode_current_collector_tab'
-
+    ANODE_INSULATION = 'anode_insulation'
 
