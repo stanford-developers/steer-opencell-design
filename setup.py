@@ -13,7 +13,7 @@ setup(
     description='Modelling energy storage from cell to site - STEER OpenCell Design',
     author='Nicholas Siemons',
     author_email='nsiemons@stanford.edu',
-    url="https://github.com/nicholas9182/steer-opencell-design/",
+    url="https://github.com/stanford-developers/steer-opencell-design/",
     packages=find_packages(),
     install_requires=[
         "pandas==2.1.4",
