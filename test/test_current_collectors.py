@@ -117,6 +117,14 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         # figure1.show()
         # figure2.show()
 
+    def test_insulation_width_to_zero(self):
+        
+        old_coated_area = self.current_collector.coated_area
+        old_insulation_area = self.current_collector.insulation_area
+
+        self.current_collector.insulation_width = 0
+        self.assertNotEqual(self.current_collector.coated_area, old_coated_area)
+        self.assertNotEqual(self.current_collector.insulation_area, old_insulation_area)
 
 class TestNotchedCurrentCollector(unittest.TestCase):
 

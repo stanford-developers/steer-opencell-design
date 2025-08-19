@@ -165,7 +165,7 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         self._get_a_side_coated_coordinates()
         self._get_b_side_coated_coordinates()
 
-        if hasattr(self, '_insulation_width') and self._insulation_width > 0:
+        if hasattr(self, '_insulation_width'):
             self._get_a_side_insulation_coordinates()
             self._get_b_side_insulation_coordinates()
 

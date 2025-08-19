@@ -52,15 +52,45 @@ cathode_insulation_material_parameters = ds.html.Div(
 )
 
 
+cathode_control_modes = ds.html.Div(
+    
+    id='cathode_control_modes',
+    
+    children=[
+        
+        ds.html.Br(),
+        ds.html.H5('Control Mode', style={'font-weight': 'bold'}),
+        ds.html.Br(),
+        
+        ds.html.P("Select which property to maintain constant when other parameters change:", 
+                 style={'margin-bottom': '10px', 'color': '#666'}),
+        
+        ds.dcc.RadioItems(
+            id='cathode_control_mode_selector',
+            options=[
+                {'label': ' Maintain Mass Loading', 'value': 'MAINTAIN_MASS_LOADING'},
+                {'label': ' Maintain Calender Density', 'value': 'MAINTAIN_CALENDER_DENSITY'},
+                {'label': ' Maintain Coating Thickness', 'value': 'MAINTAIN_COATING_THICKNESS'}
+            ],
+            value='MAINTAIN_CALENDER_DENSITY',  # Default to current behavior (single value, not list)
+            style={'margin': '10px 0'},
+            inputStyle={'margin-right': '8px', 'transform': 'scale(1.2)'},
+            labelStyle={'display': 'flex', 'align-items': 'center', 'margin-bottom': '8px', 'font-weight': 'bold'}
+        ),
+        
+        ds.html.Br(),
+        
+    ]
+    
+)
+
+
 cathode_design_parameters = ds.html.Div(
     
     id='cathode_electrode_design_parameters',
     
     children=[
 
-        ds.html.Br(), ds.html.Br(), 
-        ds.html.H5('Coating', style={'font-weight': 'bold'}),
-        ds.html.Br(), 
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'electrode'},
@@ -185,6 +215,7 @@ cathode_electrode_layout = ds.html.Div([
         
         ds.html.Br(), ds.html.Br(), ds.html.Br(), 
         cathode_insulation_material_parameters,
+        cathode_control_modes,
         cathode_design_parameters,
         cathode_properties,
         ds.html.Div(style={'height': '200px'})
