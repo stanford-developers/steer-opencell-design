@@ -1,9 +1,5 @@
 import dash as ds
-<<<<<<< HEAD
 from steer_core.Apps.Components.SliderComponents import SliderWithTextInput
-=======
-from steer_core.Apps.Components.SliderComponents import SliderWithTextInput, SliderWithTextInputAndCheckbox
->>>>>>> electrode_ui
 from styles import BUTTON_STYLE
 from database_service import INSULATION_MATERIALS
 

@@ -1,13 +1,8 @@
 import dash as ds
 from styles import *
 
-<<<<<<< HEAD
-from steer_core.Apps.Components.SliderComponents import SliderWithTextInput, RangeSliderWithTextInput
-=======
 from steer_core.Apps.Components.SliderComponents import SliderWithTextInput
 from steer_core.Apps.Components.RangeSliderComponents import RangeSliderWithTextInput
-
->>>>>>> electrode_ui
 from database_service import CURRENT_COLLECTOR_MATERIALS
 
 CURRENT_COLLECTOR_DESIGNS = ['Punched','Notched','Tabless','Tabbed']
