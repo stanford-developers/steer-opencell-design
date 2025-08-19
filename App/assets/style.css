@@ -68,7 +68,6 @@
     transform: scale(0.98);
 }
 
-
 /* Optimize slider rendering */
 .slider-container {
     will-change: transform;
@@ -88,3 +87,4 @@ input[type="number"] {
 .rc-slider-handle {
     will-change: transform;
 }
+
