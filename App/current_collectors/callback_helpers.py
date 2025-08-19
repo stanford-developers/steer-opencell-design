@@ -4,13 +4,13 @@ import time
 
 from steer_opencell_design.Components.CurrentCollectors import *
 
-from general.callback_helpers import create_no_update_response
-from general.enumerated_classes import *
-from general.cell_operations import get_cell_from_cache, get_object_from_cell
-from general.trigger_router import TriggerRouter, TriggerType
-from general.handlers import handle_cell_store_update, handle_property_update
+from App.general.callback_helpers import create_no_update_response
+from App.general.enumerated_classes import *
+from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
+from App.general.trigger_router import TriggerRouter, TriggerType
+from App.general.handlers import handle_cell_store_update, handle_property_update
 
-from current_collectors.configs import COLLECTOR_CONFIGS
+from App.current_collectors.configs import COLLECTOR_CONFIGS
 
 
 def create_generic_current_collector_callback(collector_type: CollectorType, electrode_type: ElectrodeType) -> callable:

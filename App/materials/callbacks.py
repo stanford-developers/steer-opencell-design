@@ -1,6 +1,6 @@
 from dash import callback, clientside_callback, Input, Output, ALL, ctx, State, MATCH
-from materials.callback_helpers import create_material_callback
-from general.enumerated_classes import MaterialType, ElectrodeType
+from App.materials.callback_helpers import create_material_callback
+from App.general.enumerated_classes import MaterialType, ElectrodeType
 
 
 @callback(

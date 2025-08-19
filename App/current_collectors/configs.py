@@ -9,11 +9,11 @@ from steer_opencell_design.Components.CurrentCollectors import (
     _CurrentCollector
 )
 
-from general.enumerated_classes import (
+from App.general.enumerated_classes import (
     CollectorType
 )
 
-from current_collectors.lists import (
+from App.current_collectors.lists import (
     PUNCHED_PARAMETER_LIST,
     PUNCHED_SETTABLE_PARAMETERS,
     NOTCHED_PARAMETER_LIST,

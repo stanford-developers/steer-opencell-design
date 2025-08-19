@@ -5,8 +5,8 @@ from base64 import b64decode
 from pickle import loads
 from typing import List, Tuple, Dict
 
-from general.store import LANDING_PAGE_IMAGE_URLS
-from general.callback_helpers import get_internal_construction_options, get_electrochemical_reference_options, get_cell_name_options
+from App.general.store import LANDING_PAGE_IMAGE_URLS
+from App.general.callback_helpers import get_internal_construction_options, get_electrochemical_reference_options, get_cell_name_options
 
 
 @callback(
@@ -255,7 +255,7 @@ def get_cell_from_database(cell_name: str) -> Dict:
     contents : str
         The selected cell name from the dropdown.
     """
-    from general.cell_operations import get_cell_from_database, set_cell_to_cache
+    from App.general.cell_operations import get_cell_from_database, set_cell_to_cache
 
     # If contents is None, return no update
     if cell_name is None:
@@ -289,7 +289,7 @@ def upload_cell(pickled_cell):
     List[Dict]
         A list containing a dictionary with the cache key of the uploaded cell.
     """
-    from general.callback_helpers import set_cell_to_cache
+    from App.general.callback_helpers import set_cell_to_cache
 
     # If pickled_cell is None, return no update
     if pickled_cell is None:
