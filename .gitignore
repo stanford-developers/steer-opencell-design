@@ -7,3 +7,4 @@ dist/
 data_scripts/
 local_data/
 Archive/
+.vscode/
