@@ -1154,7 +1154,6 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
             self._update_dependent_properties('coating_thickness', coating_thickness)
         
     @porosity.setter
-    @calculate_all_properties
     def porosity(self, porosity: float):
         """
         Set the porosity of the electrode.
@@ -1164,7 +1163,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         self.validate_percentage(porosity, 'porosity')
         porosity_fraction = porosity / 100
         new_calender_density = (1 - porosity_fraction) / self._theoretical_specific_volume
-        self._calender_density = new_calender_density
+        self.calender_density = new_calender_density  * (KG_TO_G / M_TO_CM**3)
         
     @formulation.setter
     @calculate_all_properties

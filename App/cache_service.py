@@ -1,6 +1,8 @@
 from flask_caching import Cache
 import hashlib
 import json
+import os
+import redis
 
 
 class MyCache:
@@ -13,20 +15,22 @@ class MyCache:
     
     def init_app(self, app):
 
-        config = {
-            'CACHE_TYPE': 'SimpleCache',  # Start with SimpleCache for development
-            'CACHE_DEFAULT_TIMEOUT': 30000,  # 500 minutes
-            'CACHE_KEY_PREFIX': 'opencell_'
-        }
-        
-        # For production, you can switch to Redis:
-        # config = {
-        #     'CACHE_TYPE': 'RedisCache',
-        #     'CACHE_REDIS_URL': 'redis://localhost:6379/0',
-        #     'CACHE_DEFAULT_TIMEOUT': 30000,
-        #     'CACHE_KEY_PREFIX': 'opencell_'
-        # }
-        
+        redis_url = os.environ.get("REDIS_URL", "")
+        if redis_url:
+            redis_instance = redis.StrictRedis.from_url(os.environ.get("REDIS_URL", "redis://127.0.0.1:6379"))
+            config = {
+                'CACHE_TYPE': 'RedisCache',
+                'CACHE_DEFAULT_TIMEOUT': 30000,
+                'CACHE_KEY_PREFIX': 'opencell_',
+                'CACHE_REDIS_CLIENT': redis_instance
+            }
+        else:
+            config = {
+                'CACHE_TYPE': 'SimpleCache',
+                'CACHE_DEFAULT_TIMEOUT': 30000,
+                'CACHE_KEY_PREFIX': 'opencell_'
+            }
+
         self.cache.init_app(app, config)
     
     def memoize_with_hash(self, timeout=300):
