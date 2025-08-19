@@ -17,7 +17,7 @@ setup(
     packages=find_packages(),
     install_requires=[
 	"steer-core==0.1.2",
-	"steer-materials==0.1.2",
+	"steer-materials==0.1.3",
         "pandas==2.1.4",
         "numpy==1.26.4",
         "datetime==5.5",
