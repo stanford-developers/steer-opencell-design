@@ -17,15 +17,15 @@ setup(
     packages=find_packages(),
     install_requires=[
         "pandas==2.1.4",
-        "numpy",
-        "datetime",
-        "scipy",
-        "shapely",
-        "plotly",
-        "dash",
-        "dash_bootstrap_components",
-        "flask_caching",
-        "nbformat"
+        "numpy==1.26.4",
+        "datetime==5.5",
+        "scipy==1.15.3",
+        "shapely==2.1.1",
+        "plotly==6.2.0",
+        "dash==3.1.1",
+        "dash_bootstrap_components==2.0.3",
+        "flask_caching==2.3.1",
+        "nbformat==5.10.4"
     ],
     scripts=[],
     classifiers=[ 
