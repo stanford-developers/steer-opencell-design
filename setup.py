@@ -16,8 +16,8 @@ setup(
     url="https://github.com/stanford-developers/steer-opencell-design/",
     packages=find_packages(),
     install_requires=[
-	"steer-core==0.1.2",
-	"steer-materials==0.1.3",
+	"steer-core==0.1.9",
+	"steer-materials==0.1.7",
         "pandas==2.1.4",
         "numpy==1.26.4",
         "datetime==5.5",
@@ -28,6 +28,8 @@ setup(
         "dash_bootstrap_components==2.0.3",
         "flask_caching==2.3.1",
         "nbformat==5.10.4",
+	    "gunicorn==23.0.0",
+        "redis==6.4.0"
     ],
     scripts=[],
     classifiers=[ 

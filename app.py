@@ -61,12 +61,9 @@ def register_layouts(app):
     ])
 
 
+app = create_app()
+server = app.server
+
 if __name__ == '__main__':
-    app = create_app()
     app.run(debug=True)
-    
-
-def run():
-    app.run_server(debug=True)
-
 
