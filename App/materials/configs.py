@@ -6,11 +6,11 @@ from steer_materials.CellMaterials.Base import (
     InsulationMaterial
 )
 
-from general.enumerated_classes import (
+from App.general.enumerated_classes import (
     MaterialType
 )
 
-from materials.lists import (
+from App.materials.lists import (
     REGULAR_PARAMETER_LIST,
     REGULAR_SETTABLE_PARAMETERS
 )

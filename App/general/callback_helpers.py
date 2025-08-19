@@ -1,6 +1,6 @@
 from typing import Type, Tuple, List, Dict, Any, Optional, Union
 
-from general.enumerated_classes import CategoricalProperty
+from App.general.enumerated_classes import CategoricalProperty
 from steer_core.DataManager import DataManager
 
 from dash import no_update, dash_table, html

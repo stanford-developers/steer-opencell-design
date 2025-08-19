@@ -1,13 +1,13 @@
 from dash import ctx, no_update
 from typing import Tuple, Type
 
-from general.enumerated_classes import ElectrodeType
-from general.cell_operations import get_cell_from_cache, get_object_from_cell
-from general.trigger_router import TriggerRouter, TriggerType
-from general.handlers import handle_cell_store_update, handle_property_update
-from general.callback_helpers import create_no_update_response
+from App.general.enumerated_classes import ElectrodeType
+from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
+from App.general.trigger_router import TriggerRouter, TriggerType
+from App.general.handlers import handle_cell_store_update, handle_property_update
+from App.general.callback_helpers import create_no_update_response
 
-from electrodes.configs import ELECTRODE_CONFIGS
+from App.electrodes.configs import ELECTRODE_CONFIGS
 
 
 def create_electrode_callback(electrode_key: ElectrodeType) -> callable:

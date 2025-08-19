@@ -1,13 +1,13 @@
 import dash as ds
-from styles import *
+from App.styles import *
 
-from current_collectors.layouts import cathode_current_collector_layout
-from formulations.layouts import cathode_formulation_layout
-from electrodes.layouts import cathode_electrode_layout
-from electrode_assembly.layouts import electrode_assembly_layout
+from App.current_collectors.layouts import cathode_current_collector_layout
+from App.formulations.layouts import cathode_formulation_layout
+from App.electrodes.layouts import cathode_electrode_layout
+from App.electrode_assembly.layouts import electrode_assembly_layout
 
-from general.store import cell_store, warnings_store, LANDING_PAGE_IMAGE_URLS
-from database_service import FORM_FACTOR_OPTIONS
+from App.general.store import cell_store, warnings_store, LANDING_PAGE_IMAGE_URLS
+from App.database_service import FORM_FACTOR_OPTIONS
 
 
 stores = ds.html.Div([

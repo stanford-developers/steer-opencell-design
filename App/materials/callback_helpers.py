@@ -1,12 +1,12 @@
 from dash import no_update, ctx
 from typing import Tuple, Type
 
-from materials.configs import MATERIAL_CONFIGS
+from App.materials.configs import MATERIAL_CONFIGS
 
-from general.enumerated_classes import TriggerType, MaterialType
-from general.trigger_router import TriggerRouter
-from general.cell_operations import get_cell_from_cache, get_object_from_cell
-from general.callback_helpers import create_no_update_response
+from App.general.enumerated_classes import TriggerType, MaterialType
+from App.general.trigger_router import TriggerRouter
+from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
+from App.general.callback_helpers import create_no_update_response
 
 
 def create_material_callback(material_type: MaterialType) -> callable:
@@ -15,8 +15,8 @@ def create_material_callback(material_type: MaterialType) -> callable:
 
     def update_material(existing_warnings, cell_data, material_name, input_values, slider_values):
 
-        from materials.handlers import handle_selector_update
-        from general.handlers import handle_cell_store_update, handle_property_update
+        from App.materials.handlers import handle_selector_update
+        from App.general.handlers import handle_cell_store_update, handle_property_update
 
         # get the triggered ID
         triggered_id = ctx.triggered_id

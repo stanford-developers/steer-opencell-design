@@ -1,17 +1,17 @@
 from dash import callback, Input, Output, ctx, State, no_update, MATCH, ALL, dash_table, clientside_callback
 
-from cache_service import cache
+from App.cache_service import cache
 
 from steer_opencell_design.Components.CurrentCollectors import *
 
-from current_collectors.layouts import *
-from current_collectors.callbacks import CURRENT_COLLECTOR_DESIGNS
-from current_collectors.callback_helpers import create_generic_current_collector_callback
-from current_collectors.configs import COLLECTOR_CONFIGS
+from App.current_collectors.layouts import *
+from App.current_collectors.callbacks import CURRENT_COLLECTOR_DESIGNS
+from App.current_collectors.callback_helpers import create_generic_current_collector_callback
+from App.current_collectors.configs import COLLECTOR_CONFIGS
 
-from general.enumerated_classes import CollectorType, ElectrodeType
-from general.cell_operations import set_object_to_cell, get_object_from_cell
-from general.callback_helpers import create_properties_table
+from App.general.enumerated_classes import CollectorType, ElectrodeType
+from App.general.cell_operations import set_object_to_cell, get_object_from_cell
+from App.general.callback_helpers import create_properties_table
 
 
 @callback(

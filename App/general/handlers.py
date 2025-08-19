@@ -2,9 +2,9 @@ from dash import no_update
 from typing import Type, Tuple, List, Any
 import time
 
-from general.enumerated_classes import SubType, TriggerType
-from general.cell_operations import set_cell_to_cache, set_object_to_cell
-from general.callback_helpers import (
+from App.general.enumerated_classes import SubType, TriggerType
+from App.general.cell_operations import set_cell_to_cache, set_object_to_cell
+from App.general.callback_helpers import (
     validate_dependent_properties, 
     generate_parameters, 
     generate_rangeslider_values, 

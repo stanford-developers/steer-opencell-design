@@ -1,19 +1,11 @@
 import dash as ds
-from cache_service import cache
-from styles import *
-
-import sys
-import os
-# Ensure the App directory is in sys.path
-app_dir = os.path.dirname(os.path.abspath(__file__))
-if app_dir not in sys.path:
-    sys.path.insert(0, app_dir)
-
+from App.cache_service import cache
+from App.styles import *
 
 # Import components
-from general.callbacks import *
-from current_collectors.callbacks import *
-from electrodes.callbacks import *
+from App.general.callbacks import *
+from App.current_collectors.callbacks import *
+from App.electrodes.callbacks import *
 
 # Set high level layout
 def create_app():
@@ -45,11 +37,11 @@ def register_callbacks(app):
     
     # Import callback modules dynamically
     callback_modules = [
-        'general.callbacks',
-        'current_collectors.callbacks', 
-        'electrodes.callbacks',
-        'materials.callbacks',
-        'general.clientside_callbacks'
+        'App.general.callbacks',
+        'App.current_collectors.callbacks', 
+        'App.electrodes.callbacks',
+        'App.materials.callbacks',
+        'App.general.clientside_callbacks'
     ]
     
     for module_name in callback_modules:
@@ -58,7 +50,7 @@ def register_callbacks(app):
 
 def register_layouts(app):
 
-    from general.layouts import stores, thumbnail, header, cell_type, main_tabs
+    from App.general.layouts import stores, thumbnail, header, cell_type, main_tabs
     
     app.layout = ds.html.Div([
         stores,

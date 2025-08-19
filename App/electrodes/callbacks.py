@@ -1,16 +1,16 @@
 from dash import callback, Input, Output, ALL, State, ctx
 
-from general.callback_helpers import create_properties_table
+from App.general.callback_helpers import create_properties_table
 
-from electrodes.callback_helpers import create_electrode_callback
-from electrodes.configs import ELECTRODE_CONFIGS
+from App.electrodes.callback_helpers import create_electrode_callback
+from App.electrodes.configs import ELECTRODE_CONFIGS
 
-from current_collectors.configs import COLLECTOR_CONFIGS
+from App.current_collectors.configs import COLLECTOR_CONFIGS
 
-from general.enumerated_classes import ElectrodeType, MaterialType, CollectorType
-from general.cell_operations import get_object_from_cell
+from App.general.enumerated_classes import ElectrodeType, MaterialType, CollectorType
+from App.general.cell_operations import get_object_from_cell
 
-from cache_service import cache
+from App.cache_service import cache
 
 from steer_opencell_design.Components.Electrodes import ElectrodeControlMode
 

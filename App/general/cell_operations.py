@@ -1,5 +1,5 @@
 from typing import Type, Any
-from database_service import DataManager
+from App.database_service import DataManager
 from steer_core.Mixins.Serializer import SerializerMixin
 from uuid import uuid4
 
@@ -50,7 +50,7 @@ def set_cell_to_cache(cell: Type) -> str:
     str
         The cache key assigned to the stored cell object.
     """
-    from cache_service import cache
+    from App.cache_service import cache
 
     # Generate a new cache key
     new_cc_key = str(uuid4())
@@ -75,7 +75,7 @@ def get_cell_from_cache(cache_key: str) -> Type:
     Type
         The cell object retrieved from the cache.
     """
-    from cache_service import cache
+    from App.cache_service import cache
 
     # Retrieve the object from the cache
     cell = cache.get(cache_key)

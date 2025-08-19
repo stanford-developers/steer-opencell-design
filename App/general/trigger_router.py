@@ -1,6 +1,6 @@
 from enum import Enum
 
-from general.enumerated_classes import SubType, TriggerType
+from App.general.enumerated_classes import SubType, TriggerType
 
 
 class TriggerRouter:

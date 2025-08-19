@@ -1,9 +1,9 @@
 from typing import Type, Tuple, List
 from dash import no_update
 
-from general.handlers import _build_basic_response, _add_dropdown_menu
-from general.callback_helpers import generate_parameters
-from general.cell_operations import set_cell_to_cache, set_object_to_cell
+from App.general.handlers import _build_basic_response, _add_dropdown_menu
+from App.general.callback_helpers import generate_parameters
+from App.general.cell_operations import set_cell_to_cache, set_object_to_cell
 
 from steer_opencell_design.Components.CurrentCollectors import CurrentCollectorMaterial
 
