@@ -70,6 +70,17 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
 
         # figure.show()
 
+    def test_set_voltage_cutoff_edge_case(self):
+
+        lower_voltage = self.cathode_formulation.voltage_cutoff_range[0]
+        self.cathode_formulation.voltage_cutoff = lower_voltage
+
+        upper_voltage = self.cathode_formulation.voltage_cutoff_range[1]
+        self.cathode_formulation.voltage_cutoff = upper_voltage
+
+        self.assertEqual(self.cathode_formulation.voltage_cutoff, upper_voltage)
+        self.assertEqual(self.cathode_formulation.voltage_cutoff_hard_range, (lower_voltage, upper_voltage))
+
 
 class TestMultiCathodeFormulation(unittest.TestCase):
 

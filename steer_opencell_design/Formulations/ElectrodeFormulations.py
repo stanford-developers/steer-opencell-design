@@ -749,6 +749,10 @@ class _ElectrodeFormulation(ValidationMixin):
     
     @property
     def voltage_cutoff_hard_range(self) -> tuple:
+        return self.voltage_cutoff_range
+
+    @property
+    def voltage_cutoff_hard_range(self) -> tuple:
         return self.voltage_operation_window
 
     @property
@@ -783,10 +787,22 @@ class _ElectrodeFormulation(ValidationMixin):
         
         :return: tuple: (minimum voltage, maximum voltage)
         """
-        return (
-            round(self._voltage_operation_window[0], 3), 
-            round(self._voltage_operation_window[1], 3)
-        )
+        min_voltage = self._voltage_operation_window[0]
+        max_voltage = self._voltage_operation_window[1]
+        
+        # Determine which value is actually min/max since order can vary
+        actual_min = min(min_voltage, max_voltage)
+        actual_max = max(min_voltage, max_voltage)
+        
+        # Round the bounds conservatively (inward to stay within window)
+        rounded_min = np.ceil(actual_min * 1000) / 1000  # Round up (more conservative for min)
+        rounded_max = np.floor(actual_max * 1000) / 1000  # Round down (more conservative for max)
+        
+        # Return in original order
+        if min_voltage <= max_voltage:
+            return (rounded_min, rounded_max)
+        else:
+            return (rounded_max, rounded_min)
 
     @property
     def half_cell_curve(self) -> pd.DataFrame:

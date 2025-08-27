@@ -23,11 +23,6 @@ def create_generic_formulation_callback(formulation_type: FormulationType) -> ca
         cell_data, 
         input_values, 
         slider_values, 
-        range_slider_values=None, 
-        input_start_values=None, 
-        input_end_values=None,
-        radioitem_values=None,
-        textitem_values=None,
     ) -> Tuple:
 
         # Get the triggered ID
@@ -51,17 +46,13 @@ def create_generic_formulation_callback(formulation_type: FormulationType) -> ca
 
         elif trigger_type == TriggerType.PROPERTY:
             return handle_property_update(
+                existing_warnings,
+                triggered_id,
                 cell,
                 formulation,
                 config,
-                existing_warnings,
                 input_values,
                 slider_values,
-                range_slider_values,
-                input_start_values,
-                input_end_values,
-                radioitem_values,
-                textitem_values
             )
 
         # Default: return no update for all outputs
