@@ -75,3 +75,4 @@ class MaterialType(Enum):
 class FormulationType(Enum):
     CATHODE = 'cathode_formulation'
     ANODE = 'anode_formulation'
+

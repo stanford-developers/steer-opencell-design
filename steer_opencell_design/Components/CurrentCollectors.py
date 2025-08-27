@@ -195,22 +195,25 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
 
         self._coated_area = self._a_side_coated_area + self._b_side_coated_area
 
-        if hasattr(self, '_a_side_insulation_coordinates') and \
-              hasattr(self, '_b_side_insulation_coordinates') and \
-                self._a_side_insulation_coordinates is not None and \
-                    self._b_side_insulation_coordinates is not None:
+        if hasattr(self, '_a_side_insulation_coordinates') and hasattr(self, '_b_side_insulation_coordinates'):
 
             # calculate the area of the a side insulation area
-            self._a_side_insulation_area = self.get_area_from_points(
-                self._a_side_insulation_coordinates[:, 0],
-                self._a_side_insulation_coordinates[:, 1]
-            )
+            if len(self._a_side_insulation_coordinates) >= 3:
+                self._a_side_insulation_area = self.get_area_from_points(
+                    self._a_side_insulation_coordinates[:, 0],
+                    self._a_side_insulation_coordinates[:, 1]
+                )
+            else:
+                self._a_side_insulation_area = 0
 
             # calculate the area of the b side insulation area
-            self._b_side_insulation_area = self.get_area_from_points(
-                self._b_side_insulation_coordinates[:, 0],
-                self._b_side_insulation_coordinates[:, 1]
-            )
+            if len(self._b_side_insulation_coordinates) >= 3:
+                self._b_side_insulation_area = self.get_area_from_points(
+                    self._b_side_insulation_coordinates[:, 0],
+                    self._b_side_insulation_coordinates[:, 1]
+                )
+            else:
+                self._b_side_insulation_area = 0
 
             self._insulation_area = self._a_side_insulation_area + self._b_side_insulation_area
 
@@ -360,9 +363,9 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         self._a_side_coated_coordinates = self.rotate_coordinates(self._a_side_coated_coordinates, rotation_axis, 180, center=self._datum)
         self._b_side_coated_coordinates = self.rotate_coordinates(self._b_side_coated_coordinates, rotation_axis, 180, center=self._datum)
 
-        if hasattr(self, '_a_side_insulation_coordinates') and self._a_side_insulation_coordinates is not None:
+        if hasattr(self, '_a_side_insulation_coordinates'):
             self._a_side_insulation_coordinates = self.rotate_coordinates(self._a_side_insulation_coordinates, rotation_axis, 180, center=self._datum)
-        if hasattr(self, '_b_side_insulation_coordinates') and self._b_side_insulation_coordinates is not None:
+        if hasattr(self, '_b_side_insulation_coordinates'):
             self._b_side_insulation_coordinates = self.rotate_coordinates(self._b_side_insulation_coordinates, rotation_axis, 180, center=self._datum)
 
         if hasattr(self, '_weld_tabs'):
@@ -2412,7 +2415,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         return fig
 
-    def _get_insulation_coordinates(self, side: str) -> np.ndarray:
+    def _get_insulation_coordinates(self, side: str = 'a') -> np.ndarray:
         """
         Return insulation coordinates for a given side ('a' or 'b') as numpy array.
         Handles three cases: (1) above body, (2) below body, (3) straddling edge.
@@ -3525,14 +3528,30 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
     def _get_b_side_coated_area_trace(self) -> Tuple[go.Scatter, float]:
         return self._get_coated_area_trace(side='b')
 
-    def _get_insulation_coordinates(self, side: str) -> Tuple[go.Scatter, float]:
-        return None
+    def _get_insulation_coordinates(self, side: str = 'a') -> np.ndarray:
+        """
+        Return empty insulation coordinates for TabWeldedCurrentCollector.
+        
+        TabWeldedCurrentCollectors don't have traditional insulation areas
+        since they use welded tabs instead.
+        
+        Parameters
+        ----------
+        side : str
+            Side of the current collector ('a' or 'b')
+            
+        Returns
+        -------
+        np.ndarray
+            Empty array with shape (0, 3) representing no insulation coordinates
+        """
+        return np.empty((0, 3))
     
     def _get_a_side_insulation_area_trace(self) -> Tuple[go.Scatter, float]:
-        return self._get_insulation_area_trace(side='a')
+        return self._get_insulation_area_trace()
     
     def _get_b_side_insulation_area_trace(self) -> Tuple[go.Scatter, float]:
-        return self._get_insulation_area_trace(side='b')
+        return self._get_insulation_area_trace()
 
     def _add_dimensions(
             self, 

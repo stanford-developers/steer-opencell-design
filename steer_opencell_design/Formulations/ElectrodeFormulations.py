@@ -8,7 +8,7 @@ from steer_materials.CellMaterials.Electrode import _ActiveMaterial, Binder, Con
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 
 
 
@@ -78,7 +78,7 @@ class _ElectrodeFormulation(ValidationMixin):
         """
         Calculate the density of the electrode formulation.
 
-        :return: The density of the electrode formulation in g/cm³.
+        :return: The density of the electrode formulation in kg/m³.
         """
         def extract_material_data(material_dict):
             return [(material._density, fraction) for material, fraction in material_dict.items()]
@@ -92,7 +92,8 @@ class _ElectrodeFormulation(ValidationMixin):
 
         # Weighted average density
         self._density = sum(d * mf for d, mf in components)
-        return self._density
+        self._specific_volume = 1 / self._density
+        return self._density, self._specific_volume
 
     def _calculate_specific_cost(self) -> float:
         """
@@ -365,41 +366,140 @@ class _ElectrodeFormulation(ValidationMixin):
             # Fallback empty curve
             self._half_cell_curve = np.array([]).reshape(0, 3)
 
-    def plot_half_cell_curve(self, add_materials: bool = False, **kwargs):
-
+    def plot_half_cell_curve(self, add_materials: bool = False, show_direction: bool = True, **kwargs) -> go.Figure:
+        """
+        Plot the half-cell curve for the formulation.
+        
+        Parameters
+        ----------
+        add_materials : bool, optional
+            Whether to add individual material curves. Default is False.
+        show_direction : bool, optional
+            Whether to show charge/discharge direction markers. Default is True.
+        **kwargs : dict
+            Additional arguments to pass to the plotly figure layout.
+            
+        Returns
+        -------
+        go.Figure
+            A plotly figure showing the half-cell curve.
+        """
         figure = go.Figure()
+        
+        # Check if we have half-cell curve data
+        try:
+            main_curve_data = self.half_cell_curve
+            if main_curve_data.empty:
+                raise ValueError("No half-cell curve data available")
+        except (AttributeError, ValueError):
+            # Return empty figure with message
+            figure.add_annotation(
+                text="No half-cell curve data available",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                showarrow=False, font_size=16
+            )
+            figure.update_layout(
+                paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
+                plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
+                **kwargs
+            )
+            return figure
 
-        main_curve_data = self.half_cell_curve
-
+        # Add main formulation curve as a single continuous line
         figure.add_trace(
             go.Scatter(
                 x=main_curve_data['Specific Capacity (mAh/g)'],
                 y=main_curve_data['Voltage (V)'],
                 name=self.name,
-                line=dict(color=self._color, width=2, shape='spline'),
+                line=dict(
+                    color=self._color, 
+                    width=kwargs.get('line_width', 3),
+                    shape='spline'
+                ),
+                mode='lines',
+                hovertemplate='<b>%{fullData.name}</b><br>' +
+                            'Capacity: %{x:.2f} mAh/g<br>' +
+                            'Voltage: %{y:.3f} V<br>' +
+                            'Direction: %{customdata}<extra></extra>',
+                customdata=main_curve_data['Direction'],
+                showlegend=True
             )
         )
 
-        if add_materials:
-            for material in self._active_materials.keys():
-                
-                material_curve = material.half_cell_curve
+        # Add individual material curves if requested
+        if add_materials and hasattr(self, '_active_materials'):
+            for i, material in enumerate(self._active_materials.keys()):
+                try:
+                    material_curve = material.half_cell_curve
+                    if not material_curve.empty:
+                        # Use different line styles for materials
+                        dash_styles = ['dash', 'dashdot', 'longdash', 'longdashdot']
+                        dash_style = dash_styles[i % len(dash_styles)]
+                        
+                        figure.add_trace(
+                            go.Scatter(
+                                x=material_curve['Specific Capacity (mAh/g)'],
+                                y=material_curve['Voltage (V)'],
+                                name=material.name,
+                                line=dict(
+                                    color=material._color, 
+                                    width=kwargs.get('material_line_width', 2),
+                                    dash=dash_style
+                                ),
+                                mode='lines',
+                                hovertemplate='<b>%{fullData.name}</b><br>' +
+                                            'Capacity: %{x:.2f} mAh/g<br>' +
+                                            'Voltage: %{y:.3f} V<br>' +
+                                            '<i>Individual Material</i><extra></extra>',
+                                opacity=kwargs.get('material_opacity', 0.7)
+                            )
+                        )
+                except (AttributeError, ValueError):
+                    # Skip materials without valid curve data
+                    continue
 
-                figure.add_trace(
-                    go.Scatter(
-                        x=material_curve['Specific Capacity (mAh/g)'],
-                        y=material_curve['Voltage (V)'],
-                        name=material.name,
-                        line=dict(color=material._color, width=2, dash='dash')
-                    )
-                )
-
+        # Enhanced layout with better defaults
         figure.update_layout(
+            title=kwargs.get('title', ''),
             paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
             plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
-            xaxis=dict(title='Specific Capacity (mAh/g)'),
-            yaxis=dict(title='Voltage (V)'),
-            **kwargs
+            xaxis=dict(
+                title='Specific Capacity (mAh/g)',
+                showgrid=kwargs.get('show_grid', True),
+                gridcolor=kwargs.get('grid_color', 'lightgray'),
+                zeroline=kwargs.get('show_zeroline', True),
+                zerolinecolor=kwargs.get('zeroline_color', 'black'),
+                zerolinewidth=kwargs.get('zeroline_width', 1)
+            ),
+            yaxis=dict(
+                title='Voltage (V)',
+                showgrid=kwargs.get('show_grid', True),
+                gridcolor=kwargs.get('grid_color', 'lightgray'),
+                zeroline=kwargs.get('show_zeroline', True),
+                zerolinecolor=kwargs.get('zeroline_color', 'black'),
+                zerolinewidth=kwargs.get('zeroline_width', 1)
+            ),
+            legend=dict(
+                orientation=kwargs.get('legend_orientation', 'v'),
+                yanchor=kwargs.get('legend_yanchor', 'top'),
+                y=kwargs.get('legend_y', 1),
+                xanchor=kwargs.get('legend_xanchor', 'left'),
+                x=kwargs.get('legend_x', 1.02)
+            ),
+            margin=dict(
+                l=kwargs.get('margin_l', 50),
+                r=kwargs.get('margin_r', 50),
+                t=kwargs.get('margin_t', 50),
+                b=kwargs.get('margin_b', 50)
+            ),
+            hovermode='closest',
+            **{k: v for k, v in kwargs.items() if k not in [
+                'line_width', 'material_line_width', 'material_opacity', 'show_grid',
+                'grid_color', 'show_zeroline', 'zeroline_color', 'zeroline_width',
+                'legend_orientation', 'legend_yanchor', 'legend_y', 'legend_xanchor',
+                'legend_x', 'margin_l', 'margin_r', 'margin_t', 'margin_b', 'title'
+            ]}
         )
 
         return figure
@@ -496,7 +596,7 @@ class _ElectrodeFormulation(ValidationMixin):
             values=values,
             branchvalues="total",
             marker=dict(colors=colors),
-            hovertemplate='<b>%{label}</b><br>Cost: $%{value:.4f}/kg<br>Percentage: %{percentParent}<extra></extra>',
+            hovertemplate='<b>%{label}</b><br>Cost: $%{value:.4f}/kg<br>Percentage: %{percentParent:.1%}<extra></extra>',
             maxdepth=3,
         ))
         
@@ -603,7 +703,7 @@ class _ElectrodeFormulation(ValidationMixin):
             values=values,
             branchvalues="total",
             marker=dict(colors=colors),
-            hovertemplate='<b>%{label}</b><br>Density: %{value:.4f} g/cm³<br>Percentage: %{percentParent}<extra></extra>',
+            hovertemplate='<b>%{label}</b><br>Cost: $%{value:.4f}/kg<br>Percentage: %{percentParent:.1%}<extra></extra>',
             maxdepth=3,
         ))
         
@@ -668,6 +768,15 @@ class _ElectrodeFormulation(ValidationMixin):
         return {key: round(value * KG_TO_G / (M_TO_CM ** 3), 4) for key, value in self._density_breakdown.items()}
 
     @property
+    def specific_volume(self) -> float:
+        """
+        Get the theoretical specific volume of the formulation.
+        
+        :return: Theoretical specific volume in cm³/g.
+        """
+        return round(self._specific_volume * (M_TO_CM ** 3) / KG_TO_G, 2)
+
+    @property
     def voltage_operation_window(self) -> tuple:
         """
         Get the valid voltage range for the half cell curves.
@@ -704,6 +813,19 @@ class _ElectrodeFormulation(ValidationMixin):
     @property
     def color(self) -> str:
         return self._color
+
+    @property
+    def properties(self) -> Dict[str, Any]:
+        """
+        Get the properties of the electrode.
+
+        :return: Dictionary containing the properties of the electrode.
+        """
+        return {
+            'Specific Cost': f"$ {self.specific_cost} /g",
+            'Density': f"{self.density} g/cm³",
+            'Specific Volume': f"{self.specific_volume} cm³/g",
+        }
 
     @name.setter
     def name(self, name: str):

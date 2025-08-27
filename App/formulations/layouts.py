@@ -95,10 +95,7 @@ cathode_formulation_plots = ds.html.Div([
             id='cathode_formulation_specific_capacity_plot', 
             style={'width': '100%', 'height': '50vh'},
             responsive=True,
-            config={
-                'modeBarButtonsToRemove': ['autoScale2d', 'resetScale2d'],
-                'responsive': True
-            }
+            config={'responsive': True}
         ),
     ]),
 
@@ -113,10 +110,7 @@ cathode_formulation_plots = ds.html.Div([
                 id='cathode_formulation_specific_cost_breakdown_plot', 
                 style={'width': '100%', 'height': '40vh'},
                 responsive=True,
-                config={
-                    'modeBarButtonsToRemove': ['autoScale2d', 'resetScale2d'],
-                    'responsive': True
-                }
+                config={'responsive': True}
             ),
         ], style={'flex': '1', 'minWidth': '0'}),  # flex: 1 makes it take equal space, minWidth: 0 prevents overflow
 
@@ -126,16 +120,13 @@ cathode_formulation_plots = ds.html.Div([
                 id='cathode_formulation_density_breakdown_plot', 
                 style={'width': '100%', 'height': '40vh'},
                 responsive=True,
-                config={
-                    'modeBarButtonsToRemove': ['autoScale2d', 'resetScale2d'],
-                    'responsive': True
-                }
+                config={'responsive': True}
             ),
         ], style={'flex': '1', 'minWidth': '0'}),  # flex: 1 makes it take equal space, minWidth: 0 prevents overflow
     ], style={
         'display': 'flex', 
         'flex-direction': 'row',
-        'gap': '10px',  # Small gap between the two plots
+        'gap': '30px',  # Small gap between the two plots
         'width': '100%'
     }),
 
@@ -148,6 +139,35 @@ cathode_formulation_plots = ds.html.Div([
     'min-height': '40vh',  # Ensures minimum height
     'overflow': 'hidden'  # Prevent overflow
 })
+
+
+
+cathode_properties = ds.html.Div([
+    
+    ds.html.Br(),
+    ds.html.H5('Cathode Formulation Properties', style={'font-weight': 'bold'}),
+    ds.html.Br(),
+
+    # Container div for the properties table
+    ds.html.Div(
+        id='cathode_formulation_properties_div',
+        children=[
+            ds.html.P("Properties will be displayed here when calculated.", 
+                     style={'font-style': 'italic', 'color': '#666'})
+        ],
+        style={
+            'border': '1px solid #ddd',
+            'border-radius': '4px',
+            'padding': '15px',
+            'margin': '10px 0',
+            'background-color': '#f9f9f9',
+            'min-height': '200px',
+            'width': '80%'
+        }
+    ),
+
+], style={'padding': '20px', 'width': '100%'})
+
 
 
 cathode_formulation_layout = ds.html.Div([
@@ -171,6 +191,7 @@ cathode_formulation_layout = ds.html.Div([
             cathode_conductive_additive_div,
             cathode_conductive_additive_buttons_div,
             ds.html.Br(),
+            cathode_properties,
             ds.html.Div(style={'height': '400px'})
 
             ], style={'flex': '0 0 55%', 'padding': '20px', 'box-sizing': 'border-box'}),
