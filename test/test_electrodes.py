@@ -80,7 +80,7 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         self.assertEqual(
             self.cathode.cost_breakdown,
             {'NaNiMn P2-O3 Composite': 0.17, 
-             'PVDF': 0.05, 
+             'PVDF': 0.01, 
              'CMC': 0.0, 
              'Super P': 0.01, 
              'Graphite': 0.0, 
@@ -314,7 +314,7 @@ class testAnodeTabWelded(unittest.TestCase):
         self.assertEqual(
             self.anode.cost_breakdown,
             {'Synthetic Graphite': 0.22, 
-             'CMC': 0.05, 
+             'CMC': 0.01, 
              'Super P': 0.07, 
              'Tab Welded Current Collector': 0.81}
         )
@@ -358,7 +358,7 @@ class TestElectrodeControlModes(unittest.TestCase):
         )
 
         cc_material = CurrentCollectorMaterial.from_database("Aluminum")
-        
+
         self.current_collector = PunchedCurrentCollector(
             material=cc_material,
             width=300,

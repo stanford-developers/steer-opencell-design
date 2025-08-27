@@ -6,7 +6,12 @@ from pickle import loads
 from typing import List, Tuple, Dict
 
 from App.general.store import LANDING_PAGE_IMAGE_URLS
-from App.general.callback_helpers import get_internal_construction_options, get_electrochemical_reference_options, get_cell_name_options
+
+from App.general.callback_helpers import (
+    get_internal_construction_options, 
+    get_electrochemical_reference_options, 
+    get_cell_name_options
+)
 
 
 @callback(

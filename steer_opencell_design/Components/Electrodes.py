@@ -297,25 +297,8 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
                           Reduce the insulation thickness ({self.insulation_thickness}  um) 
                           or increase the coating thickness ({self.coating_thickness}  um)""", UserWarning)
 
-    def _calculate_theoretical_specific_volume(self) -> None:
-        """
-        Calculate the overall porosity of the electrode formulation.
-        """
-        active_mass_fractions = [v for v in self._formulation._active_materials.values()]
-        active_mass_densities = [am._density for am in self._formulation._active_materials.keys()]
-        
-        conductive_aids_fractions = [v for v in self._formulation._conductive_additives.values()]
-        conductive_aids_densities = [ca._density for ca in self._formulation._conductive_additives.keys()]
-
-        binder_fractions = [v for v in self._formulation._binders.values()]
-        binder_densities = [b._density for b in self._formulation._binders.keys()]
-
-        self._theoretical_specific_volume = sum(amf / amd for amf, amd in zip(active_mass_fractions, active_mass_densities)) + \
-                                            sum(caf / cad for caf, cad in zip(conductive_aids_fractions, conductive_aids_densities)) + \
-                                            sum(bf / bd for bf, bd in zip(binder_fractions, binder_densities))
-
     def _calculate_porosity(self) -> None:
-        porosity = 1 - (self._theoretical_specific_volume * self._calender_density)
+        porosity = 1 - (self._formulation._specific_volume * self._calender_density)
         self._porosity = porosity
 
         if porosity < 0:
@@ -805,8 +788,8 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         max_porosity = self.porosity_range[1] / 100
         min_porosity = self.porosity_range[0] / 100
 
-        min_calender_density = ((1 - max_porosity) / self._theoretical_specific_volume) * (KG_TO_G / M_TO_CM**3)
-        max_calender_density = ((1 - min_porosity) / self._theoretical_specific_volume) * (KG_TO_G / M_TO_CM**3)
+        min_calender_density = ((1 - max_porosity) / self._formulation._specific_volume) * (KG_TO_G / M_TO_CM**3)
+        max_calender_density = ((1 - min_porosity) / self._formulation._specific_volume) * (KG_TO_G / M_TO_CM**3)
 
         return (
             min_calender_density,
@@ -819,8 +802,8 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         max_porosity = self.porosity_hard_range[1] / 100
         min_porosity = self.porosity_hard_range[0] / 100
 
-        min_calender_density = ((1 - max_porosity) / self._theoretical_specific_volume) * (KG_TO_G / M_TO_CM**3)
-        max_calender_density = ((1 - min_porosity) / self._theoretical_specific_volume) * (KG_TO_G / M_TO_CM**3)
+        min_calender_density = ((1 - max_porosity) / self._formulation._specific_volume) * (KG_TO_G / M_TO_CM**3)
+        max_calender_density = ((1 - min_porosity) / self._formulation._specific_volume) * (KG_TO_G / M_TO_CM**3)
      
         return (
             min_calender_density,
@@ -1164,7 +1147,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         """
         self.validate_percentage(porosity, 'porosity')
         porosity_fraction = porosity / 100
-        new_calender_density = (1 - porosity_fraction) / self._theoretical_specific_volume
+        new_calender_density = (1 - porosity_fraction) / self._formulation._specific_volume
         self.calender_density = new_calender_density  * (KG_TO_G / M_TO_CM**3)
         
     @formulation.setter
@@ -1172,7 +1155,6 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
     def formulation(self, formulation: _ElectrodeFormulation):
         self.validate_formulations(formulation)
         self._formulation = formulation
-        self._calculate_theoretical_specific_volume()
 
     @voltage_cutoff.setter
     @calculate_half_cell_curve
