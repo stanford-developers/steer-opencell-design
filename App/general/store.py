@@ -17,7 +17,6 @@ cell_store = ds.dcc.Store(
     data = {'cache_key': None}
 )
 
-
 warnings_store = ds.dcc.Store(
     id = 'warnings_store',
     data = []

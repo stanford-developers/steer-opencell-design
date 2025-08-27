@@ -263,6 +263,7 @@ def get_cell_from_database(cell_name: str) -> Dict:
 
     cell = get_cell_from_database(cell_name)
     new_key = set_cell_to_cache(cell)
+    
     return [{'cache_key': new_key}]
 
 

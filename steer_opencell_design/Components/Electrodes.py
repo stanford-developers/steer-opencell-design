@@ -215,7 +215,9 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
 
             setattr(self, f'_{side}_side_coating_coordinates', np.column_stack([x, y, z]))
             
-            if hasattr(self._current_collector, f'_{side}_side_insulation_coordinates'):
+            if (hasattr(self._current_collector, f'_{side}_side_insulation_coordinates') and 
+                getattr(self._current_collector, f'_{side}_side_insulation_coordinates') is not None):
+
                 # Calculate insulation coordinates
                 insulation_coordinates = getattr(self._current_collector, f'_{side}_side_insulation_coordinates')
                 
@@ -1194,10 +1196,10 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
 
         self.validate_insulation_material(insulation_material) if insulation_material else None
 
-        if self._current_collector._insulation_area != 0 and insulation_material is None:
+        if self._current_collector.insulation_area != 0 and insulation_material is None:
             raise ValueError("Insulation material must be provided if the current collector has an insulation width")
         
-        if self._current_collector._insulation_area == 0 and insulation_material is not None:
+        if self._current_collector.insulation_area == 0 and insulation_material is not None:
             raise ValueError("Insulation material cannot be provided if the current collector does not have an insulation area")
         
         self._insulation_material = insulation_material

@@ -404,6 +404,220 @@ class _ElectrodeFormulation(ValidationMixin):
 
         return figure
 
+    def plot_specific_cost_breakdown(self, **kwargs) -> go.Figure:
+        """
+        Create a sunburst plot showing the specific cost breakdown of the formulation.
+        
+        Parameters
+        ----------
+        **kwargs : dict
+            Additional arguments to pass to the plotly figure layout.
+            
+        Returns
+        -------
+        go.Figure
+            A plotly sunburst chart showing the cost breakdown by material type and individual materials.
+        """
+        # Get the cost breakdown data
+        cost_data = self.specific_cost_breakdown
+        
+        if not cost_data:
+            # Return empty figure if no cost data
+            fig = go.Figure()
+            fig.add_annotation(
+                text="No cost breakdown data available",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                showarrow=False, font_size=16
+            )
+            return fig
+        
+        # Separate materials by type
+        active_material_names = [material.name for material in self._active_materials.keys()]
+        binder_names = [material.name for material in self._binders.keys()] if self._binders else []
+        conductive_additive_names = [material.name for material in self._conductive_additives.keys()] if self._conductive_additives else []
+        
+        # Prepare data for sunburst
+        labels = ["Total"]  # Root node
+        parents = [""]      # Root has no parent
+        values = [sum(cost_data.values())]  # Total cost
+        colors = ["lightgray"]  # Root color
+        
+        # Add category nodes (Active Materials, Binders, Conductive Additives)
+        categories = []
+        category_costs = {}
+        
+        if active_material_names:
+            categories.append("Active Materials")
+            category_costs["Active Materials"] = sum(cost_data[name] for name in active_material_names if name in cost_data)
+            
+        if binder_names:
+            categories.append("Binders")
+            category_costs["Binders"] = sum(cost_data[name] for name in binder_names if name in cost_data)
+            
+        if conductive_additive_names:
+            categories.append("Conductive Additives")
+            category_costs["Conductive Additives"] = sum(cost_data[name] for name in conductive_additive_names if name in cost_data)
+        
+        # Add category nodes
+        for category in categories:
+            labels.append(category)
+            parents.append("Total")
+            values.append(category_costs[category])
+            colors.append("lightblue" if "Active" in category else "lightgreen" if "Binder" in category else "lightyellow")
+        
+        # Add individual material nodes
+        for material_name, cost in cost_data.items():
+            labels.append(material_name)
+            values.append(cost)
+            
+            # Determine parent category
+            if material_name in active_material_names:
+                parents.append("Active Materials")
+                # Get the actual material color
+                material_obj = next((m for m in self._active_materials.keys() if m.name == material_name), None)
+                colors.append(material_obj._color if material_obj else "blue")
+            elif material_name in binder_names:
+                parents.append("Binders")
+                material_obj = next((m for m in self._binders.keys() if m.name == material_name), None)
+                colors.append(material_obj._color if material_obj else "green")
+            elif material_name in conductive_additive_names:
+                parents.append("Conductive Additives")
+                material_obj = next((m for m in self._conductive_additives.keys() if m.name == material_name), None)
+                colors.append(material_obj._color if material_obj else "orange")
+            else:
+                parents.append("Total")
+                colors.append("gray")
+        
+        # Create the sunburst plot
+        fig = go.Figure(go.Sunburst(
+            labels=labels,
+            parents=parents,
+            values=values,
+            branchvalues="total",
+            marker=dict(colors=colors),
+            hovertemplate='<b>%{label}</b><br>Cost: $%{value:.4f}/kg<br>Percentage: %{percentParent}<extra></extra>',
+            maxdepth=3,
+        ))
+        
+        # Update layout
+        fig.update_layout(
+            font_size=12,
+            paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
+            plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
+            margin=dict(l=10, r=10, t=10, b=10),  # Minimal margins with no title
+            **kwargs
+        )
+        
+        return fig
+
+    def plot_density_breakdown(self, **kwargs) -> go.Figure:
+        """
+        Create a sunburst plot showing the density breakdown of the formulation.
+        
+        Parameters
+        ----------
+        **kwargs : dict
+            Additional arguments to pass to the plotly figure layout.
+            
+        Returns
+        -------
+        go.Figure
+            A plotly sunburst chart showing the density breakdown by material type and individual materials.
+        """
+        # Get the density breakdown data
+        density_data = self.density_breakdown
+        
+        if not density_data:
+            # Return empty figure if no density data
+            fig = go.Figure()
+            fig.add_annotation(
+                text="No density breakdown data available",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, xanchor='center', yanchor='middle',
+                showarrow=False, font_size=16
+            )
+            return fig
+        
+        # Separate materials by type
+        active_material_names = [material.name for material in self._active_materials.keys()]
+        binder_names = [material.name for material in self._binders.keys()] if self._binders else []
+        conductive_additive_names = [material.name for material in self._conductive_additives.keys()] if self._conductive_additives else []
+        
+        # Prepare data for sunburst
+        labels = ["Total"]  # Root node
+        parents = [""]      # Root has no parent
+        values = [sum(density_data.values())]  # Total density
+        colors = ["lightgray"]  # Root color
+        
+        # Add category nodes (Active Materials, Binders, Conductive Additives)
+        categories = []
+        category_densities = {}
+        
+        if active_material_names:
+            categories.append("Active Materials")
+            category_densities["Active Materials"] = sum(density_data[name] for name in active_material_names if name in density_data)
+            
+        if binder_names:
+            categories.append("Binders")
+            category_densities["Binders"] = sum(density_data[name] for name in binder_names if name in density_data)
+            
+        if conductive_additive_names:
+            categories.append("Conductive Additives")
+            category_densities["Conductive Additives"] = sum(density_data[name] for name in conductive_additive_names if name in density_data)
+        
+        # Add category nodes
+        for category in categories:
+            labels.append(category)
+            parents.append("Total")
+            values.append(category_densities[category])
+            colors.append("lightblue" if "Active" in category else "lightgreen" if "Binder" in category else "lightyellow")
+        
+        # Add individual material nodes
+        for material_name, density in density_data.items():
+            labels.append(material_name)
+            values.append(density)
+            
+            # Determine parent category
+            if material_name in active_material_names:
+                parents.append("Active Materials")
+                # Get the actual material color
+                material_obj = next((m for m in self._active_materials.keys() if m.name == material_name), None)
+                colors.append(material_obj._color if material_obj else "blue")
+            elif material_name in binder_names:
+                parents.append("Binders")
+                material_obj = next((m for m in self._binders.keys() if m.name == material_name), None)
+                colors.append(material_obj._color if material_obj else "green")
+            elif material_name in conductive_additive_names:
+                parents.append("Conductive Additives")
+                material_obj = next((m for m in self._conductive_additives.keys() if m.name == material_name), None)
+                colors.append(material_obj._color if material_obj else "orange")
+            else:
+                parents.append("Total")
+                colors.append("gray")
+        
+        # Create the sunburst plot
+        fig = go.Figure(go.Sunburst(
+            labels=labels,
+            parents=parents,
+            values=values,
+            branchvalues="total",
+            marker=dict(colors=colors),
+            hovertemplate='<b>%{label}</b><br>Density: %{value:.4f} g/cm³<br>Percentage: %{percentParent}<extra></extra>',
+            maxdepth=3,
+        ))
+        
+        # Update layout
+        fig.update_layout(
+            font_size=12,
+            paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
+            plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
+            margin=dict(l=10, r=10, t=10, b=10),  # Minimal margins with no title
+            **kwargs
+        )
+        
+        return fig
+
     @property
     def name(self) -> Optional[str]:
         return self._name.replace("_", " ").title()
@@ -430,6 +644,14 @@ class _ElectrodeFormulation(ValidationMixin):
         return round(self._voltage_cutoff, 3)
 
     @property
+    def voltage_cutoff_range(self) -> tuple:
+        return self.voltage_operation_window
+    
+    @property
+    def voltage_cutoff_hard_range(self) -> tuple:
+        return self.voltage_operation_window
+
+    @property
     def density(self) -> float:
         return round(self._density * KG_TO_G / (M_TO_CM ** 3), 2)
     
@@ -446,15 +668,15 @@ class _ElectrodeFormulation(ValidationMixin):
         return {key: round(value * KG_TO_G / (M_TO_CM ** 3), 4) for key, value in self._density_breakdown.items()}
 
     @property
-    def voltage_operating_window(self) -> tuple:
+    def voltage_operation_window(self) -> tuple:
         """
         Get the valid voltage range for the half cell curves.
         
         :return: tuple: (minimum voltage, maximum voltage)
         """
         return (
-            round(self._voltage_operating_window[0], 3), 
-            round(self._voltage_operating_window[1], 3)
+            round(self._voltage_operation_window[0], 3), 
+            round(self._voltage_operation_window[1], 3)
         )
 
     @property

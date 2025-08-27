@@ -358,6 +358,7 @@ class TestElectrodeControlModes(unittest.TestCase):
         )
 
         cc_material = CurrentCollectorMaterial.from_database("Aluminum")
+        
         self.current_collector = PunchedCurrentCollector(
             material=cc_material,
             width=300,

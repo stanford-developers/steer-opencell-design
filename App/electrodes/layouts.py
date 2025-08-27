@@ -3,6 +3,7 @@ from steer_core.Apps.Components.SliderComponents import SliderWithTextInput
 from App.database_service import INSULATION_MATERIALS
 
 
+
 cathode_insulation_material_parameters = ds.html.Div(
 
     id = 'cathode_insulation_material_parameters',

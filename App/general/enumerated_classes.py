@@ -72,3 +72,6 @@ class MaterialType(Enum):
     ANODE_CURRENT_COLLECTOR_TAB = 'anode_current_collector_tab'
     ANODE_INSULATION = 'anode_insulation'
 
+class FormulationType(Enum):
+    CATHODE = 'cathode_formulation'
+    ANODE = 'anode_formulation'
