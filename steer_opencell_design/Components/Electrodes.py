@@ -314,8 +314,10 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         figure.data = [trace for trace in figure.data if trace.name == "Body" or trace.name == "Tab"]
         figure.add_trace(self.top_down_coating_trace)
 
-        if hasattr(self, '_a_side_insulation_coordinates') and self._a_side_insulation_coordinates is not None:
-            figure.add_trace(self.top_down_insulation_trace)
+        # Only add insulation trace if it exists and is not None
+        insulation_trace = self.top_down_insulation_trace
+        if insulation_trace is not None:
+            figure.add_trace(insulation_trace)
         
         return figure
 

@@ -329,11 +329,9 @@ def create_properties_table(
     
     return dash_table.DataTable(**table_config)
 
-
 def _format_property_name(key: str) -> str:
     """Format property name by replacing underscores and capitalizing."""
     return key.replace('_', ' ').title()
-
 
 def _format_property_value(value: Any, decimal_places: int) -> str:
     """Format property value based on its type."""
@@ -347,7 +345,6 @@ def _format_property_value(value: Any, decimal_places: int) -> str:
         return "N/A"
     else:
         return str(value)
-
 
 def _get_default_table_styles() -> Dict[str, Dict[str, Any]]:
     """Get default styling for properties tables."""
@@ -372,7 +369,6 @@ def _get_default_table_styles() -> Dict[str, Dict[str, Any]]:
             'backgroundColor': '#ffffff',
         }
     }
-
 
 def _create_fallback_message() -> html.Div:
     """Create fallback message when no properties are available."""
