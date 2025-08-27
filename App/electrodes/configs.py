@@ -1,4 +1,4 @@
-from typing import Type, List, Optional
+from typing import Type, List
 from dataclasses import dataclass
 from steer_opencell_design.Components.Electrodes import Cathode, Anode, _Electrode
 from App.general.enumerated_classes import ElectrodeType

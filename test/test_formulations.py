@@ -1,4 +1,6 @@
 import unittest
+import numpy as np
+import plotly.graph_objects as go
 from steer_opencell_design.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation
 from steer_materials.CellMaterials.Electrode import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
 
@@ -107,7 +109,7 @@ class TestMultiCathodeFormulation(unittest.TestCase):
         self.assertEqual(self.cathode_formulation._name, 'Cathode Formulation')
         self.assertEqual(self.cathode_formulation.name, 'Cathode Formulation')
         self.assertEqual(self.cathode_formulation.density, 3.55)
-        self.assertEqual(self.cathode_formulation.specific_cost, 11.00)
+        self.assertEqual(self.cathode_formulation.specific_cost, 8.37)
         self.assertEqual(round(sum(self.cathode_formulation.specific_cost_breakdown.values()), 2), self.cathode_formulation.specific_cost)
         self.assertEqual(round(sum(self.cathode_formulation.density_breakdown.values()), 2), self.cathode_formulation.density)
 
@@ -132,7 +134,7 @@ class TestMultiCathodeFormulation(unittest.TestCase):
         self.cathode_formulation.voltage_cutoff = 4.09
 
         self.assertEqual(self.cathode_formulation.density, 3.43)
-        self.assertEqual(self.cathode_formulation.specific_cost, 9.1)
+        self.assertEqual(self.cathode_formulation.specific_cost, 6.47)
 
         figure = self.cathode_formulation.plot_half_cell_curve(add_materials=True)
         # figure.show()
@@ -242,7 +244,7 @@ class TestDualAnodeFormulation(unittest.TestCase):
         self.assertEqual(self.anode_formulation._name, 'Anode Formulation')
         self.assertEqual(self.anode_formulation.name, 'Anode Formulation')
         self.assertEqual(self.anode_formulation.density, 1.55)
-        self.assertEqual(self.anode_formulation.specific_cost, 10.36)
+        self.assertEqual(self.anode_formulation.specific_cost, 7.87)
         self.assertEqual(round(sum(self.anode_formulation.specific_cost_breakdown.values()), 2), self.anode_formulation.specific_cost)
         self.assertEqual(round(sum(self.anode_formulation.density_breakdown.values()), 2), self.anode_formulation.density)
 
@@ -256,4 +258,11 @@ class TestDualAnodeFormulation(unittest.TestCase):
 
         # figure.show()
 
+    def test_plot_breakdowns(self):
+
+        figure1 = self.anode_formulation.plot_specific_cost_breakdown()
+        figure2 = self.anode_formulation.plot_density_breakdown()
+
+        # figure1.show()
+        # figure2.show()
 

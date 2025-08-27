@@ -136,8 +136,8 @@ def update_cathode_current_collector_design(design_value, cell_data):
         return no_update
     
     # Import function to convert current collector
-    from current_collectors.callback_helpers import convert_current_collector
-    from general.cell_operations import set_cell_to_cache
+    from App.current_collectors.callback_helpers import convert_current_collector
+    from App.general.cell_operations import set_cell_to_cache
 
     # Do the conversion
     new_collector = convert_current_collector(current_collector, target_type_name)

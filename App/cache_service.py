@@ -16,14 +16,14 @@ class MyCache:
     def init_app(self, app):
 
         redis_url = os.environ.get("REDIS_URL", "")
+
         if redis_url:
-            redis_instance = redis.StrictRedis.from_url(os.environ.get("REDIS_URL", "redis://127.0.0.1:6379"))
             config = {
                 'CACHE_TYPE': 'RedisCache',
-                'CACHE_DEFAULT_TIMEOUT': 30000,
+                'CACHE_REDIS_URL': os.environ.get('REDIS_URL', ''),
                 'CACHE_KEY_PREFIX': 'opencell_',
-                'CACHE_REDIS_CLIENT': redis_instance
             }
+
         else:
             config = {
                 'CACHE_TYPE': 'SimpleCache',
