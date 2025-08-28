@@ -7,6 +7,7 @@ from steer_core.DataManager import DataManager
 from dash import no_update, dash_table, html
 
 ### Database Helpers ###
+
 def get_internal_construction_options(form_factor):
     """
     Fetch internal construction options based on the form factor.
@@ -97,6 +98,34 @@ def get_cell_name_options(internal_construction, electrochemical_reference, form
 
     return [{'label': option, 'value': option} for option in options]
 
+def get_active_materials(electrochemical_reference, electrode: str):
+    """
+    Fetch active materials based on the electrochemical reference and electrode type.
+
+    Parameters
+    ----------
+    electrochemical_reference : str
+        The selected electrochemical reference for the cell.
+
+    Returns
+    -------
+    list
+        A list of dictionaries containing the cathode materials.
+    """
+    table = 'cathode_materials' if electrode == 'cathode' else 'anode_materials'
+
+    options = (
+        DataManager()
+        .get_data(table)
+        .query(f"reference == '{electrochemical_reference}'")
+        .filter(['name'])
+        .sort_values(by='name')
+        .drop_duplicates()
+        .name
+        .tolist()
+    )
+
+    return options
 
 ### Serialization Helpers ###
 

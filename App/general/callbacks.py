@@ -10,7 +10,8 @@ from App.general.store import LANDING_PAGE_IMAGE_URLS
 from App.general.callback_helpers import (
     get_internal_construction_options, 
     get_electrochemical_reference_options, 
-    get_cell_name_options
+    get_cell_name_options,
+    get_active_materials
 )
 
 
@@ -153,6 +154,8 @@ def update_electrochemical_reference_options(
     [
         Output('cell_name_dropdown', 'options'),
         Output('electrochemical_reference_dropdown', 'value'),
+        Output('cathode_active_material_store', 'data'),
+        Output('anode_active_material_store', 'data'),
     ],
     [
         Input('electrochemical_reference_dropdown', 'value'),
@@ -165,7 +168,7 @@ def update_electrochemical_reference_options(
     ],
     prevent_initial_call=True
 )
-def update_cell_name_options(
+def update_cell_name_options_and_store_active_material_names(
     electrochemical_reference, 
     electrochemical_reference_button_clicks, 
     internal_construction, 
@@ -177,21 +180,26 @@ def update_cell_name_options(
 
     # If the electrochemical reference dropdown is triggered, return options based on the selected electrochemical reference
     if trigger == 'electrochemical_reference_dropdown':
-        return get_cell_name_options(internal_construction, electrochemical_reference, form_factor), no_update
-    
+        cathode_materials = get_active_materials(electrochemical_reference, 'cathode')
+        anode_materials = get_active_materials(electrochemical_reference, 'anode')
+        cell_names = get_cell_name_options(internal_construction, electrochemical_reference, form_factor)
+        return cell_names, no_update, cathode_materials, anode_materials
+
     elif isinstance(trigger, dict) and trigger['type'] == 'cell_schematic_button':
         electrochemical_reference = trigger['key']
 
         # If the electrochemical reference is not in the options, return no update
         if electrochemical_reference not in [option['value'] for option in electrochemical_reference_options]:
-            return no_update, no_update
+            return no_update, no_update, no_update, no_update
         
-        # Otherwise, return the options based on the electrochemical reference, internal construction, and form factor
-        return get_cell_name_options(internal_construction, electrochemical_reference, form_factor), electrochemical_reference
+        # Get active materials for the schematic button trigger
+        cathode_materials = get_active_materials(electrochemical_reference, 'cathode')
+        anode_materials = get_active_materials(electrochemical_reference, 'anode')
+        cell_names = get_cell_name_options(internal_construction, electrochemical_reference, form_factor)
+        return cell_names, electrochemical_reference, cathode_materials, anode_materials
 
     else:
-        # If no valid trigger, return no update
-        return no_update, no_update
+        return no_update, no_update, no_update, no_update
 
 
 @callback(
