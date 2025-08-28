@@ -69,6 +69,65 @@ def create_generic_formulation_callback(formulation_type: FormulationType) -> ca
     return generic_update_formulation
 
 
+def create_generic_formulation_material_callback(formulation_type: FormulationType) -> callable:
+    """Factory function to create formulation material management callbacks."""
+    
+    config = FORMULATION_CONFIGS[formulation_type]
+    
+    def generic_update_formulation_materials(
+        existing_warnings,
+        cell_data,
+        active_children,
+        binder_children,
+        conductive_children,
+        active_materials,
+        add_active_clicks,
+        remove_active_clicks,
+        add_binder_clicks,
+        remove_binder_clicks,
+        add_conductive_clicks,
+        remove_conductive_clicks,
+    ) -> Tuple:
+
+        # Get the triggered ID
+        triggered_id = ctx.triggered_id
+
+        # Get the cell from cache
+        cell = get_cell_from_cache(cell_data['cache_key'])
+
+        # Get the formulation from the cell
+        formulation = get_object_from_cell(cell, config)
+
+        # Create trigger router and process the trigger
+        trigger_type = TriggerRouter.get_trigger_type(triggered_id)
+
+        if trigger_type == TriggerType.CELL_STORE:
+            from App.formulations.handlers import handle_cell_store_update_material_children
+            return handle_cell_store_update_material_children(
+                formulation, 
+                config, 
+                active_materials
+            )
+
+        elif trigger_type == TriggerType.BUTTON:
+            from App.formulations.handlers import handle_material_button_update
+            return handle_material_button_update(
+                triggered_id,
+                formulation,
+                config,
+                existing_warnings,
+                active_children,
+                binder_children,
+                conductive_children,
+                active_materials
+            )
+
+        # Default: return no update for all outputs
+        return create_no_update_response(5)  # 5 outputs for this callback
+
+    return generic_update_formulation_materials
+
+
 def create_material_component(
         material, 
         material_config, 
