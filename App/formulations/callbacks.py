@@ -6,8 +6,9 @@ from App.formulations.callback_helpers import create_generic_formulation_callbac
 from App.formulations.configs import FORMULATION_CONFIGS
 
 from App.general.enumerated_classes import FormulationType
-from App.general.cell_operations import set_object_to_cell, get_object_from_cell
+from App.general.cell_operations import get_object_from_cell
 from App.general.callback_helpers import create_properties_table
+from App.general.trigger_router import TriggerRouter, TriggerType
 
 
 @callback(
@@ -56,6 +57,59 @@ def update_cathode_formulation(
     return response
 
 
+@callback(
+    [
+        Output('warnings_store', 'data', allow_duplicate=True),
+        Output('cell_store', 'data', allow_duplicate=True),
+        Output('cathode-active-material-div', 'children'),
+        Output('cathode-binder-div', 'children'),
+        Output('cathode-conductive-additive-div', 'children'),
+    ],
+    [
+        Input('cell_store', 'data'),
+        Input('add-cathode-binder-button', 'n_clicks'),
+        Input('remove-cathode-binder-button', 'n_clicks'),
+        Input('add-cathode-conductive-additive-button', 'n_clicks'),
+        Input('remove-cathode-conductive-additive-button', 'n_clicks'),
+    ],
+    [
+        State('warnings_store', 'data'),
+        State('cathode-binder-div', 'children'),
+        State('cathode-conductive-additive-div', 'children'),
+        State('cathode_active_material_store', 'data'),
+    ],
+    prevent_initial_call=True
+)
+def update_cathode_formulation(
+    cell_data,
+    add_binder_clicks,
+    remove_binder_clicks,
+    add_conductive_clicks,
+    remove_conductive_clicks,
+    existing_warnings,
+    binder_children,
+    conductive_children,
+    active_materials
+):
+    
+    # Get the triggered ID
+    triggered_id = ctx.triggered_id
+
+    # get the configuration
+    config = FORMULATION_CONFIGS[FormulationType.CATHODE]
+
+    # get the cell from the cell store
+    cell = cache.get(cell_data['cache_key'])
+
+    # get the formulation
+    formulation = get_object_from_cell(cell, config)
+
+    # Create trigger router and process the trigger
+    trigger_type = TriggerRouter.get_trigger_type(triggered_id)
+
+    if trigger_type == TriggerType.CELL_STORE:
+        from App.formulations.handlers import handle_cell_store_update_material_children
+        return handle_cell_store_update_material_children(formulation, config, active_materials)
 
 
 @callback(

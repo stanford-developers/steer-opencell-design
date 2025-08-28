@@ -6,13 +6,22 @@ from App.formulations.layouts import cathode_formulation_layout
 from App.electrodes.layouts import cathode_electrode_layout
 from App.electrode_assembly.layouts import electrode_assembly_layout
 
-from App.general.store import cell_store, warnings_store, LANDING_PAGE_IMAGE_URLS
+from App.general.store import (
+    cell_store, 
+    warnings_store, 
+    cathode_active_material_store,
+    anode_active_material_store,
+    LANDING_PAGE_IMAGE_URLS
+)
+
 from App.database_service import FORM_FACTOR_OPTIONS
 
 
 stores = ds.html.Div([
     cell_store,
-    warnings_store
+    warnings_store,
+    cathode_active_material_store,
+    anode_active_material_store
 ])
 
 
