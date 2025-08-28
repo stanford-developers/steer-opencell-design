@@ -18,26 +18,25 @@ def handle_cell_store_update_material_children(
         config,
         active_materials
     ):
+    """Create empty MaterialSelector components based on formulation structure."""
     
-    from App.formulations.callback_helpers import create_material_component
+    from App.formulations.callback_helpers import create_empty_material_component
 
+    # Create empty components based on the number of materials in the formulation
     active_material_children = []
-    for i, (active_material, weight_percent) in enumerate(formulation.active_materials.items()):
-        active_material_config = MATERIAL_CONFIGS[MaterialType.ACTIVE_MATERIAL]
-        new_component = create_material_component(active_material, active_material_config, config, i, weight_percent, active_materials)
-        active_material_children.append(new_component())
+    for i in range(len(formulation.active_materials)):
+        empty_component = create_empty_material_component("active_material", config, i, active_materials)
+        active_material_children.append(empty_component())
 
     binder_children = []
-    for i, (binder, weight_percent) in enumerate(formulation.binders.items()):
-        binder_config = MATERIAL_CONFIGS[MaterialType.BINDER]
-        new_component = create_material_component(binder, binder_config, config, i, weight_percent)
-        binder_children.append(new_component())
+    for i in range(len(formulation.binders)):
+        empty_component = create_empty_material_component("binder", config, i)
+        binder_children.append(empty_component())
 
     conductive_children = []
-    for i, (conductive_additive, weight_percent) in enumerate(formulation.conductive_additives.items()):
-        conductive_additive_config = MATERIAL_CONFIGS[MaterialType.CONDUCTIVE_ADDITIVE]
-        new_component = create_material_component(conductive_additive, conductive_additive_config, config, i, weight_percent)
-        conductive_children.append(new_component())
+    for i in range(len(formulation.conductive_additives)):
+        empty_component = create_empty_material_component("conductive_additive", config, i)
+        conductive_children.append(empty_component())
         
     return no_update, no_update, active_material_children, binder_children, conductive_children
 
