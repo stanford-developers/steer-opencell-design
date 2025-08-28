@@ -2,7 +2,7 @@ from dash import callback, Input, Output, ctx, State, no_update, MATCH, ALL, das
 
 from App.cache_service import cache
 
-from App.formulations.callback_helpers import create_generic_formulation_callback, create_generic_formulation_material_callback
+from App.formulations.callback_helpers import create_generic_formulation_callback, create_generic_formulation_div_callback
 from App.formulations.configs import FORMULATION_CONFIGS
 
 from App.general.enumerated_classes import FormulationType
@@ -34,7 +34,7 @@ from App.general.trigger_router import TriggerRouter, TriggerType
     ],
     prevent_initial_call=True
 )
-def update_cathode_formulation(
+def update_cathode_formulation_main(
     cell_data,
     input_n_sub,
     input_n_blur,
@@ -55,6 +55,53 @@ def update_cathode_formulation(
     )
 
     return response
+
+
+# @callback(
+#     [
+#         Output('warnings_store', 'data', allow_duplicate=True),
+#         Output('cell_store', 'data', allow_duplicate=True),
+#         Output({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'property': ALL, 'index': ALL, 'subtype': 'slider'}, 'value'),
+#         Output({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'property': ALL, 'index': ALL, 'subtype': 'slider'}, 'min'),
+#         Output({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'property': ALL, 'index': ALL, 'subtype': 'slider'}, 'max'),
+#         Output({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'property': ALL, 'index': ALL, 'subtype': 'slider'}, 'marks'),
+#         Output({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'property': ALL, 'index': ALL, 'subtype': 'slider'}, 'step'),
+#         Output({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'property': ALL, 'index': ALL, 'subtype': 'input'}, 'step'),
+#     ],
+#     [
+#         Input({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'index': ALL, 'subtype': 'dropdown'}, 'n_submit'),
+#         Input({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'index': ALL, 'property': ALL, 'subtype': 'input'}, 'n_submit'),
+#         Input({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'index': ALL, 'property': ALL, 'subtype': 'input'}, 'n_blur'),
+#         Input({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'value'),
+#     ],
+#     [
+#         State('cell_store', 'data'),
+#         State({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'index': ALL, 'property': ALL, 'subtype': 'input'}, 'value'),
+#         State('warnings_store', 'data'),
+#     ],
+#     prevent_initial_call=True
+# )
+# def update_cathode_formulation_material(
+#     dropdown_values,
+#     input_n_sub,
+#     input_n_blur,
+#     slider_values,
+#     cell_data,
+#     input_values,
+#     existing_warnings
+# ):
+#     print('triggered_indexed_callback', ctx.triggered_id)
+#     callback_function = create_generic_formulation_callback(FormulationType.CATHODE)
+
+#     response = callback_function(
+#         existing_warnings,
+#         cell_data,
+#         input_values,
+#         slider_values,
+#         dropdown_values
+#     )
+
+#     return response
 
 
 @callback(
@@ -83,7 +130,7 @@ def update_cathode_formulation(
     ],
     prevent_initial_call=True
 )
-def update_cathode_formulation_children(
+def update_cathode_formulation_div(
     cell_data,
     add_active_clicks,
     remove_active_clicks,
@@ -97,8 +144,8 @@ def update_cathode_formulation_children(
     conductive_children,
     active_materials
 ):
-    
-    callback_function = create_generic_formulation_material_callback(FormulationType.CATHODE)
+
+    callback_function = create_generic_formulation_div_callback(FormulationType.CATHODE)
 
     response = callback_function(
         existing_warnings,

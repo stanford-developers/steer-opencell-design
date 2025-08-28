@@ -141,7 +141,6 @@ cathode_formulation_plots = ds.html.Div([
 })
 
 
-
 cathode_properties = ds.html.Div([
     
     ds.html.Br(),
@@ -167,7 +166,6 @@ cathode_properties = ds.html.Div([
     ),
 
 ], style={'padding': '20px', 'width': '100%'})
-
 
 
 cathode_formulation_layout = ds.html.Div([

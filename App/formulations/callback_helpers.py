@@ -13,6 +13,7 @@ from App.general.trigger_router import TriggerRouter, TriggerType
 from App.general.enumerated_classes import FormulationType
 
 from App.formulations.configs import FORMULATION_CONFIGS
+from App.formulations.handlers import handle_indexed_dropdown_update
 from App.database_service import BINDER_MATERIALS, CONDUCTIVE_ADDITIVE_MATERIALS
 
 from steer_core.Apps.Components.MaterialSelectors import MaterialSelector, ActiveMaterialSelector
@@ -27,8 +28,9 @@ def create_generic_formulation_callback(formulation_type: FormulationType) -> ca
     def generic_update_formulation(
         existing_warnings,
         cell_data, 
-        input_values, 
-        slider_values, 
+        input_values = None, 
+        slider_values = None, 
+        dropdown_values = None,
     ) -> Tuple:
 
         # Get the triggered ID
@@ -62,28 +64,17 @@ def create_generic_formulation_callback(formulation_type: FormulationType) -> ca
                 input_values,
                 slider_values,
             )
+        
+        elif trigger_type == TriggerType.INDEXED_DROPDOWN:
 
-        elif trigger_type == TriggerType.COMPONENT_SELECTOR:
-            # Handle MaterialSelector dropdown changes
-            from App.formulations.handlers import handle_material_selector_dropdown_update
-            
-            # Get the dropdown value from the triggered component
-            # For component selector triggers, we need to find the specific value
-            dropdown_value = None
-            if hasattr(ctx, 'triggered') and ctx.triggered:
-                trigger_value = ctx.triggered[0].get('value')
-                if trigger_value:
-                    dropdown_value = trigger_value
-            
-            if dropdown_value:
-                return handle_material_selector_dropdown_update(
-                    triggered_id,
-                    dropdown_value,
-                    cell,
-                    formulation,
-                    config,
-                    existing_warnings
-                )
+            return handle_indexed_dropdown_update(
+                existing_warnings,
+                triggered_id,
+                cell,
+                formulation,
+                config,
+                dropdown_values
+            )
 
         # Default: return no update for all outputs
         return create_no_update_response(len(config.parameter_list))
@@ -91,7 +82,7 @@ def create_generic_formulation_callback(formulation_type: FormulationType) -> ca
     return generic_update_formulation
 
 
-def create_generic_formulation_material_callback(formulation_type: FormulationType) -> callable:
+def create_generic_formulation_div_callback(formulation_type: FormulationType) -> callable:
     """Factory function to create formulation material management callbacks."""
     
     config = FORMULATION_CONFIGS[formulation_type]
@@ -162,10 +153,10 @@ def create_material_component(
     """Create a new material component."""
 
     # get the new parameters
-    parameter_values, min_values, max_values = generate_parameters(material, material_config)
+    parameter_list, min_values, max_values = generate_parameters(material, material_config)
 
     # Create slider configurations
-    slider_configs = create_slider_config(min_values, max_values, parameter_values)
+    slider_configs = create_slider_config(min_values, max_values, parameter_list)
 
     base_id = {"object": "formulation", "index": index}
 
