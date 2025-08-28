@@ -49,56 +49,72 @@ def handle_material_button_update(
     
     if button_type == 'add':
         if material_category == 'active':
-            return handle_add_active_material(formulation, config, existing_warnings, active_materials)
+            return handle_add_material_to_children("active_material", active_children, binder_children, conductive_children, config, active_materials)
         elif material_category == 'binder':
-            return handle_add_binder(formulation, config, existing_warnings, active_materials)
+            return handle_add_material_to_children("binder", active_children, binder_children, conductive_children, config)
         elif material_category == 'conductive':
-            return handle_add_conductive_additive(formulation, config, existing_warnings, active_materials)
+            return handle_add_material_to_children("conductive_additive", active_children, binder_children, conductive_children, config)
     
     elif button_type == 'remove':
         if material_category == 'active':
-            return handle_remove_active_material(formulation, config, existing_warnings, active_materials)
+            return handle_remove_material_from_children("active", active_children, binder_children, conductive_children)
         elif material_category == 'binder':
-            return handle_remove_binder(formulation, config, existing_warnings, active_materials)
+            return handle_remove_material_from_children("binder", active_children, binder_children, conductive_children)
         elif material_category == 'conductive':
-            return handle_remove_conductive_additive(formulation, config, existing_warnings, active_materials)
+            return handle_remove_material_from_children("conductive", active_children, binder_children, conductive_children)
     
     # Default: return current state
-    return handle_cell_store_update_material_children(formulation, config, active_materials)
+    return no_update, no_update, active_children or [], binder_children or [], conductive_children or []
 
 
-def handle_add_active_material(formulation, config, existing_warnings, active_materials):
-    """Handle adding a new active material."""
-    # For now, return current state - implement logic later
-    return handle_cell_store_update_material_children(formulation, config, active_materials)
+def handle_add_material_to_children(material_type, active_children, binder_children, conductive_children, config, active_materials=None):
+    """Add a new empty material component to the appropriate children list."""
+    from App.formulations.callback_helpers import create_empty_material_component
+    
+    # Work with current children lists
+    current_active = list(active_children) if active_children else []
+    current_binder = list(binder_children) if binder_children else []
+    current_conductive = list(conductive_children) if conductive_children else []
+    
+    if material_type == "active_material":
+        # Add new empty active material
+        new_index = len(current_active)
+        empty_component = create_empty_material_component("active_material", config, new_index, active_materials)
+        current_active.append(empty_component())
+    elif material_type == "binder":
+        # Add new empty binder
+        new_index = len(current_binder)
+        empty_component = create_empty_material_component("binder", config, new_index)
+        current_binder.append(empty_component())
+    elif material_type == "conductive_additive":
+        # Add new empty conductive additive
+        new_index = len(current_conductive)
+        empty_component = create_empty_material_component("conductive_additive", config, new_index)
+        current_conductive.append(empty_component())
+    
+    return no_update, no_update, current_active, current_binder, current_conductive
 
 
-def handle_remove_active_material(formulation, config, existing_warnings, active_materials):
-    """Handle removing an active material."""
-    # For now, return current state - implement logic later
-    return handle_cell_store_update_material_children(formulation, config, active_materials)
-
-
-def handle_add_binder(formulation, config, existing_warnings, active_materials):
-    """Handle adding a new binder."""
-    # For now, return current state - implement logic later
-    return handle_cell_store_update_material_children(formulation, config, active_materials)
-
-
-def handle_remove_binder(formulation, config, existing_warnings, active_materials):
-    """Handle removing a binder."""
-    # For now, return current state - implement logic later
-    return handle_cell_store_update_material_children(formulation, config, active_materials)
-
-
-def handle_add_conductive_additive(formulation, config, existing_warnings, active_materials):
-    """Handle adding a new conductive additive."""
-    # For now, return current state - implement logic later
-    return handle_cell_store_update_material_children(formulation, config, active_materials)
-
-
-def handle_remove_conductive_additive(formulation, config, existing_warnings, active_materials):
-    """Handle removing a conductive additive."""
-    # For now, return current state - implement logic later
-    return handle_cell_store_update_material_children(formulation, config, active_materials)
+def handle_remove_material_from_children(material_category, active_children, binder_children, conductive_children):
+    """Remove the last material component from the appropriate children list."""
+    
+    # Work with current children lists
+    current_active = list(active_children) if active_children else []
+    current_binder = list(binder_children) if binder_children else []
+    current_conductive = list(conductive_children) if conductive_children else []
+    
+    if material_category == "active":
+        # Remove last active material (but keep at least one if any exist)
+        if len(current_active) > 1:
+            current_active = current_active[:-1]
+    elif material_category == "binder":
+        # Remove last binder
+        if len(current_binder) > 0:
+            current_binder = current_binder[:-1]
+    elif material_category == "conductive":
+        # Remove last conductive additive
+        if len(current_conductive) > 0:
+            current_conductive = current_conductive[:-1]
+    
+    return no_update, no_update, current_active, current_binder, current_conductive
 

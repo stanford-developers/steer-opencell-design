@@ -193,3 +193,45 @@ def create_material_component(
             div_width='calc(100%)'
         )
 
+
+def create_empty_material_component(
+        material_type,
+        formulation_config, 
+        index,
+        active_materials = None
+) -> MaterialSelector:
+    """Create an empty material component with default values."""
+    
+    from App.materials.configs import MATERIAL_CONFIGS, MaterialType
+    
+    # Get the material config based on material type
+    if material_type == "binder":
+        options = BINDER_MATERIALS
+        component_class = MaterialSelector
+        div_width = 'calc(80%)'
+    elif material_type == "conductive_additive":
+        options = CONDUCTIVE_ADDITIVE_MATERIALS
+        component_class = MaterialSelector
+        div_width = 'calc(80%)'
+    elif material_type == "active_material":
+        options = active_materials or []
+        component_class = ActiveMaterialSelector
+        div_width = 'calc(100%)'
+    else:
+        raise ValueError(f"Unknown material type: {material_type}")
+
+    # Create base ID
+    base_id = {"object": "electrode", "index": index, "material": material_type}
+    
+    # Set electrode type
+    if formulation_config.formulation_type == CathodeFormulation:
+        base_id = {**base_id, "electrode": "cathode"}
+    elif formulation_config.formulation_type == AnodeFormulation:
+        base_id = {**base_id, "electrode": "anode"}
+
+    return component_class(
+        id_base=base_id,
+        material_options=options,
+        div_width=div_width
+    )
+
