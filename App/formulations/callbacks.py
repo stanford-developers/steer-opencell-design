@@ -2,7 +2,7 @@ from dash import callback, Input, Output, ctx, State, no_update, MATCH, ALL, das
 
 from App.cache_service import cache
 
-from App.formulations.callback_helpers import create_generic_formulation_callback
+from App.formulations.callback_helpers import create_generic_formulation_callback, create_generic_formulation_material_callback
 from App.formulations.configs import FORMULATION_CONFIGS
 
 from App.general.enumerated_classes import FormulationType
@@ -67,6 +67,8 @@ def update_cathode_formulation(
     ],
     [
         Input('cell_store', 'data'),
+        Input('add-cathode-active-button', 'n_clicks'),
+        Input('remove-cathode-active-button', 'n_clicks'),
         Input('add-cathode-binder-button', 'n_clicks'),
         Input('remove-cathode-binder-button', 'n_clicks'),
         Input('add-cathode-conductive-additive-button', 'n_clicks'),
@@ -74,42 +76,48 @@ def update_cathode_formulation(
     ],
     [
         State('warnings_store', 'data'),
+        State('cathode-active-material-div', 'children'),
         State('cathode-binder-div', 'children'),
         State('cathode-conductive-additive-div', 'children'),
         State('cathode_active_material_store', 'data'),
     ],
     prevent_initial_call=True
 )
-def update_cathode_formulation(
+def update_cathode_formulation_materials(
     cell_data,
+    add_active_clicks,
+    remove_active_clicks,
     add_binder_clicks,
     remove_binder_clicks,
     add_conductive_clicks,
     remove_conductive_clicks,
     existing_warnings,
+    active_children,
     binder_children,
     conductive_children,
     active_materials
 ):
     
-    # Get the triggered ID
-    triggered_id = ctx.triggered_id
+    callback_function = create_generic_formulation_material_callback(
+        FormulationType.CATHODE
+    )
 
-    # get the configuration
-    config = FORMULATION_CONFIGS[FormulationType.CATHODE]
+    response = callback_function(
+        existing_warnings,
+        cell_data,
+        active_children,
+        binder_children,
+        conductive_children,
+        active_materials,
+        add_active_clicks,
+        remove_active_clicks,
+        add_binder_clicks,
+        remove_binder_clicks,
+        add_conductive_clicks,
+        remove_conductive_clicks,
+    )
 
-    # get the cell from the cell store
-    cell = cache.get(cell_data['cache_key'])
-
-    # get the formulation
-    formulation = get_object_from_cell(cell, config)
-
-    # Create trigger router and process the trigger
-    trigger_type = TriggerRouter.get_trigger_type(triggered_id)
-
-    if trigger_type == TriggerType.CELL_STORE:
-        from App.formulations.handlers import handle_cell_store_update_material_children
-        return handle_cell_store_update_material_children(formulation, config, active_materials)
+    return response
 
 
 @callback(

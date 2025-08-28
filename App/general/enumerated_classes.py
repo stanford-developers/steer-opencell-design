@@ -22,6 +22,7 @@ class TriggerType(Enum):
     ACTION = 'action'
     RADIOITEM = 'radioitem'
     COMPONENT_SELECTOR = 'component_selector'
+    BUTTON = 'button'
 
 
 class ActionType(Enum):

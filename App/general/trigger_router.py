@@ -38,6 +38,10 @@ class TriggerRouter:
         if triggered_id == TriggerType.CELL_STORE.value:
             return TriggerType.CELL_STORE
         
+        # Check for button triggers
+        if 'button' in triggered_id:
+            return TriggerType.BUTTON
+        
         # Check for component selector patterns
         for pattern in TriggerRouter.COMPONENT_SELECTOR_PATTERNS:
             if triggered_id.endswith(pattern):
