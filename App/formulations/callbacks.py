@@ -83,7 +83,7 @@ def update_cathode_formulation(
     ],
     prevent_initial_call=True
 )
-def update_cathode_formulation_materials(
+def update_cathode_formulation_children(
     cell_data,
     add_active_clicks,
     remove_active_clicks,
@@ -98,9 +98,7 @@ def update_cathode_formulation_materials(
     active_materials
 ):
     
-    callback_function = create_generic_formulation_material_callback(
-        FormulationType.CATHODE
-    )
+    callback_function = create_generic_formulation_material_callback(FormulationType.CATHODE)
 
     response = callback_function(
         existing_warnings,

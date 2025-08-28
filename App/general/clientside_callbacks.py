@@ -15,6 +15,23 @@ clientside_callback(
     prevent_initial_call=True
 )
 
+
+clientside_callback(
+    """
+    function(slider_value) {
+        if (slider_value === null || slider_value === undefined) {
+            return window.dash_clientside.no_update;
+        }
+        return slider_value;
+    }
+    """,
+    Output({'electrode': MATCH, 'object': MATCH, 'property': MATCH, 'index': MATCH, 'material': MATCH, 'subtype': 'input'}, 'value'),
+    Input({'electrode': MATCH, 'object': MATCH, 'property': MATCH, 'index': MATCH, 'material': MATCH, 'subtype': 'slider'}, 'drag_value'),
+    Input('cell_store', 'modified_timestamp'),
+    prevent_initial_call=True
+)
+
+
 # Clientside callback to sync rangeslider drag_value to input_start and input_end values
 clientside_callback(
     """

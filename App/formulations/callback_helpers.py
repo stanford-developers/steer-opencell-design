@@ -63,6 +63,28 @@ def create_generic_formulation_callback(formulation_type: FormulationType) -> ca
                 slider_values,
             )
 
+        elif trigger_type == TriggerType.COMPONENT_SELECTOR:
+            # Handle MaterialSelector dropdown changes
+            from App.formulations.handlers import handle_material_selector_dropdown_update
+            
+            # Get the dropdown value from the triggered component
+            # For component selector triggers, we need to find the specific value
+            dropdown_value = None
+            if hasattr(ctx, 'triggered') and ctx.triggered:
+                trigger_value = ctx.triggered[0].get('value')
+                if trigger_value:
+                    dropdown_value = trigger_value
+            
+            if dropdown_value:
+                return handle_material_selector_dropdown_update(
+                    triggered_id,
+                    dropdown_value,
+                    cell,
+                    formulation,
+                    config,
+                    existing_warnings
+                )
+
         # Default: return no update for all outputs
         return create_no_update_response(len(config.parameter_list))
 
@@ -140,12 +162,12 @@ def create_material_component(
     """Create a new material component."""
 
     # get the new parameters
-    parameter_list, min_values, max_values = generate_parameters(material, material_config)
+    parameter_values, min_values, max_values = generate_parameters(material, material_config)
 
     # Create slider configurations
-    slider_configs = create_slider_config(min_values, max_values, parameter_list)
+    slider_configs = create_slider_config(min_values, max_values, parameter_values)
 
-    base_id = {"object": "electrode", "index": index}
+    base_id = {"object": "formulation", "index": index}
 
     # set the electrode to the base id
     if formulation_config.formulation_type == CathodeFormulation:
@@ -221,7 +243,7 @@ def create_empty_material_component(
         raise ValueError(f"Unknown material type: {material_type}")
 
     # Create base ID
-    base_id = {"object": "electrode", "index": index, "material": material_type}
+    base_id = {"object": "formulation", "index": index, "material": material_type}
     
     # Set electrode type
     if formulation_config.formulation_type == CathodeFormulation:
