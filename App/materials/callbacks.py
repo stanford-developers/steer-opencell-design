@@ -20,9 +20,9 @@ from App.general.enumerated_classes import MaterialType, ElectrodeType
         Input('cathode_current_collector_material_selector', 'value'),
         Input({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
         Input({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
+        Input({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'slider'}, 'value'),
     ],
     [
-        State({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'slider'}, 'value'),
         State({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'input'}, 'value'),
         State('warnings_store', 'data'),
     ],
@@ -70,9 +70,9 @@ def update_cathode_current_collector_material(
         Input('cathode_current_collector_tab_material_selector', 'value'),
         Input({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
         Input({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
+        Input({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'slider'}, 'value'),
     ],
     [
-        State({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'slider'}, 'value'),
         State({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'input'}, 'value'),
         State('warnings_store', 'data'),
     ],
@@ -119,9 +119,9 @@ def update_cathode_current_collector_rab_material(
         Input('cathode_insulation_material_selector', 'value'),
         Input({'electrode': 'cathode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
         Input({'electrode': 'cathode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
+        Input({'electrode': 'cathode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'slider'}, 'value'),
     ],
     [
-        State({'electrode': 'cathode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'slider'}, 'value'),
         State({'electrode': 'cathode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'input'}, 'value'),
         State('warnings_store', 'data'),
     ],

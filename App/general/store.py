@@ -27,7 +27,17 @@ cathode_active_material_store = ds.dcc.Store(
     data = []
 )
 
+cathode_formulation_structure_updated = ds.dcc.Store(
+    id = 'cathode_formulation_structure_updated',
+    data = []
+)
+
 anode_active_material_store = ds.dcc.Store(
     id = 'anode_active_material_store',
+    data = []
+)
+
+anode_formulation_structure_updated = ds.dcc.Store(
+    id = 'anode_formulation_structure_updated',
     data = []
 )

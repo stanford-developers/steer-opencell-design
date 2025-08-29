@@ -75,7 +75,8 @@ class MaterialType(Enum):
     ANODE_INSULATION = 'anode_insulation'
     BINDER = 'binder'
     CONDUCTIVE_ADDITIVE = 'conductive_additive'
-    ACTIVE_MATERIAL = 'active_material'
+    CATHODE_ACTIVE_MATERIAL = 'cathode_active_material'
+    ANODE_ACTIVE_MATERIAL = 'anode_active_material'
 
 class FormulationType(Enum):
     CATHODE = 'cathode_formulation'
