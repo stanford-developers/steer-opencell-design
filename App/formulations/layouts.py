@@ -47,12 +47,12 @@ cathode_conductive_additive_div = ds.html.Div(
 cathode_active_material_buttons_div = ds.html.Div([
     ds.html.Button(
         "+", 
-        id="add-cathode-active-button",
+        id={'electrode': 'cathode', 'object': 'formulation', 'action': 'add', 'material': 'CathodeActiveMaterial'},
         style={**ADD_REMOVE_BUTTON_STYLE, 'marginRight': '10px'}
     ),
     ds.html.Button(
         "-", 
-        id="remove-cathode-active-button",
+        id={'electrode': 'cathode', 'object': 'formulation', 'action': 'remove', 'material': 'CathodeActiveMaterial'},
         style=ADD_REMOVE_BUTTON_STYLE
     ),
 ])
@@ -61,12 +61,12 @@ cathode_active_material_buttons_div = ds.html.Div([
 cathode_binder_buttons_div = ds.html.Div([
     ds.html.Button(
         "+", 
-        id="add-cathode-binder-button",
+        id={'electrode': 'cathode', 'object': 'formulation', 'action': 'add', 'material': 'Binder'},
         style={**ADD_REMOVE_BUTTON_STYLE, 'marginRight': '10px'}
     ),
     ds.html.Button(
         "-", 
-        id="remove-cathode-binder-button",
+        id={'electrode': 'cathode', 'object': 'formulation', 'action': 'remove', 'material': 'Binder'},
         style=ADD_REMOVE_BUTTON_STYLE
     ),
 ], style=ADD_REMOVE_BUTTON_CONTAINER_STYLE)
@@ -75,12 +75,12 @@ cathode_binder_buttons_div = ds.html.Div([
 cathode_conductive_additive_buttons_div = ds.html.Div([
     ds.html.Button(
         "+", 
-        id="add-cathode-conductive-additive-button",
+        id={'electrode': 'cathode', 'object': 'formulation', 'action': 'add', 'material': 'ConductiveAdditive'},
         style={**ADD_REMOVE_BUTTON_STYLE, 'marginRight': '10px'}
     ),
     ds.html.Button(
         "-", 
-        id="remove-cathode-conductive-additive-button",
+        id={'electrode': 'cathode', 'object': 'formulation', 'action': 'remove', 'material': 'ConductiveAdditive'},
         style=ADD_REMOVE_BUTTON_STYLE
     ),
 ], style=ADD_REMOVE_BUTTON_CONTAINER_STYLE)

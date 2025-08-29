@@ -1,4 +1,5 @@
 from typing import Type, Tuple, List, Dict, Any, Optional, Union
+import time
 
 from App.general.enumerated_classes import CategoricalProperty
 
@@ -411,3 +412,15 @@ def _create_fallback_message() -> html.Div:
             }
         )
     ])
+
+def create_trigger_data(trigger_id: Dict = None, cell_data: Dict = None) -> Dict[str, Any]:
+
+    trigger_data = {'timestamp': time.time()}
+
+    if trigger_id is not None:
+        trigger_data['trigger'] = trigger_id
+    if cell_data is not None:
+        trigger_data['cell_data'] = cell_data
+
+    return trigger_data
+

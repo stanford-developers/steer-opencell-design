@@ -9,7 +9,8 @@ from steer_materials.CellMaterials.Base import (
 from steer_materials.CellMaterials.Electrode import (
     Binder,
     ConductiveAdditive,
-    _ActiveMaterial
+    CathodeMaterial,
+    AnodeMaterial
 )
 
 from App.general.enumerated_classes import (
@@ -23,6 +24,17 @@ from App.materials.lists import (
     ACTIVE_SETTABLE_PARAMETERS
 )
 
+from steer_core.Apps.Components.MaterialSelectors import (
+    MaterialSelector,
+    ActiveMaterialSelector
+)
+
+from App.database_service import (
+    BINDER_MATERIALS,
+    CONDUCTIVE_ADDITIVE_MATERIALS,
+    CATHODE_ACTIVE_MATERIALS,
+    ANODE_ACTIVE_MATERIALS
+)
 
 @dataclass
 class MaterialConfig:
@@ -32,8 +44,9 @@ class MaterialConfig:
     settable_parameters: List[str]
     dropdown_menu: Optional[bool] = None
     cell_path: Optional[List[str]] = None
-    material_selector: Optional[bool] = None
-    active_material_selector: Optional[bool] = None
+    custom_selector: Optional[Type[MaterialSelector]] = None
+    selector_div_width: str = 'calc(100%)'
+    dropdown_options: List[str] = None
 
 
 # Define configurations
@@ -63,19 +76,33 @@ MATERIAL_CONFIGS = {
         material_type=Binder,
         parameter_list=REGULAR_PARAMETER_LIST,
         settable_parameters=REGULAR_SETTABLE_PARAMETERS,
-        material_selector=True
+        selector_div_width='calc(80%)',
+        custom_selector=MaterialSelector,
+        dropdown_options=BINDER_MATERIALS
     ),
     MaterialType.CONDUCTIVE_ADDITIVE: MaterialConfig(
         material_type=ConductiveAdditive,
         parameter_list=REGULAR_PARAMETER_LIST,
         settable_parameters=REGULAR_SETTABLE_PARAMETERS,
-        material_selector=True
+        selector_div_width='calc(80%)',
+        custom_selector=MaterialSelector,
+        dropdown_options=CONDUCTIVE_ADDITIVE_MATERIALS
     ),
-    MaterialType.ACTIVE_MATERIAL: MaterialConfig(
-        material_type=_ActiveMaterial,
+    MaterialType.CATHODE_ACTIVE_MATERIAL: MaterialConfig(
+        material_type=CathodeMaterial,
         parameter_list=ACTIVE_PARAMETER_LIST,
         settable_parameters=ACTIVE_SETTABLE_PARAMETERS,
-        active_material_selector=True
+        custom_selector=ActiveMaterialSelector,
+        dropdown_options=CATHODE_ACTIVE_MATERIALS
+    ),
+    MaterialType.ANODE_ACTIVE_MATERIAL: MaterialConfig(
+        material_type=AnodeMaterial,
+        parameter_list=ACTIVE_PARAMETER_LIST,
+        settable_parameters=ACTIVE_SETTABLE_PARAMETERS,
+        custom_selector=ActiveMaterialSelector,
+        dropdown_options=ANODE_ACTIVE_MATERIALS
     ),
 }
+
+
 

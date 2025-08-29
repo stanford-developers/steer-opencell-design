@@ -59,7 +59,7 @@ class TriggerRouter:
         elif 'action' in triggered_id:
             return TriggerType.ACTION
 
-        elif 'index' in triggered_id and triggered_id['subtype'] == 'dropdown':
+        elif 'index' in triggered_id and triggered_id.get('subtype') == 'dropdown':
             return TriggerType.INDEXED_DROPDOWN
 
         raise ValueError(f"Unknown dict trigger: {triggered_id}")
