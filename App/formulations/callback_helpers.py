@@ -2,17 +2,23 @@ from typing import Type, List, Tuple
 from dash import no_update, ctx
 import time
 
-from steer_materials.CellMaterials.Electrode import CathodeMaterial, AnodeMaterial
+from steer_materials.CellMaterials.Electrode import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
 
-from App.general.callback_helpers import create_no_update_response
+from App.general.callback_helpers import create_no_update_response, generate_parameters
 from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
 from App.general.handlers import handle_cell_store_update, handle_property_update
 
 from App.general.trigger_router import TriggerRouter, TriggerType
 from App.general.enumerated_classes import FormulationType
 
-from App.formulations.configs import FORMULATION_CONFIGS
+from App.formulations.configs import FORMULATION_CONFIGS, FormulationConfig
 from App.formulations.handlers import handle_indexed_dropdown_update, handle_cell_store_update_material_children, handle_material_button_update
+
+from steer_core.Apps.Utils.SliderControls import create_slider_config
+
+from App.materials.configs import MaterialConfig
+
+from steer_opencell_design.Formulations.ElectrodeFormulations import AnodeFormulation, CathodeFormulation
 
 
 def create_generic_formulation_callback(formulation_type: FormulationType) -> callable:
@@ -104,11 +110,24 @@ def create_generic_formulation_div_callback(formulation_type: FormulationType) -
 
         # Handle the case that the cell store is triggered
         if trigger_type == TriggerType.CELL_STORE:
-            return handle_cell_store_update_material_children(existing_warnings, formulation)
+
+            return handle_cell_store_update_material_children(
+                existing_warnings=existing_warnings,
+                formulation=formulation,
+                formulation_config=formulation_config
+            )
 
         # Handle the case that an action button is triggered
         elif trigger_type == TriggerType.ACTION:
-            return handle_material_button_update(existing_warnings, trigger_id, formulation_config, active_children, binder_children, conductive_children)
+
+            return handle_material_button_update(
+                existing_warnings=existing_warnings, 
+                trigger_id=trigger_id, 
+                formulation_config=formulation_config, 
+                active_children=active_children, 
+                binder_children=binder_children, 
+                conductive_children=conductive_children
+            )
 
         # Default: return no update for all outputs
         return (
@@ -123,94 +142,100 @@ def create_generic_formulation_div_callback(formulation_type: FormulationType) -
     return generic_update_formulation_materials
 
 
-# def create_generic_formulation_material_callback(formulation_type: FormulationType) -> callable:
-#     """Factory function to create formulation material value callbacks."""
+def create_generic_formulation_material_callback(formulation_type: FormulationType) -> callable:
+    """Factory function to create formulation material value callbacks."""
     
-#     config = FORMULATION_CONFIGS[formulation_type]
+    config = FORMULATION_CONFIGS[formulation_type]
     
-#     def generic_update_formulation_material_values(
-#         existing_warnings,
-#         cell_data,
-#         dropdown_values,
-#         input_values = None, 
-#         slider_values = None,
-#     ) -> Tuple:
+    def generic_update_formulation_material_values(
+        existing_warnings,
+        cell_data,
+        dropdown_values,
+        input_values = None, 
+        slider_values = None,
+    ) -> Tuple:
 
-#         # Get the triggered ID
-#         triggered_id = ctx.triggered_id
+        # Get the triggered ID
+        triggered_id = ctx.triggered_id
 
-#         # Get the cell from cache
-#         cell = get_cell_from_cache(cell_data['cache_key'])
+        # Get the cell from cache
+        cell = get_cell_from_cache(cell_data['cache_key'])
 
-#         # Get the formulation from the cell
-#         formulation = get_object_from_cell(cell, config)
+        # Get the formulation from the cell
+        formulation = get_object_from_cell(cell, config)
 
-#         # Create trigger router and process the trigger
-#         trigger_type = TriggerRouter.get_trigger_type(triggered_id)
+        # Create trigger router and process the trigger
+        trigger_type = TriggerRouter.get_trigger_type(triggered_id)
 
-#         if trigger_type == TriggerType.CELL_STORE:
-#             from App.formulations.handlers import handle_cell_store_update_material_values
-#             return handle_cell_store_update_material_values(
-#                 formulation,
-#                 config,
-#                 existing_warnings
-#             )
+        if trigger_type == TriggerType.CELL_STORE:
+            from App.formulations.handlers import handle_cell_store_update_material_values
+            return handle_cell_store_update_material_values(formulation, config, existing_warnings)
 
-#         elif trigger_type == TriggerType.INDEXED_DROPDOWN:
-#             from App.formulations.handlers import handle_material_selector_dropdown_update
-#             return handle_material_selector_dropdown_update(
-#                 existing_warnings,
-#                 triggered_id,
-#                 cell,
-#                 formulation,
-#                 config,
-#                 dropdown_values
-#             )
-
-#         elif trigger_type == TriggerType.PROPERTY:
-#             from App.formulations.handlers import handle_material_property_update
-#             return handle_material_property_update(
-#                 existing_warnings,
-#                 triggered_id,
-#                 cell,
-#                 formulation,
-#                 config,
-#                 input_values,
-#                 slider_values,
-#             )
-
-#         # Default: return no update for all outputs
-#         from dash import no_update
-#         return (
-#             existing_warnings,  # warnings_store
-#             no_update,          # cell_store 
-#             no_update,          # dropdown values (no_update for ALL pattern when no change needed)
-#             no_update,          # slider values (no_update for ALL pattern when no change needed)
-#             no_update,          # slider mins (no_update for ALL pattern when no change needed)
-#             no_update,          # slider maxs (no_update for ALL pattern when no change needed)
-#             no_update,          # slider marks (no_update for ALL pattern when no change needed)
-#             no_update,          # slider steps (no_update for ALL pattern when no change needed)
-#             no_update           # input steps (no_update for ALL pattern when no change needed)
-#         )
-
-#     return generic_update_formulation_material_values
+        elif trigger_type == TriggerType.INDEXED_DROPDOWN:
+            from App.formulations.handlers import handle_material_selector_dropdown_update
+            return handle_material_selector_dropdown_update(
+                existing_warnings,
+                triggered_id,
+                cell,
+                formulation,
+                config,
+                dropdown_values
+            )
 
 
-def create_empty_material_component(material_config, index) -> Type:
+
+def create_material_component(
+        material_config: MaterialConfig,
+        formulation_config: FormulationConfig,
+        index: float, 
+        empty: bool = True,
+        material = None, 
+        weight_percent: float = None
+) -> Type:
     """Create an empty material component with default values."""
 
     # Create base ID
-    base_id = {"object": "formulation", "index": index, "material": material_config.material_type.__class__.__name__}
+    base_id = {
+        "object": "formulation", 
+        "index": index
+    }
 
-    # Set electrode type to the id
-    if material_config.material_type == CathodeMaterial:
+    # set the electrode item to the dictionary
+    if formulation_config.formulation_type == CathodeFormulation:
         base_id = {**base_id, "electrode": "cathode"}
-    elif material_config.material_type == AnodeMaterial:
+    elif formulation_config.formulation_type == AnodeFormulation:
         base_id = {**base_id, "electrode": "anode"}
 
-    return material_config.custom_selector(
-        id_base=base_id,
-        material_options=material_config.dropdown_options,
-        div_width=material_config.selector_div_width
-    )
+    # set the material type to the base ID
+    if material_config.material_type == CathodeMaterial or material_config.material_type == AnodeMaterial:
+        base_id = {**base_id, "material": "active_material"}
+    elif material_config.material_type == Binder:
+        base_id = {**base_id, "material": "binder"}
+    elif material_config.material_type == ConductiveAdditive:
+        base_id = {**base_id, "material": "conductive_additive"}
+
+    if empty:
+
+        return material_config.custom_selector(
+            id_base=base_id,
+            material_options=material_config.dropdown_options,
+            div_width=material_config.selector_div_width
+        )
+    
+    else:
+
+        # get the new parameters
+        parameter_list, min_values, max_values = generate_parameters(material, material_config)
+
+        # Create slider configurations
+        slider_configs = create_slider_config(min_values, max_values, parameter_list)
+
+        return material_config.custom_selector(
+            id_base=base_id,
+            material_options=material_config.dropdown_options,
+            div_width=material_config.selector_div_width,
+            default_material=material.name,
+            default_weight_percent=weight_percent,
+            slider_configs=slider_configs
+        )
 
