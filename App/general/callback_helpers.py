@@ -236,34 +236,39 @@ def validate_single_property(object, property_name: str, value: str, config: Typ
         upper_bound = value[1] if value[1] < param_range[1] else param_range[1]
         return (lower_bound, upper_bound)
 
-def create_no_update_response(config, existing_warnings: List[str]) -> Tuple:
+def create_no_update_response(
+        config = None, 
+        existing_warnings: List[str] = [], 
+        n: int = None, 
+        n_rangeslider: int = None
+) -> Tuple:
 
     """Create a no_update response specifically for material callbacks."""
-    num_material_params = len(config.parameter_list)
-    
+    n = len(config.parameter_list) if n is None else n
+
     response = (
         no_update,  # cache_key
-        [no_update] * num_material_params,  # slider values
-        [no_update] * num_material_params,  # slider mins
-        [no_update] * num_material_params,  # slider maxs
-        [no_update] * num_material_params,  # slider marks
-        [no_update] * num_material_params,  # slider steps
-        [no_update] * num_material_params,  # input steps
+        [no_update] * n,  # slider values
+        [no_update] * n,  # slider mins
+        [no_update] * n,  # slider maxs
+        [no_update] * n,  # slider marks
+        [no_update] * n,  # slider steps
+        [no_update] * n,  # input steps
     )
 
     if hasattr(config, 'dropdown_menu') and config.dropdown_menu:
         response += (no_update, )
 
     if hasattr(config, 'range_slider_parameters') and config.range_slider_parameters:
-        num_rangeslider_params = len(config.range_slider_parameters)
+        n_rangeslider = len(config.range_slider_parameters) if n_rangeslider is None else n_rangeslider
         response += (
-            [no_update] * num_rangeslider_params,  # range_slider_values
-            [no_update] * num_rangeslider_params,  # range slider mins
-            [no_update] * num_rangeslider_params,  # range slider maxs
-            [no_update] * num_rangeslider_params,  # range slider marks
-            [no_update] * num_rangeslider_params,  # range slider steps
-            [no_update] * num_rangeslider_params,  # range slider start values
-            [no_update] * num_rangeslider_params,  # range slider end values
+            [no_update] * n_rangeslider,  # range_slider_values
+            [no_update] * n_rangeslider,  # range slider mins
+            [no_update] * n_rangeslider,  # range slider maxs
+            [no_update] * n_rangeslider,  # range slider marks
+            [no_update] * n_rangeslider,  # range slider steps
+            [no_update] * n_rangeslider,  # range slider start values
+            [no_update] * n_rangeslider,  # range slider end values
         )
 
     if hasattr(config, 'radioitem_parameters') and config.radioitem_parameters:
