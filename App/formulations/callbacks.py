@@ -65,7 +65,6 @@ def update_cathode_formulation_main(
         Output('cathode-active-material-div', 'children'),
         Output('cathode-binder-div', 'children'),
         Output('cathode-conductive-additive-div', 'children'),
-        Output('cathode_formulation_structure_updated', 'data'),
     ],
     [
         Input('cell_store', 'data'),
@@ -98,8 +97,6 @@ def update_cathode_formulation_div(
     conductive_children
 ):
 
-    print(f'triggered_formulation_callback by {ctx.triggered_id} at {time()}')
-
     callback_function = create_generic_formulation_div_callback(FormulationType.CATHODE)
 
     response = callback_function(
@@ -113,66 +110,135 @@ def update_cathode_formulation_div(
     return response
 
 
-# @callback(
-#     [
-#         Output({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'index': ALL, 'subtype': 'dropdown'}, 'value'),
-#         Output('warnings_store', 'data', allow_duplicate=True),
-#         Output('cell_store', 'data', allow_duplicate=True),
-#         Output({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'value'),
-#         Output({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'min'),
-#         Output({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'max'),
-#         Output({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'marks'),
-#         Output({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'step'),
-#         Output({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'index': ALL, 'property': ALL, 'subtype': 'input'}, 'step'),
-#     ],
-#     [
-#         Input('cathode_formulation_structure_updated', 'data'),
-#         Input({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'index': ALL, 'subtype': 'dropdown'}, 'value'),
-#         Input({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'index': ALL, 'property': ALL, 'subtype': 'input'}, 'n_submit'),
-#         Input({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'index': ALL, 'property': ALL, 'subtype': 'input'}, 'n_blur'),
-#         Input({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'value'),
-#     ],
-#     [
-#         State('cell_store', 'data'),
-#         State({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'index': ALL, 'property': ALL, 'subtype': 'input'}, 'value'),
-#         State('warnings_store', 'data'),
-#     ],
-#     prevent_initial_call=True
-# )
-# def update_cathode_formulation_material_values(
-#     form_div_data,
-#     dropdown_values,
-#     input_n_sub,
-#     input_n_blur,
-#     slider_values,
-#     cell_data,
-#     input_values,
-#     existing_warnings
-# ):
+@callback(
+    [
+        Output('warnings_store', 'data', allow_duplicate=True),
+        Output('cell_store', 'data', allow_duplicate=True),
 
-#     print("=========================================")
-#     print(f"DEBUG: triggered id {ctx.triggered_id}")
-#     print(f"DEBUG: dropdown values {dropdown_values}")
-#     print(f"DEBUG: input n submit {input_n_sub}")
-#     print(f"DEBUG: input n blur {input_n_blur}")
-#     print(f"DEBUG: slider values {slider_values}")
-#     print("=========================================")
+        # active material outputs
+        Output({'electrode': 'cathode', 'object': 'formulation', 'material': 'active_material', 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'value'),
+        Output({'electrode': 'cathode', 'object': 'formulation', 'material': 'active_material', 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'min'),
+        Output({'electrode': 'cathode', 'object': 'formulation', 'material': 'active_material', 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'max'),
+        Output({'electrode': 'cathode', 'object': 'formulation', 'material': 'active_material', 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'marks'),
+        Output({'electrode': 'cathode', 'object': 'formulation', 'material': 'active_material', 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'step'),
+        Output({'electrode': 'cathode', 'object': 'formulation', 'material': 'active_material', 'index': ALL, 'property': ALL, 'subtype': 'input'}, 'step'),
 
-#     callback_function = create_generic_formulation_material_callback(FormulationType.CATHODE)
+        # binder outputs
+        Output({'electrode': 'cathode', 'object': 'formulation', 'material': 'binder', 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'value'),
+        Output({'electrode': 'cathode', 'object': 'formulation', 'material': 'binder', 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'min'),
+        Output({'electrode': 'cathode', 'object': 'formulation', 'material': 'binder', 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'max'),
+        Output({'electrode': 'cathode', 'object': 'formulation', 'material': 'binder', 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'marks'),
+        Output({'electrode': 'cathode', 'object': 'formulation', 'material': 'binder', 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'step'),
+        Output({'electrode': 'cathode', 'object': 'formulation', 'material': 'binder', 'index': ALL, 'property': ALL, 'subtype': 'input'}, 'step'),
 
-#     try:
-#         response = callback_function(
-#             existing_warnings,
-#             cell_data,
-#             dropdown_values,
-#             input_values,
-#             slider_values,
-#         )
-#     except Exception as e:
-#         basic_response = create_no_update_response(n = len(slider_values))
-#         response = (dropdown_values, ) + basic_response
+        # conductive additive outputs
+        Output({'electrode': 'cathode', 'object': 'formulation', 'material': 'conductive_additive', 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'value'),
+        Output({'electrode': 'cathode', 'object': 'formulation', 'material': 'conductive_additive', 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'min'),
+        Output({'electrode': 'cathode', 'object': 'formulation', 'material': 'conductive_additive', 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'max'),
+        Output({'electrode': 'cathode', 'object': 'formulation', 'material': 'conductive_additive', 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'marks'),
+        Output({'electrode': 'cathode', 'object': 'formulation', 'material': 'conductive_additive', 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'step'),
+        Output({'electrode': 'cathode', 'object': 'formulation', 'material': 'conductive_additive', 'index': ALL, 'property': ALL, 'subtype': 'input'}, 'step'),
+    ],
+    [
+        # active material inputs
+        Input({'electrode': 'cathode', 'object': 'formulation', 'material': 'active_material', 'index': ALL, 'subtype': 'dropdown'}, 'value'),
+        Input({'electrode': 'cathode', 'object': 'formulation', 'material': 'active_material', 'index': ALL, 'subtype': 'weight_fraction'}, 'value'),
+        Input({'electrode': 'cathode', 'object': 'formulation', 'material': 'active_material', 'index': ALL, 'property': ALL, 'subtype': 'input'}, 'n_submit'),
+        Input({'electrode': 'cathode', 'object': 'formulation', 'material': 'active_material', 'index': ALL, 'property': ALL, 'subtype': 'input'}, 'n_blur'),
+        Input({'electrode': 'cathode', 'object': 'formulation', 'material': 'active_material', 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'value'),
 
-#     return response
+        # binder inputs
+        Input({'electrode': 'cathode', 'object': 'formulation', 'material': 'binder', 'index': ALL, 'subtype': 'dropdown'}, 'value'),
+        Input({'electrode': 'cathode', 'object': 'formulation', 'material': 'binder', 'index': ALL, 'subtype': 'weight_fraction'}, 'value'),
+        Input({'electrode': 'cathode', 'object': 'formulation', 'material': 'binder', 'index': ALL, 'property': ALL, 'subtype': 'input'}, 'n_submit'),
+        Input({'electrode': 'cathode', 'object': 'formulation', 'material': 'binder', 'index': ALL, 'property': ALL, 'subtype': 'input'}, 'n_blur'),
+        Input({'electrode': 'cathode', 'object': 'formulation', 'material': 'binder', 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'value'),
+
+        # conductive additive inputs
+        Input({'electrode': 'cathode', 'object': 'formulation', 'material': 'conductive_additive', 'index': ALL, 'subtype': 'dropdown'}, 'value'),
+        Input({'electrode': 'cathode', 'object': 'formulation', 'material': 'conductive_additive', 'index': ALL, 'subtype': 'weight_fraction'}, 'value'),
+        Input({'electrode': 'cathode', 'object': 'formulation', 'material': 'conductive_additive', 'index': ALL, 'property': ALL, 'subtype': 'input'}, 'n_submit'),
+        Input({'electrode': 'cathode', 'object': 'formulation', 'material': 'conductive_additive', 'index': ALL, 'property': ALL, 'subtype': 'input'}, 'n_blur'),
+        Input({'electrode': 'cathode', 'object': 'formulation', 'material': 'conductive_additive', 'index': ALL, 'property': ALL, 'subtype': 'slider'}, 'value'),
+    ],
+    [
+        State('cell_store', 'data'),
+        State({'electrode': 'cathode', 'object': 'formulation', 'material': 'active_material', 'index': ALL, 'property': ALL, 'subtype': 'input'}, 'value'),
+        State({'electrode': 'cathode', 'object': 'formulation', 'material': 'binder', 'index': ALL, 'property': ALL, 'subtype': 'input'}, 'value'),
+        State({'electrode': 'cathode', 'object': 'formulation', 'material': 'conductive_additive', 'index': ALL, 'property': ALL, 'subtype': 'input'}, 'value'),
+        State('warnings_store', 'data'),
+    ],
+    prevent_initial_call=True
+)
+def update_cathode_formulation_material_values(
+    
+    active_dropdown_values,
+    active_weight_fractions,
+    active_input_n_sub,
+    active_input_n_blur,
+    active_slider_values,
+
+    binder_dropdown_values,
+    binder_weight_fractions,
+    binder_input_n_sub,
+    binder_input_n_blur,
+    binder_slider_values,
+
+    conductive_dropdown_values,
+    conductive_weight_fractions,
+    conductive_input_n_sub,
+    conductive_input_n_blur,
+    conductive_slider_values,
+    
+    cell_data,
+    active_input_values,
+    binder_input_values,
+    conductive_input_values,
+    existing_warnings
+):
+
+    print("=========================================")
+    print(f"DEBUG: triggered id {ctx.triggered_id}")
+    
+    print(f"DEBUG: active material dropdown values {active_dropdown_values}")
+    print(f"DEBUG: active material weight fractions {active_weight_fractions}")
+    print(f"DEBUG: active material slider values {active_slider_values}")
+    print(f"DEBUG: active material input values {active_input_values}")
+
+    print(f"DEBUG: binder material dropdown values {binder_dropdown_values}")
+    print(f"DEBUG: binder material weight fractions {binder_weight_fractions}")
+    print(f"DEBUG: binder material slider values {binder_slider_values}")
+    print(f"DEBUG: binder material input values {binder_input_values}")
+
+    print(f"DEBUG: conductive material dropdown values {conductive_dropdown_values}")
+    print(f"DEBUG: conductive material weight fractions {conductive_weight_fractions}")
+    print(f"DEBUG: conductive material slider values {conductive_slider_values}")
+    print(f"DEBUG: conductive material input values {conductive_input_values}")
+    print("=========================================")
+
+    callback_function = create_generic_formulation_material_callback(FormulationType.CATHODE)
+
+    response = callback_function(
+        existing_warnings=existing_warnings,
+        cell_data=cell_data,
+
+        active_dropdown_values=active_dropdown_values,
+        active_weight_fractions=active_weight_fractions,
+        active_slider_values=active_slider_values,
+        active_input_values=active_input_values,
+        
+        binder_dropdown_values=binder_dropdown_values,
+        binder_weight_fractions=binder_weight_fractions,
+        binder_slider_values=binder_slider_values,
+        binder_input_values=binder_input_values,
+        
+        conductive_dropdown_values=conductive_dropdown_values,
+        conductive_weight_fractions=conductive_weight_fractions,
+        conductive_slider_values=conductive_slider_values,
+        conductive_input_values=conductive_input_values
+    )
+
+    return response
 
 
 @callback(
