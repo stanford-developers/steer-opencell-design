@@ -10,9 +10,7 @@ from App.general.store import (
     cell_store, 
     warnings_store, 
     cathode_active_material_store,
-    cathode_formulation_structure_updated,
     anode_active_material_store,
-    anode_formulation_structure_updated,
     LANDING_PAGE_IMAGE_URLS
 )
 
@@ -23,9 +21,7 @@ stores = ds.html.Div([
     cell_store,
     warnings_store,
     cathode_active_material_store,
-    cathode_formulation_structure_updated,
     anode_active_material_store,
-    anode_formulation_structure_updated
 ])
 
 

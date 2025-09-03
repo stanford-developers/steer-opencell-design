@@ -1,11 +1,14 @@
 from typing import List
+from dash import no_update
+
 from App.formulations.configs import FormulationConfig
+from App.general.handlers import _build_basic_response
 from App.materials.configs import MaterialType, MATERIAL_CONFIGS
-from App.general.callback_helpers import create_trigger_data, create_no_update_response
+from App.general.callback_helpers import generate_parameters, create_no_update_response
 
 from steer_opencell_design.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation
-
-from dash import no_update
+from steer_materials.CellMaterials.Electrode import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
+from steer_core.Apps.Utils.SliderControls import create_slider_config 
 
 
 def handle_indexed_dropdown_update(
@@ -14,9 +17,128 @@ def handle_indexed_dropdown_update(
         cell,
         formulation,
         formulation_config,
-        dropdown_values
+
+        active_dropdown_values,
+        active_weight_fractions,
+        active_slider_values,
+        active_input_values,
+
+        binder_dropdown_values,
+        binder_weight_fractions,
+        binder_slider_values,
+        binder_input_values,
+
+        conductive_dropdown_values,
+        conductive_weight_fractions,
+        conductive_slider_values,
+        conductive_input_values
 ):
-    pass
+    
+    index = trigger_id.get('index')
+    material_category = trigger_id.get('material')
+    
+    active_material_response = {}
+
+    # build the response for the active materials
+    for i, av in enumerate(active_dropdown_values):
+
+        # if not triggered by active material, then build no response
+        if material_category != 'active_material':
+            active_material_response[i] = list(create_no_update_response(MATERIAL_CONFIGS[MaterialType.CATHODE_ACTIVE_MATERIAL], existing_warnings))[2:]
+
+        # if triggered by active material
+        else:
+            # but not the right index, build no response
+            if i != index:
+                active_material_response[i] = list(create_no_update_response(MATERIAL_CONFIGS[MaterialType.CATHODE_ACTIVE_MATERIAL], existing_warnings))[2:]
+
+            else:
+                material_name = active_dropdown_values[index]
+                if formulation_config.formulation_type == CathodeFormulation:
+                    material = CathodeMaterial.from_database(material_name)
+                    material_config = MATERIAL_CONFIGS[MaterialType.CATHODE_ACTIVE_MATERIAL]
+                elif formulation_config.formulation_type == AnodeFormulation:
+                    material = AnodeMaterial.from_database(material_name)
+                    material_config = MATERIAL_CONFIGS[MaterialType.ANODE_ACTIVE_MATERIAL]
+
+                # get the parameters for the material
+                parameter_list, min_values, max_values = generate_parameters(material, material_config)
+
+                # Create slider configurations
+                slider_configs = create_slider_config(min_values, max_values, parameter_list)
+
+                active_material_response[index] = _build_basic_response(slider_configs)[1:]
+
+    active_material_response = tuple(
+        [x for pair in vals for x in pair]
+        for vals in zip(*active_material_response.values())
+    )
+
+    binder_response = {}
+
+    # build the response for the binders
+    for i, bi in enumerate(binder_dropdown_values):
+
+        # if not triggered by binder material, then build no response
+        if material_category != 'binder':
+            binder_response[i] = list(create_no_update_response(MATERIAL_CONFIGS[MaterialType.BINDER], existing_warnings))[2:]
+
+        # if triggered by binder material
+        else:
+            # but not the right index, build no response
+            if i != index:
+                binder_response[i] = list(create_no_update_response(MATERIAL_CONFIGS[MaterialType.BINDER], existing_warnings))[2:]
+
+            else:
+                material_name = binder_dropdown_values[index]
+                material = Binder.from_database(material_name)
+                material_config = MATERIAL_CONFIGS[MaterialType.BINDER]
+
+                # get the parameters from the material
+                parameter_list, min_values, max_values = generate_parameters(material, material_config)
+
+                # get the slider configs
+                slider_configs = create_slider_config(min_values, max_values, parameter_list)
+
+                binder_response[index] = _build_basic_response(slider_configs)[1:]
+
+    binder_response = tuple(
+        [x for pair in vals for x in pair]
+        for vals in zip(*binder_response.values())
+    )
+
+    conductive_additive_response = {}
+
+    for i, ca in enumerate(conductive_dropdown_values):
+
+        if material_category != 'conductive_additive':
+            conductive_additive_response[i] = list(create_no_update_response(MATERIAL_CONFIGS[MaterialType.CONDUCTIVE_ADDITIVE], existing_warnings))[2:]
+
+        else:
+
+            if i != index:
+                conductive_additive_response[i] = list(create_no_update_response(MATERIAL_CONFIGS[MaterialType.CONDUCTIVE_ADDITIVE], existing_warnings))[2:]
+
+            else:
+                material_name = conductive_dropdown_values[index]
+                material = ConductiveAdditive.from_database(material_name)
+                material_config = MATERIAL_CONFIGS[MaterialType.CONDUCTIVE_ADDITIVE]
+
+                # get the parameters for the material
+                parameter_list, min_values, max_values = generate_parameters(material, material_config)
+
+                # Create slider configurations
+                slider_configs = create_slider_config(min_values, max_values, parameter_list)
+
+                conductive_additive_response[index] = _build_basic_response(slider_configs)[1:]
+
+    conductive_additive_response = tuple(
+        [x for pair in vals for x in pair]
+        for vals in zip(*conductive_additive_response.values())
+    )
+
+    return (existing_warnings, ) + (no_update, ) + active_material_response + binder_response + conductive_additive_response
+
 
 
 def handle_cell_store_update_material_children(
@@ -81,16 +203,12 @@ def handle_cell_store_update_material_children(
         formulation_config
     )
 
-    # create a store object holding trigger data
-    trigger_data = create_trigger_data()
-
     return (
         no_update, 
         no_update, 
         active_material_children, 
         binder_children, 
-        conductive_children, 
-        trigger_data
+        conductive_children
     )
 
 
@@ -147,9 +265,6 @@ def handle_material_button_update(
             if conductive_children:
                 conductive_children.pop()
 
-    # create a store object holding trigger data
-    trigger_data = create_trigger_data()
-
     # Return updated children lists
-    return no_update, no_update, active_children, binder_children, conductive_children, trigger_data
+    return no_update, no_update, active_children, binder_children, conductive_children
 

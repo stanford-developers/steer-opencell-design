@@ -12,7 +12,12 @@ from App.general.trigger_router import TriggerRouter, TriggerType
 from App.general.enumerated_classes import FormulationType
 
 from App.formulations.configs import FORMULATION_CONFIGS, FormulationConfig
-from App.formulations.handlers import handle_indexed_dropdown_update, handle_cell_store_update_material_children, handle_material_button_update
+
+from App.formulations.handlers import (
+    handle_indexed_dropdown_update, 
+    handle_cell_store_update_material_children, 
+    handle_material_button_update
+)
 
 from steer_core.Apps.Utils.SliderControls import create_slider_config
 
@@ -65,20 +70,9 @@ def create_generic_formulation_callback(formulation_type: FormulationType) -> ca
                 input_values,
                 slider_values,
             )
-        
-        elif trigger_type == TriggerType.INDEXED_DROPDOWN:
 
-            return handle_indexed_dropdown_update(
-                existing_warnings,
-                triggered_id,
-                cell,
-                formulation,
-                config,
-                dropdown_values
-            )
-
-        # Default: return no update for all outputs
-        return create_no_update_response(len(config.parameter_list))
+        else:
+            return create_no_update_response(len(config.parameter_list))
 
     return generic_update_formulation
 
@@ -150,13 +144,26 @@ def create_generic_formulation_material_callback(formulation_type: FormulationTy
     def generic_update_formulation_material_values(
         existing_warnings,
         cell_data,
-        dropdown_values,
-        input_values = None, 
-        slider_values = None,
+
+        active_dropdown_values,
+        active_weight_fractions,
+        active_slider_values,
+        active_input_values,
+        
+        binder_dropdown_values,
+        binder_weight_fractions,
+        binder_slider_values,
+        binder_input_values,
+        
+        conductive_dropdown_values,
+        conductive_weight_fractions,
+        conductive_slider_values,
+        conductive_input_values
+
     ) -> Tuple:
 
         # Get the triggered ID
-        triggered_id = ctx.triggered_id
+        trigger_id = ctx.triggered_id
 
         # Get the cell from cache
         cell = get_cell_from_cache(cell_data['cache_key'])
@@ -165,22 +172,36 @@ def create_generic_formulation_material_callback(formulation_type: FormulationTy
         formulation = get_object_from_cell(cell, config)
 
         # Create trigger router and process the trigger
-        trigger_type = TriggerRouter.get_trigger_type(triggered_id)
+        trigger_type = TriggerRouter.get_trigger_type(trigger_id)
 
-        if trigger_type == TriggerType.CELL_STORE:
-            from App.formulations.handlers import handle_cell_store_update_material_values
-            return handle_cell_store_update_material_values(formulation, config, existing_warnings)
+        if trigger_type == TriggerType.INDEXED_DROPDOWN:
 
-        elif trigger_type == TriggerType.INDEXED_DROPDOWN:
-            from App.formulations.handlers import handle_material_selector_dropdown_update
-            return handle_material_selector_dropdown_update(
-                existing_warnings,
-                triggered_id,
-                cell,
-                formulation,
-                config,
-                dropdown_values
+            return handle_indexed_dropdown_update(
+
+                existing_warnings=existing_warnings,
+                trigger_id=trigger_id,
+                cell=cell,
+                formulation=formulation,
+                formulation_config=config,
+
+                active_dropdown_values=active_dropdown_values,
+                active_weight_fractions=active_weight_fractions,
+                active_slider_values=active_slider_values,
+                active_input_values=active_input_values,
+
+                binder_dropdown_values=binder_dropdown_values,
+                binder_weight_fractions=binder_weight_fractions,
+                binder_slider_values=binder_slider_values,
+                binder_input_values=binder_input_values,
+
+                conductive_dropdown_values=conductive_dropdown_values,
+                conductive_weight_fractions=conductive_weight_fractions,
+                conductive_slider_values=conductive_slider_values,
+                conductive_input_values=conductive_input_values
+
             )
+        
+    return generic_update_formulation_material_values
 
 
 
