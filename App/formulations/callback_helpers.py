@@ -15,7 +15,7 @@ from App.formulations.configs import FORMULATION_CONFIGS, FormulationConfig
 
 from App.formulations.handlers import (
     handle_indexed_dropdown_update, 
-    handle_cell_store_update_material_children, 
+    handle_cell_store_update_materials, 
     handle_material_button_update
 )
 
@@ -35,8 +35,7 @@ def create_generic_formulation_callback(formulation_type: FormulationType) -> ca
         existing_warnings,
         cell_data, 
         input_values = None, 
-        slider_values = None, 
-        dropdown_values = None,
+        slider_values = None,
     ) -> Tuple:
 
         # Get the triggered ID
@@ -85,9 +84,11 @@ def create_generic_formulation_div_callback(formulation_type: FormulationType) -
     def generic_update_formulation_materials(
         existing_warnings,
         cell_data,
-        active_children,
-        binder_children,
-        conductive_children,
+        active_div_styles,
+        binder_div_styles,
+        conductive_div_styles,
+        cathode_active_options,
+        anode_active_options
     ) -> Tuple:
 
         # Get the triggered ID
@@ -105,32 +106,38 @@ def create_generic_formulation_div_callback(formulation_type: FormulationType) -
         # Handle the case that the cell store is triggered
         if trigger_type == TriggerType.CELL_STORE:
 
-            return handle_cell_store_update_material_children(
+            return handle_cell_store_update_materials(
                 existing_warnings=existing_warnings,
                 formulation=formulation,
-                formulation_config=formulation_config
+                formulation_config=formulation_config,
+                active_div_styles=active_div_styles,
+                binder_div_styles=binder_div_styles,
+                conductive_div_styles=conductive_div_styles,
+                cathode_active_options=cathode_active_options,
+                anode_active_options=anode_active_options
             )
 
-        # Handle the case that an action button is triggered
-        elif trigger_type == TriggerType.ACTION:
+        # # Handle the case that an action button is triggered
+        # elif trigger_type == TriggerType.ACTION:
 
-            return handle_material_button_update(
-                existing_warnings=existing_warnings, 
-                trigger_id=trigger_id, 
-                formulation_config=formulation_config, 
-                active_children=active_children, 
-                binder_children=binder_children, 
-                conductive_children=conductive_children
-            )
+        #     return handle_material_button_update(
+        #         existing_warnings=existing_warnings, 
+        #         trigger_id=trigger_id, 
+        #         formulation_config=formulation_config, 
+        #         active_children=active_children, 
+        #         binder_children=binder_children, 
+        #         conductive_children=conductive_children,
+        #         cathode_active_options=cathode_active_options,
+        #         anode_active_options=anode_active_options
+        #     )
 
         # Default: return no update for all outputs
         return (
             no_update,
             no_update,
-            [no_update for _ in active_children],
-            [no_update for _ in binder_children],
-            [no_update for _ in conductive_children],
-            no_update
+            no_update,
+            no_update,
+            no_update,
         )
 
     return generic_update_formulation_materials
@@ -204,59 +211,4 @@ def create_generic_formulation_material_callback(formulation_type: FormulationTy
     return generic_update_formulation_material_values
 
 
-
-def create_material_component(
-        material_config: MaterialConfig,
-        formulation_config: FormulationConfig,
-        index: float, 
-        empty: bool = True,
-        material = None, 
-        weight_percent: float = None
-) -> Type:
-    """Create an empty material component with default values."""
-
-    # Create base ID
-    base_id = {
-        "object": "formulation", 
-        "index": index
-    }
-
-    # set the electrode item to the dictionary
-    if formulation_config.formulation_type == CathodeFormulation:
-        base_id = {**base_id, "electrode": "cathode"}
-    elif formulation_config.formulation_type == AnodeFormulation:
-        base_id = {**base_id, "electrode": "anode"}
-
-    # set the material type to the base ID
-    if material_config.material_type == CathodeMaterial or material_config.material_type == AnodeMaterial:
-        base_id = {**base_id, "material": "active_material"}
-    elif material_config.material_type == Binder:
-        base_id = {**base_id, "material": "binder"}
-    elif material_config.material_type == ConductiveAdditive:
-        base_id = {**base_id, "material": "conductive_additive"}
-
-    if empty:
-
-        return material_config.custom_selector(
-            id_base=base_id,
-            material_options=material_config.dropdown_options,
-            div_width=material_config.selector_div_width
-        )
-    
-    else:
-
-        # get the new parameters
-        parameter_list, min_values, max_values = generate_parameters(material, material_config)
-
-        # Create slider configurations
-        slider_configs = create_slider_config(min_values, max_values, parameter_list)
-
-        return material_config.custom_selector(
-            id_base=base_id,
-            material_options=material_config.dropdown_options,
-            div_width=material_config.selector_div_width,
-            default_material=material.name,
-            default_weight_percent=weight_percent,
-            slider_configs=slider_configs
-        )
 

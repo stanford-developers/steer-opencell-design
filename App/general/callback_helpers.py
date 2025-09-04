@@ -429,3 +429,111 @@ def create_trigger_data(trigger_id: Dict = None, cell_data: Dict = None) -> Dict
 
     return trigger_data
 
+def create_status_message(
+    success: bool = True,
+    message: str = None,
+    success_message: str = "Action completed successfully"
+) -> html.Div:
+    """
+    Create a status message div with success/error indicators.
+    
+    Parameters
+    ----------
+    success : bool, default True
+        Whether the action was successful
+    message : str, optional
+        Custom message to display. If None, uses default success/error messages
+    success_message : str, default "Action completed successfully"
+        Default message to show on success
+        
+    Returns
+    -------
+    html.Div
+        A styled div component with status message and icon
+    """
+    
+    if success:
+        icon = "✓"
+        bg_color = "#d4edda"
+        border_color = "#c3e6cb"
+        text_color = "#155724"
+        display_message = message or success_message
+    else:
+        icon = "✗"
+        bg_color = "#f8d7da"
+        border_color = "#f5c6cb"
+        text_color = "#721c24"
+        display_message = message or "An error occurred"
+    
+    # Base styles
+    div_style = {
+        'backgroundColor': bg_color,
+        'border': f'1px solid {border_color}',
+        'borderRadius': '4px',
+        'padding': '12px 16px',
+        'margin': '10px 0',
+        'display': 'flex',
+        'alignItems': 'center',
+        'color': text_color,
+        'fontSize': '14px',
+        'fontFamily': 'Arial, sans-serif',
+        'boxShadow': '0 2px 4px rgba(0,0,0,0.1)',
+        'position': 'relative',
+        'width': '60%',
+        'maxWidth': '600px'
+    }
+    
+    icon_style = {
+        'fontSize': '18px',
+        'fontWeight': 'bold',
+        'marginRight': '10px',
+        'minWidth': '20px',
+        'textAlign': 'center'
+    }
+    
+    message_style = {
+        'flex': '1',
+        'margin': '0'
+    }
+    
+    return html.Div([
+        html.Span(icon, style=icon_style),
+        html.Span(display_message, style=message_style)
+    ], style=div_style, id={'type': 'status-message', 'timestamp': time.time()})
+
+def create_success_message(message: str = None, **kwargs) -> html.Div:
+    """
+    Create a success status message.
+    
+    Parameters
+    ----------
+    message : str, optional
+        Custom success message
+    **kwargs
+        Additional arguments passed to create_status_message
+        
+    Returns
+    -------
+    html.Div
+        Success status message component
+    """
+    return create_status_message(success=True, message=message, **kwargs)
+
+def create_error_message(message: str = None, **kwargs) -> html.Div:
+    """
+    Create an error status message.
+    
+    Parameters
+    ----------
+    message : str, optional
+        Custom error message
+    **kwargs
+        Additional arguments passed to create_status_message
+        
+    Returns
+    -------
+    html.Div
+        Error status message component
+    """
+    return create_status_message(success=False, message=message, **kwargs)
+
