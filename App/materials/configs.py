@@ -32,8 +32,6 @@ from steer_core.Apps.Components.MaterialSelectors import (
 from App.database_service import (
     BINDER_MATERIALS,
     CONDUCTIVE_ADDITIVE_MATERIALS,
-    CATHODE_ACTIVE_MATERIALS,
-    ANODE_ACTIVE_MATERIALS
 )
 
 @dataclass
@@ -93,14 +91,12 @@ MATERIAL_CONFIGS = {
         parameter_list=ACTIVE_PARAMETER_LIST,
         settable_parameters=ACTIVE_SETTABLE_PARAMETERS,
         custom_selector=ActiveMaterialSelector,
-        dropdown_options=CATHODE_ACTIVE_MATERIALS
     ),
     MaterialType.ANODE_ACTIVE_MATERIAL: MaterialConfig(
         material_type=AnodeMaterial,
         parameter_list=ACTIVE_PARAMETER_LIST,
         settable_parameters=ACTIVE_SETTABLE_PARAMETERS,
         custom_selector=ActiveMaterialSelector,
-        dropdown_options=ANODE_ACTIVE_MATERIALS
     ),
 }
 

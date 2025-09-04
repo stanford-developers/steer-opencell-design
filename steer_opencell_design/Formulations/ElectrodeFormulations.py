@@ -57,8 +57,9 @@ class _ElectrodeFormulation(ValidationMixin):
         """
         self._get_bulk_properties()
         self._get_breakdowns()
-        self._get_voltage_operation_window()
         self._check_formulation()
+
+        self._get_voltage_operation_window()
         self._calculate_half_cell_curve()
 
     def _get_breakdowns(self) -> None:
@@ -147,19 +148,54 @@ class _ElectrodeFormulation(ValidationMixin):
         self._color = rgb_to_hex(avg_rgb)
 
     def _get_voltage_operation_window(self) -> None:
-
-        # Get the voltage operation window from each active material
-        voltage_operation_windows = [material._voltage_operation_window for material in self._active_materials.keys()]
-
-        # Determine the common voltage operation window
-        starts, middles, ends = zip(*voltage_operation_windows)
-        common_start = max(starts) if type(self) == CathodeFormulation else min(starts)
-        common_end = min(ends) if type(self) == CathodeFormulation else max(ends)
-
-        if (common_start <= common_end and type(self) == CathodeFormulation) or (common_start >= common_end and type(self) == AnodeFormulation):
+        """
+        Get the voltage operation window from each active material.
+        Note: Voltage cutoff compatibility is now handled in active_materials.setter
+        """
+        if not hasattr(self, '_voltage_operation_window'):
+            # If voltage operation window hasn't been set yet (during initialization)
+            voltage_operation_windows = [material._voltage_operation_window for material in self._active_materials.keys()]
+            starts, middles, ends = zip(*voltage_operation_windows)
+            
+            if type(self) == CathodeFormulation:
+                common_start = max(starts)
+                common_end = min(ends)
+            else:  # AnodeFormulation
+                common_start = min(starts)
+                common_end = max(ends)
+                
             self._voltage_operation_window = (common_start, common_end)
+        
+    def _validate_and_set_voltage_cutoff(self) -> None:
+        """
+        Validate formulation voltage cutoff against common voltage range and set material cutoffs.
+        """
+        common_start, common_end = self._voltage_operation_window
+        
+        # Determine the valid range boundaries based on formulation type
+        if type(self) == CathodeFormulation:
+            min_voltage = common_start
+            max_voltage = common_end
+        else:  # AnodeFormulation
+            min_voltage = common_end  # For anodes, end is actually lower
+            max_voltage = common_start  # For anodes, start is actually higher
+        
+        # If no voltage cutoff is set, use the appropriate boundary
+        if not hasattr(self, '_voltage_cutoff') or self._voltage_cutoff is None:
+            if type(self) == CathodeFormulation:
+                self._voltage_cutoff = max_voltage  # Use upper bound for cathodes
+            else:
+                self._voltage_cutoff = min_voltage  # Use lower bound for anodes
         else:
-            raise ValueError("The active materials have incompatible voltage cutoff ranges.")
+            # Check if current voltage cutoff is within the common range
+            if self._voltage_cutoff < min_voltage:
+                self._voltage_cutoff = min_voltage
+            elif self._voltage_cutoff > max_voltage:
+                self._voltage_cutoff = max_voltage
+        
+        # Set the voltage cutoff for each active material
+        for material in self._active_materials.keys():
+            material.voltage_cutoff = self._voltage_cutoff
 
     def _check_formulation(self) -> None:
         """
@@ -365,6 +401,80 @@ class _ElectrodeFormulation(ValidationMixin):
         else:
             # Fallback empty curve
             self._half_cell_curve = np.array([]).reshape(0, 3)
+
+    def _handle_voltage_cutoff_compatibility(self) -> None:
+        """
+        Check if current voltage cutoff is compatible with new materials and adjust if necessary.
+        """
+        # First, calculate the new voltage operation window
+        voltage_operation_windows = [material._voltage_operation_window for material in self._active_materials.keys()]
+        starts, middles, ends = zip(*voltage_operation_windows)
+        
+        # Determine the common voltage operation window
+        if type(self) == CathodeFormulation:
+            common_start = max(starts)
+            common_end = min(ends)
+            valid_range = common_start <= common_end
+        else:  # AnodeFormulation
+            common_start = min(starts)
+            common_end = max(ends)
+            valid_range = common_start >= common_end
+
+        # Check if there's a valid common range
+        if not valid_range:
+            material_ranges = [f"{mat.name}: {mat._voltage_operation_window}" for mat in self._active_materials.keys()]
+            raise ValueError(
+                f"The active materials have incompatible voltage operation windows.\n"
+                f"Material ranges: {material_ranges}\n"
+                f"No common voltage range exists for these materials."
+            )
+
+        # Store the new voltage operation window
+        self._voltage_operation_window = (common_start, common_end)
+        
+        # Determine the valid range boundaries based on formulation type
+        if type(self) == CathodeFormulation:
+            min_voltage = common_start
+            max_voltage = common_end
+        else:  # AnodeFormulation
+            min_voltage = common_end  # For anodes, end is actually lower
+            max_voltage = common_start  # For anodes, start is actually higher
+        
+        # Check if we have an existing voltage cutoff
+        if hasattr(self, '_voltage_cutoff') and self._voltage_cutoff is not None:
+            # Check if current voltage cutoff is compatible with new materials
+            if min_voltage <= self._voltage_cutoff <= max_voltage:
+                # Current voltage cutoff is compatible - keep it and set it to materials
+                print(f"Current voltage cutoff {self._voltage_cutoff}V is compatible with new materials. Keeping current setting.")
+                for material in self._active_materials.keys():
+                    material.voltage_cutoff = self._voltage_cutoff
+            else:
+                # Current voltage cutoff is incompatible - adjust to nearest boundary
+                if self._voltage_cutoff < min_voltage:
+                    new_voltage = min_voltage
+                    print(f"Warning: Current voltage cutoff {self._voltage_cutoff}V is below the new material range "
+                        f"[{min_voltage}V, {max_voltage}V]. Adjusting to {new_voltage}V.")
+                else:  # self._voltage_cutoff > max_voltage
+                    new_voltage = max_voltage
+                    print(f"Warning: Current voltage cutoff {self._voltage_cutoff}V is above the new material range "
+                        f"[{min_voltage}V, {max_voltage}V]. Adjusting to {new_voltage}V.")
+                
+                # Update formulation voltage cutoff and set to materials
+                self._voltage_cutoff = new_voltage
+                for material in self._active_materials.keys():
+                    material.voltage_cutoff = self._voltage_cutoff
+        else:
+            # No existing voltage cutoff - set to appropriate boundary
+            if type(self) == CathodeFormulation:
+                self._voltage_cutoff = max_voltage  # Use upper bound for cathodes
+            else:
+                self._voltage_cutoff = min_voltage  # Use lower bound for anodes
+            
+            print(f"No voltage cutoff set. Setting to {self._voltage_cutoff}V based on material compatibility.")
+            
+            # Set voltage cutoff to all materials
+            for material in self._active_materials.keys():
+                material.voltage_cutoff = self._voltage_cutoff
 
     def plot_half_cell_curve(self, add_materials: bool = False, show_direction: bool = True, **kwargs) -> go.Figure:
         """
@@ -861,6 +971,7 @@ class _ElectrodeFormulation(ValidationMixin):
         self._conductive_additives = {key: value / 100 for key, value in conductive_additives.items() if key is not None}
         
     @binders.setter
+    @calculate_all_properties
     def binders(self, binders: Optional[Dict[Binder, float]] = None):
 
         if binders != {}:        
@@ -874,7 +985,9 @@ class _ElectrodeFormulation(ValidationMixin):
     @active_materials.setter
     @calculate_all_properties
     def active_materials(self, active_materials: Dict[_ActiveMaterial, float]):
-
+        """
+        Set active materials and validate voltage compatibility with current voltage cutoff.
+        """
         # Check if active_materials is empty
         if len(active_materials) == 0:
             raise ValueError("You must include at least one active material in the formulation.")
@@ -884,32 +997,36 @@ class _ElectrodeFormulation(ValidationMixin):
             self.validate_active_material(key)
             self.validate_percentage(value, f"Mass fraction for {key.name}")
 
+        # Store the new active materials
         self._active_materials = {key: value / 100 for key, value in active_materials.items()}
-        self._get_voltage_operation_window()
+        
+        # Handle voltage cutoff compatibility with new materials
+        self._handle_voltage_cutoff_compatibility()
 
     @voltage_cutoff.setter
     @calculate_half_cell_curve
     def voltage_cutoff(self, voltage: float):
         """
-        Set the voltage cutoff for the half cell curves.
+        Set the voltage cutoff for the half cell curves with validation.
         
-        :param voltage: float: maximum voltage of the half cell curves
+        :param voltage: float: voltage cutoff for the half cell curves
         """
+        # First ensure we have a voltage operation window
         self._get_voltage_operation_window()
-
+        
         if voltage is None:
-            voltage = max(self._voltage_operation_window) if type(self) == CathodeFormulation else min(self._voltage_operation_window)
-
+            if type(self) == CathodeFormulation:
+                voltage = max(self._voltage_operation_window)
+            else:
+                voltage = min(self._voltage_operation_window)
+        
         self.validate_positive_float(voltage, "Voltage cutoff")
         
-        if voltage < min(self._voltage_operation_window) or voltage > max(self._voltage_operation_window):
-            raise ValueError(f"Voltage cutoff must be within the range {self._voltage_operation_window}")
-        
-        # set the voltage cutoff for each active material
-        for material in self._active_materials:
-            material.voltage_cutoff = voltage
-
+        # Store the requested voltage cutoff
         self._voltage_cutoff = voltage
+        
+        # Validate and adjust if necessary
+        self._validate_and_set_voltage_cutoff()
 
     def __str__(self) -> str:
         return self._name if self._name else "Electrode Formulation"

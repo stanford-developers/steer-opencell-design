@@ -81,6 +81,15 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
         self.assertEqual(self.cathode_formulation.voltage_cutoff, upper_voltage)
         self.assertEqual(self.cathode_formulation.voltage_cutoff_hard_range, (lower_voltage, upper_voltage))
 
+    def test_active_material_setter(self):
+
+        old_cutoff_voltage = self.cathode_formulation.voltage_cutoff
+        new_active_material = CathodeMaterial.from_database("NMC811")
+        self.cathode_formulation.active_materials = {new_active_material: 90}
+        new_cutoff_voltage = self.cathode_formulation.voltage_cutoff
+
+        self.assertNotEqual(old_cutoff_voltage, new_cutoff_voltage)
+
 
 class TestMultiCathodeFormulation(unittest.TestCase):
 

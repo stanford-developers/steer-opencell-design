@@ -1,7 +1,13 @@
 import dash as ds
 from steer_core.Apps.Components.SliderComponents import SliderWithTextInput
+from steer_core.Apps.Components.MaterialSelectors import MaterialSelector, ActiveMaterialSelector
 from App.styles import ADD_REMOVE_BUTTON_STYLE, ADD_REMOVE_BUTTON_CONTAINER_STYLE
 
+
+cathode_message = ds.html.Div(
+    id='cathode_formulation_message',
+    children=[]
+)
 
 
 cathode_parameters = ds.html.Div(
@@ -28,19 +34,38 @@ cathode_parameters = ds.html.Div(
 
 cathode_active_material_div = ds.html.Div(
     id = "cathode-active-material-div",
-    children=[]
+    children=[
+
+        ActiveMaterialSelector(id_base={'electrode': 'cathode', 'object': 'formulation', 'material': 'active_material', 'index': 0}, hidden=True)(),
+        ActiveMaterialSelector(id_base={'electrode': 'cathode', 'object': 'formulation', 'material': 'active_material', 'index': 1}, hidden=True)(),
+        ActiveMaterialSelector(id_base={'electrode': 'cathode', 'object': 'formulation', 'material': 'active_material', 'index': 2}, hidden=True)(),
+        ActiveMaterialSelector(id_base={'electrode': 'cathode', 'object': 'formulation', 'material': 'active_material', 'index': 3}, hidden=True)(),
+
+    ]
 )
 
 
 cathode_binder_div = ds.html.Div(
     id = "cathode-binder-div",
-    children=[]    
+    children=[
+
+        MaterialSelector(id_base={'electrode': 'cathode', 'object': 'formulation', 'material': 'binder', 'index': 0}, hidden=True)(),
+        MaterialSelector(id_base={'electrode': 'cathode', 'object': 'formulation', 'material': 'binder', 'index': 1}, hidden=True)(),
+        MaterialSelector(id_base={'electrode': 'cathode', 'object': 'formulation', 'material': 'binder', 'index': 2}, hidden=True)(),
+
+    ]    
 )
 
 
 cathode_conductive_additive_div = ds.html.Div(
     id = "cathode-conductive-additive-div",
-    children=[]    
+    children=[
+
+        MaterialSelector(id_base={'electrode': 'cathode', 'object': 'formulation', 'material': 'conductive_additive', 'index': 0}, hidden=True)(),
+        MaterialSelector(id_base={'electrode': 'cathode', 'object': 'formulation', 'material': 'conductive_additive', 'index': 1}, hidden=True)(),
+        MaterialSelector(id_base={'electrode': 'cathode', 'object': 'formulation', 'material': 'conductive_additive', 'index': 2}, hidden=True)(),
+
+    ]    
 )
 
 
@@ -174,6 +199,8 @@ cathode_formulation_layout = ds.html.Div([
 
         ds.html.Div([
             
+            ds.html.Br(), ds.html.Br(),
+            cathode_message,
             ds.html.Br(), ds.html.Br(),
             cathode_parameters,
             ds.html.Br(), ds.html.Br(),
