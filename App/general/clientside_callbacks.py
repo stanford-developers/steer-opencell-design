@@ -11,7 +11,7 @@ clientside_callback(
     """,
     Output({'electrode': MATCH, 'object': MATCH, 'property': MATCH, 'subtype': 'input'}, 'value'),
     Input({'electrode': MATCH, 'object': MATCH, 'property': MATCH, 'subtype': 'slider'}, 'drag_value'),
-    Input('cell_store', 'modified_timestamp'),
+    # Input('cell_store', 'data'),
     prevent_initial_call=True
 )
 
@@ -27,7 +27,7 @@ clientside_callback(
     """,
     Output({'electrode': MATCH, 'object': MATCH, 'property': MATCH, 'index': MATCH, 'material': MATCH, 'subtype': 'input'}, 'value'),
     Input({'electrode': MATCH, 'object': MATCH, 'property': MATCH, 'index': MATCH, 'material': MATCH, 'subtype': 'slider'}, 'drag_value'),
-    Input('cell_store', 'modified_timestamp'),
+    # Input('cell_store', 'data'),
     prevent_initial_call=True
 )
 
@@ -52,7 +52,7 @@ clientside_callback(
         Output({'electrode': MATCH, 'object': MATCH, 'property': MATCH, 'subtype': 'input_end'}, 'value')
     ],
     Input({'electrode': MATCH, 'object': MATCH, 'property': MATCH, 'subtype': 'rangeslider'}, 'drag_value'),
-    Input('cell_store', 'modified_timestamp'),
+    # Input('cell_store', 'data'),
     prevent_initial_call=True
 )
 
