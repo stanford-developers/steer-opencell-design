@@ -80,7 +80,7 @@ def update_cathode_formulation_main(
     ],
     [
         Input('cell_store', 'data'),
-
+        Input({'electrode': 'cathode', 'object': 'formulation', 'action': ALL, 'material': ALL}, 'n_clicks')
 
         # Input({'electrode': 'cathode', 'object': 'formulation', 'action': 'add', 'material': 'active_material'}, 'n_clicks'),
         # Input({'electrode': 'cathode', 'object': 'formulation', 'action': 'remove', 'material': 'active_material'}, 'n_clicks'),
@@ -103,12 +103,7 @@ def update_cathode_formulation_main(
 )
 def update_cathode_formulation_div(
     cell_data,
-    # add_active_clicks,
-    # remove_active_clicks,
-    # add_binder_clicks,
-    # remove_binder_clicks,
-    # add_conductive_clicks,
-    # remove_conductive_clicks,
+    action_button_clicks,
     existing_warnings,
     active_div_styles,
     binder_div_styles,
@@ -117,71 +112,19 @@ def update_cathode_formulation_div(
     anode_material_options
 ):
 
-    try:
+    callback_function = create_generic_formulation_div_callback(FormulationType.CATHODE)
 
-        callback_function = create_generic_formulation_div_callback(FormulationType.CATHODE)
+    response = callback_function(
+        existing_warnings,
+        cell_data,
+        active_div_styles,
+        binder_div_styles,
+        conductive_div_styles,
+        cathode_material_options,
+        anode_material_options
+    )
 
-        response = callback_function(
-            existing_warnings,
-            cell_data,
-            active_div_styles,
-            binder_div_styles,
-            conductive_div_styles,
-            cathode_material_options,
-            anode_material_options
-        )
-
-        message_div = create_success_message('Cathode formulation updated successfully')
-
-    except Exception as e:
-        
-        print(f"Exception in update_cathode_formulation_div: {e}")
-        import traceback
-        traceback.print_exc()
-
-        div_style_response = (
-            [no_update for _ in active_div_styles] +
-            [no_update for _ in binder_div_styles] +
-            [no_update for _ in conductive_div_styles]
-        )
-
-        dropdown_options_response = (
-            [no_update for _ in active_div_styles] +
-            [no_update for _ in binder_div_styles] +
-            [no_update for _ in conductive_div_styles]
-        )
-
-        dropdown_value_response = (
-            [no_update for _ in active_div_styles] +
-            [no_update for _ in binder_div_styles] +
-            [no_update for _ in conductive_div_styles]
-        )
-
-        weight_fraction_response = (
-            [no_update for _ in active_div_styles] +
-            [no_update for _ in binder_div_styles] +
-            [no_update for _ in conductive_div_styles]
-        )
-
-        response = (
-            no_update, 
-            no_update,
-            div_style_response,
-            dropdown_options_response,
-            dropdown_value_response,
-            weight_fraction_response,
-            [no_update for _ in range(0, 28)],
-            [no_update for _ in range(0, 28)],
-            [no_update for _ in range(0, 28)],
-            [no_update for _ in range(0, 28)],
-            [no_update for _ in range(0, 28)],
-            [no_update for _ in range(0, 28)],
-        ) 
-
-        # Convert exception to string for JSON serialization
-        message_div = create_error_message(f"Error updating cathode formulation: {str(e)}")
-
-    return (message_div, ) + response
+    return response
 
 
 
