@@ -1218,11 +1218,6 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
     @datum.setter
     @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]):
-        """
-        Set the datum of the electrode.
-
-        :param datum: Tuple containing the x, y, z coordinates of the electrode's datum.
-        """
         self.validate_datum(datum)
         self._datum = tuple(d * MM_TO_M for d in datum)
         self.current_collector.datum = datum

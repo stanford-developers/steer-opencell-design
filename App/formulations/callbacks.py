@@ -80,7 +80,8 @@ def update_cathode_formulation_main(
     ],
     [
         Input('cell_store', 'data'),
-        Input({'electrode': 'cathode', 'object': 'formulation', 'action': ALL, 'material': ALL}, 'n_clicks')
+        Input({'electrode': 'cathode', 'object': 'formulation', 'action': ALL, 'material': ALL}, 'n_clicks'),
+        Input({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'index': ALL, 'subtype': 'dropdown'}, 'value'),
 
         # Input({'electrode': 'cathode', 'object': 'formulation', 'action': 'add', 'material': 'active_material'}, 'n_clicks'),
         # Input({'electrode': 'cathode', 'object': 'formulation', 'action': 'remove', 'material': 'active_material'}, 'n_clicks'),
@@ -91,35 +92,45 @@ def update_cathode_formulation_main(
     ],
     [
         State('warnings_store', 'data'),
-
-        State({'electrode': 'cathode', 'object': 'formulation', 'material': 'active_material', 'index': ALL}, 'style'),
-        State({'electrode': 'cathode', 'object': 'formulation', 'material': 'binder', 'index': ALL}, 'style'),
-        State({'electrode': 'cathode', 'object': 'formulation', 'material': 'conductive_additive', 'index': ALL}, 'style'),
-
+        State({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'index': ALL}, 'style'),
+        State({'electrode': 'cathode', 'object': 'formulation', 'material': ALL, 'index': ALL, 'subtype': 'dropdown'}, 'value'),
+        State('cathode-active-material-div', 'children'),
+        State('cathode-binder-div', 'children'),
+        State('cathode-conductive-additive-div', 'children'),
         State('cathode_active_material_store', 'data'),
         State('anode_active_material_store', 'data'),
     ],
     prevent_initial_call=True
 )
 def update_cathode_formulation_div(
+
     cell_data,
     action_button_clicks,
+    dropdown_values,
+
     existing_warnings,
-    active_div_styles,
-    binder_div_styles,
-    conductive_div_styles,
+    all_div_styles,
+    all_dropdown_values,
+    active_material_div_children,
+    binder_div_children,
+    conductive_additive_div_children,
     cathode_material_options,
     anode_material_options
+
 ):
 
-    callback_function = create_generic_formulation_div_callback(FormulationType.CATHODE)
+    callback_function = create_generic_formulation_div_callback(
+        FormulationType.CATHODE
+    )
 
     response = callback_function(
         existing_warnings,
         cell_data,
-        active_div_styles,
-        binder_div_styles,
-        conductive_div_styles,
+        all_div_styles,
+        all_dropdown_values,
+        active_material_div_children,
+        binder_div_children,
+        conductive_additive_div_children,
         cathode_material_options,
         anode_material_options
     )
