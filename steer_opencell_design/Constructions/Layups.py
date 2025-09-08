@@ -1,19 +1,19 @@
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
 from steer_opencell_design.Components.Separators import Separator
-from steer_opencell_design.Components.CurrentCollectors import TabWeldedCurrentCollector, NotchedCurrentCollector
+
+from steer_core.Mixins.Coordinates import CoordinateMixin
+from steer_core.Mixins.Validators import ValidationMixin
+from steer_core.Mixins.Serializer import SerializerMixin
 
 from App.styles import *
-from steer_opencell_design.Constants import *
+from steer_core.Constants.Units import *
 
-from copy import deepcopy
 from copy import copy
-import pandas as pd
-import numpy as np
 import plotly.graph_objects as go
 from typing import Tuple
 
 
-class Layup:
+class Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
     """
     Class for a Layup, which is a combination of anode, cathode, and separators. This class represents the 
     item which will be wound into a jelly roll or stacked into a z-stack.
@@ -57,10 +57,10 @@ class Layup:
         self.top_separator = top_separator
         self.name = name
 
-        self._set_bottom_separator_datum()
-        self._set_anode_datum()
-        self._set_top_separator_datum()
-        self._calculate_properties()
+        # self._set_bottom_separator_datum()
+        # self._set_anode_datum()
+        # self._set_top_separator_datum()
+        # self._calculate_properties()
 
         self._update_properties = True
 

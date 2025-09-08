@@ -479,7 +479,7 @@ def create_status_message(
         'fontFamily': 'Arial, sans-serif',
         'boxShadow': '0 2px 4px rgba(0,0,0,0.1)',
         'position': 'relative',
-        'width': '60%',
+        'width': '100%',
         'maxWidth': '600px'
     }
     

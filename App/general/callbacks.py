@@ -251,12 +251,8 @@ def update_landing_image_alpha(
 
 
 @callback(
-    [
-        Output('cell_store', 'data', allow_duplicate=True)
-    ],
-    [
-        Input('cell_name_dropdown', 'value')
-    ],
+    [Output('cell_store', 'data', allow_duplicate=True)],
+    [Input('cell_name_dropdown', 'value')],
     prevent_initial_call=True
 )
 def get_cell_from_database(cell_name: str) -> Dict:
@@ -269,10 +265,6 @@ def get_cell_from_database(cell_name: str) -> Dict:
         The selected cell name from the dropdown.
     """
     from App.general.cell_operations import get_cell_from_database, set_cell_to_cache
-
-    # If contents is None, return no update
-    if cell_name is None:
-        return no_update
 
     cell = get_cell_from_database(cell_name)
     new_key = set_cell_to_cache(cell)

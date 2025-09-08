@@ -44,7 +44,6 @@ class MaterialConfig:
     cell_path: Optional[List[str]] = None
     custom_selector: Optional[Type[MaterialSelector]] = None
     selector_div_width: str = 'calc(100%)'
-    dropdown_options: List[str] = None
 
 
 # Define configurations
@@ -76,7 +75,6 @@ MATERIAL_CONFIGS = {
         settable_parameters=REGULAR_SETTABLE_PARAMETERS,
         selector_div_width='calc(80%)',
         custom_selector=MaterialSelector,
-        dropdown_options=BINDER_MATERIALS
     ),
     MaterialType.CONDUCTIVE_ADDITIVE: MaterialConfig(
         material_type=ConductiveAdditive,
@@ -84,7 +82,6 @@ MATERIAL_CONFIGS = {
         settable_parameters=REGULAR_SETTABLE_PARAMETERS,
         selector_div_width='calc(80%)',
         custom_selector=MaterialSelector,
-        dropdown_options=CONDUCTIVE_ADDITIVE_MATERIALS
     ),
     MaterialType.CATHODE_ACTIVE_MATERIAL: MaterialConfig(
         material_type=CathodeMaterial,
