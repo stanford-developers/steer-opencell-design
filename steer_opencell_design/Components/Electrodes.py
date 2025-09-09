@@ -603,7 +603,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
     # === ACTIONS ===
 
     @calculate_coordinates
-    def flip(self, axis: str) -> None:
+    def _flip(self, axis: str) -> None:
         """
         Function to rotate the electrode around a specified axis by 180 degrees
         around the current datum position.
@@ -617,7 +617,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
             raise ValueError("Axis must be 'x' or 'y'.")
 
         # Flip the current collector first (this handles all current collector coordinates)
-        self._current_collector.flip(axis)
+        self._current_collector._flip(axis)
 
     # === PROPERTIES ===
 
@@ -1155,7 +1155,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
     @formulation.setter
     @calculate_all_properties
     def formulation(self, formulation: _ElectrodeFormulation):
-        self.validate_formulations(formulation)
+        self.validate_type(formulation, _ElectrodeFormulation, 'formulation')
         self._formulation = formulation
 
     @voltage_cutoff.setter
@@ -1178,7 +1178,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
     @calculate_bulk_properties
     def insulation_material(self, insulation_material: InsulationMaterial | None):
 
-        self.validate_insulation_material(insulation_material) if insulation_material else None
+        self.validate_type(insulation_material, InsulationMaterial, 'insulation material') if insulation_material else None
 
         if self._current_collector.insulation_area != 0 and insulation_material is None:
             raise ValueError("Insulation material must be provided if the current collector has an insulation width")
@@ -1207,7 +1207,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
     @current_collector.setter
     @calculate_all_properties
     def current_collector(self, current_collector: _CurrentCollector):
-        self.validate_current_collector(current_collector)
+        self.validate_type(current_collector, _CurrentCollector, 'current collector')
         self._current_collector = current_collector
 
     @name.setter

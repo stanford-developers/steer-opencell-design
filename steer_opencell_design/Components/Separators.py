@@ -1,21 +1,26 @@
 from steer_core.Constants.Units import *
 from steer_core.Mixins.Coordinates import CoordinateMixin
+from steer_core.Mixins.Validators import ValidationMixin
+from steer_core.Decorators.Coordinates import calculate_coordinates
+from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
 
 from steer_materials.CellMaterials.Base import SeparatorMaterial
 
-from plotly import graph_objects as go
 from typing import Tuple
 from copy import deepcopy
 from App.styles import *
 
+import numpy as np
+import pandas as pd
 
-class Separator(CoordinateMixin):
+
+class Separator(CoordinateMixin, ValidationMixin):
 
     def __init__(
             self,  
             material: SeparatorMaterial,
             thickness: float, 
-            width: float = None,
+            width: float,
             length: float = None,
             name: str = 'Separator',
             datum: Tuple[float, float, float] = (0, 0, 0)
@@ -32,314 +37,235 @@ class Separator(CoordinateMixin):
         width : float, optional
             Width of the separator in mm. Does not need to be provided as it can be calculated from the layup and stack.
         length : float, optional
-            Length of the separator in mm. Does not need to be provided as it can be calculated from the layup and stack.
+            Length of the separator in mm. If None, bulk properties won't be calculated until set.
         name : str, optional
             Name of the separator. Defaults to 'Separator'.
         datum : Tuple[float, float, float], optional
             Datum point for the separator, used for positioning in 3D space. Defaults to (0, 0, 0).
         """
         self._folded = False
+        self._update_properties = False
 
         self.datum = datum
         self.width = width
-        self.length = length
         self.thickness = thickness
         self.material = material
         self.name = name
-    
-    def _calculate_areal_cost(self):
         
-        if hasattr(self, "_material") and hasattr(self, "_thickness") and self._material and self._thickness:
-            self._areal_cost = self._material._specific_cost * self._material._density * self._thickness
+        # Set length after other properties
+        if length is not None:
+            self.length = length
         else:
-            self._areal_cost = None
-
-    def _calculate_area(self):
-
-        if hasattr(self, "_length") and hasattr(self, "_width") and self._length and self._width:
-            self._area = self._length * self._width
+            self._length = None
+            
+        # Only calculate properties if we have length
+        if self._length is not None:
+            self._calculate_all_properties()
         else:
-            self._area = None
+            # Calculate areal properties and initialize bulk/coordinate properties to None
+            self._calculate_areal_properties()
+            self._calculate_bulk_properties()  # This will set bulk properties to None
+            self._calculate_coordinates()      # This will set coordinates to None
+            
+        self._update_properties = True
 
-    def _calculate_mass(self):
-
-        if hasattr(self, "_area") and hasattr(self, "_material") and self._area and self.material.density and self.thickness:
-            self._mass = self._area * self._material._density * self._thickness
-        else:
-            self._mass = None
-
-    def _calculate_cost(self):
-
-        if hasattr(self, "_area") and hasattr(self, "_areal_cost") and self._area and self._areal_cost:
-            self._cost = self._area * self._areal_cost
-        else:
-            self._cost = None
-
-    def _calculate_pore_volume(self):
-
-        if hasattr(self, "_area") and hasattr(self, '_material') and self._area and self.material.porosity:
-            self._pore_volume = self._area * self._thickness * self._material._porosity
-        else:
-            self._pore_volume = None
-
-    def _calculate_properties(self):
+    def _calculate_all_properties(self):
         """
         Calculate all properties of the separator.
         This method is called when length or width is set.
         """
-        self._calculate_areal_cost()
-        self._calculate_area()
-        self._calculate_mass()
-        self._calculate_cost()
-        self._calculate_pore_volume()
+        self._calculate_areal_properties()
+        self._calculate_bulk_properties()
+        self._calculate_coordinates()
 
-    def _calculate_traces(self):
-        self._get_top_down_trace()
-        self._get_side_view_trace()
+    def _calculate_areal_properties(self):
+        self._areal_cost = self._material._specific_cost * self._material._density * self._thickness
 
-    def _get_top_down_trace(self) -> go.Scatter:
+    def _calculate_bulk_properties(self):
         """
-        Create a trace for the top-down view of the separator.
+        Calculate bulk properties of the separator.
+        Only calculates if length is available.
         """
-        if not hasattr(self, "_length") or self._length is None or \
-           not hasattr(self, "_width") or self._width is None or \
-           not hasattr(self, '_material') or self._material is None or \
-           not hasattr(self, '_datum') or self._datum is None or \
-           not hasattr(self, '_name') or self._name is None:
+        if self._length is None:
+            self._area = None
+            self._mass = None
+            self._cost = None
+            self._pore_volume = None
+            return
+            
+        self._area = self._length * self._width
+        self._mass = self._area * self._material._density * self._thickness
+        self._cost = self._area * self._areal_cost
+        self._pore_volume = self._area * self._thickness * self._material._porosity
 
-            return None
-        
-        if self._folded:
-            length = self._fold_length
-        else:
-            length = self._length
-        
-        coordinates = self.build_square_df(
-            x=self._datum[0] - length / 2,
-            y=self._datum[1] - self._width / 2,
-            x_width=length,
-            y_width=self._width
-        )
-
-        trace = go.Scatter(
-            x=coordinates['x'],
-            y=coordinates['y'],
-            mode='lines',
-            line=dict(color='black', width=1),
-            fill='toself',
-            fillcolor=self._material._color,
-            name=self._name
-        )
-
-        self._top_down_trace = trace
-
-    def _get_side_view_trace(self) -> go.Scatter:
-        """        
-        Create a trace for the side view of the separator.
+    def _calculate_coordinates(self):
         """
-        if not hasattr(self, "_length") or self._length is None or \
-           not hasattr(self, "_width") or self._width is None or \
-           not hasattr(self, '_material') or self._material is None or \
-           not hasattr(self, '_datum') or self._datum is None or \
-           not hasattr(self, '_name') or self._name is None:
+        Calculate coordinates only if length is available.
+        """
+        if self._length is None:
+            self._coordinates = None
+            return
 
-            return None
-        
-        if self._folded:
-            return None # TODO: Implement side view for folded separators
-
-        coordinates = self.build_square_df(
-            x=self._datum[0] - self._length / 2,
-            y=self._datum[2] - self._thickness / 2,
-            x_width=self._length,
-            y_width=self._thickness
+        x, y = self.build_square_array(
+            self._datum[0] - self._length / 2,
+            self._datum[1] - self._width / 2,
+            self._length,
+            self._width
         )
 
-        trace = go.Scatter(
-            x=coordinates['x'],
-            y=coordinates['y'],
-            mode='lines',
-            line=dict(color='black', width=1),
-            fill='toself',
-            fillcolor=self._material._color,
-            name=self._name
+        x, y, z, _ = self.extrude_footprint(x, y, self._datum, self._thickness)
+
+        self._coordinates = np.column_stack((x, y, z))
+
+    def get_top_down_view(self, **kwargs) -> go.Figure:
+        if self._coordinates is None:
+            raise ValueError("Cannot generate top-down view: length not set")
+
+        fig = go.Figure()
+        fig.add_trace(self.top_down_trace)
+
+        fig.update_layout(
+            xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='X (mm)'),
+            yaxis=dict(showgrid=False, zeroline=False, title='Y (mm)'),
+            paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
+            plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
+            **kwargs
         )
 
-        self._side_trace = trace
+        return fig
 
     @property
-    def cost(self) -> float:
+    def coordinates(self) -> pd.DataFrame:
+        if self._coordinates is None:
+            return None
+            
+        return pd.DataFrame(
+            self._coordinates,
+            columns=['x', 'y', 'z']
+        ).assign(
+            x=lambda df: (df['x'].astype(float) * M_TO_MM).round(10),
+            y=lambda df: (df['y'].astype(float) * M_TO_MM).round(10),
+            z=lambda df: (df['z'].astype(float) * M_TO_MM).round(10)
+        )
 
-        if hasattr(self, '_cost') and self._cost is not None:
-            return round(self._cost, 2)
-        else:
-            raise AttributeError("Cost has not been calculated. Ensure that length and width are set.")
+    @property
+    def top_down_trace(self) -> go.Scatter:
+        if self._coordinates is None:
+            return None
+
+        # get the side with the maximum z value
+        coordinates = self.coordinates.query('z == z.max()')
+
+        # make the body trace
+        body_trace = go.Scatter(
+            x=coordinates['x'],
+            y=coordinates['y'],
+            mode='lines',
+            name='Tab',
+            line=dict(color='black', width=1),
+            fill='toself',
+            fillcolor=self._material.color,
+            legendgroup='Separator',
+            showlegend=True
+        )
+
+        return body_trace
+    
+    @property
+    def cost(self) -> float:
+        if self._cost is None:
+            return None
+        return round(self._cost, 2)
 
     @property
     def mass(self) -> float:
-
-        if hasattr(self, '_mass') and self._mass is not None:
-            return round(self._mass * KG_TO_G, 2)
-        else:
-            raise AttributeError("Mass has not been calculated. Ensure that length and width are set.")
+        if self._mass is None:
+            return None
+        return round(self._mass * KG_TO_G, 2)
 
     @property
     def area(self) -> float:
-
-        if hasattr(self, '_area') and self._area is not None:
-            return round(self._area * M_TO_CM**2, 2)
-        else:
-            raise AttributeError("Area has not been calculated. Ensure that length and width are set.")
+        if self._area is None:
+            return None
+        return round(self._area * M_TO_CM**2, 2)
 
     @property
     def areal_cost(self) -> float:
-
-        if hasattr(self, '_areal_cost') and self._areal_cost is not None:
-            return round(self._areal_cost, 2)
-        else:
-            raise AttributeError("Areal cost has not been calculated. Ensure that length and width are set.")
-
-    @areal_cost.setter
-    def areal_cost(self, areal_cost: float) -> None:
-
-        if not isinstance(areal_cost, (int, float)):
-            raise TypeError("Areal cost must be a number.")
-
-        if areal_cost < 0:
-            raise ValueError("Areal cost cannot be negative.")
-
-        self._areal_cost = float(areal_cost)
-        self._material._specific_cost = self._areal_cost / (self.material.density * self.thickness)
-
-        self._calculate_cost()
+        return round(self._areal_cost, 2)
 
     @property
     def pore_volume(self) -> float:
-
-        if hasattr(self, '_pore_volume') and self._pore_volume is not None:
-            return round(self._pore_volume * M_TO_MM**3, 2)
-        else:
-            raise ValueError("Pore volume has not been calculated. Ensure that length and width are set.")
+        if self._pore_volume is None:
+            return None
+        return round(self._pore_volume * M_TO_MM**3, 2)
 
     @property
     def datum(self) -> Tuple[float, float, float]:
         return self._datum
 
-    @datum.setter
-    def datum(self, datum: Tuple[float, float, float]) -> None:
-
-        if not isinstance(datum, tuple) or len(datum) != 3:
-            raise TypeError("Datum must be a tuple of three floats (x, y, z).")
-
-        if not all(isinstance(coord, (int, float)) for coord in datum):
-            raise TypeError("All coordinates in the datum must be numbers.")
-
-        self._datum = tuple(float(coord) for coord in datum)
-
-        self._calculate_traces()
-
     @property
     def name(self) -> str:
-        if hasattr(self, '_name'):
-            return self._name
-        else:
-            return "Unnamed Separator"
-
-    @name.setter
-    def name(self, name: str) -> None:
-
-        if not isinstance(name, str):
-            raise TypeError("Name must be a string.")
-
-        if len(name) == 0:
-            raise ValueError("Name cannot be an empty string.")
-
-        self._name = name
+        return self._name
 
     @property
     def length(self) -> float:
-
-        if hasattr(self, '_length') and self._length is not None:
-            return round(self._length * M_TO_MM, 2)
-        else:
+        if self._length is None:
             return None
+        return round(self._length * M_TO_MM, 2)
         
-    @length.setter
-    def length(self, length: float) -> None:
-
-        if length is None:
-            self._length = None
-            return
-
-        if not isinstance(length, (int, float)):
-            raise TypeError("Length must be a number.")
-
-        if length < 0:
-            raise ValueError("Length cannot be negative.")
-
-        self._length = float(length) * MM_TO_M
-
-        self._calculate_properties()
-
     @property
     def width(self) -> float:
-        
-        if hasattr(self, '_width') and self._width is not None:
-            return round(self._width * M_TO_MM, 2)
-        else:
-            return None
-
-    @width.setter
-    def width(self, width: float) -> None:
-
-        if width is None:
-            self._width = None
-            return
-
-        if not isinstance(width, (int, float)):
-            raise TypeError("Width must be a number.")
-
-        if width < 0:
-            raise ValueError("Width cannot be negative.")
-
-        self._width = float(width) * MM_TO_M
-        self._calculate_properties()
+        return round(self._width * M_TO_MM, 2)
 
     @property
     def material(self) -> SeparatorMaterial:
         return self._material
-    
-    @material.setter
-    def material(self, material: SeparatorMaterial) -> None:
-
-        if not isinstance(material, SeparatorMaterial):
-            raise TypeError("Material must be an instance of SeparatorMaterial.")
-        
-        self._material = deepcopy(material)
-
-        self._calculate_properties()
-        self._calculate_traces()
 
     @property
     def thickness(self):
         return round(self._thickness * M_TO_UM, 2)
 
+    @areal_cost.setter
+    @calculate_all_properties
+    def areal_cost(self, areal_cost: float) -> None:
+        self.validate_positive_float(areal_cost, "Areal Cost")
+        new_material_specific_cost = areal_cost / (self.material._density * self._thickness) # $/kg
+        self._material.specific_cost = new_material_specific_cost
+
+    @name.setter
+    def name(self, name: str) -> None:
+        self.validate_string(name, "Name")
+        self._name = name
+
+    @length.setter
+    @calculate_all_properties
+    def length(self, length: float) -> None:
+        self.validate_positive_float(length, "Length")
+        self._length = float(length) * MM_TO_M
+
+    @width.setter
+    @calculate_all_properties
+    def width(self, width: float) -> None:
+        self.validate_positive_float(width, "Width")
+        self._width = float(width) * MM_TO_M
+
+    @material.setter
+    @calculate_bulk_properties
+    def material(self, material: SeparatorMaterial) -> None:
+        self.validate_type(material, SeparatorMaterial, "Material")
+        self._material = deepcopy(material)
+
+    @datum.setter
+    @calculate_coordinates
+    def datum(self, datum: Tuple[float, float, float]) -> None:
+        self.validate_datum(datum)
+        self._datum = tuple(float(coord) for coord in datum)
+
     @thickness.setter
+    @calculate_all_properties
     def thickness(self, thickness: float) -> None:
-
-        if not isinstance(thickness, (int, float)):
-            raise TypeError("Thickness must be a number.")
-
-        if thickness < 0:
-            raise ValueError("Thickness cannot be negative.")
-        
-        if thickness > 100:
-            raise ValueError("This thickness is too high for a separator. Check the units, it should be in um.")
-        
+        self.validate_positive_float(thickness, "Thickness")
         self._thickness = float(thickness) * UM_TO_M
-
-        self._calculate_properties()
-        self._calculate_traces()
 
     def __str__(self):
         if self._name is not None:

@@ -305,39 +305,7 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
     def _get_b_side_insulation_coordinates(self) -> go.Scatter:
         self._b_side_insulation_coordinates = self._get_insulation_coordinates(side='b')
 
-    def get_a_side_view(self, **kwargs) -> go.Figure:
-
-        z_coords = self._body_coordinates[:, 2]
-        z_a = z_coords[self._body_coordinates_side == 'a'].mean()
-        z_b = z_coords[self._body_coordinates_side == 'b'].mean()
-
-        top_side = 'a' if z_a > z_b else 'b'
-
-        if top_side == 'a':
-            return self.get_top_down_view(**kwargs)
-        else:
-            self.flip('y')
-            figure = self.get_top_down_view(**kwargs)
-            self.flip('y')
-            return figure
-
-    def get_b_side_view(self, **kwargs) -> go.Figure:
-
-        z_coords = self._body_coordinates[:, 2]
-        z_a = z_coords[self._body_coordinates_side == 'a'].mean()
-        z_b = z_coords[self._body_coordinates_side == 'b'].mean()
-
-        top_side = 'a' if z_a > z_b else 'b'
-
-        if top_side == 'b':
-            return self.get_top_down_view(**kwargs)
-        else:
-            self.flip('y')
-            figure = self.get_top_down_view(**kwargs)
-            self.flip('y')
-            return figure
-
-    def flip(self, axis: str) -> None:
+    def _flip(self, axis: str) -> None:
         """
         Function to rotate the current collector around a specified axis by 180 degrees
         around the current datum position.
@@ -376,6 +344,84 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
                 tab._datum = tuple(rotated_datum[0])
 
         return self
+
+    def _translate(self, vector: Iterable[float]) -> None:
+
+        # convert to numpy array
+        vector = np.array(vector)
+
+        # translate body coordinates coordinates
+        self._body_coordinates += vector
+
+        # translate a side coated coordinates
+        coords_copy = self._a_side_coated_coordinates.copy()
+        nan_mask = np.isnan(coords_copy)
+        coords_copy[nan_mask] = 0
+        coords_copy += vector
+        coords_copy[nan_mask] = np.nan
+        self._a_side_coated_coordinates = coords_copy
+
+        # translate b side coated coordinates
+        coords_copy = self._b_side_coated_coordinates.copy()
+        nan_mask = np.isnan(coords_copy)
+        coords_copy[nan_mask] = 0
+        coords_copy += vector
+        coords_copy[nan_mask] = np.nan
+        self._b_side_coated_coordinates = coords_copy
+
+        # translate insulation coordinates if they exist
+        if hasattr(self, '_a_side_insulation_coordinates') and self._a_side_insulation_coordinates is not None:
+            self._a_side_insulation_coordinates += vector
+        if hasattr(self, '_b_side_insulation_coordinates') and self._b_side_insulation_coordinates is not None:
+            self._b_side_insulation_coordinates += vector
+
+        # translate the tabs if they exist
+        if hasattr(self, '_weld_tabs'):
+            for tab in self._weld_tabs:
+                
+                _new_datum = (
+                    tab._datum[0] + vector[0],
+                    tab._datum[1] + vector[1],
+                    tab._datum[2] + vector[2]
+                )
+
+                new_datum = tuple(d * M_TO_MM for d in _new_datum)
+
+                tab.datum = new_datum
+
+        return self
+
+    def get_a_side_view(self, **kwargs) -> go.Figure:
+
+        z_coords = self._body_coordinates[:, 2]
+        z_a = z_coords[self._body_coordinates_side == 'a'].mean()
+        z_b = z_coords[self._body_coordinates_side == 'b'].mean()
+
+        top_side = 'a' if z_a > z_b else 'b'
+
+        if top_side == 'a':
+            return self.get_top_down_view(**kwargs)
+        else:
+            self._flip('y')
+            figure = self.get_top_down_view(**kwargs)
+            self._flip('y')
+            return figure
+
+    def get_b_side_view(self, **kwargs) -> go.Figure:
+
+        z_coords = self._body_coordinates[:, 2]
+        z_a = z_coords[self._body_coordinates_side == 'a'].mean()
+        z_b = z_coords[self._body_coordinates_side == 'b'].mean()
+
+        top_side = 'a' if z_a > z_b else 'b'
+
+        if top_side == 'b':
+            return self.get_top_down_view(**kwargs)
+        else:
+            self._flip('y')
+            figure = self.get_top_down_view(**kwargs)
+            self._flip('y')
+            return figure
 
     def get_right_left_view(self, **kwargs) -> go.Figure:
         """
@@ -865,9 +911,23 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         return (0, 5000)
 
     @datum.setter
-    @calculate_all_properties
     def datum(self, datum: Tuple[float, float, float]) -> None:
+
+        # validate the datum
         self.validate_datum(datum)
+
+        if self._update_properties:
+            
+            # calculate the translation vector in m
+            translation_vector = (
+                float(datum[0]) * MM_TO_M - self._datum[0],
+                float(datum[1]) * MM_TO_M - self._datum[1],
+                float(datum[2]) * MM_TO_M - self._datum[2]
+            )
+
+            # translate all coordinates
+            self._translate(translation_vector)
+
         self._datum = (
             float(datum[0]) * MM_TO_M, 
             float(datum[1]) * MM_TO_M, 
@@ -877,7 +937,7 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
     @material.setter
     @calculate_bulk_properties
     def material(self, material: CurrentCollectorMaterial) -> None:
-        self.validate_current_collector_material(material)
+        self.validate_type(material, CurrentCollectorMaterial, "material")
         self._material = material
         self._calculate_fill_patterns()
 
@@ -3052,6 +3112,9 @@ class WeldTab(ValidationMixin, CoordinateMixin):
         # calculate the total upper and lower area of the body
         self._body_area = body_a_side_area * 2
     
+    def _translate(self, vector: Tuple[float, float, float]) -> None:
+        self._body_coordinates += np.array(vector)
+
     def get_view(self, **kwargs) -> go.Figure:
         """
         Returns a Plotly Figure representing the weld tab.
@@ -3183,9 +3246,23 @@ class WeldTab(ValidationMixin, CoordinateMixin):
         return round(self._body_area * M_TO_MM**2, 2)
 
     @datum.setter
-    @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]) -> None:
+
+        # validate the datum
         self.validate_datum(datum)
+
+        if self._update_properties:
+            
+            # calculate the translation vector in m
+            translation_vector = (
+                float(datum[0]) * MM_TO_M - self._datum[0],
+                float(datum[1]) * MM_TO_M - self._datum[1],
+                float(datum[2]) * MM_TO_M - self._datum[2]
+            )
+
+            # translate all coordinates
+            self._translate(translation_vector)
+
         self._datum = (
             float(datum[0]) * MM_TO_M, 
             float(datum[1]) * MM_TO_M, 
@@ -3195,7 +3272,7 @@ class WeldTab(ValidationMixin, CoordinateMixin):
     @material.setter
     @calculate_all_properties
     def material(self, material: CurrentCollectorMaterial) -> None:
-        self.validate_current_collector_material(material)
+        self.validate_type(material, CurrentCollectorMaterial, "material")
         self._material = material
 
     @width.setter
@@ -3765,7 +3842,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
     @weld_tab.setter
     @calculate_all_properties
     def weld_tab(self, weld_tab: WeldTab) -> None:
-        self.validate_weld_tab(weld_tab)
+        self.validate_type(weld_tab, WeldTab, "weld_tab")
         self._weld_tab = weld_tab
 
     @weld_tab_positions.setter

@@ -965,7 +965,7 @@ class _ElectrodeFormulation(ValidationMixin):
         if conductive_additives != {}:
 
             for key, value in conductive_additives.items():
-                self.validate_conductive_additive(key)
+                self.validate_type(key, ConductiveAdditive, "Conductive additive")
                 self.validate_percentage(value, f"Mass fraction for {key.name}")
 
         self._conductive_additives = {key: value / 100 for key, value in conductive_additives.items() if key is not None}
@@ -977,7 +977,7 @@ class _ElectrodeFormulation(ValidationMixin):
         if binders != {}:        
 
             for key, value in binders.items():
-                self.validate_binder(key)
+                self.validate_type(key, Binder, "Binder")
                 self.validate_percentage(value, f"Mass fraction for {key.name}")
         
         self._binders = {key: value / 100 for key, value in binders.items()}
@@ -994,7 +994,7 @@ class _ElectrodeFormulation(ValidationMixin):
 
         # Check the types and values of the active materials
         for key, value in active_materials.items():
-            self.validate_active_material(key)
+            self.validate_type(key, _ActiveMaterial, "Active material")
             self.validate_percentage(value, f"Mass fraction for {key.name}")
 
         # Store the new active materials
