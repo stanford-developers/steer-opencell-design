@@ -142,54 +142,42 @@ class Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
             if a < b:
                 raise ValueError("The overhang of your top separator is less than that of the anode, meaning there will be bare anode exposed. Please check your layup design.")
 
-    def _get_full_top_down_view(self, side: str, **kwargs) -> go.Figure:
+    def _get_full_top_down_view(self, **kwargs) -> go.Figure:
 
-        if side not in ['a', 'b']:
-            raise ValueError("Side must be 'a' or 'b'. Currently, only 'a' or 'b' side view is supported.")
-        
         fig = go.Figure()
 
         # Get trace groups
-        cathode_traces = []
-        cathode_fig = self._cathode.get_a_side_view() if side == 'a' else self._cathode.get_b_side_view()
+        cathode_fig = self._cathode._get_full_top_down_view()
         for i, trace in enumerate(cathode_fig.data):
             trace.name = self._cathode.name
             trace.legendgroup = self._cathode.name
             trace.showlegend = i == 0
             trace.xaxis = 'x'
             trace.yaxis = 'y'
-            cathode_traces.append(trace)
+            fig.add_trace(trace)
 
         bottom_separator_trace = copy(self._bottom_separator.top_down_trace)
-        bottom_separator_trace.name = 'Bottom Separator'
-        bottom_separator_trace.legendgroup = 'Bottom Separator'
+        bottom_separator_trace.name = self.bottom_separator.name
+        bottom_separator_trace.legendgroup = self.bottom_separator.name
         bottom_separator_trace.xaxis = 'x'
         bottom_separator_trace.yaxis = 'y'
+        fig.add_trace(bottom_separator_trace)
 
-        anode_traces = []
-        anode_fig = self._anode.get_a_side_view() if side == 'a' else self._anode.get_b_side_view()
+        anode_fig = self._anode._get_full_top_down_view()
         for i, trace in enumerate(anode_fig.data):
             trace.name = self._anode.name
             trace.legendgroup = self._anode.name
             trace.showlegend = i == 0
             trace.xaxis = 'x'
             trace.yaxis = 'y'
-            anode_traces.append(trace)
+            fig.add_trace(trace)
 
         top_separator_trace = copy(self._top_separator.top_down_trace)
-        top_separator_trace.name = 'Top Separator'
-        top_separator_trace.legendgroup = 'Top Separator'
+        top_separator_trace.name = self.top_separator.name
+        top_separator_trace.legendgroup = self.top_separator.name
         top_separator_trace.xaxis = 'x'
         top_separator_trace.yaxis = 'y'
-
-        # Order depends on side
-        if side == 'a':
-            ordered_traces = cathode_traces + [bottom_separator_trace] + anode_traces + [top_separator_trace]
-        else:
-            ordered_traces = [top_separator_trace] + anode_traces + [bottom_separator_trace] + cathode_traces
-
-        for trace in ordered_traces:
-            fig.add_trace(trace)
+        fig.add_trace(top_separator_trace)
 
         # Final layout
         fig.update_layout(
@@ -197,7 +185,7 @@ class Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
             yaxis=dict(showgrid=False, zeroline=False, title='', showticklabels=False),
             paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
             plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
-            title=kwargs.get('title', f"{self.name} - {side.upper()} Side View"),
+            title=kwargs.get('title', f"{self.name} Top-Down View"),
             **kwargs
         )
 
@@ -260,6 +248,9 @@ class Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
         # validate the type
         self.validate_type(bottom_separator, Separator, "Bottom Separator")
 
+        # modify name
+        bottom_separator.name = f"Bottom {bottom_separator.name}"
+
         # set to the layup
         self._bottom_separator = bottom_separator
 
@@ -296,6 +287,9 @@ class Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
 
         # validate the type
         self.validate_type(top_separator, Separator, "Top Separator")
+
+        # modify name
+        top_separator.name = f"Top {top_separator.name}"
 
         # set to the layup
         self._top_separator = top_separator

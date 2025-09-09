@@ -313,14 +313,15 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         Parameters
         ----------
         axis : str
-            The axis to rotate around. Must be 'x' or 'y'.
+            The axis to rotate around. Must be 'x', 'y', or 'z'.
         """
-        if axis not in ['x', 'y', '']:
-            raise ValueError("Axis must be 'x' or 'y'.")
+        if axis not in ['x', 'y', 'z']:
+            raise ValueError("Axis must be 'x', 'y', or 'z'.")
 
         axis_map = {
             'x': 'y',
             'y': 'x',
+            'z': 'z'
         }
 
         rotation_axis = axis_map[axis]

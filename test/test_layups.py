@@ -115,13 +115,13 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
 
     def test_plots(self):
 
-        figure1 = self.layup._get_full_top_down_view(side='a')
-        # figure2 = self.layup.get_b_side_view()
-        # figure3 = self.layup.get_end_view()
+        fig1 = self.layup.anode._get_full_top_down_view()
+        fig2 = self.layup.cathode._get_full_top_down_view()
+        fig3 = self.layup._get_full_top_down_view()
 
-        figure1.show()
-        # figure2.show()
-        # figure3.show()
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
 
     def test_overhangs(self):
 

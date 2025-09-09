@@ -150,6 +150,7 @@ class Separator(CoordinateMixin, ValidationMixin):
 
     @property
     def top_down_trace(self) -> go.Scatter:
+
         if self._coordinates is None:
             return None
 
@@ -171,6 +172,30 @@ class Separator(CoordinateMixin, ValidationMixin):
 
         return body_trace
     
+    @property
+    def right_left_trace(self) -> go.Scatter:
+
+        if self._coordinates is None:
+            return None
+        
+        # get the coordinates
+        coordinates = self.order_coordinates_clockwise(self.coordinates, plane='yz')
+
+        # make the trace
+        a_side_insulation_trace = go.Scatter(
+            x=coordinates['y'],
+            y=coordinates['z'],
+            mode='lines',
+            name=self.name,
+            line=dict(width=1, color='black'),
+            fill='toself',
+            fillcolor=self._insulation_material._color,
+            legendgroup=self.name,
+            showlegend=True
+        )
+
+        return a_side_insulation_trace
+
     @property
     def cost(self) -> float:
         if self._cost is None:
