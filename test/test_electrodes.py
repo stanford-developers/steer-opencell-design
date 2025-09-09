@@ -112,9 +112,6 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         figure3 = self.cathode.get_b_side_view()
         figure4 = self.cathode._get_full_right_left_view()
         figure5 = self.cathode.get_cross_section()
-        # figure1 = self.cathode.get_a_side_view(width=900, height=600)
-        # figure2 = self.cathode.get_b_side_view(width=900, height=600)
-        # figure3 = self.cathode.get_end_view(width=900, height=600)
         
         # figure0.show()
         # figure1.show()
@@ -126,9 +123,9 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
     def test_flip(self):
 
         figure1 = self.cathode._get_full_top_down_view()
-        self.cathode.flip('x')
+        self.cathode._flip('x')
         figure2 = self.cathode._get_full_top_down_view()
-        self.cathode.flip('y')
+        self.cathode._flip('y')
         figure3 = self.cathode._get_full_top_down_view()
 
         # figure1.show()

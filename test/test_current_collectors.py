@@ -126,6 +126,7 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         self.assertNotEqual(self.current_collector.coated_area, old_coated_area)
         self.assertNotEqual(self.current_collector.insulation_area, old_insulation_area)
 
+
 class TestNotchedCurrentCollector(unittest.TestCase):
 
     def setUp(self):
@@ -225,6 +226,16 @@ class TestNotchedCurrentCollector(unittest.TestCase):
     def test_to_tabless(self):
         new_current_collector = TablessCurrentCollector.from_notched(self.current_collector)
         self.assertIsInstance(new_current_collector, TablessCurrentCollector)
+
+    def test_flip_and_set_datum(self):
+        self.current_collector.length = 300
+        fig11 = self.current_collector._get_full_top_down_view()
+        self.current_collector._flip('y')
+        self.current_collector.datum = (200, 150, 50)
+        fig21 = self.current_collector._get_full_top_down_view()
+
+        figure1 = go.Figure(data=fig11.data + fig21.data)
+        figure1.show()
 
 
 class TestNotchedCurrentCollector2(unittest.TestCase):
@@ -491,4 +502,23 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
     def test_to_tabless(self):
         new_current_collector = TablessCurrentCollector.from_tab_welded(self.current_collector)
         self.assertIsInstance(new_current_collector, TablessCurrentCollector)
+
+    def test_flip(self):
+
+        fig1 = self.current_collector._get_full_top_down_view()
+        self.current_collector._flip('y')
+        fig2 = self.current_collector._get_full_top_down_view()
+
+        # fig1.show()
+        # fig2.show()
+
+    def test_flip_and_set_datum(self):
+        self.current_collector.length = 300
+        fig11 = self.current_collector._get_full_top_down_view()
+        self.current_collector._flip('y')
+        self.current_collector.datum = (200, 150, 50)
+        fig21 = self.current_collector._get_full_top_down_view()
+
+        figure1 = go.Figure(data=fig11.data + fig21.data)
+        figure1.show()
 
