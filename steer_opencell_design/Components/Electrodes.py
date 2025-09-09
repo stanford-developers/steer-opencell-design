@@ -411,9 +411,9 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         if self.top_side == 'a':
             return self.get_top_down_view(**kwargs)
         else:
-            self.flip('y')
+            self._flip('y')
             figure = self.get_top_down_view(**kwargs)
-            self.flip('y')
+            self._flip('y')
             return figure
 
     def get_b_side_view(self, **kwargs) -> go.Figure:
@@ -421,9 +421,9 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         if self.top_side == 'b':
             return self.get_top_down_view(**kwargs)
         else:
-            self.flip('y')
+            self._flip('y')
             figure = self.get_top_down_view(**kwargs)
-            self.flip('y')
+            self._flip('y')
             return figure
 
     def get_cross_section(self, **kwargs) -> go.Figure:
@@ -613,8 +613,8 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         axis : str
             The axis to rotate around. Must be 'x' or 'y'.
         """
-        if axis not in ['x', 'y']:
-            raise ValueError("Axis must be 'x' or 'y'.")
+        if axis not in ['x', 'y', 'z']:
+            raise ValueError("Axis must be 'x', 'y', or 'z'.")
 
         # Flip the current collector first (this handles all current collector coordinates)
         self._current_collector._flip(axis)
