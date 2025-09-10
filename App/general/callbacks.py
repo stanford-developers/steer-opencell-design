@@ -65,6 +65,29 @@ def show_cathode_tab_content(active_tab):
 
 @callback(
     [
+        Output('anode_current_collector_tab', 'style'),
+        Output('anode_formulation_tab', 'style'),
+        Output('anode_electrode_tab', 'style')
+    ],
+    Input('anode-tabs-container', 'value'),
+    prevent_initial_call=True
+)
+def show_anode_tab_content(active_tab):
+    """
+    Function to show or hide anode sub-tab content based on the active tab.
+    """
+    styles = {'display': 'none'}
+    active_style = {'display': 'block'}
+
+    return [
+        active_style if active_tab == 'anode_current_collector' else styles,
+        active_style if active_tab == 'anode_formulation' else styles,
+        active_style if active_tab == 'anode_electrode' else styles,
+    ]
+
+
+@callback(
+    [
         Output('internal_construction_dropdown', 'options'),
         Output('form_factor_dropdown', 'value'),
     ],

@@ -24,7 +24,40 @@ from steer_opencell_design.Components.Electrodes import ElectrodeControlMode
 def toggle_cathode_insulation_parameters(cell_data, current_style):
 
     # Get the configuration for cathode
-    config = COLLECTOR_CONFIGS[CollectorType.GENERIC]
+    config = COLLECTOR_CONFIGS[CollectorType.CATHODE_GENERIC]
+
+    # Get the cell from the cache
+    cell = cache.get(cell_data['cache_key'])
+
+    # Get the current collector object
+    current_collector = get_object_from_cell(cell, config)
+    
+    # Ensure current_style is a dict
+    if current_style is None:
+        current_style = {}
+
+    # Show if insulation_area > 0, else hide
+    if hasattr(current_collector, 'insulation_area') and current_collector.insulation_area > 0:
+        # Remove 'display' if present, or set to 'block'
+        style = dict(current_style)
+        style.pop('display', None)
+        return style
+    else:
+        # Set 'display' to 'none'
+        style = dict(current_style)
+        style['display'] = 'none'
+        return style
+    
+@callback(
+    Output('anode_insulation_material_parameters', 'style'),
+    Input('cell_store', 'data'),
+    State('anode_insulation_material_parameters', 'style'),
+    prevent_initial_call=True
+)
+def toggle_anode_insulation_parameters(cell_data, current_style):
+
+    # Get the configuration for anode
+    config = COLLECTOR_CONFIGS[CollectorType.ANODE_GENERIC]
 
     # Get the cell from the cache
     cell = cache.get(cell_data['cache_key'])
@@ -93,6 +126,49 @@ def update_cathode(
 
     return response
 
+@callback(
+    [
+        Output('warnings_store', 'data', allow_duplicate=True),
+        Output('cell_store', 'data', allow_duplicate=True),
+        Output({'electrode': 'anode', 'object': 'electrode', 'property': ALL, 'subtype': 'slider'}, 'value'),
+        Output({'electrode': 'anode', 'object': 'electrode', 'property': ALL, 'subtype': 'slider'}, 'min'),
+        Output({'electrode': 'anode', 'object': 'electrode', 'property': ALL, 'subtype': 'slider'}, 'max'),
+        Output({'electrode': 'anode', 'object': 'electrode', 'property': ALL, 'subtype': 'slider'}, 'marks'),
+        Output({'electrode': 'anode', 'object': 'electrode', 'property': ALL, 'subtype': 'slider'}, 'step'),
+        Output({'electrode': 'anode', 'object': 'electrode', 'property': ALL, 'subtype': 'input'}, 'step'),
+    ],
+    [
+        Input('cell_store', 'data'),
+        Input({'electrode': 'anode', 'object': 'electrode', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
+        Input({'electrode': 'anode', 'object': 'electrode', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
+        Input({'electrode': 'anode', 'object': 'electrode', 'property': ALL, 'subtype': 'slider'}, 'value'),
+    ],
+    [
+        State({'electrode': 'anode', 'object': 'electrode', 'property': ALL, 'subtype': 'input'}, 'value'),
+        State('warnings_store', 'data'),
+    ],
+    prevent_initial_call=True
+)
+def update_anode(
+    cell_data,
+    input_n_sub,
+    input_n_blur,
+    slider_values,
+    input_values,
+    existing_warnings
+):
+
+    callback_function = create_electrode_callback(ElectrodeType.ANODE)
+
+    response = callback_function(
+        existing_warnings,
+        cell_data,
+        input_values,
+        slider_values,
+    )
+
+    return response
+
 
 
 @callback(
@@ -125,6 +201,47 @@ def update_cathode_plots(cell_data, continue_to_design):
     # get the plots from the current collector
     plot_a = cathode.get_top_down_view(title='Top-Down Cathode View')
     plot_b = cathode.get_cross_section(title='Cross-Section Cathode View')
+    plot_cost_breakdown = cathode.plot_cost_breakdown(title='Cost Breakdown Plot')
+    plot_mass_breakdown = cathode.plot_mass_breakdown(title='Mass Breakdown Plot')
+
+    # Get the properties
+    properties = cathode.properties
+
+    # Create properties table using utility function
+    properties_table = create_properties_table(properties, table_id='cathode_properties_table', decimal_places=2)
+
+    return plot_a, plot_b, plot_cost_breakdown, plot_mass_breakdown, properties_table
+
+@callback(
+    [
+        Output('anode_top_down_plot', 'figure'),
+        Output('anode_cross_section_plot', 'figure'),
+        Output('anode_cost_breakdown_plot', 'figure'),
+        Output('anode_mass_breakdown_plot', 'figure'),
+        Output('anode_properties_div', 'children'),
+    ],
+    [
+        Input('cell_store', 'data'),
+        Input('continue_to_design', 'n_clicks'),
+    ],
+    prevent_initial_call=True
+)
+def update_anode_plots(cell_data, continue_to_design):
+    """
+    Update the anode current collector plots based on the current collector store data.
+    """
+    # Get the configuration
+    config = ELECTRODE_CONFIGS[ElectrodeType.ANODE]
+
+    # get the cell from the cache
+    cell = cache.get(cell_data['cache_key'])
+
+    # get the current collector from the cell
+    cathode = get_object_from_cell(cell, config)
+
+    # get the plots from the current collector
+    plot_a = cathode.get_top_down_view(title='Top-Down Anode View')
+    plot_b = cathode.get_cross_section(title='Cross-Section Anode View')
     plot_cost_breakdown = cathode.plot_cost_breakdown(title='Cost Breakdown Plot')
     plot_mass_breakdown = cathode.plot_mass_breakdown(title='Mass Breakdown Plot')
 
@@ -211,5 +328,80 @@ def update_cathode_control_mode(selected_mode, cell_data_input, cell_data_state)
         ui_mode = mode_reverse_mapping.get(current_mode, 'MAINTAIN_CALENDER_DENSITY')
         
         return cell_data, ui_mode
+
+@callback(
+    [
+        Output('cell_store', 'data', allow_duplicate=True),
+        Output('anode_control_mode_selector', 'value'),
+    ],
+    [
+        Input('anode_control_mode_selector', 'value'),
+        Input('cell_store', 'data'),
+    ],
+    [
+        State('cell_store', 'data'),
+    ],
+    prevent_initial_call=True
+)
+def update_anode_control_mode(selected_mode, cell_data_input, cell_data_state):
+    """
+    Update the anode control mode based on the radio button selection,
+    and update the radio button to reflect the current control mode.
+    """
+    from dash import ctx
+    
+    # Use the most recent cell_data
+    cell_data = cell_data_input or cell_data_state
+    
+    if not cell_data:
+        return cell_data, 'MAINTAIN_CALENDER_DENSITY'
+    
+    # Get the configuration
+    config = ELECTRODE_CONFIGS[ElectrodeType.ANODE]
+    
+    # Get the cell from the cache
+    cell = cache.get(cell_data['cache_key'])
+    
+    if not cell:
+        return cell_data, 'MAINTAIN_CALENDER_DENSITY'
+    
+    # Get the anode from the cell
+    anode = get_object_from_cell(cell, config)
+    
+    # Check which input triggered the callback
+    triggered_id = ctx.triggered[0]['prop_id'] if ctx.triggered else None
+    
+    if 'anode_control_mode_selector' in str(triggered_id):
+        # Radio button was changed - update the electrode
+        mode_mapping = {
+            'MAINTAIN_MASS_LOADING': ElectrodeControlMode.MAINTAIN_MASS_LOADING,
+            'MAINTAIN_CALENDER_DENSITY': ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY,
+            'MAINTAIN_COATING_THICKNESS': ElectrodeControlMode.MAINTAIN_COATING_THICKNESS
+        }
+        
+        # Set the control mode if valid
+        if selected_mode in mode_mapping:
+            anode.control_mode = mode_mapping[selected_mode]
+
+            # Update the cache with the modified cell
+            cache.set(cell_data['cache_key'], cell)
+        
+        return cell_data, selected_mode
+    
+    else:
+        # Cell data was updated - sync the radio button with electrode state
+        current_mode = anode.control_mode
+        
+        # Map the enum value back to the UI string
+        mode_reverse_mapping = {
+            ElectrodeControlMode.MAINTAIN_MASS_LOADING: 'MAINTAIN_MASS_LOADING',
+            ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY: 'MAINTAIN_CALENDER_DENSITY',
+            ElectrodeControlMode.MAINTAIN_COATING_THICKNESS: 'MAINTAIN_COATING_THICKNESS'
+        }
+        
+        ui_mode = mode_reverse_mapping.get(current_mode, 'MAINTAIN_CALENDER_DENSITY')
+        
+        return cell_data, ui_mode
+
 
 

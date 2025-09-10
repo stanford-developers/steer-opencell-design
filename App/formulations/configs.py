@@ -24,13 +24,13 @@ FORMULATION_CONFIGS = {
         formulation_type=CathodeFormulation,
         parameter_list=FORMULATION_PARAMETER_LIST,
         settable_parameters=FORMULATION_SETTABLE_PARAMETERS,
-        cell_path=['formulation']
+        cell_path=['cathode', 'formulation']
     ),
     FormulationType.ANODE: FormulationConfig(
         formulation_type=AnodeFormulation,
         parameter_list=FORMULATION_PARAMETER_LIST,
         settable_parameters=FORMULATION_SETTABLE_PARAMETERS,
-        cell_path=['formulation']
+        cell_path=['anode', 'formulation']
     ),
 }
 
