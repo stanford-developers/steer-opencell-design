@@ -127,34 +127,6 @@ cathode_formulation_plots = ds.html.Div([
     # Line break between top and bottom plots
     ds.html.Br(),
 
-    # Second and third plots side by side
-    ds.html.Div([
-        ds.html.Div([
-            ds.html.H5("Specific Cost Breakdown", style={'margin': '0 0 2px 0', 'textAlign': 'center'}),
-            ds.dcc.Graph(
-                id='cathode_formulation_specific_cost_breakdown_plot', 
-                style={'width': '100%', 'height': '40vh'},
-                responsive=True,
-                config={'responsive': True}
-            ),
-        ], style={'flex': '1', 'minWidth': '0'}),  # flex: 1 makes it take equal space, minWidth: 0 prevents overflow
-
-        ds.html.Div([
-            ds.html.H5("Density Breakdown", style={'margin': '0 0 2px 0', 'textAlign': 'center'}),
-            ds.dcc.Graph(
-                id='cathode_formulation_density_breakdown_plot', 
-                style={'width': '100%', 'height': '40vh'},
-                responsive=True,
-                config={'responsive': True}
-            ),
-        ], style={'flex': '1', 'minWidth': '0'}),  # flex: 1 makes it take equal space, minWidth: 0 prevents overflow
-    ], style={
-        'display': 'flex', 
-        'flex-direction': 'row',
-        'gap': '30px',  # Small gap between the two plots
-        'width': '100%'
-    }),
-
 ], style={
     'display': 'flex', 
     'flex-direction': 'column', 

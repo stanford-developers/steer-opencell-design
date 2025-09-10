@@ -278,11 +278,3 @@ class TestDualAnodeFormulation(unittest.TestCase):
 
         # figure.show()
 
-    def test_plot_breakdowns(self):
-
-        figure1 = self.anode_formulation.plot_specific_cost_breakdown()
-        figure2 = self.anode_formulation.plot_density_breakdown()
-
-        # figure1.show()
-        # figure2.show()
-

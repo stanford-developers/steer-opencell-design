@@ -5,6 +5,7 @@ ELECTRODE_PARAMETER_LIST = [
     'coating_thickness',
     'calender_density',
     'porosity',
+    'insulation_thickness',
 ]
 
 
@@ -13,5 +14,6 @@ ELECTRODE_SETTABLE_PARAMETERS = [
     'coating_thickness',
     'calender_density',
     'porosity',
+    'insulation_thickness',
 ]
 
