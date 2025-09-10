@@ -639,7 +639,10 @@ class _ElectrodeFormulation(ValidationMixin):
 
     @property
     def voltage_cutoff_range(self) -> tuple:
-        return self.voltage_operation_window
+        return (
+            min(self.voltage_operation_window), 
+            max(self.voltage_operation_window)
+        )
     
     @property
     def voltage_cutoff_hard_range(self) -> tuple:
