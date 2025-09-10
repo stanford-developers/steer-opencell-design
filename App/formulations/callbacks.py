@@ -241,9 +241,7 @@ def update_anode_formulation_div(
 
 ):
 
-    callback_function = create_generic_formulation_div_callback(
-        FormulationType.ANODE
-    )
+    callback_function = create_generic_formulation_div_callback(FormulationType.ANODE)
 
     response = callback_function(
         existing_warnings,

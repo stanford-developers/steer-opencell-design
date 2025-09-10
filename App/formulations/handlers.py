@@ -278,7 +278,10 @@ def handle_cell_store_update_materials(
     flattened_slider_responses = _flatten_slider_responses(all_slider_responses)
     
     # message_div
-    message = create_success_message('Cathode formulation updated successfully')
+    if formulation_config.formulation_type == CathodeFormulation:
+        message = create_success_message('Cathode formulation updated successfully')
+    elif formulation_config.formulation_type == AnodeFormulation:
+        message = create_success_message('Anode formulation updated successfully')
 
     return (
         message,
