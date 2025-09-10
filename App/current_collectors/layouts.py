@@ -582,7 +582,7 @@ cathode_plots = ds.html.Div([
 
 
     ds.dcc.Graph(
-        id='cathode_current_collector_a_side_plot', 
+        id='cathode_top_down_plot', 
         style={'width': '50vw', 'height': '40vw'},
         responsive=True,
         config={

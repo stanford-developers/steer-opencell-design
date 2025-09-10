@@ -10,7 +10,7 @@ from steer_core.Decorators.General import calculate_all_properties
 from App.styles import *
 from steer_core.Constants.Units import *
 
-from copy import copy
+from copy import copy, deepcopy
 import plotly.graph_objects as go
 from typing import Tuple
 
@@ -67,21 +67,36 @@ class Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
         # self._calculate_overhangs()
         
     def _calculate_bulk_properties(self):
+        self._calculate_thickness_properties()
+        self._calculate_mass_properties()
+        self._calculate_cost_properties()      
+
+    def _calculate_thickness_properties(self):
 
         self._thickness = self._cathode._thickness + \
                           self._bottom_separator._thickness + \
                           self._anode._thickness + \
                           self._top_separator._thickness
         
+        return self._thickness
+
+    def _calculate_mass_properties(self):
+
         self._mass = self._cathode._mass + \
                      self._bottom_separator._mass + \
                      self._anode._mass + \
                      self._top_separator._mass
         
+        return self._mass
+
+    def _calculate_cost_properties(self):
+
         self._cost = self._cathode._cost + \
                      self._bottom_separator._cost + \
                      self._anode._cost + \
-                     self._top_separator._cost        
+                     self._top_separator._cost
+        
+        return self._cost
 
     def _calculate_overhangs(self):
         """ 
@@ -239,7 +254,7 @@ class Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
     @calculate_all_properties
     def cathode(self, cathode: Cathode):
         self.validate_type(cathode, Cathode, "Cathode")
-        self._cathode = cathode
+        self._cathode = deepcopy(cathode)
 
     @bottom_separator.setter
     @calculate_all_properties
@@ -252,7 +267,7 @@ class Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
         bottom_separator.name = f"Bottom {bottom_separator.name}"
 
         # set to the layup
-        self._bottom_separator = bottom_separator
+        self._bottom_separator = deepcopy(bottom_separator)
 
         # modify the separator datum
         self._bottom_separator.datum = (
@@ -279,7 +294,7 @@ class Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
         )
 
         # assign the anode to the layup and update its position based on the cathode
-        self._anode = anode
+        self._anode = deepcopy(anode)
 
     @top_separator.setter
     @calculate_all_properties
@@ -292,7 +307,7 @@ class Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
         top_separator.name = f"Top {top_separator.name}"
 
         # set to the layup
-        self._top_separator = top_separator
+        self._top_separator = deepcopy(top_separator)
 
         self._top_separator.datum = (
             self._cathode.datum[0],

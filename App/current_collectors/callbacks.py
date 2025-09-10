@@ -458,7 +458,6 @@ def update_tabbed_collector(
 
 @callback(
     [
-        Output('cathode_current_collector_a_side_plot', 'figure'),
         Output('cathode_current_collector_properties_div', 'children'),
     ],
     [
@@ -479,9 +478,6 @@ def update_cathode_current_collector_plots(cell_data, continue_to_design):
     # get the current collector from the cell
     current_collector = get_object_from_cell(cell, config)
 
-    # get the plots from the current collector
-    a_side_plot = current_collector.get_a_side_view(with_dimensions=False, title='A-Side Current Collector View')
-
     # get the current collector properties
     properties = current_collector.properties
 
@@ -489,7 +485,7 @@ def update_cathode_current_collector_plots(cell_data, continue_to_design):
     properties_table = create_properties_table(properties, table_id='cathode_current_collector_properties_table', decimal_places=2)
 
     # return the plots
-    return a_side_plot, properties_table
+    return [properties_table]
 
 
 

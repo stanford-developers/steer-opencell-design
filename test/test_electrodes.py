@@ -68,28 +68,46 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
 
         self.assertEqual(
             self.cathode.mass_breakdown, 
-            {'NaNiMn P2-O3 Composite': 16.7, 
-             'PVDF': 0.23, 
-             'CMC': 0.13, 
-             'Super P': 0.25, 
-             'Graphite': 0.19, 
-             'Punched Current Collector': 2.77, 
-             'Aluminium Oxide, 95%': 0.41}
+            {
+                'Cathode Formulation': {
+                    'NaNiMn P2-O3 Composite': 16.7, 
+                    'PVDF': 0.23, 
+                    'CMC': 0.13, 
+                    'Super P': 0.25, 
+                    'Graphite': 0.19
+                },
+                'Punched Current Collector': 2.77,
+                'Aluminium Oxide, 95%': 0.41
+            }
         )
 
         self.assertEqual(
             self.cathode.cost_breakdown,
-            {'NaNiMn P2-O3 Composite': 0.17, 
-             'PVDF': 0.01, 
-             'CMC': 0.0, 
-             'Super P': 0.01, 
-             'Graphite': 0.0, 
-             'Punched Current Collector': 0.03, 
-             'Aluminium Oxide, 95%': 0.01}
+            {
+                'Cathode Formulation': {
+                    'NaNiMn P2-O3 Composite': 0.17, 
+                    'PVDF': 0.01, 
+                    'CMC': 0.0, 
+                    'Super P': 0.01, 
+                    'Graphite': 0.0
+                },
+                'Punched Current Collector': 0.03,
+                'Aluminium Oxide, 95%': 0.0
+            }
         )
 
-        self.assertEqual(round(sum([a for a in self.cathode._mass_breakdown.values()]), 2), round(self.cathode._mass, 2))
-        self.assertEqual(round(sum([a for a in self.cathode._cost_breakdown.values()]), 2), round(self.cathode._cost, 2))
+        def sum_nested_dict(data):
+            """Recursively sum all numeric values in a nested dictionary"""
+            total = 0
+            for key, value in data.items():
+                if isinstance(value, dict):
+                    total += sum_nested_dict(value)  # Recursive call for nested dict
+                elif isinstance(value, (int, float)):
+                    total += value
+            return total
+
+        self.assertAlmostEqual(self.cathode._cost, sum_nested_dict(self.cathode._cost_breakdown), 5)
+        self.assertAlmostEqual(self.cathode._mass, sum_nested_dict(self.cathode._mass_breakdown), 5)
 
         self.assertEqual(self.cathode.calender_density, 2.60)
         self.assertEqual(self.cathode.mass_loading, 10.68)
@@ -97,6 +115,13 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         self.assertEqual(self.cathode.coating_mass, 17.49)
         self.assertEqual(self.cathode.coating_thickness, 41.08)
         self.assertEqual(self.cathode.mass, 20.67)
+
+    def test_breakdown_plots(self):
+
+        plot_cost = self.cathode.plot_cost_breakdown(title='Cost Breakdown Plot')
+        plot_mass = self.cathode.plot_mass_breakdown(title='Mass Breakdown Plot')
+        # plot_cost.show()
+        # plot_mass.show()
 
     def test_half_cell_curve(self):
 

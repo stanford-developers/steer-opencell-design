@@ -242,37 +242,49 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         """
         Calculate the mass properties of the electrode.
         """
+        # calculate the mass of the coating
         self._coating_mass = self._current_collector._coated_area * self._mass_loading
         
-        # Only calculate insulator mass if insulation thickness is initialized
-        if hasattr(self, '_insulation_thickness'):
-            self._insulator_mass = self._current_collector._insulation_area * self._insulation_material._density * self._insulation_thickness if self._insulation_material else 0.0
-        else:
-            self._insulator_mass = 0.0
-            
-        self._mass = self._coating_mass + self._current_collector._mass + self._insulator_mass
+        # calculate the total mass
+        self._mass = self._coating_mass + self._current_collector._mass
 
-        # Only calculate mass breakdown if minimum coating volume exists
-        if hasattr(self, '_minimum_coating_volume'):
-            self._mass_breakdown = (
-                {k: float(v * self._minimum_coating_volume) for k, v in self._formulation._density_breakdown.items()} | 
-                {self._current_collector.name: self._current_collector._mass} |
-                ({self._insulation_material.name: self._insulator_mass} if self._insulation_material else {})
-            )
+        # calculate the mass breakdown
+        self._mass_breakdown = {
+            self._formulation.name: {k: float(v * self._minimum_coating_volume) for k, v in self._formulation._density_breakdown.items()},
+            self._current_collector.name: self._current_collector._mass,
+        }
+
+        # insulation mass
+        if hasattr(self, '_insulation_material') and self._insulation_material is not None:
+            _insulator_mass = self._current_collector._insulation_area * self._insulation_material._density * self._insulation_thickness
+            self._mass += _insulator_mass
+            self._mass_breakdown[self._insulation_material.name] = _insulator_mass
+
+        return self._mass, self._mass_breakdown
             
     def _calculate_cost_properties(self) -> None:
         """
         Calculate the cost properties of the electrode.
         """
-        self._coating_cost = self._coating_mass * self._formulation._specific_cost
-        self._insulator_cost = self._insulator_mass * self._insulation_material._specific_cost if self._insulation_material else 0.0
-        self._cost = self._coating_cost + self._current_collector._cost + self._insulator_cost
+        # calculate the coating cost
+        _coating_cost = self._coating_mass * self._formulation._specific_cost
 
-        self._cost_breakdown = (
-            {k: float(v * self._coating_mass) for k, v in self._formulation._specific_cost_breakdown.items()} |
-            {self._current_collector.name: self._current_collector._cost} |
-            ({self._insulation_material.name: self._insulator_cost} if self._insulation_material else {})
-        )
+        # calculate the total cost
+        self._cost = _coating_cost + self._current_collector._cost
+
+        # calculate the cost breakdown
+        self._cost_breakdown = {
+            self._formulation.name: {k: float(v * self._coating_mass) for k, v in self._formulation._specific_cost_breakdown.items()},
+            self._current_collector.name: self._current_collector._cost,
+        }
+
+        # insulation cost
+        if hasattr(self, '_insulation_material') and self._insulation_material is not None:
+            _insulator_cost = self._current_collector._insulation_area * self._insulation_material._specific_cost * self._insulation_thickness
+            self._cost += _insulator_cost
+            self._cost_breakdown[self._insulation_material.name] = _insulator_cost
+
+        return self._cost, self._cost_breakdown
 
     def _calculate_thickness_properties(self) -> None:
         """
@@ -359,6 +371,206 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         )
 
         return fig    
+
+    def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:
+        """
+        Create a sunburst plot for the mass breakdown of the electrode.
+        
+        Parameters
+        ----------
+        title : str, optional
+            Title for the plot. If None, uses electrode name.
+            
+        Returns
+        -------
+        go.Figure
+            Plotly sunburst figure
+        """
+        if title is None:
+            title = f"{self.name} Mass Breakdown"
+            
+        breakdown = self.mass_breakdown
+        
+        def _flatten_breakdown_values(data: Dict[str, Any]) -> list:
+            """Flatten all numeric values from breakdown"""
+            values = []
+            for value in data.values():
+                if isinstance(value, dict):
+                    values.extend(_flatten_breakdown_values(value))
+                elif isinstance(value, (int, float)):
+                    values.append(value)
+            return values
+        
+        def _prepare_sunburst_data(data: Dict[str, Any]) -> Tuple[list, list, list, list]:
+            """Prepare data for sunburst plot with proper hierarchy"""
+            ids = ["Total"]  # Root node
+            labels = ["Total"]
+            parents = [""]
+            values = [sum(_flatten_breakdown_values(data))]
+            
+            # Level 0: Main categories (Formulation, Current Collector, Insulation)
+            for category, value in data.items():
+                ids.append(category)
+                labels.append(category)
+                parents.append("Total")
+                
+                if isinstance(value, dict):
+                    # This is the formulation - sum its components
+                    category_total = sum(v for v in value.values() if isinstance(v, (int, float)))
+                    values.append(category_total)
+                    
+                    # Level 1: Formulation components
+                    for component, component_value in value.items():
+                        if isinstance(component_value, (int, float)):
+                            ids.append(f"{category}/{component}")
+                            labels.append(component)
+                            parents.append(category)
+                            values.append(component_value)
+                else:
+                    # Simple value (Current Collector or Insulation)
+                    values.append(float(value))
+            
+            return ids, labels, parents, values
+        
+        def _flatten_breakdown_values(data: Dict[str, Any]) -> list:
+            """Flatten all numeric values from breakdown"""
+            values = []
+            for value in data.values():
+                if isinstance(value, dict):
+                    values.extend(_flatten_breakdown_values(value))
+                elif isinstance(value, (int, float)):
+                    values.append(value)
+            return values
+        
+        ids, labels, parents, values = _prepare_sunburst_data(breakdown)
+        
+        # Create custom hover text
+        hover_text = []
+        for i, (label, value) in enumerate(zip(labels, values)):
+            if label == "Total":
+                hover_text.append(f"<b>Total Mass</b><br>{value:.2f} g")
+            else:
+                percentage = (value / values[0] * 100) if values[0] > 0 else 0
+                hover_text.append(f"<b>{label}</b><br>{value:.2f} g<br>{percentage:.1f}% of total")
+        
+        # Create the sunburst plot
+        fig = go.Figure(go.Sunburst(
+            ids=ids,
+            labels=labels,
+            parents=parents,
+            values=values,
+            branchvalues="total",
+            hovertemplate="%{customdata}<extra></extra>",
+            customdata=hover_text,
+            maxdepth=3,
+        ))
+        
+        fig.update_layout(
+            title=dict(
+                text=title,
+                x=0.5,
+                font=dict(size=16)
+            ),
+            font_size=12,
+            **kwargs
+        )
+        
+        return fig
+
+    def plot_cost_breakdown(self, title: str = None, **kwargs) -> go.Figure:
+        """
+        Create a sunburst plot for the cost breakdown of the electrode.
+        
+        Parameters
+        ----------
+        title : str, optional
+            Title for the plot. If None, uses electrode name.
+            
+        Returns
+        -------
+        go.Figure
+            Plotly sunburst figure
+        """
+        if title is None:
+            title = f"{self.name} Cost Breakdown"
+            
+        breakdown = self.cost_breakdown
+        
+        def _flatten_breakdown_values(data: Dict[str, Any]) -> list:
+            """Flatten all numeric values from breakdown"""
+            values = []
+            for value in data.values():
+                if isinstance(value, dict):
+                    values.extend(_flatten_breakdown_values(value))
+                elif isinstance(value, (int, float)):
+                    values.append(value)
+            return values
+        
+        def _prepare_sunburst_data(data: Dict[str, Any]) -> Tuple[list, list, list, list]:
+            """Prepare data for sunburst plot with proper hierarchy"""
+            ids = ["Total"]  # Root node
+            labels = ["Total"]
+            parents = [""]
+            values = [sum(_flatten_breakdown_values(data))]
+            
+            # Level 0: Main categories (Formulation, Current Collector, Insulation)
+            for category, value in data.items():
+                ids.append(category)
+                labels.append(category)
+                parents.append("Total")
+                
+                if isinstance(value, dict):
+                    # This is the formulation - sum its components
+                    category_total = sum(v for v in value.values() if isinstance(v, (int, float)))
+                    values.append(category_total)
+                    
+                    # Level 1: Formulation components
+                    for component, component_value in value.items():
+                        if isinstance(component_value, (int, float)):
+                            ids.append(f"{category}/{component}")
+                            labels.append(component)
+                            parents.append(category)
+                            values.append(component_value)
+                else:
+                    # Simple value (Current Collector or Insulation)
+                    values.append(float(value))
+            
+            return ids, labels, parents, values
+        
+        ids, labels, parents, values = _prepare_sunburst_data(breakdown)
+        
+        # Create custom hover text
+        hover_text = []
+        for i, (label, value) in enumerate(zip(labels, values)):
+            if label == "Total":
+                hover_text.append(f"<b>Total Cost</b><br>${value:.2f}")
+            else:
+                percentage = (value / values[0] * 100) if values[0] > 0 else 0
+                hover_text.append(f"<b>{label}</b><br>${value:.2f}<br>{percentage:.1f}% of total")
+        
+        # Create the sunburst plot
+        fig = go.Figure(go.Sunburst(
+            ids=ids,
+            labels=labels,
+            parents=parents,
+            values=values,
+            branchvalues="total",
+            hovertemplate="%{customdata}<extra></extra>",
+            customdata=hover_text,
+            maxdepth=3,
+        ))
+        
+        fig.update_layout(
+            title=dict(
+                text=title,
+                x=0.5,
+                font=dict(size=16)
+            ),
+            font_size=12,
+            **kwargs
+        )
+        
+        return fig
 
     def get_top_down_view(self, **kwargs) -> go.Figure:
         
@@ -681,6 +893,18 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
             0, 
             self._coating_thickness * M_TO_UM
         )
+    
+    @property
+    def insulation_thickness_hard_range(self) -> Tuple[float, float]:
+        """
+        Get the range of insulation thickness of the electrode.
+
+        :return: Tuple containing the minimum and maximum insulation thickness in micrometers.
+        """
+        return (
+            0, 
+            self._coating_thickness * M_TO_UM
+        )
 
     @property
     def coating_thickness(self) -> float:
@@ -717,7 +941,13 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
 
         :return: Dictionary containing the cost breakdown.
         """
-        return {k: round(v, 2) for k, v in self._cost_breakdown.items()}
+        def _round_recursive(obj):
+            if isinstance(obj, dict):
+                return {k: _round_recursive(v) for k, v in obj.items()}
+            else:
+                return round(obj, 2)
+        
+        return _round_recursive(self._cost_breakdown)
 
     @property
     def mass_breakdown(self) -> Dict[str, Any]:
@@ -726,7 +956,13 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
 
         :return: Dictionary containing the mass breakdown.
         """
-        return {k: round(v * KG_TO_G, 2) for k, v in self._mass_breakdown.items()}
+        def _convert_and_round_recursive(obj):
+            if isinstance(obj, dict):
+                return {k: _convert_and_round_recursive(v) for k, v in obj.items()}
+            else:
+                return round(obj * KG_TO_G, 2)
+        
+        return _convert_and_round_recursive(self._mass_breakdown)
 
     @property
     def half_cell_curve(self) -> pd.DataFrame:

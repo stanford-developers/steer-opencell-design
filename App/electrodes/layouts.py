@@ -128,22 +128,26 @@ cathode_design_parameters = ds.html.Div(
             title = 'Porosity (%)'
         )(),
 
+        ds.html.Br(), ds.html.Br(),
+        ds.html.H5('Other Parameters', style={'font-weight': 'bold'}),
+        ds.html.Br(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'electrode'},
+            min_val = 0,
+            max_val = 500,
+            step = 0.1,
+            mark_interval = 30,
+            property_name = 'insulation_thickness',
+            title = 'Insulation Thickness (µm)'
+        )(),
+
     ]
 
 )
 
 
 cathode_plots = ds.html.Div([
-
-
-    ds.dcc.Graph(
-        id='cathode_top_down_plot', 
-        style={'width': '50vw', 'height': '40vw'},
-        responsive=True,
-        config={
-            'modeBarButtonsToRemove': ['autoScale2d', 'resetScale2d']
-        }
-    ),
 
     ds.dcc.Graph(
         id='cathode_cross_section_plot', 
@@ -154,23 +158,26 @@ cathode_plots = ds.html.Div([
         }
     ),
 
-    ds.dcc.Graph(
-        id='cathode_areal_capacity_plot', 
-        style={'width': '50vw', 'height': '40vw'},
-        responsive=True,
-        config={
-            'modeBarButtonsToRemove': ['autoScale2d', 'resetScale2d']
-        }
-    ),
+    # Container for cost and mass breakdown plots side by side
+    ds.html.Div([
+        ds.dcc.Graph(
+            id='cathode_cost_breakdown_plot', 
+            style={'width': '25vw', 'height': '40vw'},
+            responsive=True,
+            config={
+                'modeBarButtonsToRemove': ['autoScale2d', 'resetScale2d']
+            }
+        ),
 
-    ds.dcc.Graph(
-        id='cathode_capacity_plot', 
-        style={'width': '50vw', 'height': '40vw'},
-        responsive=True,
-        config={
-            'modeBarButtonsToRemove': ['autoScale2d', 'resetScale2d']
-        }
-    ),
+        ds.dcc.Graph(
+            id='cathode_mass_breakdown_plot', 
+            style={'width': '25vw', 'height': '40vw'},
+            responsive=True,
+            config={
+                'modeBarButtonsToRemove': ['autoScale2d', 'resetScale2d']
+            }
+        ),
+    ], style={'display': 'flex', 'flex-direction': 'row'}),
 
 ], style={'display': 'flex', 'flex-direction': 'column'})
 

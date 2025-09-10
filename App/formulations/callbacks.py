@@ -142,8 +142,6 @@ def update_cathode_formulation_div(
 @callback(
     [
         Output('cathode_formulation_specific_capacity_plot', 'figure'),
-        Output('cathode_formulation_specific_cost_breakdown_plot', 'figure'),
-        Output('cathode_formulation_density_breakdown_plot', 'figure'),
         Output('cathode_formulation_properties_div', 'children'),
     ],
     [
@@ -167,8 +165,6 @@ def update_cathode_formulation_plots(cell_data, continue_to_design):
 
     # get the plots from the current collector
     plot_a = formulation.plot_half_cell_curve(add_materials=True)
-    plot_b = formulation.plot_specific_cost_breakdown()
-    plot_c = formulation.plot_density_breakdown()
 
     # Get the properties
     properties = formulation.properties
@@ -176,5 +172,5 @@ def update_cathode_formulation_plots(cell_data, continue_to_design):
     # Create properties table using utility function
     properties_table = create_properties_table(properties, table_id='cathode_properties_table', decimal_places=2)
 
-    return plot_a, plot_b, plot_c, properties_table
+    return plot_a, properties_table
 

@@ -73,7 +73,7 @@ class TestPunchedCurrentCollector(unittest.TestCase):
 
         self.current_collector.datum = (1000, 1000, 500)
         fig_a = self.current_collector.get_top_down_view()
-        fig_b = self.current_collector.flip('y').get_top_down_view()
+        fig_b = self.current_collector._flip('y').get_top_down_view()
 
         # fig_a.show()
         # fig_b.show()
@@ -235,7 +235,7 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         fig21 = self.current_collector._get_full_top_down_view()
 
         figure1 = go.Figure(data=fig11.data + fig21.data)
-        figure1.show()
+        # figure1.show()
 
 
 class TestNotchedCurrentCollector2(unittest.TestCase):
@@ -520,5 +520,6 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         fig21 = self.current_collector._get_full_top_down_view()
 
         figure1 = go.Figure(data=fig11.data + fig21.data)
-        figure1.show()
+        # figure1.show()
+
 

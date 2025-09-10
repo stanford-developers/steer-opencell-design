@@ -99,8 +99,8 @@ def update_cathode(
     [
         Output('cathode_top_down_plot', 'figure'),
         Output('cathode_cross_section_plot', 'figure'),
-        Output('cathode_areal_capacity_plot', 'figure'),
-        Output('cathode_capacity_plot', 'figure'),
+        Output('cathode_cost_breakdown_plot', 'figure'),
+        Output('cathode_mass_breakdown_plot', 'figure'),
         Output('cathode_properties_div', 'children'),
     ],
     [
@@ -125,8 +125,8 @@ def update_cathode_plots(cell_data, continue_to_design):
     # get the plots from the current collector
     plot_a = cathode.get_top_down_view(title='Top-Down Cathode View')
     plot_b = cathode.get_cross_section(title='Cross-Section Cathode View')
-    plot_areal_capacity = cathode.plot_half_cell_curve(areal=True, title='Areal Capacity Plot')
-    plot_capacity = cathode.plot_half_cell_curve(areal=False, title='Capacity Plot')
+    plot_cost_breakdown = cathode.plot_cost_breakdown(title='Cost Breakdown Plot')
+    plot_mass_breakdown = cathode.plot_mass_breakdown(title='Mass Breakdown Plot')
 
     # Get the properties
     properties = cathode.properties
@@ -134,7 +134,7 @@ def update_cathode_plots(cell_data, continue_to_design):
     # Create properties table using utility function
     properties_table = create_properties_table(properties, table_id='cathode_properties_table', decimal_places=2)
 
-    return plot_a, plot_b, plot_areal_capacity, plot_capacity, properties_table
+    return plot_a, plot_b, plot_cost_breakdown, plot_mass_breakdown, properties_table
 
 
 
