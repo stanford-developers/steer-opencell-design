@@ -42,41 +42,79 @@ class CurrentCollectorConfig:
 
 # Define configurations
 COLLECTOR_CONFIGS = {
-    CollectorType.PUNCHED: CurrentCollectorConfig(
+
+    CollectorType.CATHODE_PUNCHED: CurrentCollectorConfig(
         collector_type=PunchedCurrentCollector,
         parameter_list=PUNCHED_PARAMETER_LIST,
         settable_parameters=PUNCHED_SETTABLE_PARAMETERS,
-        cell_path=['current_collector'],
+        cell_path=['cathode', 'current_collector'],
     ),
-    CollectorType.NOTCHED: CurrentCollectorConfig(
+    CollectorType.CATHODE_NOTCHED: CurrentCollectorConfig(
         collector_type=NotchedCurrentCollector,
         parameter_list=NOTCHED_PARAMETER_LIST,
         settable_parameters=NOTCHED_SETTABLE_PARAMETERS,
         range_slider_parameters=TAPE_RANGE_SLIDER_PARAMETERS,
-        cell_path=['current_collector'],
+        cell_path=['cathode', 'current_collector'],
     ),
-    CollectorType.TABLESS: CurrentCollectorConfig(
+    CollectorType.CATHODE_TABLESS: CurrentCollectorConfig(
         collector_type=TablessCurrentCollector,
         parameter_list=TABLESS_PARAMETER_LIST,
         settable_parameters=TABLESS_SETTABLE_PARAMETERS,
         range_slider_parameters=TAPE_RANGE_SLIDER_PARAMETERS,
-        cell_path=['current_collector'],
+        cell_path=['cathode', 'current_collector'],
     ),
-    CollectorType.TABBED: CurrentCollectorConfig(
+    CollectorType.CATHODE_TABBED: CurrentCollectorConfig(
         collector_type=TabWeldedCurrentCollector,
         parameter_list=TABBED_PARAMETER_LIST,
         settable_parameters=TABBED_SETTABLE_PARAMETERS,
         range_slider_parameters=TAPE_RANGE_SLIDER_PARAMETERS,
-        cell_path=['current_collector'],
+        cell_path=['cathode', 'current_collector'],
         radioitem_parameters=TABBED_RADIOITEM_PARAMETERS,
         text_parameters=TABBED_TEXT_PARAMETERS
     ),
-    CollectorType.GENERIC: CurrentCollectorConfig(
+    CollectorType.CATHODE_GENERIC: CurrentCollectorConfig(
         collector_type=_CurrentCollector,
         parameter_list=[],
         settable_parameters=[],
-        cell_path=['current_collector']
-    )
+        cell_path=['cathode', 'current_collector']
+    ),
+
+    CollectorType.ANODE_PUNCHED: CurrentCollectorConfig(
+        collector_type=PunchedCurrentCollector,
+        parameter_list=PUNCHED_PARAMETER_LIST,
+        settable_parameters=PUNCHED_SETTABLE_PARAMETERS,
+        cell_path=['anode', 'current_collector'],
+    ),
+    CollectorType.ANODE_NOTCHED: CurrentCollectorConfig(
+        collector_type=NotchedCurrentCollector,
+        parameter_list=NOTCHED_PARAMETER_LIST,
+        settable_parameters=NOTCHED_SETTABLE_PARAMETERS,
+        range_slider_parameters=TAPE_RANGE_SLIDER_PARAMETERS,
+        cell_path=['anode', 'current_collector'],
+    ),
+    CollectorType.ANODE_TABLESS: CurrentCollectorConfig(
+        collector_type=TablessCurrentCollector,
+        parameter_list=TABLESS_PARAMETER_LIST,
+        settable_parameters=TABLESS_SETTABLE_PARAMETERS,
+        range_slider_parameters=TAPE_RANGE_SLIDER_PARAMETERS,
+        cell_path=['anode', 'current_collector'],
+    ),
+    CollectorType.ANODE_TABBED: CurrentCollectorConfig(
+        collector_type=TabWeldedCurrentCollector,
+        parameter_list=TABBED_PARAMETER_LIST,
+        settable_parameters=TABBED_SETTABLE_PARAMETERS,
+        range_slider_parameters=TAPE_RANGE_SLIDER_PARAMETERS,
+        cell_path=['anode', 'current_collector'],
+        radioitem_parameters=TABBED_RADIOITEM_PARAMETERS,
+        text_parameters=TABBED_TEXT_PARAMETERS
+    ),
+    CollectorType.ANODE_GENERIC: CurrentCollectorConfig(
+        collector_type=_CurrentCollector,
+        parameter_list=[],
+        settable_parameters=[],
+        cell_path=['anode', 'current_collector']
+    ),
+
 }
 
 

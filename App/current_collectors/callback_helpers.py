@@ -13,7 +13,7 @@ from App.general.handlers import handle_cell_store_update, handle_property_updat
 from App.current_collectors.configs import COLLECTOR_CONFIGS
 
 
-def create_generic_current_collector_callback(collector_type: CollectorType, electrode_type: ElectrodeType) -> callable:
+def create_generic_current_collector_callback(collector_type: CollectorType) -> callable:
     """Factory function to create current collector callbacks."""
     
     config = COLLECTOR_CONFIGS[collector_type]

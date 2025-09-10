@@ -52,6 +52,56 @@ def update_cathode_current_collector_material(
 
     return response
 
+@callback(
+    [
+        Output('warnings_store', 'data', allow_duplicate=True),
+        Output('cell_store', 'data', allow_duplicate=True),
+        Output({'electrode': 'anode', 'object': 'material', 'property': ALL, 'subtype': 'slider'}, 'value'),
+        Output({'electrode': 'anode', 'object': 'material', 'property': ALL, 'subtype': 'slider'}, 'min'),
+        Output({'electrode': 'anode', 'object': 'material', 'property': ALL, 'subtype': 'slider'}, 'max'),
+        Output({'electrode': 'anode', 'object': 'material', 'property': ALL, 'subtype': 'slider'}, 'marks'),
+        Output({'electrode': 'anode', 'object': 'material', 'property': ALL, 'subtype': 'slider'}, 'step'),
+        Output({'electrode': 'anode', 'object': 'material', 'property': ALL, 'subtype': 'input'}, 'step'),
+        Output('anode_current_collector_material_selector', 'value'),
+    ],
+    [
+        Input('cell_store', 'data'),
+        Input('anode_current_collector_material_selector', 'value'),
+        Input({'electrode': 'anode', 'object': 'material', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
+        Input({'electrode': 'anode', 'object': 'material', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
+        Input({'electrode': 'anode', 'object': 'material', 'property': ALL, 'subtype': 'slider'}, 'value'),
+    ],
+    [
+        State({'electrode': 'anode', 'object': 'material', 'property': ALL, 'subtype': 'input'}, 'value'),
+        State('warnings_store', 'data'),
+    ],
+    prevent_initial_call=True
+)
+def update_anode_current_collector_material(
+    cell_data,
+    material_selector,
+    input_n_sub,
+    input_n_blur,
+    slider_values,
+    input_values,
+    existing_warnings
+):
+
+    callback_function = create_material_callback(MaterialType.ANODE_CURRENT_COLLECTOR)
+
+    response = callback_function(
+        existing_warnings,
+        cell_data,
+        material_selector,
+        input_values,
+        slider_values,
+    )
+
+    response = response
+
+    return response
+
+
 
 @callback(
     [
@@ -78,7 +128,7 @@ def update_cathode_current_collector_material(
     ],
     prevent_initial_call=True
 )
-def update_cathode_current_collector_rab_material(
+def update_cathode_current_collector_tab_material(
     cell_data,
     material_selector,
     input_n_sub,
@@ -100,6 +150,52 @@ def update_cathode_current_collector_rab_material(
 
     return response
 
+@callback(
+    [
+        Output('warnings_store', 'data', allow_duplicate=True),
+        Output('cell_store', 'data', allow_duplicate=True),
+        Output({'electrode': 'anode', 'object': 'tab_material', 'property': ALL, 'subtype': 'slider'}, 'value'),
+        Output({'electrode': 'anode', 'object': 'tab_material', 'property': ALL, 'subtype': 'slider'}, 'min'),
+        Output({'electrode': 'anode', 'object': 'tab_material', 'property': ALL, 'subtype': 'slider'}, 'max'),
+        Output({'electrode': 'anode', 'object': 'tab_material', 'property': ALL, 'subtype': 'slider'}, 'marks'),
+        Output({'electrode': 'anode', 'object': 'tab_material', 'property': ALL, 'subtype': 'slider'}, 'step'),
+        Output({'electrode': 'anode', 'object': 'tab_material', 'property': ALL, 'subtype': 'input'}, 'step'),
+        Output('anode_current_collector_tab_material_selector', 'value'),
+    ],
+    [
+        Input('cell_store', 'data'),
+        Input('anode_current_collector_tab_material_selector', 'value'),
+        Input({'electrode': 'anode', 'object': 'tab_material', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
+        Input({'electrode': 'anode', 'object': 'tab_material', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
+        Input({'electrode': 'anode', 'object': 'tab_material', 'property': ALL, 'subtype': 'slider'}, 'value'),
+    ],
+    [
+        State({'electrode': 'anode', 'object': 'tab_material', 'property': ALL, 'subtype': 'input'}, 'value'),
+        State('warnings_store', 'data'),
+    ],
+    prevent_initial_call=True
+)
+def update_anode_current_collector_tab_material(
+    cell_data,
+    material_selector,
+    input_n_sub,
+    input_n_blur,
+    slider_values,
+    input_values,
+    existing_warnings,
+):
+
+    callback_function = create_material_callback(MaterialType.ANODE_CURRENT_COLLECTOR_TAB)
+
+    response = callback_function(
+        existing_warnings,
+        cell_data,
+        material_selector,
+        input_values,
+        slider_values,
+    )
+
+    return response
 
 
 @callback(
@@ -127,7 +223,54 @@ def update_cathode_current_collector_rab_material(
     ],
     prevent_initial_call=True
 )
-def update_cathode_current_collector_material(
+def update_cathode_current_collector_insulation_material(
+    cell_data,
+    material_selector,
+    input_n_sub,
+    input_n_blur,
+    slider_values,
+    input_values,
+    existing_warnings,
+):
+
+    callback_function = create_material_callback(MaterialType.CATHODE_INSULATION)
+
+    response = callback_function(
+        existing_warnings,
+        cell_data,
+        material_selector,
+        input_values,
+        slider_values,
+    )
+
+    return response
+
+@callback(
+    [
+        Output('warnings_store', 'data', allow_duplicate=True),
+        Output('cell_store', 'data', allow_duplicate=True),
+        Output({'electrode': 'anode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'slider'}, 'value'),
+        Output({'electrode': 'anode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'slider'}, 'min'),
+        Output({'electrode': 'anode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'slider'}, 'max'),
+        Output({'electrode': 'anode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'slider'}, 'marks'),
+        Output({'electrode': 'anode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'slider'}, 'step'),
+        Output({'electrode': 'anode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'input'}, 'step'),
+        Output('anode_insulation_material_selector', 'value'),
+    ],
+    [
+        Input('cell_store', 'data'),
+        Input('anode_insulation_material_selector', 'value'),
+        Input({'electrode': 'anode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
+        Input({'electrode': 'anode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
+        Input({'electrode': 'anode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'slider'}, 'value'),
+    ],
+    [
+        State({'electrode': 'anode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'input'}, 'value'),
+        State('warnings_store', 'data'),
+    ],
+    prevent_initial_call=True
+)
+def update_anode_current_collector_insulation_material(
     cell_data,
     material_selector,
     input_n_sub,

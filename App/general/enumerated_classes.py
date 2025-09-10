@@ -55,11 +55,18 @@ class PropertyCategory(Enum):
 # =============================================================================
 
 class CollectorType(Enum):
-    PUNCHED = 'punched'
-    NOTCHED = 'notched'
-    TABLESS = 'tabless'
-    TABBED = 'tabbed'
-    GENERIC = 'generic'
+
+    CATHODE_PUNCHED = 'cathode_punched'
+    CATHODE_NOTCHED = 'cathode_notched'
+    CATHODE_TABLESS = 'cathode_tabless'
+    CATHODE_TABBED = 'cathode_tabbed'
+    CATHODE_GENERIC = 'cathode_generic'
+
+    ANODE_PUNCHED = 'anode_punched'
+    ANODE_NOTCHED = 'anode_notched'
+    ANODE_TABLESS = 'anode_tabless'
+    ANODE_TABBED = 'anode_tabbed'
+    ANODE_GENERIC = 'anode_generic'
 
 class ElectrodeType(Enum):
     CATHODE = 'cathode'

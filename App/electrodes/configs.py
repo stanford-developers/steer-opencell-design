@@ -24,13 +24,13 @@ ELECTRODE_CONFIGS = {
         electrode_type=Cathode,
         parameter_list=ELECTRODE_PARAMETER_LIST,
         settable_parameters=ELECTRODE_SETTABLE_PARAMETERS,
-        cell_path=[]
+        cell_path=['cathode']
     ),
     ElectrodeType.ANODE: ElectrodeConfig(
         electrode_type=Anode,
         parameter_list=ELECTRODE_PARAMETER_LIST,
         settable_parameters=ELECTRODE_SETTABLE_PARAMETERS,
-        cell_path=[]
+        cell_path=['anode']
     ),
 }
 
