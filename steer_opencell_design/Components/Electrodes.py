@@ -344,9 +344,9 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         figure.add_trace(self.right_left_a_side_coating_trace)
         figure.add_trace(self.right_left_b_side_coating_trace)
 
-        if hasattr(self, '_a_side_insulation_coordinates') and self._a_side_insulation_coordinates is not None:
+        if hasattr(self, '_insulation_material') and self._insulation_material is not None:
             figure.add_trace(self.right_left_a_side_insulation_trace)
-        if hasattr(self, '_b_side_insulation_coordinates') and self._b_side_insulation_coordinates is not None:
+        if hasattr(self, '_insulation_material') and self._insulation_material is not None:
             figure.add_trace(self.right_left_b_side_insulation_trace)
             
         return figure
@@ -1455,8 +1455,16 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
     @current_collector.setter
     @calculate_all_properties
     def current_collector(self, current_collector: _CurrentCollector):
+
+        # validate the current collector
         self.validate_type(current_collector, _CurrentCollector, 'current collector')
+
+        # assign the current collector
         self._current_collector = current_collector
+
+        # if the current collector has insulation, load up a default material if none is provided
+        if self._current_collector.insulation_area != 0 and self._insulation_material is None:
+            self._insulation_material = InsulationMaterial.from_database('Aluminium Oxide, 95%')
 
     @name.setter
     def name(self, name: str):

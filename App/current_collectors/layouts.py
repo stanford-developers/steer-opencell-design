@@ -1263,7 +1263,7 @@ anode_current_collector_layout = ds.html.Div([
         anode_notched_design_parameters,
         anode_tabless_design_parameters,
         anode_tabbed_design_parameters,
-        # anode_current_collector_properties,
+        anode_current_collector_properties,
 
         ds.html.Div(style={'height': '200px'})
 

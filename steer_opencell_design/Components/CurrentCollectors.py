@@ -144,6 +144,7 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         """
         self._update_properties = False
 
+        # properties
         self.datum = datum
         self.material = material
         self.x_body_length = x_body_length
@@ -173,6 +174,14 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         if hasattr(self, '_insulation_width'):
             self._get_a_side_insulation_coordinates()
             self._get_b_side_insulation_coordinates()
+
+        # perform flipping if needed
+        if self._flipped_x:
+            self._flip('x', bool_update=False)
+        if self._flipped_y:
+            self._flip('y', bool_update=False)
+        if self._flipped_z:
+            self._flip('z', bool_update=False)
 
     def _calculate_areas(self) -> None:
 
@@ -310,7 +319,7 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
     def _get_b_side_insulation_coordinates(self) -> go.Scatter:
         self._b_side_insulation_coordinates = self._get_insulation_coordinates(side='b')
 
-    def _flip(self, axis: str) -> None:
+    def _flip(self, axis: str, bool_update: bool = True) -> None:
         """
         Function to rotate the current collector around a specified axis by 180 degrees
         around the current datum position.
@@ -349,13 +358,14 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
                 rotated_datum = self.rotate_coordinates(tab_datum_array, rotation_axis, 180, center=self._datum)
                 tab._datum = tuple(rotated_datum[0])
 
-        # update action booleans
-        if axis == 'x':
-            self._flipped_x = not self._flipped_x
-        if axis == 'y':
-            self._flipped_y = not self._flipped_y
-        if axis == 'z':
-            self._flipped_z = not self._flipped_z
+        if bool_update:
+            # update action booleans
+            if axis == 'x':
+                self._flipped_x = not self._flipped_x
+            if axis == 'y':
+                self._flipped_y = not self._flipped_y
+            if axis == 'z':
+                self._flipped_z = not self._flipped_z
 
         return self
 
@@ -2297,7 +2307,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         """
         Create a NotchedCurrentCollector from a TablessCurrentCollector.
         """
-        return cls(
+        new_current_collector = cls(
             material = tabless.material,
             length = tabless.x_body_length,
             width = tabless.y_body_length,
@@ -2312,12 +2322,22 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
             datum = tabless.datum,
         )
 
+        # perform actions if needed
+        if tabless._flipped_x:
+            new_current_collector._flip('x')
+        if tabless._flipped_y:
+            new_current_collector._flip('y')
+        if tabless._flipped_z:
+            new_current_collector._flip('z')
+
+        return new_current_collector
+
     @classmethod
     def from_tab_welded(cls, tab_welded: 'TabWeldedCurrentCollector') -> 'NotchedCurrentCollector':
         """
         Create a NotchedCurrentCollector from a TabWeldedCurrentCollector.
         """
-        return cls(
+        new_current_collector = cls(
             material=tab_welded.material,
             length=tab_welded.x_body_length,
             width=tab_welded.y_body_length - 10,
@@ -2331,6 +2351,16 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
             insulation_width=0,
             datum=tab_welded.datum,
         )
+
+        # perform actions if needed
+        if tab_welded._flipped_x:
+            new_current_collector._flip('x')
+        if tab_welded._flipped_y:
+            new_current_collector._flip('y')
+        if tab_welded._flipped_z:
+            new_current_collector._flip('z')
+
+        return new_current_collector
 
     def _calculate_tab_positions(self) -> None:
         """
@@ -2823,7 +2853,7 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         """
         Create a TablessCurrentCollector from a NotchedCurrentCollector.
         """
-        return cls(
+        new_current_collector = cls(
             material=notched.material,
             length=notched.x_body_length,
             width=notched.y_body_length + notched.tab_height,
@@ -2835,12 +2865,22 @@ class TablessCurrentCollector(NotchedCurrentCollector):
             datum=notched.datum,
         )
 
+        # perform actions if needed
+        if notched._flipped_x:
+            new_current_collector._flip('x')
+        if notched._flipped_y:
+            new_current_collector._flip('y')
+        if notched._flipped_z:
+            new_current_collector._flip('z')
+
+        return new_current_collector
+
     @classmethod
     def from_tab_welded(cls, tab_welded: 'TabWeldedCurrentCollector') -> 'TablessCurrentCollector':
         """
         Create a TablessCurrentCollector from a TabWeldedCurrentCollector.
         """
-        return cls(
+        new_current_collector = cls(
             material=tab_welded.material,
             length=tab_welded.x_body_length,
             width=tab_welded.y_body_length,
@@ -2851,6 +2891,16 @@ class TablessCurrentCollector(NotchedCurrentCollector):
             insulation_width=0,
             datum=tab_welded.datum,
         )
+
+        # perform actions if needed
+        if tab_welded._flipped_x:
+            new_current_collector._flip('x')
+        if tab_welded._flipped_y:
+            new_current_collector._flip('y')
+        if tab_welded._flipped_z:
+            new_current_collector._flip('z')
+
+        return new_current_collector
 
     def _add_height_dimension(self, fig: go.Figure, pad: float = 0.05) -> go.Figure:
 
@@ -3477,7 +3527,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             thickness=notched.thickness
         )
 
-        return cls(
+        new_current_collector = cls(
             material=notched.material,
             length=notched.x_body_length,
             width=notched.y_body_length + notched.tab_height,
@@ -3491,6 +3541,16 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             bare_lengths_b_side=notched.bare_lengths_b_side,
             datum=notched.datum
         )
+
+        # perform actions if needed
+        if notched._flipped_x:
+            new_current_collector._flip('x')
+        if notched._flipped_y:
+            new_current_collector._flip('y')
+        if notched._flipped_z:
+            new_current_collector._flip('z')
+
+        return new_current_collector
     
     @classmethod
     def from_tabless(cls, tabless: 'TablessCurrentCollector') -> 'TabWeldedCurrentCollector':
@@ -3504,7 +3564,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             thickness=tabless.thickness
         )
 
-        return cls(
+        new_current_collector = cls(
             material=tabless.material,
             length=tabless.x_body_length,
             width=tabless.y_body_length + tabless.tab_height,
@@ -3518,6 +3578,16 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             bare_lengths_b_side=tabless.bare_lengths_b_side,
             datum=tabless.datum
         )
+
+        # perform actions if needed
+        if tabless._flipped_x:
+            new_current_collector._flip('x')
+        if tabless._flipped_y:
+            new_current_collector._flip('y')
+        if tabless._flipped_z:
+            new_current_collector._flip('z')
+
+        return new_current_collector
 
     def _calculate_all_properties(self) -> None:
         self._calculate_weld_tab_properties()

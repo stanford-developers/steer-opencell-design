@@ -143,7 +143,20 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
         self.layup.anode = anode
         fig3 = self.layup.anode._get_full_top_down_view()
 
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+
+    def test_double_set(self):
+
+        self.layup.anode.current_collector.width = 100
+        self.layup.anode.current_collector = deepcopy(self.layup.anode.current_collector)
+        self.layup.anode = deepcopy(self.layup.anode)
+
+        self.layup.anode.current_collector.width = 500
+        self.layup.anode.current_collector = deepcopy(self.layup.anode.current_collector)
+        self.layup.anode = deepcopy(self.layup.anode)
+
+        fig1 = self.layup.anode._get_full_top_down_view()
+
         fig1.show()
-        fig2.show()
-        fig3.show()
-        

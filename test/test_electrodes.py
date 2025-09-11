@@ -1,3 +1,4 @@
+from copy import deepcopy
 import unittest
 import plotly.graph_objects as go
 
@@ -174,6 +175,22 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         figure_top = go.Figure(data=figure1.data + figure2.data)
         
         # figure_top.show()
+
+    def test_flip_and_setter(self):
+
+        fig1 = self.cathode._get_full_top_down_view()
+
+        self.cathode._flip('y')
+        fig2 = self.cathode._get_full_top_down_view()
+
+        current_collector = deepcopy(self.cathode.current_collector)
+        current_collector.width = 400
+        self.cathode.current_collector = current_collector
+        fig3 = self.cathode._get_full_top_down_view()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
 
 
 class TestCathodeTwoMaterialNotched(unittest.TestCase):
