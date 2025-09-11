@@ -173,11 +173,13 @@ cathode_tabs_div = ds.html.Div(
     children=[
         ds.dcc.Tabs(
             id='cathode-tabs-container',
+
             children=[
                 ds.dcc.Tab(label='Current Collector', value='cathode_current_collector', className='tab-style', selected_className='tab-selected-style'),
                 ds.dcc.Tab(label='Formulation', value='cathode_formulation', className='tab-style', selected_className='tab-selected-style'),
                 ds.dcc.Tab(label='Electrode', value='cathode_electrode', className='tab-style', selected_className='tab-selected-style')
             ],
+            
             value='cathode_current_collector',
         ),
 

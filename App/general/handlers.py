@@ -19,10 +19,10 @@ from steer_core.Apps.ContextManagers import capture_warnings
 def _build_basic_response(slider_configs: dict, cache_key: str = None) -> List[Any]:
     """Build the basic response components from slider configurations."""
 
-    dict_key = {'cache_key': cache_key}
-    
+    dict_key = {'cache_key': cache_key} if cache_key is not None else no_update
+
     return [
-        dict_key if cache_key is not None else no_update,
+        dict_key,
         slider_configs['grid_slider_vals'],
         slider_configs['min_vals'],
         slider_configs['max_vals'],

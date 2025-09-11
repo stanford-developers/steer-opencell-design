@@ -1,3 +1,4 @@
+from copy import deepcopy
 import unittest
 
 from steer_opencell_design.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation
@@ -123,3 +124,26 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
         # fig2.show()
         # fig3.show()
 
+    def test_change_anode_material(self):
+
+        anode = deepcopy(self.layup.anode)
+        fig1 = anode._get_full_top_down_view()
+
+        new_cc_material = CurrentCollectorMaterial.from_database("Copper")
+        current_collector = anode.current_collector
+        current_collector.material = new_cc_material
+        anode.current_collector = current_collector
+        self.layup.anode = anode
+        fig2 = self.layup.anode._get_full_top_down_view()
+
+        new_new_cc_material = CurrentCollectorMaterial.from_database("Aluminum")
+        current_collector = anode.current_collector
+        current_collector.material = new_new_cc_material
+        anode.current_collector = current_collector
+        self.layup.anode = anode
+        fig3 = self.layup.anode._get_full_top_down_view()
+
+        fig1.show()
+        fig2.show()
+        fig3.show()
+        

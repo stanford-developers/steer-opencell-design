@@ -1,17 +1,24 @@
-from dash import callback, Input, Output, ctx, State, no_update, MATCH, ALL, dash_table, clientside_callback
+
+import time
+from dash import callback, Input, Output, State, no_update, ALL, ctx
 
 from App.cache_service import cache
-
-from steer_opencell_design.Components.CurrentCollectors import *
 
 from App.current_collectors.layouts import *
 from App.current_collectors.callbacks import CURRENT_COLLECTOR_DESIGNS
 from App.current_collectors.callback_helpers import create_generic_current_collector_callback
 from App.current_collectors.configs import COLLECTOR_CONFIGS
 
-from App.general.enumerated_classes import CollectorType, ElectrodeType
+from App.general.enumerated_classes import CollectorType
 from App.general.cell_operations import set_object_to_cell, get_object_from_cell
 from App.general.callback_helpers import create_properties_table
+
+from steer_opencell_design.Components.CurrentCollectors import (
+    PunchedCurrentCollector,
+    NotchedCurrentCollector,
+    TablessCurrentCollector,
+    TabWeldedCurrentCollector
+)
 
 
 
@@ -152,8 +159,9 @@ def update_anode_dropdown_options(data, current_style, current_options):
     prevent_initial_call=True
 )
 def update_cathode_current_collector_design(design_value, cell_data):
+
     """Handle current collector design changes and convert between types."""
-    
+
     # Check if design_value or cell_data is None
     if not design_value or not cell_data:
         return no_update
@@ -221,7 +229,7 @@ def update_cathode_current_collector_design(design_value, cell_data):
 )
 def update_anode_current_collector_design(design_value, cell_data):
     """Handle current collector design changes and convert between types."""
-    
+
     # Check if design_value or cell_data is None
     if not design_value or not cell_data:
         return no_update
@@ -496,7 +504,7 @@ def update_cathode_tabless_collector(
         input_start_values,
         input_end_values
     )
-
+    
     return response
 
 @callback(
@@ -565,7 +573,7 @@ def update_anode_tabless_collector(
         input_start_values,
         input_end_values
     )
-
+    
     return response
 
 
@@ -636,7 +644,7 @@ def update_cathode_notched_collector(
         input_start_values,
         input_end_values
     )
-
+    
     return response
 
 @callback(
@@ -734,6 +742,7 @@ def update_anode_notched_collector(
     ],
     [
         Input('cell_store', 'data'),
+        
         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
