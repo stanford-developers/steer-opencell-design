@@ -30,6 +30,10 @@ def create_material_callback(material_type: MaterialType) -> callable:
         except Exception as e:
             return create_no_update_response(config, existing_warnings)
 
+        # check if material is None
+        if material is None:
+            return create_no_update_response(config, existing_warnings)
+
         # Get the trigger type using the TriggerRouter
         trigger_type = TriggerRouter.get_trigger_type(triggered_id)
 

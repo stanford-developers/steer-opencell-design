@@ -126,6 +126,20 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         self.assertNotEqual(self.current_collector.coated_area, old_coated_area)
         self.assertNotEqual(self.current_collector.insulation_area, old_insulation_area)
 
+    def test_flip_and_setter(self):
+
+        fig1 = self.current_collector._get_full_top_down_view()
+
+        self.current_collector._flip('y')
+        fig2 = self.current_collector._get_full_top_down_view()
+
+        self.current_collector.width = 200
+        fig3 = self.current_collector._get_full_top_down_view()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+
 
 class TestNotchedCurrentCollector(unittest.TestCase):
 
@@ -293,6 +307,42 @@ class TestNotchedCurrentCollector2(unittest.TestCase):
         
         # fig_a.show()
         # fig_b.show()
+
+
+class TestNotchedCurrentCollector3(unittest.TestCase):
+
+    def setUp(self):
+        """
+        Set up
+        """
+        self.material = CurrentCollectorMaterial.from_database(name="Aluminum")
+
+        self.current_collector = NotchedCurrentCollector(
+            material=self.material,
+            thickness=15, 
+            length=3000,
+            width=108,
+            tab_width=30,
+            tab_spacing=50,
+            tab_height=7,
+            bare_lengths_a_side=(15, 80),
+            bare_lengths_b_side=(20, 80),
+            coated_tab_height=0,
+            insulation_width=0
+        )
+        
+    def test_current_collector(self):
+        """
+        Test figures
+        """
+        fig1 = self.current_collector._get_full_top_down_view()
+        
+        self.current_collector.insulation_width = 4
+        self.current_collector.coated_tab_height = 2
+        fig2 = self.current_collector._get_full_top_down_view()
+
+        # fig1.show()
+        # fig2.show()
 
 
 class TestTablessCurrentCollector(unittest.TestCase):
@@ -499,6 +549,15 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         new_current_collector = NotchedCurrentCollector.from_tab_welded(self.current_collector)
         self.assertIsInstance(new_current_collector, NotchedCurrentCollector)
 
+        fig1 = new_current_collector._get_full_top_down_view()
+
+        new_current_collector.insulation_width = 4
+        new_current_collector.coated_tab_height = 2
+        fig2 = new_current_collector._get_full_top_down_view()
+
+        # fig1.show()
+        # fig2.show()
+
     def test_to_tabless(self):
         new_current_collector = TablessCurrentCollector.from_tab_welded(self.current_collector)
         self.assertIsInstance(new_current_collector, TablessCurrentCollector)
@@ -521,5 +580,4 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
 
         figure1 = go.Figure(data=fig11.data + fig21.data)
         # figure1.show()
-
 
