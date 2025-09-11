@@ -1,6 +1,7 @@
 from dash import callback, Output, Input, State, no_update, ctx, ALL, html
 import dash_bootstrap_components as dbc
-from datetime import datetime as dt
+import time
+import datetime as dt
 from base64 import b64decode
 from pickle import loads
 from typing import List, Tuple, Dict
@@ -288,7 +289,7 @@ def get_cell_from_database(cell_name: str) -> Dict:
         The selected cell name from the dropdown.
     """
     from App.general.cell_operations import get_cell_from_database, set_cell_to_cache
-
+    
     cell = get_cell_from_database(cell_name)
     new_key = set_cell_to_cache(cell)
     

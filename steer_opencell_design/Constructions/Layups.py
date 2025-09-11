@@ -284,7 +284,8 @@ class Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
         self.validate_type(anode, Anode, "Anode")
 
         # flip the anode, so the a side of the anode faces the a side of the cathode
-        anode._flip('y')
+        if not anode._flipped_y:
+            anode._flip('y')
 
         # update the anodes datum position
         anode.datum = (

@@ -17,6 +17,7 @@ class SubType(Enum):
 
 
 class TriggerType(Enum):
+    
     CELL_STORE = 'cell_store'
     PROPERTY = 'property'
     ACTION = 'action'

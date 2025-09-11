@@ -1,4 +1,4 @@
-from dash import callback, Input, Output, ALL, State, ctx
+from dash import callback, Input, Output, ALL, State, ctx, no_update
 
 from App.general.callback_helpers import create_properties_table
 
@@ -8,7 +8,7 @@ from App.electrodes.configs import ELECTRODE_CONFIGS
 from App.current_collectors.configs import COLLECTOR_CONFIGS
 
 from App.general.enumerated_classes import ElectrodeType, MaterialType, CollectorType
-from App.general.cell_operations import get_object_from_cell
+from App.general.cell_operations import get_object_from_cell, set_object_to_cell, set_cell_to_cache
 
 from App.cache_service import cache
 
@@ -123,7 +123,7 @@ def update_cathode(
         input_values,
         slider_values,
     )
-
+    
     return response
 
 @callback(
@@ -264,70 +264,54 @@ def update_anode_plots(cell_data, continue_to_design):
         Input('cathode_control_mode_selector', 'value'),
         Input('cell_store', 'data'),
     ],
-    [
-        State('cell_store', 'data'),
-    ],
     prevent_initial_call=True
 )
-def update_cathode_control_mode(selected_mode, cell_data_input, cell_data_state):
+def update_cathode_control_mode(selected_mode, cell_data):
     """
     Update the cathode control mode based on the radio button selection,
     and update the radio button to reflect the current control mode.
     """
-    from dash import ctx
-    
-    # Use the most recent cell_data
-    cell_data = cell_data_input or cell_data_state
-    
-    if not cell_data:
-        return cell_data, 'MAINTAIN_CALENDER_DENSITY'
-    
     # Get the configuration
     config = ELECTRODE_CONFIGS[ElectrodeType.CATHODE]
-    
+
     # Get the cell from the cache
     cell = cache.get(cell_data['cache_key'])
-    
-    if not cell:
-        return cell_data, 'MAINTAIN_CALENDER_DENSITY'
-    
+
     # Get the cathode from the cell
     cathode = get_object_from_cell(cell, config)
-    
-    # Check which input triggered the callback
-    triggered_id = ctx.triggered[0]['prop_id'] if ctx.triggered else None
-    
-    if 'cathode_control_mode_selector' in str(triggered_id):
-        # Radio button was changed - update the electrode
-        mode_mapping = {
-            'MAINTAIN_MASS_LOADING': ElectrodeControlMode.MAINTAIN_MASS_LOADING,
-            'MAINTAIN_CALENDER_DENSITY': ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY,
-            'MAINTAIN_COATING_THICKNESS': ElectrodeControlMode.MAINTAIN_COATING_THICKNESS
-        }
-        
-        # Set the control mode if valid
-        if selected_mode in mode_mapping:
-            cathode.control_mode = mode_mapping[selected_mode]
 
-            # Update the cache with the modified cell
-            cache.set(cell_data['cache_key'], cell)
-        
-        return cell_data, selected_mode
-    
-    else:
-        # Cell data was updated - sync the radio button with electrode state
-        current_mode = cathode.control_mode
-        
-        # Map the enum value back to the UI string
-        mode_reverse_mapping = {
-            ElectrodeControlMode.MAINTAIN_MASS_LOADING: 'MAINTAIN_MASS_LOADING',
-            ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY: 'MAINTAIN_CALENDER_DENSITY',
-            ElectrodeControlMode.MAINTAIN_COATING_THICKNESS: 'MAINTAIN_COATING_THICKNESS'
-        }
-        
-        ui_mode = mode_reverse_mapping.get(current_mode, 'MAINTAIN_CALENDER_DENSITY')
-        
-        return cell_data, ui_mode
+    # get the mode map
+    mode_mapping = {
+        'MAINTAIN_MASS_LOADING': ElectrodeControlMode.MAINTAIN_MASS_LOADING,
+        'MAINTAIN_CALENDER_DENSITY': ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY,
+        'MAINTAIN_COATING_THICKNESS': ElectrodeControlMode.MAINTAIN_COATING_THICKNESS
+    }
+
+    # map the control mode to the UI string
+    mode_reverse_mapping = {
+        ElectrodeControlMode.MAINTAIN_MASS_LOADING: 'MAINTAIN_MASS_LOADING',
+        ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY: 'MAINTAIN_CALENDER_DENSITY',
+        ElectrodeControlMode.MAINTAIN_COATING_THICKNESS: 'MAINTAIN_COATING_THICKNESS'
+    }
+
+    if ctx.triggered_id == 'cell_store':
+        return no_update, mode_reverse_mapping.get(cathode.control_mode, 'MAINTAIN_CALENDER_DENSITY')
+
+    elif ctx.triggered_id == 'cathode_control_mode_selector':
+
+        # get the control mode from the value
+        mode = mode_mapping.get(selected_mode, ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY)
+
+        # set the control mode to the cathode
+        cathode.control_mode = mode
+
+        # set the cathode to the cell
+        new_cell = set_object_to_cell(cell, cathode, config)
+
+        # set the new cell to the cache
+        new_key = set_cell_to_cache(new_cell)
+
+        return {'cache_key': new_key}, no_update
 
 @callback(
     [
@@ -338,70 +322,53 @@ def update_cathode_control_mode(selected_mode, cell_data_input, cell_data_state)
         Input('anode_control_mode_selector', 'value'),
         Input('cell_store', 'data'),
     ],
-    [
-        State('cell_store', 'data'),
-    ],
     prevent_initial_call=True
 )
-def update_anode_control_mode(selected_mode, cell_data_input, cell_data_state):
+def update_anode_control_mode(selected_mode, cell_data):
     """
     Update the anode control mode based on the radio button selection,
     and update the radio button to reflect the current control mode.
     """
-    from dash import ctx
-    
-    # Use the most recent cell_data
-    cell_data = cell_data_input or cell_data_state
-    
-    if not cell_data:
-        return cell_data, 'MAINTAIN_CALENDER_DENSITY'
-    
     # Get the configuration
     config = ELECTRODE_CONFIGS[ElectrodeType.ANODE]
-    
+
     # Get the cell from the cache
     cell = cache.get(cell_data['cache_key'])
-    
-    if not cell:
-        return cell_data, 'MAINTAIN_CALENDER_DENSITY'
-    
+
     # Get the anode from the cell
     anode = get_object_from_cell(cell, config)
-    
-    # Check which input triggered the callback
-    triggered_id = ctx.triggered[0]['prop_id'] if ctx.triggered else None
-    
-    if 'anode_control_mode_selector' in str(triggered_id):
-        # Radio button was changed - update the electrode
-        mode_mapping = {
-            'MAINTAIN_MASS_LOADING': ElectrodeControlMode.MAINTAIN_MASS_LOADING,
-            'MAINTAIN_CALENDER_DENSITY': ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY,
-            'MAINTAIN_COATING_THICKNESS': ElectrodeControlMode.MAINTAIN_COATING_THICKNESS
-        }
-        
-        # Set the control mode if valid
-        if selected_mode in mode_mapping:
-            anode.control_mode = mode_mapping[selected_mode]
 
-            # Update the cache with the modified cell
-            cache.set(cell_data['cache_key'], cell)
-        
-        return cell_data, selected_mode
-    
-    else:
-        # Cell data was updated - sync the radio button with electrode state
-        current_mode = anode.control_mode
-        
-        # Map the enum value back to the UI string
-        mode_reverse_mapping = {
-            ElectrodeControlMode.MAINTAIN_MASS_LOADING: 'MAINTAIN_MASS_LOADING',
-            ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY: 'MAINTAIN_CALENDER_DENSITY',
-            ElectrodeControlMode.MAINTAIN_COATING_THICKNESS: 'MAINTAIN_COATING_THICKNESS'
-        }
-        
-        ui_mode = mode_reverse_mapping.get(current_mode, 'MAINTAIN_CALENDER_DENSITY')
-        
-        return cell_data, ui_mode
+    # get the mode map
+    mode_mapping = {
+        'MAINTAIN_MASS_LOADING': ElectrodeControlMode.MAINTAIN_MASS_LOADING,
+        'MAINTAIN_CALENDER_DENSITY': ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY,
+        'MAINTAIN_COATING_THICKNESS': ElectrodeControlMode.MAINTAIN_COATING_THICKNESS
+    }
 
+    # map the control mode to the UI string
+    mode_reverse_mapping = {
+        ElectrodeControlMode.MAINTAIN_MASS_LOADING: 'MAINTAIN_MASS_LOADING',
+        ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY: 'MAINTAIN_CALENDER_DENSITY',
+        ElectrodeControlMode.MAINTAIN_COATING_THICKNESS: 'MAINTAIN_COATING_THICKNESS'
+    }
+
+    if ctx.triggered_id == 'cell_store':
+        return no_update, mode_reverse_mapping.get(anode.control_mode, 'MAINTAIN_CALENDER_DENSITY')
+
+    elif ctx.triggered_id == 'anode_control_mode_selector':
+
+        # get the control mode from the value
+        mode = mode_mapping.get(selected_mode, ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY)
+
+        # set the control mode to the anode
+        anode.control_mode = mode
+
+        # set the anode to the cell
+        new_cell = set_object_to_cell(cell, anode, config)
+
+        # set the new cell to the cache
+        new_key = set_cell_to_cache(new_cell)
+
+        return {'cache_key': new_key}, no_update
 
 

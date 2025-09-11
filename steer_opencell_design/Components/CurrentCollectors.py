@@ -152,6 +152,11 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         self.insulation_width = insulation_width
         self.name = name
 
+        # action booleans
+        self._flipped_x = False
+        self._flipped_y = False
+        self._flipped_z = False
+
     def _calculate_all_properties(self) -> None:
         self._calculate_coordinates()
         self._calculate_areas()
@@ -343,6 +348,14 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
                 tab_datum_array = np.array([[tab._datum[0], tab._datum[1], tab._datum[2]]])
                 rotated_datum = self.rotate_coordinates(tab_datum_array, rotation_axis, 180, center=self._datum)
                 tab._datum = tuple(rotated_datum[0])
+
+        # update action booleans
+        if axis == 'x':
+            self._flipped_x = not self._flipped_x
+        if axis == 'y':
+            self._flipped_y = not self._flipped_y
+        if axis == 'z':
+            self._flipped_z = not self._flipped_z
 
         return self
 

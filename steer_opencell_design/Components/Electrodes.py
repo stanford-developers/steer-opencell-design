@@ -88,6 +88,11 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         # set final control mode
         self.control_mode = ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY
 
+        # action booleans
+        self._flipped_x = False
+        self._flipped_y = False
+        self._flipped_z = False
+
     # === CONTROL SYSTEM ===
 
     def _update_dependent_properties(self, property_name: str, new_val: float):
@@ -830,6 +835,13 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
 
         # Flip the current collector first (this handles all current collector coordinates)
         self._current_collector._flip(axis)
+
+        if axis == 'x':
+            self._flipped_x = not self._flipped_x
+        if axis == 'y':
+            self._flipped_y = not self._flipped_y
+        if axis == 'z':
+            self._flipped_z = not self._flipped_z
 
     # === PROPERTIES ===
 

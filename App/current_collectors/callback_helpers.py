@@ -28,6 +28,7 @@ def create_generic_current_collector_callback(collector_type: CollectorType) -> 
         input_end_values=None,
         radioitem_values=None,
         textitem_values=None,  # Add this parameter
+        viewing_styles=[]
     ) -> Tuple:
 
         # Get the triggered ID
@@ -39,14 +40,24 @@ def create_generic_current_collector_callback(collector_type: CollectorType) -> 
         # get the current collector from the cell, either cathode or anode depending on electrode
         current_collector = get_object_from_cell(cell, config)
 
+        # no response if the current collector type does not match the expected type
         if config.collector_type != type(current_collector):
+            return create_no_update_response(config, existing_warnings)
+
+        # If all display is none for any of the viewing styles, return no update
+        if any(d.get('display') == 'none' for d in viewing_styles):
             return create_no_update_response(config, existing_warnings)
 
         # Map the triggered ID to the appropriate action using ENUMS
         trigger_type = TriggerRouter.get_trigger_type(triggered_id)
 
         if trigger_type == TriggerType.CELL_STORE:
-            return handle_cell_store_update(current_collector, config, existing_warnings)
+
+            return handle_cell_store_update(
+                current_collector, 
+                config, 
+                existing_warnings
+            )
 
         elif trigger_type == TriggerType.PROPERTY:
 
