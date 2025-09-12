@@ -3,7 +3,7 @@ from steer_opencell_design.Components.Separators import Separator
 from steer_opencell_design.Components.CurrentCollectors import _TapeCurrentCollector, PunchedCurrentCollector
 
 from steer_core.Mixins.Coordinates import CoordinateMixin
-from steer_core.Mixins.Validators import ValidationMixin
+from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Serializer import SerializerMixin
 
 from steer_core.Decorators.General import calculate_all_properties
@@ -259,12 +259,26 @@ class Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
         self.validate_type(cathode, Cathode, "Cathode")
         self.validate_type(cathode.current_collector, _TapeCurrentCollector, "Cathode Current Collector")
 
-        # set the cathode to self
-        self._cathode = deepcopy(cathode)
-
         # if there is an anode, update its ranges
         if self._update_properties:
+
+            # update the anode ranges
             self._anode.current_collector.set_ranges_from_reference(self.cathode.current_collector)
+
+            # if the anode has a shorter length then update it
+            if self.anode.current_collector._x_body_length < self.cathode.current_collector._x_body_length:
+                new_anode_current_collector = deepcopy(self.anode.current_collector)
+                new_anode_current_collector.x_body_length = cathode.current_collector.x_body_length
+                self.anode.current_collector = new_anode_current_collector
+
+            # if the anode has a shorter width then update it
+            if self.anode.current_collector._y_body_length < self.cathode.current_collector._y_body_length:
+                new_anode_current_collector = deepcopy(self.anode.current_collector)
+                new_anode_current_collector.y_body_length = cathode.current_collector.y_body_length
+                self.anode.current_collector = new_anode_current_collector
+
+        # set the cathode to self
+        self._cathode = deepcopy(cathode)
 
     @bottom_separator.setter
     @calculate_all_properties
@@ -501,12 +515,26 @@ class MonoLayer(CoordinateMixin, ValidationMixin, SerializerMixin):
         self.validate_type(cathode, Cathode, "Cathode")
         self.validate_type(cathode.current_collector, PunchedCurrentCollector, "Cathode Current Collector")
 
-        # set the cathode to self
-        self._cathode = deepcopy(cathode)
-
         # if there is an anode, update its ranges
         if self._update_properties:
-            self.anode.current_collector.set_ranges_from_reference(self.cathode.current_collector)
+
+            # update the anode ranges
+            self._anode.current_collector.set_ranges_from_reference(self.cathode.current_collector)
+
+            # if the anode has a shorter length then update it
+            if self.anode.current_collector._x_body_length < self.cathode.current_collector._x_body_length:
+                new_anode_current_collector = deepcopy(self.anode.current_collector)
+                new_anode_current_collector.x_body_length = cathode.current_collector.x_body_length
+                self.anode.current_collector = new_anode_current_collector
+
+            # if the anode has a shorter width then update it
+            if self.anode.current_collector._y_body_length < self.cathode.current_collector._y_body_length:
+                new_anode_current_collector = deepcopy(self.anode.current_collector)
+                new_anode_current_collector.y_body_length = cathode.current_collector.y_body_length
+                self.anode.current_collector = new_anode_current_collector
+
+        # set the cathode to self
+        self._cathode = deepcopy(cathode)
 
     @separator.setter
     @calculate_all_properties

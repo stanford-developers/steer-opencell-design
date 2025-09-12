@@ -1,6 +1,6 @@
 # import core mixins
 from steer_core.Mixins.Coordinates import CoordinateMixin
-from steer_core.Mixins.Validators import ValidationMixin
+from steer_core.Mixins.TypeChecker import ValidationMixin
 
 # import core decorators
 from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties

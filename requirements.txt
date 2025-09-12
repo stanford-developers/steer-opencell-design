@@ -1,6 +1,6 @@
 --extra-index-url https://dash.steerproject.org/packages
-steer-core==0.1.11
-steer-materials==0.1.8
+steer-core==0.1.15
+steer-materials==0.1.9
 pandas==2.1.4
 numpy==1.26.4
 datetime==5.5
