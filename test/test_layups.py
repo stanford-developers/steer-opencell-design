@@ -3,15 +3,15 @@ import unittest
 
 from steer_opencell_design.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation
 from steer_opencell_design.Components.Electrodes import Cathode, Anode
-from steer_opencell_design.Components.CurrentCollectors import NotchedCurrentCollector
+from steer_opencell_design.Components.CurrentCollectors import NotchedCurrentCollector, PunchedCurrentCollector
 from steer_opencell_design.Components.Separators import Separator
-from steer_opencell_design.Constructions.Layups import Layup
+from steer_opencell_design.Constructions.Layups import Layup, MonoLayer
 
 from steer_materials.CellMaterials.Base import CurrentCollectorMaterial, InsulationMaterial, SeparatorMaterial
 from steer_materials.CellMaterials.Electrode import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
 
 
-class TestCathodeTwoMaterialNotched(unittest.TestCase):
+class TestSimpleLayup(unittest.TestCase):
 
     def setUp(self):
 
@@ -159,4 +159,97 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
 
         fig1 = self.layup.anode._get_full_top_down_view()
 
+        # fig1.show()
+
+
+
+class TestSimpleMonoLayer(unittest.TestCase):
+
+    def setUp(self):
+
+        ########################
+        # make a basic cathode
+        ########################
+        material = CathodeMaterial.from_database("LFP")
+        material.specific_cost = 6
+        material.density = 3.6
+
+        conductive_additive = ConductiveAdditive(name='super_P', specific_cost=15, density=2.0, color="#000000")
+        binder = Binder(name='CMC', specific_cost=10, density=1.5, color="#FFFFFF")
+
+        formulation = CathodeFormulation(
+            active_materials={material: 95},
+            binders={binder: 2},
+            conductive_additives={conductive_additive: 3}
+        )
+
+        current_collector_material = CurrentCollectorMaterial(name='Aluminum', specific_cost=5, density=2.7, color="#AAAAAA")
+
+        current_collector = PunchedCurrentCollector(
+            material=current_collector_material,
+            width=300,
+            height=320,
+            thickness=8,
+            tab_width=60,
+            tab_height=18,
+            tab_position=50
+        )
+
+        cathode = Cathode(
+            formulation=formulation,
+            mass_loading=6.2,
+            current_collector=current_collector,
+            calender_density=2.60,
+        )
+
+        material = AnodeMaterial.from_database("Synthetic Graphite")
+        material.specific_cost = 4
+        material.density = 2.2
+
+        formulation = AnodeFormulation(
+            active_materials={material: 90},
+            binders={binder: 5},
+            conductive_additives={conductive_additive: 5}
+        )
+
+        current_collector = PunchedCurrentCollector(
+            material=current_collector_material,
+            width=304,
+            height=324,
+            thickness=8,
+            tab_width=60,
+            tab_height=18,
+            tab_position=250
+        )
+
+        anode = Anode(
+            formulation=formulation,
+            mass_loading=10.68,
+            current_collector=current_collector,
+            calender_density=2.60,
+            insulation_thickness=10
+        )
+
+        separator_material = SeparatorMaterial(name="Polyethylene", specific_cost=2, density=0.94, color="#FDFDB7", porosity=45)
+
+        separator = Separator(
+            material=separator_material,
+            thickness=25,
+            width=326,
+        )
+
+        self.monolayer = MonoLayer(
+            anode=anode,
+            cathode=cathode,
+            separator=separator
+        )
+
+    def test_monolayer(self):
+        # This is a placeholder for an actual test
+        self.assertTrue(isinstance(self.monolayer, MonoLayer))
+
+    def test_plots(self):
+        fig1 = self.monolayer._get_full_top_down_view()
         fig1.show()
+        
+        

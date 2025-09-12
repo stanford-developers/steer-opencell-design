@@ -32,20 +32,12 @@ cathode_current_collector_material_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'material'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.01,
-            mark_interval = 30,
             property_name = 'density',
             title = 'Density (kg/m³)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'material'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'specific_cost',
             title = 'Specific Cost (€/kg)'
         )(),
@@ -88,10 +80,6 @@ cathode_punched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'punched_current_collector'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'width',
             title = 'Width (mm)',
             message='will influence the possible tab positions and widths'
@@ -99,10 +87,6 @@ cathode_punched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'punched_current_collector'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'height',
             title = 'Height (mm)',
             message='will influence the allowed insulation width values'
@@ -110,10 +94,6 @@ cathode_punched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'punched_current_collector'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.1,
-            mark_interval = 10,
             property_name = 'thickness',
             title = 'Thickness (\u03bcm)'
         )(),
@@ -124,10 +104,6 @@ cathode_punched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'punched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'tab_width',
             title = 'Tab Width (mm)',
             message='will influence the allowed tab positions'
@@ -135,10 +111,6 @@ cathode_punched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'punched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'tab_height',
             title = 'Tab Height (mm)',
             message='will influence the allowed coated tab height values'
@@ -146,10 +118,6 @@ cathode_punched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'punched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'tab_position',
             title = 'Tab Position (mm)'
         )(),
@@ -160,10 +128,6 @@ cathode_punched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'punched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'coated_tab_height',
             title = 'Coated Tab Height (mm)',
             message='will influence the allowed tab height values'
@@ -171,10 +135,6 @@ cathode_punched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'punched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'insulation_width',
             title = 'Insulation Width (mm)'
         )(),
@@ -194,30 +154,18 @@ cathode_notched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'length',
             title = 'Length (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'width',
             title = 'Width (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.1,
-            mark_interval = 10,
             property_name = 'thickness',
             title = 'Thickness (\u03bcm)'
         )(),
@@ -228,40 +176,24 @@ cathode_notched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'tab_width',
             title = 'Tab Width (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'tab_height',
             title = 'Tab Height (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'tab_spacing',
             title = 'Tab Spacing (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'tab_gap',
             title = 'Tab Gap (mm)'
         )(),
@@ -272,20 +204,12 @@ cathode_notched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'coated_tab_height',
             title = 'Coated Tab Height (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'insulation_width',
             title = 'Insulation Width (mm)'
         )(),
@@ -324,20 +248,12 @@ cathode_tabless_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'tabless_current_collector'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'length',
             title = 'Length (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'tabless_current_collector'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'width',
             title = 'Width (mm)',
             message='will influence allowed coated width, tab height and insulation width values'
@@ -345,10 +261,6 @@ cathode_tabless_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'tabless_current_collector'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.1,
-            mark_interval = 10,
             property_name = 'thickness',
             title = 'Thickness (\u03bcm)'
         )(),
@@ -359,10 +271,6 @@ cathode_tabless_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'tabless_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'coated_width',
             title = 'Coated Width (mm)',
             message='will influence the tab height (keeping tape width constant) and the allowed insulation width values'
@@ -370,10 +278,6 @@ cathode_tabless_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'tabless_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'tab_height',
             title = 'Tab Height (mm)',
             message='will influence the coated width (keeping tab width constant)'
@@ -381,10 +285,6 @@ cathode_tabless_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'tabless_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'insulation_width',
             title = 'Insulation Width (mm)'
         )(),
@@ -426,30 +326,18 @@ cathode_tabbed_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'length',
             title = 'Length (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'width',
             title = 'Width (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.1,
-            mark_interval = 10,
             property_name = 'thickness',
             title = 'Thickness (\u03bcm)'
         )(),
@@ -469,50 +357,30 @@ cathode_tabbed_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'tab_material'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.01,
-            mark_interval = 30,
             property_name = 'density',
             title = 'Tab Material Density (kg/m³)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'tab_material'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.01,
-            mark_interval = 30,
             property_name = 'specific_cost',
             title = 'Tab Material Specific Cost (€/kg)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.1,
-            mark_interval = 10,
             property_name = 'tab_width',
             title = 'Tab Width (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.1,
-            mark_interval = 10,
             property_name = 'tab_length',
             title = 'Tab Length (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.1,
-            mark_interval = 10,
             property_name = 'tab_overhang',
             title = 'Tab Overhang (mm)'
         )(),
@@ -545,10 +413,6 @@ cathode_tabbed_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'tabbed_current_collector'},
-            min_val = 0,
-            max_val = 200,
-            step = 0.1,
-            mark_interval = 10,
             property_name = 'skip_coat_width',
             title = 'Width of Tab Skip Coats (mm)'
         )(),
@@ -665,20 +529,12 @@ anode_current_collector_material_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'material'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.01,
-            mark_interval = 30,
             property_name = 'density',
             title = 'Density (kg/m³)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'material'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'specific_cost',
             title = 'Specific Cost (€/kg)'
         )(),
@@ -721,10 +577,6 @@ anode_punched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'punched_current_collector'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'width',
             title = 'Width (mm)',
             message='will influence the possible tab positions and widths'
@@ -732,10 +584,6 @@ anode_punched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'punched_current_collector'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'height',
             title = 'Height (mm)',
             message='will influence the allowed insulation width values'
@@ -743,10 +591,6 @@ anode_punched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'punched_current_collector'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.1,
-            mark_interval = 10,
             property_name = 'thickness',
             title = 'Thickness (\u03bcm)'
         )(),
@@ -757,10 +601,6 @@ anode_punched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'punched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'tab_width',
             title = 'Tab Width (mm)',
             message='will influence the allowed tab positions'
@@ -768,10 +608,6 @@ anode_punched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'punched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'tab_height',
             title = 'Tab Height (mm)',
             message='will influence the allowed coated tab height values'
@@ -779,10 +615,6 @@ anode_punched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'punched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'tab_position',
             title = 'Tab Position (mm)'
         )(),
@@ -793,10 +625,6 @@ anode_punched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'punched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'coated_tab_height',
             title = 'Coated Tab Height (mm)',
             message='will influence the allowed tab height values'
@@ -804,10 +632,6 @@ anode_punched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'punched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'insulation_width',
             title = 'Insulation Width (mm)'
         )(),
@@ -827,30 +651,18 @@ anode_notched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'length',
             title = 'Length (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'width',
             title = 'Width (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.1,
-            mark_interval = 10,
             property_name = 'thickness',
             title = 'Thickness (\u03bcm)'
         )(),
@@ -861,40 +673,24 @@ anode_notched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'tab_width',
             title = 'Tab Width (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'tab_height',
             title = 'Tab Height (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'tab_spacing',
             title = 'Tab Spacing (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'tab_gap',
             title = 'Tab Gap (mm)'
         )(),
@@ -905,20 +701,12 @@ anode_notched_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'coated_tab_height',
             title = 'Coated Tab Height (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'notched_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'insulation_width',
             title = 'Insulation Width (mm)'
         )(),
@@ -957,20 +745,12 @@ anode_tabless_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'tabless_current_collector'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'length',
             title = 'Length (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'tabless_current_collector'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'width',
             title = 'Width (mm)',
             message='will influence allowed coated width, tab height and insulation width values'
@@ -978,10 +758,6 @@ anode_tabless_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'tabless_current_collector'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.1,
-            mark_interval = 10,
             property_name = 'thickness',
             title = 'Thickness (\u03bcm)'
         )(),
@@ -992,10 +768,6 @@ anode_tabless_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'tabless_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'coated_width',
             title = 'Coated Width (mm)',
             message='will influence the tab height (keeping tape width constant) and the allowed insulation width values'
@@ -1003,10 +775,6 @@ anode_tabless_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'tabless_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'tab_height',
             title = 'Tab Height (mm)',
             message='will influence the coated width (keeping tab width constant)'
@@ -1014,10 +782,6 @@ anode_tabless_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'tabless_current_collector'},
-            min_val = 0,
-            max_val = 100,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'insulation_width',
             title = 'Insulation Width (mm)'
         )(),
@@ -1059,30 +823,18 @@ anode_tabbed_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'tabbed_current_collector'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'length',
             title = 'Length (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'tabbed_current_collector'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'width',
             title = 'Width (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'tabbed_current_collector'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.1,
-            mark_interval = 10,
             property_name = 'thickness',
             title = 'Thickness (\u03bcm)'
         )(),
@@ -1102,50 +854,30 @@ anode_tabbed_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'tab_material'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.01,
-            mark_interval = 30,
             property_name = 'density',
             title = 'Tab Material Density (kg/m³)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'tab_material'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.01,
-            mark_interval = 30,
             property_name = 'specific_cost',
             title = 'Tab Material Specific Cost (€/kg)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'tabbed_current_collector'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.1,
-            mark_interval = 10,
             property_name = 'tab_width',
             title = 'Tab Width (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'tabbed_current_collector'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.1,
-            mark_interval = 10,
             property_name = 'tab_length',
             title = 'Tab Length (mm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'tabbed_current_collector'},
-            min_val = 0,
-            max_val = 20,
-            step = 0.1,
-            mark_interval = 10,
             property_name = 'tab_overhang',
             title = 'Tab Overhang (mm)'
         )(),
@@ -1178,10 +910,6 @@ anode_tabbed_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'tabbed_current_collector'},
-            min_val = 0,
-            max_val = 200,
-            step = 0.1,
-            mark_interval = 10,
             property_name = 'skip_coat_width',
             title = 'Width of Tab Skip Coats (mm)'
         )(),
@@ -1272,7 +1000,5 @@ anode_current_collector_layout = ds.html.Div([
     anode_plots,
 
 ], style={'display': 'flex', 'flex-direction': 'row', 'padding': '20px', 'width': 'calc(100%)'})
-
-
 
 

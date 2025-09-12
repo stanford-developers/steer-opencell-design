@@ -169,19 +169,21 @@ def generate_parameters(object, config: Type) -> Tuple[List[float], List[float],
     categorical_properties = {prop.value for prop in CategoricalProperty}
     
     for param in parameter_list:
+
         if param in categorical_properties:
             # Handle categorical properties
             value = getattr(object, param)
             parameter_values.append(value)
             min_values.append(0)
             max_values.append(1)
+
         else:
             # Handle numerical properties
             value = getattr(object, param)
             parameter_values.append(value)
             min_values.append(getattr(object, f"{param}_range")[0])
             max_values.append(getattr(object, f"{param}_range")[1])
-    
+
     return parameter_values, min_values, max_values
 
 def generate_rangeslider_values(

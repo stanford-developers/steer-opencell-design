@@ -26,22 +26,20 @@ cathode_insulation_material_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'insulation_material'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.01,
-            mark_interval = 30,
             property_name = 'density',
             title = 'Density (kg/m³)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'insulation_material'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.01,
-            mark_interval = 30,
             property_name = 'specific_cost',
             title = 'Specific Cost (€/kg)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'cathode', 'object': 'electrode'},
+            property_name = 'insulation_thickness',
+            title = 'Insulation Thickness (µm)'
         )(),
 
         ds.html.Br(), ds.html.Br(),
@@ -91,56 +89,26 @@ cathode_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'electrode'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.01,
-            mark_interval = 30,
             property_name = 'mass_loading',
             title = 'Mass Loading (mg/cm²)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'electrode'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.01,
-            mark_interval = 30,
             property_name = 'coating_thickness',
             title = 'Coating Thickness (µm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'electrode'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.01,
-            mark_interval = 30,
             property_name = 'calender_density',
             title = 'Calender Density (g/cm³)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'cathode', 'object': 'electrode'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'porosity',
             title = 'Porosity (%)'
-        )(),
-
-        ds.html.Br(), ds.html.Br(),
-        ds.html.H5('Other Parameters', style={'font-weight': 'bold'}),
-        ds.html.Br(),
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'cathode', 'object': 'electrode'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
-            property_name = 'insulation_thickness',
-            title = 'Insulation Thickness (µm)'
         )(),
 
     ]
@@ -250,22 +218,20 @@ anode_insulation_material_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'insulation_material'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.01,
-            mark_interval = 30,
             property_name = 'density',
             title = 'Density (kg/m³)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'insulation_material'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.01,
-            mark_interval = 30,
             property_name = 'specific_cost',
             title = 'Specific Cost (€/kg)'
+        )(),
+
+        SliderWithTextInput(
+            id_base = {'electrode': 'anode', 'object': 'electrode'},
+            property_name = 'insulation_thickness',
+            title = 'Insulation Thickness (µm)'
         )(),
 
         ds.html.Br(), ds.html.Br(),
@@ -315,56 +281,26 @@ anode_design_parameters = ds.html.Div(
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'electrode'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.01,
-            mark_interval = 30,
             property_name = 'mass_loading',
             title = 'Mass Loading (mg/cm²)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'electrode'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.01,
-            mark_interval = 30,
             property_name = 'coating_thickness',
             title = 'Coating Thickness (µm)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'electrode'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.01,
-            mark_interval = 30,
             property_name = 'calender_density',
             title = 'Calender Density (g/cm³)'
         )(),
 
         SliderWithTextInput(
             id_base = {'electrode': 'anode', 'object': 'electrode'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
             property_name = 'porosity',
             title = 'Porosity (%)'
-        )(),
-
-        ds.html.Br(), ds.html.Br(),
-        ds.html.H5('Other Parameters', style={'font-weight': 'bold'}),
-        ds.html.Br(),
-
-        SliderWithTextInput(
-            id_base = {'electrode': 'anode', 'object': 'electrode'},
-            min_val = 0,
-            max_val = 500,
-            step = 0.1,
-            mark_interval = 30,
-            property_name = 'insulation_thickness',
-            title = 'Insulation Thickness (µm)'
         )(),
 
     ]

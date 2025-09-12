@@ -860,8 +860,7 @@ def update_anode_tabbed_collector(
     input_end_values,
     existing_warnings
 ):
-    print("========")
-    print(f'triggered update_anode_tabbed_collector by {ctx.triggered_id} at {time.time()}')
+
     callback_function = create_generic_current_collector_callback(CollectorType.ANODE_TABBED)
 
     response = callback_function(

@@ -1,5 +1,6 @@
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
 from steer_opencell_design.Components.Separators import Separator
+from steer_opencell_design.Components.CurrentCollectors import _TapeCurrentCollector, PunchedCurrentCollector
 
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.Validators import ValidationMixin
@@ -253,8 +254,17 @@ class Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
     @cathode.setter
     @calculate_all_properties
     def cathode(self, cathode: Cathode):
+
+        # validate the type
         self.validate_type(cathode, Cathode, "Cathode")
+        self.validate_type(cathode.current_collector, _TapeCurrentCollector, "Cathode Current Collector")
+
+        # set the cathode to self
         self._cathode = deepcopy(cathode)
+
+        # if there is an anode, update its ranges
+        if self._update_properties:
+            self._anode.current_collector.set_ranges_from_reference(self.cathode.current_collector)
 
     @bottom_separator.setter
     @calculate_all_properties
@@ -282,6 +292,7 @@ class Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
         
         # validate type
         self.validate_type(anode, Anode, "Anode")
+        self.validate_type(anode.current_collector, _TapeCurrentCollector, "Anode Current Collector")
 
         # flip the anode, so the a side of the anode faces the a side of the cathode
         if not anode._flipped_y:
@@ -293,6 +304,9 @@ class Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
             self._cathode.datum[1],
             self._cathode.datum[2] + self._cathode.thickness/2 + self._bottom_separator.thickness + anode.thickness/2
         )
+
+        # set the ranges on the anode current collector based on the cathode current collector
+        anode.current_collector.set_ranges_from_reference(self.cathode.current_collector)
 
         # assign the anode to the layup and update its position based on the cathode
         self._anode = deepcopy(anode)
@@ -335,6 +349,222 @@ class Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
         -------
         str
             An official string representation of the Layup.
+        """
+        return self.__str__()
+
+
+class MonoLayer(CoordinateMixin, ValidationMixin, SerializerMixin):
+    """
+    Class for a MonoLayer, which is a combination of anode, cathode, and separator. This class represents the 
+    item which will be repeated in space to form a z-fold stack.
+    """
+    def __init__(
+            self,
+            anode: Anode,
+            cathode: Cathode,
+            separator: Separator,
+            anode_offset: Tuple[float, float] = (0.0, 0.0),
+            separator_offset: float = 0,
+            name: str = "MonoLayer"
+        ):
+        """
+        Initialize the MonoLayer with the given components and offsets.
+
+        Parameters
+        ----------
+        anode : Anode
+            The anode component of the monolayer.
+        cathode : Cathode
+            The cathode component of the monolayer.
+        separator : Separator
+            The separator component of the monolayer.
+        anode_offset : tuple
+            The (x, y) offset for the anode in mm.
+        separator_offset : float
+            The (x, y) offset for the separator in mm.
+        """
+        self._update_properties = False
+
+        self.cathode = cathode
+        self.separator = separator
+        self.anode = anode
+        self.name = name
+
+        self._calculate_all_properties()
+        self._update_properties = True
+
+    def _calculate_all_properties(self):
+        self._calculate_bulk_properties()
+        
+    def _calculate_bulk_properties(self):
+        self._calculate_thickness_properties()
+
+    def _calculate_thickness_properties(self):
+
+        self._thickness = self._separator._thickness + \
+                          self._cathode._thickness + \
+                          self._separator._thickness + \
+                          self._anode._thickness
+        
+        return self._thickness
+   
+    def _get_full_top_down_view(self, **kwargs) -> go.Figure:
+
+        top_separator = deepcopy(self._separator)
+        top_separator.length = self.cathode.current_collector.x_body_length + 2 * (self.separator.thickness * UM_TO_MM)
+
+        bottom_separator = deepcopy(self._separator)
+        bottom_separator.length = self.anode.current_collector.x_body_length + 2 * (self.separator.thickness * UM_TO_MM)
+
+        fig = go.Figure()
+
+        # Get trace groups
+        cathode_fig = self._cathode._get_full_top_down_view()
+        for i, trace in enumerate(cathode_fig.data):
+            trace.name = self._cathode.name
+            trace.legendgroup = self._cathode.name
+            trace.showlegend = i == 0
+            trace.xaxis = 'x'
+            trace.yaxis = 'y'
+            fig.add_trace(trace)
+
+        top_separator_trace = copy(top_separator.top_down_trace)
+        top_separator_trace.name = f"{self.separator.name} top layer"
+        top_separator_trace.legendgroup = f"{self.separator.name} top layer"
+        top_separator_trace.xaxis = 'x'
+        top_separator_trace.yaxis = 'y'
+        fig.add_trace(top_separator_trace)
+
+        anode_fig = self._anode._get_full_top_down_view()
+        for i, trace in enumerate(anode_fig.data):
+            trace.name = self._anode.name
+            trace.legendgroup = self._anode.name
+            trace.showlegend = i == 0
+            trace.xaxis = 'x'
+            trace.yaxis = 'y'
+            fig.add_trace(trace)
+
+        bottom_separator_trace = copy(bottom_separator.top_down_trace)
+        bottom_separator_trace.name = f"{self.separator.name} bottom layer"
+        bottom_separator_trace.legendgroup = f"{self.separator.name} bottom layer"
+        bottom_separator_trace.xaxis = 'x'
+        bottom_separator_trace.yaxis = 'y'
+        fig.add_trace(bottom_separator_trace)
+
+        # Final layout
+        fig.update_layout(
+            xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='', showticklabels=False),
+            yaxis=dict(showgrid=False, zeroline=False, title='', showticklabels=False),
+            paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
+            plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
+            title=kwargs.get('title', f"{self.name} Top-Down View"),
+            **kwargs
+        )
+
+        return fig
+
+    @property
+    def thickness(self) -> float:
+        return round(self._thickness * M_TO_UM, 1)
+
+    @property
+    def anode(self):
+        return self._anode
+   
+    @property
+    def cathode(self):
+        return self._cathode
+
+    @property
+    def separator(self):
+        return self._separator
+
+    @property
+    def properties(self):
+        """
+        Get the properties of the layup as a dictionary.
+        
+        Returns
+        -------
+        dict
+            A dictionary containing the properties of the layup.
+        """
+        return {
+            'Thickness': f"{self.thickness} um",
+        }
+
+    @cathode.setter
+    @calculate_all_properties
+    def cathode(self, cathode: Cathode):
+
+        # validate the type
+        self.validate_type(cathode, Cathode, "Cathode")
+        self.validate_type(cathode.current_collector, PunchedCurrentCollector, "Cathode Current Collector")
+
+        # set the cathode to self
+        self._cathode = deepcopy(cathode)
+
+        # if there is an anode, update its ranges
+        if self._update_properties:
+            self.anode.current_collector.set_ranges_from_reference(self.cathode.current_collector)
+
+    @separator.setter
+    @calculate_all_properties
+    def separator(self, separator: Separator):
+
+        # validate the type
+        self.validate_type(separator, Separator, "Separator")
+
+        # set to the layup
+        self._separator = deepcopy(separator)
+
+        # modify the separator datum
+        self._separator.datum = (
+            self._cathode.datum[0],
+            self._cathode.datum[1],
+            self._cathode.datum[2] + self._cathode.thickness/2 + self._separator.thickness/2
+        )
+
+    @anode.setter
+    @calculate_all_properties
+    def anode(self, anode: Anode):
+        
+        # validate type
+        self.validate_type(anode, Anode, "Anode")
+        self.validate_type(anode.current_collector, PunchedCurrentCollector, "Anode Current Collector")
+
+        # update the anodes datum position
+        anode.datum = (
+            self._cathode.datum[0],
+            self._cathode.datum[1],
+            self._cathode.datum[2] + self._cathode.thickness/2 + self._separator.thickness + anode.thickness/2
+        )
+
+        # set the ranges on the anode current collector based on the cathode current collector
+        anode.current_collector.set_ranges_from_reference(self.cathode.current_collector)
+
+        # assign the anode to the layup and update its position based on the cathode
+        self._anode = deepcopy(anode)
+
+    def __str__(self):
+        """
+        String representation of the Layup object.
+        
+        Returns
+        -------
+        str
+            A string representation of the MonoLayer.
+        """
+        return f"MonoLayer(anode={self.anode}, cathode={self.cathode}, top_separator={self.top_separator}, bottom_separator={self.bottom_separator})"
+
+    def __repr__(self):
+        """
+        Official string representation of the MonoLayer object.
+        
+        Returns
+        -------
+        str
+            An official string representation of the MonoLayer.
         """
         return self.__str__()
 
