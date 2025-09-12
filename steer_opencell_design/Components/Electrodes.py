@@ -926,10 +926,6 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         :return: Coating thickness of the electrode in micrometers.
         """
         return round(self._coating_thickness * M_TO_UM, 2)
-
-    @property
-    def coating_thickness_range(self) -> Tuple[float, float]:
-       return (10, 60)
     
     @property
     def coating_thickness_hard_range(self) -> Tuple[float, float]:
@@ -1463,8 +1459,9 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         self._current_collector = current_collector
 
         # if the current collector has insulation, load up a default material if none is provided
-        if self._current_collector.insulation_area != 0 and self._insulation_material is None:
-            self._insulation_material = InsulationMaterial.from_database('Aluminium Oxide, 95%')
+        if self._current_collector.insulation_area != 0:
+            if not hasattr(self, '_insulation_material') or self._insulation_material is None:
+                self._insulation_material = InsulationMaterial.from_database('Aluminium Oxide, 95%')
 
     @name.setter
     def name(self, name: str):
@@ -1535,6 +1532,10 @@ class Anode(_Electrode):
         )
 
         self._update_properties = True
+
+    @property
+    def coating_thickness_range(self) -> Tuple[float, float]:
+       return (10, 120)
 
     @property
     def top_overhang(self) -> float:
@@ -1675,6 +1676,10 @@ class Cathode(_Electrode):
         )
 
         self._update_properties = True
+
+    @property
+    def coating_thickness_range(self) -> Tuple[float, float]:
+       return (10, 60)
 
     @property
     def porosity_range(self) -> Tuple[float, float]:

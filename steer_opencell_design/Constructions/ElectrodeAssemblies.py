@@ -3,7 +3,8 @@ from steer_opencell_design.Components.Separators import Separator
 from steer_opencell_design.Components.CurrentCollectors import CurrentCollector, TabWeldedCurrentCollector, NotchedCurrentCollector
 
 from App.styles import *
-from steer_opencell_design.Constants import *
+from steer_core.Constants.Units import *
+from steer_core.Constants.Universal import PI
 
 from copy import deepcopy
 from copy import copy

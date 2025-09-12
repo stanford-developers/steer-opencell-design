@@ -193,10 +193,10 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         self.assertEqual(self.current_collector.mass, 13.63)
 
     def test_figures(self):
-        fig_a = self.current_collector._get_full_top_down_view(with_dimensions=False)
-        fig_b = self.current_collector.get_top_down_view(with_dimensions=False)
-        fig_c = self.current_collector.get_a_side_view(with_dimensions=False)
-        fig_d = self.current_collector.get_b_side_view(with_dimensions=False)
+        fig_a = self.current_collector._get_full_top_down_view()
+        fig_b = self.current_collector.get_top_down_view()
+        fig_c = self.current_collector.get_a_side_view()
+        fig_d = self.current_collector.get_b_side_view()
 
         # fig_a.show(renderer='browser')
         # fig_b.show(renderer='browser')
@@ -228,10 +228,10 @@ class TestNotchedCurrentCollector(unittest.TestCase):
     def test_datum_shifter(self):
 
         self.current_collector.length = 300
-        fig11 = self.current_collector._get_full_top_down_view(with_dimensions=False)
+        fig11 = self.current_collector._get_full_top_down_view()
         
         self.current_collector.datum = (200, 150, 50)
-        fig21 = self.current_collector._get_full_top_down_view(with_dimensions=False)
+        fig21 = self.current_collector._get_full_top_down_view()
 
         figure1 = go.Figure(data=fig11.data + fig21.data)
         
@@ -383,7 +383,7 @@ class TestTablessCurrentCollector(unittest.TestCase):
         fig_a = self.current_collector.get_a_side_view()
         fig_b = self.current_collector.get_b_side_view()
         fig_c = self.current_collector.get_right_left_view()
-        fig_d = self.current_collector._get_full_top_down_view(with_dimensions=False)
+        fig_d = self.current_collector._get_full_top_down_view()
 
         # fig_a.show(renderer='browser')
         # fig_b.show(renderer='browser')
@@ -394,11 +394,11 @@ class TestTablessCurrentCollector(unittest.TestCase):
         """
         Test width setter
         """
-        fig1 = self.current_collector._get_full_top_down_view(with_dimensions=False)
+        fig1 = self.current_collector._get_full_top_down_view()
         self.assertEqual(self.current_collector.coated_width, 100)
 
         self.current_collector.width = 208
-        fig2 = self.current_collector._get_full_top_down_view(with_dimensions=False)
+        fig2 = self.current_collector._get_full_top_down_view()
         self.assertEqual(self.current_collector.width, 208)
         self.assertEqual(self.current_collector.coated_width, 200)
 
@@ -409,11 +409,11 @@ class TestTablessCurrentCollector(unittest.TestCase):
         """
         Test tab height setter
         """
-        fig1 = self.current_collector._get_full_top_down_view(with_dimensions=False)
+        fig1 = self.current_collector._get_full_top_down_view()
         self.assertEqual(self.current_collector.tab_height, 8)
 
         self.current_collector.tab_height = 20
-        fig2 = self.current_collector._get_full_top_down_view(with_dimensions=False)
+        fig2 = self.current_collector._get_full_top_down_view()
         self.assertEqual(self.current_collector.tab_height, 20)
         
         # fig1.show()
@@ -520,7 +520,7 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         """
         Test plots
         """
-        fig1 = self.current_collector._get_full_top_down_view(with_dimensions=False)
+        fig1 = self.current_collector._get_full_top_down_view()
         fig2 = self.current_collector.get_a_side_view()
         fig3 = self.current_collector.get_b_side_view()
 
@@ -531,7 +531,7 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
     def test_length_setter(self):
         self.current_collector.length = 2000
         self.assertEqual(self.current_collector.length, 2000)
-        fig1 = self.current_collector._get_full_top_down_view(with_dimensions=False)
+        fig1 = self.current_collector._get_full_top_down_view()
         # fig1.show()
 
     def test_material_setter(self):

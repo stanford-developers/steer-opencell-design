@@ -249,11 +249,7 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         self._a_in_fill_pattern = dict(shape='\\', size=10, solidity=0.6, fgcolor=self._material._color)
         self._b_in_fill_pattern = dict(shape='/', size=10, solidity=0.6, fgcolor=self._material._color)
 
-    def _get_full_top_down_view(
-            self, 
-            with_dimensions: bool = False, 
-            **kwargs
-        ) -> go.Figure:
+    def _get_full_top_down_view(self, **kwargs) -> go.Figure:
 
         fig = go.Figure()
 
@@ -282,9 +278,6 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
                 trace = tab.top_down_body_trace
                 trace.showlegend = (i == 0)
                 fig.add_trace(trace)
-
-        if with_dimensions:
-            fig = self._add_dimensions(fig=fig)
 
         fig.update_layout(
             xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='X (mm)'),
@@ -473,6 +466,23 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         )
 
         return figure
+
+    def set_ranges_from_reference(
+            self, 
+            reference: '_CurrentCollector',
+            length_multiplier: float = 1.2,
+        ) -> None:
+        """
+        Set the length and width ranges based on a reference current collector.
+
+        Parameters:
+        ----------
+        reference: CurrentCollector
+            The reference current collector to derive ranges from.
+        """
+        self.validate_type(reference, _CurrentCollector, "reference")
+        self._x_body_length_range = (reference._x_body_length, reference._x_body_length * length_multiplier)
+        self._y_body_length_range = (reference._y_body_length, reference._y_body_length * length_multiplier)
 
     @abstractmethod
     def _get_coated_area_coordinates(self, side: str = 'a') -> np.ndarray:
@@ -918,17 +928,6 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
     @property
     def cost(self) -> float:
         return round(self._cost, 3)
-
-    @property
-    def width_range(self) -> Tuple[float, float]:
-        
-        min = 0.05
-        max = 0.3
-
-        return (
-            round(min * M_TO_MM, 2), 
-            round(max * M_TO_MM, 2)
-        )
 
     @property
     def width_hard_range(self) -> Tuple[float, float]:
@@ -1470,7 +1469,6 @@ class _TapeCurrentCollector(_CurrentCollector):
         self, 
         aspect_ratio: float = 4, 
         side: str = 'a',
-        with_dimensions: bool = False, 
         **kwargs
     ) -> go.Figure:
         """
@@ -1480,14 +1478,13 @@ class _TapeCurrentCollector(_CurrentCollector):
         
         :param aspect_ratio: float: aspect ratio of the plot, default is 3
         :param side: str: 'a' or 'b' to indicate which side to visualize
-        :param with_dimensions: bool: whether to add dimensions to the plot, default is True
         """
         if side not in ['a', 'b']:
             raise ValueError("Side must be 'a' or 'b'.")
 
         max_x = self.y_body_length * aspect_ratio
 
-        figure = self._get_full_top_down_view(with_dimensions=with_dimensions, **kwargs)
+        figure = self._get_full_top_down_view(**kwargs)
 
         if max_x < self.x_body_length:
 
@@ -1510,25 +1507,6 @@ class _TapeCurrentCollector(_CurrentCollector):
 
                 figure_subplot.add_trace(trace1, row=1, col=1)
                 figure_subplot.add_trace(trace2, row=2, col=1)
-
-            if with_dimensions:
-
-                orig = figure.layout.annotations or []
-                for ann in orig:
-                    props = ann.to_plotly_json()
-                    # Remove the old axis references
-                    for key in ('xref', 'yref', 'axref', 'ayref'):
-                        props.pop(key, None)
-
-                    # Re-add annotations for each subplot
-                    for row in (1, 2):
-                        suffix = '' if row == 1 else '2'
-                        props['xref'] = f'x{suffix}'
-                        props['yref'] = f'y{suffix}'
-                        if props.get('showarrow', False):
-                            props['axref'] = props['xref']
-                            props['ayref'] = props['yref']
-                        figure_subplot.add_annotation(row=row, col=1, **props)
 
             top_row_range = [
                 (self.datum[0] - self.x_body_length / 2) - 300, 
@@ -1570,6 +1548,30 @@ class _TapeCurrentCollector(_CurrentCollector):
         )
 
         return figure
+
+    @property
+    def x_body_length_range(self) -> Tuple[float, float]:
+        
+        if hasattr(self, '_x_body_length_range') and self._x_body_length_range is not None:
+            
+            return (
+                round(self._x_body_length_range[0] * M_TO_MM, 2), 
+                round(self._x_body_length_range[1] * M_TO_MM, 2)
+            )
+        
+        else:
+            return (100, 5000)
+
+    @property
+    def y_body_length_range(self) -> Tuple[float, float]:
+        
+        if hasattr(self, '_y_body_length_range') and self._y_body_length_range is not None:
+            return (
+                round(self._y_body_length_range[0] * M_TO_MM, 2), 
+                round(self._y_body_length_range[1] * M_TO_MM, 2)
+            )
+        else:
+            return (10, 1000)
 
     @property
     def bare_lengths_a_side(self) -> Tuple[float, float]:
@@ -1628,20 +1630,24 @@ class _TapeCurrentCollector(_CurrentCollector):
         return self.x_body_length
     
     @property
+    def length_range(self) -> Tuple[float, float]:
+        return self.x_body_length_range
+
+    @property
     def length_hard_range(self) -> Tuple[float, float]:
         """
         Get the length range in mm.
         """
         return (100, 10000)
-    
-    @property
-    def length_range(self) -> Tuple[float, float]:
-        return (100, 5000)
 
     @property
     def width(self) -> float:
         return self.y_body_length
-    
+
+    @property
+    def width_range(self) -> Tuple[float, float]:
+        return self.y_body_length_range
+
     @width.setter
     def width(self, width: float) -> None:
         self.validate_positive_float(width, "width")
@@ -1950,62 +1956,15 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
         return x_coords, y_coords
 
-    def _add_dimensions(self, fig: go.Figure, pad: float = 0.05) -> go.Figure:
-
-        # width line
-        xmin = self._datum[0] - self._x_body_length / 2
-        xmax = xmin + self._x_body_length
-        xmid = (xmin + xmax) / 2
-        y = self._datum[1] - self._y_body_length/2 - pad * self._y_body_length
-        fig.add_annotation(x=xmax, ax=xmin, y=y, ay=y, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-        fig.add_annotation(x=xmid, y=y, xref='x', yref='y', showarrow=False, yshift=-12, text=f'Width: {self.x_body_length} mm')
-
-        # height line
-        x = self._datum[0] - self._x_body_length / 2 - pad * self._x_body_length
-        ymin = self._datum[1] - self._y_body_length / 2
-        ymax = ymin + self._y_body_length
-        ymid = (ymin + ymax) / 2
-        fig.add_annotation(x=x, ax=x, y=ymax, ay=ymin, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-        fig.add_annotation(x=x, y=ymid, xref='x', yref='y', showarrow=False, xshift=-12, text=f'Height: {self.y_body_length} mm', textangle=-90)
-
-        # tab position line
-        y = self._datum[1] - self._y_body_length/2 + self._y_body_length + self._tab_height + (3 * pad * self._y_body_length)
-        xmin = self._datum[0] - self._x_body_length / 2
-        xmax = xmin + self._tab_position
-        xmid = (xmin + xmax) / 2
-        fig.add_annotation(x=xmax, ax=xmin, y=y, ay=y, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-        fig.add_annotation(x=xmid, y=y, xref='x', yref='y', showarrow=False, yshift=12, text=f'Tab Position: {self.tab_position} mm')           
-
-        # tab width line
-        y = self._datum[1] - self._y_body_length/2 + self._y_body_length + self._tab_height + (pad * self._y_body_length)
-        xmin = self._datum[0] - self._x_body_length/2 + self._tab_position - self._tab_width / 2
-        xmax = xmin + self._tab_width
-        xmid = (xmin + xmax) / 2
-        fig.add_annotation(x=xmax, ax=xmin, y=y, ay=y, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-        fig.add_annotation(x=xmid, y=y, xref='x', yref='y', showarrow=False, yshift=12, text=f'Tab Width: {self.tab_width} mm')
-
-        # tab height line 
-        if self._tab_position > self._x_body_length / 2:
-            x = self._datum[0] - self._x_body_length/2 + self._tab_position - self._tab_width / 2 - (pad * self._x_body_length)
-            xshift = -80
-        else:
-            x = self._datum[0] - self._x_body_length/2 + self._tab_position + self._tab_width / 2 + (pad * self._x_body_length)
-            xshift = 80
-        
-        ymin = self._datum[1] + self._y_body_length/2
-        ymax = ymin + self._tab_height
-        ymid = (ymin + ymax) / 2
-        fig.add_annotation(x=x, ax=x, y=ymax, ay=ymin, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-        fig.add_annotation(x=x, y=ymid, xref='x', yref='y', showarrow=False, xshift=xshift, text=f'Tab Height: {self.tab_height} mm')
-
-        return fig
-
     def _get_insulation_coordinates(self, side: str) -> np.ndarray:
         """
         Returns a NumPy array representing the insulation area.
         The shape depends on whether the insulation is entirely above, below,
         or straddling the body length. Output columns are ['x', 'y', 'z', 'side'].
         """
+        if self._insulation_width == 0:
+            return np.empty((0, 3))
+
         if side not in ['a', 'b']:
             raise ValueError("Side must be 'a' or 'b'.")
 
@@ -2065,8 +2024,8 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         # Stack into final (N, 4) array
         return np.column_stack((x, y, z))
 
-    def get_top_down_view(self, with_dimensions: bool = False, **kwargs) -> go.Figure:
-        return self._get_full_top_down_view(with_dimensions=with_dimensions, **kwargs)
+    def get_top_down_view(self, **kwargs) -> go.Figure:
+        return self._get_full_top_down_view(**kwargs)
 
     def rotate_90(self) -> None:
         """
@@ -2093,6 +2052,30 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         return self
 
     @property
+    def x_body_length_range(self) -> Tuple[float, float]:
+        
+        if hasattr(self, '_x_body_length_range') and self._x_body_length_range is not None:
+            
+            return (
+                round(self._x_body_length_range[0] * M_TO_MM, 2), 
+                round(self._x_body_length_range[1] * M_TO_MM, 2)
+            )
+        
+        else:
+            return (10, 500)
+
+    @property
+    def y_body_length_range(self) -> Tuple[float, float]:
+        
+        if hasattr(self, '_y_body_length_range') and self._y_body_length_range is not None:
+            return (
+                round(self._y_body_length_range[0] * M_TO_MM, 2), 
+                round(self._y_body_length_range[1] * M_TO_MM, 2)
+            )
+        else:
+            return (10, 500)
+
+    @property
     def mass_range(self) -> Tuple[float, float]:
 
         min = 0
@@ -2109,17 +2092,16 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         return self.x_body_length
     
     @property
+    def width_range(self) -> Tuple[float, float]:
+        return self.x_body_length_range
+
+    @property
     def height(self) -> float:
         return self.y_body_length
 
     @property
     def height_range(self) -> Tuple[float, float]:
-        min = 0
-        max = 0.5
-        return (
-            round(min * M_TO_MM, 2), 
-            round(max * M_TO_MM, 2)
-        )
+        return self.y_body_length_range
 
     @property
     def height_hard_range(self) -> Tuple[float, float]:
@@ -2486,44 +2468,14 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         return x, y
 
-    def _add_dimensions(self, fig: go.Figure, pad: float = 0.05, aspect_ratio: float = 3) -> go.Figure:
-        """
-        Add dimension annotations to the figure.
-        
-        :param fig: go.Figure: the figure to add dimensions to
-        :param start_point: Tuple[float, float]: starting point of the current collector
-        :param pad: float: padding for the dimensions
-        """
-        fig = self._add_length_dimension(fig, pad=pad, aspect_ratio=aspect_ratio)
-        fig = self._add_height_dimension(fig, pad=pad)
-
-        # Add tab spacing
-        if len(self._tab_positions) > 1:
-            y = self._datum[1] - self._y_body_length / 2 + self._total_height + (pad * self._total_height)
-            xmin = self._tab_positions[0][0] + self._tab_width / 2
-            xmax = xmin + self._tab_spacing
-            xmid = (xmin + xmax) / 2
-            fig.add_annotation(x=xmax, ax=xmin, y=y, ay=y, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-            fig.add_annotation(x=xmin, ax=xmax, y=y, ay=y, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-            fig.add_annotation(x=xmid, y=y, xref='x', yref='y', showarrow=False, yshift=12, text=f'Tab Spacing: {self.tab_spacing} mm')
-
-        # Add tab width
-        if len(self._tab_positions) > 0:
-            y = self._datum[1] - self._y_body_length / 2 + self._total_height + (pad * self._total_height)
-            xmin = self._tab_positions[-2][0]
-            xmax = xmin + self._tab_width
-            xmid = (xmin + xmax) / 2
-            fig.add_annotation(x=xmax, ax=xmin, y=y, ay=y, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-            fig.add_annotation(x=xmin, ax=xmax, y=y, ay=y, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-            fig.add_annotation(x=xmid, y=y, xref='x', yref='y', showarrow=False, yshift=12, text=f'Tab Width: {self.tab_width} mm')
-
-        return fig
-
     def _get_insulation_coordinates(self, side: str = 'a') -> np.ndarray:
         """
         Return insulation coordinates for a given side ('a' or 'b') as numpy array.
         Handles three cases: (1) above body, (2) below body, (3) straddling edge.
         """
+        if self._insulation_width == 0:
+            return np.empty((0, 3))
+
         # Compute insulation Y-range
         y_body_top = self._datum[1] + self._y_body_length / 2
         y_ins_start = y_body_top + self._coated_tab_height - self._insulation_width
@@ -2902,36 +2854,6 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 
         return new_current_collector
 
-    def _add_height_dimension(self, fig: go.Figure, pad: float = 0.05) -> go.Figure:
-
-        # Height line
-        x = self._datum[0] - self._x_body_length / 2 - pad * self._y_body_length
-        ymin = self._datum[1] - self._y_body_length / 2
-        ymax = ymin + self._y_body_length + self._tab_height
-        ymid = (ymin + ymax) / 2
-        fig.add_annotation(x=x, ax=x, y=ymax, ay=ymin, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-        fig.add_annotation(x=x, ax=x, y=ymin, ay=ymax, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-        fig.add_annotation(x=x, y=ymid, xref='x', yref='y', showarrow=False, xshift=-12, text=f'Height: {self.y_body_length} mm', textangle=-90)
-
-        return fig
-
-    def _add_dimensions(
-            self, 
-            fig: go.Figure, 
-            pad: float = 0.05,
-            aspect_ratio: float = 3
-        ) -> go.Figure:
-        """
-        Add dimension annotations to the figure.
-        
-        :param fig: go.Figure: the figure to add dimensions to
-        :param start_point: Tuple[float, float]: starting point of the current collector
-        :param pad: float: padding for the dimensions
-        """
-        fig = self._add_length_dimension(fig, pad=pad, aspect_ratio=aspect_ratio)
-        fig = self._add_height_dimension(fig, pad=pad)
-        return fig
-
     @property
     def coated_width(self) -> float:
         return round(self._coated_width * M_TO_MM, 2)
@@ -2941,8 +2863,13 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         """
         Get the coated width range in mm.
         """
-        min = self.width - self.tab_height_range[1]
+        if hasattr(self, '_y_body_length_range') and self._y_body_length_range is not None:
+            min = self.y_body_length_range[0]
+        else:
+            min = self.width - self.tab_height_range[1]
+
         max = self.width - self.tab_height_range[0]
+
         return (min, max)
     
     @property
@@ -2959,6 +2886,16 @@ class TablessCurrentCollector(NotchedCurrentCollector):
     @property
     def width(self) -> float:
         return round((self._y_body_length + self._tab_height) * M_TO_MM, 2)
+
+    @property
+    def width_range(self) -> Tuple[float, float]:
+
+        if hasattr(self, '_y_body_length_range') and self._y_body_length_range is not None:
+            min_width = self.y_body_length_range[0] + self.tab_height_range[0]
+            max_width = self.y_body_length_range[1] + self.tab_height_range[1]
+            return (round(min_width, 2), round(max_width, 2))
+        else:
+            return (0, 1000)
 
     @property
     def tab_height(self) -> float:
@@ -3620,7 +3557,6 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             self, 
             side='a', 
             aspect_ratio: float = 3, 
-            with_dimensions: bool = True, 
             **kwargs
         ) -> go.Figure:
         
@@ -3628,7 +3564,6 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         figure = super()._get_full_view(
             side=side,
             aspect_ratio=aspect_ratio,
-            with_dimensions=with_dimensions,
             **kwargs
         )
     
@@ -3713,22 +3648,6 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
     
     def _get_b_side_insulation_area_trace(self) -> Tuple[go.Scatter, float]:
         return self._get_insulation_area_trace()
-
-    def _add_dimensions(
-            self, 
-            fig: go.Figure, 
-            pad: float = 0.05,
-            aspect_ratio: float = 3
-        ) -> go.Figure:
-        """
-        Add dimension annotations to the figure.
-        
-        :param fig: go.Figure: the figure to add dimensions to
-        :param pad: float: padding for the dimensions
-        """
-        fig = self._add_length_dimension(fig, pad=pad, aspect_ratio=aspect_ratio)
-        fig = self._add_height_dimension(fig, pad=pad)
-        return fig
 
     @property
     def weld_tab_positions(self) -> list:

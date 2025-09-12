@@ -4,10 +4,45 @@ import plotly.graph_objects as go
 
 from steer_opencell_design.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation
 from steer_opencell_design.Components.Electrodes import Cathode, Anode, ElectrodeControlMode
-from steer_opencell_design.Components.CurrentCollectors import NotchedCurrentCollector, WeldTab, TabWeldedCurrentCollector, PunchedCurrentCollector
+from steer_opencell_design.Components.CurrentCollectors import NotchedCurrentCollector, WeldTab, TabWeldedCurrentCollector, PunchedCurrentCollector, TablessCurrentCollector
 
 from steer_materials.CellMaterials.Base import CurrentCollectorMaterial, InsulationMaterial
 from steer_materials.CellMaterials.Electrode import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
+
+
+class TestAnodeNoInsulation(unittest.TestCase):
+
+    def setUp(self):
+        
+        current_collector_material = CurrentCollectorMaterial.from_database('Aluminum')
+        conductive_additive = ConductiveAdditive.from_database("Super P")
+        binder = Binder.from_database("PVDF")
+
+        anode_current_collector = TablessCurrentCollector(
+            material=current_collector_material,
+            width=132,
+            length=2427,
+            coated_width=127,
+            thickness=13
+        )
+
+        anode_active_material = AnodeMaterial.from_database("Hard Carbon (Vendor A)")
+
+        anode_formulation = AnodeFormulation(
+            active_materials={anode_active_material: 95},
+            binders={binder: 2.5},
+            conductive_additives={conductive_additive: 2.5}
+        )
+
+        self.anode = Anode(
+            formulation=anode_formulation,
+            current_collector=anode_current_collector,
+            calender_density=1.03,
+            mass_loading=8.35
+        )
+
+    def test_electrodes(self):
+        self.assertTrue(isinstance(self.anode, Anode))
 
 
 class TestCathodePunchedCurrentCollector(unittest.TestCase):
@@ -250,26 +285,42 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
 
         self.assertTrue(
             self.cathode.mass_breakdown,
-            {'LFP': 103.43, 
-             'NMC811': 57.63, 
-             'PVDF': 1.53, 
-             'Super P': 2.57, 
-             'Notched Current Collector': 106.21, 
-             'Aluminium Oxide, 99.5%': 1.6}
+            {
+                'cathode_formulation': {
+                    'LFP': 103.43, 
+                    'NMC811': 57.63, 
+                    'PVDF': 1.53, 
+                    'Super P': 2.57}, 
+                'notched_current_collector': 106.21, 
+                'aluminium_oxide_99.5%': 1.6
+            }
         )
 
         self.assertTrue(
             self.cathode.cost_breakdown,
-            {'LFP': 0.66, 
-             'NMC811': 1.16, 
-             'PVDF': 0.31, 
-             'Super P': 0.07, 
-             'Notched Current Collector': 0.64, 
-             'Aluminium Oxide, 99.5%': 0.0}
+            {
+                'cathode_formulation': {
+                    'LFP': 0.66, 
+                    'NMC811': 1.16, 
+                    'PVDF': 0.31, 
+                    'Super P': 0.07}, 
+                'notched_current_collector': 0.64, 
+                'aluminium_oxide_99.5%': 0.0
+            }
         )
 
-        self.assertEqual(round(sum([a for a in self.cathode._mass_breakdown.values()]), 2), round(self.cathode._mass, 2))
-        self.assertEqual(round(sum([a for a in self.cathode._cost_breakdown.values()]), 2), round(self.cathode._cost, 2))
+        def sum_nested_dict(data):
+            """Recursively sum all numeric values in a nested dictionary"""
+            total = 0
+            for key, value in data.items():
+                if isinstance(value, dict):
+                    total += sum_nested_dict(value)  # Recursive call for nested dict
+                elif isinstance(value, (int, float)):
+                    total += value
+            return total
+
+        self.assertAlmostEqual(self.cathode._cost, sum_nested_dict(self.cathode._cost_breakdown), 5)
+        self.assertAlmostEqual(self.cathode._mass, sum_nested_dict(self.cathode._mass_breakdown), 5)
 
     def test_half_cell_curve(self):
         figure1 = self.cathode.plot_half_cell_curve(areal=False)
@@ -344,22 +395,40 @@ class testAnodeTabWelded(unittest.TestCase):
 
         self.assertEqual(
             self.anode.mass_breakdown, 
-            {'Synthetic Graphite': 97.73, 
-             'CMC': 0.77, 
-             'Super P': 0.96, 
-             'Tab Welded Current Collector': 44.19}
+            {
+                'Anode Formulation': {
+                    'Synthetic Graphite': 97.73, 
+                    'CMC': 0.77, 
+                    'Super P': 0.96
+                },
+                'Tab Welded Current Collector': 44.19
+            },
         )
 
         self.assertEqual(
             self.anode.cost_breakdown,
-            {'Synthetic Graphite': 0.22, 
-             'CMC': 0.01, 
-             'Super P': 0.07, 
-             'Tab Welded Current Collector': 0.81}
+            {
+                'Anode Formulation': {
+                    'Synthetic Graphite': 0.22, 
+                    'CMC': 0.01, 
+                    'Super P': 0.07
+                },
+                'Tab Welded Current Collector': 0.81
+            },
         )
 
-        self.assertEqual(round(sum([a for a in self.anode._mass_breakdown.values()]), 2), round(self.anode._mass, 2))
-        self.assertEqual(round(sum([a for a in self.anode._cost_breakdown.values()]), 2), round(self.anode._cost, 2))
+        def sum_nested_dict(data):
+            """Recursively sum all numeric values in a nested dictionary"""
+            total = 0
+            for key, value in data.items():
+                if isinstance(value, dict):
+                    total += sum_nested_dict(value)  # Recursive call for nested dict
+                elif isinstance(value, (int, float)):
+                    total += value
+            return total
+
+        self.assertAlmostEqual(self.anode._cost, sum_nested_dict(self.anode._cost_breakdown), 5)
+        self.assertAlmostEqual(self.anode._mass, sum_nested_dict(self.anode._mass_breakdown), 5)
 
     def test_half_cell_curve(self):
 
