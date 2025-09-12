@@ -1,7 +1,7 @@
 from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Decorators.Electrochemical import calculate_half_cell_curve
 from steer_core.Constants.Units import *
-from steer_core.Mixins.Validators import ValidationMixin
+from steer_core.Mixins.TypeChecker import ValidationMixin
 
 from steer_materials.CellMaterials.Electrode import _ActiveMaterial, Binder, ConductiveAdditive
 

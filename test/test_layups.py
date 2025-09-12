@@ -250,6 +250,6 @@ class TestSimpleMonoLayer(unittest.TestCase):
 
     def test_plots(self):
         fig1 = self.monolayer._get_full_top_down_view()
-        fig1.show()
+        # fig1.show()
         
         

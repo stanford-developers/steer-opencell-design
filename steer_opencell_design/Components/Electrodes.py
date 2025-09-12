@@ -2,7 +2,7 @@ from steer_core.Decorators.Coordinates import calculate_coordinates, calculate_v
 from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
 from steer_core.Decorators.Electrochemical import calculate_half_cell_curve
 
-from steer_core.Mixins.Validators import ValidationMixin
+from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.Serializer import SerializerMixin
 
