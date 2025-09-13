@@ -34,6 +34,13 @@ def create_generic_current_collector_callback(collector_type: CollectorType) -> 
         # Get the triggered ID
         triggered_id = ctx.triggered_id
 
+        # get the propid
+        triggered_prop_id = list(ctx.triggered_prop_ids.keys())[0].split('.')[-1]
+
+        # If all display is none for any of the viewing styles, return no update
+        if any(d.get('display') == 'none' for d in viewing_styles):
+            return create_no_update_response(config, existing_warnings)
+
         # Get the cell from cache
         cell = get_cell_from_cache(cell_data['cache_key'])
 
@@ -44,14 +51,10 @@ def create_generic_current_collector_callback(collector_type: CollectorType) -> 
         if config.collector_type != type(current_collector):
             return create_no_update_response(config, existing_warnings)
 
-        # If all display is none for any of the viewing styles, return no update
-        if any(d.get('display') == 'none' for d in viewing_styles):
-            return create_no_update_response(config, existing_warnings)
-
         # Map the triggered ID to the appropriate action using ENUMS
-        trigger_type = TriggerRouter.get_trigger_type(triggered_id)
+        trigger_type = TriggerRouter.get_trigger_type(triggered_id, triggered_prop_id)
 
-        if trigger_type == TriggerType.CELL_STORE:
+        if trigger_type == TriggerType.CELL_STORE or trigger_type == TriggerType.STYLE:
 
             return handle_cell_store_update(
                 current_collector, 

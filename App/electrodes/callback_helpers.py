@@ -20,10 +20,18 @@ def create_electrode_callback(electrode_key: ElectrodeType) -> callable:
         cell_data: dict, 
         input_values: list, 
         slider_values: list, 
+        viewing_styles=[]
     ) -> Tuple:
         
         # Get the triggered ID
         triggered_id = ctx.triggered_id
+
+        # get the propid
+        triggered_prop_id = list(ctx.triggered_prop_ids.keys())[0].split('.')[-1]
+
+        # If all display is none for any of the viewing styles, return no update
+        if any(d.get('display') == 'none' for d in viewing_styles):
+            return create_no_update_response(config, existing_warnings)
 
         # Get the cell from cache
         cell = get_cell_from_cache(cell_data['cache_key'])
@@ -32,10 +40,10 @@ def create_electrode_callback(electrode_key: ElectrodeType) -> callable:
         electrode = get_object_from_cell(cell, config)
 
         # Map the triggered ID to the appropriate action using ENUMS
-        trigger_type = TriggerRouter.get_trigger_type(triggered_id)
+        trigger_type = TriggerRouter.get_trigger_type(triggered_id, triggered_prop_id)
 
         # trigger if the cell store is updated
-        if trigger_type == TriggerType.CELL_STORE:
+        if trigger_type == TriggerType.CELL_STORE or trigger_type == TriggerType.STYLE:
             return handle_cell_store_update(electrode, config, existing_warnings)
         
         # trigger if a property is updated

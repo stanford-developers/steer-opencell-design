@@ -362,7 +362,12 @@ def update_anode_current_collector_design_parameters(design):
         Output({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'input'}, 'step'),
     ],
     [
+        Input('cathode_current_collector_tab', 'style'),
+        Input('cathode_tab', 'style'),
+        Input('tabs_panel', 'style'),
+
         Input('cell_store', 'data'),
+        
         Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
         Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
         Input({'electrode': 'cathode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
@@ -374,7 +379,12 @@ def update_anode_current_collector_design_parameters(design):
     prevent_initial_call=True
 )
 def update_cathode_punched_current_collector(
+    cc_tab_style,
+    tabs_panel_style,
+    main_tabs_container_style,
+
     cell_data,
+    
     input_n_sub,
     input_n_blur,
     slider_values,
@@ -389,6 +399,7 @@ def update_cathode_punched_current_collector(
         cell_data,
         input_values,
         slider_values,
+        viewing_styles=[cc_tab_style, tabs_panel_style, main_tabs_container_style]
     )
 
     return response
@@ -405,7 +416,12 @@ def update_cathode_punched_current_collector(
         Output({'electrode': 'anode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'input'}, 'step'),
     ],
     [
+        Input('anode_current_collector_tab', 'style'),
+        Input('anode_tab', 'style'),
+        Input('tabs_panel', 'style'),
+        
         Input('cell_store', 'data'),
+
         Input({'electrode': 'anode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
         Input({'electrode': 'anode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
         Input({'electrode': 'anode', 'object': 'punched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
@@ -417,10 +433,16 @@ def update_cathode_punched_current_collector(
     prevent_initial_call=True
 )
 def update_anode_punched_current_collector(
+    cc_tab_style,
+    tabs_panel_style,
+    main_tabs_container_style,
+
     cell_data,
+
     input_n_sub,
     input_n_blur,
     slider_values,
+
     input_values,
     existing_warnings
 ):
@@ -432,6 +454,7 @@ def update_anode_punched_current_collector(
         cell_data,
         input_values,
         slider_values,
+        viewing_styles=[cc_tab_style, tabs_panel_style, main_tabs_container_style]
     )
 
     return response
@@ -458,7 +481,12 @@ def update_anode_punched_current_collector(
         Output({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input_end'}, 'step'),
     ],
     [
+        Input('cathode_current_collector_tab', 'style'),
+        Input('cathode_tab', 'style'),
+        Input('tabs_panel', 'style'),
+
         Input('cell_store', 'data'),
+
         Input({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
         Input({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
         Input({'electrode': 'cathode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
@@ -478,15 +506,23 @@ def update_anode_punched_current_collector(
     prevent_initial_call=True
 )
 def update_cathode_tabless_collector(
+
+    cc_tab_style,
+    tabs_panel_style,
+    main_tabs_container_style,
+
     cell_data,
+
     input_n_sub,
     input_n_blur,
     slider_values,
+
     input_start_n_sub,
     input_start_n_blur,
     input_end_n_sub,
     input_end_n_blur,
     rangeslider_values,
+
     input_values,
     input_start_values,
     input_end_values,
@@ -502,7 +538,8 @@ def update_cathode_tabless_collector(
         slider_values,
         rangeslider_values,
         input_start_values,
-        input_end_values
+        input_end_values,
+        viewing_styles=[cc_tab_style, tabs_panel_style, main_tabs_container_style]
     )
     
     return response
@@ -527,7 +564,12 @@ def update_cathode_tabless_collector(
         Output({'electrode': 'anode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input_end'}, 'step'),
     ],
     [
+        Input('anode_current_collector_tab', 'style'),
+        Input('anode_tab', 'style'),
+        Input('tabs_panel', 'style'),
+
         Input('cell_store', 'data'),
+
         Input({'electrode': 'anode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
         Input({'electrode': 'anode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
         Input({'electrode': 'anode', 'object': 'tabless_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
@@ -547,15 +589,23 @@ def update_cathode_tabless_collector(
     prevent_initial_call=True
 )
 def update_anode_tabless_collector(
+
+    cc_tab_style,
+    tabs_panel_style,
+    main_tabs_container_style,
+
     cell_data,
+
     input_n_sub,
     input_n_blur,
     slider_values,
+
     input_start_n_sub,
     input_start_n_blur,
     input_end_n_sub,
     input_end_n_blur,
     rangeslider_values,
+
     input_values,
     input_start_values,
     input_end_values,
@@ -571,7 +621,8 @@ def update_anode_tabless_collector(
         slider_values,
         rangeslider_values,
         input_start_values,
-        input_end_values
+        input_end_values,
+        viewing_styles=[cc_tab_style, tabs_panel_style, main_tabs_container_style]
     )
     
     return response
@@ -598,7 +649,12 @@ def update_anode_tabless_collector(
         Output({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input_end'}, 'step'),
     ],
     [
+        Input('cathode_current_collector_tab', 'style'),
+        Input('cathode_tab', 'style'),
+        Input('tabs_panel', 'style'),
+
         Input('cell_store', 'data'),
+
         Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
         Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
         Input({'electrode': 'cathode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
@@ -618,15 +674,22 @@ def update_anode_tabless_collector(
     prevent_initial_call=True
 )
 def update_cathode_notched_collector(
+    cc_tab_style,
+    tabs_panel_style,
+    main_tabs_container_style,
+
     cell_data,
+    
     input_n_sub,
     input_n_blur,
     slider_values,
+    
     input_start_n_sub,
     input_start_n_blur,
     input_end_n_sub,
     input_end_n_blur,
     rangeslider_values,
+    
     input_values,
     input_start_values,
     input_end_values,
@@ -642,7 +705,8 @@ def update_cathode_notched_collector(
         slider_values,
         rangeslider_values,
         input_start_values,
-        input_end_values
+        input_end_values,
+        viewing_styles=[cc_tab_style, tabs_panel_style, main_tabs_container_style]
     )
     
     return response
@@ -667,7 +731,12 @@ def update_cathode_notched_collector(
         Output({'electrode': 'anode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input_end'}, 'step'),
     ],
     [
+        Input('anode_current_collector_tab', 'style'),
+        Input('anode_tab', 'style'),
+        Input('tabs_panel', 'style'),
+        
         Input('cell_store', 'data'),
+        
         Input({'electrode': 'anode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
         Input({'electrode': 'anode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
         Input({'electrode': 'anode', 'object': 'notched_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
@@ -687,19 +756,28 @@ def update_cathode_notched_collector(
     prevent_initial_call=True
 )
 def update_anode_notched_collector(
+
+    cc_tab_style,
+    tabs_panel_style,
+    main_tabs_container_style,
+
     cell_data,
+    
     input_n_sub,
     input_n_blur,
     slider_values,
+    
     input_start_n_sub,
     input_start_n_blur,
     input_end_n_sub,
     input_end_n_blur,
     rangeslider_values,
+    
     input_values,
     input_start_values,
     input_end_values,
     existing_warnings
+
 ):
 
     callback_function = create_generic_current_collector_callback(CollectorType.ANODE_NOTCHED)
@@ -711,7 +789,8 @@ def update_anode_notched_collector(
         slider_values,
         rangeslider_values,
         input_start_values,
-        input_end_values
+        input_end_values,
+        viewing_styles=[cc_tab_style, tabs_panel_style, main_tabs_container_style]
     )
 
     return response
@@ -741,6 +820,10 @@ def update_anode_notched_collector(
         Output({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'text_input'}, 'value'),
     ],
     [
+        Input('cathode_current_collector_tab', 'style'),
+        Input('cathode_tab', 'style'),
+        Input('tabs_panel', 'style'),
+
         Input('cell_store', 'data'),
         
         Input({'electrode': 'cathode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
@@ -765,17 +848,26 @@ def update_anode_notched_collector(
     prevent_initial_call=True
 )
 def update_cathode_tabbed_collector(
+
+    cc_tab_style,
+    tabs_panel_style,
+    main_tabs_container_style,
+
     cell_data,
+    
     input_n_sub,
     input_n_blur,
     slider_values,
+    
     input_start_n_sub,
     input_start_n_blur,
     input_end_n_sub,
     input_end_n_blur,
     rangeslider_values,
+    
     radioitem_values,
     text_item_values,
+    
     input_values,
     input_start_values,
     input_end_values,
@@ -821,7 +913,12 @@ def update_cathode_tabbed_collector(
         Output({'electrode': 'anode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'text_input'}, 'value'),
     ],
     [
+        Input('anode_current_collector_tab', 'style'),
+        Input('anode_tab', 'style'),
+        Input('tabs_panel', 'style'),
+
         Input('cell_store', 'data'),
+
         Input({'electrode': 'anode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
         Input({'electrode': 'anode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
         Input({'electrode': 'anode', 'object': 'tabbed_current_collector', 'property': ALL, 'subtype': 'slider'}, 'value'),
@@ -844,21 +941,32 @@ def update_cathode_tabbed_collector(
     prevent_initial_call=True
 )
 def update_anode_tabbed_collector(
+
+    cc_tab_style,
+    tabs_panel_style,
+    main_tabs_container_style,
+
     cell_data,
+    
     input_n_sub,
     input_n_blur,
     slider_values,
+    
     input_start_n_sub,
     input_start_n_blur,
     input_end_n_sub,
     input_end_n_blur,
     rangeslider_values,
+    
     radioitem_values,
     text_item_values,
+    
     input_values,
     input_start_values,
+    
     input_end_values,
-    existing_warnings
+    existing_warnings,
+
 ):
 
     callback_function = create_generic_current_collector_callback(CollectorType.ANODE_TABBED)
@@ -872,7 +980,8 @@ def update_anode_tabbed_collector(
         input_start_values,
         input_end_values,
         radioitem_values,
-        text_item_values
+        text_item_values,
+        viewing_styles=[cc_tab_style, tabs_panel_style, main_tabs_container_style]
     )
 
     return response
@@ -884,15 +993,33 @@ def update_anode_tabbed_collector(
         Output('cathode_current_collector_properties_div', 'children'),
     ],
     [
+        Input('cathode_current_collector_tab', 'style'),
+        Input('cathode_tab', 'style'),
+        Input('tabs_panel', 'style'),
+
         Input('cell_store', 'data'),
         Input('continue_to_design', 'n_clicks'),
     ],
     prevent_initial_call=True
 )
-def update_cathode_current_collector_properties(cell_data, continue_to_design):
+def update_cathode_current_collector_properties(
+
+    cc_tab_style,
+    tab_style,
+    tabs_panel_style,
+
+    cell_data, 
+
+    continue_to_design
+):
     """
     Update the cathode current collector plots based on the current collector store data.
     """
+    # If all display is none for any of the viewing styles, return no update
+    if any(d.get('display') == 'none' for d in [cc_tab_style, tab_style, tabs_panel_style]):
+        return no_update
+
+    # get the config for the cathode generic current collector
     config = COLLECTOR_CONFIGS[CollectorType.CATHODE_GENERIC]
 
     # get the cell from the cache
@@ -915,15 +1042,32 @@ def update_cathode_current_collector_properties(cell_data, continue_to_design):
         Output('anode_current_collector_properties_div', 'children'),
     ],
     [
+        Input('anode_current_collector_tab', 'style'),
+        Input('anode_tab', 'style'),
+        Input('tabs_panel', 'style'),
+
         Input('cell_store', 'data'),
         Input('continue_to_design', 'n_clicks'),
     ],
     prevent_initial_call=True
 )
-def update_anode_current_collector_properties(cell_data, continue_to_design):
+def update_anode_current_collector_properties(
+
+    cc_tab_style,
+    tab_style,
+    tabs_panel_style,
+
+    cell_data,
+    
+    continue_to_design
+    ):
     """
     Update the anode current collector plots based on the current collector store data.
     """
+    # If all display is none for any of the viewing styles, return no update
+    if any(d.get('display') == 'none' for d in [cc_tab_style, tab_style, tabs_panel_style]):
+        return no_update
+    
     config = COLLECTOR_CONFIGS[CollectorType.ANODE_GENERIC]
 
     # get the cell from the cache
@@ -940,8 +1084,5 @@ def update_anode_current_collector_properties(cell_data, continue_to_design):
 
     # return the plots
     return [properties_table]
-
-
-
 
 

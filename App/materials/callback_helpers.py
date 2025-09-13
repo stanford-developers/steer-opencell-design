@@ -13,13 +13,27 @@ def create_material_callback(material_type: MaterialType) -> callable:
 
     config = MATERIAL_CONFIGS[material_type]
 
-    def update_material(existing_warnings, cell_data, material_name, input_values, slider_values):
+    def update_material(
+            existing_warnings, 
+            cell_data, 
+            material_name, 
+            input_values, 
+            slider_values,
+            viewing_styles=[]
+        ):
 
         from App.materials.handlers import handle_selector_update
         from App.general.handlers import handle_cell_store_update, handle_property_update
 
         # get the triggered ID
         triggered_id = ctx.triggered_id
+
+        # get the propid
+        triggered_prop_id = list(ctx.triggered_prop_ids.keys())[0].split('.')[-1]
+
+        # If all display is none for any of the viewing styles, return no update
+        if any(d.get('display') == 'none' for d in viewing_styles):
+            return create_no_update_response(config, existing_warnings)
 
         # get the cell from cache
         cell = get_cell_from_cache(cell_data['cache_key'])
@@ -35,9 +49,9 @@ def create_material_callback(material_type: MaterialType) -> callable:
             return create_no_update_response(config, existing_warnings)
 
         # Get the trigger type using the TriggerRouter
-        trigger_type = TriggerRouter.get_trigger_type(triggered_id)
+        trigger_type = TriggerRouter.get_trigger_type(triggered_id, triggered_prop_id)
 
-        if trigger_type == TriggerType.CELL_STORE:
+        if trigger_type == TriggerType.CELL_STORE or trigger_type == TriggerType.STYLE:
             return handle_cell_store_update(material, config, existing_warnings)
 
         elif trigger_type == TriggerType.COMPONENT_SELECTOR:

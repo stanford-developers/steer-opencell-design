@@ -19,6 +19,7 @@ class SubType(Enum):
 class TriggerType(Enum):
     
     CELL_STORE = 'cell_store'
+    STYLE = 'style'
     PROPERTY = 'property'
     ACTION = 'action'
     RADIOITEM = 'radioitem'

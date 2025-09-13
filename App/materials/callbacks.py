@@ -16,7 +16,12 @@ from App.general.enumerated_classes import MaterialType, ElectrodeType
         Output('cathode_current_collector_material_selector', 'value'),
     ],
     [
+        Input('cathode_current_collector_tab', 'style'),
+        Input('cathode_tab', 'style'),
+        Input('tabs_panel', 'style'),
+
         Input('cell_store', 'data'),
+        
         Input('cathode_current_collector_material_selector', 'value'),
         Input({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
         Input({'electrode': 'cathode', 'object': 'material', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
@@ -29,13 +34,20 @@ from App.general.enumerated_classes import MaterialType, ElectrodeType
     prevent_initial_call=True
 )
 def update_cathode_current_collector_material(
+    
+    cc_tab_style,
+    tabs_panel_style,
+    main_tabs_container_style,
+
     cell_data,
+    
     material_selector,
     input_n_sub,
     input_n_blur,
     slider_values,
     input_values,
     existing_warnings
+
 ):
 
     callback_function = create_material_callback(MaterialType.CATHODE_CURRENT_COLLECTOR)
@@ -46,6 +58,7 @@ def update_cathode_current_collector_material(
         material_selector,
         input_values,
         slider_values,
+        viewing_styles=[cc_tab_style, main_tabs_container_style, tabs_panel_style]
     )
 
     response = response
@@ -65,7 +78,12 @@ def update_cathode_current_collector_material(
         Output('anode_current_collector_material_selector', 'value'),
     ],
     [
+        Input('anode_current_collector_tab', 'style'),
+        Input('anode_tab', 'style'),
+        Input('tabs_panel', 'style'),
+
         Input('cell_store', 'data'),
+        
         Input('anode_current_collector_material_selector', 'value'),
         Input({'electrode': 'anode', 'object': 'material', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
         Input({'electrode': 'anode', 'object': 'material', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
@@ -78,11 +96,17 @@ def update_cathode_current_collector_material(
     prevent_initial_call=True
 )
 def update_anode_current_collector_material(
+    cc_tab_style,
+    tabs_panel_style,
+    main_tabs_container_style,
+
     cell_data,
+    
     material_selector,
     input_n_sub,
     input_n_blur,
     slider_values,
+    
     input_values,
     existing_warnings
 ):
@@ -95,6 +119,7 @@ def update_anode_current_collector_material(
         material_selector,
         input_values,
         slider_values,
+        viewing_styles=[cc_tab_style, main_tabs_container_style, tabs_panel_style]
     )
 
     response = response
@@ -116,7 +141,12 @@ def update_anode_current_collector_material(
         Output('cathode_current_collector_tab_material_selector', 'value'),
     ],
     [
+        Input('cathode_current_collector_tab', 'style'),
+        Input('cathode_tab', 'style'),
+        Input('tabs_panel', 'style'),
+
         Input('cell_store', 'data'),
+
         Input('cathode_current_collector_tab_material_selector', 'value'),
         Input({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
         Input({'electrode': 'cathode', 'object': 'tab_material', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
@@ -129,11 +159,17 @@ def update_anode_current_collector_material(
     prevent_initial_call=True
 )
 def update_cathode_current_collector_tab_material(
+    cc_tab_style,
+    tabs_panel_style,
+    main_tabs_container_style,
+
     cell_data,
+    
     material_selector,
     input_n_sub,
     input_n_blur,
     slider_values,
+    
     input_values,
     existing_warnings,
 ):
@@ -146,6 +182,7 @@ def update_cathode_current_collector_tab_material(
         material_selector,
         input_values,
         slider_values,
+        viewing_styles=[cc_tab_style, main_tabs_container_style, tabs_panel_style]
     )
 
     return response
@@ -163,7 +200,12 @@ def update_cathode_current_collector_tab_material(
         Output('anode_current_collector_tab_material_selector', 'value'),
     ],
     [
+        Input('anode_current_collector_tab', 'style'),
+        Input('anode_tab', 'style'),
+        Input('tabs_panel', 'style'),
+
         Input('cell_store', 'data'),
+        
         Input('anode_current_collector_tab_material_selector', 'value'),
         Input({'electrode': 'anode', 'object': 'tab_material', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
         Input({'electrode': 'anode', 'object': 'tab_material', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
@@ -176,11 +218,17 @@ def update_cathode_current_collector_tab_material(
     prevent_initial_call=True
 )
 def update_anode_current_collector_tab_material(
+    cc_tab_style,
+    tabs_panel_style,
+    main_tabs_container_style,
+    
     cell_data,
+    
     material_selector,
     input_n_sub,
     input_n_blur,
     slider_values,
+    
     input_values,
     existing_warnings,
 ):
@@ -193,9 +241,11 @@ def update_anode_current_collector_tab_material(
         material_selector,
         input_values,
         slider_values,
+        viewing_styles=[cc_tab_style, main_tabs_container_style, tabs_panel_style]
     )
 
     return response
+
 
 
 @callback(
@@ -211,7 +261,12 @@ def update_anode_current_collector_tab_material(
         Output('cathode_insulation_material_selector', 'value'),
     ],
     [
+        Input('cathode_electrode_tab', 'style'),
+        Input('cathode_tab', 'style'),
+        Input('tabs_panel', 'style'),
+
         Input('cell_store', 'data'),
+
         Input('cathode_insulation_material_selector', 'value'),
         Input({'electrode': 'cathode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
         Input({'electrode': 'cathode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
@@ -224,7 +279,13 @@ def update_anode_current_collector_tab_material(
     prevent_initial_call=True
 )
 def update_cathode_current_collector_insulation_material(
+    
+    cc_tab_style,
+    tab_style,
+    tabs_panel_style,
+
     cell_data,
+    
     material_selector,
     input_n_sub,
     input_n_blur,
@@ -241,6 +302,7 @@ def update_cathode_current_collector_insulation_material(
         material_selector,
         input_values,
         slider_values,
+        viewing_styles=[cc_tab_style, tab_style, tabs_panel_style]
     )
 
     return response
@@ -258,7 +320,12 @@ def update_cathode_current_collector_insulation_material(
         Output('anode_insulation_material_selector', 'value'),
     ],
     [
+        Input('anode_electrode_tab', 'style'),
+        Input('anode_tab', 'style'),
+        Input('tabs_panel', 'style'),
+
         Input('cell_store', 'data'),
+        
         Input('anode_insulation_material_selector', 'value'),
         Input({'electrode': 'anode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
         Input({'electrode': 'anode', 'object': 'insulation_material', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
@@ -271,11 +338,17 @@ def update_cathode_current_collector_insulation_material(
     prevent_initial_call=True
 )
 def update_anode_current_collector_insulation_material(
+    cc_tab_style,
+    tab_style,
+    tabs_panel_style,
+
     cell_data,
+    
     material_selector,
     input_n_sub,
     input_n_blur,
     slider_values,
+    
     input_values,
     existing_warnings,
 ):
@@ -288,6 +361,7 @@ def update_anode_current_collector_insulation_material(
         material_selector,
         input_values,
         slider_values,
+        viewing_styles=[cc_tab_style, tab_style, tabs_panel_style]
     )
 
     return response
