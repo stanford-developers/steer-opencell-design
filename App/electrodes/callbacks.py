@@ -95,7 +95,12 @@ def toggle_anode_insulation_parameters(cell_data, current_style):
         Output({'electrode': 'cathode', 'object': 'electrode', 'property': ALL, 'subtype': 'input'}, 'step'),
     ],
     [
+        Input('cathode_electrode_tab', 'style'),
+        Input('cathode_tab', 'style'),
+        Input('tabs_panel', 'style'),
+
         Input('cell_store', 'data'),
+
         Input({'electrode': 'cathode', 'object': 'electrode', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
         Input({'electrode': 'cathode', 'object': 'electrode', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
         Input({'electrode': 'cathode', 'object': 'electrode', 'property': ALL, 'subtype': 'slider'}, 'value'),
@@ -107,10 +112,16 @@ def toggle_anode_insulation_parameters(cell_data, current_style):
     prevent_initial_call=True
 )
 def update_cathode(
+    cc_tab_style,
+    tab_style,
+    tabs_panel_style,
+
     cell_data,
+    
     input_n_sub,
     input_n_blur,
     slider_values,
+    
     input_values,
     existing_warnings
 ):
@@ -122,6 +133,7 @@ def update_cathode(
         cell_data,
         input_values,
         slider_values,
+        viewing_styles=[cc_tab_style, tab_style, tabs_panel_style]
     )
     
     return response
@@ -138,7 +150,12 @@ def update_cathode(
         Output({'electrode': 'anode', 'object': 'electrode', 'property': ALL, 'subtype': 'input'}, 'step'),
     ],
     [
+        Input('anode_electrode_tab', 'style'),
+        Input('anode_tab', 'style'),
+        Input('tabs_panel', 'style'),
+
         Input('cell_store', 'data'),
+
         Input({'electrode': 'anode', 'object': 'electrode', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
         Input({'electrode': 'anode', 'object': 'electrode', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
         Input({'electrode': 'anode', 'object': 'electrode', 'property': ALL, 'subtype': 'slider'}, 'value'),
@@ -150,10 +167,16 @@ def update_cathode(
     prevent_initial_call=True
 )
 def update_anode(
+    cc_tab_style,
+    tab_style,
+    tabs_panel_style,
+
     cell_data,
+    
     input_n_sub,
     input_n_blur,
     slider_values,
+
     input_values,
     existing_warnings
 ):
@@ -165,6 +188,7 @@ def update_anode(
         cell_data,
         input_values,
         slider_values,
+        viewing_styles=[cc_tab_style, tab_style, tabs_panel_style]
     )
 
     return response
@@ -180,15 +204,31 @@ def update_anode(
         Output('cathode_properties_div', 'children'),
     ],
     [
+        Input('cathode_electrode_tab', 'style'),
+        Input('cathode_current_collector_tab', 'style'),
+        Input('cathode_tab', 'style'),
+        Input('tabs_panel', 'style'),
+
         Input('cell_store', 'data'),
-        Input('continue_to_design', 'n_clicks'),
     ],
     prevent_initial_call=True
 )
-def update_cathode_plots(cell_data, continue_to_design):
+def update_cathode_plots(
+    
+    electrode_tab_style,
+    cc_tab_style,
+    tab_style,
+    tabs_panel_style,
+
+    cell_data, 
+    ):
     """
     Update the cathode current collector plots based on the current collector store data.
     """
+    # If all display is none for any of the viewing styles, return no update
+    if any(d.get('display') == 'none' for d in [tab_style, tabs_panel_style]):
+        return no_update, no_update, no_update, no_update, no_update
+    
     # Get the configuration
     config = ELECTRODE_CONFIGS[ElectrodeType.CATHODE]
 
@@ -198,19 +238,23 @@ def update_cathode_plots(cell_data, continue_to_design):
     # get the current collector from the cell
     cathode = get_object_from_cell(cell, config)
 
-    # get the plots from the current collector
-    plot_a = cathode.get_top_down_view(title='Top-Down Cathode View')
-    plot_b = cathode.get_cross_section(title='Cross-Section Cathode View')
-    plot_cost_breakdown = cathode.plot_cost_breakdown(title='Cost Breakdown Plot')
-    plot_mass_breakdown = cathode.plot_mass_breakdown(title='Mass Breakdown Plot')
-
     # Get the properties
     properties = cathode.properties
 
-    # Create properties table using utility function
-    properties_table = create_properties_table(properties, table_id='cathode_properties_table', decimal_places=2)
+    # Only update if the electrode tab is visible
+    if electrode_tab_style.get('display') == 'block':
+        plot_b = cathode.get_cross_section(title='Cross-Section Cathode View')
+        plot_cost_breakdown = cathode.plot_cost_breakdown(title='Cost Breakdown Plot')
+        plot_mass_breakdown = cathode.plot_mass_breakdown(title='Mass Breakdown Plot')
+        properties_table = create_properties_table(properties, table_id='cathode_properties_table', decimal_places=2)
+        return no_update, plot_b, plot_cost_breakdown, plot_mass_breakdown, properties_table
 
-    return plot_a, plot_b, plot_cost_breakdown, plot_mass_breakdown, properties_table
+    elif cc_tab_style.get('display') == 'block':
+        plot_a = cathode.get_top_down_view(title='Top-Down Cathode View')
+        return plot_a, no_update, no_update, no_update, no_update
+    
+    else:
+        return no_update, no_update, no_update, no_update, no_update
 
 @callback(
     [
@@ -221,37 +265,57 @@ def update_cathode_plots(cell_data, continue_to_design):
         Output('anode_properties_div', 'children'),
     ],
     [
+        Input('anode_electrode_tab', 'style'),
+        Input('anode_current_collector_tab', 'style'),
+        Input('anode_tab', 'style'),
+        Input('tabs_panel', 'style'),
+
         Input('cell_store', 'data'),
-        Input('continue_to_design', 'n_clicks'),
     ],
     prevent_initial_call=True
 )
-def update_anode_plots(cell_data, continue_to_design):
+def update_anode_plots(
+    
+    electrode_tab_style,
+    cc_tab_style,
+    tab_style,
+    tabs_panel_style,
+
+    cell_data, 
+    ):
     """
     Update the anode current collector plots based on the current collector store data.
     """
+    # If all display is none for any of the viewing styles, return no update
+    if any(d.get('display') == 'none' for d in [tab_style, tabs_panel_style]):
+        return no_update, no_update, no_update, no_update, no_update
+    
     # Get the configuration
-    config = ELECTRODE_CONFIGS[ElectrodeType.ANODE]
+    config = ELECTRODE_CONFIGS[ElectrodeType.CATHODE]
 
     # get the cell from the cache
     cell = cache.get(cell_data['cache_key'])
 
     # get the current collector from the cell
-    cathode = get_object_from_cell(cell, config)
-
-    # get the plots from the current collector
-    plot_a = cathode.get_top_down_view(title='Top-Down Anode View')
-    plot_b = cathode.get_cross_section(title='Cross-Section Anode View')
-    plot_cost_breakdown = cathode.plot_cost_breakdown(title='Cost Breakdown Plot')
-    plot_mass_breakdown = cathode.plot_mass_breakdown(title='Mass Breakdown Plot')
+    anode = get_object_from_cell(cell, config)
 
     # Get the properties
-    properties = cathode.properties
+    properties = anode.properties
 
-    # Create properties table using utility function
-    properties_table = create_properties_table(properties, table_id='cathode_properties_table', decimal_places=2)
+    # Only update if the electrode tab is visible
+    if electrode_tab_style.get('display') == 'block':
+        plot_b = anode.get_cross_section(title='Cross-Section Anode View')
+        plot_cost_breakdown = anode.plot_cost_breakdown(title='Cost Breakdown Plot')
+        plot_mass_breakdown = anode.plot_mass_breakdown(title='Mass Breakdown Plot')
+        properties_table = create_properties_table(properties, table_id='anode_properties_table', decimal_places=2)
+        return no_update, plot_b, plot_cost_breakdown, plot_mass_breakdown, properties_table
 
-    return plot_a, plot_b, plot_cost_breakdown, plot_mass_breakdown, properties_table
+    elif cc_tab_style.get('display') == 'block':
+        plot_a = anode.get_top_down_view(title='Top-Down Anode View')
+        return plot_a, no_update, no_update, no_update, no_update
+    
+    else:
+        return no_update, no_update, no_update, no_update, no_update
 
 
 

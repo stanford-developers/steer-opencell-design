@@ -14,11 +14,15 @@ class TriggerRouter:
     ]
     
     @staticmethod
-    def get_trigger_type(triggered_id) -> TriggerType:
+    def get_trigger_type(triggered_id, trigger_property=None) -> TriggerType:
         """Determine the type of trigger."""
         
         if triggered_id is None:
             return None
+        
+        # Check trigger property first
+        if trigger_property == 'style':
+            return TriggerType.STYLE
             
         # Handle string triggers
         if isinstance(triggered_id, str):

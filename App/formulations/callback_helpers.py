@@ -83,10 +83,18 @@ def create_generic_formulation_callback(formulation_type: FormulationType) -> ca
         cell_data, 
         input_values = None, 
         slider_values = None,
+        viewing_styles = []
     ) -> Tuple:
 
         # Get the triggered ID
         triggered_id = ctx.triggered_id
+
+        # get the propid
+        triggered_prop_id = list(ctx.triggered_prop_ids.keys())[0].split('.')[-1]
+
+        # If all display is none for any of the viewing styles, return no update
+        if any(d.get('display') == 'none' for d in viewing_styles):
+            return create_no_update_response(config)
 
         # Get the cell from cache
         cell = get_cell_from_cache(cell_data['cache_key'])
@@ -95,9 +103,9 @@ def create_generic_formulation_callback(formulation_type: FormulationType) -> ca
         formulation = get_object_from_cell(cell, config)
 
         # Create trigger router and process the trigger
-        trigger_type = TriggerRouter.get_trigger_type(triggered_id)
+        trigger_type = TriggerRouter.get_trigger_type(triggered_id, triggered_prop_id)
 
-        if trigger_type == TriggerType.CELL_STORE:
+        if trigger_type == TriggerType.CELL_STORE or trigger_type == TriggerType.STYLE:
 
             return handle_cell_store_update(
                 formulation,
@@ -137,7 +145,8 @@ def create_generic_formulation_div_callback(formulation_type: FormulationType) -
         binder_div_children,
         conductive_additive_div_children,
         cathode_active_options,
-        anode_active_options
+        anode_active_options,
+        viewing_styles = []
     ) -> Tuple:
 
         # Get the triggered ID
