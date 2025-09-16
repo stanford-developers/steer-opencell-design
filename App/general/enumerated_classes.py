@@ -17,7 +17,6 @@ class SubType(Enum):
 
 
 class TriggerType(Enum):
-    
     CELL_STORE = 'cell_store'
     STYLE = 'style'
     PROPERTY = 'property'
@@ -26,6 +25,7 @@ class TriggerType(Enum):
     COMPONENT_SELECTOR = 'component_selector'
     BUTTON = 'button'
     INDEXED_DROPDOWN = 'indexed_dropdown'
+    WEIGHT_FRACTION = 'weight_fraction'
 
 
 class ActionType(Enum):

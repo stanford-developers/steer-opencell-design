@@ -2,7 +2,7 @@ from dash import no_update
 from typing import Type, Tuple, List, Any
 import time
 
-from App.general.enumerated_classes import SubType, TriggerType
+from App.general.enumerated_classes import SubType
 from App.general.cell_operations import set_cell_to_cache, set_object_to_cell
 
 from App.general.callback_helpers import (
@@ -183,9 +183,16 @@ def handle_property_update(
 
 
 def determine_value(
-        config: Type, subtype: SubType, property_name: str, input_values: List[float], 
-        slider_values: List[float], range_slider_values: List[float], input_start_values: List[float], 
-        input_end_values: List[float], radioitem_values: str, text_item_values: str
+        config: Type, 
+        subtype: SubType, 
+        property_name: str, 
+        input_values: List[float], 
+        slider_values: List[float], 
+        range_slider_values: List[float] = [], 
+        input_start_values: List[float] = [], 
+        input_end_values: List[float] = [], 
+        radioitem_values: str = [], 
+        text_item_values: str = []
 ) -> Any:
 
     # Determine the value from the input type
