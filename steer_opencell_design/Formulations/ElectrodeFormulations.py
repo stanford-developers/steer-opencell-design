@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from typing import Dict, Optional, Any
-
+import warnings
 
 
 class _ElectrodeFormulation(ValidationMixin):
@@ -204,7 +204,7 @@ class _ElectrodeFormulation(ValidationMixin):
         total_fraction = sum(self._active_materials.values()) + sum(self._binders.values()) + sum(self._conductive_additives.values())
 
         if not (0.999 <= total_fraction <= 1.001):
-            raise ValueError(f"Your weight fractions sum to {round(total_fraction * 100, 1)} %. Ensure they sum to 100 %.")
+            warnings.warn(f"The total mass percentages of the formulation should sum to 100%. Current sum: {round(total_fraction * 100, 1)}%", UserWarning)
 
         self._check_unique_names(self._active_materials, "active materials")
         self._check_unique_names(self._binders, "binders")
@@ -218,8 +218,9 @@ class _ElectrodeFormulation(ValidationMixin):
         :param component_type: Type of components being validated (for error messages).
         """
         names = [component.name for component in components.keys()]
+
         if len(names) != len(set(names)):
-            raise ValueError(f"The {component_type} must have unique names.")
+            warnings.warn(f"Duplicate names found in {component_type} of your {type(self)}. Each component should have a unique name.", UserWarning)
 
     def _get_specific_cost_breakdown(self) -> None:
 
@@ -445,19 +446,14 @@ class _ElectrodeFormulation(ValidationMixin):
             # Check if current voltage cutoff is compatible with new materials
             if min_voltage <= self._voltage_cutoff <= max_voltage:
                 # Current voltage cutoff is compatible - keep it and set it to materials
-                print(f"Current voltage cutoff {self._voltage_cutoff}V is compatible with new materials. Keeping current setting.")
                 for material in self._active_materials.keys():
                     material.voltage_cutoff = self._voltage_cutoff
             else:
                 # Current voltage cutoff is incompatible - adjust to nearest boundary
                 if self._voltage_cutoff < min_voltage:
                     new_voltage = min_voltage
-                    print(f"Warning: Current voltage cutoff {self._voltage_cutoff}V is below the new material range "
-                        f"[{min_voltage}V, {max_voltage}V]. Adjusting to {new_voltage}V.")
                 else:  # self._voltage_cutoff > max_voltage
                     new_voltage = max_voltage
-                    print(f"Warning: Current voltage cutoff {self._voltage_cutoff}V is above the new material range "
-                        f"[{min_voltage}V, {max_voltage}V]. Adjusting to {new_voltage}V.")
                 
                 # Update formulation voltage cutoff and set to materials
                 self._voltage_cutoff = new_voltage

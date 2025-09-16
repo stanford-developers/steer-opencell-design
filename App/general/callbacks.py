@@ -402,7 +402,7 @@ def update_warnings_tab(warnings_data):
             dbc.CardHeader([
                 html.H5(f"{warning['category']}", className=f"text-{severity_color}"),
                 html.Small(
-                    dt.fromtimestamp(warning['timestamp']).strftime('%H:%M:%S'),
+                    dt.datetime.fromtimestamp(warning['timestamp']).strftime('%H:%M:%S'),
                     className="text-muted"
                 )
             ]),

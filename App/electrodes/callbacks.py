@@ -291,7 +291,7 @@ def update_anode_plots(
         return no_update, no_update, no_update, no_update, no_update
     
     # Get the configuration
-    config = ELECTRODE_CONFIGS[ElectrodeType.CATHODE]
+    config = ELECTRODE_CONFIGS[ElectrodeType.ANODE]
 
     # get the cell from the cache
     cell = cache.get(cell_data['cache_key'])

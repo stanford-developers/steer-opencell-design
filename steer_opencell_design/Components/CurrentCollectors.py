@@ -239,7 +239,7 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
     def _calculate_bulk_properties(self) -> None:
         self._volume = self._body_area/2 * self._thickness
         self._mass = self._volume * self._material._density
-        self._cost = self._mass * self._material._specific_cost     
+        self._cost = self._mass * self._material._specific_cost
 
     def _calculate_fill_patterns(self) -> None:
 
