@@ -2891,8 +2891,8 @@ class TablessCurrentCollector(NotchedCurrentCollector):
     def width_range(self) -> Tuple[float, float]:
 
         if hasattr(self, '_y_body_length_range') and self._y_body_length_range is not None:
-            min_width = self.y_body_length_range[0] + self.tab_height_range[0]
-            max_width = self.y_body_length_range[1] + self.tab_height_range[1]
+            min_width = self.y_body_length_range[0] + self.tab_height
+            max_width = self.y_body_length_range[1] + self.tab_height
             return (round(min_width, 2), round(max_width, 2))
         else:
             return (0, 1000)
@@ -2940,21 +2940,10 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         self._y_body_length = self._coated_width  # y_body_length equals coated_width
 
     @tab_height.setter
+    @calculate_all_properties
     def tab_height(self, tab_height: float) -> None:
-        
         self.validate_positive_float(tab_height, "tab_height")
-        
-        if hasattr(self, '_update_properties') and self._update_properties and hasattr(self, '_tab_height'):
-            # Update existing value
-            tab_height_delta = float(tab_height) - self.tab_height
-            _tab_height_delta = tab_height_delta * MM_TO_M
-
-            self._coated_width -= _tab_height_delta
-            self._tab_height += _tab_height_delta
-            self.y_body_length -= tab_height_delta
-        else:
-            # Initial setting during initialization
-            self._tab_height = float(tab_height) * MM_TO_M
+        self._tab_height = float(tab_height) * MM_TO_M
 
 
 class WeldTab(ValidationMixin, CoordinateMixin):
