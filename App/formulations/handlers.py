@@ -16,7 +16,6 @@ from steer_opencell_design.Formulations.ElectrodeFormulations import CathodeForm
 from steer_materials.CellMaterials.Electrode import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
 
 from steer_core.Apps.Utils.SliderControls import create_slider_config
-from steer_core.Apps.Components.MaterialSelectors import MaterialSelector, ActiveMaterialSelector
 from steer_core.Apps.ContextManagers import capture_warnings
 
 
