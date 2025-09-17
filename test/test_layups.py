@@ -3,7 +3,7 @@ import unittest
 
 from steer_opencell_design.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation
 from steer_opencell_design.Components.Electrodes import Cathode, Anode
-from steer_opencell_design.Components.CurrentCollectors import NotchedCurrentCollector, PunchedCurrentCollector
+from steer_opencell_design.Components.CurrentCollectors import NotchedCurrentCollector, PunchedCurrentCollector, TablessCurrentCollector
 from steer_opencell_design.Components.Separators import Separator
 from steer_opencell_design.Constructions.Layups import Layup, MonoLayer
 
@@ -161,6 +161,29 @@ class TestSimpleLayup(unittest.TestCase):
 
         # fig1.show()
 
+    # def test_anode_ranges(self):
+
+
+    def test_ranges_tabless(self):
+
+        anode_cc = self.layup.anode.current_collector
+        new_anode_cc = TablessCurrentCollector.from_notched(anode_cc)
+        self.layup.anode.current_collector = new_anode_cc
+        self.layup.anode = self.layup.anode
+
+        cathode_cc = self.layup.cathode.current_collector
+        new_cathode_cc = TablessCurrentCollector.from_notched(cathode_cc)
+        self.layup.cathode.current_collector = new_cathode_cc
+        self.layup.cathode = self.layup.cathode
+
+        cathode_coated_width = self.layup.cathode.current_collector.coated_width
+        self.assertEqual(self.layup.anode.current_collector.coated_width_range[0], cathode_coated_width)
+
+        fig1 = self.layup.anode._get_full_top_down_view()
+        fig2 = self.layup.cathode._get_full_top_down_view()
+
+        # fig1.show()
+        # fig2.show()
 
 
 class TestSimpleMonoLayer(unittest.TestCase):
