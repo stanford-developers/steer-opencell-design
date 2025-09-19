@@ -1,13 +1,15 @@
 import unittest
+import pandas as pd
 import plotly.express as px
-from steer_opencell_design.Formulations.ElectrodeFormulations import ElectrodeFormulation
+
+from steer_opencell_design.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation
 from steer_opencell_design.Components.Electrodes import Cathode, Anode
 from steer_opencell_design.Constructions.ElectrodeAssemblies import Stack
-from steer_opencell_design.Components.ElectrodeMaterials import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
-from steer_opencell_design.Components.CurrentCollectors import CurrentCollector
+from steer_opencell_design.Components.CurrentCollectors import PunchedCurrentCollector
 from steer_opencell_design.Components.Separators import Separator
 
-import pandas as pd
+from steer_materials.CellMaterials.Electrode import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
+
 
 class TestCellsSingleAM(unittest.TestCase):
 

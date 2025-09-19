@@ -44,6 +44,7 @@ class Separator(CoordinateMixin, ValidationMixin):
             Datum point for the separator, used for positioning in 3D space. Defaults to (0, 0, 0).
         """
         self._folded = False
+        self._rotated_xy = False
         self._update_properties = False
 
         self.datum = datum
@@ -58,15 +59,8 @@ class Separator(CoordinateMixin, ValidationMixin):
         else:
             self._length = None
             
-        # Only calculate properties if we have length
-        if self._length is not None:
-            self._calculate_all_properties()
-        else:
-            # Calculate areal properties and initialize bulk/coordinate properties to None
-            self._calculate_areal_properties()
-            self._calculate_bulk_properties()  # This will set bulk properties to None
-            self._calculate_coordinates()      # This will set coordinates to None
-            
+        self._calculate_all_properties()
+
         self._update_properties = True
 
     def _calculate_all_properties(self):
@@ -116,6 +110,21 @@ class Separator(CoordinateMixin, ValidationMixin):
         x, y, z, _ = self.extrude_footprint(x, y, self._datum, self._thickness)
 
         self._coordinates = np.column_stack((x, y, z))
+
+        if self._rotated_xy:
+            self._rotate_90_xy(update_bool=False)
+
+    def _rotate_90_xy(self, update_bool: bool = True) -> 'Separator':
+
+        if self._coordinates is None:
+            raise ValueError("Cannot rotate: length not set")
+
+        self._coordinates = self.rotate_coordinates(self._coordinates, axis='z', angle=90, center=self._datum)
+
+        if update_bool:
+            self._rotated_xy = not self._rotated_xy
+
+        return self
 
     def get_top_down_view(self, **kwargs) -> go.Figure:
         if self._coordinates is None:
@@ -226,7 +235,23 @@ class Separator(CoordinateMixin, ValidationMixin):
 
     @property
     def datum(self) -> Tuple[float, float, float]:
-        return self._datum
+        return (
+            self._datum[0] * M_TO_MM,
+            self._datum[1] * M_TO_MM,
+            self._datum[2] * M_TO_MM
+        )
+
+    @property
+    def datum_x(self) -> float:
+        return round(self._datum[0] * M_TO_MM, 2)
+    
+    @property
+    def datum_y(self) -> float:
+        return round(self._datum[1] * M_TO_MM, 2)
+    
+    @property
+    def datum_z(self) -> float:
+        return round(self._datum[2] * M_TO_MM, 2)
 
     @property
     def name(self) -> str:
@@ -283,8 +308,42 @@ class Separator(CoordinateMixin, ValidationMixin):
     @datum.setter
     @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]) -> None:
+
+        # Validate datum
         self.validate_datum(datum)
-        self._datum = tuple(float(coord) for coord in datum)
+
+        self._datum = (
+            float(datum[0]) * MM_TO_M,
+            float(datum[1]) * MM_TO_M,
+            float(datum[2]) * MM_TO_M
+        )
+
+    @datum_x.setter
+    def datum_x(self, x: float) -> None:
+
+        self.datum = (
+            float(x),
+            self.datum[1],
+            self.datum[2]
+        )
+
+    @datum_y.setter
+    def datum_y(self, y: float) -> None:
+
+        self.datum = (
+            self.datum[0],
+            float(y),
+            self.datum[2]
+        )
+
+    @datum_z.setter
+    def datum_z(self, z: float) -> None:
+
+        self.datum = (
+            self.datum[0],
+            self.datum[1],
+            float(z)
+        )
 
     @thickness.setter
     @calculate_all_properties
