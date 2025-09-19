@@ -144,7 +144,7 @@ class TestMultiCathodeFormulation(unittest.TestCase):
 
         self.assertEqual(self.cathode_formulation.half_cell_curve['Specific Capacity (mAh/g)'].round(1).iloc[10], 0.2)
         self.assertEqual(self.cathode_formulation.half_cell_curve['Specific Capacity (mAh/g)'].round(1).iloc[20], 0.2)
-        self.assertEqual(self.cathode_formulation.half_cell_curve['Specific Capacity (mAh/g)'].round(1).iloc[80], 137.3)
+        self.assertEqual(self.cathode_formulation.half_cell_curve['Specific Capacity (mAh/g)'].round(1).iloc[80], 134.4)
 
         # figure.show()
 

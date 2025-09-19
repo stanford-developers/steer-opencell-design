@@ -4,6 +4,7 @@ from steer_opencell_design.Components.Separators import Separator
 from steer_materials.CellMaterials.Base import SeparatorMaterial
 import plotly.graph_objects as go
 import plotly.io as pio
+import pandas as pd
 
 pio.renderers.default = "browser"
 
@@ -41,6 +42,9 @@ class TestSeparator(unittest.TestCase):
         self.assertEqual(self.separator.mass, 0.25)
         self.assertEqual(self.separator.width, 50)
         self.assertEqual(self.separator.length, 100)
+
+        fig = self.separator.get_top_down_view()
+        # fig.show()
 
     # ========== SETTER TESTS ==========
     
@@ -422,6 +426,25 @@ class TestSeparator(unittest.TestCase):
         self.assertIn('y', coords.columns)
         self.assertIn('z', coords.columns)
 
+    # ========== ROTATION TESTS ==========
+
+    def test_rotate(self):
+        """Test rotating the separator 90 degrees in the XY plane"""
+        fig1 = self.separator.get_top_down_view()
+
+        self.separator._rotate_90_xy()
+        fig2 = self.separator.get_top_down_view()
+
+        self.separator.length = 200
+        fig3 = self.separator.get_top_down_view()
+
+        self.separator.width = 10
+        fig4 = self.separator.get_top_down_view()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+        # fig4.show()
 
 if __name__ == '__main__':
     unittest.main()

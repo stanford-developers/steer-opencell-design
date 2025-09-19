@@ -5,6 +5,7 @@ from steer_core.Decorators.Electrochemical import calculate_half_cell_curve
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.Serializer import SerializerMixin
+from steer_core.Mixins.Plotter import PlotterMixin
 
 from steer_core.Constants.Units import *
 
@@ -31,7 +32,12 @@ class ElectrodeControlMode(Enum):
     MAINTAIN_COATING_THICKNESS = "maintain_coating_thickness"   # Keep coating thickness constant
 
 
-class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
+class _Electrode(
+    ValidationMixin, 
+    CoordinateMixin, 
+    SerializerMixin, 
+    PlotterMixin
+    ):
     """
     Base class for electrodes, representing the common properties and methods of an electrode.
     """
@@ -206,9 +212,9 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
             coating_coordinates = getattr(self._current_collector, f'_{side}_side_coated_coordinates')
 
             coating_datum = (
-                self._datum[0], 
-                self._datum[1], 
-                self._datum[2] + side_multiplier * (self._current_collector._thickness / 2 + self._coating_thickness / 2)
+                self._current_collector._datum[0], 
+                self._current_collector._datum[1], 
+                self._current_collector._datum[2] + side_multiplier * (self._current_collector._thickness / 2 + self._coating_thickness / 2)
             )
             
             x, y, z, _ = self.extrude_footprint(
@@ -378,203 +384,25 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         return fig    
 
     def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:
-        """
-        Create a sunburst plot for the mass breakdown of the electrode.
-        
-        Parameters
-        ----------
-        title : str, optional
-            Title for the plot. If None, uses electrode name.
-            
-        Returns
-        -------
-        go.Figure
-            Plotly sunburst figure
-        """
-        if title is None:
-            title = f"{self.name} Mass Breakdown"
-            
-        breakdown = self.mass_breakdown
-        
-        def _flatten_breakdown_values(data: Dict[str, Any]) -> list:
-            """Flatten all numeric values from breakdown"""
-            values = []
-            for value in data.values():
-                if isinstance(value, dict):
-                    values.extend(_flatten_breakdown_values(value))
-                elif isinstance(value, (int, float)):
-                    values.append(value)
-            return values
-        
-        def _prepare_sunburst_data(data: Dict[str, Any]) -> Tuple[list, list, list, list]:
-            """Prepare data for sunburst plot with proper hierarchy"""
-            ids = ["Total"]  # Root node
-            labels = ["Total"]
-            parents = [""]
-            values = [sum(_flatten_breakdown_values(data))]
-            
-            # Level 0: Main categories (Formulation, Current Collector, Insulation)
-            for category, value in data.items():
-                ids.append(category)
-                labels.append(category)
-                parents.append("Total")
-                
-                if isinstance(value, dict):
-                    # This is the formulation - sum its components
-                    category_total = sum(v for v in value.values() if isinstance(v, (int, float)))
-                    values.append(category_total)
-                    
-                    # Level 1: Formulation components
-                    for component, component_value in value.items():
-                        if isinstance(component_value, (int, float)):
-                            ids.append(f"{category}/{component}")
-                            labels.append(component)
-                            parents.append(category)
-                            values.append(component_value)
-                else:
-                    # Simple value (Current Collector or Insulation)
-                    values.append(float(value))
-            
-            return ids, labels, parents, values
-        
-        def _flatten_breakdown_values(data: Dict[str, Any]) -> list:
-            """Flatten all numeric values from breakdown"""
-            values = []
-            for value in data.values():
-                if isinstance(value, dict):
-                    values.extend(_flatten_breakdown_values(value))
-                elif isinstance(value, (int, float)):
-                    values.append(value)
-            return values
-        
-        ids, labels, parents, values = _prepare_sunburst_data(breakdown)
-        
-        # Create custom hover text
-        hover_text = []
-        for i, (label, value) in enumerate(zip(labels, values)):
-            if label == "Total":
-                hover_text.append(f"<b>Total Mass</b><br>{value:.2f} g")
-            else:
-                percentage = (value / values[0] * 100) if values[0] > 0 else 0
-                hover_text.append(f"<b>{label}</b><br>{value:.2f} g<br>{percentage:.1f}% of total")
-        
-        # Create the sunburst plot
-        fig = go.Figure(go.Sunburst(
-            ids=ids,
-            labels=labels,
-            parents=parents,
-            values=values,
-            branchvalues="total",
-            hovertemplate="%{customdata}<extra></extra>",
-            customdata=hover_text,
-            maxdepth=3,
-        ))
-        
-        fig.update_layout(
-            title=dict(
-                text=title,
-                x=0.5,
-                font=dict(size=16)
-            ),
-            font_size=12,
+
+        fig = self.plot_breakdown_sunburst(
+            self.mass_breakdown, 
+            title=title or f"{self.name} Mass Breakdown", 
+            unit='g',
             **kwargs
         )
         
         return fig
 
     def plot_cost_breakdown(self, title: str = None, **kwargs) -> go.Figure:
-        """
-        Create a sunburst plot for the cost breakdown of the electrode.
-        
-        Parameters
-        ----------
-        title : str, optional
-            Title for the plot. If None, uses electrode name.
-            
-        Returns
-        -------
-        go.Figure
-            Plotly sunburst figure
-        """
-        if title is None:
-            title = f"{self.name} Cost Breakdown"
-            
-        breakdown = self.cost_breakdown
-        
-        def _flatten_breakdown_values(data: Dict[str, Any]) -> list:
-            """Flatten all numeric values from breakdown"""
-            values = []
-            for value in data.values():
-                if isinstance(value, dict):
-                    values.extend(_flatten_breakdown_values(value))
-                elif isinstance(value, (int, float)):
-                    values.append(value)
-            return values
-        
-        def _prepare_sunburst_data(data: Dict[str, Any]) -> Tuple[list, list, list, list]:
-            """Prepare data for sunburst plot with proper hierarchy"""
-            ids = ["Total"]  # Root node
-            labels = ["Total"]
-            parents = [""]
-            values = [sum(_flatten_breakdown_values(data))]
-            
-            # Level 0: Main categories (Formulation, Current Collector, Insulation)
-            for category, value in data.items():
-                ids.append(category)
-                labels.append(category)
-                parents.append("Total")
-                
-                if isinstance(value, dict):
-                    # This is the formulation - sum its components
-                    category_total = sum(v for v in value.values() if isinstance(v, (int, float)))
-                    values.append(category_total)
-                    
-                    # Level 1: Formulation components
-                    for component, component_value in value.items():
-                        if isinstance(component_value, (int, float)):
-                            ids.append(f"{category}/{component}")
-                            labels.append(component)
-                            parents.append(category)
-                            values.append(component_value)
-                else:
-                    # Simple value (Current Collector or Insulation)
-                    values.append(float(value))
-            
-            return ids, labels, parents, values
-        
-        ids, labels, parents, values = _prepare_sunburst_data(breakdown)
-        
-        # Create custom hover text
-        hover_text = []
-        for i, (label, value) in enumerate(zip(labels, values)):
-            if label == "Total":
-                hover_text.append(f"<b>Total Cost</b><br>${value:.2f}")
-            else:
-                percentage = (value / values[0] * 100) if values[0] > 0 else 0
-                hover_text.append(f"<b>{label}</b><br>${value:.2f}<br>{percentage:.1f}% of total")
-        
-        # Create the sunburst plot
-        fig = go.Figure(go.Sunburst(
-            ids=ids,
-            labels=labels,
-            parents=parents,
-            values=values,
-            branchvalues="total",
-            hovertemplate="%{customdata}<extra></extra>",
-            customdata=hover_text,
-            maxdepth=3,
-        ))
-        
-        fig.update_layout(
-            title=dict(
-                text=title,
-                x=0.5,
-                font=dict(size=16)
-            ),
-            font_size=12,
+
+        fig = self.plot_breakdown_sunburst(
+            self.cost_breakdown, 
+            title=title or f"{self.name} Cost Breakdown", 
+            unit='$',
             **kwargs
         )
-        
+
         return fig
 
     def get_top_down_view(self, **kwargs) -> go.Figure:
@@ -852,11 +680,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
 
         :return: Tuple containing the x, y, z coordinates of the electrode's datum.
         """
-        return (
-            round(self._datum[0] * M_TO_MM, 1),
-            round(self._datum[1] * M_TO_MM, 1),
-            round(self._datum[2] * M_TO_MM, 1)
-        )
+        return self.current_collector.datum
 
     @property
     def formulation(self) -> _ElectrodeFormulation:
@@ -932,17 +756,6 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         return (0, 200)
 
     @property
-    def coating_thickness_marks(self) -> Dict[str, float]:
-        """
-        Get the coating thickness marks of the electrode.
-
-        :return: Dictionary containing the coating thickness marks.
-        """
-        min = np.ceil(self.coating_thickness_range[0])
-        max = np.floor(self.coating_thickness_range[1])
-        return {i: '' for i in range(int(min), int(max) + 1, 40)}
-
-    @property
     def cost_breakdown(self) -> Dict[str, Any]:
         """
         Get the cost breakdown of the electrode.
@@ -1009,17 +822,6 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         return round(self._porosity * 100, 2)
     
     @property
-    def porosity_marks(self) -> Dict[str, float]:
-        """
-        Get the porosity marks of the electrode.
-
-        :return: Dictionary containing the porosity marks.
-        """
-        min = np.ceil(self.porosity_range[0])
-        max = np.floor(self.porosity_range[1])
-        return {i: '' for i in range(int(min), int(max) + 1, 10)}
-    
-    @property
     def calender_density(self) -> float:
         """
         Get the calender density of the electrode.
@@ -1055,17 +857,6 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
             min_calender_density,
             max_calender_density
         )
-
-    @property
-    def calender_density_marks(self) -> Dict[str, float]:
-        """
-        Get the calender density marks of the electrode.
-
-        :return: Dictionary containing the calender density marks.
-        """
-        min = np.ceil(self.calender_density_range[0])
-        max = np.floor(self.calender_density_range[1])
-        return {i: '' for i in range(int(min), int(max) + 1, 1)}
 
     @property
     def a_side_insulation_coordinates(self) -> pd.DataFrame:
@@ -1156,17 +947,6 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         )
 
     @property
-    def mass_loading_marks(self) -> Dict[str, float]:
-        """
-        Get the mass loading marks of the electrode.
-
-        :return: Dictionary containing the mass loading marks.
-        """
-        min = np.ceil(self.mass_loading_range[0])
-        max = np.floor(self.mass_loading_range[1])
-        return {i: '' for i in range(int(min), int(max) + 1, 10)}
-
-    @property
     def current_collector(self) -> _CurrentCollector:
         """
         Get the current collector of the electrode.
@@ -1215,15 +995,6 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         )
 
     @property
-    def mass_marks(self) -> Dict[int, str]:
-        min_mass = self.mass_range[0]
-        max_mass = self.mass_range[1]
-        delta = 80
-        num_steps = int(round((max_mass - min_mass) / delta)) + 1
-        values = np.linspace(min_mass, max_mass, num_steps).round(10).tolist()
-        return {i: '' for i in values}
-
-    @property
     def thickness(self) -> float:
         """
         Get the thickness of the electrode.
@@ -1245,17 +1016,6 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         )
 
     @property
-    def thickness_marks(self) -> Dict[str, float]:
-        """
-        Get the thickness marks of the electrode.
-
-        :return: Dictionary containing the thickness marks.
-        """
-        min = np.ceil(self.thickness_range[0])
-        max = np.floor(self.thickness_range[1])
-        return {i: '' for i in range(int(min), int(max) + 1, 40)}
-
-    @property
     def cost(self) -> float:
         return round(self._cost, 2)
    
@@ -1266,84 +1026,25 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
         return (min, max)
 
     @property
-    def cost_marks(self) -> Dict[str, float]:
-        """
-        Get the cost marks of the electrode.
-
-        :return: Dictionary containing the cost marks.
-        """
-        min = np.ceil(self.cost_range[0])
-        max = np.floor(self.cost_range[1])
-        return {i: '' for i in range(int(min), int(max) + 1, 1)}
-
-    @property
     def datum_x(self) -> float:
         """
         Get the x-coordinate of the datum in mm.
         """
-        return round(self._datum[0] * M_TO_MM, 2)
-    
-    @property
-    def datum_x_range(self) -> Tuple[float, float]:
-        """
-        Get the x-coordinate range of the datum in mm.
-        """
-        return (-100, 100)
-    
-    @property
-    def datum_x_marks(self) -> Dict[int, str]:
-        """
-        Get the x-coordinate marks for the slider.
-        """
-        min_datum = np.ceil(self.datum_x_range[0])
-        max_datum = np.floor(self.datum_x_range[1])
-        return {i: '' for i in range(int(min_datum), int(max_datum) + 1, 20)}
-
+        return self.datum[0]
+   
     @property
     def datum_y(self) -> float:
         """
         Get the y-coordinate of the datum in mm.
         """
-        return round(self._datum[1] * M_TO_MM, 2)
-
-    @property
-    def datum_y_range(self) -> Tuple[float, float]:
-        """
-        Get the y-coordinate range of the datum in mm.
-        """
-        return (-100, 100)
-    
-    @property
-    def datum_y_marks(self) -> Dict[int, str]:
-        """
-        Get the y-coordinate marks for the slider.
-        """
-        min_datum = np.ceil(self.datum_y_range[0])
-        max_datum = np.floor(self.datum_y_range[1])
-        return {i: '' for i in range(int(min_datum), int(max_datum) + 1, 20)}
+        return self.datum[1]
 
     @property
     def datum_z(self) -> float:
         """
         Get the z-coordinate of the datum in mm.
         """
-        return round(self._datum[2] * M_TO_MM, 2)
-
-    @property
-    def datum_z_range(self) -> Tuple[float, float]:
-        """
-        Get the z-coordinate range of the datum in mm.
-        """
-        return (-100, 100)
-    
-    @property
-    def datum_z_marks(self) -> Dict[int, str]:
-        """
-        Get the z-coordinate marks for the slider.
-        """
-        min_datum = np.ceil(self.datum_z_range[0])
-        max_datum = np.floor(self.datum_z_range[1])
-        return {i: '' for i in range(int(min_datum), int(max_datum) + 1, 20)}
+        return self.datum[2]
 
     @property
     def porosity_hard_range(self) -> Tuple[float, float]:
@@ -1472,7 +1173,6 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin):
     @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]):
         self.validate_datum(datum)
-        self._datum = tuple(d * MM_TO_M for d in datum)
         self.current_collector.datum = datum
 
     def __str__(self) -> str:
