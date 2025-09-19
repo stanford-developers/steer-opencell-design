@@ -78,9 +78,9 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
         _anode_z = _bottom_separator_z + (self._bottom_separator._thickness/2 + self._anode._thickness/2) * UM_TO_M
         _top_separator_z = _anode_z + (self._anode._thickness/2 + self._top_separator._thickness/2) * UM_TO_M
 
-        self.bottom_separator.datum = (
-            self.bottom_separator.datum[0],
-            self.bottom_separator.datum[1],
+        self._bottom_separator.datum = (
+            self._bottom_separator.datum[0],
+            self._bottom_separator.datum[1],
             _bottom_separator_z * M_TO_MM
         )
 
@@ -90,9 +90,9 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
             _anode_z * M_TO_MM
         )
 
-        self.top_separator.datum = (
-            self.top_separator.datum[0],
-            self.top_separator.datum[1],
+        self._top_separator.datum = (
+            self._top_separator.datum[0],
+            self._top_separator.datum[1],
             _top_separator_z * M_TO_MM
         )
 
@@ -332,16 +332,16 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
             fig.add_trace(trace)
 
         # Check if separators have the same name and create distinct legend groups
-        separators_same_name = self.bottom_separator.name == self.top_separator.name
+        separators_same_name = self._bottom_separator.name == self._top_separator.name
         
         # Add bottom separator
-        bottom_separator_trace = copy(self.bottom_separator.top_down_trace)
+        bottom_separator_trace = copy(self._bottom_separator.top_down_trace)
         if separators_same_name:
-            bottom_separator_trace.name = f"{self.bottom_separator.name} (Bottom)"
-            bottom_separator_trace.legendgroup = f"{self.bottom_separator.name}_bottom"
+            bottom_separator_trace.name = f"{self._bottom_separator.name} (Bottom)"
+            bottom_separator_trace.legendgroup = f"{self._bottom_separator.name}_bottom"
         else:
-            bottom_separator_trace.name = f"{self.bottom_separator.name}"
-            bottom_separator_trace.legendgroup = f"{self.bottom_separator.name}"
+            bottom_separator_trace.name = f"{self._bottom_separator.name}"
+            bottom_separator_trace.legendgroup = f"{self._bottom_separator.name}"
         # Adjust fill opacity while keeping line opacity at 1.0
         if hasattr(bottom_separator_trace, 'fillcolor') and bottom_separator_trace.fillcolor:
             bottom_separator_trace.fillcolor = adjust_fill_opacity(bottom_separator_trace.fillcolor, opacity)
@@ -360,13 +360,13 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
             fig.add_trace(trace)
 
         # Add top separator
-        top_separator_trace = copy(self.top_separator.top_down_trace)
+        top_separator_trace = copy(self._top_separator.top_down_trace)
         if separators_same_name:
-            top_separator_trace.name = f"{self.top_separator.name} (Top)"
-            top_separator_trace.legendgroup = f"{self.top_separator.name}_top"
+            top_separator_trace.name = f"{self._top_separator.name} (Top)"
+            top_separator_trace.legendgroup = f"{self._top_separator.name}_top"
         else:
-            top_separator_trace.name = f"{self.top_separator.name}"
-            top_separator_trace.legendgroup = f"{self.top_separator.name}"
+            top_separator_trace.name = f"{self._top_separator.name}"
+            top_separator_trace.legendgroup = f"{self._top_separator.name}"
         # Adjust fill opacity while keeping line opacity at 1.0
         if hasattr(top_separator_trace, 'fillcolor') and top_separator_trace.fillcolor:
             top_separator_trace.fillcolor = adjust_fill_opacity(top_separator_trace.fillcolor, opacity)
@@ -1198,7 +1198,6 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
         return self.__str__()
 
 
-
 class Laminate(_Layup):
     
     def __init__(
@@ -1365,7 +1364,6 @@ class MonoLayer(_Layup):
             self._top_separator._rotate_90_xy()
 
 
-
 class ZFoldMonoLayer(MonoLayer):
 
     def __init__(
@@ -1377,81 +1375,342 @@ class ZFoldMonoLayer(MonoLayer):
             name: str = "Z-Fold MonoLayer"
         ):
 
+        self._update_properties = False
+
+        # Create copies of the separator with Z-fold length constraints
         top_separator = deepcopy(separator)
         bottom_separator = deepcopy(separator)
 
-        top_separator.length = anode.width + 2*top_separator.thickness
-        bottom_separator.length = cathode.width + 2*bottom_separator.thickness
+        top_separator.length = (anode.current_collector._x_body_length + 2*top_separator._thickness) * M_TO_MM
+        bottom_separator.length = (cathode.current_collector._x_body_length + 2*bottom_separator._thickness) * M_TO_MM
 
-        super().__init__(
-            cathode=cathode,
-            bottom_separator=bottom_separator,
-            anode=anode,
-            top_separator=top_separator,
-            transverse=transverse,
-            name=name
-        )
+        self.overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
+        self.cathode = cathode
+        self.anode = anode
+        self._top_separator = top_separator
+        self._bottom_separator = bottom_separator
+        self.name = name
 
+        self._calculate_all_properties()
+        self._update_properties = True
 
     @property
-    def bottom_separator(self) -> Separator:
+    def separator(self) -> Separator:
+        """
+        Get the Z-fold separator. Returns the bottom separator as the canonical reference.
+        In Z-fold configuration, both separators are constrained to be identical.
+        """
         return self._bottom_separator
 
-    @property
-    def top_separator(self) -> Separator:
-        return self._top_separator
-
-    @bottom_separator.setter
+    @separator.setter
     @calculate_all_properties
-    def bottom_separator(self, bottom_separator: Separator):
+    def separator(self, separator: Separator):
+        """
+        Set both bottom and top separators for Z-fold configuration.
+        
+        Parameters
+        ----------
+        separator : Separator
+            The separator to use for both top and bottom positions.
+            Length will be automatically constrained by Z-fold geometry.
+        """
+        # Validate the type
+        self.validate_type(separator, Separator, "Separator")
 
-        # validate the type
-        self.validate_type(bottom_separator, Separator, "Bottom Separator")
+        # Create deep copies for both positions
+        bottom_separator = deepcopy(separator)
+        top_separator = deepcopy(separator)
 
-        # make deep copy
-        bottom_separator = deepcopy(bottom_separator)
+        # Set lengths according to Z-fold constraints
+        bottom_separator.length = (self.cathode.current_collector._x_body_length + 2*bottom_separator._thickness) * M_TO_MM
+        top_separator.length = (self.anode.current_collector._x_body_length + 2*top_separator._thickness) * M_TO_MM
 
-        # set the length
-        bottom_separator.length = self.cathode.width + 2*bottom_separator.thickness
-
-        # if there is an anode, update its ranges
+        # Set positions based on existing datums if updating properties
         if not self._update_properties:
-            bottom_separator.datum = (self.cathode.datum[0], self.cathode.datum[1], bottom_separator.datum[2])
+            bottom_separator.datum = (self._cathode.datum[0], self._cathode.datum[1], bottom_separator.datum[2])
+            top_separator.datum = (self._anode.datum[0], self._anode.datum[1], top_separator.datum[2])
         elif self._update_properties:
-            bottom_separator.datum = (self.bottom_separator.datum[0], self.bottom_separator.datum[1], bottom_separator.datum[2])
-           
-        # assign to self
+            bottom_separator.datum = (self._cathode.datum[0], self._bottom_separator.datum[1], bottom_separator.datum[2])
+            top_separator.datum = (self._anode.datum[0], self._top_separator.datum[1], top_separator.datum[2])
+
+        # Assign to both internal separators
         self._bottom_separator = bottom_separator
-        
-        # Add MonoLayer-specific rotation logic
-        if hasattr(self._bottom_separator, '_rotated_xy') and not self._bottom_separator._rotated_xy:
-            self._bottom_separator._rotate_90_xy()
-
-    @top_separator.setter
-    @calculate_all_properties
-    def top_separator(self, top_separator: Separator):
-
-        # validate the type
-        self.validate_type(top_separator, Separator, "Top Separator")
-
-        # make deep copy
-        top_separator = deepcopy(top_separator)
-
-        # set the length
-        top_separator.length = self.anode.width + 2*top_separator.thickness
-
-        # if there is an anode, update its ranges
-        if not self._update_properties:
-            top_separator.datum = (self.cathode.datum[0], self.cathode.datum[1], top_separator.datum[2])
-        elif self._update_properties:
-            top_separator.datum = (self.top_separator.datum[0], self.top_separator.datum[1], top_separator.datum[2])
-
-        # assign to self
         self._top_separator = top_separator
+
+    def _calculate_bottom_separator_overhangs(self):
+        """
+        Override: Calculate overhangs for Z-fold separators.
+        Left/right overhangs are constrained by Z-fold geometry.
+        Top/bottom overhangs are shared between top and bottom separators.
+        """
+        if hasattr(self, '_cathode') and hasattr(self, '_bottom_separator') and self._cathode is not None and self._bottom_separator is not None:
+
+            # Cathode edges (using internal SI units - meters)
+            cathode_bottom = self._cathode._current_collector._datum[1] - self._cathode._current_collector._y_body_length / 2
+            cathode_top = self._cathode._current_collector._datum[1] + self._cathode._current_collector._y_body_length / 2
+
+            # Bottom separator edges (using internal SI units - meters)
+            separator_bottom = min(self._bottom_separator._coordinates[:,1])
+            separator_top = max(self._bottom_separator._coordinates[:,1])
+
+            # Calculate only top/bottom overhangs (left/right are constrained)
+            self._bottom_separator_overhang_left = 0.0  # Constrained by Z-fold
+            self._bottom_separator_overhang_right = 0.0  # Constrained by Z-fold
+            self._bottom_separator_overhang_bottom = cathode_bottom - separator_bottom
+            self._bottom_separator_overhang_top = separator_top - cathode_top
+
+            # Ensure top separator has the same overhangs (Z-fold constraint)
+            if hasattr(self, '_top_separator') and self._top_separator is not None:
+                self._top_separator_overhang_left = 0.0  # Constrained by Z-fold
+                self._top_separator_overhang_right = 0.0  # Constrained by Z-fold
+                self._top_separator_overhang_bottom = self._bottom_separator_overhang_bottom
+                self._top_separator_overhang_top = self._bottom_separator_overhang_top
+
+        else:
+            # Set default values if components are not available
+            self._bottom_separator_overhang_left = 0.0
+            self._bottom_separator_overhang_right = 0.0
+            self._bottom_separator_overhang_bottom = 0.0
+            self._bottom_separator_overhang_top = 0.0
+
+    def _calculate_top_separator_overhangs(self):
+        """
+        Override: Top separator overhangs are synchronized with bottom separator.
+        This method does nothing since overhangs are set in _calculate_bottom_separator_overhangs.
+        """
+        # Overhangs are calculated and synchronized in _calculate_bottom_separator_overhangs
+        pass
+
+    # Unified separator overhang properties for cleaner user interface
+    @property 
+    def separator_overhang_bottom(self) -> float:
+        """Get the bottom overhang of the Z-fold separator."""
+        return super().bottom_separator_overhang_bottom
+    
+    @separator_overhang_bottom.setter
+    @calculate_all_properties
+    def separator_overhang_bottom(self, overhang: float) -> None:
+        """
+        Set the bottom overhang for the Z-fold separator.
         
-        # Add MonoLayer-specific rotation logic
-        if hasattr(self._top_separator, '_rotated_xy') and not self._top_separator._rotated_xy:
-            self._top_separator._rotate_90_xy()
+        Parameters
+        ----------
+        overhang : float
+            Target bottom overhang in mm. Applied to both separator layers.
+        """
+        self.validate_positive_float(overhang, "separator_overhang_bottom")
+        
+        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
+            self._adjust_zfold_overhang_fixed_component('bottom_separator', overhang, 'bottom')
+            self._adjust_zfold_overhang_fixed_component('top_separator', overhang, 'bottom')
+        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
+            self._adjust_zfold_overhang_fixed_overhangs('bottom_separator', overhang, 'bottom')
+            self._adjust_zfold_overhang_fixed_overhangs('top_separator', overhang, 'bottom')
+
+    @property 
+    def separator_overhang_top(self) -> float:
+        """Get the top overhang of the Z-fold separator."""
+        return super().bottom_separator_overhang_top
+    
+    @separator_overhang_top.setter
+    @calculate_all_properties
+    def separator_overhang_top(self, overhang: float) -> None:
+        """
+        Set the top overhang for the Z-fold separator.
+        
+        Parameters
+        ----------
+        overhang : float
+            Target top overhang in mm. Applied to both separator layers.
+        """
+        self.validate_positive_float(overhang, "separator_overhang_top")
+        
+        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
+            # Move both separators to achieve the target overhang
+            self._adjust_zfold_overhang_fixed_component('bottom_separator', overhang, 'top')
+            self._adjust_zfold_overhang_fixed_component('top_separator', overhang, 'top')
+        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
+            # Extend both separators to achieve the target overhang
+            self._adjust_zfold_overhang_fixed_overhangs('bottom_separator', overhang, 'top')
+            self._adjust_zfold_overhang_fixed_overhangs('top_separator', overhang, 'top')
+
+    @property
+    def separator_overhang_bottom_range(self) -> tuple:
+        """Get the valid range for bottom separator overhang."""
+        return super().bottom_separator_overhang_bottom_range
+    
+    @property
+    def separator_overhang_top_range(self) -> tuple:
+        """Get the valid range for top separator overhang."""
+        return super().bottom_separator_overhang_top_range
+
+    @property
+    def separator_overhangs(self) -> dict:
+        """
+        Get all separator overhangs as a dictionary.
+        Note: In Z-fold configuration, left/right overhangs are always 0.
+        
+        Returns
+        -------
+        dict
+            Dictionary with keys 'left', 'right', 'bottom', 'top' and overhang values in mm.
+            Left and right values are always 0.0 due to Z-fold constraints.
+        """
+        return {
+            'bottom': self.separator_overhang_bottom,
+            'top': self.separator_overhang_top
+        }
+
+    def _adjust_zfold_overhang_fixed_component(self, component: str, target_overhang: float, direction: str) -> None:
+        """
+        Adjust separator position to achieve target overhang (Z-fold specific).
+        
+        Parameters
+        ----------
+        component : str
+            Component name ('bottom_separator' or 'top_separator')
+        target_overhang : float
+            Target overhang value in mm
+        direction : str
+            Direction of overhang ('left', 'right', 'bottom', 'top')
+        """
+        # Access internal overhang values directly to avoid AttributeError
+        # Use internal property names which return values in meters (not mm)
+        if component == 'bottom_separator':
+            current_overhang = getattr(self, f'_bottom_separator_overhang_{direction}') * M_TO_MM
+        elif component == 'top_separator':
+            current_overhang = getattr(self, f'_top_separator_overhang_{direction}') * M_TO_MM
+        else:
+            raise ValueError(f"Unknown component: {component}")
+            
+        overhang_difference = target_overhang - current_overhang
+        
+        # Get the component object
+        component_obj = getattr(self, f'_{component}')
+        
+        # get component datum
+        datum = component_obj.datum
+
+        if direction == 'left':
+            datum = (datum[0] - overhang_difference, datum[1], datum[2])
+        elif direction == 'right':
+            datum = (datum[0] + overhang_difference, datum[1], datum[2])
+        elif direction == 'bottom':
+            datum = (datum[0], datum[1] - overhang_difference, datum[2])
+        elif direction == 'top':
+            datum = (datum[0], datum[1] + overhang_difference, datum[2])
+
+        # set the datum
+        component_obj.datum = datum
+
+    def _adjust_zfold_overhang_fixed_overhangs(self, component: str, target_overhang: float, direction: str) -> None:
+        """
+        Adjust separator dimensions to achieve target overhang (Z-fold specific).
+        
+        Parameters
+        ----------
+        component : str
+            Component name ('bottom_separator' or 'top_separator')
+        target_overhang : float
+            Target overhang value in mm
+        direction : str
+            Direction of overhang ('left', 'right', 'bottom', 'top')
+        """
+        # Access internal overhang values directly to avoid AttributeError
+        # Use internal property names which return values in meters (not mm)
+        if component == 'bottom_separator':
+            current_overhang = getattr(self, f'_bottom_separator_overhang_{direction}')
+        elif component == 'top_separator':
+            current_overhang = getattr(self, f'_top_separator_overhang_{direction}')
+        else:
+            raise ValueError(f"Unknown component: {component}")
+            
+        target_overhang = target_overhang * MM_TO_M
+        overhang_difference = target_overhang - current_overhang
+        
+        # Get the component object
+        component_obj = getattr(self, f'_{component}')
+        
+        # Use the same logic as the parent class for separators
+        position_adjustment = (overhang_difference / 2) * M_TO_MM
+        
+        # Determine which dimension to adjust based on rotation and direction
+        is_horizontal = direction in ['left', 'right']
+        is_rotated = component_obj._rotated_xy
+        
+        # Logic: if rotated, horizontal directions affect width, vertical affects length
+        # If not rotated, horizontal directions affect length, vertical affects width
+        if (is_horizontal and not is_rotated) or (not is_horizontal and is_rotated):
+            # Adjust length
+            component_obj.length += overhang_difference * M_TO_MM
+        else:
+            # Adjust width
+            component_obj.width += overhang_difference * M_TO_MM
+        
+        # Adjust position
+        if direction == 'left':
+            component_obj.datum_x -= position_adjustment
+        elif direction == 'right':
+            component_obj.datum_x += position_adjustment
+        elif direction == 'bottom':
+            component_obj.datum_y -= position_adjustment
+        else:  # top
+            component_obj.datum_y += position_adjustment
+
+    # Hide individual separator APIs to enforce unified interface
+    @property
+    def bottom_separator(self) -> None:
+        """Individual separator access disabled. Use 'separator' property instead."""
+        raise AttributeError("ZFoldMonoLayer uses unified 'separator' property. Individual 'bottom_separator' access is not available.")
+    
+    @property
+    def top_separator(self) -> None:
+        """Individual separator access disabled. Use 'separator' property instead."""
+        raise AttributeError("ZFoldMonoLayer uses unified 'separator' property. Individual 'top_separator' access is not available.")
+    
+    @property
+    def bottom_separator_overhang_bottom(self) -> None:
+        """Individual overhang access disabled. Use 'separator_overhang_bottom' property instead."""
+        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_bottom' property. Individual 'bottom_separator_overhang_bottom' access is not available.")
+    
+    @property
+    def bottom_separator_overhang_top(self) -> None:
+        """Individual overhang access disabled. Use 'separator_overhang_top' property instead."""
+        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_top' property. Individual 'bottom_separator_overhang_top' access is not available.")
+    
+    @property
+    def bottom_separator_overhang_left(self) -> None:
+        """Individual overhang access disabled. Use 'separator_overhang_left' property instead."""
+        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_left' property. Individual 'bottom_separator_overhang_left' access is not available.")
+    
+    @property
+    def bottom_separator_overhang_right(self) -> None:
+        """Individual overhang access disabled. Use 'separator_overhang_right' property instead."""
+        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_right' property. Individual 'bottom_separator_overhang_right' access is not available.")
+
+    @property
+    def top_separator_overhang_bottom(self) -> None:
+        """Individual overhang access disabled. Use 'separator_overhang_bottom' property instead."""
+        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_bottom' property. Individual 'top_separator_overhang_bottom' access is not available.")
+    
+    @property
+    def top_separator_overhang_top(self) -> None:
+        """Individual overhang access disabled. Use 'separator_overhang_top' property instead."""
+        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_top' property. Individual 'top_separator_overhang_top' access is not available.")
+
+    @property
+    def top_separator_overhang_left(self) -> None:
+        """Individual overhang access disabled. Use 'separator_overhang_left' property instead."""
+        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_left' property. Individual 'top_separator_overhang_left' access is not available.")
+
+    @property
+    def top_separator_overhang_right(self) -> None:
+        """Individual overhang access disabled. Use 'separator_overhang_right' property instead."""
+        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_right' property. Individual 'top_separator_overhang_right' access is not available.")
+
+    def __str__(self):
+        """String representation of the Z-Fold MonoLayer object."""
+        return f"{self.__class__.__name__}: {self.name} | Anode: {self.anode.name} | Cathode: {self.cathode.name} | Separator: {self.separator.name} | Anode Overhangs (L,R,B,T): ({self.anode_overhang_left} mm, {self.anode_overhang_right} mm, {self.anode_overhang_bottom} mm, {self.anode_overhang_top} mm) | Separator Overhangs (B,T): ({self.separator_overhang_bottom} mm, {self.separator_overhang_top} mm)"
 
 
 
