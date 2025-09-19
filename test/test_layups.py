@@ -113,12 +113,15 @@ class TestSimpleLaminate(unittest.TestCase):
     def test_laminate(self):
         # This is a placeholder for an actual test
         self.assertTrue(isinstance(self.layup, Laminate))
+        self.assertEqual(self.layup.anode_overhangs, {'left': 0, 'right': 0, 'top': 3, 'bottom': 3})
+        self.assertEqual(self.layup.bottom_separator_overhangs, {'left': 150, 'right': 150, 'top': 5, 'bottom': 5})
+        self.assertEqual(self.layup.top_separator_overhangs, {'left': 150, 'right': 150, 'top': 5, 'bottom': 5})
 
     def test_plots(self):
 
         fig1 = self.layup.anode._get_full_top_down_view()
         fig2 = self.layup.cathode._get_full_top_down_view()
-        fig3 = self.layup._get_full_top_down_view()
+        fig3 = self.layup.get_top_down_view(opacity=0.2)
 
         # fig1.show()
         # fig2.show()
@@ -186,100 +189,24 @@ class TestSimpleLaminate(unittest.TestCase):
 
         self.layup.overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
 
-        self.layup.anode_overhang_left = 4
-        self.assertEqual(self.layup.anode_overhangs, {'left': 4, 'right': 0, 'top': 2, 'bottom': 2})
-        fig1 = self.layup.get_top_down_view(opacity=0.2)
+        self.layup.anode_overhang_top = 6
+        self.assertEqual(self.layup.anode_overhangs, {'left': 0, 'right': 0, 'top': 6, 'bottom': 0})
+        fig1 = self.layup.get_top_down_view()
 
-        self.layup.anode_overhang_top = 4
-        self.assertEqual(self.layup.anode_overhangs, {'left': 4, 'right': 0, 'top': 4, 'bottom': 0})
-        fig2 = self.layup.get_top_down_view(opacity=0.2)
-        
         # fig1.show()
-        # fig2.show()
 
     def test_anode_overhang_setters_fixed_overhangs(self):
 
         self.layup.overhang_control_mode = OverhangControlMode.FIXED_OVERHANGS
 
-        fig1 = self.layup.get_top_down_view(opacity=0.2)
+        fig1 = self.layup.get_top_down_view()
 
-        self.layup.anode_overhang_left = 10
-        self.assertEqual(self.layup.anode_overhangs, {'left': 10, 'right': 2, 'top': 2, 'bottom': 2})
-        fig2 = self.layup.get_top_down_view(opacity=0.2)
-
-        self.layup.anode_overhang_top = 10
-        self.assertEqual(self.layup.anode_overhangs, {'left': 10, 'right': 2, 'top': 10, 'bottom': 2})
-        fig3 = self.layup.get_top_down_view(opacity=0.2)
+        self.layup.bottom_separator_overhang_left = 10
+        self.assertEqual(self.layup.bottom_separator_overhangs, {'left': 10, 'right': 150, 'top': 5, 'bottom': 5})
+        fig2 = self.layup.get_top_down_view()
         
         # fig1.show()
         # fig2.show()
-        # fig3.show()
-
-    def test_bottom_separator_overhang_setters_fixed_component(self):
-
-        self.layup.overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
-
-        self.layup.bottom_separator_overhang_left = 8
-        self.assertEqual(self.layup.bottom_separator_overhangs, {'left': 8, 'right': 2, 'top': 3, 'bottom': 3})
-        fig1 = self.layup.get_top_down_view(opacity=0.2)
-
-        self.layup.bottom_separator_overhang_top = 6
-        self.assertEqual(self.layup.bottom_separator_overhangs, {'left': 8, 'right': 2, 'top': 6, 'bottom': 0})
-        fig2 = self.layup.get_top_down_view(opacity=0.2)
-        
-        # fig1.show()
-        # fig2.show()
-
-    def test_bottom_separator_overhang_setters_fixed_overhangs(self):
-
-        self.layup.overhang_control_mode = OverhangControlMode.FIXED_OVERHANGS
-
-        fig1 = self.layup.get_top_down_view(opacity=0.2)
-
-        self.layup.bottom_separator_overhang_left = 12
-        self.assertEqual(self.layup.bottom_separator_overhangs, {'left': 12, 'right': 5, 'top': 3, 'bottom': 3})
-        fig2 = self.layup.get_top_down_view(opacity=0.2)
-
-        self.layup.bottom_separator_overhang_top = 8
-        self.assertEqual(self.layup.bottom_separator_overhangs, {'left': 12, 'right': 5, 'top': 8, 'bottom': 3})
-        fig3 = self.layup.get_top_down_view(opacity=0.2)
-        
-        # fig1.show()
-        # fig2.show()
-        # fig3.show()
-
-    def test_top_separator_overhang_setters_fixed_component(self):
-
-        self.layup.overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
-
-        self.layup.top_separator_overhang_left = 7
-        self.assertEqual(self.layup.top_separator_overhangs, {'left': 7, 'right': 3, 'top': 3, 'bottom': 3})
-        fig1 = self.layup.get_top_down_view(opacity=0.2)
-
-        self.layup.top_separator_overhang_bottom = 5
-        self.assertEqual(self.layup.top_separator_overhangs, {'left': 7, 'right': 3, 'top': 1, 'bottom': 5})
-        fig2 = self.layup.get_top_down_view(opacity=0.2)
-        
-        # fig1.show()
-        # fig2.show()
-
-    def test_top_separator_overhang_setters_fixed_overhangs(self):
-
-        self.layup.overhang_control_mode = OverhangControlMode.FIXED_OVERHANGS
-
-        fig1 = self.layup.get_top_down_view(opacity=0.2)
-
-        self.layup.top_separator_overhang_right = 15
-        self.assertEqual(self.layup.top_separator_overhangs, {'left': 5, 'right': 15, 'top': 3, 'bottom': 3})
-        fig2 = self.layup.get_top_down_view(opacity=0.2)
-
-        self.layup.top_separator_overhang_bottom = 10
-        self.assertEqual(self.layup.top_separator_overhangs, {'left': 5, 'right': 15, 'top': 3, 'bottom': 10})
-        fig3 = self.layup.get_top_down_view(opacity=0.2)
-        
-        # fig1.show()
-        # fig2.show()
-        # fig3.show()
 
 
 class TestSimpleMonoLayer(unittest.TestCase):

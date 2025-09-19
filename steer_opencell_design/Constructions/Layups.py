@@ -243,56 +243,57 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
         component_obj = getattr(self, f'_{component}')
         
         if component == 'anode':
-            
-            if direction == 'left':
+            # Determine which dimension and position to adjust
+            if direction in ['left', 'right']:
                 self.anode.current_collector.x_body_length += overhang_difference * M_TO_MM
-                self.anode.current_collector.datum_x -= (overhang_difference / 2) * M_TO_MM
-            elif direction == 'right':
-                self.anode.current_collector.x_body_length += overhang_difference * M_TO_MM
-                self.anode.current_collector.datum_x += (overhang_difference / 2) * M_TO_MM
-            elif direction == 'bottom':
+                position_adjustment = (overhang_difference / 2) * M_TO_MM
+                if direction == 'left':
+                    self.anode.current_collector.datum_x -= position_adjustment
+                else:  # right
+                    self.anode.current_collector.datum_x += position_adjustment
+            else:  # bottom or top
                 self.anode.current_collector.y_body_length += overhang_difference * M_TO_MM
-                self.anode.current_collector.datum_y -= (overhang_difference / 2) * M_TO_MM
-            elif direction == 'top':
-                self.anode.current_collector.y_body_length += overhang_difference * M_TO_MM
-                self.anode.current_collector.datum_y += (overhang_difference / 2) * M_TO_MM
+                position_adjustment = (overhang_difference / 2) * M_TO_MM
+                if direction == 'bottom':
+                    self.anode.current_collector.datum_y -= position_adjustment
+                else:  # top
+                    self.anode.current_collector.datum_y += position_adjustment
             
-            # reset anode to self
+            # Trigger setters
             self.anode.current_collector = self.anode.current_collector
             self.anode = self.anode
 
-        elif type(component_obj) == Separator:
+        elif isinstance(component_obj, Separator):
+            # Create mapping for dimension and position adjustments
+            position_adjustment = (overhang_difference / 2) * M_TO_MM
+            
+            # Determine which dimension to adjust based on rotation and direction
+            is_horizontal = direction in ['left', 'right']
+            is_rotated = component_obj._rotated_xy
+            
+            # Logic: if rotated, horizontal directions affect width, vertical affects length
+            # If not rotated, horizontal directions affect length, vertical affects width
+            if (is_horizontal and not is_rotated) or (not is_horizontal and is_rotated):
+                # Adjust length
+                component_obj.length += overhang_difference * M_TO_MM
+            else:
+                # Adjust width
+                component_obj.width += overhang_difference * M_TO_MM
+            
+            # Adjust position
+            if direction == 'left':
+                component_obj.datum_x -= position_adjustment
+            elif direction == 'right':
+                component_obj.datum_x += position_adjustment
+            elif direction == 'bottom':
+                component_obj.datum_y -= position_adjustment
+            else:  # top
+                component_obj.datum_y += position_adjustment
 
-            if direction == 'left' and not component_obj._rotated_xy:
-                component_obj.length += overhang_difference * M_TO_MM
-                component_obj.datum_x -= (overhang_difference / 2) * M_TO_MM
-            elif direction == 'right' and not component_obj._rotated_xy:
-                component_obj.length += overhang_difference * M_TO_MM
-                component_obj.datum_x += (overhang_difference / 2) * M_TO_MM
-            elif direction == 'bottom' and not component_obj._rotated_xy:
-                component_obj.width += overhang_difference * M_TO_MM
-                component_obj.datum_y -= (overhang_difference / 2) * M_TO_MM
-            elif direction == 'top' and not component_obj._rotated_xy:
-                component_obj.width += overhang_difference * M_TO_MM
-                component_obj.datum_y += (overhang_difference / 2) * M_TO_MM
-
-            elif direction == 'left' and component_obj._rotated_xy:
-                component_obj.width += overhang_difference * M_TO_MM
-                component_obj.datum_x -= (overhang_difference / 2) * M_TO_MM
-            elif direction == 'right' and component_obj._rotated_xy:
-                component_obj.width += overhang_difference * M_TO_MM
-                component_obj.datum_x += (overhang_difference / 2) * M_TO_MM
-            elif direction == 'bottom' and component_obj._rotated_xy:
-                component_obj.length += overhang_difference * M_TO_MM
-                component_obj.datum_y -= (overhang_difference / 2) * M_TO_MM
-            elif direction == 'top' and component_obj._rotated_xy:
-                component_obj.length += overhang_difference * M_TO_MM
-                component_obj.datum_y += (overhang_difference / 2) * M_TO_MM
-
-            # reset separator to self
+            # Trigger setter
             setattr(self, component, component_obj)
 
-    def get_top_down_view(self, opacity: float = 1.0, **kwargs) -> go.Figure:
+    def get_top_down_view(self, opacity: float = 0.2, **kwargs) -> go.Figure:
 
         def adjust_fill_opacity(color_str, opacity):
             """Helper function to adjust fill opacity while preserving line opacity"""
@@ -451,7 +452,6 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
 
         # validate the type
         self.validate_type(cathode, Cathode, "Cathode")
-        self.validate_type(cathode.current_collector, PunchedCurrentCollector, "Cathode Current Collector")
 
         # if there is an anode, update its ranges
         if self._update_properties:
@@ -1199,9 +1199,32 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
 
 
 
-
 class Laminate(_Layup):
-    pass
+    
+    def __init__(
+            self,
+            cathode: Cathode,
+            bottom_separator: Separator,
+            anode: Anode,
+            top_separator: Separator,
+            name: str = "Layup"
+        ):
+
+        if not anode._flipped_y:
+            anode._flip('y')
+
+        super().__init__(
+            cathode=cathode,
+            bottom_separator=bottom_separator,
+            anode=anode,
+            top_separator=top_separator,
+            name=name
+        )
+
+    def _calculate_all_properties(self):
+        super()._calculate_all_properties()
+        self.validate_type(self.anode.current_collector, _TapeCurrentCollector, "Anode Current Collector")
+        self.validate_type(self.cathode.current_collector, _TapeCurrentCollector, "Cathode Current Collector")
 
 
 class MonoLayer(_Layup):
@@ -1254,9 +1277,10 @@ class MonoLayer(_Layup):
         self._calculate_all_properties()
         self._update_properties = True
 
-    @property
-    def thickness(self) -> float:
-        return round(self._thickness * M_TO_UM, 1)
+    def _calculate_all_properties(self):
+        super()._calculate_all_properties()
+        self.validate_type(self.anode.current_collector, PunchedCurrentCollector, "Anode Current Collector")
+        self.validate_type(self.cathode.current_collector, PunchedCurrentCollector, "Cathode Current Collector")
 
     @property
     def transverse(self):
@@ -1339,3 +1363,95 @@ class MonoLayer(_Layup):
         # Add MonoLayer-specific rotation logic
         if hasattr(self._top_separator, '_rotated_xy') and not self._top_separator._rotated_xy:
             self._top_separator._rotate_90_xy()
+
+
+
+class ZFoldMonoLayer(MonoLayer):
+
+    def __init__(
+            self,
+            cathode: Cathode,
+            separator: Separator,
+            anode: Anode,
+            transverse: bool = False,
+            name: str = "Z-Fold MonoLayer"
+        ):
+
+        top_separator = deepcopy(separator)
+        bottom_separator = deepcopy(separator)
+
+        top_separator.length = anode.width + 2*top_separator.thickness
+        bottom_separator.length = cathode.width + 2*bottom_separator.thickness
+
+        super().__init__(
+            cathode=cathode,
+            bottom_separator=bottom_separator,
+            anode=anode,
+            top_separator=top_separator,
+            transverse=transverse,
+            name=name
+        )
+
+
+    @property
+    def bottom_separator(self) -> Separator:
+        return self._bottom_separator
+
+    @property
+    def top_separator(self) -> Separator:
+        return self._top_separator
+
+    @bottom_separator.setter
+    @calculate_all_properties
+    def bottom_separator(self, bottom_separator: Separator):
+
+        # validate the type
+        self.validate_type(bottom_separator, Separator, "Bottom Separator")
+
+        # make deep copy
+        bottom_separator = deepcopy(bottom_separator)
+
+        # set the length
+        bottom_separator.length = self.cathode.width + 2*bottom_separator.thickness
+
+        # if there is an anode, update its ranges
+        if not self._update_properties:
+            bottom_separator.datum = (self.cathode.datum[0], self.cathode.datum[1], bottom_separator.datum[2])
+        elif self._update_properties:
+            bottom_separator.datum = (self.bottom_separator.datum[0], self.bottom_separator.datum[1], bottom_separator.datum[2])
+           
+        # assign to self
+        self._bottom_separator = bottom_separator
+        
+        # Add MonoLayer-specific rotation logic
+        if hasattr(self._bottom_separator, '_rotated_xy') and not self._bottom_separator._rotated_xy:
+            self._bottom_separator._rotate_90_xy()
+
+    @top_separator.setter
+    @calculate_all_properties
+    def top_separator(self, top_separator: Separator):
+
+        # validate the type
+        self.validate_type(top_separator, Separator, "Top Separator")
+
+        # make deep copy
+        top_separator = deepcopy(top_separator)
+
+        # set the length
+        top_separator.length = self.anode.width + 2*top_separator.thickness
+
+        # if there is an anode, update its ranges
+        if not self._update_properties:
+            top_separator.datum = (self.cathode.datum[0], self.cathode.datum[1], top_separator.datum[2])
+        elif self._update_properties:
+            top_separator.datum = (self.top_separator.datum[0], self.top_separator.datum[1], top_separator.datum[2])
+
+        # assign to self
+        self._top_separator = top_separator
+        
+        # Add MonoLayer-specific rotation logic
+        if hasattr(self._top_separator, '_rotated_xy') and not self._top_separator._rotated_xy:
+            self._top_separator._rotate_90_xy()
+
+
+
