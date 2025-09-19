@@ -5,6 +5,7 @@ from steer_opencell_design.Components.CurrentCollectors import _TapeCurrentColle
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Serializer import SerializerMixin
+from steer_core.Mixins.Colors import ColorMixin
 
 from steer_core.Decorators.General import calculate_all_properties
 
@@ -23,7 +24,7 @@ class OverhangControlMode(Enum):
     FIXED_OVERHANGS = "fixed_overhangs"    # Extend anode body to achieve overhang
 
 
-class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
+class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
     """
     Base class for layup structures containing common functionality for overhang calculations
     and electrode positioning. This class provides the foundation for both MonoLayer and Laminate classes.
@@ -294,29 +295,8 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
             setattr(self, component, component_obj)
 
     def get_top_down_view(self, opacity: float = 0.2, **kwargs) -> go.Figure:
-
-        def adjust_fill_opacity(color_str, opacity):
-            """Helper function to adjust fill opacity while preserving line opacity"""
-            if not color_str:
-                return color_str
-            
-            if 'rgba' in color_str:
-                # Replace the alpha value in existing rgba
-                return color_str.rsplit(',', 1)[0] + f', {opacity})'
-            elif 'rgb' in color_str:
-                # Convert rgb to rgba
-                return color_str.replace('rgb(', 'rgba(').replace(')', f', {opacity})')
-            elif color_str.startswith('#'):
-                # Convert hex to rgba
-                hex_color = color_str.lstrip('#')
-                if len(hex_color) == 6:
-                    r = int(hex_color[0:2], 16)
-                    g = int(hex_color[2:4], 16)
-                    b = int(hex_color[4:6], 16)
-                    return f'rgba({r}, {g}, {b}, {opacity})'
-            
-            # For named colors or other formats, return as is
-            return color_str
+        # Validate opacity using ColorMixin
+        self.validate_opacity(opacity)
 
         fig = go.Figure()
 
@@ -326,9 +306,8 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
             trace.name = self._cathode.name
             trace.legendgroup = self._cathode.name
             trace.showlegend = i == 0
-            # Adjust fill opacity while keeping line opacity at 1.0
-            if hasattr(trace, 'fillcolor') and trace.fillcolor:
-                trace.fillcolor = adjust_fill_opacity(trace.fillcolor, opacity)
+            # Use ColorMixin method to adjust trace opacity
+            self.adjust_trace_opacity(trace, opacity)
             fig.add_trace(trace)
 
         # Check if separators have the same name and create distinct legend groups
@@ -342,9 +321,8 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
         else:
             bottom_separator_trace.name = f"{self._bottom_separator.name}"
             bottom_separator_trace.legendgroup = f"{self._bottom_separator.name}"
-        # Adjust fill opacity while keeping line opacity at 1.0
-        if hasattr(bottom_separator_trace, 'fillcolor') and bottom_separator_trace.fillcolor:
-            bottom_separator_trace.fillcolor = adjust_fill_opacity(bottom_separator_trace.fillcolor, opacity)
+        # Use ColorMixin method to adjust trace opacity
+        self.adjust_trace_opacity(bottom_separator_trace, opacity)
         fig.add_trace(bottom_separator_trace)
 
         anode_fig = self._anode._get_full_top_down_view()
@@ -354,9 +332,8 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
             trace.showlegend = i == 0
             trace.xaxis = 'x'
             trace.yaxis = 'y'
-            # Adjust fill opacity while keeping line opacity at 1.0
-            if hasattr(trace, 'fillcolor') and trace.fillcolor:
-                trace.fillcolor = adjust_fill_opacity(trace.fillcolor, opacity)
+            # Use ColorMixin method to adjust trace opacity
+            self.adjust_trace_opacity(trace, opacity)
             fig.add_trace(trace)
 
         # Add top separator
@@ -367,9 +344,8 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin):
         else:
             top_separator_trace.name = f"{self._top_separator.name}"
             top_separator_trace.legendgroup = f"{self._top_separator.name}"
-        # Adjust fill opacity while keeping line opacity at 1.0
-        if hasattr(top_separator_trace, 'fillcolor') and top_separator_trace.fillcolor:
-            top_separator_trace.fillcolor = adjust_fill_opacity(top_separator_trace.fillcolor, opacity)
+        # Use ColorMixin method to adjust trace opacity
+        self.adjust_trace_opacity(top_separator_trace, opacity)
         fig.add_trace(top_separator_trace)
 
         # Calculate overall bounds to fix axis ranges
