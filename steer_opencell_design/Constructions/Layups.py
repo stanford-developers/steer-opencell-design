@@ -1365,6 +1365,14 @@ class MonoLayer(_Layup):
 
 
 class ZFoldMonoLayer(MonoLayer):
+    """
+    A specialized MonoLayer for Z-fold battery configurations.
+    
+    In Z-fold configuration, the separator is folded in a Z-shape where:
+    - Left and right overhangs are constrained to 0 (Z-fold geometry)
+    - Top and bottom overhangs are synchronized between both separator layers
+    - A unified separator interface manages both top and bottom separators
+    """
 
     def __init__(
             self,
@@ -1372,6 +1380,7 @@ class ZFoldMonoLayer(MonoLayer):
             separator: Separator,
             anode: Anode,
             transverse: bool = False,
+            overhang_control_mode: OverhangControlMode = OverhangControlMode.FIXED_COMPONENT,
             name: str = "Z-Fold MonoLayer"
         ):
 
@@ -1384,15 +1393,22 @@ class ZFoldMonoLayer(MonoLayer):
         top_separator.length = (anode.current_collector._x_body_length + 2*top_separator._thickness) * M_TO_MM
         bottom_separator.length = (cathode.current_collector._x_body_length + 2*bottom_separator._thickness) * M_TO_MM
 
-        self.overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
-        self.cathode = cathode
-        self.anode = anode
+        # Bypass MonoLayer.__init__ to avoid calling blocked setters
+        # Call _Layup.__init__ directly and set up necessary attributes
+        self._overhang_control_mode = overhang_control_mode
+        self._cathode = cathode
+        self._anode = anode
         self._top_separator = top_separator
         self._bottom_separator = bottom_separator
+        self._transverse = transverse
         self.name = name
 
         self._calculate_all_properties()
         self._update_properties = True
+
+    # ============================================================================
+    # Core Component Properties
+    # ============================================================================
 
     @property
     def separator(self) -> Separator:
@@ -1437,51 +1453,20 @@ class ZFoldMonoLayer(MonoLayer):
         self._bottom_separator = bottom_separator
         self._top_separator = top_separator
 
-    def _calculate_bottom_separator_overhangs(self):
-        """
-        Override: Calculate overhangs for Z-fold separators.
-        Left/right overhangs are constrained by Z-fold geometry.
-        Top/bottom overhangs are shared between top and bottom separators.
-        """
-        if hasattr(self, '_cathode') and hasattr(self, '_bottom_separator') and self._cathode is not None and self._bottom_separator is not None:
+    # ============================================================================
+    # Unified Separator Overhang Properties
+    # ============================================================================
 
-            # Cathode edges (using internal SI units - meters)
-            cathode_bottom = self._cathode._current_collector._datum[1] - self._cathode._current_collector._y_body_length / 2
-            cathode_top = self._cathode._current_collector._datum[1] + self._cathode._current_collector._y_body_length / 2
+    @property 
+    def separator_overhang_left(self) -> float:
+        """Get the left overhang of the Z-fold separator. Always 0.0 due to Z-fold constraints."""
+        return 0.0
+    
+    @property 
+    def separator_overhang_right(self) -> float:
+        """Get the right overhang of the Z-fold separator. Always 0.0 due to Z-fold constraints."""
+        return 0.0
 
-            # Bottom separator edges (using internal SI units - meters)
-            separator_bottom = min(self._bottom_separator._coordinates[:,1])
-            separator_top = max(self._bottom_separator._coordinates[:,1])
-
-            # Calculate only top/bottom overhangs (left/right are constrained)
-            self._bottom_separator_overhang_left = 0.0  # Constrained by Z-fold
-            self._bottom_separator_overhang_right = 0.0  # Constrained by Z-fold
-            self._bottom_separator_overhang_bottom = cathode_bottom - separator_bottom
-            self._bottom_separator_overhang_top = separator_top - cathode_top
-
-            # Ensure top separator has the same overhangs (Z-fold constraint)
-            if hasattr(self, '_top_separator') and self._top_separator is not None:
-                self._top_separator_overhang_left = 0.0  # Constrained by Z-fold
-                self._top_separator_overhang_right = 0.0  # Constrained by Z-fold
-                self._top_separator_overhang_bottom = self._bottom_separator_overhang_bottom
-                self._top_separator_overhang_top = self._bottom_separator_overhang_top
-
-        else:
-            # Set default values if components are not available
-            self._bottom_separator_overhang_left = 0.0
-            self._bottom_separator_overhang_right = 0.0
-            self._bottom_separator_overhang_bottom = 0.0
-            self._bottom_separator_overhang_top = 0.0
-
-    def _calculate_top_separator_overhangs(self):
-        """
-        Override: Top separator overhangs are synchronized with bottom separator.
-        This method does nothing since overhangs are set in _calculate_bottom_separator_overhangs.
-        """
-        # Overhangs are calculated and synchronized in _calculate_bottom_separator_overhangs
-        pass
-
-    # Unified separator overhang properties for cleaner user interface
     @property 
     def separator_overhang_bottom(self) -> float:
         """Get the bottom overhang of the Z-fold separator."""
@@ -1535,16 +1520,6 @@ class ZFoldMonoLayer(MonoLayer):
             self._adjust_zfold_overhang_fixed_overhangs('top_separator', overhang, 'top')
 
     @property
-    def separator_overhang_bottom_range(self) -> tuple:
-        """Get the valid range for bottom separator overhang."""
-        return super().bottom_separator_overhang_bottom_range
-    
-    @property
-    def separator_overhang_top_range(self) -> tuple:
-        """Get the valid range for top separator overhang."""
-        return super().bottom_separator_overhang_top_range
-
-    @property
     def separator_overhangs(self) -> dict:
         """
         Get all separator overhangs as a dictionary.
@@ -1557,9 +1532,73 @@ class ZFoldMonoLayer(MonoLayer):
             Left and right values are always 0.0 due to Z-fold constraints.
         """
         return {
+            'left': 0.0,
+            'right': 0.0,
             'bottom': self.separator_overhang_bottom,
             'top': self.separator_overhang_top
         }
+
+    # ============================================================================
+    # Range Properties
+    # ============================================================================
+
+    @property
+    def separator_overhang_bottom_range(self) -> tuple:
+        """Get the valid range for bottom separator overhang."""
+        return super().bottom_separator_overhang_bottom_range
+    
+    @property
+    def separator_overhang_top_range(self) -> tuple:
+        """Get the valid range for top separator overhang."""
+        return super().bottom_separator_overhang_top_range
+
+    # ============================================================================
+    # Internal/Helper Methods
+    # ============================================================================
+
+    def _calculate_bottom_separator_overhangs(self):
+        """
+        Override: Calculate overhangs for Z-fold separators.
+        Left/right overhangs are constrained by Z-fold geometry.
+        Top/bottom overhangs are shared between top and bottom separators.
+        """
+        if hasattr(self, '_cathode') and hasattr(self, '_bottom_separator') and self._cathode is not None and self._bottom_separator is not None:
+
+            # Cathode edges (using internal SI units - meters)
+            cathode_bottom = self._cathode._current_collector._datum[1] - self._cathode._current_collector._y_body_length / 2
+            cathode_top = self._cathode._current_collector._datum[1] + self._cathode._current_collector._y_body_length / 2
+
+            # Bottom separator edges (using internal SI units - meters)
+            separator_bottom = min(self._bottom_separator._coordinates[:,1])
+            separator_top = max(self._bottom_separator._coordinates[:,1])
+
+            # Calculate only top/bottom overhangs (left/right are constrained)
+            self._bottom_separator_overhang_left = 0.0  # Constrained by Z-fold
+            self._bottom_separator_overhang_right = 0.0  # Constrained by Z-fold
+            self._bottom_separator_overhang_bottom = cathode_bottom - separator_bottom
+            self._bottom_separator_overhang_top = separator_top - cathode_top
+
+            # Ensure top separator has the same overhangs (Z-fold constraint)
+            if hasattr(self, '_top_separator') and self._top_separator is not None:
+                self._top_separator_overhang_left = 0.0  # Constrained by Z-fold
+                self._top_separator_overhang_right = 0.0  # Constrained by Z-fold
+                self._top_separator_overhang_bottom = self._bottom_separator_overhang_bottom
+                self._top_separator_overhang_top = self._bottom_separator_overhang_top
+
+        else:
+            # Set default values if components are not available
+            self._bottom_separator_overhang_left = 0.0
+            self._bottom_separator_overhang_right = 0.0
+            self._bottom_separator_overhang_bottom = 0.0
+            self._bottom_separator_overhang_top = 0.0
+
+    def _calculate_top_separator_overhangs(self):
+        """
+        Override: Top separator overhangs are synchronized with bottom separator.
+        This method does nothing since overhangs are set in _calculate_bottom_separator_overhangs.
+        """
+        # Overhangs are calculated and synchronized in _calculate_bottom_separator_overhangs
+        pass
 
     def _adjust_zfold_overhang_fixed_component(self, component: str, target_overhang: float, direction: str) -> None:
         """
@@ -1657,7 +1696,18 @@ class ZFoldMonoLayer(MonoLayer):
         else:  # top
             component_obj.datum_y += position_adjustment
 
-    # Hide individual separator APIs to enforce unified interface
+    # ============================================================================
+    # String Representation
+    # ============================================================================
+
+    def __str__(self):
+        """String representation of the Z-Fold MonoLayer object."""
+        return f"{self.__class__.__name__}: {self.name} | Anode: {self.anode.name} | Cathode: {self.cathode.name} | Separator: {self.separator.name} | Anode Overhangs (L,R,B,T): ({self.anode_overhang_left} mm, {self.anode_overhang_right} mm, {self.anode_overhang_bottom} mm, {self.anode_overhang_top} mm) | Separator Overhangs (B,T): ({self.separator_overhang_bottom} mm, {self.separator_overhang_top} mm)"
+
+    # ============================================================================
+    # Blocked Properties - Individual Separator APIs Disabled  
+    # ============================================================================
+
     @property
     def bottom_separator(self) -> None:
         """Individual separator access disabled. Use 'separator' property instead."""
@@ -1707,10 +1757,6 @@ class ZFoldMonoLayer(MonoLayer):
     def top_separator_overhang_right(self) -> None:
         """Individual overhang access disabled. Use 'separator_overhang_right' property instead."""
         raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_right' property. Individual 'top_separator_overhang_right' access is not available.")
-
-    def __str__(self):
-        """String representation of the Z-Fold MonoLayer object."""
-        return f"{self.__class__.__name__}: {self.name} | Anode: {self.anode.name} | Cathode: {self.cathode.name} | Separator: {self.separator.name} | Anode Overhangs (L,R,B,T): ({self.anode_overhang_left} mm, {self.anode_overhang_right} mm, {self.anode_overhang_bottom} mm, {self.anode_overhang_top} mm) | Separator Overhangs (B,T): ({self.separator_overhang_bottom} mm, {self.separator_overhang_top} mm)"
 
 
 

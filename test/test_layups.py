@@ -501,7 +501,7 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.assertAlmostEqual(self.zfoldmonolayer._top_separator.length, expected_top_length, places=1)
 
         self.assertEqual(self.zfoldmonolayer.anode_overhangs, {'left': 2, 'right': 2, 'top': 2, 'bottom': 2})
-        self.assertEqual(self.zfoldmonolayer.separator_overhangs, {'top': 3, 'bottom': 3})
+        self.assertEqual(self.zfoldmonolayer.separator_overhangs, {'left': 0.0, 'right': 0.0, 'bottom': 3.0, 'top': 3.0})
 
         fig1 = self.zfoldmonolayer.get_top_down_view()
         # fig1.show()
