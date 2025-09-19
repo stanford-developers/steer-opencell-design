@@ -5,10 +5,12 @@ from steer_opencell_design.Formulations.ElectrodeFormulations import CathodeForm
 from steer_opencell_design.Components.Electrodes import Cathode, Anode
 from steer_opencell_design.Components.CurrentCollectors import NotchedCurrentCollector, PunchedCurrentCollector, TablessCurrentCollector
 from steer_opencell_design.Components.Separators import Separator
-from steer_opencell_design.Constructions.Layups import Laminate, MonoLayer, OverhangControlMode
+from steer_opencell_design.Constructions.Layups import Laminate, MonoLayer, ZFoldMonoLayer, OverhangControlMode
 
 from steer_materials.CellMaterials.Base import CurrentCollectorMaterial, InsulationMaterial, SeparatorMaterial
 from steer_materials.CellMaterials.Electrode import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
+
+from steer_core.Constants.Units import *
 
 
 class TestSimpleLaminate(unittest.TestCase):
@@ -404,5 +406,266 @@ class TestSimpleMonoLayer(unittest.TestCase):
         # fig3.show()
 
 
+class TestZFoldMonoLayer(unittest.TestCase):
 
+    def setUp(self):
 
+        ########################
+        # make a basic cathode
+        ########################
+        material = CathodeMaterial.from_database("LFP")
+        material.specific_cost = 6
+        material.density = 3.6
+
+        conductive_additive = ConductiveAdditive(name='super_P', specific_cost=15, density=2.0, color="#000000")
+        binder = Binder(name='CMC', specific_cost=10, density=1.5, color="#FFFFFF")
+
+        formulation = CathodeFormulation(
+            active_materials={material: 95},
+            binders={binder: 2},
+            conductive_additives={conductive_additive: 3}
+        )
+
+        current_collector_material = CurrentCollectorMaterial(name='Aluminum', specific_cost=5, density=2.7, color="#AAAAAA")
+
+        current_collector = PunchedCurrentCollector(
+            material=current_collector_material,
+            width=300,
+            height=320,
+            thickness=8,
+            tab_width=60,
+            tab_height=18,
+            tab_position=50
+        )
+
+        cathode = Cathode(
+            formulation=formulation,
+            mass_loading=6.2,
+            current_collector=current_collector,
+            calender_density=2.60,
+        )
+
+        material = AnodeMaterial.from_database("Synthetic Graphite")
+        material.specific_cost = 4
+        material.density = 2.2
+
+        formulation = AnodeFormulation(
+            active_materials={material: 90},
+            binders={binder: 5},
+            conductive_additives={conductive_additive: 5}
+        )
+
+        current_collector = PunchedCurrentCollector(
+            material=current_collector_material,
+            width=304,
+            height=324,
+            thickness=8,
+            tab_width=60,
+            tab_height=18,
+            tab_position=250
+        )
+
+        anode = Anode(
+            formulation=formulation,
+            mass_loading=10.68,
+            current_collector=current_collector,
+            calender_density=1.1,
+            insulation_thickness=10
+        )
+
+        separator_material = SeparatorMaterial(name="Polyethylene", specific_cost=2, density=0.94, color="#FDFDB7", porosity=45)
+
+        separator = Separator(
+            material=separator_material,
+            thickness=25,
+            width=326,
+        )
+
+        self.zfoldmonolayer = ZFoldMonoLayer(
+            anode=anode,
+            cathode=cathode,
+            separator=separator,
+            transverse=True,
+        )
+
+    def test_zfold_monolayer_basic(self):
+        """Test basic Z-fold monolayer functionality."""
+        self.assertTrue(isinstance(self.zfoldmonolayer, ZFoldMonoLayer))
+        self.assertTrue(isinstance(self.zfoldmonolayer, MonoLayer))
+        
+        # Check that separator lengths are constrained correctly
+        expected_bottom_length = (self.zfoldmonolayer.cathode.current_collector._x_body_length + 2*self.zfoldmonolayer._bottom_separator._thickness) * M_TO_MM
+        expected_top_length = (self.zfoldmonolayer.anode.current_collector._x_body_length + 2*self.zfoldmonolayer._top_separator._thickness) * M_TO_MM
+        
+        self.assertAlmostEqual(self.zfoldmonolayer._bottom_separator.length, expected_bottom_length, places=1)
+        self.assertAlmostEqual(self.zfoldmonolayer._top_separator.length, expected_top_length, places=1)
+
+        self.assertEqual(self.zfoldmonolayer.anode_overhangs, {'left': 2, 'right': 2, 'top': 2, 'bottom': 2})
+        self.assertEqual(self.zfoldmonolayer.separator_overhangs, {'top': 3, 'bottom': 3})
+
+        fig1 = self.zfoldmonolayer.get_top_down_view()
+        # fig1.show()
+
+    def test_zfold_no_left_right_overhangs(self):
+        """Test that left/right overhang properties are removed."""
+        # These properties should not exist
+        with self.assertRaises(AttributeError):
+            _ = self.zfoldmonolayer.bottom_separator_overhang_left
+        
+        with self.assertRaises(AttributeError):
+            _ = self.zfoldmonolayer.bottom_separator_overhang_right
+            
+        with self.assertRaises(AttributeError):
+            _ = self.zfoldmonolayer.top_separator_overhang_left
+            
+        with self.assertRaises(AttributeError):
+            _ = self.zfoldmonolayer.top_separator_overhang_right
+
+    def test_zfold_no_individual_separator_properties(self):
+        """Test that individual separator properties raise AttributeError."""
+        # Individual separator properties should not be accessible
+        with self.assertRaises(AttributeError):
+            _ = self.zfoldmonolayer.bottom_separator
+            
+        with self.assertRaises(AttributeError):
+            _ = self.zfoldmonolayer.top_separator
+
+    def test_zfold_no_individual_overhang_properties(self):
+        """Test that individual overhang properties raise AttributeError."""
+        # Individual overhang properties should not be accessible
+        with self.assertRaises(AttributeError):
+            _ = self.zfoldmonolayer.bottom_separator_overhang_bottom
+            
+        with self.assertRaises(AttributeError):
+            _ = self.zfoldmonolayer.bottom_separator_overhang_top
+            
+        with self.assertRaises(AttributeError):
+            _ = self.zfoldmonolayer.top_separator_overhang_bottom
+            
+        with self.assertRaises(AttributeError):
+            _ = self.zfoldmonolayer.top_separator_overhang_top
+
+    def test_zfold_left_right_overhangs_always_zero(self):
+        """Test that left/right overhangs are always zero in calculations."""
+        # Check internal calculations set left/right to zero
+        self.assertEqual(self.zfoldmonolayer._bottom_separator_overhang_left, 0.0)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator_overhang_right, 0.0)
+        self.assertEqual(self.zfoldmonolayer._top_separator_overhang_left, 0.0)
+        self.assertEqual(self.zfoldmonolayer._top_separator_overhang_right, 0.0)
+
+    def test_zfold_separator_setter_constraints(self):
+        """Test that separator setters maintain Z-fold length constraints."""
+        # Get original separator
+        original_separator = self.zfoldmonolayer.separator
+        
+        # Create new separator with different dimensions
+        new_separator = Separator(
+            material=original_separator.material,
+            thickness=15,  # Different thickness
+            width=350,     # Different width  
+            name="New Separator"
+        )
+        
+        # Set new separator via unified interface
+        self.zfoldmonolayer.separator = new_separator
+        
+        # Check that the separator was set correctly
+        self.assertEqual(self.zfoldmonolayer.separator.name, "New Separator")
+        self.assertEqual(self.zfoldmonolayer.separator.thickness, 15)
+        
+        # Length should be constrained by Z-fold geometry for both internal separators
+        # We can check via internal attributes since unified interface doesn't expose them
+        expected_bottom_length = (self.zfoldmonolayer.cathode.current_collector._x_body_length + 2*new_separator._thickness) * M_TO_MM
+        expected_top_length = (self.zfoldmonolayer.anode.current_collector._x_body_length + 2*new_separator._thickness) * M_TO_MM
+
+        self.assertAlmostEqual(self.zfoldmonolayer._bottom_separator.length, expected_bottom_length, places=1)
+        self.assertAlmostEqual(self.zfoldmonolayer._top_separator.length, expected_top_length, places=1)
+        
+        fig1 = self.zfoldmonolayer.get_top_down_view()
+        # fig1.show()
+
+    def test_zfold_anode_overhangs_still_work(self):
+        """Test that anode overhangs still work normally in Z-fold."""
+        self.zfoldmonolayer.overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
+        
+        # Set anode overhangs - should work normally
+        self.zfoldmonolayer.anode_overhang_left = 4.0
+        self.assertEqual(self.zfoldmonolayer.anode_overhang_left, 4.0)
+        self.assertEqual(self.zfoldmonolayer.anode_overhang_right, 0.0)
+        fig1 = self.zfoldmonolayer.get_top_down_view()
+        
+        self.zfoldmonolayer.anode_overhang_top = 4.0
+        self.assertEqual(self.zfoldmonolayer.anode_overhang_top, 4.0)
+        self.assertEqual(self.zfoldmonolayer.anode_overhang_bottom, 0.0)
+        fig2 = self.zfoldmonolayer.get_top_down_view()
+
+        # fig1.show()
+        # fig2.show()
+
+    def test_unified_separator_property(self):
+        """Test the unified separator property interface."""
+        # Get separator should return the bottom separator as canonical reference
+        separator = self.zfoldmonolayer.separator
+        self.assertEqual(separator, self.zfoldmonolayer._bottom_separator)
+        
+        # Test setting via unified interface
+        original_separator = self.zfoldmonolayer.separator
+        
+        # Create new separator
+        new_separator = Separator(
+            material=original_separator.material,
+            thickness=15,  # Different thickness
+            width=350,     # Different width  
+            name="New Z-Fold Separator"
+        )
+        
+        # Set via unified interface
+        self.zfoldmonolayer.separator = new_separator
+        
+        # Both separators should be updated with correct lengths
+        expected_bottom_length = (self.zfoldmonolayer.cathode.current_collector._x_body_length + 2*new_separator._thickness) * M_TO_MM
+        expected_top_length = (self.zfoldmonolayer.anode.current_collector._x_body_length + 2*new_separator._thickness) * M_TO_MM
+
+        self.assertAlmostEqual(self.zfoldmonolayer._bottom_separator.length, expected_bottom_length, places=1)
+        self.assertAlmostEqual(self.zfoldmonolayer._top_separator.length, expected_top_length, places=1)
+        self.assertEqual(self.zfoldmonolayer.separator.name, "New Z-Fold Separator")
+
+        fig1 = self.zfoldmonolayer.get_top_down_view()
+        # fig1.show()
+
+    def test_unified_separator_overhang_properties_fixed_component(self):
+        """Test the unified separator overhang properties."""
+        self.zfoldmonolayer.overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
+        
+        # Test unified bottom overhang
+        self.zfoldmonolayer.separator_overhang_bottom = 6.0
+        self.assertEqual(self.zfoldmonolayer.separator_overhang_bottom, 6.0)
+        self.assertEqual(self.zfoldmonolayer.separator_overhang_top, 0.0)
+        
+        # Test unified top overhang
+        self.zfoldmonolayer.separator_overhang_top = 6.0
+        self.assertEqual(self.zfoldmonolayer.separator_overhang_top, 6.0)
+        self.assertEqual(self.zfoldmonolayer.separator_overhang_bottom, 0.0)
+
+        fig1 = self.zfoldmonolayer.get_top_down_view()
+        # fig1.show()
+
+    def test_unified_separator_overhang_properties_fixed_overhangs(self):
+        """Test the unified separator overhang properties."""
+        self.zfoldmonolayer.overhang_control_mode = OverhangControlMode.FIXED_OVERHANGS
+
+        # Test unified bottom overhang
+        self.zfoldmonolayer.separator_overhang_bottom = 6.0
+        self.assertEqual(self.zfoldmonolayer.separator_overhang_bottom, 6.0)
+        self.assertEqual(self.zfoldmonolayer.separator_overhang_top, 3.0)
+        
+        # Test unified top overhang
+        self.zfoldmonolayer.separator_overhang_top = 6.0
+        self.assertEqual(self.zfoldmonolayer.separator_overhang_top, 6.0)
+        self.assertEqual(self.zfoldmonolayer.separator_overhang_bottom, 6.0)
+
+        fig1 = self.zfoldmonolayer.get_top_down_view()
+        # fig1.show()
+
+if __name__ == '__main__':
+    unittest.main()
