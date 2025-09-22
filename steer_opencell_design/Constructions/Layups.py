@@ -385,16 +385,14 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
                 scaleanchor="y", 
                 title='', 
                 showticklabels=False,
-                range=x_bounds,
-                fixedrange=True
+                range=x_bounds
             ),
             yaxis=dict(
                 showgrid=False, 
                 zeroline=False, 
                 title='', 
                 showticklabels=False,
-                range=y_bounds,
-                fixedrange=True
+                range=y_bounds
             ),
             paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
             plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),

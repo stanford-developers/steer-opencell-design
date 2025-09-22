@@ -127,7 +127,7 @@ class TestSimpleLaminate(unittest.TestCase):
 
         # fig1.show()
         # fig2.show()
-        # fig3.show()
+        fig3.show()
 
     def test_change_anode_material(self):
 
