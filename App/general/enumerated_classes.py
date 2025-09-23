@@ -86,8 +86,16 @@ class MaterialType(Enum):
     CONDUCTIVE_ADDITIVE = 'conductive_additive'
     CATHODE_ACTIVE_MATERIAL = 'cathode_active_material'
     ANODE_ACTIVE_MATERIAL = 'anode_active_material'
+    SEPARATOR_MATERIAL = 'separator_material'
 
 class FormulationType(Enum):
     CATHODE = 'cathode_formulation'
     ANODE = 'anode_formulation'
 
+class LayupType(Enum):
+    LAMINATE = 'laminate'
+    MONOLAYER = 'monolayer'
+    ZFOLDMONOLAYER = 'zfoldmonolayer'
+    GENERIC = 'generic'
+
+    

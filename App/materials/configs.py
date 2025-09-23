@@ -13,6 +13,8 @@ from steer_materials.CellMaterials.Electrode import (
     AnodeMaterial
 )
 
+from steer_materials.CellMaterials.Base import SeparatorMaterial
+
 from App.general.enumerated_classes import (
     MaterialType
 )
@@ -27,11 +29,6 @@ from App.materials.lists import (
 from steer_core.Apps.Components.MaterialSelectors import (
     MaterialSelector,
     ActiveMaterialSelector
-)
-
-from App.database_service import (
-    BINDER_MATERIALS,
-    CONDUCTIVE_ADDITIVE_MATERIALS,
 )
 
 @dataclass
@@ -92,7 +89,6 @@ MATERIAL_CONFIGS = {
         cell_path=['anode', 'current_collector', 'weld_tab', 'material'],
         dropdown_menu=True
     ),
-
     MaterialType.BINDER: MaterialConfig(
         material_type=Binder,
         parameter_list=REGULAR_PARAMETER_LIST,
@@ -118,6 +114,13 @@ MATERIAL_CONFIGS = {
         parameter_list=ACTIVE_PARAMETER_LIST,
         settable_parameters=ACTIVE_SETTABLE_PARAMETERS,
         custom_selector=ActiveMaterialSelector,
+    ),
+    MaterialType.SEPARATOR_MATERIAL: MaterialConfig(
+        material_type=SeparatorMaterial,
+        parameter_list=REGULAR_PARAMETER_LIST,
+        settable_parameters=REGULAR_SETTABLE_PARAMETERS,
+        cell_path=['separator', 'material'],
+        dropdown_menu=True
     ),
 }
 

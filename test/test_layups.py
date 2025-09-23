@@ -82,7 +82,7 @@ class TestSimpleLaminate(unittest.TestCase):
 
         anode = Anode(
             formulation=formulation,
-            mass_loading=10.68,
+            mass_loading=3.68,
             current_collector=current_collector,
             calender_density=2.60,
             insulation_material=insulation,
@@ -124,10 +124,12 @@ class TestSimpleLaminate(unittest.TestCase):
         fig1 = self.layup.anode._get_full_top_down_view()
         fig2 = self.layup.cathode._get_full_top_down_view()
         fig3 = self.layup.get_top_down_view(opacity=0.2)
+        fig4 = self.layup.get_areal_capacity_plot()
 
         # fig1.show()
         # fig2.show()
-        fig3.show()
+        # fig3.show()
+        # fig4.show()
 
     def test_change_anode_material(self):
 
@@ -301,6 +303,14 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.assertEqual(self.monolayer.anode_overhangs, {'left': 2, 'right': 2, 'top': 2, 'bottom': 2})
         self.assertEqual(self.monolayer.bottom_separator_overhangs, {'left': 5, 'right': 5, 'top': 3, 'bottom': 3})
         self.assertEqual(self.monolayer.top_separator_overhangs, {'left': 5, 'right': 5, 'top': 3, 'bottom': 3})
+
+        fig1 = self.monolayer.get_top_down_view(opacity=0.2)
+
+        self.monolayer.transverse = False
+        fig2 = self.monolayer.get_top_down_view(opacity=0.2)
+
+        # fig1.show()
+        # fig2.show()
 
     def test_plots(self):
         fig1 = self.monolayer.get_top_down_view(opacity=0.2)
