@@ -6,9 +6,15 @@ clientside_callback(
         return slider_value;
     }
     """,
-    Output({'electrode': MATCH, 'object': MATCH, 'property': MATCH, 'subtype': 'input'}, 'value'),
-    Input({'electrode': MATCH, 'object': MATCH, 'property': MATCH, 'subtype': 'slider'}, 'drag_value'),
-    prevent_initial_call=True
+    Output(
+        {"electrode": MATCH, "object": MATCH, "property": MATCH, "subtype": "input"},
+        "value",
+    ),
+    Input(
+        {"electrode": MATCH, "object": MATCH, "property": MATCH, "subtype": "slider"},
+        "drag_value",
+    ),
+    prevent_initial_call=True,
 )
 
 
@@ -18,9 +24,9 @@ clientside_callback(
         return slider_value;
     }
     """,
-    Output({'object': MATCH, 'property': MATCH, 'subtype': 'input'}, 'value'),
-    Input({'object': MATCH, 'property': MATCH, 'subtype': 'slider'}, 'drag_value'),
-    prevent_initial_call=True
+    Output({"object": MATCH, "property": MATCH, "subtype": "input"}, "value"),
+    Input({"object": MATCH, "property": MATCH, "subtype": "slider"}, "drag_value"),
+    prevent_initial_call=True,
 )
 
 clientside_callback(
@@ -29,12 +35,32 @@ clientside_callback(
         return slider_value;
     }
     """,
-    Output({'electrode': MATCH, 'object': MATCH, 'material': MATCH, 'property': MATCH, 'index': MATCH, 'subtype': 'input'}, 'value'),
-    Input({'electrode': MATCH, 'object': MATCH, 'property': MATCH, 'index': MATCH, 'material': MATCH, 'subtype': 'slider'}, 'drag_value'),
-    prevent_initial_call=True
+    Output(
+        {
+            "electrode": MATCH,
+            "object": MATCH,
+            "material": MATCH,
+            "property": MATCH,
+            "index": MATCH,
+            "subtype": "input",
+        },
+        "value",
+    ),
+    Input(
+        {
+            "electrode": MATCH,
+            "object": MATCH,
+            "property": MATCH,
+            "index": MATCH,
+            "material": MATCH,
+            "subtype": "slider",
+        },
+        "drag_value",
+    ),
+    prevent_initial_call=True,
 )
 
-# Rangeslider callback 
+# Rangeslider callback
 clientside_callback(
     """
     function(rangeslider_values) {
@@ -45,9 +71,33 @@ clientside_callback(
     }
     """,
     [
-        Output({'electrode': MATCH, 'object': MATCH, 'property': MATCH, 'subtype': 'input_start'}, 'value'),
-        Output({'electrode': MATCH, 'object': MATCH, 'property': MATCH, 'subtype': 'input_end'}, 'value')
+        Output(
+            {
+                "electrode": MATCH,
+                "object": MATCH,
+                "property": MATCH,
+                "subtype": "input_start",
+            },
+            "value",
+        ),
+        Output(
+            {
+                "electrode": MATCH,
+                "object": MATCH,
+                "property": MATCH,
+                "subtype": "input_end",
+            },
+            "value",
+        ),
     ],
-    Input({'electrode': MATCH, 'object': MATCH, 'property': MATCH, 'subtype': 'rangeslider'}, 'drag_value'),
-    prevent_initial_call=True
+    Input(
+        {
+            "electrode": MATCH,
+            "object": MATCH,
+            "property": MATCH,
+            "subtype": "rangeslider",
+        },
+        "drag_value",
+    ),
+    prevent_initial_call=True,
 )

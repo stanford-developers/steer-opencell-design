@@ -2,19 +2,38 @@ from copy import deepcopy
 import unittest
 import plotly.graph_objects as go
 
-from steer_opencell_design.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation
-from steer_opencell_design.Components.Electrodes import Cathode, Anode, ElectrodeControlMode
-from steer_opencell_design.Components.CurrentCollectors import NotchedCurrentCollector, WeldTab, TabWeldedCurrentCollector, PunchedCurrentCollector, TablessCurrentCollector
+from steer_opencell_design.Formulations.ElectrodeFormulations import (
+    CathodeFormulation,
+    AnodeFormulation,
+)
+from steer_opencell_design.Components.Electrodes import (
+    Cathode,
+    Anode,
+    ElectrodeControlMode,
+)
+from steer_opencell_design.Components.CurrentCollectors import (
+    NotchedCurrentCollector,
+    WeldTab,
+    TabWeldedCurrentCollector,
+    PunchedCurrentCollector,
+    TablessCurrentCollector,
+)
 
-from steer_materials.CellMaterials.Base import CurrentCollectorMaterial, InsulationMaterial
-from steer_materials.CellMaterials.Electrode import CathodeMaterial, AnodeMaterial, Binder, ConductiveAdditive
+from steer_materials.CellMaterials.Base import (
+    CurrentCollectorMaterial,
+    InsulationMaterial,
+)
+from steer_materials.CellMaterials.Electrode import (
+    CathodeMaterial,
+    AnodeMaterial,
+    Binder,
+    ConductiveAdditive,
+)
 
 
 class TestAnodeNoInsulation(unittest.TestCase):
-
     def setUp(self):
-        
-        current_collector_material = CurrentCollectorMaterial.from_database('Aluminum')
+        current_collector_material = CurrentCollectorMaterial.from_database("Aluminum")
         conductive_additive = ConductiveAdditive.from_database("Super P")
         binder = Binder.from_database("PVDF")
 
@@ -23,7 +42,7 @@ class TestAnodeNoInsulation(unittest.TestCase):
             width=132,
             length=2427,
             coated_width=127,
-            thickness=13
+            thickness=13,
         )
 
         anode_active_material = AnodeMaterial.from_database("Hard Carbon (Vendor A)")
@@ -31,14 +50,14 @@ class TestAnodeNoInsulation(unittest.TestCase):
         anode_formulation = AnodeFormulation(
             active_materials={anode_active_material: 95},
             binders={binder: 2.5},
-            conductive_additives={conductive_additive: 2.5}
+            conductive_additives={conductive_additive: 2.5},
         )
 
         self.anode = Anode(
             formulation=anode_formulation,
             current_collector=anode_current_collector,
             calender_density=1.03,
-            mass_loading=8.35
+            mass_loading=8.35,
         )
 
     def test_electrodes(self):
@@ -46,7 +65,6 @@ class TestAnodeNoInsulation(unittest.TestCase):
 
 
 class TestCathodePunchedCurrentCollector(unittest.TestCase):
-
     def setUp(self):
         """
         Set up
@@ -59,16 +77,10 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
 
         formulation = CathodeFormulation(
             active_materials={
-                active_material1: 90, 
+                active_material1: 90,
             },
-            binders={
-                binder1: 3, 
-                binder2: 2
-            },
-            conductive_additives={
-                conductive_additive1: 3, 
-                conductive_additive2: 2
-            }
+            binders={binder1: 3, binder2: 2},
+            conductive_additives={conductive_additive1: 3, conductive_additive2: 2},
         )
 
         cc_material = CurrentCollectorMaterial.from_database("Aluminum")
@@ -82,7 +94,7 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
             tab_height=30,
             tab_position=50,
             coated_tab_height=3,
-            insulation_width=10
+            insulation_width=10,
         )
 
         insulation = InsulationMaterial.from_database("Aluminium Oxide, 95%")
@@ -93,43 +105,44 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
             current_collector=current_collector,
             calender_density=2.60,
             insulation_material=insulation,
-            insulation_thickness=25
+            insulation_thickness=25,
         )
-        
-    def test_electrodes(self):
 
+    def test_electrodes(self):
         self.assertTrue(isinstance(self.cathode, Cathode))
-        self.assertTrue(isinstance(self.cathode.current_collector, PunchedCurrentCollector))
+        self.assertTrue(
+            isinstance(self.cathode.current_collector, PunchedCurrentCollector)
+        )
         self.assertTrue(isinstance(self.cathode.formulation, CathodeFormulation))
 
         self.assertEqual(
-            self.cathode.mass_breakdown, 
+            self.cathode.mass_breakdown,
             {
-                'Cathode Formulation': {
-                    'NaNiMn P2-O3 Composite': 16.7, 
-                    'PVDF': 0.23, 
-                    'CMC': 0.13, 
-                    'Super P': 0.25, 
-                    'Graphite': 0.19
+                "Cathode Formulation": {
+                    "NaNiMn P2-O3 Composite": 16.7,
+                    "PVDF": 0.23,
+                    "CMC": 0.13,
+                    "Super P": 0.25,
+                    "Graphite": 0.19,
                 },
-                'Punched Current Collector': 2.77,
-                'Aluminium Oxide, 95%': 0.41
-            }
+                "Punched Current Collector": 2.77,
+                "Aluminium Oxide, 95%": 0.41,
+            },
         )
 
         self.assertEqual(
             self.cathode.cost_breakdown,
             {
-                'Cathode Formulation': {
-                    'NaNiMn P2-O3 Composite': 0.17, 
-                    'PVDF': 0.01, 
-                    'CMC': 0.0, 
-                    'Super P': 0.01, 
-                    'Graphite': 0.0
+                "Cathode Formulation": {
+                    "NaNiMn P2-O3 Composite": 0.17,
+                    "PVDF": 0.01,
+                    "CMC": 0.0,
+                    "Super P": 0.01,
+                    "Graphite": 0.0,
                 },
-                'Punched Current Collector': 0.03,
-                'Aluminium Oxide, 95%': 0.0
-            }
+                "Punched Current Collector": 0.03,
+                "Aluminium Oxide, 95%": 0.0,
+            },
         )
 
         def sum_nested_dict(data):
@@ -142,8 +155,12 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
                     total += value
             return total
 
-        self.assertAlmostEqual(self.cathode._cost, sum_nested_dict(self.cathode._cost_breakdown), 5)
-        self.assertAlmostEqual(self.cathode._mass, sum_nested_dict(self.cathode._mass_breakdown), 5)
+        self.assertAlmostEqual(
+            self.cathode._cost, sum_nested_dict(self.cathode._cost_breakdown), 5
+        )
+        self.assertAlmostEqual(
+            self.cathode._mass, sum_nested_dict(self.cathode._mass_breakdown), 5
+        )
 
         self.assertEqual(self.cathode.calender_density, 2.60)
         self.assertEqual(self.cathode.mass_loading, 10.68)
@@ -153,27 +170,24 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         self.assertEqual(self.cathode.mass, 20.67)
 
     def test_breakdown_plots(self):
-
-        plot_cost = self.cathode.plot_cost_breakdown(title='Cost Breakdown Plot')
-        plot_mass = self.cathode.plot_mass_breakdown(title='Mass Breakdown Plot')
+        plot_cost = self.cathode.plot_cost_breakdown(title="Cost Breakdown Plot")
+        plot_mass = self.cathode.plot_mass_breakdown(title="Mass Breakdown Plot")
         # plot_cost.show()
         # plot_mass.show()
 
     def test_half_cell_curve(self):
-
-        self.cathode.voltage_cutoff = 4.
+        self.cathode.voltage_cutoff = 4.0
         figure = self.cathode.plot_half_cell_curve(areal=True)
         # figure.show()
 
     def test_views(self):
-
         figure0 = self.cathode._get_full_top_down_view()
         figure1 = self.cathode.get_top_down_view()
         figure2 = self.cathode.get_a_side_view()
         figure3 = self.cathode.get_b_side_view()
         figure4 = self.cathode._get_full_right_left_view()
         figure5 = self.cathode.get_cross_section()
-        
+
         # figure0.show()
         # figure1.show()
         # figure2.show()
@@ -182,11 +196,10 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         # figure5.show()
 
     def test_flip(self):
-
         figure1 = self.cathode._get_full_top_down_view()
-        self.cathode._flip('x')
+        self.cathode._flip("x")
         figure2 = self.cathode._get_full_top_down_view()
-        self.cathode._flip('y')
+        self.cathode._flip("y")
         figure3 = self.cathode._get_full_top_down_view()
 
         # figure1.show()
@@ -194,13 +207,12 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         # figure3.show()
 
     def test_datum_setter(self):
-
         figure1 = self.cathode._get_full_top_down_view()
-        
+
         new_datum = (
             self.cathode._current_collector.x_body_length,
             self.cathode._current_collector.y_body_length,
-            self.cathode._thickness * 1e3
+            self.cathode._thickness * 1e3,
         )
 
         self.cathode.datum = new_datum
@@ -208,14 +220,13 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         figure2 = self.cathode._get_full_top_down_view()
 
         figure_top = go.Figure(data=figure1.data + figure2.data)
-        
+
         # figure_top.show()
 
     def test_flip_and_setter(self):
-
         fig1 = self.cathode._get_full_top_down_view()
 
-        self.cathode._flip('y')
+        self.cathode._flip("y")
         fig2 = self.cathode._get_full_top_down_view()
 
         current_collector = deepcopy(self.cathode.current_collector)
@@ -229,9 +240,7 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
 
 
 class TestCathodeTwoMaterialNotched(unittest.TestCase):
-
     def setUp(self):
-        
         material1 = CathodeMaterial.from_database("LFP")
         material2 = CathodeMaterial.from_database("NMC811")
         material2.extrapolation_window = 0.5
@@ -240,16 +249,9 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
         binder = Binder.from_database("PVDF")
 
         formulation = CathodeFormulation(
-            active_materials={
-                material1: 67, 
-                material2: 28
-            },
-            binders={
-                binder: 2
-            },
-            conductive_additives={
-                conductive_additive: 3
-            }
+            active_materials={material1: 67, material2: 28},
+            binders={binder: 2},
+            conductive_additives={conductive_additive: 3},
         )
 
         current_collector_material = CurrentCollectorMaterial.from_database("Copper")
@@ -263,7 +265,7 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
             tab_spacing=200,
             tab_height=18,
             insulation_width=6,
-            coated_tab_height=2
+            coated_tab_height=2,
         )
 
         insulation = InsulationMaterial.from_database("Aluminium Oxide, 99.5%")
@@ -274,39 +276,40 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
             current_collector=current_collector,
             calender_density=2.60,
             insulation_material=insulation,
-            insulation_thickness=10
+            insulation_thickness=10,
         )
 
         self.cathode.voltage_cutoff = 4.1
 
     def test_electrodes(self):
-        
         self.assertTrue(isinstance(self.cathode, Cathode))
 
         self.assertTrue(
             self.cathode.mass_breakdown,
             {
-                'cathode_formulation': {
-                    'LFP': 103.43, 
-                    'NMC811': 57.63, 
-                    'PVDF': 1.53, 
-                    'Super P': 2.57}, 
-                'notched_current_collector': 106.21, 
-                'aluminium_oxide_99.5%': 1.6
-            }
+                "cathode_formulation": {
+                    "LFP": 103.43,
+                    "NMC811": 57.63,
+                    "PVDF": 1.53,
+                    "Super P": 2.57,
+                },
+                "notched_current_collector": 106.21,
+                "aluminium_oxide_99.5%": 1.6,
+            },
         )
 
         self.assertTrue(
             self.cathode.cost_breakdown,
             {
-                'cathode_formulation': {
-                    'LFP': 0.66, 
-                    'NMC811': 1.16, 
-                    'PVDF': 0.31, 
-                    'Super P': 0.07}, 
-                'notched_current_collector': 0.64, 
-                'aluminium_oxide_99.5%': 0.0
-            }
+                "cathode_formulation": {
+                    "LFP": 0.66,
+                    "NMC811": 1.16,
+                    "PVDF": 0.31,
+                    "Super P": 0.07,
+                },
+                "notched_current_collector": 0.64,
+                "aluminium_oxide_99.5%": 0.0,
+            },
         )
 
         def sum_nested_dict(data):
@@ -319,8 +322,12 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
                     total += value
             return total
 
-        self.assertAlmostEqual(self.cathode._cost, sum_nested_dict(self.cathode._cost_breakdown), 5)
-        self.assertAlmostEqual(self.cathode._mass, sum_nested_dict(self.cathode._mass_breakdown), 5)
+        self.assertAlmostEqual(
+            self.cathode._cost, sum_nested_dict(self.cathode._cost_breakdown), 5
+        )
+        self.assertAlmostEqual(
+            self.cathode._mass, sum_nested_dict(self.cathode._mass_breakdown), 5
+        )
 
     def test_half_cell_curve(self):
         figure1 = self.cathode.plot_half_cell_curve(areal=False)
@@ -336,33 +343,20 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
 
 
 class testAnodeTabWelded(unittest.TestCase):
-
     def setUp(self):
-        
         active_material = AnodeMaterial.from_database("Synthetic Graphite")
         conductive_additive = ConductiveAdditive.from_database("Super P")
         binder = Binder.from_database("CMC")
 
         formulation = AnodeFormulation(
-            active_materials={
-                active_material: 90
-            },
-            binders={
-                binder: 5
-            },
-            conductive_additives={
-                conductive_additive: 5
-            }
+            active_materials={active_material: 90},
+            binders={binder: 5},
+            conductive_additives={conductive_additive: 5},
         )
 
         tab_material = CurrentCollectorMaterial.from_database("Copper")
 
-        tab = WeldTab(
-            material=tab_material,
-            width=10,
-            length=110,
-            thickness=10
-        )
+        tab = WeldTab(material=tab_material, width=10, length=110, thickness=10)
 
         cc_material = CurrentCollectorMaterial.from_database("Copper")
 
@@ -375,45 +369,46 @@ class testAnodeTabWelded(unittest.TestCase):
             weld_tab_positions=[40, 400, 2800],
             skip_coat_width=30,
             tab_overhang=30,
-            tab_weld_side='a'
+            tab_weld_side="a",
         )
 
         self.anode = Anode(
             formulation=formulation,
             mass_loading=10.68,
             current_collector=current_collector,
-            calender_density=2.60
+            calender_density=2.60,
         )
 
         self.anode.voltage_cutoff = 0.02
 
     def test_electrodes(self):
-
         self.assertTrue(isinstance(self.anode, Anode))
-        self.assertTrue(isinstance(self.anode.current_collector, TabWeldedCurrentCollector))
+        self.assertTrue(
+            isinstance(self.anode.current_collector, TabWeldedCurrentCollector)
+        )
         self.assertTrue(isinstance(self.anode.formulation, AnodeFormulation))
 
         self.assertEqual(
-            self.anode.mass_breakdown, 
+            self.anode.mass_breakdown,
             {
-                'Anode Formulation': {
-                    'Synthetic Graphite': 97.73, 
-                    'CMC': 0.77, 
-                    'Super P': 0.96
+                "Anode Formulation": {
+                    "Synthetic Graphite": 97.73,
+                    "CMC": 0.77,
+                    "Super P": 0.96,
                 },
-                'Tab Welded Current Collector': 44.19
+                "Tab Welded Current Collector": 44.19,
             },
         )
 
         self.assertEqual(
             self.anode.cost_breakdown,
             {
-                'Anode Formulation': {
-                    'Synthetic Graphite': 0.22, 
-                    'CMC': 0.01, 
-                    'Super P': 0.07
+                "Anode Formulation": {
+                    "Synthetic Graphite": 0.22,
+                    "CMC": 0.01,
+                    "Super P": 0.07,
                 },
-                'Tab Welded Current Collector': 0.81
+                "Tab Welded Current Collector": 0.81,
             },
         )
 
@@ -427,11 +422,14 @@ class testAnodeTabWelded(unittest.TestCase):
                     total += value
             return total
 
-        self.assertAlmostEqual(self.anode._cost, sum_nested_dict(self.anode._cost_breakdown), 5)
-        self.assertAlmostEqual(self.anode._mass, sum_nested_dict(self.anode._mass_breakdown), 5)
+        self.assertAlmostEqual(
+            self.anode._cost, sum_nested_dict(self.anode._cost_breakdown), 5
+        )
+        self.assertAlmostEqual(
+            self.anode._mass, sum_nested_dict(self.anode._mass_breakdown), 5
+        )
 
     def test_half_cell_curve(self):
-
         figure1 = self.anode.plot_half_cell_curve(areal=False)
         figure2 = self.anode.plot_half_cell_curve(areal=True)
 
@@ -439,7 +437,6 @@ class testAnodeTabWelded(unittest.TestCase):
         # figure2.show()
 
     def test_views(self):
-
         figure1 = self.anode.get_a_side_view()
         figure2 = self.anode.get_b_side_view()
         figure3 = self.anode._get_full_top_down_view()
@@ -462,7 +459,7 @@ class TestElectrodeControlModes(unittest.TestCase):
         self.formulation = CathodeFormulation(
             active_materials={active_material: 90},
             binders={binder: 5},
-            conductive_additives={conductive_additive: 5}
+            conductive_additives={conductive_additive: 5},
         )
 
         cc_material = CurrentCollectorMaterial.from_database("Aluminum")
@@ -476,7 +473,7 @@ class TestElectrodeControlModes(unittest.TestCase):
             tab_height=30,
             tab_position=50,
             coated_tab_height=3,
-            insulation_width=0  # No insulation to avoid database dependency
+            insulation_width=0,  # No insulation to avoid database dependency
         )
 
         # Create test electrode with known initial values
@@ -484,161 +481,189 @@ class TestElectrodeControlModes(unittest.TestCase):
             formulation=self.formulation,
             mass_loading=20.0,  # mg/cm²
             current_collector=self.current_collector,
-            calender_density=2.5  # g/cm³
+            calender_density=2.5,  # g/cm³
         )
 
     def test_default_control_mode(self):
         """Test that default control mode is MAINTAIN_CALENDER_DENSITY."""
         from steer_opencell_design.Components.Electrodes import ElectrodeControlMode
-        
-        self.assertEqual(self.cathode._control_mode, ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY)
-        
+
+        self.assertEqual(
+            self.cathode._control_mode, ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY
+        )
+
         # Test default behavior - coating thickness change should adjust mass loading
         initial_calender_density = self.cathode.calender_density
         initial_coating_thickness = self.cathode.coating_thickness
         initial_mass_loading = self.cathode.mass_loading
-        
+
         # Change coating thickness
         new_coating_thickness = initial_coating_thickness * 1.2
         self.cathode.coating_thickness = new_coating_thickness
-        
+
         # Calender density should remain the same (within tolerance)
-        self.assertAlmostEqual(self.cathode.calender_density, initial_calender_density, places=6)
-        
+        self.assertAlmostEqual(
+            self.cathode.calender_density, initial_calender_density, places=6
+        )
+
         # Mass loading should have changed proportionally
         expected_mass_loading = initial_mass_loading * 1.2
-        self.assertAlmostEqual(self.cathode.mass_loading, expected_mass_loading, places=2)
+        self.assertAlmostEqual(
+            self.cathode.mass_loading, expected_mass_loading, places=2
+        )
 
     def test_maintain_mass_loading_mode(self):
         """Test MAINTAIN_MASS_LOADING control mode."""
         from steer_opencell_design.Components.Electrodes import ElectrodeControlMode
-        
+
         # Switch to maintain mass loading mode
         self.cathode.control_mode = ElectrodeControlMode.MAINTAIN_MASS_LOADING
 
         initial_mass_loading = self.cathode.mass_loading
         initial_coating_thickness = self.cathode.coating_thickness
         initial_calender_density = self.cathode.calender_density
-        
+
         # Test 1: Change coating thickness -> should adjust calender density
         new_coating_thickness = initial_coating_thickness * 1.5
         self.cathode.coating_thickness = new_coating_thickness
-        
+
         # Mass loading should remain the same
-        self.assertAlmostEqual(self.cathode.mass_loading, initial_mass_loading, places=6)
-        
+        self.assertAlmostEqual(
+            self.cathode.mass_loading, initial_mass_loading, places=6
+        )
+
         # Calender density should have changed
         expected_calender_density = initial_calender_density / 1.5
-        self.assertAlmostEqual(self.cathode.calender_density, expected_calender_density, places=2)
-        
+        self.assertAlmostEqual(
+            self.cathode.calender_density, expected_calender_density, places=2
+        )
+
         # Test 2: Change calender density -> should adjust coating thickness
         current_coating_thickness = self.cathode.coating_thickness
         new_calender_density = self.cathode.calender_density * 1.3
         self.cathode.calender_density = new_calender_density
-        
+
         # Mass loading should remain the same
-        self.assertAlmostEqual(self.cathode.mass_loading, initial_mass_loading, places=6)
-        
+        self.assertAlmostEqual(
+            self.cathode.mass_loading, initial_mass_loading, places=6
+        )
+
         # Coating thickness should have changed
         expected_coating_thickness = current_coating_thickness / 1.3
-        self.assertAlmostEqual(self.cathode.coating_thickness, expected_coating_thickness, delta=0.5)
+        self.assertAlmostEqual(
+            self.cathode.coating_thickness, expected_coating_thickness, delta=0.5
+        )
 
     def test_maintain_coating_thickness_mode(self):
         """Test MAINTAIN_COATING_THICKNESS control mode."""
         from steer_opencell_design.Components.Electrodes import ElectrodeControlMode
-        
+
         # Switch to maintain coating thickness mode
         self.cathode.control_mode = ElectrodeControlMode.MAINTAIN_COATING_THICKNESS
 
         initial_mass_loading = self.cathode.mass_loading
         initial_coating_thickness = self.cathode.coating_thickness
         initial_calender_density = self.cathode.calender_density
-        
+
         # Test 1: Change mass loading -> should adjust calender density
         new_mass_loading = initial_mass_loading * 1.4
         self.cathode.mass_loading = new_mass_loading
-        
+
         # Coating thickness should remain the same
-        self.assertAlmostEqual(self.cathode.coating_thickness, initial_coating_thickness, places=6)
-        
+        self.assertAlmostEqual(
+            self.cathode.coating_thickness, initial_coating_thickness, places=6
+        )
+
         # Calender density should have changed
         expected_calender_density = initial_calender_density * 1.4
-        self.assertAlmostEqual(self.cathode.calender_density, expected_calender_density, places=4)
-        
+        self.assertAlmostEqual(
+            self.cathode.calender_density, expected_calender_density, places=4
+        )
+
         # Test 2: Change calender density -> should adjust mass loading
         current_mass_loading = self.cathode.mass_loading
         new_calender_density = self.cathode.calender_density * 0.8
         self.cathode.calender_density = new_calender_density
-        
+
         # Coating thickness should remain the same
-        self.assertAlmostEqual(self.cathode.coating_thickness, initial_coating_thickness, places=6)
-        
+        self.assertAlmostEqual(
+            self.cathode.coating_thickness, initial_coating_thickness, places=6
+        )
+
         # Mass loading should have changed
         expected_mass_loading = current_mass_loading * 0.8
-        self.assertAlmostEqual(self.cathode.mass_loading, expected_mass_loading, places=2)
+        self.assertAlmostEqual(
+            self.cathode.mass_loading, expected_mass_loading, places=2
+        )
 
     def test_coating_thickness_setter_with_maintain_coating_thickness_mode(self):
         """Test that coating thickness setter works correctly in MAINTAIN_COATING_THICKNESS mode."""
         from steer_opencell_design.Components.Electrodes import ElectrodeControlMode
-        
+
         # Set up electrode in MAINTAIN_COATING_THICKNESS mode
         self.cathode.control_mode = ElectrodeControlMode.MAINTAIN_COATING_THICKNESS
-        
+
         # Get initial values
         initial_coating_thickness = self.cathode.coating_thickness
         initial_mass_loading = self.cathode.mass_loading
         initial_calender_density = self.cathode.calender_density
-        
+
         # Try to change coating thickness
         new_coating_thickness = initial_coating_thickness * 1.5
         self.cathode.coating_thickness = new_coating_thickness
-        
+
         # Coating thickness should have changed
-        self.assertAlmostEqual(self.cathode.coating_thickness, new_coating_thickness, places=1)
-        
-        # In MAINTAIN_COATING_THICKNESS mode, neither mass loading nor calender density 
+        self.assertAlmostEqual(
+            self.cathode.coating_thickness, new_coating_thickness, places=1
+        )
+
+        # In MAINTAIN_COATING_THICKNESS mode, neither mass loading nor calender density
         # should automatically adjust to this change - it should be an independent setting
         # (though the physics relationship may be temporarily broken)
-        
+
         # At minimum, the coating thickness should actually be set to the new value
         self.assertNotEqual(self.cathode.coating_thickness, initial_coating_thickness)
 
     def test_coating_thickness_setter_in_other_modes(self):
         """Test that coating thickness setter still works correctly in other control modes."""
         from steer_opencell_design.Components.Electrodes import ElectrodeControlMode
-        
+
         # Test MAINTAIN_CALENDER_DENSITY mode (default)
-        self.cathode.control_mode = (ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY)
-        
+        self.cathode.control_mode = ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY
+
         initial_coating_thickness = self.cathode.coating_thickness
         initial_calender_density = self.cathode.calender_density
-        
+
         # Change coating thickness
         new_coating_thickness = initial_coating_thickness * 1.2
         self.cathode.coating_thickness = new_coating_thickness
-        
+
         # Coating thickness should change
-        self.assertAlmostEqual(self.cathode.coating_thickness, new_coating_thickness, places=1)
-        
+        self.assertAlmostEqual(
+            self.cathode.coating_thickness, new_coating_thickness, places=1
+        )
+
         # Calender density should remain constant (within tolerance)
-        self.assertAlmostEqual(self.cathode.calender_density, initial_calender_density, places=5)
-        
+        self.assertAlmostEqual(
+            self.cathode.calender_density, initial_calender_density, places=5
+        )
+
         # Test MAINTAIN_MASS_LOADING mode
-        self.cathode.control_mode = (ElectrodeControlMode.MAINTAIN_MASS_LOADING)
-        
+        self.cathode.control_mode = ElectrodeControlMode.MAINTAIN_MASS_LOADING
+
         initial_mass_loading = self.cathode.mass_loading
         initial_coating_thickness = self.cathode.coating_thickness
-        
+
         # Change coating thickness
         new_coating_thickness_2 = initial_coating_thickness * 1.3
         self.cathode.coating_thickness = new_coating_thickness_2
-        
+
         # Coating thickness should change
-        self.assertAlmostEqual(self.cathode.coating_thickness, new_coating_thickness_2, places=1)
-        
+        self.assertAlmostEqual(
+            self.cathode.coating_thickness, new_coating_thickness_2, places=1
+        )
+
         # Mass loading should remain constant (within tolerance)
-        self.assertAlmostEqual(self.cathode.mass_loading, initial_mass_loading, places=5)
-
-
-
-
+        self.assertAlmostEqual(
+            self.cathode.mass_loading, initial_mass_loading, places=5
+        )

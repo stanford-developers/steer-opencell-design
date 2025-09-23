@@ -3,15 +3,13 @@ from dataclasses import dataclass
 from steer_opencell_design.Components.Electrodes import Cathode, Anode, _Electrode
 from App.general.enumerated_classes import ElectrodeType
 
-from App.electrodes.lists import (
-    ELECTRODE_PARAMETER_LIST,
-    ELECTRODE_SETTABLE_PARAMETERS
-)
+from App.electrodes.lists import ELECTRODE_PARAMETER_LIST, ELECTRODE_SETTABLE_PARAMETERS
 
 
 @dataclass
 class ElectrodeConfig:
     """Configuration for different current collector types."""
+
     electrode_type: Type
     parameter_list: List[str]
     settable_parameters: List[str]
@@ -24,13 +22,12 @@ ELECTRODE_CONFIGS = {
         electrode_type=Cathode,
         parameter_list=ELECTRODE_PARAMETER_LIST,
         settable_parameters=ELECTRODE_SETTABLE_PARAMETERS,
-        cell_path=['cathode']
+        cell_path=["cathode"],
     ),
     ElectrodeType.ANODE: ElectrodeConfig(
         electrode_type=Anode,
         parameter_list=ELECTRODE_PARAMETER_LIST,
         settable_parameters=ELECTRODE_SETTABLE_PARAMETERS,
-        cell_path=['anode']
+        cell_path=["anode"],
     ),
 }
-
