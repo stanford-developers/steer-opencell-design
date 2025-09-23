@@ -20,6 +20,7 @@ from App.general.callback_helpers import (
     [
         Output('cathode_tab', 'style'),
         Output('anode_tab', 'style'),
+        Output('layup_tab', 'style'),
         Output('electrode_assembly_tab', 'style'),
         Output('warnings_tab', 'style')
     ],
@@ -36,6 +37,7 @@ def show_main_tab_content(active_tab) -> List:
     return [
         active_style if active_tab == 'cathode' else styles,
         active_style if active_tab == 'anode' else styles,
+        active_style if active_tab == 'layup' else styles,
         active_style if active_tab == 'electrode_assembly' else styles,
         active_style if active_tab == 'warnings' else styles,
     ]

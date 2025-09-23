@@ -55,6 +55,7 @@ def create_material_callback(material_type: MaterialType) -> callable:
             return handle_cell_store_update(material, config, existing_warnings)
 
         elif trigger_type == TriggerType.COMPONENT_SELECTOR:
+            print(material_name)
             return handle_selector_update(material_name, cell, config, existing_warnings)
 
         elif trigger_type == TriggerType.PROPERTY:

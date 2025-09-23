@@ -42,7 +42,8 @@ def register_callbacks(app):
         'App.electrodes.callbacks',
         'App.materials.callbacks',
         'App.general.clientside_callbacks',
-        'App.formulations.callbacks'
+        'App.formulations.callbacks',
+        'App.layup.callbacks',
     ]
     
     for module_name in callback_modules:

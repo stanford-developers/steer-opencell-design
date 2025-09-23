@@ -9,6 +9,8 @@ from App.current_collectors.layouts import anode_current_collector_layout
 from App.formulations.layouts import anode_formulation_layout
 from App.electrodes.layouts import anode_electrode_layout
 
+from App.layup.layouts import layup_layout
+
 from App.electrode_assembly.layouts import electrode_assembly_layout
 
 from App.general.store import (
@@ -237,6 +239,7 @@ main_tabs = ds.html.Div(
             children=[
                 ds.dcc.Tab(label='Cathode', value='cathode', className='tab-style', selected_className='tab-selected-style'),
                 ds.dcc.Tab(label='Anode', value='anode', className='tab-style', selected_className='tab-selected-style'),
+                ds.dcc.Tab(label='Layup', value='layup', className='tab-style', selected_className='tab-selected-style'),
                 ds.dcc.Tab(label='Electrode Assembly', value='electrode_assembly', className='tab-style', selected_className='tab-selected-style'),
                 ds.dcc.Tab(label='Warnings', value='warnings', className='tab-style', selected_className='tab-selected-style')
             ],
@@ -245,6 +248,7 @@ main_tabs = ds.html.Div(
 
         ds.html.Div(id='cathode_tab', children=[cathode_tabs_div], style={'display': 'block'}),
         ds.html.Div(id='anode_tab', children=[anode_tabs_div], style={'display': 'none'}),
+        ds.html.Div(id='layup_tab', children=[layup_layout], style={'display': 'none'}),
         ds.html.Div(id='electrode_assembly_tab', children=[electrode_assembly_layout], style={'display': 'none'}),
         ds.html.Div(id='warnings_tab', children=[warnings], style={'display': 'none'}),
 

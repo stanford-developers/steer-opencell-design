@@ -368,3 +368,63 @@ def update_anode_current_collector_insulation_material(
 
 
 
+
+@callback(
+    [
+        Output('warnings_store', 'data', allow_duplicate=True),
+        Output('cell_store', 'data', allow_duplicate=True),
+
+        Output({'object': 'separator_material', 'property': ALL, 'subtype': 'slider'}, 'value'),
+        Output({'object': 'separator_material', 'property': ALL, 'subtype': 'slider'}, 'min'),
+        Output({'object': 'separator_material', 'property': ALL, 'subtype': 'slider'}, 'max'),
+        Output({'object': 'separator_material', 'property': ALL, 'subtype': 'slider'}, 'marks'),
+        Output({'object': 'separator_material', 'property': ALL, 'subtype': 'slider'}, 'step'),
+        Output({'object': 'separator_material', 'property': ALL, 'subtype': 'input'}, 'step'),
+
+        Output('separator_material_selector', 'value'),
+    ],
+    [
+        Input('layup_tab', 'style'),
+        Input('tabs_panel', 'style'),
+
+        Input('cell_store', 'data'),
+        
+        Input('separator_material_selector', 'value'),
+        Input({'object': 'separator_material', 'property': ALL, 'subtype': 'input'}, 'n_submit'),
+        Input({'object': 'separator_material', 'property': ALL, 'subtype': 'input'}, 'n_blur'),
+        Input({'object': 'separator_material', 'property': ALL, 'subtype': 'slider'}, 'value'),
+    ],
+    [
+        State({'object': 'separator_material', 'property': ALL, 'subtype': 'input'}, 'value'),
+        State('warnings_store', 'data'),
+    ],
+    prevent_initial_call=True
+)
+def update_separator_material(
+    
+    tabs_panel_style,
+    main_tabs_container_style,
+
+    cell_data,
+    
+    material_selector,
+    input_n_sub,
+    input_n_blur,
+    slider_values,
+    input_values,
+    existing_warnings
+
+):
+
+    callback_function = create_material_callback(MaterialType.SEPARATOR_MATERIAL)
+
+    response = callback_function(
+        existing_warnings,
+        cell_data,
+        material_selector,
+        input_values,
+        slider_values,
+        viewing_styles=[main_tabs_container_style, tabs_panel_style]
+    )
+
+    return response

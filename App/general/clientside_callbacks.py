@@ -18,6 +18,17 @@ clientside_callback(
         return slider_value;
     }
     """,
+    Output({'object': MATCH, 'property': MATCH, 'subtype': 'input'}, 'value'),
+    Input({'object': MATCH, 'property': MATCH, 'subtype': 'slider'}, 'drag_value'),
+    prevent_initial_call=True
+)
+
+clientside_callback(
+    """
+    function(slider_value) {
+        return slider_value;
+    }
+    """,
     Output({'electrode': MATCH, 'object': MATCH, 'material': MATCH, 'property': MATCH, 'index': MATCH, 'subtype': 'input'}, 'value'),
     Input({'electrode': MATCH, 'object': MATCH, 'property': MATCH, 'index': MATCH, 'material': MATCH, 'subtype': 'slider'}, 'drag_value'),
     prevent_initial_call=True

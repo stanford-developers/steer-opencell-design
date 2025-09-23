@@ -8,12 +8,16 @@ from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Mixins.Colors import ColorMixin
 
 from steer_core.Decorators.General import calculate_all_properties
+from steer_core.Decorators.Coordinates import calculate_volumes
+from steer_core.Decorators.Electrochemical import calculate_half_cell_curve, calculate_half_cell_curves_properties
 
 from App.styles import *
 from steer_core.Constants.Units import *
 
 from copy import copy, deepcopy
 import plotly.graph_objects as go
+import pandas as pd
+import numpy as np
 from typing import Tuple
 from enum import Enum
 
@@ -58,6 +62,7 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         self._update_properties = False
         
         self.overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
+
         self.cathode = cathode
         self.bottom_separator = bottom_separator
         self.anode = anode
@@ -68,6 +73,21 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         self._update_properties = True
 
     def _calculate_all_properties(self):
+        self._calculate_coordinates()
+        self._calculate_bulk_properties()
+        self._calculate_half_cell_curves()
+
+    def _calculate_bulk_properties(self):
+
+        # calculate thickness
+        self._thickness = (
+            self._cathode.thickness + 
+            self._bottom_separator.thickness + 
+            self._anode.thickness + 
+            self._top_separator.thickness
+        )
+
+    def _calculate_coordinates(self):
         self._calculate_anode_overhangs()
         self._calculate_bottom_separator_overhangs()
         self._calculate_top_separator_overhangs()
@@ -190,6 +210,73 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
             self._top_separator_overhang_bottom = 0.0
             self._top_separator_overhang_top = 0.0
 
+    def _calculate_half_cell_curves(self):
+        
+        cathode_half_cell = copy(self._cathode._half_cell_curve)
+        anode_half_cell = copy(self._anode._half_cell_curve)
+
+        max_cap_cathode = max(self._cathode._half_cell_curve[:,4])
+        max_cap_anode = max(self._anode._half_cell_curve[:,4])
+        self._np_ratio = max_cap_anode / max_cap_cathode
+        
+        # Split cathode curves by direction (column 2: 0=discharge, 1=charge)
+        cathode_charge = cathode_half_cell[cathode_half_cell[:,2] == 1]
+        cathode_discharge = cathode_half_cell[cathode_half_cell[:,2] == -1]
+        
+        # Split anode curves by direction
+        anode_charge = anode_half_cell[anode_half_cell[:,2] == 1]
+        anode_discharge = anode_half_cell[anode_half_cell[:,2] == -1]
+        
+        # Calculate valid x range (column 4 is areal capacity)
+        # For charge: find overlapping range (intersection)
+        charge_x_min = max(cathode_charge[:,4].min(), anode_charge[:,4].min())
+        charge_x_max = min(cathode_charge[:,4].max(), anode_charge[:,4].max())
+        
+        # For discharge: find overlapping range (intersection)
+        discharge_x_min = max(cathode_discharge[:,4].min(), anode_discharge[:,4].min())
+        discharge_x_max = min(cathode_discharge[:,4].max(), anode_discharge[:,4].max())
+        
+        # Create interpolation functions for voltage vs areal capacity
+        
+        # Sort by areal capacity for interpolation
+        cathode_charge_sorted = cathode_charge[cathode_charge[:,4].argsort()]
+        cathode_discharge_sorted = cathode_discharge[cathode_discharge[:,4].argsort()]
+        anode_charge_sorted = anode_charge[anode_charge[:,4].argsort()]
+        anode_discharge_sorted = anode_discharge[anode_discharge[:,4].argsort()]
+        
+        # Create common x arrays for interpolation
+        n_points = 100  # Number of points for smooth curves
+        charge_x_common = np.linspace(charge_x_min, charge_x_max, n_points)
+        discharge_x_common = np.linspace(discharge_x_min, discharge_x_max, n_points)
+        
+        # Interpolate voltages using numpy.interp (voltage = column 1, areal capacity = column 4)
+        cathode_charge_voltage = np.interp(charge_x_common, cathode_charge_sorted[:,4], cathode_charge_sorted[:,1])
+        cathode_discharge_voltage = np.interp(discharge_x_common, cathode_discharge_sorted[:,4], cathode_discharge_sorted[:,1])
+        anode_charge_voltage = np.interp(charge_x_common, anode_charge_sorted[:,4], anode_charge_sorted[:,1])
+        anode_discharge_voltage = np.interp(discharge_x_common, anode_discharge_sorted[:,4], anode_discharge_sorted[:,1])
+        
+        # Calculate full-cell voltages (cathode - anode)
+        charge_voltage_full = cathode_charge_voltage - anode_charge_voltage
+        discharge_voltage_full = cathode_discharge_voltage - anode_discharge_voltage
+        
+        # Create full-cell arrays
+        # Charge curve: ascending x order (direction = 1)
+        charge_curve = np.column_stack([
+            charge_x_common,                 # Column 0: areal capacity
+            charge_voltage_full,             # Column 1: voltage
+            np.ones(len(charge_x_common))    # Column 2: direction (1 = charge)
+        ])
+        
+        # Discharge curve: descending x order (direction = 0)
+        discharge_curve = np.column_stack([
+            discharge_x_common[::-1],           # Column 0: areal capacity (descending)
+            discharge_voltage_full[::-1],             # Column 1: voltage
+            np.zeros(len(discharge_x_common))   # Column 2: direction (0 = discharge)
+        ])
+        
+        # Recombine: charge first (ascending), then discharge (descending)
+        self._half_cell_curve = np.vstack([charge_curve, discharge_curve])
+
     def _adjust_overhang_fixed_component(self, component: str, target_overhang: float, direction: str) -> None:
         """
         Adjust overhang by moving the component position (fixed component mode).
@@ -303,9 +390,8 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         # Get trace groups
         cathode_fig = self._cathode._get_full_top_down_view()
         for i, trace in enumerate(cathode_fig.data):
-            trace.name = self._cathode.name
-            trace.legendgroup = self._cathode.name
-            trace.showlegend = i == 0
+            trace.name = trace.name + " (Cathode)"
+            trace.legendgroup = trace.name + " (Cathode)"
             # Use ColorMixin method to adjust trace opacity
             self.adjust_trace_opacity(trace, opacity)
             fig.add_trace(trace)
@@ -327,9 +413,8 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
 
         anode_fig = self._anode._get_full_top_down_view()
         for i, trace in enumerate(anode_fig.data):
-            trace.name = self._anode.name
-            trace.legendgroup = self._anode.name
-            trace.showlegend = i == 0
+            trace.name = trace.name + " (Anode)"
+            trace.legendgroup = trace.name + " (Anode)"
             trace.xaxis = 'x'
             trace.yaxis = 'y'
             # Use ColorMixin method to adjust trace opacity
@@ -402,7 +487,165 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
 
         return fig
 
+    def get_areal_capacity_plot(self, **kwargs) -> go.Figure:
+        """
+        Generate areal capacity plot for the layup's electrode half-cells.
+        
+        Parameters
+        ----------
+        **kwargs
+            Additional plotting parameters for customization
+            
+        Returns
+        -------
+        go.Figure
+            Plotly figure with areal capacity curves
+            
+        Raises
+        ------
+        ValueError
+            If half-cell data is missing or invalid
+        """
+        # Validate that half-cell data exists
+        anode_half_cell = self.anode.half_cell_curve
+        cathode_half_cell = self.cathode.half_cell_curve
+
+        fig = go.Figure()
+
+        fig.add_trace(go.Scatter(
+            x=cathode_half_cell['Areal Capacity (mAh/cm²)'],
+            y=cathode_half_cell['Voltage (V)'],
+            mode='lines',
+            name=f'{self.cathode.name} Half-Cell',
+            line=dict(
+                width=kwargs.get('line_width', 2),
+                color=self.cathode.formulation.color
+            ),
+            customdata=cathode_half_cell['Direction'],
+            hovertemplate='<b>Cathode</b><br>' +
+                         'Capacity: %{x:.2f} mAh/cm²<br>' +
+                         'Voltage: %{y:.3f} V<br>' +
+                         'Direction: %{customdata}<extra></extra>'
+        ))
+
+        fig.add_trace(go.Scatter(
+            x=anode_half_cell['Areal Capacity (mAh/cm²)'],
+            y=anode_half_cell['Voltage (V)'],
+            mode='lines',
+            name=f'{self.anode.name} Half-Cell',
+            line=dict(
+                width=kwargs.get('line_width', 2),
+                color=self.anode.formulation.color
+            ),
+            customdata=anode_half_cell['Direction'],
+            hovertemplate='<b>Anode</b><br>' +
+                         'Capacity: %{x:.2f} mAh/cm²<br>' +
+                         'Voltage: %{y:.3f} V<br>' +
+                         'Direction: %{customdata}<extra></extra>'
+        ))
+
+        # Add full-cell curve
+        full_cell_curve = self.half_cell_curve
+        full_cell_color = kwargs.get('full_cell_color', '#2ca02c')  # Default green
+
+        fig.add_trace(go.Scatter(
+            x=full_cell_curve['Areal Capacity (mAh/cm²)'],
+            y=full_cell_curve['Voltage (V)'],
+            mode='lines',
+            name=f'{self.name} Full-Cell',
+            line=dict(
+                width=kwargs.get('line_width', 2),
+                color=full_cell_color
+            ),
+            customdata=full_cell_curve['Direction'],
+            hovertemplate='<b>Full-Cell</b><br>' +
+                         'Capacity: %{x:.2f} mAh/cm²<br>' +
+                         'Voltage: %{y:.3f} V<br>' +
+                         'Direction: %{customdata}<extra></extra>'
+        ))
+
+        # Enhanced layout with better defaults
+        fig.update_layout(
+            title=kwargs.get('title', f'{self.name} Areal Capacity Curves'),
+            paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
+            plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
+            xaxis=dict(
+                title='Areal Capacity (mAh/cm²)',  # Fixed: matches data units
+                showgrid=kwargs.get('show_grid', True),
+                gridcolor=kwargs.get('grid_color', 'lightgray'),
+                zeroline=kwargs.get('show_zeroline', True),
+                zerolinecolor=kwargs.get('zeroline_color', 'black'),
+                zerolinewidth=kwargs.get('zeroline_width', 1)
+            ),
+            yaxis=dict(
+                title='Voltage (V)',
+                showgrid=kwargs.get('show_grid', True),
+                gridcolor=kwargs.get('grid_color', 'lightgray'),
+                zeroline=kwargs.get('show_zeroline', True),
+                zerolinecolor=kwargs.get('zeroline_color', 'black'),
+                zerolinewidth=kwargs.get('zeroline_width', 1)
+            ),
+            legend=dict(
+                orientation=kwargs.get('legend_orientation', 'v'),
+                yanchor=kwargs.get('legend_yanchor', 'top'),
+                y=kwargs.get('legend_y', 1),
+                xanchor=kwargs.get('legend_xanchor', 'left'),
+                x=kwargs.get('legend_x', 1.02)
+            ),
+            margin=dict(
+                l=kwargs.get('margin_l', 50),
+                r=kwargs.get('margin_r', 50),
+                t=kwargs.get('margin_t', 50),
+                b=kwargs.get('margin_b', 50)
+            ),
+            hovermode='closest',
+            **{k: v for k, v in kwargs.items() if k not in [
+                'line_width', 'material_line_width', 'material_opacity', 'show_grid',
+                'grid_color', 'show_zeroline', 'zeroline_color', 'zeroline_width',
+                'legend_orientation', 'legend_yanchor', 'legend_y', 'legend_xanchor',
+                'legend_x', 'margin_l', 'margin_r', 'margin_t', 'margin_b', 'title'
+            ]}
+        )
+
+        return fig
+
     #### COMPONENT PROPERTY/SETTERS ####
+
+    @property
+    def thickness(self) -> float:
+        """
+        Get the total thickness of the layup in micrometers (µm).
+        """
+        return round(self._thickness * M_TO_UM, 3)
+
+    @property
+    def np_ratio(self) -> float:
+        """
+        Get the n/p ratio of the layup (anode to cathode capacity ratio).
+        """
+        return round(self._np_ratio, 3)
+
+    @property
+    def half_cell_curve(self) -> pd.DataFrame:
+
+        return (
+            pd.DataFrame(
+                self._half_cell_curve,
+                columns=['areal_capacity', 'voltage', 'direction']
+            )
+            .assign(
+                direction = lambda x: np.where(x['direction'] == 1, 'charge', 'discharge'),
+                areal_capacity = lambda x: x['areal_capacity'] * (S_TO_H * A_TO_mA / M_TO_CM**2)
+            ).rename(
+                columns={
+                    'voltage': 'Voltage (V)', 
+                    'direction': 'Direction',
+                    'areal_capacity': 'Areal Capacity (mAh/cm²)'
+                }
+            ).round(
+                4
+            )
+        )
 
     @property
     def cathode(self):
@@ -419,6 +662,29 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
     @property
     def top_separator(self):
         return self._top_separator
+
+    @property
+    def separator(self) -> Separator:
+        """
+        Get the Z-fold separator. Returns the bottom separator as the canonical reference.
+        In Z-fold configuration, both separators are constrained to be identical.
+        """
+        return self._bottom_separator
+
+    @separator.setter
+    @calculate_volumes
+    def separator(self, separator: Separator):
+
+        # validate the type
+        self.validate_type(separator, Separator, "Separator")
+
+        # move attributes to bottom separator
+        self.bottom_separator.material = separator.material
+        self.bottom_separator.thickness = separator.thickness
+
+        # set the top separator to be identical
+        self.top_separator.material = separator.material
+        self.top_separator.thickness = separator.thickness
 
     @cathode.setter
     @calculate_all_properties
@@ -449,7 +715,7 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         self._cathode = deepcopy(cathode)
     
     @bottom_separator.setter
-    @calculate_all_properties
+    @calculate_volumes
     def bottom_separator(self, bottom_separator: Separator):
 
         # validate the type
@@ -1289,6 +1555,9 @@ class MonoLayer(_Layup):
         # if transverse is True, check and adjust anode orientation
         if transverse and hasattr(self, '_anode') and self._anode is not None:
             if not self._anode._flipped_y:
+                self._anode._flip('y')
+        elif not transverse and hasattr(self, '_anode') and self._anode is not None:
+            if self._anode._flipped_y:
                 self._anode._flip('y')
 
     @bottom_separator.setter
