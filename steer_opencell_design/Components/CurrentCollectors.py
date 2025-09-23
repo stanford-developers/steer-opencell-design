@@ -3,7 +3,10 @@ from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 
 # import core decorators
-from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
+from steer_core.Decorators.General import (
+    calculate_all_properties,
+    calculate_bulk_properties,
+)
 from steer_core.Decorators.Coordinates import calculate_coordinates, calculate_areas
 from steer_core.Decorators.Objects import calculate_weld_tab_properties
 
@@ -29,21 +32,21 @@ import numpy as np
 class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
     """
     Abstract base class for all current collector implementations.
-    
+
     This class provides the foundational functionality for battery current collectors,
     including geometric calculations, material properties, and coordinate management.
     Current collectors are critical components that facilitate electron flow in
     lithium-ion batteries and similar electrochemical cells.
-    
+
     The class handles:
     - Geometric coordinate calculations for 3D visualization
     - Area calculations for coated and uncoated regions
     - Material property management and validation
     - Integration with battery cell structures
-    
+
     All concrete current collector implementations should inherit from this class
     and implement the required abstract methods for specific geometries.
-    
+
     Parameters
     ----------
     material : CurrentCollectorMaterial
@@ -66,7 +69,7 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         Defines the origin for all geometric calculations
     name : str, optional
         Descriptive name for the current collector (default: 'Current Collector')
-        
+
     Attributes
     ----------
     body_area : float
@@ -79,19 +82,19 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         Total volume of the current collector (mm³)
     properties : dict
         Dictionary containing all calculated geometric and material properties
-        
+
     Notes
     -----
     The coordinate system assumes the current collector lies flat in the xy-plane
     with the 'a-side' (typically cathode-facing) pointing upward (+z direction).
     All geometric calculations are performed in metric units but may be converted
     for display purposes.
-    
+
     Examples
     --------
     This is an abstract base class and cannot be instantiated directly.
     Use concrete implementations like PunchedCurrentCollector:
-    
+
     >>> from steer_materials import aluminum_foil
     >>> collector = PunchedCurrentCollector(
     ...     material=aluminum_foil,
@@ -101,7 +104,7 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
     ...     tab_width=25.0,       # mm
     ...     tab_height=10.0       # mm
     ... )
-    
+
     See Also
     --------
     PunchedCurrentCollector : Simple rectangular collector with single tab
@@ -109,16 +112,17 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
     TablessCurrentCollector : Collector without protruding tabs
     TabWeldedCurrentCollector : Collector with separate welded tabs
     """
+
     def __init__(
-            self, 
-            material: CurrentCollectorMaterial,
-            x_body_length: float,
-            y_body_length: float,
-            thickness: float,
-            insulation_width: Optional[float] = 0,
-            datum: Optional[Tuple[float, float, float]] = (0, 0, 0),
-            name: Optional[str] = 'Current Collector',
-            **kwargs
+        self,
+        material: CurrentCollectorMaterial,
+        x_body_length: float,
+        y_body_length: float,
+        thickness: float,
+        insulation_width: Optional[float] = 0,
+        datum: Optional[Tuple[float, float, float]] = (0, 0, 0),
+        name: Optional[str] = "Current Collector",
+        **kwargs,
     ):
         """
         Initialize an object that represents a current collector.
@@ -171,25 +175,23 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         self._get_a_side_coated_coordinates()
         self._get_b_side_coated_coordinates()
 
-        if hasattr(self, '_insulation_width'):
+        if hasattr(self, "_insulation_width"):
             self._get_a_side_insulation_coordinates()
             self._get_b_side_insulation_coordinates()
 
         # perform flipping if needed
         if self._flipped_x:
-            self._flip('x', bool_update=False)
+            self._flip("x", bool_update=False)
         if self._flipped_y:
-            self._flip('y', bool_update=False)
+            self._flip("y", bool_update=False)
         if self._flipped_z:
-            self._flip('z', bool_update=False)
+            self._flip("z", bool_update=False)
 
     def _calculate_areas(self) -> None:
-
         # calculate the area of the a side
-        mask = self._body_coordinates_side == 'a'
+        mask = self._body_coordinates_side == "a"
         body_a_side_area = self.get_area_from_points(
-            self._body_coordinates[mask][:,0],
-            self._body_coordinates[mask][:,1]
+            self._body_coordinates[mask][:, 0], self._body_coordinates[mask][:, 1]
         )
 
         # calculate the total upper and lower area of the body
@@ -197,25 +199,24 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
 
         # calculate the area of the a side coated area
         self._a_side_coated_area = self.get_area_from_points(
-            self._a_side_coated_coordinates[:, 0],
-            self._a_side_coated_coordinates[:, 1]
+            self._a_side_coated_coordinates[:, 0], self._a_side_coated_coordinates[:, 1]
         )
 
         # calculate the area of the b side coated area
         self._b_side_coated_area = self.get_area_from_points(
-            self._b_side_coated_coordinates[:, 0],
-            self._b_side_coated_coordinates[:, 1]
+            self._b_side_coated_coordinates[:, 0], self._b_side_coated_coordinates[:, 1]
         )
 
         self._coated_area = self._a_side_coated_area + self._b_side_coated_area
 
-        if hasattr(self, '_a_side_insulation_coordinates') and hasattr(self, '_b_side_insulation_coordinates'):
-
+        if hasattr(self, "_a_side_insulation_coordinates") and hasattr(
+            self, "_b_side_insulation_coordinates"
+        ):
             # calculate the area of the a side insulation area
             if len(self._a_side_insulation_coordinates) >= 3:
                 self._a_side_insulation_area = self.get_area_from_points(
                     self._a_side_insulation_coordinates[:, 0],
-                    self._a_side_insulation_coordinates[:, 1]
+                    self._a_side_insulation_coordinates[:, 1],
                 )
             else:
                 self._a_side_insulation_area = 0
@@ -224,12 +225,14 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
             if len(self._b_side_insulation_coordinates) >= 3:
                 self._b_side_insulation_area = self.get_area_from_points(
                     self._b_side_insulation_coordinates[:, 0],
-                    self._b_side_insulation_coordinates[:, 1]
+                    self._b_side_insulation_coordinates[:, 1],
                 )
             else:
                 self._b_side_insulation_area = 0
 
-            self._insulation_area = self._a_side_insulation_area + self._b_side_insulation_area
+            self._insulation_area = (
+                self._a_side_insulation_area + self._b_side_insulation_area
+            )
 
         else:
             self._a_side_insulation_area = 0
@@ -237,61 +240,66 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
             self._insulation_area = 0
 
     def _calculate_bulk_properties(self) -> None:
-        self._volume = self._body_area/2 * self._thickness
+        self._volume = self._body_area / 2 * self._thickness
         self._mass = self._volume * self._material._density
         self._cost = self._mass * self._material._specific_cost
 
     def _calculate_fill_patterns(self) -> None:
-
         # Shading patterns
-        self._a_am_fill_pattern = dict(shape='/', size=20, solidity=0.6, fgcolor=self._material._color)
-        self._b_am_fill_pattern = dict(shape='\\', size=20, solidity=0.6, fgcolor=self._material._color)
-        self._a_in_fill_pattern = dict(shape='\\', size=10, solidity=0.6, fgcolor=self._material._color)
-        self._b_in_fill_pattern = dict(shape='/', size=10, solidity=0.6, fgcolor=self._material._color)
+        self._a_am_fill_pattern = dict(
+            shape="/", size=20, solidity=0.6, fgcolor=self._material._color
+        )
+        self._b_am_fill_pattern = dict(
+            shape="\\", size=20, solidity=0.6, fgcolor=self._material._color
+        )
+        self._a_in_fill_pattern = dict(
+            shape="\\", size=10, solidity=0.6, fgcolor=self._material._color
+        )
+        self._b_in_fill_pattern = dict(
+            shape="/", size=10, solidity=0.6, fgcolor=self._material._color
+        )
 
     def _get_full_top_down_view(self, **kwargs) -> go.Figure:
-
         fig = go.Figure()
 
         z_coords = self._body_coordinates[:, 2]
-        z_a = z_coords[self._body_coordinates_side == 'a'].mean()
-        z_b = z_coords[self._body_coordinates_side == 'b'].mean()
-        top_side = 'a' if z_a > z_b else 'b'
+        z_a = z_coords[self._body_coordinates_side == "a"].mean()
+        z_b = z_coords[self._body_coordinates_side == "b"].mean()
+        top_side = "a" if z_a > z_b else "b"
 
         # check if weld tabs are present
-        if hasattr(self, '_tab_weld_side') and self._tab_weld_side != top_side:
+        if hasattr(self, "_tab_weld_side") and self._tab_weld_side != top_side:
             for i, tab in enumerate(self._weld_tabs):
                 trace = tab.top_down_body_trace
-                trace.showlegend = (i == 0)
+                trace.showlegend = i == 0
                 fig.add_trace(trace)
 
         # add traces to the figure
         fig.add_trace(self.top_down_body_trace)
         fig.add_trace(self.top_down_coated_area_trace)
 
-        if hasattr(self, 'top_down_insulation_area_trace'):
+        if hasattr(self, "top_down_insulation_area_trace"):
             fig.add_trace(self.top_down_insulation_area_trace)
 
         # check if weld tabs are present
-        if hasattr(self, '_tab_weld_side') and self._tab_weld_side == top_side:
+        if hasattr(self, "_tab_weld_side") and self._tab_weld_side == top_side:
             for i, tab in enumerate(self._weld_tabs):
                 trace = tab.top_down_body_trace
-                trace.showlegend = (i == 0)
+                trace.showlegend = i == 0
                 fig.add_trace(trace)
 
         fig.update_layout(
-            xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='X (mm)'),
-            yaxis=dict(showgrid=False, zeroline=False, title='Y (mm)'),
-            paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
-            plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
-            **kwargs
+            xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title="X (mm)"),
+            yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)"),
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            **kwargs,
         )
 
         return fig
 
     def _get_body_coordinates(self) -> None:
-
-        if hasattr(self, '_tab_height'):
+        if hasattr(self, "_tab_height"):
             x, y = self._get_footprint(notch_height=self._tab_height)
         else:
             x, y = self._get_footprint()
@@ -301,16 +309,16 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         self._body_coordinates_side = side
 
     def _get_a_side_coated_coordinates(self) -> Tuple[go.Scatter, float]:
-        self._a_side_coated_coordinates = self._get_coated_area_coordinates(side='a')
+        self._a_side_coated_coordinates = self._get_coated_area_coordinates(side="a")
 
     def _get_b_side_coated_coordinates(self) -> Tuple[go.Scatter, float]:
-        self._b_side_coated_coordinates = self._get_coated_area_coordinates(side='b')
+        self._b_side_coated_coordinates = self._get_coated_area_coordinates(side="b")
 
     def _get_a_side_insulation_coordinates(self) -> go.Scatter:
-        self._a_side_insulation_coordinates = self._get_insulation_coordinates(side='a')
+        self._a_side_insulation_coordinates = self._get_insulation_coordinates(side="a")
 
     def _get_b_side_insulation_coordinates(self) -> go.Scatter:
-        self._b_side_insulation_coordinates = self._get_insulation_coordinates(side='b')
+        self._b_side_insulation_coordinates = self._get_insulation_coordinates(side="b")
 
     def _flip(self, axis: str, bool_update: bool = True) -> None:
         """
@@ -322,48 +330,65 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         axis : str
             The axis to rotate around. Must be 'x', 'y', or 'z'.
         """
-        if axis not in ['x', 'y', 'z']:
+        if axis not in ["x", "y", "z"]:
             raise ValueError("Axis must be 'x', 'y', or 'z'.")
 
-        axis_map = {
-            'x': 'y',
-            'y': 'x',
-            'z': 'z'
-        }
+        axis_map = {"x": "y", "y": "x", "z": "z"}
 
         rotation_axis = axis_map[axis]
 
         # Keep datum as the center of rotation - don't move it to origin
         # Rotate coordinates around the current datum position
-        self._body_coordinates = self.rotate_coordinates(self._body_coordinates, rotation_axis, 180, center=self._datum)
-        self._a_side_coated_coordinates = self.rotate_coordinates(self._a_side_coated_coordinates, rotation_axis, 180, center=self._datum)
-        self._b_side_coated_coordinates = self.rotate_coordinates(self._b_side_coated_coordinates, rotation_axis, 180, center=self._datum)
+        self._body_coordinates = self.rotate_coordinates(
+            self._body_coordinates, rotation_axis, 180, center=self._datum
+        )
+        self._a_side_coated_coordinates = self.rotate_coordinates(
+            self._a_side_coated_coordinates, rotation_axis, 180, center=self._datum
+        )
+        self._b_side_coated_coordinates = self.rotate_coordinates(
+            self._b_side_coated_coordinates, rotation_axis, 180, center=self._datum
+        )
 
-        if hasattr(self, '_a_side_insulation_coordinates'):
-            self._a_side_insulation_coordinates = self.rotate_coordinates(self._a_side_insulation_coordinates, rotation_axis, 180, center=self._datum)
-        if hasattr(self, '_b_side_insulation_coordinates'):
-            self._b_side_insulation_coordinates = self.rotate_coordinates(self._b_side_insulation_coordinates, rotation_axis, 180, center=self._datum)
+        if hasattr(self, "_a_side_insulation_coordinates"):
+            self._a_side_insulation_coordinates = self.rotate_coordinates(
+                self._a_side_insulation_coordinates,
+                rotation_axis,
+                180,
+                center=self._datum,
+            )
+        if hasattr(self, "_b_side_insulation_coordinates"):
+            self._b_side_insulation_coordinates = self.rotate_coordinates(
+                self._b_side_insulation_coordinates,
+                rotation_axis,
+                180,
+                center=self._datum,
+            )
 
-        if hasattr(self, '_weld_tabs'):
+        if hasattr(self, "_weld_tabs"):
             for tab in self._weld_tabs:
-                tab._body_coordinates = self.rotate_coordinates(tab._body_coordinates, rotation_axis, 180, center=self._datum)
-                tab_datum_array = np.array([[tab._datum[0], tab._datum[1], tab._datum[2]]])
-                rotated_datum = self.rotate_coordinates(tab_datum_array, rotation_axis, 180, center=self._datum)
+                tab._body_coordinates = self.rotate_coordinates(
+                    tab._body_coordinates, rotation_axis, 180, center=self._datum
+                )
+                tab_datum_array = np.array(
+                    [[tab._datum[0], tab._datum[1], tab._datum[2]]]
+                )
+                rotated_datum = self.rotate_coordinates(
+                    tab_datum_array, rotation_axis, 180, center=self._datum
+                )
                 tab._datum = tuple(rotated_datum[0])
 
         if bool_update:
             # update action booleans
-            if axis == 'x':
+            if axis == "x":
                 self._flipped_x = not self._flipped_x
-            if axis == 'y':
+            if axis == "y":
                 self._flipped_y = not self._flipped_y
-            if axis == 'z':
+            if axis == "z":
                 self._flipped_z = not self._flipped_z
 
         return self
 
     def _translate(self, vector: Iterable[float]) -> None:
-
         # convert to numpy array
         vector = np.array(vector)
 
@@ -387,19 +412,24 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         self._b_side_coated_coordinates = coords_copy
 
         # translate insulation coordinates if they exist
-        if hasattr(self, '_a_side_insulation_coordinates') and self._a_side_insulation_coordinates is not None:
+        if (
+            hasattr(self, "_a_side_insulation_coordinates")
+            and self._a_side_insulation_coordinates is not None
+        ):
             self._a_side_insulation_coordinates += vector
-        if hasattr(self, '_b_side_insulation_coordinates') and self._b_side_insulation_coordinates is not None:
+        if (
+            hasattr(self, "_b_side_insulation_coordinates")
+            and self._b_side_insulation_coordinates is not None
+        ):
             self._b_side_insulation_coordinates += vector
 
         # translate the tabs if they exist
-        if hasattr(self, '_weld_tabs'):
+        if hasattr(self, "_weld_tabs"):
             for tab in self._weld_tabs:
-                
                 _new_datum = (
                     tab._datum[0] + vector[0],
                     tab._datum[1] + vector[1],
-                    tab._datum[2] + vector[2]
+                    tab._datum[2] + vector[2],
                 )
 
                 new_datum = tuple(d * M_TO_MM for d in _new_datum)
@@ -409,35 +439,33 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         return self
 
     def get_a_side_view(self, **kwargs) -> go.Figure:
-
         z_coords = self._body_coordinates[:, 2]
-        z_a = z_coords[self._body_coordinates_side == 'a'].mean()
-        z_b = z_coords[self._body_coordinates_side == 'b'].mean()
+        z_a = z_coords[self._body_coordinates_side == "a"].mean()
+        z_b = z_coords[self._body_coordinates_side == "b"].mean()
 
-        top_side = 'a' if z_a > z_b else 'b'
+        top_side = "a" if z_a > z_b else "b"
 
-        if top_side == 'a':
+        if top_side == "a":
             return self.get_top_down_view(**kwargs)
         else:
-            self._flip('y')
+            self._flip("y")
             figure = self.get_top_down_view(**kwargs)
-            self._flip('y')
+            self._flip("y")
             return figure
 
     def get_b_side_view(self, **kwargs) -> go.Figure:
-
         z_coords = self._body_coordinates[:, 2]
-        z_a = z_coords[self._body_coordinates_side == 'a'].mean()
-        z_b = z_coords[self._body_coordinates_side == 'b'].mean()
+        z_a = z_coords[self._body_coordinates_side == "a"].mean()
+        z_b = z_coords[self._body_coordinates_side == "b"].mean()
 
-        top_side = 'a' if z_a > z_b else 'b'
+        top_side = "a" if z_a > z_b else "b"
 
-        if top_side == 'b':
+        if top_side == "b":
             return self.get_top_down_view(**kwargs)
         else:
-            self._flip('y')
+            self._flip("y")
             figure = self.get_top_down_view(**kwargs)
-            self._flip('y')
+            self._flip("y")
             return figure
 
     def get_right_left_view(self, **kwargs) -> go.Figure:
@@ -451,27 +479,33 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         figure.add_trace(self.right_left_a_side_coated_coordinates)
         figure.add_trace(self.right_left_b_side_coated_coordinates)
 
-        if hasattr(self, '_right_left_a_side_insulation_coordinates') and self._right_left_a_side_insulation_coordinates is not None:
+        if (
+            hasattr(self, "_right_left_a_side_insulation_coordinates")
+            and self._right_left_a_side_insulation_coordinates is not None
+        ):
             figure.add_trace(self.right_left_a_side_insulation_coordinates)
 
-        if hasattr(self, '_right_left_b_side_insulation_coordinates') and self._right_left_b_side_insulation_coordinates is not None:
+        if (
+            hasattr(self, "_right_left_b_side_insulation_coordinates")
+            and self._right_left_b_side_insulation_coordinates is not None
+        ):
             figure.add_trace(self.right_left_b_side_insulation_coordinates)
 
         figure.update_layout(
-            xaxis=dict(showgrid=False, zeroline=False, title='X (mm)', scaleanchor="y"),
-            yaxis=dict(showgrid=False, zeroline=False, title='Y (mm)'),
-            paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
-            plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
-            **kwargs
+            xaxis=dict(showgrid=False, zeroline=False, title="X (mm)", scaleanchor="y"),
+            yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)"),
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            **kwargs,
         )
 
         return figure
 
     def set_ranges_from_reference(
-            self, 
-            reference: '_CurrentCollector',
-            length_multiplier: float = 1.2,
-        ) -> None:
+        self,
+        reference: "_CurrentCollector",
+        length_multiplier: float = 1.2,
+    ) -> None:
         """
         Set the length and width ranges based on a reference current collector.
 
@@ -481,18 +515,24 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
             The reference current collector to derive ranges from.
         """
         self.validate_type(reference, _CurrentCollector, "reference")
-        self._x_body_length_range = (reference._x_body_length, reference._x_body_length * length_multiplier)
-        self._y_body_length_range = (reference._y_body_length, reference._y_body_length * length_multiplier)
+        self._x_body_length_range = (
+            reference._x_body_length,
+            reference._x_body_length * length_multiplier,
+        )
+        self._y_body_length_range = (
+            reference._y_body_length,
+            reference._y_body_length * length_multiplier,
+        )
 
     @abstractmethod
-    def _get_coated_area_coordinates(self, side: str = 'a') -> np.ndarray:
+    def _get_coated_area_coordinates(self, side: str = "a") -> np.ndarray:
         """
         Get the coordinates of the coated area for a given side ('a' or 'b').
         """
         pass
 
     @abstractmethod
-    def _get_insulation_coordinates(self, side: str = 'a') -> np.ndarray:
+    def _get_insulation_coordinates(self, side: str = "a") -> np.ndarray:
         """
         Get the coordinates of the insulation area for a given side ('a' or 'b').
         """
@@ -511,20 +551,22 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         Get the coordinates of the b side insulation area.
         """
         # get the coordinates
-        b_side_insulation_coordinates = self.order_coordinates_clockwise(self.b_side_insulation_coordinates, plane='yz')
+        b_side_insulation_coordinates = self.order_coordinates_clockwise(
+            self.b_side_insulation_coordinates, plane="yz"
+        )
 
         # make the trace
         b_side_insulation_trace = go.Scatter(
-            x=b_side_insulation_coordinates['y'],
-            y=b_side_insulation_coordinates['z'],
-            mode='lines',
-            name='B Side Insulation Area',
-            line=dict(width=1, color='black'),
-            fill='toself',
-            fillcolor='white',
+            x=b_side_insulation_coordinates["y"],
+            y=b_side_insulation_coordinates["z"],
+            mode="lines",
+            name="B Side Insulation Area",
+            line=dict(width=1, color="black"),
+            fill="toself",
+            fillcolor="white",
             fillpattern=self._b_in_fill_pattern,
-            legendgroup='B Side Insulation Area',
-            showlegend=True
+            legendgroup="B Side Insulation Area",
+            showlegend=True,
         )
 
         return b_side_insulation_trace
@@ -535,20 +577,22 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         Get the coordinates of the a side insulation area.
         """
         # get the coordinates
-        a_side_insulation_coordinates = self.order_coordinates_clockwise(self.a_side_insulation_coordinates, plane='yz')
+        a_side_insulation_coordinates = self.order_coordinates_clockwise(
+            self.a_side_insulation_coordinates, plane="yz"
+        )
 
         # make the trace
         a_side_insulation_trace = go.Scatter(
-            x=a_side_insulation_coordinates['y'],
-            y=a_side_insulation_coordinates['z'],
-            mode='lines',
-            name='A Side Insulation Area',
-            line=dict(width=1, color='black'),
-            fill='toself',
-            fillcolor='white',
+            x=a_side_insulation_coordinates["y"],
+            y=a_side_insulation_coordinates["z"],
+            mode="lines",
+            name="A Side Insulation Area",
+            line=dict(width=1, color="black"),
+            fill="toself",
+            fillcolor="white",
             fillpattern=self._a_in_fill_pattern,
-            legendgroup='A Side Insulation Area',
-            showlegend=True
+            legendgroup="A Side Insulation Area",
+            showlegend=True,
         )
 
         return a_side_insulation_trace
@@ -559,20 +603,22 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         Get the coordinates of the b side coated area.
         """
         # get the coordinates
-        b_side_coated_coordinates = self.order_coordinates_clockwise(self.b_side_coated_coordinates, plane='yz')
+        b_side_coated_coordinates = self.order_coordinates_clockwise(
+            self.b_side_coated_coordinates, plane="yz"
+        )
 
         # make the trace
         b_side_coated_trace = go.Scatter(
-            x=b_side_coated_coordinates['y'],
-            y=b_side_coated_coordinates['z'],
-            mode='lines',
-            name='B Side Coated Area',
-            line=dict(width=1, color='black'),
-            fill='toself',
-            fillcolor='black',
+            x=b_side_coated_coordinates["y"],
+            y=b_side_coated_coordinates["z"],
+            mode="lines",
+            name="B Side Coated Area",
+            line=dict(width=1, color="black"),
+            fill="toself",
+            fillcolor="black",
             fillpattern=self._b_am_fill_pattern,
-            legendgroup='B Side Coated Area',
-            showlegend=True
+            legendgroup="B Side Coated Area",
+            showlegend=True,
         )
 
         return b_side_coated_trace
@@ -583,117 +629,128 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         Get the coordinates of the a side coated area.
         """
         # get the coordinates
-        a_side_coated_coordinates = self.order_coordinates_clockwise(self.a_side_coated_coordinates, plane='yz')
+        a_side_coated_coordinates = self.order_coordinates_clockwise(
+            self.a_side_coated_coordinates, plane="yz"
+        )
 
         # make the trace
         a_side_coated_trace = go.Scatter(
-            x=a_side_coated_coordinates['y'],
-            y=a_side_coated_coordinates['z'],
-            mode='lines',
-            name='A Side Coated Area',
-            line=dict(width=1, color='black'),
-            fill='toself',
-            fillcolor='black',
+            x=a_side_coated_coordinates["y"],
+            y=a_side_coated_coordinates["z"],
+            mode="lines",
+            name="A Side Coated Area",
+            line=dict(width=1, color="black"),
+            fill="toself",
+            fillcolor="black",
             fillpattern=self._a_am_fill_pattern,
-            legendgroup='A Side Coated Area',
-            showlegend=True
+            legendgroup="A Side Coated Area",
+            showlegend=True,
         )
 
         return a_side_coated_trace
 
     @property
     def right_left_body_trace(self) -> go.Scatter:
-
         # get the coordinates of the body, ordered clockwise
-        body_coordinates = self.order_coordinates_clockwise(self.body_coordinates, plane='yz')
+        body_coordinates = self.order_coordinates_clockwise(
+            self.body_coordinates, plane="yz"
+        )
 
         # make the body trace
         body_trace = go.Scatter(
-            x=body_coordinates['y'],
-            y=body_coordinates['z'],
-            mode='lines',
-            name='Body',
-            line=dict(color='black', width=1),
-            fill='toself',
+            x=body_coordinates["y"],
+            y=body_coordinates["z"],
+            mode="lines",
+            name="Body",
+            line=dict(color="black", width=1),
+            fill="toself",
             fillcolor=self._material.color,
-            legendgroup='Body',
-            showlegend=True
+            legendgroup="Body",
+            showlegend=True,
         )
 
         return body_trace
 
     @property
     def top_down_body_trace(self) -> go.Scatter:
-
         # get the side with the maximum z value
-        body_coordinates = self.body_coordinates.query('z == z.max()')
+        body_coordinates = self.body_coordinates.query("z == z.max()")
 
         # make the body trace
         body_trace = go.Scatter(
-            x=body_coordinates['x'],
-            y=body_coordinates['y'],
-            mode='lines',
-            name='Body',
-            line=dict(color='black', width=1),
-            fill='toself',
+            x=body_coordinates["x"],
+            y=body_coordinates["y"],
+            mode="lines",
+            name="Body",
+            line=dict(color="black", width=1),
+            fill="toself",
             fillcolor=self._material.color,
-            legendgroup='Body',
-            showlegend=True
+            legendgroup="Body",
+            showlegend=True,
         )
 
         return body_trace
 
     @property
     def top_down_coated_area_trace(self) -> go.Scatter:
-
         side = self.top_side
-        coated_area_coordinates = self.a_side_coated_coordinates if side == 'a' else self.b_side_coated_coordinates
+        coated_area_coordinates = (
+            self.a_side_coated_coordinates
+            if side == "a"
+            else self.b_side_coated_coordinates
+        )
 
         # make the coated area trace
         coated_area_trace = go.Scatter(
-            x=coated_area_coordinates['x'], 
-            y=coated_area_coordinates['y'], 
-            mode='lines', 
-            name='A Side Coated Area' if side == 'a' else 'B Side Coated Area',
-            line=dict(width=1, color='black'), 
-            fillcolor='black', 
-            fill='toself', 
-            fillpattern=self._a_am_fill_pattern if side == 'a' else self._b_am_fill_pattern,
+            x=coated_area_coordinates["x"],
+            y=coated_area_coordinates["y"],
+            mode="lines",
+            name="A Side Coated Area" if side == "a" else "B Side Coated Area",
+            line=dict(width=1, color="black"),
+            fillcolor="black",
+            fill="toself",
+            fillpattern=self._a_am_fill_pattern
+            if side == "a"
+            else self._b_am_fill_pattern,
         )
 
         return coated_area_trace
 
     @property
     def top_down_insulation_area_trace(self) -> go.Scatter:
-
         side = self.top_side
-        insulation_area_coordinates = self.a_side_insulation_coordinates if side == 'a' else self.b_side_insulation_coordinates
+        insulation_area_coordinates = (
+            self.a_side_insulation_coordinates
+            if side == "a"
+            else self.b_side_insulation_coordinates
+        )
 
         # make the insulation area trace
         insulation_area_trace = go.Scatter(
-            x=insulation_area_coordinates['x'], 
-            y=insulation_area_coordinates['y'], 
-            mode='lines', 
-            name='A Side Insulation Area' if side == 'a' else 'B Side Insulation Area',
-            line=dict(color='black', width=1), 
-            fill='toself', 
-            fillcolor='white', 
-            fillpattern=self._a_in_fill_pattern if side == 'a' else self._b_in_fill_pattern,
+            x=insulation_area_coordinates["x"],
+            y=insulation_area_coordinates["y"],
+            mode="lines",
+            name="A Side Insulation Area" if side == "a" else "B Side Insulation Area",
+            line=dict(color="black", width=1),
+            fill="toself",
+            fillcolor="white",
+            fillpattern=self._a_in_fill_pattern
+            if side == "a"
+            else self._b_in_fill_pattern,
         )
 
         return insulation_area_trace
 
     @property
     def body_coordinates(self) -> pd.DataFrame:
-        
         return pd.DataFrame(
             np.column_stack((self._body_coordinates, self._body_coordinates_side)),
-            columns=['x', 'y', 'z', 'side']
+            columns=["x", "y", "z", "side"],
         ).assign(
-            x=lambda df: (df['x'].astype(float) * M_TO_MM).round(10),
-            y=lambda df: (df['y'].astype(float) * M_TO_MM).round(10),
-            z=lambda df: (df['z'].astype(float) * M_TO_MM).round(10),
-            side=lambda df: df['side'].astype(str)
+            x=lambda df: (df["x"].astype(float) * M_TO_MM).round(10),
+            y=lambda df: (df["y"].astype(float) * M_TO_MM).round(10),
+            z=lambda df: (df["z"].astype(float) * M_TO_MM).round(10),
+            side=lambda df: df["side"].astype(str),
         )
 
     @property
@@ -702,9 +759,9 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         Get the top side of the current collector based on the z-coordinates.
         """
         z_coords = self._body_coordinates[:, 2]
-        z_a = z_coords[self._body_coordinates_side == 'a'].mean()
-        z_b = z_coords[self._body_coordinates_side == 'b'].mean()
-        return 'a' if z_a > z_b else 'b'
+        z_a = z_coords[self._body_coordinates_side == "a"].mean()
+        z_b = z_coords[self._body_coordinates_side == "b"].mean()
+        return "a" if z_a > z_b else "b"
 
     @property
     def datum(self) -> Tuple[float, float, float]:
@@ -714,7 +771,7 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         return (
             round(self._datum[0] * M_TO_MM, 2),
             round(self._datum[1] * M_TO_MM, 2),
-            round(self._datum[2] * M_TO_MM, 2)
+            round(self._datum[2] * M_TO_MM, 2),
         )
 
     @property
@@ -723,14 +780,14 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         Get the x-coordinate of the datum in mm.
         """
         return round(self._datum[0] * M_TO_MM, 2)
-    
+
     @property
     def datum_x_range(self) -> Tuple[float, float]:
         """
         Get the x-coordinate range of the datum in mm.
         """
         return (-100, 100)
-    
+
     @property
     def datum_y(self) -> float:
         """
@@ -744,7 +801,7 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         Get the y-coordinate range of the datum in mm.
         """
         return (-100, 100)
-    
+
     @property
     def datum_z(self) -> float:
         """
@@ -762,15 +819,15 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
     @property
     def x_body_length(self) -> float:
         return round(self._x_body_length * M_TO_MM, 2)
-    
+
     @property
     def y_body_length(self) -> float:
         return round(self._y_body_length * M_TO_MM, 2)
-    
+
     @property
     def thickness(self) -> float:
         return round(self._thickness * M_TO_UM, 2)
-    
+
     @property
     def thickness_range(self):
         min = 1e-6
@@ -792,11 +849,8 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         """
         min = 0
         max = self._y_body_length / 4 - 0.001
-        
-        return (
-            round(min * M_TO_MM, 1), 
-            round(max * M_TO_MM, 1)
-        )
+
+        return (round(min * M_TO_MM, 1), round(max * M_TO_MM, 1))
 
     @property
     def insulation_width_hard_range(self) -> Tuple[float, float]:
@@ -818,11 +872,11 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         Get the properties of the current collector.
         """
         return {
-            'Mass': f"{self.mass} g",
-            'Cost': f"{self.cost} $",
-            'Total single sided area': f"{self.body_area} cm²",
-            'Total coated area': f"{self.coated_area} cm²",
-            'Total insulation area': f"{self.insulation_area} cm²"
+            "Mass": f"{self.mass} g",
+            "Cost": f"{self.cost} $",
+            "Total single sided area": f"{self.body_area} cm²",
+            "Total coated area": f"{self.coated_area} cm²",
+            "Total insulation area": f"{self.insulation_area} cm²",
         }
 
     @property
@@ -832,22 +886,19 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
     @property
     def a_side_coated_area(self) -> float:
         return round(self._a_side_coated_area * M_TO_CM**2, 2)
-    
+
     @property
     def a_side_coated_coordinates(self) -> pd.DataFrame:
         """
         Get the A side coated coordinates of the current collector.
         """
-        return (
-            pd.DataFrame(
-                self._a_side_coated_coordinates,
-                columns=['x', 'y', 'z']
-            ).assign(
-                x = lambda x: (x['x'].astype(float) * M_TO_MM).round(10),
-                y = lambda x: (x['y'].astype(float) * M_TO_MM).round(10),
-                z = lambda x: (x['z'].astype(float) * M_TO_MM).round(10)
-            )
-        ) 
+        return pd.DataFrame(
+            self._a_side_coated_coordinates, columns=["x", "y", "z"]
+        ).assign(
+            x=lambda x: (x["x"].astype(float) * M_TO_MM).round(10),
+            y=lambda x: (x["y"].astype(float) * M_TO_MM).round(10),
+            z=lambda x: (x["z"].astype(float) * M_TO_MM).round(10),
+        )
 
     @property
     def b_side_coated_area(self) -> float:
@@ -858,15 +909,12 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         """
         Get the B side coated coordinates of the current collector.
         """
-        return (
-            pd.DataFrame(
-                self._b_side_coated_coordinates,
-                columns=['x', 'y', 'z']
-            ).assign(
-                x = lambda x: (x['x'].astype(float) * M_TO_MM).round(10),
-                y = lambda x: (x['y'].astype(float) * M_TO_MM).round(10),
-                z = lambda x: (x['z'].astype(float) * M_TO_MM).round(10)
-            )
+        return pd.DataFrame(
+            self._b_side_coated_coordinates, columns=["x", "y", "z"]
+        ).assign(
+            x=lambda x: (x["x"].astype(float) * M_TO_MM).round(10),
+            y=lambda x: (x["y"].astype(float) * M_TO_MM).round(10),
+            z=lambda x: (x["z"].astype(float) * M_TO_MM).round(10),
         )
 
     @property
@@ -883,16 +931,13 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         Get the A side insulation coordinates of the current collector.
         """
         return (
-            pd.DataFrame(
-                self._a_side_insulation_coordinates,
-                columns=['x', 'y', 'z']
-            ).assign(
-                x = lambda x: (x['x'].astype(float) * M_TO_MM).round(10),
-                y = lambda x: (x['y'].astype(float) * M_TO_MM).round(10),
-                z = lambda x: (x['z'].astype(float) * M_TO_MM).round(10)
-            ).astype(
-                {'x': float, 'y': float, 'z': float}
+            pd.DataFrame(self._a_side_insulation_coordinates, columns=["x", "y", "z"])
+            .assign(
+                x=lambda x: (x["x"].astype(float) * M_TO_MM).round(10),
+                y=lambda x: (x["y"].astype(float) * M_TO_MM).round(10),
+                z=lambda x: (x["z"].astype(float) * M_TO_MM).round(10),
             )
+            .astype({"x": float, "y": float, "z": float})
         )
 
     @property
@@ -905,16 +950,13 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         Get the B side insulation coordinates of the current collector.
         """
         return (
-            pd.DataFrame(
-                self._b_side_insulation_coordinates,
-                columns=['x', 'y', 'z']
-            ).assign(
-                x = lambda x: (x['x'].astype(float) * M_TO_MM).round(10),
-                y = lambda x: (x['y'].astype(float) * M_TO_MM).round(10),
-                z = lambda x: (x['z'].astype(float) * M_TO_MM).round(10)
-            ).astype(
-                {'x': float, 'y': float, 'z': float}
+            pd.DataFrame(self._b_side_insulation_coordinates, columns=["x", "y", "z"])
+            .assign(
+                x=lambda x: (x["x"].astype(float) * M_TO_MM).round(10),
+                y=lambda x: (x["y"].astype(float) * M_TO_MM).round(10),
+                z=lambda x: (x["z"].astype(float) * M_TO_MM).round(10),
             )
+            .astype({"x": float, "y": float, "z": float})
         )
 
     @property
@@ -935,26 +977,24 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
 
     @datum.setter
     def datum(self, datum: Tuple[float, float, float]) -> None:
-
         # validate the datum
         self.validate_datum(datum)
 
         if self._update_properties:
-            
             # calculate the translation vector in m
             translation_vector = (
                 float(datum[0]) * MM_TO_M - self._datum[0],
                 float(datum[1]) * MM_TO_M - self._datum[1],
-                float(datum[2]) * MM_TO_M - self._datum[2]
+                float(datum[2]) * MM_TO_M - self._datum[2],
             )
 
             # translate all coordinates
             self._translate(translation_vector)
 
         self._datum = (
-            float(datum[0]) * MM_TO_M, 
-            float(datum[1]) * MM_TO_M, 
-            float(datum[2]) * MM_TO_M
+            float(datum[0]) * MM_TO_M,
+            float(datum[1]) * MM_TO_M,
+            float(datum[2]) * MM_TO_M,
         )
 
     @material.setter
@@ -982,7 +1022,7 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         self.validate_positive_float(x_body_length, "x_body_length")
         self._x_body_length = float(x_body_length) * MM_TO_M
 
-        if hasattr(self, '_weld_tabs'):
+        if hasattr(self, "_weld_tabs"):
             self.weld_tab_positions = self.weld_tab_positions
 
     @y_body_length.setter
@@ -1010,7 +1050,7 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
 
     def __str__(self):
         return f"{self.__class__.__name__}"
-    
+
     def __repr__(self):
         return self.__str__()
 
@@ -1018,19 +1058,19 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
 class _TabbedCurrentCollector(_CurrentCollector):
     """
     Abstract base class for current collectors with integrated tabs.
-    
+
     This class extends the basic current collector functionality to include
     tab geometries that provide electrical connection points for battery cells.
-    
+
     The tabbed current collector includes:
     - Main body geometry for active material support
     - Integrated tab extending from the body
     - Coating area calculations that account for tab regions
-    
+
     This class serves as a foundation for collectors where the tab is
     formed as part of the main collector sheet, as opposed to separately
     welded components.
-    
+
     Parameters
     ----------
     material : CurrentCollectorMaterial
@@ -1058,7 +1098,7 @@ class _TabbedCurrentCollector(_CurrentCollector):
         Descriptive name for the collector
     datum : tuple of float, optional
         Reference coordinate system origin (x, y, z) in mm
-        
+
     Attributes
     ----------
     tab_area : float
@@ -1071,15 +1111,15 @@ class _TabbedCurrentCollector(_CurrentCollector):
         Electrical resistance through the tab (Ω)
     current_density_max : float
         Maximum recommended current density (A/mm²)
-    
+
     The coated tab height should always be less than the total tab height
     to provide an uncoated connection area and prevent active material
     from interfering with electrical connections.
-    
+
     Examples
     --------
     This is an abstract class. Use concrete implementations:
-    
+
     >>> from steer_materials import copper_foil
     >>> collector = PunchedCurrentCollector(
     ...     material=copper_foil,
@@ -1092,30 +1132,31 @@ class _TabbedCurrentCollector(_CurrentCollector):
     ... )
     >>> print(f"Tab area: {collector.tab_area:.1f} mm²")
     >>> print(f"Uncoated tab area: {collector.uncoated_tab_area:.1f} mm²")
-    
+
     See Also
     --------
     PunchedCurrentCollector : Simple tabbed collector with rectangular geometry
     NotchedCurrentCollector : Tabbed collector with notched body
     _TapeCurrentCollector : Alternative tape-based connection method
     """
+
     def __init__(
-            self,
-            material: CurrentCollectorMaterial,
-            x_body_length: float,
-            y_body_length: float,
-            tab_width: float,
-            tab_height: float,
-            coated_tab_height: float,
-            thickness: float,
-            insulation_width: Optional[float] = 0,
-            name: Optional[str] = 'Tabbed Current Collector',
-            datum: Optional[Tuple[float, float, float]] = (0, 0, 0),
-            **kwargs
-        ):
+        self,
+        material: CurrentCollectorMaterial,
+        x_body_length: float,
+        y_body_length: float,
+        tab_width: float,
+        tab_height: float,
+        coated_tab_height: float,
+        thickness: float,
+        insulation_width: Optional[float] = 0,
+        name: Optional[str] = "Tabbed Current Collector",
+        datum: Optional[Tuple[float, float, float]] = (0, 0, 0),
+        **kwargs,
+    ):
         """
         Initialize an object that represents a tabbed current collector.
-        
+
         Parameters:
         ----------
         material: CurrentCollectorMaterial
@@ -1147,9 +1188,9 @@ class _TabbedCurrentCollector(_CurrentCollector):
             insulation_width=insulation_width,
             name=name,
             datum=datum,
-            **kwargs
+            **kwargs,
         )
-        
+
         self.tab_width = tab_width
         self.tab_height = tab_height
         self.coated_tab_height = coated_tab_height
@@ -1159,10 +1200,12 @@ class _TabbedCurrentCollector(_CurrentCollector):
         """
         Return coated area coordinates for the specified side as a regular NumPy array [x, y, z].
         """
-        if side not in ['a', 'b']:
+        if side not in ["a", "b"]:
             raise ValueError("Side must be 'a' or 'b'.")
 
-        _y_coat_end = self._y_body_length + self._coated_tab_height - self._insulation_width
+        _y_coat_end = (
+            self._y_body_length + self._coated_tab_height - self._insulation_width
+        )
 
         if _y_coat_end > self._y_body_length:
             notch = self._coated_tab_height - self._insulation_width
@@ -1172,21 +1215,27 @@ class _TabbedCurrentCollector(_CurrentCollector):
             y_depth = _y_coat_end
 
         # Get x, y coordinates as separate 1D arrays
-        if hasattr(self, '_bare_lengths_a_side') or hasattr(self, '_bare_lengths_b_side'):
-            initial_skip_coat = self._bare_lengths_a_side[0] if side == 'a' else self._bare_lengths_b_side[0]
-            final_skip_coat = self._bare_lengths_a_side[1] if side == 'a' else self._bare_lengths_b_side[1]
+        if hasattr(self, "_bare_lengths_a_side") or hasattr(
+            self, "_bare_lengths_b_side"
+        ):
+            initial_skip_coat = (
+                self._bare_lengths_a_side[0]
+                if side == "a"
+                else self._bare_lengths_b_side[0]
+            )
+            final_skip_coat = (
+                self._bare_lengths_a_side[1]
+                if side == "a"
+                else self._bare_lengths_b_side[1]
+            )
             x_start = self._datum[0] - self._x_body_length / 2 + initial_skip_coat
             x_end = self._datum[0] + self._x_body_length / 2 - final_skip_coat
             x, y = self._get_footprint(
-                notch_height=notch,
-                y_depth=y_depth,
-                x_start=x_start,
-                x_end=x_end
+                notch_height=notch, y_depth=y_depth, x_start=x_start, x_end=x_end
             )
         else:
             x, y = self._get_footprint(
-                notch_height=notch, 
-                y_depth=y_depth
+                notch_height=notch, y_depth=y_depth
             )  # each of shape (N,)
 
         # Get z value from body coordinates
@@ -1194,7 +1243,7 @@ class _TabbedCurrentCollector(_CurrentCollector):
 
         if len(idx) == 0:
             raise ValueError(f"No body coordinates found for side '{side}'")
-        
+
         z_value = self._body_coordinates[idx[0], 2]
 
         # Create z array
@@ -1215,12 +1264,8 @@ class _TabbedCurrentCollector(_CurrentCollector):
 
     @property
     def tab_height_range(self) -> Tuple[float, float]:
+        return (1, self.y_body_length * 1 / 4)
 
-        return (
-            1, 
-            self.y_body_length*1/4
-        )
-    
     @property
     def tab_height_hard_range(self) -> Tuple[float, float]:
         return (self.tab_height_range[0], 100)
@@ -1231,14 +1276,10 @@ class _TabbedCurrentCollector(_CurrentCollector):
 
     @property
     def coated_tab_height_range(self) -> Tuple[float, float]:
-
         min = 0
-        max = self._tab_height / 2 - 0.1*MM_TO_M
+        max = self._tab_height / 2 - 0.1 * MM_TO_M
 
-        return (
-            round(min * M_TO_MM, 1), 
-            round(max * M_TO_MM, 1)
-        )
+        return (round(min * M_TO_MM, 1), round(max * M_TO_MM, 1))
 
     @property
     def coated_tab_height_hard_range(self) -> Tuple[float, float]:
@@ -1258,35 +1299,37 @@ class _TabbedCurrentCollector(_CurrentCollector):
 
     @property
     def tab_position_hard_range(self) -> Tuple[float, float]:
-        min = self._tab_width/2 + 1*MM_TO_M
-        max = self._x_body_length - self._tab_width/2 - 1*MM_TO_M
+        min = self._tab_width / 2 + 1 * MM_TO_M
+        max = self._x_body_length - self._tab_width / 2 - 1 * MM_TO_M
         return (round(min * M_TO_MM, 1), round(max * M_TO_MM, 1))
 
     @tab_position.setter
     def tab_position(self, tab_position: float) -> None:
-
         self.validate_positive_float(tab_position, "tab_position")
 
         self._tab_position = float(tab_position) * MM_TO_M
-        
+
         if self._tab_position - self._tab_width / 2 < 0:
             raise ValueError("Tab position cannot be less than half the tab width.")
-        
+
         if self._tab_position + self._tab_width / 2 > self.x_body_length:
-            raise ValueError("Tab position plus half the tab width cannot be greater than the length of the current collector.")
-        
+            raise ValueError(
+                "Tab position plus half the tab width cannot be greater than the length of the current collector."
+            )
+
         if self._update_properties:
             self._calculate_coordinates()
 
     @tab_width.setter
     @calculate_all_properties
     def tab_width(self, tab_width: float) -> None:
-
         self.validate_positive_float(tab_width, "tab_width")
         self._tab_width = float(tab_width) * MM_TO_M
 
         if self._tab_width > self._x_body_length:
-            raise ValueError("Tab width cannot be greater than the length of the current collector.")
+            raise ValueError(
+                "Tab width cannot be greater than the length of the current collector."
+            )
 
     @tab_height.setter
     @calculate_all_properties
@@ -1297,27 +1340,28 @@ class _TabbedCurrentCollector(_CurrentCollector):
     @coated_tab_height.setter
     @calculate_areas
     def coated_tab_height(self, coated_tab_height: float) -> None:
-        
         self.validate_positive_float(coated_tab_height, "coated_tab_height")
         self._coated_tab_height = float(coated_tab_height) * MM_TO_M
 
         if self._coated_tab_height > self._tab_height:
-            raise ValueError("Covered tab height on the top side cannot be greater than the tab height.")
-        
+            raise ValueError(
+                "Covered tab height on the top side cannot be greater than the tab height."
+            )
+
 
 class _TapeCurrentCollector(_CurrentCollector):
     """
     Abstract base class for current collectors using tape-style connections.
-    
-    This class implements current collectors which are much longer than they 
+
+    This class implements current collectors which are much longer than they
     are wide. These are typically used in wound configurations where a single
     cathode current collector and a single anode current collector is used.
-    
+
     Key features include:
     - Configurable bare lengths on both sides for connections
     - Precise coating area calculations excluding bare regions
     - Support for asymmetric bare regions for different applications
-    
+
     Parameters
     ----------
     material : CurrentCollectorMaterial
@@ -1340,7 +1384,7 @@ class _TapeCurrentCollector(_CurrentCollector):
         Descriptive name for the collector
     datum : tuple of float, optional
         Reference coordinate system origin (x, y, z) in mm
-        
+
     Attributes
     ----------
     bare_area_a_side : float
@@ -1357,7 +1401,7 @@ class _TapeCurrentCollector(_CurrentCollector):
     Examples
     --------
     This is an abstract class. Use concrete implementations:
-    
+
     >>> from steer_materials import aluminum_foil
     >>> collector = NotchedCurrentCollector(
     ...     material=aluminum_foil,
@@ -1369,26 +1413,27 @@ class _TapeCurrentCollector(_CurrentCollector):
     ... )
     >>> print(f"Total bare area: {collector.total_bare_area:.1f} mm²")
     >>> print(f"Coated area: {collector.coated_area:.1f} mm²")
-    
+
     See Also
     --------
     NotchedCurrentCollector : Tape-style collector with rectangular cutouts
     TablessCurrentCollector : Tape-style collector without protruding features
     _TabbedCurrentCollector : Alternative tab-based connection method
     """
+
     def __init__(
-            self,
-            material: CurrentCollectorMaterial,
-            x_body_length: float,
-            y_body_length: float,
-            thickness: float,
-            bare_lengths_a_side: Tuple[float, float] = (0,0),
-            bare_lengths_b_side: Tuple[float, float] = (0,0),
-            insulation_width: Optional[float] = 0,
-            name: Optional[str] = 'Tape Current Collector',
-            datum: Optional[Tuple[float, float, float]] = (0, 0, 0),
-            **kwargs
-        ) -> None:
+        self,
+        material: CurrentCollectorMaterial,
+        x_body_length: float,
+        y_body_length: float,
+        thickness: float,
+        bare_lengths_a_side: Tuple[float, float] = (0, 0),
+        bare_lengths_b_side: Tuple[float, float] = (0, 0),
+        insulation_width: Optional[float] = 0,
+        name: Optional[str] = "Tape Current Collector",
+        datum: Optional[Tuple[float, float, float]] = (0, 0, 0),
+        **kwargs,
+    ) -> None:
         """
         Construct a tape current collector.
 
@@ -1424,62 +1469,156 @@ class _TapeCurrentCollector(_CurrentCollector):
             name=name,
             datum=datum,
         )
-        
+
         self.bare_lengths_a_side = bare_lengths_a_side
         self.bare_lengths_b_side = bare_lengths_b_side
 
-    def _add_length_dimension(self, fig: go.Figure, aspect_ratio: float = 3, pad: float = 0.05) -> go.Figure:
-
+    def _add_length_dimension(
+        self, fig: go.Figure, aspect_ratio: float = 3, pad: float = 0.05
+    ) -> go.Figure:
         y = self._datum[1] - self._y_body_length / 2 - pad * self._y_body_length
         if self._x_body_length > self._y_body_length * aspect_ratio:
             xmin = self._datum[0] - self._x_body_length / 2
             xmax = xmin + aspect_ratio * self._y_body_length
             xmid = (xmin + xmax) / 2
-            fig.add_annotation(x=xmax, ax=xmin, y=y, ay=y, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-            fig.add_annotation(x=xmid, y=y, xref='x', yref='y', showarrow=False, yshift=-12, text=f'Length: {self.length} mm')
-            xmin = self._datum[0] + self._x_body_length / 2 - aspect_ratio * self._y_body_length
+            fig.add_annotation(
+                x=xmax,
+                ax=xmin,
+                y=y,
+                ay=y,
+                xref="x",
+                yref="y",
+                axref="x",
+                ayref="y",
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1.2,
+            )
+            fig.add_annotation(
+                x=xmid,
+                y=y,
+                xref="x",
+                yref="y",
+                showarrow=False,
+                yshift=-12,
+                text=f"Length: {self.length} mm",
+            )
+            xmin = (
+                self._datum[0]
+                + self._x_body_length / 2
+                - aspect_ratio * self._y_body_length
+            )
             xmax = self._datum[0] + self._x_body_length / 2
             xmid = (xmin + xmax) / 2
-            fig.add_annotation(x=xmax, ax=xmin, y=y, ay=y, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-            fig.add_annotation(x=xmid, y=y, xref='x', yref='y', showarrow=False, yshift=-12, text=f'\u00A0')
+            fig.add_annotation(
+                x=xmax,
+                ax=xmin,
+                y=y,
+                ay=y,
+                xref="x",
+                yref="y",
+                axref="x",
+                ayref="y",
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1.2,
+            )
+            fig.add_annotation(
+                x=xmid,
+                y=y,
+                xref="x",
+                yref="y",
+                showarrow=False,
+                yshift=-12,
+                text=f"\u00A0",
+            )
         else:
             xmin = self._datum[0] - self._x_body_length / 2
             xmax = xmin + self._x_body_length
             xmid = (xmin + xmax) / 2
-            fig.add_annotation(x=xmax, ax=xmin, y=y, ay=y, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-            fig.add_annotation(x=xmid, y=y, xref='x', yref='y', showarrow=False, yshift=-12, text=f'Length: {self.length} mm')
+            fig.add_annotation(
+                x=xmax,
+                ax=xmin,
+                y=y,
+                ay=y,
+                xref="x",
+                yref="y",
+                axref="x",
+                ayref="y",
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1.2,
+            )
+            fig.add_annotation(
+                x=xmid,
+                y=y,
+                xref="x",
+                yref="y",
+                showarrow=False,
+                yshift=-12,
+                text=f"Length: {self.length} mm",
+            )
 
         return fig
 
     def _add_height_dimension(self, fig: go.Figure, pad: float = 0.05) -> go.Figure:
-
         # Height line
         x = self._datum[0] - self._x_body_length / 2 - pad * self._y_body_length
         ymin = self._datum[1] - self._y_body_length / 2
         ymax = ymin + self._y_body_length
         ymid = (ymin + ymax) / 2
-        fig.add_annotation(x=x, ax=x, y=ymax, ay=ymin, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-        fig.add_annotation(x=x, ax=x, y=ymin, ay=ymax, xref='x', yref='y', axref='x', ayref='y', showarrow=True, arrowhead=2, arrowsize=1.2)
-        fig.add_annotation(x=x, y=ymid, xref='x', yref='y', showarrow=False, xshift=-12, text=f'Height: {self.y_body_length} mm', textangle=-90)
+        fig.add_annotation(
+            x=x,
+            ax=x,
+            y=ymax,
+            ay=ymin,
+            xref="x",
+            yref="y",
+            axref="x",
+            ayref="y",
+            showarrow=True,
+            arrowhead=2,
+            arrowsize=1.2,
+        )
+        fig.add_annotation(
+            x=x,
+            ax=x,
+            y=ymin,
+            ay=ymax,
+            xref="x",
+            yref="y",
+            axref="x",
+            ayref="y",
+            showarrow=True,
+            arrowhead=2,
+            arrowsize=1.2,
+        )
+        fig.add_annotation(
+            x=x,
+            y=ymid,
+            xref="x",
+            yref="y",
+            showarrow=False,
+            xshift=-12,
+            text=f"Height: {self.y_body_length} mm",
+            textangle=-90,
+        )
 
         return fig
 
     # TODO: improve this function. Axes seem strange when overriding a previous figure in dash
     def get_top_down_view(
-        self, 
-        aspect_ratio: float = 4, 
-        side: str = 'a',
-        **kwargs
+        self, aspect_ratio: float = 4, side: str = "a", **kwargs
     ) -> go.Figure:
         """
         Visualize the notched current collector.
         If the collector is long, split into two subplots for left and right ends with split indicators.
         The vertical datum is centered at y = self.width / 2.
-        
+
         :param aspect_ratio: float: aspect ratio of the plot, default is 3
         :param side: str: 'a' or 'b' to indicate which side to visualize
         """
-        if side not in ['a', 'b']:
+        if side not in ["a", "b"]:
             raise ValueError("Side must be 'a' or 'b'.")
 
         max_x = self.y_body_length * aspect_ratio
@@ -1487,16 +1626,14 @@ class _TapeCurrentCollector(_CurrentCollector):
         figure = self._get_full_top_down_view(**kwargs)
 
         if max_x < self.x_body_length:
-
             figure_subplot = make_subplots(
-                rows=2, 
-                cols=1, 
+                rows=2,
+                cols=1,
                 vertical_spacing=0.2,
                 subplot_titles=("Tape start", "Tape end"),
             )
 
             for trace in figure.data:
-                
                 trace1 = deepcopy(trace)
                 trace2 = deepcopy(trace)
 
@@ -1509,13 +1646,13 @@ class _TapeCurrentCollector(_CurrentCollector):
                 figure_subplot.add_trace(trace2, row=2, col=1)
 
             top_row_range = [
-                (self.datum[0] - self.x_body_length / 2) - 300, 
-                self.datum[0] - self.x_body_length / 2 + max_x
+                (self.datum[0] - self.x_body_length / 2) - 300,
+                self.datum[0] - self.x_body_length / 2 + max_x,
             ]
 
             bottom_row_range = [
-                self.datum[0] + self.x_body_length / 2 - max_x, 
-                self.datum[0] + self.x_body_length / 2 + 300
+                self.datum[0] + self.x_body_length / 2 - max_x,
+                self.datum[0] + self.x_body_length / 2 + 300,
             ]
 
             # Set x-axis ranges
@@ -1525,7 +1662,7 @@ class _TapeCurrentCollector(_CurrentCollector):
             # Set y-axis ranges to match the aspect ratio
             y_range = [
                 self.datum[1] - self.y_body_length / 2,
-                self.datum[1] + self.y_body_length / 2
+                self.datum[1] + self.y_body_length / 2,
             ]
 
             figure_subplot.update_yaxes(range=y_range, row=1, col=1)
@@ -1540,35 +1677,38 @@ class _TapeCurrentCollector(_CurrentCollector):
             figure = figure_subplot
 
         figure.update_layout(
-            xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='X (mm)'),
-            yaxis=dict(showgrid=False, zeroline=False, title='Y (mm)'),
-            paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
-            plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
-            **kwargs
+            xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title="X (mm)"),
+            yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)"),
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            **kwargs,
         )
 
         return figure
 
     @property
     def x_body_length_range(self) -> Tuple[float, float]:
-        
-        if hasattr(self, '_x_body_length_range') and self._x_body_length_range is not None:
-            
+        if (
+            hasattr(self, "_x_body_length_range")
+            and self._x_body_length_range is not None
+        ):
             return (
-                round(self._x_body_length_range[0] * M_TO_MM, 2), 
-                round(self._x_body_length_range[1] * M_TO_MM, 2)
+                round(self._x_body_length_range[0] * M_TO_MM, 2),
+                round(self._x_body_length_range[1] * M_TO_MM, 2),
             )
-        
+
         else:
             return (100, 5000)
 
     @property
     def y_body_length_range(self) -> Tuple[float, float]:
-        
-        if hasattr(self, '_y_body_length_range') and self._y_body_length_range is not None:
+        if (
+            hasattr(self, "_y_body_length_range")
+            and self._y_body_length_range is not None
+        ):
             return (
-                round(self._y_body_length_range[0] * M_TO_MM, 2), 
-                round(self._y_body_length_range[1] * M_TO_MM, 2)
+                round(self._y_body_length_range[0] * M_TO_MM, 2),
+                round(self._y_body_length_range[1] * M_TO_MM, 2),
             )
         else:
             return (10, 1000)
@@ -1576,7 +1716,7 @@ class _TapeCurrentCollector(_CurrentCollector):
     @property
     def bare_lengths_a_side(self) -> Tuple[float, float]:
         return tuple(round(length * M_TO_MM, 2) for length in self._bare_lengths_a_side)
-    
+
     @property
     def bare_lengths_b_side(self) -> Tuple[float, float]:
         return tuple(round(length * M_TO_MM, 2) for length in self._bare_lengths_b_side)
@@ -1584,14 +1724,14 @@ class _TapeCurrentCollector(_CurrentCollector):
     @property
     def a_side_coated_section(self):
         """
-        Property inidcating the length of the current collector that is coated on the A side. Given as a tuple, with the first float being the start point along the tape of the 
+        Property inidcating the length of the current collector that is coated on the A side. Given as a tuple, with the first float being the start point along the tape of the
         coated area, and the second float being the end point along the tape of the coated area.
         """
         return (
             round(self._bare_lengths_a_side[0] * M_TO_MM, 1),
-            round((self._x_body_length - self._bare_lengths_a_side[1]) * M_TO_MM, 1)
+            round((self._x_body_length - self._bare_lengths_a_side[1]) * M_TO_MM, 1),
         )
-    
+
     @property
     def a_side_coated_section_hard_range(self) -> Tuple[float, float]:
         """
@@ -1606,12 +1746,12 @@ class _TapeCurrentCollector(_CurrentCollector):
     @property
     def b_side_coated_section(self):
         """
-        Property inidcating the length of the current collector that is coated on the B side. Given as a tuple, with the first float being the start point along the tape of the 
+        Property inidcating the length of the current collector that is coated on the B side. Given as a tuple, with the first float being the start point along the tape of the
         coated area, and the second float being the end point along the tape of the coated area.
         """
         return (
             round(self._bare_lengths_b_side[0] * M_TO_MM, 1),
-            round((self._x_body_length - self._bare_lengths_b_side[1]) * M_TO_MM, 1)
+            round((self._x_body_length - self._bare_lengths_b_side[1]) * M_TO_MM, 1),
         )
 
     @property
@@ -1628,7 +1768,7 @@ class _TapeCurrentCollector(_CurrentCollector):
     @property
     def length(self) -> float:
         return self.x_body_length
-    
+
     @property
     def length_range(self) -> Tuple[float, float]:
         return self.x_body_length_range
@@ -1656,40 +1796,46 @@ class _TapeCurrentCollector(_CurrentCollector):
     @bare_lengths_a_side.setter
     @calculate_areas
     def bare_lengths_a_side(self, bare_lengths_a_side: Iterable[float]) -> None:
-
         self.validate_two_iterable_of_floats(bare_lengths_a_side, "bare_lengths_a_side")
-        self._bare_lengths_a_side = tuple(float(length) * MM_TO_M for length in bare_lengths_a_side)
+        self._bare_lengths_a_side = tuple(
+            float(length) * MM_TO_M for length in bare_lengths_a_side
+        )
 
         if self._x_body_length < sum(self._bare_lengths_a_side):
-            raise ValueError("Total bare lengths on A side cannot be greater than the length of the current collector.")
+            raise ValueError(
+                "Total bare lengths on A side cannot be greater than the length of the current collector."
+            )
 
     @bare_lengths_b_side.setter
     @calculate_areas
     def bare_lengths_b_side(self, bare_lengths_b_side: Iterable[float]) -> None:
-
         self.validate_two_iterable_of_floats(bare_lengths_b_side, "bare_lengths_b_side")
-        
-        self._bare_lengths_b_side = tuple(float(length) * MM_TO_M for length in bare_lengths_b_side)
+
+        self._bare_lengths_b_side = tuple(
+            float(length) * MM_TO_M for length in bare_lengths_b_side
+        )
 
         if self._x_body_length < sum(self._bare_lengths_b_side):
-            raise ValueError("Total bare lengths on B side cannot be greater than the length of the current collector.")
+            raise ValueError(
+                "Total bare lengths on B side cannot be greater than the length of the current collector."
+            )
 
     @a_side_coated_section.setter
     @calculate_areas
     def a_side_coated_section(self, section: Tuple[float, float]) -> None:
         """
         Set the A side coated section.
-        
+
         Parameters:
         ----------
         section: Tuple[float, float]
             A tuple containing the start and end points of the coated section along the tape in mm.
         """
         self.validate_two_iterable_of_floats(section, "a_side_coated_section")
-        
+
         self._bare_lengths_a_side = (
             float(section[0]) * MM_TO_M,
-            self._x_body_length - float(section[1]) * MM_TO_M
+            self._x_body_length - float(section[1]) * MM_TO_M,
         )
 
     @b_side_coated_section.setter
@@ -1707,15 +1853,17 @@ class _TapeCurrentCollector(_CurrentCollector):
 
         self._bare_lengths_b_side = (
             float(section[0]) * MM_TO_M,
-            self._x_body_length - float(section[1]) * MM_TO_M
+            self._x_body_length - float(section[1]) * MM_TO_M,
         )
 
     @length.setter
     def length(self, length: float) -> None:
         self.validate_positive_float(length, "length")
 
-        if hasattr(self, '_weld_tabs'):
-            self._weld_tab_positions = [p * MM_TO_M for p in self.weld_tab_positions if p <= length]
+        if hasattr(self, "_weld_tabs"):
+            self._weld_tab_positions = [
+                p * MM_TO_M for p in self.weld_tab_positions if p <= length
+            ]
 
         self.x_body_length = length
 
@@ -1723,26 +1871,26 @@ class _TapeCurrentCollector(_CurrentCollector):
 class PunchedCurrentCollector(_TabbedCurrentCollector):
     """
     Simple rectangular current collector with a single integrated tab.
-    
+
     The punched current collector is the most common and straightforward
     collector design, featuring a rectangular body with a single tab
-    extending from one edge. This design is widely used in 
+    extending from one edge. This design is widely used in
     prismatic and pouch cell formats due to its simplicity,
     manufacturing efficiency, and reliable electrical performance.
-    
+
     Key characteristics:
     - Simple rectangular geometry with minimal complexity
     - Single tab for electrical connection
     - Configurable tab position along the width
     - Suitable for high-volume manufacturing
     - Compatible with standard coating and assembly processes
-    
+
     This collector type is particularly well-suited for:
     - Z-fold electrode assemblies
     - Flat sheet cell constructions
     - Applications requiring simple, cost-effective designs
     - Automated manufacturing processes
-    
+
     Parameters
     ----------
     material : CurrentCollectorMaterial
@@ -1779,7 +1927,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         Descriptive name for identification
     datum : tuple of float, optional
         Reference coordinate system origin (x, y, z) in mm
-        
+
     Attributes
     ----------
     body_area : float
@@ -1794,7 +1942,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         Current density through the tab connection (A/mm²)
     resistance : float
         Electrical resistance from body center to tab (Ω)
-        
+
     Methods
     -------
     get_footprint()
@@ -1803,11 +1951,11 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         Generates plotly figure of the collector from above
     get_properties()
         Returns dictionary of all geometric and electrical properties
-        
+
     Examples
     --------
     Create a standard punched cathode current collector:
-    
+
     >>> from steer_materials import aluminum_foil_12um
     >>> collector = PunchedCurrentCollector(
     ...     material=aluminum_foil_12um,
@@ -1820,9 +1968,9 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
     ... )
     >>> print(f"Coated area: {collector.coated_area:.1f} mm²")
     >>> print(f"Tab current density at 10A: {10/collector.tab_area:.2f} A/mm²")
-    
+
     Create an anode collector with coated tab:
-    
+
     >>> from steer_materials import CurrentCollectorMaterial
     >>> anode_collector = PunchedCurrentCollector(
     ...     material=CurrentCollectorMaterial.from_database('Aluminum'),
@@ -1834,35 +1982,36 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
     ...     tab_position=74.0,
     ...     coated_tab_height=8.0  # Partial coating on tab
     ... )
-    
+
     Visualize the collector geometry:
-    
+
     >>> fig = collector.get_a_side_view()
     >>> fig.show()  # Interactive plotly visualization
-    
+
     See Also
     --------
     NotchedCurrentCollector : Collector with cutout features for tape connections
     TablessCurrentCollector : Collector without protruding tabs
     TabWeldedCurrentCollector : Collector with separately welded tabs
     """
+
     def __init__(
-            self, 
-            material: CurrentCollectorMaterial,
-            width: float,
-            height: float,
-            thickness: float,
-            tab_width: float,
-            tab_height: float,
-            tab_position: float,
-            coated_tab_height: float = 0,
-            insulation_width: Optional[float] = 0,
-            name: Optional[str] = 'Punched Current Collector',
-            datum: Optional[Tuple[float, float, float]] = (0, 0, 0),
-        ) -> None:
+        self,
+        material: CurrentCollectorMaterial,
+        width: float,
+        height: float,
+        thickness: float,
+        tab_width: float,
+        tab_height: float,
+        tab_position: float,
+        coated_tab_height: float = 0,
+        insulation_width: Optional[float] = 0,
+        name: Optional[str] = "Punched Current Collector",
+        datum: Optional[Tuple[float, float, float]] = (0, 0, 0),
+    ) -> None:
         """
         Initialize an object that represents a punched current collector.
-        
+
         Parameters
         ----------
         material: CurrentCollectorMaterial
@@ -1898,19 +2047,19 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
             thickness=thickness,
             insulation_width=insulation_width,
             name=name,
-            datum=datum
+            datum=datum,
         )
-        
+
         self.tab_position = tab_position
         self._calculate_all_properties()
         self._update_properties = True
 
     def _get_footprint(
-            self, 
-            notch_height: float = None, 
-            y_depth: float = None,
-            y_start: float = 0,
-        ) -> np.ndarray:
+        self,
+        notch_height: float = None,
+        y_depth: float = None,
+        y_start: float = 0,
+    ) -> np.ndarray:
         """
         Get the footprint of the current collector as a NumPy array of shape (N, 2).
         Each row is a (x, y) coordinate.
@@ -1928,27 +2077,20 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         start_x = datum_x - x_len / 2
         start_y = datum_y - y_len / 2 + y_start
 
-        x_steps = np.array([
-            0,
-            tab_pos - tab_width / 2,
-            0,
-            tab_width,
-            0,
-            x_len - tab_pos - tab_width / 2,
-            0,
-            -x_len
-        ])
+        x_steps = np.array(
+            [
+                0,
+                tab_pos - tab_width / 2,
+                0,
+                tab_width,
+                0,
+                x_len - tab_pos - tab_width / 2,
+                0,
+                -x_len,
+            ]
+        )
 
-        y_steps = np.array([
-            y_depth,
-            0,
-            notch_height,
-            0,
-            -notch_height,
-            0,
-            -y_depth,
-            0
-        ])
+        y_steps = np.array([y_depth, 0, notch_height, 0, -notch_height, 0, -y_depth, 0])
 
         # Cumulative sum to get coordinates
         x_coords = np.cumsum(np.insert(x_steps, 0, start_x))
@@ -1965,7 +2107,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         if self._insulation_width == 0:
             return np.empty((0, 3))
 
-        if side not in ['a', 'b']:
+        if side not in ["a", "b"]:
             raise ValueError("Side must be 'a' or 'b'.")
 
         _y_insulation_start = (
@@ -1978,36 +2120,39 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
         # Determine which case applies
         if _y_insulation_start > self._datum[1] + self._y_body_length / 2:
-            x0 = self._datum[0] - self._x_body_length / 2 + self._tab_position - self._tab_width / 2
+            x0 = (
+                self._datum[0]
+                - self._x_body_length / 2
+                + self._tab_position
+                - self._tab_width / 2
+            )
             y0 = _y_insulation_start
 
             x, y = self.build_square_array(
-                x=x0,
-                y=y0,
-                x_width=self._tab_width,
-                y_width=self._insulation_width
+                x=x0, y=y0, x_width=self._tab_width, y_width=self._insulation_width
             )
 
-        elif round(_y_insulation_end, 10) <= round(self._datum[1] + self._y_body_length / 2, 10):
+        elif round(_y_insulation_end, 10) <= round(
+            self._datum[1] + self._y_body_length / 2, 10
+        ):
             x0 = self._datum[0] - self._x_body_length / 2
             y0 = _y_insulation_start
 
             x, y = self.build_square_array(
-                x=x0,
-                y=y0,
-                x_width=self._x_body_length,
-                y_width=self._insulation_width
+                x=x0, y=y0, x_width=self._x_body_length, y_width=self._insulation_width
             )
 
         else:
-            notch_height = _y_insulation_end - (self._datum[1] + self._y_body_length / 2)
+            notch_height = _y_insulation_end - (
+                self._datum[1] + self._y_body_length / 2
+            )
             y_depth = (self._datum[1] + self._y_body_length / 2) - _y_insulation_start
-            y_start = self._y_body_length + self._coated_tab_height - self._insulation_width
+            y_start = (
+                self._y_body_length + self._coated_tab_height - self._insulation_width
+            )
 
             x, y = self._get_footprint(
-                notch_height=notch_height,
-                y_depth=y_depth,
-                y_start=y_start
+                notch_height=notch_height, y_depth=y_depth, y_start=y_start
             )
 
         # Get z-coordinate from body coordinates for this side
@@ -2015,7 +2160,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
         if len(idx) == 0:
             raise ValueError(f"No body coordinates found for side '{side}'")
-        
+
         z_val = self._body_coordinates[idx[0], 2]
 
         # Create z and side columns
@@ -2033,64 +2178,79 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         """
         # Keep datum as the center of rotation - don't move it to origin
         # Rotate coordinates around the current datum position
-        self._body_coordinates = self.rotate_coordinates(self._body_coordinates, 'z', -90, center=self._datum)
-        self._a_side_coated_coordinates = self.rotate_coordinates(self._a_side_coated_coordinates, 'z', -90, center=self._datum)
-        self._b_side_coated_coordinates = self.rotate_coordinates(self._b_side_coated_coordinates, 'z', -90, center=self._datum)
+        self._body_coordinates = self.rotate_coordinates(
+            self._body_coordinates, "z", -90, center=self._datum
+        )
+        self._a_side_coated_coordinates = self.rotate_coordinates(
+            self._a_side_coated_coordinates, "z", -90, center=self._datum
+        )
+        self._b_side_coated_coordinates = self.rotate_coordinates(
+            self._b_side_coated_coordinates, "z", -90, center=self._datum
+        )
 
-        if hasattr(self, '_a_side_insulation_coordinates'):
-            self._a_side_insulation_coordinates = self.rotate_coordinates(self._a_side_insulation_coordinates, 'z', -90, center=self._datum)
-        if hasattr(self, '_b_side_insulation_coordinates'):
-            self._b_side_insulation_coordinates = self.rotate_coordinates(self._b_side_insulation_coordinates, 'z', -90, center=self._datum)
+        if hasattr(self, "_a_side_insulation_coordinates"):
+            self._a_side_insulation_coordinates = self.rotate_coordinates(
+                self._a_side_insulation_coordinates, "z", -90, center=self._datum
+            )
+        if hasattr(self, "_b_side_insulation_coordinates"):
+            self._b_side_insulation_coordinates = self.rotate_coordinates(
+                self._b_side_insulation_coordinates, "z", -90, center=self._datum
+            )
 
-        if hasattr(self, '_weld_tabs'):
+        if hasattr(self, "_weld_tabs"):
             for tab in self._weld_tabs:
-                tab._body_coordinates = self.rotate_coordinates(tab._body_coordinates, 'z', -90, center=self._datum)
-                tab_datum_array = np.array([[tab._datum[0], tab._datum[1], tab._datum[2]]])
-                rotated_datum = self.rotate_coordinates(tab_datum_array, 'z', -90, center=self._datum)
+                tab._body_coordinates = self.rotate_coordinates(
+                    tab._body_coordinates, "z", -90, center=self._datum
+                )
+                tab_datum_array = np.array(
+                    [[tab._datum[0], tab._datum[1], tab._datum[2]]]
+                )
+                rotated_datum = self.rotate_coordinates(
+                    tab_datum_array, "z", -90, center=self._datum
+                )
                 tab._datum = tuple(rotated_datum[0])
 
         return self
 
     @property
     def x_body_length_range(self) -> Tuple[float, float]:
-        
-        if hasattr(self, '_x_body_length_range') and self._x_body_length_range is not None:
-            
+        if (
+            hasattr(self, "_x_body_length_range")
+            and self._x_body_length_range is not None
+        ):
             return (
-                round(self._x_body_length_range[0] * M_TO_MM, 2), 
-                round(self._x_body_length_range[1] * M_TO_MM, 2)
+                round(self._x_body_length_range[0] * M_TO_MM, 2),
+                round(self._x_body_length_range[1] * M_TO_MM, 2),
             )
-        
+
         else:
             return (10, 500)
 
     @property
     def y_body_length_range(self) -> Tuple[float, float]:
-        
-        if hasattr(self, '_y_body_length_range') and self._y_body_length_range is not None:
+        if (
+            hasattr(self, "_y_body_length_range")
+            and self._y_body_length_range is not None
+        ):
             return (
-                round(self._y_body_length_range[0] * M_TO_MM, 2), 
-                round(self._y_body_length_range[1] * M_TO_MM, 2)
+                round(self._y_body_length_range[0] * M_TO_MM, 2),
+                round(self._y_body_length_range[1] * M_TO_MM, 2),
             )
         else:
             return (10, 500)
 
     @property
     def mass_range(self) -> Tuple[float, float]:
-
         min = 0
         hyp_max = 0.1
-        max = hyp_max * (1 - np.exp(-0.5/self._mass))
+        max = hyp_max * (1 - np.exp(-0.5 / self._mass))
 
-        return (
-            round(min * KG_TO_G, 2), 
-            round(max * KG_TO_G, 2)
-        )
+        return (round(min * KG_TO_G, 2), round(max * KG_TO_G, 2))
 
     @property
     def width(self) -> float:
         return self.x_body_length
-    
+
     @property
     def width_range(self) -> Tuple[float, float]:
         return self.x_body_length_range
@@ -2109,14 +2269,10 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
     @property
     def tab_width_hard_range(self) -> Tuple[float, float]:
-        
         min = 0.01
         max = self._x_body_length - 0.01
-        
-        return (
-            round(min * M_TO_MM, 2), 
-            round(max * M_TO_MM, 2)
-        )
+
+        return (round(min * M_TO_MM, 2), round(max * M_TO_MM, 2))
 
     @property
     def tab_width_range(self) -> Tuple[float, float]:
@@ -2179,11 +2335,11 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         Descriptive identifier for the collector
     datum : tuple of float, optional
         Reference coordinate system origin (x, y, z) in mm
-        
+
     Examples
     --------
     Create a high-performance notched collector for an EV battery:
-    
+
     >>> from steer_materials import copper_foil_12um
     >>> collector = NotchedCurrentCollector(
     ...     material=copper_foil_12um,
@@ -2203,12 +2359,12 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
     >>> thermal_fig = collector.get_thermal_map()
     >>> thermal_fig.show()
-    
+
     Compare connection strategies:
-    
+
     >>> print("Available connections:", collector.connection_flexibility.keys())
     >>> # Output: ['tab_welding', 'tape_welding_a', 'tape_welding_b', 'hybrid']
-    
+
     See Also
     --------
     PunchedCurrentCollector : Simple single-tab design
@@ -2217,22 +2373,23 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
     _TabbedCurrentCollector : Base class for tab functionality
     _TapeCurrentCollector : Base class for tape functionality
     """
+
     def __init__(
-            self, 
-            material: CurrentCollectorMaterial,
-            length: float,
-            width: float,
-            thickness: float,
-            tab_width: float,
-            tab_spacing: float,
-            tab_height: float,
-            coated_tab_height: float = 0,
-            bare_lengths_a_side: Tuple[float, float] = (0,0),
-            bare_lengths_b_side: Tuple[float, float] = (0,0),
-            insulation_width: Optional[float] = 0,
-            name: Optional[str] = 'Notched Current Collector',
-            datum: Optional[Tuple[float, float, float]] = (0, 0, 0)
-        ) -> None:
+        self,
+        material: CurrentCollectorMaterial,
+        length: float,
+        width: float,
+        thickness: float,
+        tab_width: float,
+        tab_spacing: float,
+        tab_height: float,
+        coated_tab_height: float = 0,
+        bare_lengths_a_side: Tuple[float, float] = (0, 0),
+        bare_lengths_b_side: Tuple[float, float] = (0, 0),
+        insulation_width: Optional[float] = 0,
+        name: Optional[str] = "Notched Current Collector",
+        datum: Optional[Tuple[float, float, float]] = (0, 0, 0),
+    ) -> None:
         """
         Initialize an object that represents a notched current collector.
 
@@ -2277,7 +2434,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
             bare_lengths_b_side=bare_lengths_b_side,
             insulation_width=insulation_width,
             name=name,
-            datum=datum
+            datum=datum,
         )
 
         self.tab_spacing = tab_spacing
@@ -2285,37 +2442,41 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         self._update_properties = True
 
     @classmethod
-    def from_tabless(cls, tabless: 'TablessCurrentCollector') -> 'NotchedCurrentCollector':
+    def from_tabless(
+        cls, tabless: "TablessCurrentCollector"
+    ) -> "NotchedCurrentCollector":
         """
         Create a NotchedCurrentCollector from a TablessCurrentCollector.
         """
         new_current_collector = cls(
-            material = tabless.material,
-            length = tabless.x_body_length,
-            width = tabless.y_body_length,
-            thickness = tabless.thickness,
-            tab_width = 50,
-            tab_spacing = 100,
-            tab_height = tabless.tab_height,
-            coated_tab_height = 0,
-            bare_lengths_a_side = tabless.bare_lengths_a_side,
-            bare_lengths_b_side = tabless.bare_lengths_b_side,
-            insulation_width = tabless.insulation_width,
-            datum = tabless.datum,
+            material=tabless.material,
+            length=tabless.x_body_length,
+            width=tabless.y_body_length,
+            thickness=tabless.thickness,
+            tab_width=50,
+            tab_spacing=100,
+            tab_height=tabless.tab_height,
+            coated_tab_height=0,
+            bare_lengths_a_side=tabless.bare_lengths_a_side,
+            bare_lengths_b_side=tabless.bare_lengths_b_side,
+            insulation_width=tabless.insulation_width,
+            datum=tabless.datum,
         )
 
         # perform actions if needed
         if tabless._flipped_x:
-            new_current_collector._flip('x')
+            new_current_collector._flip("x")
         if tabless._flipped_y:
-            new_current_collector._flip('y')
+            new_current_collector._flip("y")
         if tabless._flipped_z:
-            new_current_collector._flip('z')
+            new_current_collector._flip("z")
 
         return new_current_collector
 
     @classmethod
-    def from_tab_welded(cls, tab_welded: 'TabWeldedCurrentCollector') -> 'NotchedCurrentCollector':
+    def from_tab_welded(
+        cls, tab_welded: "TabWeldedCurrentCollector"
+    ) -> "NotchedCurrentCollector":
         """
         Create a NotchedCurrentCollector from a TabWeldedCurrentCollector.
         """
@@ -2336,11 +2497,11 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         # perform actions if needed
         if tab_welded._flipped_x:
-            new_current_collector._flip('x')
+            new_current_collector._flip("x")
         if tab_welded._flipped_y:
-            new_current_collector._flip('y')
+            new_current_collector._flip("y")
         if tab_welded._flipped_z:
-            new_current_collector._flip('z')
+            new_current_collector._flip("z")
 
         return new_current_collector
 
@@ -2357,13 +2518,12 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         tab_ends = [tab_positions[0] + self._tab_width / 2]
 
         while tab_positions[-1] < x_max:
-            
             number_of_tabs += 1
             next_tab_position = tab_positions[-1] + self._tab_spacing
-            
+
             if next_tab_position + self._tab_width / 2 > x_max:
                 break
-            
+
             tab_positions.append(next_tab_position)
             tab_starts.append(next_tab_position - self._tab_width / 2)
             tab_ends.append(next_tab_position + self._tab_width / 2)
@@ -2382,14 +2542,14 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         super()._calculate_coordinates()
 
     def _get_footprint(
-            self,
-            notch_height: Optional[float] = None,
-            bare_lengths: Tuple[float, float] = (0, 0),
-            y_depth: Optional[float] = None,
-            y_start: Optional[float] = None,
-            x_start: Optional[float] = None,
-            x_end: Optional[float] = None,
-        ) -> Tuple[np.ndarray, np.ndarray]:
+        self,
+        notch_height: Optional[float] = None,
+        bare_lengths: Tuple[float, float] = (0, 0),
+        y_depth: Optional[float] = None,
+        y_start: Optional[float] = None,
+        x_start: Optional[float] = None,
+        x_end: Optional[float] = None,
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Return a closed polyline (DataFrame of x/y) for the notched collector.
         All internal units in meters; bare_lengths come in mm.
@@ -2397,7 +2557,9 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         """
         # Default values
         y_depth = self._y_body_length if y_depth is None else y_depth
-        y_start = self._datum[1] - self._y_body_length / 2 if y_start is None else y_start
+        y_start = (
+            self._datum[1] - self._y_body_length / 2 if y_start is None else y_start
+        )
         notch = self._tab_height if notch_height is None else notch_height
 
         # Convert bare lengths to meters (they come in mm according to docstring)
@@ -2414,7 +2576,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         y1 = y_start + y_depth
 
         pts = []
-        
+
         # Start at bottom-left
         pts.append((x0, y0))
         # Go up to top edge
@@ -2430,25 +2592,25 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
                 e = min(te, x1)
                 if e > s:  # Valid tab after clipping
                     valid_tabs.append((s, e))
-        
+
         # Sort tabs by start position
         valid_tabs.sort(key=lambda tab: tab[0])
 
         # Process each valid tab
         current_x = x0
-        
+
         for tab_start, tab_end in valid_tabs:
             # Horizontal run to start of notch (if needed)
             if current_x < tab_start:
                 if pts[-1] != (current_x, y1):
                     pts.append((current_x, y1))
                 pts.append((tab_start, y1))
-            
+
             # Draw the notch
             pts.append((tab_start, y1 + notch))
             pts.append((tab_end, y1 + notch))
             pts.append((tab_end, y1))
-            
+
             # Update current position
             current_x = tab_end
 
@@ -2468,7 +2630,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         return x, y
 
-    def _get_insulation_coordinates(self, side: str = 'a') -> np.ndarray:
+    def _get_insulation_coordinates(self, side: str = "a") -> np.ndarray:
         """
         Return insulation coordinates for a given side ('a' or 'b') as numpy array.
         Handles three cases: (1) above body, (2) below body, (3) straddling edge.
@@ -2483,46 +2645,41 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         # Compute x bounds of coated region
         bare_left, bare_right = (
-            self._bare_lengths_a_side if side == 'a' else self._bare_lengths_b_side
+            self._bare_lengths_a_side if side == "a" else self._bare_lengths_b_side
         )
         x_start = self._datum[0] - self._x_body_length / 2 + bare_left
         x_end = self._datum[0] + self._x_body_length / 2 - bare_right
 
         # Case 1: Insulation entirely above the body
         if round(y_ins_start, 5) >= round(y_body_top, 5):
-
             all_x = []
             all_y = []
-            
-            for idx, (ts, te) in enumerate(self._tab_positions):
 
+            for idx, (ts, te) in enumerate(self._tab_positions):
                 ts = float(ts)
                 te = float(te)
-                
+
                 # Clip tab to coated region
                 if te < x_start or ts > x_end:
                     continue
-                
+
                 s = max(ts, x_start)
                 e = min(te, x_end)
 
                 # Get coordinates for this tab's insulation rectangle
                 tab_x, tab_y = self.build_square_array(
-                    x_width=e - s,
-                    y_width=self._insulation_width,
-                    x=s,
-                    y=y_ins_start
+                    x_width=e - s, y_width=self._insulation_width, x=s, y=y_ins_start
                 )
-                
+
                 # Add to lists
                 all_x.extend(tab_x)
                 all_y.extend(tab_y)
-                
+
                 # Add None values to break the fill for multiple rectangles
                 if idx < len(self._tab_positions) - 1:  # Don't add break after last tab
                     all_x.append(None)
                     all_y.append(None)
-            
+
             x = np.array(all_x)
             y = np.array(all_y)
 
@@ -2532,7 +2689,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
                 x_width=x_end - x_start,
                 y_width=self._insulation_width,
                 x=x_start,
-                y=y_ins_start
+                y=y_ins_start,
             )
 
         # Case 3: Insulation straddles the top of the body
@@ -2544,7 +2701,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
                 y_depth=depth,
                 y_start=y_ins_start,
                 x_start=x_start,
-                x_end=x_end
+                x_end=x_end,
             )
 
         # Get z-coordinate from body coordinates for this side
@@ -2552,7 +2709,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         if len(idx) == 0:
             raise ValueError(f"No body coordinates found for side '{side}'")
-        
+
         z_val = self._body_coordinates[idx[0], 2]
 
         # Create z array (handle None values in x/y arrays)
@@ -2564,8 +2721,11 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
     @property
     def tab_positions(self) -> list:
-        return [(round(start * M_TO_MM, 4), round(end * M_TO_MM, 4)) for start, end in self._tab_positions]
-    
+        return [
+            (round(start * M_TO_MM, 4), round(end * M_TO_MM, 4))
+            for start, end in self._tab_positions
+        ]
+
     @property
     def tab_spacing(self) -> float:
         return round(self._tab_spacing * M_TO_MM, 2)
@@ -2575,10 +2735,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         """
         Get the tab spacing range in mm.
         """
-        return (
-            round(self.tab_width + 0.1, 2),
-            1000
-        )
+        return (round(self.tab_width + 0.1, 2), 1000)
 
     @property
     def tab_spacing_hard_range(self) -> Tuple[float, float]:
@@ -2595,7 +2752,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         """
         return (
             0.1,  # Minimum gap
-            1000 - self.tab_width  # Maximum gap (based on max spacing minus tab width)
+            1000 - self.tab_width,  # Maximum gap (based on max spacing minus tab width)
         )
 
     @property
@@ -2605,21 +2762,17 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
     @property
     def coated_area_a_side(self) -> float:
         return round(self._coated_area_a_side * M_TO_MM**2, 2)
-    
+
     @property
     def coated_area_b_side(self) -> float:
         return round(self._coated_area_b_side * M_TO_MM**2, 2)
 
     @property
     def tab_width_hard_range(self) -> Tuple[float, float]:
-        
         min = 0.01
         max = 0.5
-        
-        return (
-            round(min * M_TO_MM, 2), 
-            round(max * M_TO_MM, 2)
-        )
+
+        return (round(min * M_TO_MM, 2), round(max * M_TO_MM, 2))
 
     @property
     def tab_width_range(self) -> Tuple[float, float]:
@@ -2628,7 +2781,6 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
     @tab_spacing.setter
     @calculate_all_properties
     def tab_spacing(self, tab_spacing: float) -> None:
-
         self.validate_positive_float(tab_spacing, "tab_spacing")
 
         self._tab_spacing = float(tab_spacing) * MM_TO_M
@@ -2636,26 +2788,26 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         if self._tab_gap < 0:
             raise ValueError("Tab spacing cannot be less than the tab width.")
-        
+
     @tab_gap.setter
     @calculate_all_properties
     def tab_gap(self, tab_gap: float) -> None:
         """
         Set the tab gap by adjusting the tab spacing.
-        
+
         Parameters
         ----------
         tab_gap : float
             The gap between tabs in mm.
         """
         self.validate_positive_float(tab_gap, "tab_gap")
-        
+
         # Convert to internal units (meters)
         tab_gap_m = float(tab_gap) * MM_TO_M
-        
+
         # Calculate new tab spacing: gap + tab width
         new_tab_spacing = tab_gap_m + self._tab_width
-        
+
         # Update internal values
         self._tab_gap = tab_gap_m
         self._tab_spacing = new_tab_spacing
@@ -2664,27 +2816,27 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 class TablessCurrentCollector(NotchedCurrentCollector):
     """
     Streamlined current collector without protruding tabs.
-    
+
     The tabless current collector represents the most space-efficient design,
     eliminating protruding tabs entirely in favor of edge-based connections.
     This design is particularly advantageous for cylindrical cells, flatwound
     configurations, and applications where minimizing cell volume and complexity
     are paramount.
-    
+
     Key advantages of the tabless design:
     - Simplified manufacturing with fewer cutting/forming operations
     - Reduced risk of tab damage during handling and assembly
     - Better suitability for automated winding and stacking processes
     - Lower material waste during production
     - Enhanced mechanical robustness
-    
+
     This design is especially well-suited for:
     - Cylindrical cells (18650, 21700, 4680 formats)
     - Flatwound rectangular cells
     - High-volume consumer applications
     - Cells requiring consistent cylindrical geometry
     - Applications where tab damage is a reliability concern
-    
+
     Parameters
     ----------
     material : CurrentCollectorMaterial
@@ -2719,7 +2871,7 @@ class TablessCurrentCollector(NotchedCurrentCollector):
     Examples
     --------
     Design a tabless collector for a 21700 cylindrical cell:
-    
+
     >>> from steer_materials import CurrentCollectorMaterial
     >>> collector = TablessCurrentCollector(
     ...     material=CurrentCollectorMaterial.from_database('Aluminum'),
@@ -2733,32 +2885,33 @@ class TablessCurrentCollector(NotchedCurrentCollector):
     ... )
     >>> print(f"Coated fraction: {collector.coated_fraction:.2%}")
     >>> print(f"Connection strip width: {collector.connection_strip_width:.1f} mm")
-    
+
     See Also
     --------
     PunchedCurrentCollector : Simple tabbed alternative
     NotchedCurrentCollector : Multi-tab design with more connection points
     TabWeldedCurrentCollector : Separate welded tab approach
     """
+
     def __init__(
-            self, 
-            material: CurrentCollectorMaterial,
-            length: float,
-            width: float,
-            coated_width: float,
-            thickness: float,
-            bare_lengths_a_side: Tuple[float, float] = (0, 0),
-            bare_lengths_b_side: Tuple[float, float] = (0, 0),
-            insulation_width: Optional[float] = 0,
-            name: Optional[str] = 'Tabless Current Collector',
-            datum: Optional[Tuple[float, float, float]] = (0, 0, 0),
-            ) -> None:
+        self,
+        material: CurrentCollectorMaterial,
+        length: float,
+        width: float,
+        coated_width: float,
+        thickness: float,
+        bare_lengths_a_side: Tuple[float, float] = (0, 0),
+        bare_lengths_b_side: Tuple[float, float] = (0, 0),
+        insulation_width: Optional[float] = 0,
+        name: Optional[str] = "Tabless Current Collector",
+        datum: Optional[Tuple[float, float, float]] = (0, 0, 0),
+    ) -> None:
         """
         Initialize an object that represents a tabless current collector.
-        
+
         Parameters
         ----------
-        material: CurrentCollectorMaterial: 
+        material: CurrentCollectorMaterial:
             Material of the current collector.
         length: float:
             Length of the current collector in mm.
@@ -2793,15 +2946,17 @@ class TablessCurrentCollector(NotchedCurrentCollector):
             bare_lengths_b_side=bare_lengths_b_side,
             insulation_width=insulation_width,
             name=name,
-            datum=datum
+            datum=datum,
         )
 
         self._update_properties = False
         self.coated_width = coated_width
         self._update_properties = True
-    
+
     @classmethod
-    def from_notched(cls, notched: 'NotchedCurrentCollector') -> 'TablessCurrentCollector':
+    def from_notched(
+        cls, notched: "NotchedCurrentCollector"
+    ) -> "TablessCurrentCollector":
         """
         Create a TablessCurrentCollector from a NotchedCurrentCollector.
         """
@@ -2819,16 +2974,18 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 
         # perform actions if needed
         if notched._flipped_x:
-            new_current_collector._flip('x')
+            new_current_collector._flip("x")
         if notched._flipped_y:
-            new_current_collector._flip('y')
+            new_current_collector._flip("y")
         if notched._flipped_z:
-            new_current_collector._flip('z')
+            new_current_collector._flip("z")
 
         return new_current_collector
 
     @classmethod
-    def from_tab_welded(cls, tab_welded: 'TabWeldedCurrentCollector') -> 'TablessCurrentCollector':
+    def from_tab_welded(
+        cls, tab_welded: "TabWeldedCurrentCollector"
+    ) -> "TablessCurrentCollector":
         """
         Create a TablessCurrentCollector from a TabWeldedCurrentCollector.
         """
@@ -2846,24 +3003,27 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 
         # perform actions if needed
         if tab_welded._flipped_x:
-            new_current_collector._flip('x')
+            new_current_collector._flip("x")
         if tab_welded._flipped_y:
-            new_current_collector._flip('y')
+            new_current_collector._flip("y")
         if tab_welded._flipped_z:
-            new_current_collector._flip('z')
+            new_current_collector._flip("z")
 
         return new_current_collector
 
     @property
     def coated_width(self) -> float:
         return round(self._coated_width * M_TO_MM, 2)
-    
+
     @property
     def coated_width_range(self) -> Tuple[float, float]:
         """
         Get the coated width range in mm.
         """
-        if hasattr(self, '_y_body_length_range') and self._y_body_length_range is not None:
+        if (
+            hasattr(self, "_y_body_length_range")
+            and self._y_body_length_range is not None
+        ):
             min = self.y_body_length_range[0]
         else:
             min = self.width - self.tab_height_range[1]
@@ -2871,17 +3031,17 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         max = self.width - self.tab_height_range[0]
 
         return (min, max)
-    
+
     @property
     def coated_width_hard_range(self) -> Tuple[float, float]:
         """
         Get the coated width range in mm.
         """
         return (0, self.width)
-    
+
     @property
     def tab_height_range(self) -> Tuple[float, float]:
-        return (1, self.width*1/4)
+        return (1, self.width * 1 / 4)
 
     @property
     def width(self) -> float:
@@ -2889,8 +3049,10 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 
     @property
     def width_range(self) -> Tuple[float, float]:
-
-        if hasattr(self, '_y_body_length_range') and self._y_body_length_range is not None:
+        if (
+            hasattr(self, "_y_body_length_range")
+            and self._y_body_length_range is not None
+        ):
             min_width = self.y_body_length_range[0] + self.tab_height
             max_width = self.y_body_length_range[1] + self.tab_height
             return (round(min_width, 2), round(max_width, 2))
@@ -2903,13 +3065,12 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 
     @width.setter
     def width(self, width: float) -> None:
-        
         self.validate_positive_float(width, "width")
 
         new_y_length = width - self.tab_height
         self._coated_width = new_y_length * MM_TO_M
         self.y_body_length = new_y_length
-        
+
         # Automatically adjust coated_width if it's now too large
         _max_coated_width = self._y_body_length
 
@@ -2919,22 +3080,23 @@ class TablessCurrentCollector(NotchedCurrentCollector):
     @coated_width.setter
     @calculate_areas
     def coated_width(self, coated_width: float) -> None:
-
         self.validate_positive_float(coated_width, "coated_width")
 
         # Store the current total width
         current_total_width = self.width
-        
+
         # Set the new coated width
         self._coated_width = float(coated_width) * MM_TO_M
-        
+
         # Calculate new tab height to maintain total width
         new_tab_height = current_total_width - coated_width
-        
+
         # Validate the new tab height is positive
         if new_tab_height < 0:
-            raise ValueError(f"Coated width {coated_width} mm is too large. Maximum allowed is {current_total_width} mm.")
-        
+            raise ValueError(
+                f"Coated width {coated_width} mm is too large. Maximum allowed is {current_total_width} mm."
+            )
+
         # Update tab height and y_body_length
         self._tab_height = new_tab_height * MM_TO_M
         self._y_body_length = self._coated_width  # y_body_length equals coated_width
@@ -2949,7 +3111,7 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 class WeldTab(ValidationMixin, CoordinateMixin):
     """
     Specification and modeling class for separately manufactured welded tabs.
-    
+
     The WeldTab class represents individual tab components that are manufactured
     separately and subsequently welded to current collectors. This design approach
     enables independent optimization of tab materials, geometry, and properties
@@ -2977,13 +3139,13 @@ class WeldTab(ValidationMixin, CoordinateMixin):
     datum : tuple of float, optional
         Reference coordinate system origin (x, y, z) in mm
         Default: (0, 0, 0) - places tab at coordinate system origin
-        
+
     Examples
     --------
     Create a high-performance copper tab for EV applications:
-    
+
     >>> from steer_materials import CurrentCollectorMaterial
-    >>> 
+    >>>
     >>> # Design a robust tab for high current applications
     >>> heavy_duty_tab = WeldTab(
     ...     material=CurrentCollectorMaterial.from_database('Copper'),
@@ -2992,13 +3154,13 @@ class WeldTab(ValidationMixin, CoordinateMixin):
     ...     thickness=200.0,     # μm - thick for low resistance
     ...     datum=(0, 0, 0)      # Centered reference
     ... )
-    >>> 
+    >>>
     >>> print(f"Tab resistance: {heavy_duty_tab.electrical_resistance:.6f} Ω")
     >>> print(f"Tab mass: {heavy_duty_tab.mass:.3f} g")
     >>> print(f"Current capacity: {heavy_duty_tab.current_density_limit * heavy_duty_tab.body_area/2:.1f} A")
-    
+
     Create a compact tab for space-constrained applications:
-    
+
     >>> # Design for minimal size while maintaining performance
     >>> compact_tab = WeldTab(
     ...     material=CurrentCollectorMaterial.from_database('Copper'),
@@ -3007,9 +3169,9 @@ class WeldTab(ValidationMixin, CoordinateMixin):
     ...     thickness=150.0,     # μm - optimized thickness
     ...     datum=(10, 5, 0)     # Offset positioning
     ... )
-    
+
     Visualize tab geometry and validate design:
-    
+
     >>> # Generate visualization plots
     >>> top_view = heavy_duty_tab.get_view(
     ...     title="Heavy Duty Tab - Top View",
@@ -3018,7 +3180,7 @@ class WeldTab(ValidationMixin, CoordinateMixin):
     >>> side_view = heavy_duty_tab.get_side_view(
     ...     title="Heavy Duty Tab - Side View"
     ... )
-    >>> 
+    >>>
     >>> # Validate welding compatibility
     >>> from steer_materials import aluminum_1235_foil
     >>> compatibility = heavy_duty_tab.validate_welding_compatibility(
@@ -3026,7 +3188,7 @@ class WeldTab(ValidationMixin, CoordinateMixin):
     ... )
     >>> if not compatibility['suitable']:
     ...     print("Warning: Material incompatibility detected")
-    
+
     See Also
     --------
     TabWeldedCurrentCollector : Current collector using welded tabs
@@ -3036,13 +3198,13 @@ class WeldTab(ValidationMixin, CoordinateMixin):
     """
 
     def __init__(
-            self,
-            material: CurrentCollectorMaterial,
-            width: float,
-            length: float,
-            thickness: float,
-            datum: Tuple[float, float] = (0, 0, 0)
-        ) -> None:
+        self,
+        material: CurrentCollectorMaterial,
+        width: float,
+        length: float,
+        thickness: float,
+        datum: Tuple[float, float] = (0, 0, 0),
+    ) -> None:
         """
         Initialize an object that represents a weld tab used on current collectors
 
@@ -3083,7 +3245,7 @@ class WeldTab(ValidationMixin, CoordinateMixin):
             self._datum[0] - self._width / 2,
             self._datum[1] - self._length / 2,
             self._width,
-            self._length
+            self._length,
         )
 
         x, y, z, side = self.extrude_footprint(x, y, self._datum, self._thickness)
@@ -3092,16 +3254,15 @@ class WeldTab(ValidationMixin, CoordinateMixin):
         self._body_coordinates_side = side
 
     def _calculate_areas(self) -> None:
-
         # calculate the area of the a side
         body_a_side_area = self.get_area_from_points(
-            self._body_coordinates[self._body_coordinates_side == 'a'][:,0],
-            self._body_coordinates[self._body_coordinates_side == 'a'][:,1]
+            self._body_coordinates[self._body_coordinates_side == "a"][:, 0],
+            self._body_coordinates[self._body_coordinates_side == "a"][:, 1],
         )
 
         # calculate the total upper and lower area of the body
         self._body_area = body_a_side_area * 2
-    
+
     def _translate(self, vector: Tuple[float, float, float]) -> None:
         self._body_coordinates += np.array(vector)
 
@@ -3113,15 +3274,21 @@ class WeldTab(ValidationMixin, CoordinateMixin):
         figure.add_trace(self.top_down_body_trace)
 
         figure.update_layout(
-            xaxis=dict(scaleanchor='y', title='', showgrid=False, zeroline=False, showticklabels=False),
-            yaxis=dict(title='', showgrid=False, zeroline=False, showticklabels=False),
-            paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
-            plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
-            **kwargs
+            xaxis=dict(
+                scaleanchor="y",
+                title="",
+                showgrid=False,
+                zeroline=False,
+                showticklabels=False,
+            ),
+            yaxis=dict(title="", showgrid=False, zeroline=False, showticklabels=False),
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            **kwargs,
         )
 
         return figure
-    
+
     def get_side_view(self, **kwargs) -> go.Figure:
         """
         Returns a Plotly Figure representing the side view of the weld tab.
@@ -3130,103 +3297,107 @@ class WeldTab(ValidationMixin, CoordinateMixin):
         figure.add_trace(self.right_left_body_trace)
 
         figure.update_layout(
-            xaxis=dict(scaleanchor='y', title='', showgrid=False, zeroline=False, showticklabels=False),
-            yaxis=dict(title='', showgrid=False, zeroline=False, showticklabels=False),
-            paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
-            plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
-            **kwargs
+            xaxis=dict(
+                scaleanchor="y",
+                title="",
+                showgrid=False,
+                zeroline=False,
+                showticklabels=False,
+            ),
+            yaxis=dict(title="", showgrid=False, zeroline=False, showticklabels=False),
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            **kwargs,
         )
 
         return figure
 
     @property
     def body_coordinates(self) -> pd.DataFrame:
-        
         return pd.DataFrame(
             np.column_stack((self._body_coordinates, self._body_coordinates_side)),
-            columns=['x', 'y', 'z', 'side']
+            columns=["x", "y", "z", "side"],
         ).assign(
-            x=lambda df: (df['x'].astype(float) * M_TO_MM).round(10),
-            y=lambda df: (df['y'].astype(float) * M_TO_MM).round(10),
-            z=lambda df: (df['z'].astype(float) * M_TO_MM).round(10),
-            side=lambda df: df['side'].astype(str)
+            x=lambda df: (df["x"].astype(float) * M_TO_MM).round(10),
+            y=lambda df: (df["y"].astype(float) * M_TO_MM).round(10),
+            z=lambda df: (df["z"].astype(float) * M_TO_MM).round(10),
+            side=lambda df: df["side"].astype(str),
         )
 
     @property
     def right_left_body_trace(self) -> go.Scatter:
-
         # get the coordinates of the body, ordered clockwise
-        body_coordinates = self.order_coordinates_clockwise(self.body_coordinates, plane='yz')
+        body_coordinates = self.order_coordinates_clockwise(
+            self.body_coordinates, plane="yz"
+        )
 
         # make the body trace
         body_trace = go.Scatter(
-            x=body_coordinates['y'],
-            y=body_coordinates['z'],
-            mode='lines',
-            name='Body',
-            line=dict(color='black', width=1),
-            fill='toself',
+            x=body_coordinates["y"],
+            y=body_coordinates["z"],
+            mode="lines",
+            name="Body",
+            line=dict(color="black", width=1),
+            fill="toself",
             fillcolor=self._material.color,
-            legendgroup='Body',
-            showlegend=True
+            legendgroup="Body",
+            showlegend=True,
         )
 
         return body_trace
-        
+
     @property
     def top_down_body_trace(self) -> go.Scatter:
-
         # get the side with the maximum z value
-        body_coordinates = self.body_coordinates.query('z == z.max()')
+        body_coordinates = self.body_coordinates.query("z == z.max()")
 
         # make the body trace
         body_trace = go.Scatter(
-            x=body_coordinates['x'],
-            y=body_coordinates['y'],
-            mode='lines',
-            name='Tab',
-            line=dict(color='black', width=1),
-            fill='toself',
+            x=body_coordinates["x"],
+            y=body_coordinates["y"],
+            mode="lines",
+            name="Tab",
+            line=dict(color="black", width=1),
+            fill="toself",
             fillcolor=self._material.color,
-            legendgroup='Tabs',
-            showlegend=True
+            legendgroup="Tabs",
+            showlegend=True,
         )
 
         return body_trace
 
     @property
     def datum(self) -> Tuple[float, float]:
-
         return (
-            round(self._datum[0] * M_TO_MM, 2), 
+            round(self._datum[0] * M_TO_MM, 2),
             round(self._datum[1] * M_TO_MM, 2),
-            round(self._datum[2] * M_TO_MM, 2)
+            round(self._datum[2] * M_TO_MM, 2),
         )
-    
+
     @property
     def material(self) -> CurrentCollectorMaterial:
         return self._material
-    
+
     @property
     def width(self) -> float:
         return round(self._width * M_TO_MM, 2)
-    
+
     @property
     def length(self) -> float:
         return round(self._length * M_TO_MM, 2)
-    
+
     @property
     def thickness(self) -> float:
         return round(self._thickness * M_TO_UM, 2)
-    
+
     @property
     def volume(self) -> float:
         return round(self._volume * M_TO_CM**3, 2)
-    
+
     @property
     def mass(self) -> float:
         return round(self._mass * KG_TO_G, 2)
-    
+
     @property
     def cost(self) -> float:
         return round(self._cost, 2)
@@ -3237,26 +3408,24 @@ class WeldTab(ValidationMixin, CoordinateMixin):
 
     @datum.setter
     def datum(self, datum: Tuple[float, float, float]) -> None:
-
         # validate the datum
         self.validate_datum(datum)
 
         if self._update_properties:
-            
             # calculate the translation vector in m
             translation_vector = (
                 float(datum[0]) * MM_TO_M - self._datum[0],
                 float(datum[1]) * MM_TO_M - self._datum[1],
-                float(datum[2]) * MM_TO_M - self._datum[2]
+                float(datum[2]) * MM_TO_M - self._datum[2],
             )
 
             # translate all coordinates
             self._translate(translation_vector)
 
         self._datum = (
-            float(datum[0]) * MM_TO_M, 
-            float(datum[1]) * MM_TO_M, 
-            float(datum[2]) * MM_TO_M
+            float(datum[0]) * MM_TO_M,
+            float(datum[1]) * MM_TO_M,
+            float(datum[2]) * MM_TO_M,
         )
 
     @material.setter
@@ -3285,7 +3454,7 @@ class WeldTab(ValidationMixin, CoordinateMixin):
 
     def __str__(self):
         return self.__class__.__name__
-    
+
     def __repr__(self):
         return self.__str__()
 
@@ -3293,11 +3462,11 @@ class WeldTab(ValidationMixin, CoordinateMixin):
 class TabWeldedCurrentCollector(_TapeCurrentCollector):
     """
     Current collector with separately manufactured and welded tabs.
-    
+
     The tab-welded current collector represents a design approach
     where tabs are manufactured separately and then welded to the main collector
-    body. 
-    
+    body.
+
     Parameters
     ----------
     material : CurrentCollectorMaterial
@@ -3337,13 +3506,13 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         Descriptive identifier for the collector assembly
     datum : tuple of float, optional
         Reference coordinate system origin (x, y, z) in mm
-    
+
     Examples
     --------
     Create a high-performance tab-welded collector for an EV application:
-    
+
     >>> from steer_materials import CurrentCollectorMaterial
-    >>> 
+    >>>
     >>> # Define the weld tab specification
     >>> weld_tab = WeldTab(
     ...     material=CurrentCollectorMaterial.from_database('Copper'),
@@ -3351,7 +3520,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
     ...     height=20.0,         # mm
     ...     thickness=100.0      # μm - thick for low resistance
     ... )
-    >>> 
+    >>>
     >>> # Create collector with optimally positioned tabs
     >>> collector = TabWeldedCurrentCollector(
     ...     material=CurrentCollectorMaterial.from_database('Copper'),
@@ -3365,7 +3534,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
     ...     tab_weld_side='a',
     ...     bare_lengths_a_side=(20.0, 20.0)  # Additional tape connection option
     ... )
-    
+
     See Also
     --------
     PunchedCurrentCollector : Simpler integrated tab design
@@ -3373,28 +3542,29 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
     TablessCurrentCollector : No-tab edge connection design
     WeldTab : Specification class for welded tab components
     """
+
     def __init__(
-            self,
-            material: CurrentCollectorMaterial,
-            length: float,
-            width: float,
-            thickness: float,
-            weld_tab: WeldTab,
-            weld_tab_positions: Iterable[float],
-            skip_coat_width: float,
-            tab_overhang: float,
-            tab_weld_side: str = 'a',
-            bare_lengths_a_side: Tuple[float, float] = (0, 0),
-            bare_lengths_b_side: Tuple[float, float] = (0, 0),
-            name: Optional[str] = 'Tab Welded Current Collector',
-            datum: Optional[Tuple[float, float, float]] = (0, 0, 0),
-        ) -> None:
+        self,
+        material: CurrentCollectorMaterial,
+        length: float,
+        width: float,
+        thickness: float,
+        weld_tab: WeldTab,
+        weld_tab_positions: Iterable[float],
+        skip_coat_width: float,
+        tab_overhang: float,
+        tab_weld_side: str = "a",
+        bare_lengths_a_side: Tuple[float, float] = (0, 0),
+        bare_lengths_b_side: Tuple[float, float] = (0, 0),
+        name: Optional[str] = "Tab Welded Current Collector",
+        datum: Optional[Tuple[float, float, float]] = (0, 0, 0),
+    ) -> None:
         """
         Initialize an object that represents a current collector with tabs welded on it.
 
         Parameters
         ----------
-        material: CurrentCollectorMaterial: 
+        material: CurrentCollectorMaterial:
             Material of the current collector.
         length: float:
             Length of the current collector in mm.
@@ -3429,9 +3599,9 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             bare_lengths_a_side=bare_lengths_a_side,
             bare_lengths_b_side=bare_lengths_b_side,
             name=name,
-            datum=datum
+            datum=datum,
         )
-        
+
         self.weld_tab = weld_tab
         self.tab_overhang = tab_overhang
         self.weld_tab_positions = weld_tab_positions
@@ -3442,7 +3612,9 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         self._update_properties = True
 
     @classmethod
-    def from_notched(cls, notched: 'NotchedCurrentCollector') -> 'TabWeldedCurrentCollector':
+    def from_notched(
+        cls, notched: "NotchedCurrentCollector"
+    ) -> "TabWeldedCurrentCollector":
         """
         Create a TabWeldedCurrentCollector from a NotchedCurrentCollector.
         """
@@ -3450,7 +3622,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             material=notched.material,
             width=10,
             length=notched.y_body_length + notched.tab_height,
-            thickness=notched.thickness
+            thickness=notched.thickness,
         )
 
         new_current_collector = cls(
@@ -3459,27 +3631,33 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             width=notched.y_body_length + notched.tab_height,
             thickness=notched.thickness,
             weld_tab=tab,
-            weld_tab_positions=[10, notched.x_body_length/2, notched.x_body_length - 10],
+            weld_tab_positions=[
+                10,
+                notched.x_body_length / 2,
+                notched.x_body_length - 10,
+            ],
             tab_overhang=20,
             skip_coat_width=30,
-            tab_weld_side='a',
+            tab_weld_side="a",
             bare_lengths_a_side=notched.bare_lengths_a_side,
             bare_lengths_b_side=notched.bare_lengths_b_side,
-            datum=notched.datum
+            datum=notched.datum,
         )
 
         # perform actions if needed
         if notched._flipped_x:
-            new_current_collector._flip('x')
+            new_current_collector._flip("x")
         if notched._flipped_y:
-            new_current_collector._flip('y')
+            new_current_collector._flip("y")
         if notched._flipped_z:
-            new_current_collector._flip('z')
+            new_current_collector._flip("z")
 
         return new_current_collector
-    
+
     @classmethod
-    def from_tabless(cls, tabless: 'TablessCurrentCollector') -> 'TabWeldedCurrentCollector':
+    def from_tabless(
+        cls, tabless: "TablessCurrentCollector"
+    ) -> "TabWeldedCurrentCollector":
         """
         Create a TabWeldedCurrentCollector from a TablessCurrentCollector.
         """
@@ -3487,7 +3665,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             material=tabless.material,
             width=10,
             length=tabless.y_body_length + tabless.tab_height,
-            thickness=tabless.thickness
+            thickness=tabless.thickness,
         )
 
         new_current_collector = cls(
@@ -3496,22 +3674,26 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             width=tabless.y_body_length + tabless.tab_height,
             thickness=tabless.thickness,
             weld_tab=tab,
-            weld_tab_positions=[10, tabless.x_body_length/2, tabless.x_body_length - 10],
+            weld_tab_positions=[
+                10,
+                tabless.x_body_length / 2,
+                tabless.x_body_length - 10,
+            ],
             tab_overhang=20,
             skip_coat_width=30,
-            tab_weld_side='a',
+            tab_weld_side="a",
             bare_lengths_a_side=tabless.bare_lengths_a_side,
             bare_lengths_b_side=tabless.bare_lengths_b_side,
-            datum=tabless.datum
+            datum=tabless.datum,
         )
 
         # perform actions if needed
         if tabless._flipped_x:
-            new_current_collector._flip('x')
+            new_current_collector._flip("x")
         if tabless._flipped_y:
-            new_current_collector._flip('y')
+            new_current_collector._flip("y")
         if tabless._flipped_z:
-            new_current_collector._flip('z')
+            new_current_collector._flip("z")
 
         return new_current_collector
 
@@ -3520,47 +3702,54 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         super()._calculate_all_properties()
 
     def _calculate_bulk_properties(self) -> None:
-        self._volume = self._body_area/2 * self._thickness + sum([t._volume for t in self._weld_tabs])
-        self._mass = self._volume * self._material._density + sum([t._mass for t in self._weld_tabs])
-        self._cost = self._mass * self._material._specific_cost + sum([t._cost for t in self._weld_tabs])
+        self._volume = self._body_area / 2 * self._thickness + sum(
+            [t._volume for t in self._weld_tabs]
+        )
+        self._mass = self._volume * self._material._density + sum(
+            [t._mass for t in self._weld_tabs]
+        )
+        self._cost = self._mass * self._material._specific_cost + sum(
+            [t._cost for t in self._weld_tabs]
+        )
 
     def _calculate_weld_tab_properties(self) -> None:
-
         # copy the weld tabs and set their datums
         self._weld_tabs = []
         for x in self._weld_tab_positions:
-
             new_weld_tab = deepcopy(self._weld_tab)
             x_datum = (self._datum[0] - self._x_body_length / 2 + x) * M_TO_MM
-            y_datum = (self._datum[1] + self._y_body_length / 2 + self._tab_overhang - new_weld_tab._length / 2) * M_TO_MM
+            y_datum = (
+                self._datum[1]
+                + self._y_body_length / 2
+                + self._tab_overhang
+                - new_weld_tab._length / 2
+            ) * M_TO_MM
 
-            if self._tab_weld_side == 'a':
-                z_datum = (self._datum[2] + self._thickness*UM_TO_MM/2 + new_weld_tab._thickness*UM_TO_MM/2) * M_TO_MM
-            elif self._tab_weld_side == 'b':
-                z_datum = (self._datum[2] - self._thickness*UM_TO_MM/2 - new_weld_tab._thickness*UM_TO_MM/2) * M_TO_MM
+            if self._tab_weld_side == "a":
+                z_datum = (
+                    self._datum[2]
+                    + self._thickness * UM_TO_MM / 2
+                    + new_weld_tab._thickness * UM_TO_MM / 2
+                ) * M_TO_MM
+            elif self._tab_weld_side == "b":
+                z_datum = (
+                    self._datum[2]
+                    - self._thickness * UM_TO_MM / 2
+                    - new_weld_tab._thickness * UM_TO_MM / 2
+                ) * M_TO_MM
 
             new_weld_tab.datum = (x_datum, y_datum, z_datum)
             self._weld_tabs.append(new_weld_tab)
 
-    def _get_full_view(
-            self, 
-            side='a', 
-            aspect_ratio: float = 3, 
-            **kwargs
-        ) -> go.Figure:
-        
+    def _get_full_view(self, side="a", aspect_ratio: float = 3, **kwargs) -> go.Figure:
         # Get the base figure from the parent class
-        figure = super()._get_full_view(
-            side=side,
-            aspect_ratio=aspect_ratio,
-            **kwargs
-        )
-    
+        figure = super()._get_full_view(side=side, aspect_ratio=aspect_ratio, **kwargs)
+
         # Add the weld‐tab traces but group them under one legend entry
         for i, tab in enumerate(self._weld_tabs):
             tr = tab._trace
-            tr.legendgroup = 'Weld Tabs'
-            tr.name = 'Weld Tabs'
+            tr.legendgroup = "Weld Tabs"
+            tr.name = "Weld Tabs"
             tr.showlegend = True if i == 0 else False
             figure.add_trace(tr)
 
@@ -3571,31 +3760,43 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
 
         return figure
 
-    def _get_footprint(self, x_indent_start: float = 0, x_indent_end: float = 0) -> Tuple[np.ndarray, np.ndarray]:
-
+    def _get_footprint(
+        self, x_indent_start: float = 0, x_indent_end: float = 0
+    ) -> Tuple[np.ndarray, np.ndarray]:
         return self.build_square_array(
             x_width=self._x_body_length - x_indent_start - x_indent_end,
             y_width=self._y_body_length,
             x=self._datum[0] - self._x_body_length / 2 + x_indent_start,
-            y=self._datum[1] - self._y_body_length / 2
+            y=self._datum[1] - self._y_body_length / 2,
         )
 
-    def _get_coated_area_coordinates(self, side: str = 'a') -> Tuple[go.Scatter, float]:
-
-        if side not in ['a', 'b']:
+    def _get_coated_area_coordinates(self, side: str = "a") -> Tuple[go.Scatter, float]:
+        if side not in ["a", "b"]:
             raise ValueError("Side must be 'a' or 'b'.")
-        
-        x_indent_start = self._bare_lengths_a_side[0] if side == 'a' else self._bare_lengths_b_side[0]
-        x_indent_end = self._bare_lengths_a_side[1] if side == 'a' else self._bare_lengths_b_side[1]
-        x, y = self._get_footprint(x_indent_start=x_indent_start, x_indent_end=x_indent_end)
+
+        x_indent_start = (
+            self._bare_lengths_a_side[0]
+            if side == "a"
+            else self._bare_lengths_b_side[0]
+        )
+        x_indent_end = (
+            self._bare_lengths_a_side[1]
+            if side == "a"
+            else self._bare_lengths_b_side[1]
+        )
+        x, y = self._get_footprint(
+            x_indent_start=x_indent_start, x_indent_end=x_indent_end
+        )
 
         weld_tab_positions = np.array([t._datum[0] for t in self._weld_tabs])
 
-        x, y = self.remove_skip_coat_area(x, y, weld_tab_positions, self._skip_coat_width)
+        x, y = self.remove_skip_coat_area(
+            x, y, weld_tab_positions, self._skip_coat_width
+        )
 
         # Get the indices of the body coordinates for the specified side
         idx = np.where(self._body_coordinates_side == side)[0]
-        
+
         # get the z value from the body coordinates for this side
         z_value = self._body_coordinates[idx[0], 2]
 
@@ -3604,37 +3805,37 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
 
         # Combine into (N, 3) array
         coated_area = np.column_stack((x, y, z))
-    
+
         return coated_area
 
     def _get_a_side_coated_area_trace(self) -> Tuple[go.Scatter, float]:
-        return self._get_coated_area_trace(side='a')
+        return self._get_coated_area_trace(side="a")
 
     def _get_b_side_coated_area_trace(self) -> Tuple[go.Scatter, float]:
-        return self._get_coated_area_trace(side='b')
+        return self._get_coated_area_trace(side="b")
 
-    def _get_insulation_coordinates(self, side: str = 'a') -> np.ndarray:
+    def _get_insulation_coordinates(self, side: str = "a") -> np.ndarray:
         """
         Return empty insulation coordinates for TabWeldedCurrentCollector.
-        
+
         TabWeldedCurrentCollectors don't have traditional insulation areas
         since they use welded tabs instead.
-        
+
         Parameters
         ----------
         side : str
             Side of the current collector ('a' or 'b')
-            
+
         Returns
         -------
         np.ndarray
             Empty array with shape (0, 3) representing no insulation coordinates
         """
         return np.empty((0, 3))
-    
+
     def _get_a_side_insulation_area_trace(self) -> Tuple[go.Scatter, float]:
         return self._get_insulation_area_trace()
-    
+
     def _get_b_side_insulation_area_trace(self) -> Tuple[go.Scatter, float]:
         return self._get_insulation_area_trace()
 
@@ -3644,7 +3845,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         Returns the positions of the weld tabs along the length of the current collector in mm.
         """
         return [round(pos * M_TO_MM, 2) for pos in self._weld_tab_positions]
-      
+
     @property
     def skip_coat_width(self) -> float:
         """
@@ -3657,11 +3858,8 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         Get the skip coat width range in mm.
         """
-        return (
-            self._weld_tabs[0].width, 
-            100
-        )
-    
+        return (self._weld_tabs[0].width, 100)
+
     @property
     def skip_coat_width_hard_range(self) -> Tuple[float, float]:
         """
@@ -3675,7 +3873,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         Returns the side of the current collector where the weld tabs are located ('a' or 'b').
         """
         return self._tab_weld_side
-    
+
     @property
     def tab_overhang(self) -> float:
         """
@@ -3688,8 +3886,8 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         Returns the overhang range of the weld tab in mm.
         """
-        return (0, self.weld_tab.length/2)
-    
+        return (0, self.weld_tab.length / 2)
+
     @property
     def tab_overhang_hard_range(self) -> Tuple[float, float]:
         return (0, self.weld_tab.length)
@@ -3700,7 +3898,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         Returns a list of WeldTab objects representing the weld tabs on the current collector.
         """
         return self._weld_tab
-    
+
     @property
     def weld_tabs(self) -> list:
         """
@@ -3732,23 +3930,23 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         Returns the length of the weld tab in mm.
         """
         return self.weld_tab.length
-    
+
     @property
     def tab_length_range(self) -> Tuple[float, float]:
         """
         Returns the length range of the weld tab in mm.
         """
         return (self.tab_overhang, self.y_body_length + self.tab_overhang)
-    
+
     @property
     def tab_length_hard_range(self) -> Tuple[float, float]:
         return self.tab_length_range
-    
+
     @property
     def tab_positions_text(self) -> str:
         """
         Returns the weld tab positions as a formatted string in mm.
-        
+
         Returns
         -------
         str
@@ -3761,13 +3959,13 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
     def tab_positions_text(self, positions_text: str) -> None:
         """
         Set weld tab positions from a formatted string.
-        
+
         Parameters
         ----------
         positions_text : str
             Comma-separated string of tab positions in mm
             Examples: "75.0, 150.0, 225.0" or "10,50,100" or "25.5, 75.25, 125"
-            
+
         Raises
         ------
         ValueError
@@ -3775,23 +3973,25 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         try:
             # Split by comma and strip whitespace
-            position_strings = [s.strip() for s in positions_text.split(',')]
-            
+            position_strings = [s.strip() for s in positions_text.split(",")]
+
             # Filter out empty strings
             position_strings = [s for s in position_strings if s]
-            
+
             if not position_strings:
                 raise ValueError("No valid positions found in the input string")
-            
+
             # Convert to float list
             positions_list = [float(pos) for pos in position_strings]
-            
+
             # Use the existing setter for validation and conversion
             self.weld_tab_positions = positions_list
-            
+
         except ValueError as e:
             if "could not convert string to float" in str(e):
-                raise ValueError(f"Invalid number format in tab positions: '{positions_text}'. Use comma-separated numbers like '75.0, 150.0, 225.0'")
+                raise ValueError(
+                    f"Invalid number format in tab positions: '{positions_text}'. Use comma-separated numbers like '75.0, 150.0, 225.0'"
+                )
             else:
                 raise  # Re-raise other ValueError from weld_tab_positions setter
 
@@ -3800,19 +4000,21 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
     def tab_overhang(self, tab_overhang: float) -> None:
         """
         Set the overhang of the weld tab on the current collector.
-        
+
         Parameters
         ----------
         tab_overhang : float
             The overhang of the weld tab in mm.
         """
         self.validate_positive_float(tab_overhang, "tab_overhang")
-        
+
         # Convert to internal units (meters)
         self._tab_overhang = float(tab_overhang) * MM_TO_M
-        
+
         if self._tab_overhang > self.weld_tab.length / 2:
-            raise ValueError("Tab overhang cannot be greater than half the length of the weld tab.")
+            raise ValueError(
+                "Tab overhang cannot be greater than half the length of the weld tab."
+            )
 
     @tab_width.setter
     @calculate_all_properties
@@ -3823,12 +4025,11 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
     @tab_length.setter
     @calculate_all_properties
     def tab_length(self, tab_length: float) -> None:
-
         self.validate_positive_float(tab_length, "tab_length")
-        
+
         if tab_length < self.tab_overhang:
             raise ValueError("Tab length cannot be less than the tab overhang.")
-        
+
         self.weld_tab.length = tab_length
 
     @weld_tab.setter
@@ -3840,14 +4041,17 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
     @weld_tab_positions.setter
     @calculate_all_properties
     def weld_tab_positions(self, weld_tab_positions: Iterable[float]) -> None:
-
         self.validate_positive_float_list(weld_tab_positions, "weld_tab_positions")
-        
+
         if any(pos > self.x_body_length for pos in weld_tab_positions):
-            raise ValueError("Weld tab positions cannot be greater than the length of the current collector.")
-        
-        self._weld_tab_positions = [float(pos) * MM_TO_M for pos in sorted(weld_tab_positions)]
-        
+            raise ValueError(
+                "Weld tab positions cannot be greater than the length of the current collector."
+            )
+
+        self._weld_tab_positions = [
+            float(pos) * MM_TO_M for pos in sorted(weld_tab_positions)
+        ]
+
     @tab_overhang.setter
     @calculate_weld_tab_properties
     def tab_overhang(self, tab_overhang: float) -> None:
@@ -3857,24 +4061,22 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
     @skip_coat_width.setter
     @calculate_areas
     def skip_coat_width(self, skip_coat_width: float) -> None:
-
         self.validate_positive_float(skip_coat_width, "skip_coat_width")
-        
+
         if skip_coat_width < self._weld_tab._width / 2:
             self._skip_coat_width = self._weld_tab._width
         else:
             self._skip_coat_width = float(skip_coat_width) * MM_TO_M
 
         if self._skip_coat_width > self._y_body_length:
-            raise ValueError("Skip coat width cannot be greater than the width of the current collector.")
+            raise ValueError(
+                "Skip coat width cannot be greater than the width of the current collector."
+            )
 
     @tab_weld_side.setter
     @calculate_weld_tab_properties
     def tab_weld_side(self, tab_weld_side: str) -> None:
-
-        if tab_weld_side not in ['a', 'b']:
+        if tab_weld_side not in ["a", "b"]:
             raise ValueError("Tab weld side must be either 'a' or 'b'.")
-        
+
         self._tab_weld_side = tab_weld_side
-
-

@@ -1,101 +1,104 @@
 from enum import Enum, auto
 
 
-
 # =============================================================================
 # Component and UI Related Enums
 # =============================================================================
 
+
 class SubType(Enum):
-    SLIDER = 'slider'
-    INPUT = 'input'
-    RANGESLIDER = 'rangeslider'
-    INPUT_START = 'input_start'
-    INPUT_END = 'input_end'
-    RADIOITEM = 'radioitem'
-    TEXT_INPUT = 'text_input'
+    SLIDER = "slider"
+    INPUT = "input"
+    RANGESLIDER = "rangeslider"
+    INPUT_START = "input_start"
+    INPUT_END = "input_end"
+    RADIOITEM = "radioitem"
+    TEXT_INPUT = "text_input"
 
 
 class TriggerType(Enum):
-    CELL_STORE = 'cell_store'
-    STYLE = 'style'
-    PROPERTY = 'property'
-    ACTION = 'action'
-    RADIOITEM = 'radioitem'
-    COMPONENT_SELECTOR = 'component_selector'
-    BUTTON = 'button'
-    INDEXED_DROPDOWN = 'indexed_dropdown'
-    WEIGHT_FRACTION = 'weight_fraction'
+    CELL_STORE = "cell_store"
+    STYLE = "style"
+    PROPERTY = "property"
+    ACTION = "action"
+    RADIOITEM = "radioitem"
+    COMPONENT_SELECTOR = "component_selector"
+    BUTTON = "button"
+    INDEXED_DROPDOWN = "indexed_dropdown"
+    WEIGHT_FRACTION = "weight_fraction"
 
 
 class ActionType(Enum):
-    FLIP_X = 'flip_x'
-    FLIP_Y = 'flip_y'
-    ROTATE = 'rotate'
+    FLIP_X = "flip_x"
+    FLIP_Y = "flip_y"
+    ROTATE = "rotate"
+
 
 class TabWeldSide(Enum):
-    A_SIDE = 'a'
-    B_SIDE = 'b'
+    A_SIDE = "a"
+    B_SIDE = "b"
 
 
 class CategoricalProperty(Enum):
     """Categorical properties that don't have ranges."""
-    TAB_WELD_SIDE = 'tab_weld_side'
+
+    TAB_WELD_SIDE = "tab_weld_side"
 
 
 class PropertyCategory(Enum):
     """Categories of properties."""
+
     NUMERICAL = auto()
     CATEGORICAL = auto()
     RANGE = auto()
-
-
 
 
 # =============================================================================
 # Physical Component Enums
 # =============================================================================
 
+
 class CollectorType(Enum):
+    CATHODE_PUNCHED = "cathode_punched"
+    CATHODE_NOTCHED = "cathode_notched"
+    CATHODE_TABLESS = "cathode_tabless"
+    CATHODE_TABBED = "cathode_tabbed"
+    CATHODE_GENERIC = "cathode_generic"
 
-    CATHODE_PUNCHED = 'cathode_punched'
-    CATHODE_NOTCHED = 'cathode_notched'
-    CATHODE_TABLESS = 'cathode_tabless'
-    CATHODE_TABBED = 'cathode_tabbed'
-    CATHODE_GENERIC = 'cathode_generic'
+    ANODE_PUNCHED = "anode_punched"
+    ANODE_NOTCHED = "anode_notched"
+    ANODE_TABLESS = "anode_tabless"
+    ANODE_TABBED = "anode_tabbed"
+    ANODE_GENERIC = "anode_generic"
 
-    ANODE_PUNCHED = 'anode_punched'
-    ANODE_NOTCHED = 'anode_notched'
-    ANODE_TABLESS = 'anode_tabless'
-    ANODE_TABBED = 'anode_tabbed'
-    ANODE_GENERIC = 'anode_generic'
 
 class ElectrodeType(Enum):
-    CATHODE = 'cathode'
-    ANODE = 'anode'
-    GENERIC = 'generic'
+    CATHODE = "cathode"
+    ANODE = "anode"
+    GENERIC = "generic"
+
 
 class MaterialType(Enum):
-    CATHODE_CURRENT_COLLECTOR = 'cathode_current_collector'
-    CATHODE_CURRENT_COLLECTOR_TAB = 'cathode_current_collector_tab'
-    CATHODE_INSULATION = 'cathode_insulation'
-    ANODE_CURRENT_COLLECTOR = 'anode_current_collector'
-    ANODE_CURRENT_COLLECTOR_TAB = 'anode_current_collector_tab'
-    ANODE_INSULATION = 'anode_insulation'
-    BINDER = 'binder'
-    CONDUCTIVE_ADDITIVE = 'conductive_additive'
-    CATHODE_ACTIVE_MATERIAL = 'cathode_active_material'
-    ANODE_ACTIVE_MATERIAL = 'anode_active_material'
-    SEPARATOR_MATERIAL = 'separator_material'
+    CATHODE_CURRENT_COLLECTOR = "cathode_current_collector"
+    CATHODE_CURRENT_COLLECTOR_TAB = "cathode_current_collector_tab"
+    CATHODE_INSULATION = "cathode_insulation"
+    ANODE_CURRENT_COLLECTOR = "anode_current_collector"
+    ANODE_CURRENT_COLLECTOR_TAB = "anode_current_collector_tab"
+    ANODE_INSULATION = "anode_insulation"
+    BINDER = "binder"
+    CONDUCTIVE_ADDITIVE = "conductive_additive"
+    CATHODE_ACTIVE_MATERIAL = "cathode_active_material"
+    ANODE_ACTIVE_MATERIAL = "anode_active_material"
+    SEPARATOR_MATERIAL = "separator_material"
+
 
 class FormulationType(Enum):
-    CATHODE = 'cathode_formulation'
-    ANODE = 'anode_formulation'
+    CATHODE = "cathode_formulation"
+    ANODE = "anode_formulation"
+
 
 class LayupType(Enum):
-    LAMINATE = 'laminate'
-    MONOLAYER = 'monolayer'
-    ZFOLDMONOLAYER = 'zfoldmonolayer'
-    GENERIC = 'generic'
-
-    
+    LAMINATE = "laminate"
+    MONOLAYER = "monolayer"
+    ZFOLDMONOLAYER = "zfoldmonolayer"
+    GENERIC = "generic"

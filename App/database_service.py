@@ -9,10 +9,13 @@ from steer_core.DataManager import DataManager
 
 dm = DataManager()
 
-FORM_FACTOR_OPTIONS = dm.get_data('cells')['form_factor'].unique().tolist()
-CURRENT_COLLECTOR_MATERIALS = dm.get_current_collector_materials(most_recent=True)['name'].tolist()
-INSULATION_MATERIALS = dm.get_insulation_materials(most_recent=True)['name'].tolist()
-BINDER_MATERIALS = dm.get_binder_materials(most_recent=True)['name'].tolist()
-CONDUCTIVE_ADDITIVE_MATERIALS = dm.get_conductive_additive_materials(most_recent=True)['name'].tolist()
-SEPARATOR_MATERIALS = dm.get_separator_materials(most_recent=True)['name'].tolist()
-
+FORM_FACTOR_OPTIONS = dm.get_data("cells")["form_factor"].unique().tolist()
+CURRENT_COLLECTOR_MATERIALS = dm.get_current_collector_materials(most_recent=True)[
+    "name"
+].tolist()
+INSULATION_MATERIALS = dm.get_insulation_materials(most_recent=True)["name"].tolist()
+BINDER_MATERIALS = dm.get_binder_materials(most_recent=True)["name"].tolist()
+CONDUCTIVE_ADDITIVE_MATERIALS = dm.get_conductive_additive_materials(most_recent=True)[
+    "name"
+].tolist()
+SEPARATOR_MATERIALS = dm.get_separator_materials(most_recent=True)["name"].tolist()

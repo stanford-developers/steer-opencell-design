@@ -12,10 +12,7 @@ from steer_core.Apps.ContextManagers import capture_warnings
 
 
 def handle_selector_update(
-    material_name: str,
-    cell: Type,
-    config: Type,
-    existing_warnings: List[str]
+    material_name: str, cell: Type, config: Type, existing_warnings: List[str]
 ) -> Tuple:
     """
     Handle updates to the material selector.
@@ -30,20 +27,23 @@ def handle_selector_update(
         The type of material being updated (e.g., CATHODE_CURRENT_COLLECTOR_TAB).
     """
     source = f"{config.__class__.__name__}_cell_store_update"
-    with capture_warnings(existing_warnings, source=source, clear_source_warnings=True) as warnings_list:
-
+    with capture_warnings(
+        existing_warnings, source=source, clear_source_warnings=True
+    ) as warnings_list:
         # get the material from the database using the selector
         new_material = config.material_type.from_database(material_name)
 
         # get the parameters for the material
-        parameter_list, min_values, max_values = generate_parameters(new_material, config)
+        parameter_list, min_values, max_values = generate_parameters(
+            new_material, config
+        )
 
         # Create slider configurations
         slider_configs = create_slider_config(min_values, max_values, parameter_list)
 
         # set the material to the cell
         new_cell = set_object_to_cell(cell, new_material, config)
-        
+
         # update the cell in the cache
         new_key = set_cell_to_cache(new_cell)
 
@@ -55,4 +55,3 @@ def handle_selector_update(
 
     # return the new cell cache key, material name, and parameters
     return (warnings_list,) + tuple(response)
-

@@ -3,7 +3,11 @@ from steer_core.Decorators.Electrochemical import calculate_half_cell_curve
 from steer_core.Constants.Units import *
 from steer_core.Mixins.TypeChecker import ValidationMixin
 
-from steer_materials.CellMaterials.Electrode import _ActiveMaterial, Binder, ConductiveAdditive
+from steer_materials.CellMaterials.Electrode import (
+    _ActiveMaterial,
+    Binder,
+    ConductiveAdditive,
+)
 
 import pandas as pd
 import numpy as np
@@ -13,18 +17,17 @@ import warnings
 
 
 class _ElectrodeFormulation(ValidationMixin):
-    
     def __init__(
-            self, 
-            active_materials: Dict[_ActiveMaterial, float], 
-            binders: Optional[Dict[Binder, float]] = None, 
-            conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None,
-            voltage_cutoff: Optional[float] = None,
-            name: Optional[str] = 'Electrode Formulation'
-        ):
+        self,
+        active_materials: Dict[_ActiveMaterial, float],
+        binders: Optional[Dict[Binder, float]] = None,
+        conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None,
+        voltage_cutoff: Optional[float] = None,
+        name: Optional[str] = "Electrode Formulation",
+    ):
         """
         Initialize an object that represents an electrode formulation.
-        
+
         Parameters
         ----------
         active_materials : Dict[_ActiveMaterial, float]
@@ -40,7 +43,7 @@ class _ElectrodeFormulation(ValidationMixin):
             Name of the electrode formulation. Defaults to 'Electrode Formulation'.
         """
         self._update_properties = False
-        
+
         self.active_materials = active_materials
         self.binders = binders
         self.conductive_additives = conductive_additives
@@ -81,14 +84,18 @@ class _ElectrodeFormulation(ValidationMixin):
 
         :return: The density of the electrode formulation in kg/m³.
         """
+
         def extract_material_data(material_dict):
-            return [(material._density, fraction) for material, fraction in material_dict.items()]
+            return [
+                (material._density, fraction)
+                for material, fraction in material_dict.items()
+            ]
 
         # Collect (density, mass_fraction) pairs from all sources
         components = (
-            extract_material_data(self._active_materials) +
-            extract_material_data(self._binders) +
-            extract_material_data(self._conductive_additives)
+            extract_material_data(self._active_materials)
+            + extract_material_data(self._binders)
+            + extract_material_data(self._conductive_additives)
         )
 
         # Weighted average density
@@ -102,13 +109,17 @@ class _ElectrodeFormulation(ValidationMixin):
 
         :return: The specific cost of the electrode formulation in $/kg.
         """
+
         def extract_cost_data(material_dict):
-            return [(material._specific_cost, fraction) for material, fraction in material_dict.items()]
+            return [
+                (material._specific_cost, fraction)
+                for material, fraction in material_dict.items()
+            ]
 
         components = (
-            extract_cost_data(self._active_materials) +
-            extract_cost_data(self._binders) +
-            extract_cost_data(self._conductive_additives)
+            extract_cost_data(self._active_materials)
+            + extract_cost_data(self._binders)
+            + extract_cost_data(self._conductive_additives)
         )
 
         self._specific_cost = sum(cost * mf for cost, mf in components)
@@ -121,21 +132,25 @@ class _ElectrodeFormulation(ValidationMixin):
 
         :return: A hex color string representing the weighted average color.
         """
+
         def hex_to_rgb(hex_code: str) -> tuple:
-            hex_code = hex_code.lstrip('#')
-            return tuple(int(hex_code[i:i+2], 16) for i in (0, 2, 4))
+            hex_code = hex_code.lstrip("#")
+            return tuple(int(hex_code[i : i + 2], 16) for i in (0, 2, 4))
 
         def rgb_to_hex(rgb: tuple) -> str:
-            return '#{:02x}{:02x}{:02x}'.format(*map(lambda x: int(round(x)), rgb))
+            return "#{:02x}{:02x}{:02x}".format(*map(lambda x: int(round(x)), rgb))
 
         def extract_color_data(material_dict):
-            return [(hex_to_rgb(material._color), fraction) for material, fraction in material_dict.items()]
+            return [
+                (hex_to_rgb(material._color), fraction)
+                for material, fraction in material_dict.items()
+            ]
 
         # Gather all (rgb, fraction) pairs
         components = (
-            extract_color_data(self._active_materials) +
-            extract_color_data(self._binders) +
-            extract_color_data(self._conductive_additives)
+            extract_color_data(self._active_materials)
+            + extract_color_data(self._binders)
+            + extract_color_data(self._conductive_additives)
         )
 
         # Weighted average of RGB channels
@@ -152,26 +167,29 @@ class _ElectrodeFormulation(ValidationMixin):
         Get the voltage operation window from each active material.
         Note: Voltage cutoff compatibility is now handled in active_materials.setter
         """
-        if not hasattr(self, '_voltage_operation_window'):
+        if not hasattr(self, "_voltage_operation_window"):
             # If voltage operation window hasn't been set yet (during initialization)
-            voltage_operation_windows = [material._voltage_operation_window for material in self._active_materials.keys()]
+            voltage_operation_windows = [
+                material._voltage_operation_window
+                for material in self._active_materials.keys()
+            ]
             starts, middles, ends = zip(*voltage_operation_windows)
-            
+
             if type(self) == CathodeFormulation:
                 common_start = max(starts)
                 common_end = min(ends)
             else:  # AnodeFormulation
                 common_start = min(starts)
                 common_end = max(ends)
-                
+
             self._voltage_operation_window = (common_start, common_end)
-        
+
     def _validate_and_set_voltage_cutoff(self) -> None:
         """
         Validate formulation voltage cutoff against common voltage range and set material cutoffs.
         """
         common_start, common_end = self._voltage_operation_window
-        
+
         # Determine the valid range boundaries based on formulation type
         if type(self) == CathodeFormulation:
             min_voltage = common_start
@@ -179,9 +197,9 @@ class _ElectrodeFormulation(ValidationMixin):
         else:  # AnodeFormulation
             min_voltage = common_end  # For anodes, end is actually lower
             max_voltage = common_start  # For anodes, start is actually higher
-        
+
         # If no voltage cutoff is set, use the appropriate boundary
-        if not hasattr(self, '_voltage_cutoff') or self._voltage_cutoff is None:
+        if not hasattr(self, "_voltage_cutoff") or self._voltage_cutoff is None:
             if type(self) == CathodeFormulation:
                 self._voltage_cutoff = max_voltage  # Use upper bound for cathodes
             else:
@@ -192,7 +210,7 @@ class _ElectrodeFormulation(ValidationMixin):
                 self._voltage_cutoff = min_voltage
             elif self._voltage_cutoff > max_voltage:
                 self._voltage_cutoff = max_voltage
-        
+
         # Set the voltage cutoff for each active material
         for material in self._active_materials.keys():
             material.voltage_cutoff = self._voltage_cutoff
@@ -201,10 +219,17 @@ class _ElectrodeFormulation(ValidationMixin):
         """
         Validate the electrode formulation to ensure it meets the required criteria.
         """
-        total_fraction = sum(self._active_materials.values()) + sum(self._binders.values()) + sum(self._conductive_additives.values())
+        total_fraction = (
+            sum(self._active_materials.values())
+            + sum(self._binders.values())
+            + sum(self._conductive_additives.values())
+        )
 
         if not (0.999 <= total_fraction <= 1.001):
-            warnings.warn(f"The total mass percentages of the formulation should sum to 100%. Current sum: {round(total_fraction * 100, 1)}%", UserWarning)
+            warnings.warn(
+                f"The total mass percentages of the formulation should sum to 100%. Current sum: {round(total_fraction * 100, 1)}%",
+                UserWarning,
+            )
 
         self._check_unique_names(self._active_materials, "active materials")
         self._check_unique_names(self._binders, "binders")
@@ -213,34 +238,57 @@ class _ElectrodeFormulation(ValidationMixin):
     def _check_unique_names(self, components: Dict, component_type: str) -> None:
         """
         Validate that the components have unique names.
-        
+
         :param components: Dictionary of components to validate.
         :param component_type: Type of components being validated (for error messages).
         """
         names = [component.name for component in components.keys()]
 
         if len(names) != len(set(names)):
-            warnings.warn(f"Duplicate names found in {component_type} of your {type(self)}. Each component should have a unique name.", UserWarning)
+            warnings.warn(
+                f"Duplicate names found in {component_type} of your {type(self)}. Each component should have a unique name.",
+                UserWarning,
+            )
 
     def _get_specific_cost_breakdown(self) -> None:
-
-        active_material_specific_costs = [c._specific_cost for c in self._active_materials.keys()]
+        active_material_specific_costs = [
+            c._specific_cost for c in self._active_materials.keys()
+        ]
 
         active_material_costs = {
-            key.name: value * self._active_materials[key] for key, value in zip(self._active_materials.keys(), active_material_specific_costs)
+            key.name: value * self._active_materials[key]
+            for key, value in zip(
+                self._active_materials.keys(), active_material_specific_costs
+            )
         }
 
         binder_specific_costs = [c._specific_cost for c in self._binders.keys()]
-        binder_costs = {
-            key.name: value * self._binders[key] for key, value in zip(self._binders.keys(), binder_specific_costs)
-        } if self._binders else {}
+        binder_costs = (
+            {
+                key.name: value * self._binders[key]
+                for key, value in zip(self._binders.keys(), binder_specific_costs)
+            }
+            if self._binders
+            else {}
+        )
 
-        conductive_additive_costs = [c._specific_cost for c in self._conductive_additives.keys()]
-        conductive_additive_costs = {
-            key.name: value * self._conductive_additives[key] for key, value in zip(self._conductive_additives.keys(), conductive_additive_costs)
-        } if self._conductive_additives else {}
+        conductive_additive_costs = [
+            c._specific_cost for c in self._conductive_additives.keys()
+        ]
+        conductive_additive_costs = (
+            {
+                key.name: value * self._conductive_additives[key]
+                for key, value in zip(
+                    self._conductive_additives.keys(), conductive_additive_costs
+                )
+            }
+            if self._conductive_additives
+            else {}
+        )
 
-        self._specific_cost_breakdown = active_material_costs | binder_costs | conductive_additive_costs
+        self._specific_cost_breakdown = (
+            active_material_costs | binder_costs | conductive_additive_costs
+        )
 
     def _get_density_breakdown(self) -> Dict[str, float]:
         """
@@ -251,22 +299,43 @@ class _ElectrodeFormulation(ValidationMixin):
         active_material_densities = [c._density for c in self._active_materials.keys()]
 
         active_material_density_breakdown = {
-            key.name: value * self._active_materials[key] for key, value in zip(self._active_materials.keys(), active_material_densities)
+            key.name: value * self._active_materials[key]
+            for key, value in zip(
+                self._active_materials.keys(), active_material_densities
+            )
         }
 
         binder_densities = [c._density for c in self._binders.keys()]
 
-        binder_density_breakdown = {
-            key.name: value * self._binders[key] for key, value in zip(self._binders.keys(), binder_densities)
-        } if self._binders else {}
+        binder_density_breakdown = (
+            {
+                key.name: value * self._binders[key]
+                for key, value in zip(self._binders.keys(), binder_densities)
+            }
+            if self._binders
+            else {}
+        )
 
-        conductive_additive_densities = [c._density for c in self._conductive_additives.keys()]
-        
-        conductive_additive_density_breakdown = {
-            key.name: value * self._conductive_additives[key] for key, value in zip(self._conductive_additives.keys(), conductive_additive_densities)
-        } if self._conductive_additives else {}
+        conductive_additive_densities = [
+            c._density for c in self._conductive_additives.keys()
+        ]
 
-        self._density_breakdown = active_material_density_breakdown | binder_density_breakdown | conductive_additive_density_breakdown
+        conductive_additive_density_breakdown = (
+            {
+                key.name: value * self._conductive_additives[key]
+                for key, value in zip(
+                    self._conductive_additives.keys(), conductive_additive_densities
+                )
+            }
+            if self._conductive_additives
+            else {}
+        )
+
+        self._density_breakdown = (
+            active_material_density_breakdown
+            | binder_density_breakdown
+            | conductive_additive_density_breakdown
+        )
 
     def _calculate_half_cell_curve(self) -> None:
         """
@@ -279,12 +348,12 @@ class _ElectrodeFormulation(ValidationMixin):
             The maximum voltage for the half-cell curve. If not provided, it will be set to
             the maximum voltage from the active materials' voltage cutoff range.
         """
-        
+
         def safe_interp(target_values, x_vals, y_vals):
             """Safe interpolation that handles decreasing x values."""
             if len(x_vals) <= 1:
                 return np.full_like(target_values, np.nan)
-            
+
             # Check if x values are decreasing
             if x_vals[0] > x_vals[-1] or np.mean(np.diff(x_vals)) < 0:
                 # Sort by x values (ascending) and reorder y accordingly
@@ -293,26 +362,26 @@ class _ElectrodeFormulation(ValidationMixin):
             else:
                 # Normal case - x values already increasing
                 return np.interp(target_values, x_vals, y_vals)
-        
+
         # If just one material, then get that materials half-cell curve
         if len(self._active_materials) == 1:
             material = next(iter(self._active_materials))
             weight_frac = self._active_materials[material]
             curve = material._half_cell_curve.copy()
-            curve[:,0] *= weight_frac
+            curve[:, 0] *= weight_frac
             self._half_cell_curve = curve
-            return 
+            return
 
         # Determine common charge/discharge voltage ranges
         def get_common_voltage_range(direction: str):
-            direction_value = 1 if direction == 'charge' else -1
+            direction_value = 1 if direction == "charge" else -1
             v_starts = []
             v_ends = []
 
             for material in self._active_materials:
                 direction_mask = material._half_cell_curve[:, 2] == direction_value
                 direction_curve = material._half_cell_curve[direction_mask]
-                
+
                 if len(direction_curve) > 0:
                     voltages = direction_curve[:, 1]
                     v_starts.append(voltages.min())
@@ -320,25 +389,24 @@ class _ElectrodeFormulation(ValidationMixin):
 
             if not v_starts:  # No data for this direction
                 return np.array([])
-                
+
             v_start = max(v_starts)
             v_end = min(v_ends)
-            
+
             # Ensure valid range
             if v_start >= v_end:
                 return np.array([v_start])
-                
+
             return np.linspace(v_start, v_end, num=100)
 
-        v_charge_grid = get_common_voltage_range('charge')
-        v_discharge_grid = get_common_voltage_range('discharge')
+        v_charge_grid = get_common_voltage_range("charge")
+        v_discharge_grid = get_common_voltage_range("discharge")
 
         charge_dfs = []
         discharge_dfs = []
 
         # Interpolate each material's contribution and weight by mass fraction
         for material, weight_frac in self._active_materials.items():
-
             curve = material._half_cell_curve.copy()
             curve[:, 0] *= weight_frac
 
@@ -348,9 +416,9 @@ class _ElectrodeFormulation(ValidationMixin):
             # Safe interpolation for charge curve
             if len(charge_curve) > 0 and len(v_charge_grid) > 0:
                 charge_interp = safe_interp(
-                    v_charge_grid, 
+                    v_charge_grid,
                     charge_curve[:, 1],  # voltage (x)
-                    charge_curve[:, 0]   # capacity (y)
+                    charge_curve[:, 0],  # capacity (y)
                 )
             else:
                 charge_interp = np.full_like(v_charge_grid, 0.0)
@@ -358,9 +426,9 @@ class _ElectrodeFormulation(ValidationMixin):
             # Safe interpolation for discharge curve
             if len(discharge_curve) > 0 and len(v_discharge_grid) > 0:
                 discharge_interp = safe_interp(
-                    v_discharge_grid, 
+                    v_discharge_grid,
                     discharge_curve[:, 1],  # voltage (x)
-                    discharge_curve[:, 0]   # capacity (y)
+                    discharge_curve[:, 0],  # capacity (y)
                 )
             else:
                 discharge_interp = np.full_like(v_discharge_grid, 0.0)
@@ -369,30 +437,34 @@ class _ElectrodeFormulation(ValidationMixin):
             discharge_dfs.append(discharge_interp)
 
         # Sum across interpolated curves
-        summed_charge_capacity = np.sum(charge_dfs, axis=0) if charge_dfs else np.array([])
-        summed_discharge_capacity = np.sum(discharge_dfs, axis=0) if discharge_dfs else np.array([])
+        summed_charge_capacity = (
+            np.sum(charge_dfs, axis=0) if charge_dfs else np.array([])
+        )
+        summed_discharge_capacity = (
+            np.sum(discharge_dfs, axis=0) if discharge_dfs else np.array([])
+        )
 
         # Assemble final half-cell curve - always charge first, then discharge
         curves_to_stack = []
 
         # Always add charge curve first (if it exists) - sorted from lowest to highest specific capacity
         if len(summed_charge_capacity) > 0:
-            charge_df = np.column_stack([
-                summed_charge_capacity, 
-                v_charge_grid, 
-                np.ones_like(v_charge_grid)
-            ])
+            charge_df = np.column_stack(
+                [summed_charge_capacity, v_charge_grid, np.ones_like(v_charge_grid)]
+            )
             # Sort charge curve by specific capacity (ascending - lowest to highest)
             charge_df = charge_df[np.argsort(charge_df[:, 0])]
             curves_to_stack.append(charge_df)
 
         # Then add discharge curve (if it exists) - sorted from highest to lowest specific capacity
         if len(summed_discharge_capacity) > 0:
-            discharge_df = np.column_stack([
-                summed_discharge_capacity,
-                v_discharge_grid,
-                -np.ones_like(v_discharge_grid)
-            ])
+            discharge_df = np.column_stack(
+                [
+                    summed_discharge_capacity,
+                    v_discharge_grid,
+                    -np.ones_like(v_discharge_grid),
+                ]
+            )
             # Sort discharge curve by specific capacity (descending - highest to lowest)
             discharge_df = discharge_df[np.argsort(discharge_df[:, 0])[::-1]]
             curves_to_stack.append(discharge_df)
@@ -408,9 +480,12 @@ class _ElectrodeFormulation(ValidationMixin):
         Check if current voltage cutoff is compatible with new materials and adjust if necessary.
         """
         # First, calculate the new voltage operation window
-        voltage_operation_windows = [material._voltage_operation_window for material in self._active_materials.keys()]
+        voltage_operation_windows = [
+            material._voltage_operation_window
+            for material in self._active_materials.keys()
+        ]
         starts, middles, ends = zip(*voltage_operation_windows)
-        
+
         # Determine the common voltage operation window
         if type(self) == CathodeFormulation:
             common_start = max(starts)
@@ -423,7 +498,10 @@ class _ElectrodeFormulation(ValidationMixin):
 
         # Check if there's a valid common range
         if not valid_range:
-            material_ranges = [f"{mat.name}: {mat._voltage_operation_window}" for mat in self._active_materials.keys()]
+            material_ranges = [
+                f"{mat.name}: {mat._voltage_operation_window}"
+                for mat in self._active_materials.keys()
+            ]
             raise ValueError(
                 f"The active materials have incompatible voltage operation windows.\n"
                 f"Material ranges: {material_ranges}\n"
@@ -432,7 +510,7 @@ class _ElectrodeFormulation(ValidationMixin):
 
         # Store the new voltage operation window
         self._voltage_operation_window = (common_start, common_end)
-        
+
         # Determine the valid range boundaries based on formulation type
         if type(self) == CathodeFormulation:
             min_voltage = common_start
@@ -440,9 +518,9 @@ class _ElectrodeFormulation(ValidationMixin):
         else:  # AnodeFormulation
             min_voltage = common_end  # For anodes, end is actually lower
             max_voltage = common_start  # For anodes, start is actually higher
-        
+
         # Check if we have an existing voltage cutoff
-        if hasattr(self, '_voltage_cutoff') and self._voltage_cutoff is not None:
+        if hasattr(self, "_voltage_cutoff") and self._voltage_cutoff is not None:
             # Check if current voltage cutoff is compatible with new materials
             if min_voltage <= self._voltage_cutoff <= max_voltage:
                 # Current voltage cutoff is compatible - keep it and set it to materials
@@ -454,7 +532,7 @@ class _ElectrodeFormulation(ValidationMixin):
                     new_voltage = min_voltage
                 else:  # self._voltage_cutoff > max_voltage
                     new_voltage = max_voltage
-                
+
                 # Update formulation voltage cutoff and set to materials
                 self._voltage_cutoff = new_voltage
                 for material in self._active_materials.keys():
@@ -465,15 +543,17 @@ class _ElectrodeFormulation(ValidationMixin):
                 self._voltage_cutoff = max_voltage  # Use upper bound for cathodes
             else:
                 self._voltage_cutoff = min_voltage  # Use lower bound for anodes
-            
+
             # Set voltage cutoff to all materials
             for material in self._active_materials.keys():
                 material.voltage_cutoff = self._voltage_cutoff
 
-    def plot_half_cell_curve(self, add_materials: bool = False, show_direction: bool = True, **kwargs) -> go.Figure:
+    def plot_half_cell_curve(
+        self, add_materials: bool = False, show_direction: bool = True, **kwargs
+    ) -> go.Figure:
         """
         Plot the half-cell curve for the formulation.
-        
+
         Parameters
         ----------
         add_materials : bool, optional
@@ -482,14 +562,14 @@ class _ElectrodeFormulation(ValidationMixin):
             Whether to show charge/discharge direction markers. Default is True.
         **kwargs : dict
             Additional arguments to pass to the plotly figure layout.
-            
+
         Returns
         -------
         go.Figure
             A plotly figure showing the half-cell curve.
         """
         figure = go.Figure()
-        
+
         # Check if we have half-cell curve data
         try:
             main_curve_data = self.half_cell_curve
@@ -499,64 +579,67 @@ class _ElectrodeFormulation(ValidationMixin):
             # Return empty figure with message
             figure.add_annotation(
                 text="No half-cell curve data available",
-                xref="paper", yref="paper",
-                x=0.5, y=0.5, xanchor='center', yanchor='middle',
-                showarrow=False, font_size=16
+                xref="paper",
+                yref="paper",
+                x=0.5,
+                y=0.5,
+                xanchor="center",
+                yanchor="middle",
+                showarrow=False,
+                font_size=16,
             )
             figure.update_layout(
-                paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
-                plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
-                **kwargs
+                paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+                plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+                **kwargs,
             )
             return figure
 
         # Add main formulation curve as a single continuous line
         figure.add_trace(
             go.Scatter(
-                x=main_curve_data['Specific Capacity (mAh/g)'],
-                y=main_curve_data['Voltage (V)'],
+                x=main_curve_data["Specific Capacity (mAh/g)"],
+                y=main_curve_data["Voltage (V)"],
                 name=self.name,
                 line=dict(
-                    color=self._color, 
-                    width=kwargs.get('line_width', 3),
-                    shape='spline'
+                    color=self._color, width=kwargs.get("line_width", 3), shape="spline"
                 ),
-                mode='lines',
-                hovertemplate='<b>%{fullData.name}</b><br>' +
-                            'Capacity: %{x:.2f} mAh/g<br>' +
-                            'Voltage: %{y:.3f} V<br>' +
-                            'Direction: %{customdata}<extra></extra>',
-                customdata=main_curve_data['Direction'],
-                showlegend=True
+                mode="lines",
+                hovertemplate="<b>%{fullData.name}</b><br>"
+                + "Capacity: %{x:.2f} mAh/g<br>"
+                + "Voltage: %{y:.3f} V<br>"
+                + "Direction: %{customdata}<extra></extra>",
+                customdata=main_curve_data["Direction"],
+                showlegend=True,
             )
         )
 
         # Add individual material curves if requested
-        if add_materials and hasattr(self, '_active_materials'):
+        if add_materials and hasattr(self, "_active_materials"):
             for i, material in enumerate(self._active_materials.keys()):
                 try:
                     material_curve = material.half_cell_curve
                     if not material_curve.empty:
                         # Use different line styles for materials
-                        dash_styles = ['dash', 'dashdot', 'longdash', 'longdashdot']
+                        dash_styles = ["dash", "dashdot", "longdash", "longdashdot"]
                         dash_style = dash_styles[i % len(dash_styles)]
-                        
+
                         figure.add_trace(
                             go.Scatter(
-                                x=material_curve['Specific Capacity (mAh/g)'],
-                                y=material_curve['Voltage (V)'],
+                                x=material_curve["Specific Capacity (mAh/g)"],
+                                y=material_curve["Voltage (V)"],
                                 name=material.name,
                                 line=dict(
-                                    color=material._color, 
-                                    width=kwargs.get('material_line_width', 2),
-                                    dash=dash_style
+                                    color=material._color,
+                                    width=kwargs.get("material_line_width", 2),
+                                    dash=dash_style,
                                 ),
-                                mode='lines',
-                                hovertemplate='<b>%{fullData.name}</b><br>' +
-                                            'Capacity: %{x:.2f} mAh/g<br>' +
-                                            'Voltage: %{y:.3f} V<br>' +
-                                            '<i>Individual Material</i><extra></extra>',
-                                opacity=kwargs.get('material_opacity', 0.7)
+                                mode="lines",
+                                hovertemplate="<b>%{fullData.name}</b><br>"
+                                + "Capacity: %{x:.2f} mAh/g<br>"
+                                + "Voltage: %{y:.3f} V<br>"
+                                + "<i>Individual Material</i><extra></extra>",
+                                opacity=kwargs.get("material_opacity", 0.7),
                             )
                         )
                 except (AttributeError, ValueError):
@@ -565,45 +648,64 @@ class _ElectrodeFormulation(ValidationMixin):
 
         # Enhanced layout with better defaults
         figure.update_layout(
-            title=kwargs.get('title', ''),
-            paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
-            plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
+            title=kwargs.get("title", ""),
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             xaxis=dict(
-                title='Specific Capacity (mAh/g)',
-                showgrid=kwargs.get('show_grid', True),
-                gridcolor=kwargs.get('grid_color', 'lightgray'),
-                zeroline=kwargs.get('show_zeroline', True),
-                zerolinecolor=kwargs.get('zeroline_color', 'black'),
-                zerolinewidth=kwargs.get('zeroline_width', 1)
+                title="Specific Capacity (mAh/g)",
+                showgrid=kwargs.get("show_grid", True),
+                gridcolor=kwargs.get("grid_color", "lightgray"),
+                zeroline=kwargs.get("show_zeroline", True),
+                zerolinecolor=kwargs.get("zeroline_color", "black"),
+                zerolinewidth=kwargs.get("zeroline_width", 1),
             ),
             yaxis=dict(
-                title='Voltage (V)',
-                showgrid=kwargs.get('show_grid', True),
-                gridcolor=kwargs.get('grid_color', 'lightgray'),
-                zeroline=kwargs.get('show_zeroline', True),
-                zerolinecolor=kwargs.get('zeroline_color', 'black'),
-                zerolinewidth=kwargs.get('zeroline_width', 1)
+                title="Voltage (V)",
+                showgrid=kwargs.get("show_grid", True),
+                gridcolor=kwargs.get("grid_color", "lightgray"),
+                zeroline=kwargs.get("show_zeroline", True),
+                zerolinecolor=kwargs.get("zeroline_color", "black"),
+                zerolinewidth=kwargs.get("zeroline_width", 1),
             ),
             legend=dict(
-                orientation=kwargs.get('legend_orientation', 'v'),
-                yanchor=kwargs.get('legend_yanchor', 'top'),
-                y=kwargs.get('legend_y', 1),
-                xanchor=kwargs.get('legend_xanchor', 'left'),
-                x=kwargs.get('legend_x', 1.02)
+                orientation=kwargs.get("legend_orientation", "v"),
+                yanchor=kwargs.get("legend_yanchor", "top"),
+                y=kwargs.get("legend_y", 1),
+                xanchor=kwargs.get("legend_xanchor", "left"),
+                x=kwargs.get("legend_x", 1.02),
             ),
             margin=dict(
-                l=kwargs.get('margin_l', 50),
-                r=kwargs.get('margin_r', 50),
-                t=kwargs.get('margin_t', 50),
-                b=kwargs.get('margin_b', 50)
+                l=kwargs.get("margin_l", 50),
+                r=kwargs.get("margin_r", 50),
+                t=kwargs.get("margin_t", 50),
+                b=kwargs.get("margin_b", 50),
             ),
-            hovermode='closest',
-            **{k: v for k, v in kwargs.items() if k not in [
-                'line_width', 'material_line_width', 'material_opacity', 'show_grid',
-                'grid_color', 'show_zeroline', 'zeroline_color', 'zeroline_width',
-                'legend_orientation', 'legend_yanchor', 'legend_y', 'legend_xanchor',
-                'legend_x', 'margin_l', 'margin_r', 'margin_t', 'margin_b', 'title'
-            ]}
+            hovermode="closest",
+            **{
+                k: v
+                for k, v in kwargs.items()
+                if k
+                not in [
+                    "line_width",
+                    "material_line_width",
+                    "material_opacity",
+                    "show_grid",
+                    "grid_color",
+                    "show_zeroline",
+                    "zeroline_color",
+                    "zeroline_width",
+                    "legend_orientation",
+                    "legend_yanchor",
+                    "legend_y",
+                    "legend_xanchor",
+                    "legend_x",
+                    "margin_l",
+                    "margin_r",
+                    "margin_t",
+                    "margin_b",
+                    "title",
+                ]
+            },
         )
 
         return figure
@@ -618,28 +720,33 @@ class _ElectrodeFormulation(ValidationMixin):
 
     @property
     def binders(self) -> Dict[Binder, float]:
-        return {key: value * 100 for key, value in self._binders.items()} if self._binders != {} else {} 
+        return (
+            {key: value * 100 for key, value in self._binders.items()}
+            if self._binders != {}
+            else {}
+        )
 
     @property
     def conductive_additives(self) -> Dict[ConductiveAdditive, float]:
-        return {key: value * 100 for key, value in self._conductive_additives.items()} if self._conductive_additives != {} else {}
+        return (
+            {key: value * 100 for key, value in self._conductive_additives.items()}
+            if self._conductive_additives != {}
+            else {}
+        )
 
     @property
     def voltage_cutoff(self) -> float:
         """
         Get the maximum voltage of the half cell curves.
-        
+
         :return: float: maximum voltage of the half cell curves
         """
         return round(self._voltage_cutoff, 3)
 
     @property
     def voltage_cutoff_range(self) -> tuple:
-        return (
-            min(self.voltage_operation_window), 
-            max(self.voltage_operation_window)
-        )
-    
+        return (min(self.voltage_operation_window), max(self.voltage_operation_window))
+
     @property
     def voltage_cutoff_hard_range(self) -> tuple:
         return self.voltage_cutoff_range
@@ -650,47 +757,56 @@ class _ElectrodeFormulation(ValidationMixin):
 
     @property
     def density(self) -> float:
-        return round(self._density * KG_TO_G / (M_TO_CM ** 3), 2)
-    
+        return round(self._density * KG_TO_G / (M_TO_CM**3), 2)
+
     @property
     def specific_cost(self) -> float:
         return round(self._specific_cost, 2)
 
     @property
     def specific_cost_breakdown(self) -> Dict[str, float]:
-        return {key: round(value, 4) for key, value in self._specific_cost_breakdown.items()}
-    
+        return {
+            key: round(value, 4) for key, value in self._specific_cost_breakdown.items()
+        }
+
     @property
     def density_breakdown(self) -> Dict[str, float]:
-        return {key: round(value * KG_TO_G / (M_TO_CM ** 3), 4) for key, value in self._density_breakdown.items()}
+        return {
+            key: round(value * KG_TO_G / (M_TO_CM**3), 4)
+            for key, value in self._density_breakdown.items()
+        }
 
     @property
     def specific_volume(self) -> float:
         """
         Get the theoretical specific volume of the formulation.
-        
+
         :return: Theoretical specific volume in cm³/g.
         """
-        return round(self._specific_volume * (M_TO_CM ** 3) / KG_TO_G, 2)
+        return round(self._specific_volume * (M_TO_CM**3) / KG_TO_G, 2)
 
     @property
     def voltage_operation_window(self) -> tuple:
         """
         Get the valid voltage range for the half cell curves.
-        
+
         :return: tuple: (minimum voltage, maximum voltage)
         """
         min_voltage = self._voltage_operation_window[0]
         max_voltage = self._voltage_operation_window[1]
-        
+
         # Determine which value is actually min/max since order can vary
         actual_min = min(min_voltage, max_voltage)
         actual_max = max(min_voltage, max_voltage)
-        
+
         # Round the bounds conservatively (inward to stay within window)
-        rounded_min = np.ceil(actual_min * 1000) / 1000  # Round up (more conservative for min)
-        rounded_max = np.floor(actual_max * 1000) / 1000  # Round down (more conservative for max)
-        
+        rounded_min = (
+            np.ceil(actual_min * 1000) / 1000
+        )  # Round up (more conservative for min)
+        rounded_max = (
+            np.floor(actual_max * 1000) / 1000
+        )  # Round down (more conservative for max)
+
         # Return in original order
         if min_voltage <= max_voltage:
             return (rounded_min, rounded_max)
@@ -699,24 +815,26 @@ class _ElectrodeFormulation(ValidationMixin):
 
     @property
     def half_cell_curve(self) -> pd.DataFrame:
-
         return (
             pd.DataFrame(
                 self._half_cell_curve,
-                columns=['specific_capacity', 'voltage', 'direction']
+                columns=["specific_capacity", "voltage", "direction"],
             )
             .assign(
-                direction = lambda x: np.where(x['direction'] == 1, 'charge', 'discharge'),
-                specific_capacity = lambda x: x['specific_capacity'] * (S_TO_H * A_TO_mA / KG_TO_G),
-            ).rename(
-                columns={
-                    'specific_capacity': 'Specific Capacity (mAh/g)', 
-                    'voltage': 'Voltage (V)', 
-                    'direction': 'Direction',
-                }
-            ).round(
-                4
+                direction=lambda x: np.where(
+                    x["direction"] == 1, "charge", "discharge"
+                ),
+                specific_capacity=lambda x: x["specific_capacity"]
+                * (S_TO_H * A_TO_mA / KG_TO_G),
             )
+            .rename(
+                columns={
+                    "specific_capacity": "Specific Capacity (mAh/g)",
+                    "voltage": "Voltage (V)",
+                    "direction": "Direction",
+                }
+            )
+            .round(4)
         )
 
     @property
@@ -731,40 +849,42 @@ class _ElectrodeFormulation(ValidationMixin):
         :return: Dictionary containing the properties of the electrode.
         """
         return {
-            'Specific Cost': f"$ {self.specific_cost} /g",
-            'Density': f"{self.density} g/cm³",
-            'Specific Volume': f"{self.specific_volume} cm³/g",
+            "Specific Cost": f"$ {self.specific_cost} /g",
+            "Density": f"{self.density} g/cm³",
+            "Specific Volume": f"{self.specific_volume} cm³/g",
         }
 
     @name.setter
     def name(self, name: str):
-        self.validate_string(name, "Name")        
+        self.validate_string(name, "Name")
         self._name = name
 
     @conductive_additives.setter
     @calculate_all_properties
-    def conductive_additives(self, conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None):
-
+    def conductive_additives(
+        self, conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None
+    ):
         if conductive_additives != {}:
-
             for key, value in conductive_additives.items():
                 self.validate_type(key, ConductiveAdditive, "Conductive additive")
                 self.validate_percentage(value, f"Mass fraction for {key.name}")
 
-        self._conductive_additives = {key: value / 100 for key, value in conductive_additives.items() if key is not None}
-        
+        self._conductive_additives = {
+            key: value / 100
+            for key, value in conductive_additives.items()
+            if key is not None
+        }
+
     @binders.setter
     @calculate_all_properties
     def binders(self, binders: Optional[Dict[Binder, float]] = None):
-
-        if binders != {}:        
-
+        if binders != {}:
             for key, value in binders.items():
                 self.validate_type(key, Binder, "Binder")
                 self.validate_percentage(value, f"Mass fraction for {key.name}")
-        
+
         self._binders = {key: value / 100 for key, value in binders.items()}
- 
+
     @active_materials.setter
     @calculate_all_properties
     def active_materials(self, active_materials: Dict[_ActiveMaterial, float]):
@@ -773,7 +893,9 @@ class _ElectrodeFormulation(ValidationMixin):
         """
         # Check if active_materials is empty
         if len(active_materials) == 0:
-            raise ValueError("You must include at least one active material in the formulation.")
+            raise ValueError(
+                "You must include at least one active material in the formulation."
+            )
 
         # Check the types and values of the active materials
         for key, value in active_materials.items():
@@ -781,8 +903,10 @@ class _ElectrodeFormulation(ValidationMixin):
             self.validate_percentage(value, f"Mass fraction for {key.name}")
 
         # Store the new active materials
-        self._active_materials = {key: value / 100 for key, value in active_materials.items()}
-        
+        self._active_materials = {
+            key: value / 100 for key, value in active_materials.items()
+        }
+
         # Handle voltage cutoff compatibility with new materials
         self._handle_voltage_cutoff_compatibility()
 
@@ -791,29 +915,29 @@ class _ElectrodeFormulation(ValidationMixin):
     def voltage_cutoff(self, voltage: float):
         """
         Set the voltage cutoff for the half cell curves with validation.
-        
+
         :param voltage: float: voltage cutoff for the half cell curves
         """
         # First ensure we have a voltage operation window
         self._get_voltage_operation_window()
-        
+
         if voltage is None:
             if type(self) == CathodeFormulation:
                 voltage = max(self._voltage_operation_window)
             else:
                 voltage = min(self._voltage_operation_window)
-        
+
         self.validate_positive_float(voltage, "Voltage cutoff")
-        
+
         # Store the requested voltage cutoff
         self._voltage_cutoff = voltage
-        
+
         # Validate and adjust if necessary
         self._validate_and_set_voltage_cutoff()
 
     def __str__(self) -> str:
         return self._name if self._name else "Electrode Formulation"
-    
+
     def __repr__(self) -> str:
         return self.__str__()
 
@@ -823,17 +947,18 @@ class CathodeFormulation(_ElectrodeFormulation):
     Represents a cathode formulation in a battery.
     Inherits from _ElectrodeFormulation.
     """
+
     def __init__(
-            self, 
-            active_materials: Dict[_ActiveMaterial, float], 
-            binders: Optional[Dict[Binder, float]] = None, 
-            conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None,
-            voltage_cutoff: Optional[float] = None,
-            name: Optional[str] = 'Cathode Formulation'
-        ):
+        self,
+        active_materials: Dict[_ActiveMaterial, float],
+        binders: Optional[Dict[Binder, float]] = None,
+        conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None,
+        voltage_cutoff: Optional[float] = None,
+        name: Optional[str] = "Cathode Formulation",
+    ):
         """
         Initialize a cathode formulation with active materials, binders, and conductive additives.
-        
+
         Parameters
         ----------
         active_materials : Dict[_ActiveMaterial, float]
@@ -849,11 +974,11 @@ class CathodeFormulation(_ElectrodeFormulation):
             Name of the cathode formulation. Defaults to 'Cathode Formulation'.
         """
         super().__init__(
-            active_materials=active_materials, 
-            binders=binders, 
-            conductive_additives=conductive_additives, 
+            active_materials=active_materials,
+            binders=binders,
+            conductive_additives=conductive_additives,
             voltage_cutoff=voltage_cutoff,
-            name=name
+            name=name,
         )
 
         self._update_properties = True
@@ -864,17 +989,18 @@ class AnodeFormulation(_ElectrodeFormulation):
     Represents an anode formulation in a battery.
     Inherits from _ElectrodeFormulation.
     """
+
     def __init__(
-            self, 
-            active_materials: Dict[_ActiveMaterial, float], 
-            binders: Optional[Dict[Binder, float]] = None, 
-            conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None,
-            voltage_cutoff: Optional[float] = None,
-            name: Optional[str] = 'Anode Formulation'
-        ):
+        self,
+        active_materials: Dict[_ActiveMaterial, float],
+        binders: Optional[Dict[Binder, float]] = None,
+        conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None,
+        voltage_cutoff: Optional[float] = None,
+        name: Optional[str] = "Anode Formulation",
+    ):
         """
         Initialize an anode formulation with active materials, binders, and conductive additives.
-        
+
         Parameters
         ----------
         active_materials : Dict[_ActiveMaterial, float]
@@ -890,14 +1016,11 @@ class AnodeFormulation(_ElectrodeFormulation):
             Name of the anode formulation. Defaults to 'Anode Formulation'.
         """
         super().__init__(
-            active_materials=active_materials, 
-            binders=binders, 
-            conductive_additives=conductive_additives, 
+            active_materials=active_materials,
+            binders=binders,
+            conductive_additives=conductive_additives,
             voltage_cutoff=voltage_cutoff,
-            name=name
+            name=name,
         )
-        
+
         self._update_properties = True
-
-
-

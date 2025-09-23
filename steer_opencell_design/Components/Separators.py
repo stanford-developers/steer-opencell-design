@@ -2,7 +2,10 @@ from steer_core.Constants.Units import *
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Decorators.Coordinates import calculate_coordinates
-from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
+from steer_core.Decorators.General import (
+    calculate_all_properties,
+    calculate_bulk_properties,
+)
 
 from steer_materials.CellMaterials.Base import SeparatorMaterial
 
@@ -15,19 +18,18 @@ import pandas as pd
 
 
 class Separator(CoordinateMixin, ValidationMixin):
-
     def __init__(
-            self,  
-            material: SeparatorMaterial,
-            thickness: float, 
-            width: float,
-            length: float = None,
-            name: str = 'Separator',
-            datum: Tuple[float, float, float] = (0, 0, 0)
-        ):
+        self,
+        material: SeparatorMaterial,
+        thickness: float,
+        width: float,
+        length: float = None,
+        name: str = "Separator",
+        datum: Tuple[float, float, float] = (0, 0, 0),
+    ):
         """
         Initialize an object that represents a separator
-        
+
         Parameters
         ----------
         material : SeparatorMaterial
@@ -52,13 +54,13 @@ class Separator(CoordinateMixin, ValidationMixin):
         self.thickness = thickness
         self.material = material
         self.name = name
-        
+
         # Set length after other properties
         if length is not None:
             self.length = length
         else:
             self._length = None
-            
+
         self._calculate_all_properties()
 
         self._update_properties = True
@@ -73,7 +75,9 @@ class Separator(CoordinateMixin, ValidationMixin):
         self._calculate_coordinates()
 
     def _calculate_areal_properties(self):
-        self._areal_cost = self._material._specific_cost * self._material._density * self._thickness
+        self._areal_cost = (
+            self._material._specific_cost * self._material._density * self._thickness
+        )
 
     def _calculate_bulk_properties(self):
         """
@@ -86,7 +90,7 @@ class Separator(CoordinateMixin, ValidationMixin):
             self._cost = None
             self._pore_volume = None
             return
-            
+
         self._area = self._length * self._width
         self._mass = self._area * self._material._density * self._thickness
         self._cost = self._area * self._areal_cost
@@ -104,7 +108,7 @@ class Separator(CoordinateMixin, ValidationMixin):
             self._datum[0] - self._length / 2,
             self._datum[1] - self._width / 2,
             self._length,
-            self._width
+            self._width,
         )
 
         x, y, z, _ = self.extrude_footprint(x, y, self._datum, self._thickness)
@@ -114,12 +118,13 @@ class Separator(CoordinateMixin, ValidationMixin):
         if self._rotated_xy:
             self._rotate_90_xy(update_bool=False)
 
-    def _rotate_90_xy(self, update_bool: bool = True) -> 'Separator':
-
+    def _rotate_90_xy(self, update_bool: bool = True) -> "Separator":
         if self._coordinates is None:
             raise ValueError("Cannot rotate: length not set")
 
-        self._coordinates = self.rotate_coordinates(self._coordinates, axis='z', angle=90, center=self._datum)
+        self._coordinates = self.rotate_coordinates(
+            self._coordinates, axis="z", angle=90, center=self._datum
+        )
 
         if update_bool:
             self._rotated_xy = not self._rotated_xy
@@ -134,11 +139,11 @@ class Separator(CoordinateMixin, ValidationMixin):
         fig.add_trace(self.top_down_trace)
 
         fig.update_layout(
-            xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title='X (mm)'),
-            yaxis=dict(showgrid=False, zeroline=False, title='Y (mm)'),
-            paper_bgcolor=kwargs.get('paper_bgcolor', 'white'),
-            plot_bgcolor=kwargs.get('plot_bgcolor', 'white'),
-            **kwargs
+            xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title="X (mm)"),
+            yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)"),
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            **kwargs,
         )
 
         return fig
@@ -147,60 +152,55 @@ class Separator(CoordinateMixin, ValidationMixin):
     def coordinates(self) -> pd.DataFrame:
         if self._coordinates is None:
             return None
-            
-        return pd.DataFrame(
-            self._coordinates,
-            columns=['x', 'y', 'z']
-        ).assign(
-            x=lambda df: (df['x'].astype(float) * M_TO_MM).round(10),
-            y=lambda df: (df['y'].astype(float) * M_TO_MM).round(10),
-            z=lambda df: (df['z'].astype(float) * M_TO_MM).round(10)
+
+        return pd.DataFrame(self._coordinates, columns=["x", "y", "z"]).assign(
+            x=lambda df: (df["x"].astype(float) * M_TO_MM).round(10),
+            y=lambda df: (df["y"].astype(float) * M_TO_MM).round(10),
+            z=lambda df: (df["z"].astype(float) * M_TO_MM).round(10),
         )
 
     @property
     def top_down_trace(self) -> go.Scatter:
-
         if self._coordinates is None:
             return None
 
         # get the side with the maximum z value
-        coordinates = self.coordinates.query('z == z.max()')
+        coordinates = self.coordinates.query("z == z.max()")
 
         # make the body trace
         body_trace = go.Scatter(
-            x=coordinates['x'],
-            y=coordinates['y'],
-            mode='lines',
-            name='Tab',
-            line=dict(color='black', width=1),
-            fill='toself',
+            x=coordinates["x"],
+            y=coordinates["y"],
+            mode="lines",
+            name="Tab",
+            line=dict(color="black", width=1),
+            fill="toself",
             fillcolor=self._material.color,
-            legendgroup='Separator',
-            showlegend=True
+            legendgroup="Separator",
+            showlegend=True,
         )
 
         return body_trace
-    
+
     @property
     def right_left_trace(self) -> go.Scatter:
-
         if self._coordinates is None:
             return None
-        
+
         # get the coordinates
-        coordinates = self.order_coordinates_clockwise(self.coordinates, plane='yz')
+        coordinates = self.order_coordinates_clockwise(self.coordinates, plane="yz")
 
         # make the trace
         a_side_insulation_trace = go.Scatter(
-            x=coordinates['y'],
-            y=coordinates['z'],
-            mode='lines',
+            x=coordinates["y"],
+            y=coordinates["z"],
+            mode="lines",
             name=self.name,
-            line=dict(width=1, color='black'),
-            fill='toself',
+            line=dict(width=1, color="black"),
+            fill="toself",
             fillcolor=self._insulation_material._color,
             legendgroup=self.name,
-            showlegend=True
+            showlegend=True,
         )
 
         return a_side_insulation_trace
@@ -238,17 +238,17 @@ class Separator(CoordinateMixin, ValidationMixin):
         return (
             self._datum[0] * M_TO_MM,
             self._datum[1] * M_TO_MM,
-            self._datum[2] * M_TO_MM
+            self._datum[2] * M_TO_MM,
         )
 
     @property
     def datum_x(self) -> float:
         return round(self._datum[0] * M_TO_MM, 2)
-    
+
     @property
     def datum_y(self) -> float:
         return round(self._datum[1] * M_TO_MM, 2)
-    
+
     @property
     def datum_z(self) -> float:
         return round(self._datum[2] * M_TO_MM, 2)
@@ -262,7 +262,7 @@ class Separator(CoordinateMixin, ValidationMixin):
         if self._length is None:
             return None
         return round(self._length * M_TO_MM, 2)
-        
+
     @property
     def width(self) -> float:
         return round(self._width * M_TO_MM, 2)
@@ -279,7 +279,9 @@ class Separator(CoordinateMixin, ValidationMixin):
     @calculate_all_properties
     def areal_cost(self, areal_cost: float) -> None:
         self.validate_positive_float(areal_cost, "Areal Cost")
-        new_material_specific_cost = areal_cost / (self.material._density * self._thickness) # $/kg
+        new_material_specific_cost = areal_cost / (
+            self.material._density * self._thickness
+        )  # $/kg
         self._material.specific_cost = new_material_specific_cost
 
     @name.setter
@@ -308,42 +310,26 @@ class Separator(CoordinateMixin, ValidationMixin):
     @datum.setter
     @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]) -> None:
-
         # Validate datum
         self.validate_datum(datum)
 
         self._datum = (
             float(datum[0]) * MM_TO_M,
             float(datum[1]) * MM_TO_M,
-            float(datum[2]) * MM_TO_M
+            float(datum[2]) * MM_TO_M,
         )
 
     @datum_x.setter
     def datum_x(self, x: float) -> None:
-
-        self.datum = (
-            float(x),
-            self.datum[1],
-            self.datum[2]
-        )
+        self.datum = (float(x), self.datum[1], self.datum[2])
 
     @datum_y.setter
     def datum_y(self, y: float) -> None:
-
-        self.datum = (
-            self.datum[0],
-            float(y),
-            self.datum[2]
-        )
+        self.datum = (self.datum[0], float(y), self.datum[2])
 
     @datum_z.setter
     def datum_z(self, z: float) -> None:
-
-        self.datum = (
-            self.datum[0],
-            self.datum[1],
-            float(z)
-        )
+        self.datum = (self.datum[0], self.datum[1], float(z))
 
     @thickness.setter
     @calculate_all_properties
@@ -356,8 +342,6 @@ class Separator(CoordinateMixin, ValidationMixin):
             return f"{self._name}"
         else:
             return f"Separator"
-    
+
     def __repr__(self):
         return self.__str__()
-    
-    

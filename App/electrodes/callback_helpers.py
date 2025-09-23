@@ -17,24 +17,23 @@ def create_electrode_callback(electrode_key: ElectrodeType) -> callable:
 
     def generic_update_electrode(
         existing_warnings: list,
-        cell_data: dict, 
-        input_values: list, 
-        slider_values: list, 
-        viewing_styles=[]
+        cell_data: dict,
+        input_values: list,
+        slider_values: list,
+        viewing_styles=[],
     ) -> Tuple:
-        
         # Get the triggered ID
         triggered_id = ctx.triggered_id
 
         # get the propid
-        triggered_prop_id = list(ctx.triggered_prop_ids.keys())[0].split('.')[-1]
+        triggered_prop_id = list(ctx.triggered_prop_ids.keys())[0].split(".")[-1]
 
         # If all display is none for any of the viewing styles, return no update
-        if any(d.get('display') == 'none' for d in viewing_styles):
+        if any(d.get("display") == "none" for d in viewing_styles):
             return create_no_update_response(config, existing_warnings)
 
         # Get the cell from cache
-        cell = get_cell_from_cache(cell_data['cache_key'])
+        cell = get_cell_from_cache(cell_data["cache_key"])
 
         # get the electrode from the cell, either cathode or anode depending on electrode
         electrode = get_object_from_cell(cell, config)
@@ -45,13 +44,20 @@ def create_electrode_callback(electrode_key: ElectrodeType) -> callable:
         # trigger if the cell store is updated
         if trigger_type == TriggerType.CELL_STORE or trigger_type == TriggerType.STYLE:
             return handle_cell_store_update(electrode, config, existing_warnings)
-        
+
         # trigger if a property is updated
         elif trigger_type == TriggerType.PROPERTY:
-            return handle_property_update(existing_warnings, triggered_id, cell, electrode, config, input_values, slider_values)
+            return handle_property_update(
+                existing_warnings,
+                triggered_id,
+                cell,
+                electrode,
+                config,
+                input_values,
+                slider_values,
+            )
 
         # Fallback
         return create_no_update_response(config, existing_warnings)
 
     return generic_update_electrode
-

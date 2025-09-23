@@ -16,6 +16,7 @@ from App.layup.lists import (
 @dataclass
 class LayupConfig:
     """Configuration for different current collector types."""
+
     parameter_list: List[str]
     settable_parameters: List[str]
     cell_path: List[str]
@@ -44,6 +45,3 @@ LAYUP_CONFIGS = {
         cell_path=[],
     ),
 }
-
-
-
