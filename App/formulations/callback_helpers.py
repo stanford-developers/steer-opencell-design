@@ -27,20 +27,11 @@ from steer_opencell_design.Formulations.ElectrodeFormulations import (
 )
 
 
-def split_consolidated_values(
-    all_dropdown_values, active_div_count, binder_div_count, conductive_div_count
-):
+def split_consolidated_values(all_dropdown_values, active_div_count, binder_div_count, conductive_div_count):
     """Split consolidated dropdown values back into separate lists for each material type"""
     active_values = all_dropdown_values[:active_div_count]
-    binder_values = all_dropdown_values[
-        active_div_count : active_div_count + binder_div_count
-    ]
-    conductive_values = all_dropdown_values[
-        active_div_count
-        + binder_div_count : active_div_count
-        + binder_div_count
-        + conductive_div_count
-    ]
+    binder_values = all_dropdown_values[active_div_count : active_div_count + binder_div_count]
+    conductive_values = all_dropdown_values[active_div_count + binder_div_count : active_div_count + binder_div_count + conductive_div_count]
     return active_values, binder_values, conductive_values
 
 
@@ -52,19 +43,13 @@ def split_consolidated_property_values(
     conductive_div_count,
 ):
     """Split consolidated property values back into separate lists for each material type"""
-    active_material_config = (
-        MATERIAL_CONFIGS[MaterialType.CATHODE_ACTIVE_MATERIAL]
-        if type(formulation) == CathodeFormulation
-        else MATERIAL_CONFIGS[MaterialType.ANODE_ACTIVE_MATERIAL]
-    )
+    active_material_config = MATERIAL_CONFIGS[MaterialType.CATHODE_ACTIVE_MATERIAL] if type(formulation) == CathodeFormulation else MATERIAL_CONFIGS[MaterialType.ANODE_ACTIVE_MATERIAL]
     binder_material_config = MATERIAL_CONFIGS[MaterialType.BINDER]
     conductive_material_config = MATERIAL_CONFIGS[MaterialType.CONDUCTIVE_ADDITIVE]
     active_n = active_div_count * len(active_material_config.parameter_list)
     binder_n = binder_div_count * len(binder_material_config.parameter_list)
     conductive_n = conductive_div_count * len(conductive_material_config.parameter_list)
-    return split_consolidated_values(
-        all_property_values, active_n, binder_n, conductive_n
-    )
+    return split_consolidated_values(all_property_values, active_n, binder_n, conductive_n)
 
 
 def create_generic_formulation_callback(formulation_type: FormulationType) -> callable:
@@ -177,9 +162,7 @@ def create_generic_formulation_div_callback(
             active_div_styles,
             binder_div_styles,
             conductive_div_styles,
-        ) = split_consolidated_values(
-            all_div_styles, active_div_count, binder_div_count, conductive_div_count
-        )
+        ) = split_consolidated_values(all_div_styles, active_div_count, binder_div_count, conductive_div_count)
 
         # get the weight fraction values for each material type
         (

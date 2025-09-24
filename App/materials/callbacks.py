@@ -395,9 +395,7 @@ def update_cathode_current_collector_tab_material(
     input_values,
     existing_warnings,
 ):
-    callback_function = create_material_callback(
-        MaterialType.CATHODE_CURRENT_COLLECTOR_TAB
-    )
+    callback_function = create_material_callback(MaterialType.CATHODE_CURRENT_COLLECTOR_TAB)
 
     response = callback_function(
         existing_warnings,
@@ -531,9 +529,7 @@ def update_anode_current_collector_tab_material(
     input_values,
     existing_warnings,
 ):
-    callback_function = create_material_callback(
-        MaterialType.ANODE_CURRENT_COLLECTOR_TAB
-    )
+    callback_function = create_material_callback(MaterialType.ANODE_CURRENT_COLLECTOR_TAB)
 
     response = callback_function(
         existing_warnings,

@@ -60,29 +60,17 @@ def update_cathode_dropdown_options(data, current_style, current_options):
         },
         NotchedCurrentCollector: {
             "display": "block",
-            "options": [
-                {"label": item, "value": item.lower()}
-                for item in CURRENT_COLLECTOR_DESIGNS
-                if item != "Punched"
-            ],
+            "options": [{"label": item, "value": item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != "Punched"],
             "value": "notched",
         },
         TablessCurrentCollector: {
             "display": "block",
-            "options": [
-                {"label": item, "value": item.lower()}
-                for item in CURRENT_COLLECTOR_DESIGNS
-                if item != "Punched"
-            ],
+            "options": [{"label": item, "value": item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != "Punched"],
             "value": "tabless",
         },
         TabWeldedCurrentCollector: {
             "display": "block",
-            "options": [
-                {"label": item, "value": item.lower()}
-                for item in CURRENT_COLLECTOR_DESIGNS
-                if item != "Punched"
-            ],
+            "options": [{"label": item, "value": item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != "Punched"],
             "value": "tabbed",
         },
     }
@@ -137,29 +125,17 @@ def update_anode_dropdown_options(data, current_style, current_options):
         },
         NotchedCurrentCollector: {
             "display": "block",
-            "options": [
-                {"label": item, "value": item.lower()}
-                for item in CURRENT_COLLECTOR_DESIGNS
-                if item != "Punched"
-            ],
+            "options": [{"label": item, "value": item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != "Punched"],
             "value": "notched",
         },
         TablessCurrentCollector: {
             "display": "block",
-            "options": [
-                {"label": item, "value": item.lower()}
-                for item in CURRENT_COLLECTOR_DESIGNS
-                if item != "Punched"
-            ],
+            "options": [{"label": item, "value": item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != "Punched"],
             "value": "tabless",
         },
         TabWeldedCurrentCollector: {
             "display": "block",
-            "options": [
-                {"label": item, "value": item.lower()}
-                for item in CURRENT_COLLECTOR_DESIGNS
-                if item != "Punched"
-            ],
+            "options": [{"label": item, "value": item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != "Punched"],
             "value": "tabbed",
         },
     }
@@ -196,9 +172,7 @@ def update_cathode_current_collector_design(design_value, cell_data):
     # Get current cell and collector
     cell = cache.get(cell_data["cache_key"])
 
-    current_collector = get_object_from_cell(
-        cell, COLLECTOR_CONFIGS[CollectorType.CATHODE_GENERIC]
-    )
+    current_collector = get_object_from_cell(cell, COLLECTOR_CONFIGS[CollectorType.CATHODE_GENERIC])
 
     type_name = type(current_collector).__name__
 
@@ -238,9 +212,7 @@ def update_cathode_current_collector_design(design_value, cell_data):
     new_collector = convert_current_collector(current_collector, target_type_name)
 
     # Assign the new current collector to the cell and get the key
-    new_cell = set_object_to_cell(
-        cell, new_collector, COLLECTOR_CONFIGS[CollectorType.CATHODE_GENERIC]
-    )
+    new_cell = set_object_to_cell(cell, new_collector, COLLECTOR_CONFIGS[CollectorType.CATHODE_GENERIC])
 
     # Generate a new cache key
     new_key = set_cell_to_cache(new_cell)
@@ -269,9 +241,7 @@ def update_anode_current_collector_design(design_value, cell_data):
     # Get current cell and collector
     cell = cache.get(cell_data["cache_key"])
 
-    current_collector = get_object_from_cell(
-        cell, COLLECTOR_CONFIGS[CollectorType.ANODE_GENERIC]
-    )
+    current_collector = get_object_from_cell(cell, COLLECTOR_CONFIGS[CollectorType.ANODE_GENERIC])
 
     type_name = type(current_collector).__name__
 
@@ -310,9 +280,7 @@ def update_anode_current_collector_design(design_value, cell_data):
     new_collector = convert_current_collector(current_collector, target_type_name)
 
     # Assign the new current collector to the cell and get the key
-    new_cell = set_object_to_cell(
-        cell, new_collector, COLLECTOR_CONFIGS[CollectorType.ANODE_GENERIC]
-    )
+    new_cell = set_object_to_cell(cell, new_collector, COLLECTOR_CONFIGS[CollectorType.ANODE_GENERIC])
 
     # Generate a new cache key
     new_key = set_cell_to_cache(new_cell)
@@ -498,9 +466,7 @@ def update_cathode_punched_current_collector(
     input_values,
     existing_warnings,
 ):
-    callback_function = create_generic_current_collector_callback(
-        CollectorType.CATHODE_PUNCHED
-    )
+    callback_function = create_generic_current_collector_callback(CollectorType.CATHODE_PUNCHED)
 
     response = callback_function(
         existing_warnings,
@@ -630,9 +596,7 @@ def update_anode_punched_current_collector(
     input_values,
     existing_warnings,
 ):
-    callback_function = create_generic_current_collector_callback(
-        CollectorType.ANODE_PUNCHED
-    )
+    callback_function = create_generic_current_collector_callback(CollectorType.ANODE_PUNCHED)
 
     response = callback_function(
         existing_warnings,
@@ -895,9 +859,7 @@ def update_cathode_tabless_collector(
     input_end_values,
     existing_warnings,
 ):
-    callback_function = create_generic_current_collector_callback(
-        CollectorType.CATHODE_TABLESS
-    )
+    callback_function = create_generic_current_collector_callback(CollectorType.CATHODE_TABLESS)
 
     response = callback_function(
         existing_warnings,
@@ -1163,9 +1125,7 @@ def update_anode_tabless_collector(
     input_end_values,
     existing_warnings,
 ):
-    callback_function = create_generic_current_collector_callback(
-        CollectorType.ANODE_TABLESS
-    )
+    callback_function = create_generic_current_collector_callback(CollectorType.ANODE_TABLESS)
 
     response = callback_function(
         existing_warnings,
@@ -1431,9 +1391,7 @@ def update_cathode_notched_collector(
     input_end_values,
     existing_warnings,
 ):
-    callback_function = create_generic_current_collector_callback(
-        CollectorType.CATHODE_NOTCHED
-    )
+    callback_function = create_generic_current_collector_callback(CollectorType.CATHODE_NOTCHED)
 
     response = callback_function(
         existing_warnings,
@@ -1699,9 +1657,7 @@ def update_anode_notched_collector(
     input_end_values,
     existing_warnings,
 ):
-    callback_function = create_generic_current_collector_callback(
-        CollectorType.ANODE_NOTCHED
-    )
+    callback_function = create_generic_current_collector_callback(CollectorType.ANODE_NOTCHED)
 
     response = callback_function(
         existing_warnings,
@@ -2005,9 +1961,7 @@ def update_cathode_tabbed_collector(
     input_end_values,
     existing_warnings,
 ):
-    callback_function = create_generic_current_collector_callback(
-        CollectorType.CATHODE_TABBED
-    )
+    callback_function = create_generic_current_collector_callback(CollectorType.CATHODE_TABBED)
 
     response = callback_function(
         existing_warnings,
@@ -2312,9 +2266,7 @@ def update_anode_tabbed_collector(
     input_end_values,
     existing_warnings,
 ):
-    callback_function = create_generic_current_collector_callback(
-        CollectorType.ANODE_TABBED
-    )
+    callback_function = create_generic_current_collector_callback(CollectorType.ANODE_TABBED)
 
     response = callback_function(
         existing_warnings,
@@ -2345,16 +2297,12 @@ def update_anode_tabbed_collector(
     ],
     prevent_initial_call=True,
 )
-def update_cathode_current_collector_properties(
-    cc_tab_style, tab_style, tabs_panel_style, cell_data, continue_to_design
-):
+def update_cathode_current_collector_properties(cc_tab_style, tab_style, tabs_panel_style, cell_data, continue_to_design):
     """
     Update the cathode current collector plots based on the current collector store data.
     """
     # If all display is none for any of the viewing styles, return no update
-    if any(
-        d.get("display") == "none" for d in [cc_tab_style, tab_style, tabs_panel_style]
-    ):
+    if any(d.get("display") == "none" for d in [cc_tab_style, tab_style, tabs_panel_style]):
         return no_update
 
     # get the config for the cathode generic current collector
@@ -2393,16 +2341,12 @@ def update_cathode_current_collector_properties(
     ],
     prevent_initial_call=True,
 )
-def update_anode_current_collector_properties(
-    cc_tab_style, tab_style, tabs_panel_style, cell_data, continue_to_design
-):
+def update_anode_current_collector_properties(cc_tab_style, tab_style, tabs_panel_style, cell_data, continue_to_design):
     """
     Update the anode current collector plots based on the current collector store data.
     """
     # If all display is none for any of the viewing styles, return no update
-    if any(
-        d.get("display") == "none" for d in [cc_tab_style, tab_style, tabs_panel_style]
-    ):
+    if any(d.get("display") == "none" for d in [cc_tab_style, tab_style, tabs_panel_style]):
         return no_update
 
     config = COLLECTOR_CONFIGS[CollectorType.ANODE_GENERIC]

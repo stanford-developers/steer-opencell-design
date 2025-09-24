@@ -2,9 +2,7 @@ from steer_opencell_design.Constants import *
 
 
 class Laminate:
-    def __init__(
-        self, thickness: float = 113, areal_mass: float = 18, areal_cost: float = 4.64
-    ):
+    def __init__(self, thickness: float = 113, areal_mass: float = 18, areal_cost: float = 4.64):
         """
         Laminate object for encapsulation of the cell
 

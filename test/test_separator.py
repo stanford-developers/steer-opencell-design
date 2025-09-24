@@ -16,9 +16,7 @@ class TestSeparator(unittest.TestCase):
         """
         separator_material = SeparatorMaterial.from_database(name="Nafion")
 
-        self.separator = Separator(
-            material=separator_material, thickness=25, length=100, width=50
-        )
+        self.separator = Separator(material=separator_material, thickness=25, length=100, width=50)
 
         # Create additional material for testing material setter - use available material
         self.alternative_material = SeparatorMaterial.from_database(name="Polyethylene")
@@ -191,9 +189,7 @@ class TestSeparator(unittest.TestCase):
         self.assertAlmostEqual(self.separator.cost, initial_cost * 2, places=1)
 
         # Verify pore volume doubled (proportional to area)
-        self.assertAlmostEqual(
-            self.separator.pore_volume, initial_pore_volume * 2, places=1
-        )
+        self.assertAlmostEqual(self.separator.pore_volume, initial_pore_volume * 2, places=1)
 
     def test_coordinates_update_on_dimension_change(self):
         """Test that coordinates are recalculated when dimensions change"""
@@ -244,7 +240,7 @@ class TestSeparator(unittest.TestCase):
         separator_no_length = Separator(
             material=separator_material,
             thickness=25,
-            width=50
+            width=50,
             # length not provided
         )
 
@@ -257,9 +253,7 @@ class TestSeparator(unittest.TestCase):
         """Test that bulk properties return None when length is not set"""
         separator_material = SeparatorMaterial.from_database(name="Nafion")
 
-        separator_no_length = Separator(
-            material=separator_material, thickness=25, width=50
-        )
+        separator_no_length = Separator(material=separator_material, thickness=25, width=50)
 
         # Length-dependent properties should be None
         self.assertIsNone(separator_no_length.length)
@@ -282,9 +276,7 @@ class TestSeparator(unittest.TestCase):
         """Test that setting length after initialization calculates all properties"""
         separator_material = SeparatorMaterial.from_database(name="Nafion")
 
-        separator_no_length = Separator(
-            material=separator_material, thickness=25, width=50
-        )
+        separator_no_length = Separator(material=separator_material, thickness=25, width=50)
 
         # Initially, bulk properties should be None
         self.assertIsNone(separator_no_length.length)
@@ -313,9 +305,7 @@ class TestSeparator(unittest.TestCase):
         """Test that get_top_down_view raises error when length not set"""
         separator_material = SeparatorMaterial.from_database(name="Nafion")
 
-        separator_no_length = Separator(
-            material=separator_material, thickness=25, width=50
-        )
+        separator_no_length = Separator(material=separator_material, thickness=25, width=50)
 
         # Should raise ValueError when trying to get top-down view without length
         with self.assertRaises(ValueError) as context:
@@ -327,9 +317,7 @@ class TestSeparator(unittest.TestCase):
         """Test property behavior when length is added and then effectively removed"""
         separator_material = SeparatorMaterial.from_database(name="Nafion")
 
-        separator_no_length = Separator(
-            material=separator_material, thickness=25, width=50
-        )
+        separator_no_length = Separator(material=separator_material, thickness=25, width=50)
 
         # Initially None
         self.assertIsNone(separator_no_length.area)
@@ -343,17 +331,13 @@ class TestSeparator(unittest.TestCase):
         separator_no_length.length = 200
         new_area = separator_no_length.area
         self.assertNotEqual(initial_area, new_area)
-        self.assertAlmostEqual(
-            new_area, initial_area * 2, places=1
-        )  # Area should double
+        self.assertAlmostEqual(new_area, initial_area * 2, places=1)  # Area should double
 
     def test_areal_properties_available_without_length(self):
         """Test that areal properties (not requiring length) are always available"""
         separator_material = SeparatorMaterial.from_database(name="Nafion")
 
-        separator_no_length = Separator(
-            material=separator_material, thickness=25, width=50
-        )
+        separator_no_length = Separator(material=separator_material, thickness=25, width=50)
 
         # Areal cost should be available (doesn't depend on length)
         self.assertIsNotNone(separator_no_length.areal_cost)
@@ -368,14 +352,10 @@ class TestSeparator(unittest.TestCase):
         separator_material = SeparatorMaterial.from_database(name="Nafion")
 
         # Create separator with length initially
-        sep_with_length = Separator(
-            material=separator_material, thickness=25, width=50, length=100
-        )
+        sep_with_length = Separator(material=separator_material, thickness=25, width=50, length=100)
 
         # Create separator without length, then set it
-        sep_without_length = Separator(
-            material=separator_material, thickness=25, width=50
-        )
+        sep_without_length = Separator(material=separator_material, thickness=25, width=50)
         sep_without_length.length = 100
 
         # Both should have the same calculated properties
@@ -389,9 +369,7 @@ class TestSeparator(unittest.TestCase):
         """Test that coordinates-related methods handle missing length properly"""
         separator_material = SeparatorMaterial.from_database(name="Nafion")
 
-        separator_no_length = Separator(
-            material=separator_material, thickness=25, width=50
-        )
+        separator_no_length = Separator(material=separator_material, thickness=25, width=50)
 
         # Coordinates should be None
         self.assertIsNone(separator_no_length.coordinates)

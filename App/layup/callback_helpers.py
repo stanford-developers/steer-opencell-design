@@ -75,8 +75,14 @@ def convert_layup(layup: Type, target_type_name: str):
 
     # Define conversion methods for each source -> target combination
     conversion_map = {
-        ("MonoLayer", "ZFoldMonoLayer",): lambda cc: ZFoldMonoLayer.from_monolayer(cc),
-        ("ZFoldMonoLayer", "MonoLayer",): lambda cc: MonoLayer.from_zfold_monolayer(cc),
+        (
+            "MonoLayer",
+            "ZFoldMonoLayer",
+        ): lambda cc: ZFoldMonoLayer.from_monolayer(cc),
+        (
+            "ZFoldMonoLayer",
+            "MonoLayer",
+        ): lambda cc: MonoLayer.from_zfold_monolayer(cc),
     }
 
     # Generate the conversion key
@@ -89,4 +95,3 @@ def convert_layup(layup: Type, target_type_name: str):
     new_layup = converter(layup)
 
     return new_layup
-

@@ -863,10 +863,7 @@ def update_cathode_formulation_plots(
     Update the cathode current collector plots based on the current collector store data.
     """
     # If all display is none for any of the viewing styles, return no update
-    if any(
-        d.get("display") == "none"
-        for d in [cathode_tab_style, tabs_panel_style, main_tabs_panel_style]
-    ):
+    if any(d.get("display") == "none" for d in [cathode_tab_style, tabs_panel_style, main_tabs_panel_style]):
         return no_update, no_update
 
     # Get the configuration
@@ -885,9 +882,7 @@ def update_cathode_formulation_plots(
     properties = formulation.properties
 
     # Create properties table using utility function
-    properties_table = create_properties_table(
-        properties, table_id="cathode_properties_table", decimal_places=2
-    )
+    properties_table = create_properties_table(properties, table_id="cathode_properties_table", decimal_places=2)
 
     return plot_a, properties_table
 
@@ -905,17 +900,12 @@ def update_cathode_formulation_plots(
     ],
     prevent_initial_call=True,
 )
-def update_anode_formulation_plots(
-    anode_tab_style, tabs_panel_style, main_tabs_panel_style, cell_data
-):
+def update_anode_formulation_plots(anode_tab_style, tabs_panel_style, main_tabs_panel_style, cell_data):
     """
     Update the anode current collector plots based on the current collector store data.
     """
     # If all display is none for any of the viewing styles, return no update
-    if any(
-        d.get("display") == "none"
-        for d in [anode_tab_style, tabs_panel_style, main_tabs_panel_style]
-    ):
+    if any(d.get("display") == "none" for d in [anode_tab_style, tabs_panel_style, main_tabs_panel_style]):
         return no_update, no_update
 
     # Get the configuration
@@ -934,8 +924,6 @@ def update_anode_formulation_plots(
     properties = formulation.properties
 
     # Create properties table using utility function
-    properties_table = create_properties_table(
-        properties, table_id="cathode_properties_table", decimal_places=2
-    )
+    properties_table = create_properties_table(properties, table_id="cathode_properties_table", decimal_places=2)
 
     return plot_a, properties_table

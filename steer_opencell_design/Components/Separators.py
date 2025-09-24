@@ -75,9 +75,7 @@ class Separator(CoordinateMixin, ValidationMixin):
         self._calculate_coordinates()
 
     def _calculate_areal_properties(self):
-        self._areal_cost = (
-            self._material._specific_cost * self._material._density * self._thickness
-        )
+        self._areal_cost = self._material._specific_cost * self._material._density * self._thickness
 
     def _calculate_bulk_properties(self):
         """
@@ -122,9 +120,7 @@ class Separator(CoordinateMixin, ValidationMixin):
         if self._coordinates is None:
             raise ValueError("Cannot rotate: length not set")
 
-        self._coordinates = self.rotate_coordinates(
-            self._coordinates, axis="z", angle=90, center=self._datum
-        )
+        self._coordinates = self.rotate_coordinates(self._coordinates, axis="z", angle=90, center=self._datum)
 
         if update_bool:
             self._rotated_xy = not self._rotated_xy
@@ -279,9 +275,7 @@ class Separator(CoordinateMixin, ValidationMixin):
     @calculate_all_properties
     def areal_cost(self, areal_cost: float) -> None:
         self.validate_positive_float(areal_cost, "Areal Cost")
-        new_material_specific_cost = areal_cost / (
-            self.material._density * self._thickness
-        )  # $/kg
+        new_material_specific_cost = areal_cost / (self.material._density * self._thickness)  # $/kg
         self._material.specific_cost = new_material_specific_cost
 
     @name.setter

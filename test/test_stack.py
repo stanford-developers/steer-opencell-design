@@ -43,9 +43,7 @@ class TestCellsSingleAM(unittest.TestCase):
             conductive_additives={cathode_conductive_additive: 6},
         )
 
-        cathode_current_collector = CurrentCollector(
-            formula="Al", thickness=15, length=16.0, width=10.8, bare_area=8.22
-        )
+        cathode_current_collector = CurrentCollector(formula="Al", thickness=15, length=16.0, width=10.8, bare_area=8.22)
 
         cathode = Cathode(
             formulation=cathode_formulation,
@@ -73,9 +71,7 @@ class TestCellsSingleAM(unittest.TestCase):
             conductive_additives={anode_conductive_additive: 9},
         )
 
-        anode_current_collector = CurrentCollector(
-            formula="Cu", thickness=5, length=16.0, width=10.8, bare_area=7.55
-        )
+        anode_current_collector = CurrentCollector(formula="Cu", thickness=5, length=16.0, width=10.8, bare_area=7.55)
 
         anode = Anode(
             formulation=anode_formulation,
@@ -95,9 +91,7 @@ class TestCellsSingleAM(unittest.TestCase):
         )
 
         # construct the stack
-        self.stack = Stack(
-            anode=anode, cathode=cathode, separator=separator, name="stack", n_layers=26
-        )
+        self.stack = Stack(anode=anode, cathode=cathode, separator=separator, name="stack", n_layers=26)
 
     def test_instantiation(self):
         """
@@ -117,101 +111,52 @@ class TestCellsSingleAM(unittest.TestCase):
         # check the mass breakdowns are working
         self.assertEqual(
             round(
-                next(
-                    iter(
-                        self.stack._cathode_mass_breakdown["active_materials"].values()
-                    )
-                ),
+                next(iter(self.stack._cathode_mass_breakdown["active_materials"].values())),
                 5,
             ),
             round(
-                next(
-                    iter(
-                        self.stack._cathodes[0]
-                        ._mass_breakdown["active_materials"]
-                        .values()
-                    )
-                )
-                * 26,
+                next(iter(self.stack._cathodes[0]._mass_breakdown["active_materials"].values())) * 26,
                 5,
             ),
         )
 
         self.assertEqual(
             round(
-                next(
-                    iter(self.stack._anode_mass_breakdown["active_materials"].values())
-                ),
+                next(iter(self.stack._anode_mass_breakdown["active_materials"].values())),
                 5,
             ),
             round(
-                next(
-                    iter(
-                        self.stack._anodes[0]
-                        ._mass_breakdown["active_materials"]
-                        .values()
-                    )
-                )
-                * 27,
+                next(iter(self.stack._anodes[0]._mass_breakdown["active_materials"].values())) * 27,
                 5,
             ),
         )
 
         self.assertEqual(
             round(
-                next(
-                    iter(
-                        self.stack._cathode_mass_breakdown[
-                            "conductive_additives"
-                        ].values()
-                    )
-                ),
+                next(iter(self.stack._cathode_mass_breakdown["conductive_additives"].values())),
                 5,
             ),
             round(
-                next(
-                    iter(
-                        self.stack._cathodes[0]
-                        ._mass_breakdown["conductive_additives"]
-                        .values()
-                    )
-                )
-                * 26,
+                next(iter(self.stack._cathodes[0]._mass_breakdown["conductive_additives"].values())) * 26,
                 5,
             ),
         )
 
         self.assertEqual(
             round(
-                next(
-                    iter(
-                        self.stack._anode_mass_breakdown[
-                            "conductive_additives"
-                        ].values()
-                    )
-                ),
+                next(iter(self.stack._anode_mass_breakdown["conductive_additives"].values())),
                 5,
             ),
             round(
-                next(
-                    iter(
-                        self.stack._anodes[0]
-                        ._mass_breakdown["conductive_additives"]
-                        .values()
-                    )
-                )
-                * 27,
+                next(iter(self.stack._anodes[0]._mass_breakdown["conductive_additives"].values())) * 27,
                 5,
             ),
         )
 
         self.assertEqual(
+            round(next(iter(self.stack._cathode_mass_breakdown["binders"].values())), 5),
             round(
-                next(iter(self.stack._cathode_mass_breakdown["binders"].values())), 5
-            ),
-            round(
-                next(iter(self.stack._cathodes[0]._mass_breakdown["binders"].values()))
-                * 26,
+                next(iter(self.stack._cathodes[0]._mass_breakdown["binders"].values())) * 26,
                 5,
             ),
         )
@@ -219,8 +164,7 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(
             round(next(iter(self.stack._anode_mass_breakdown["binders"].values())), 5),
             round(
-                next(iter(self.stack._anodes[0]._mass_breakdown["binders"].values()))
-                * 27,
+                next(iter(self.stack._anodes[0]._mass_breakdown["binders"].values())) * 27,
                 5,
             ),
         )
@@ -228,101 +172,52 @@ class TestCellsSingleAM(unittest.TestCase):
         # check the cost breakdowns are working
         self.assertEqual(
             round(
-                next(
-                    iter(
-                        self.stack._cathode_cost_breakdown["active_materials"].values()
-                    )
-                ),
+                next(iter(self.stack._cathode_cost_breakdown["active_materials"].values())),
                 5,
             ),
             round(
-                next(
-                    iter(
-                        self.stack._cathodes[0]
-                        ._cost_breakdown["active_materials"]
-                        .values()
-                    )
-                )
-                * 26,
+                next(iter(self.stack._cathodes[0]._cost_breakdown["active_materials"].values())) * 26,
                 5,
             ),
         )
 
         self.assertEqual(
             round(
-                next(
-                    iter(self.stack._anode_cost_breakdown["active_materials"].values())
-                ),
+                next(iter(self.stack._anode_cost_breakdown["active_materials"].values())),
                 5,
             ),
             round(
-                next(
-                    iter(
-                        self.stack._anodes[0]
-                        ._cost_breakdown["active_materials"]
-                        .values()
-                    )
-                )
-                * 27,
+                next(iter(self.stack._anodes[0]._cost_breakdown["active_materials"].values())) * 27,
                 5,
             ),
         )
 
         self.assertEqual(
             round(
-                next(
-                    iter(
-                        self.stack._cathode_cost_breakdown[
-                            "conductive_additives"
-                        ].values()
-                    )
-                ),
+                next(iter(self.stack._cathode_cost_breakdown["conductive_additives"].values())),
                 5,
             ),
             round(
-                next(
-                    iter(
-                        self.stack._cathodes[0]
-                        ._cost_breakdown["conductive_additives"]
-                        .values()
-                    )
-                )
-                * 26,
+                next(iter(self.stack._cathodes[0]._cost_breakdown["conductive_additives"].values())) * 26,
                 5,
             ),
         )
 
         self.assertEqual(
             round(
-                next(
-                    iter(
-                        self.stack._anode_cost_breakdown[
-                            "conductive_additives"
-                        ].values()
-                    )
-                ),
+                next(iter(self.stack._anode_cost_breakdown["conductive_additives"].values())),
                 5,
             ),
             round(
-                next(
-                    iter(
-                        self.stack._anodes[0]
-                        ._cost_breakdown["conductive_additives"]
-                        .values()
-                    )
-                )
-                * 27,
+                next(iter(self.stack._anodes[0]._cost_breakdown["conductive_additives"].values())) * 27,
                 5,
             ),
         )
 
         self.assertEqual(
+            round(next(iter(self.stack._cathode_cost_breakdown["binders"].values())), 5),
             round(
-                next(iter(self.stack._cathode_cost_breakdown["binders"].values())), 5
-            ),
-            round(
-                next(iter(self.stack._cathodes[0]._cost_breakdown["binders"].values()))
-                * 26,
+                next(iter(self.stack._cathodes[0]._cost_breakdown["binders"].values())) * 26,
                 5,
             ),
         )
@@ -330,8 +225,7 @@ class TestCellsSingleAM(unittest.TestCase):
         self.assertEqual(
             round(next(iter(self.stack._anode_cost_breakdown["binders"].values())), 5),
             round(
-                next(iter(self.stack._anodes[0]._cost_breakdown["binders"].values()))
-                * 27,
+                next(iter(self.stack._anodes[0]._cost_breakdown["binders"].values())) * 27,
                 5,
             ),
         )
@@ -352,18 +246,10 @@ class TestCellsSingleAM(unittest.TestCase):
 
         cathode_max_capacity = data_cathode["Capacity (Ah)"].max()
         anode_max_capacity = data_anode["Capacity (Ah)"].max()
-        single_cathode_capacity = (
-            self.stack.cathodes[0].half_cell_curve["Capacity (Ah)"].max()
-        )
-        single_anode_capacity = (
-            self.stack.anodes[0].half_cell_curve["Capacity (Ah)"].max()
-        )
-        self.assertEqual(
-            round(cathode_max_capacity, 5), round(single_cathode_capacity * 26, 5)
-        )
-        self.assertEqual(
-            round(anode_max_capacity, 5), round(single_anode_capacity * 26, 5)
-        )
+        single_cathode_capacity = self.stack.cathodes[0].half_cell_curve["Capacity (Ah)"].max()
+        single_anode_capacity = self.stack.anodes[0].half_cell_curve["Capacity (Ah)"].max()
+        self.assertEqual(round(cathode_max_capacity, 5), round(single_cathode_capacity * 26, 5))
+        self.assertEqual(round(anode_max_capacity, 5), round(single_anode_capacity * 26, 5))
 
     def test_full_cell_curve(self):
         """

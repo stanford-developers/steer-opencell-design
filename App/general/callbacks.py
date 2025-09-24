@@ -103,9 +103,7 @@ def show_anode_tab_content(active_tab):
     ],
     prevent_initial_call=True,
 )
-def update_internal_construction_options(
-    form_factor, form_factor_schematic_button_clicks, form_factor_options
-) -> Tuple[List[dict], str]:
+def update_internal_construction_options(form_factor, form_factor_schematic_button_clicks, form_factor_options) -> Tuple[List[dict], str]:
     # get the triggered ID to determine which input caused the callback
     trigger = ctx.triggered_id
 
@@ -163,9 +161,7 @@ def update_electrochemical_reference_options(
         internal_construction = trigger["key"]
 
         # If the internal construction is not in the options, return no update
-        if internal_construction not in [
-            option["value"] for option in internal_construction_options
-        ]:
+        if internal_construction not in [option["value"] for option in internal_construction_options]:
             return no_update, no_update
 
         # Otherwise, return the options based on the internal construction and form factor
@@ -210,26 +206,20 @@ def update_cell_name_options_and_store_active_material_names(
     if trigger == "electrochemical_reference_dropdown":
         cathode_materials = get_active_materials(electrochemical_reference, "cathode")
         anode_materials = get_active_materials(electrochemical_reference, "anode")
-        cell_names = get_cell_name_options(
-            internal_construction, electrochemical_reference, form_factor
-        )
+        cell_names = get_cell_name_options(internal_construction, electrochemical_reference, form_factor)
         return cell_names, no_update, cathode_materials, anode_materials
 
     elif isinstance(trigger, dict) and trigger["type"] == "cell_schematic_button":
         electrochemical_reference = trigger["key"]
 
         # If the electrochemical reference is not in the options, return no update
-        if electrochemical_reference not in [
-            option["value"] for option in electrochemical_reference_options
-        ]:
+        if electrochemical_reference not in [option["value"] for option in electrochemical_reference_options]:
             return no_update, no_update, no_update, no_update
 
         # Get active materials for the schematic button trigger
         cathode_materials = get_active_materials(electrochemical_reference, "cathode")
         anode_materials = get_active_materials(electrochemical_reference, "anode")
-        cell_names = get_cell_name_options(
-            internal_construction, electrochemical_reference, form_factor
-        )
+        cell_names = get_cell_name_options(internal_construction, electrochemical_reference, form_factor)
         return cell_names, electrochemical_reference, cathode_materials, anode_materials
 
     else:
@@ -263,17 +253,10 @@ def update_landing_image_alpha(
 ):
     # Ensure current_styles is initialized correctly
     if not current_styles:
-        current_styles = [
-            {"width": "40%", "opacity": "20%"} for _ in LANDING_PAGE_IMAGE_URLS
-        ]
+        current_styles = [{"width": "40%", "opacity": "20%"} for _ in LANDING_PAGE_IMAGE_URLS]
 
     # Flatten options into a single list
-    available_options = [
-        item["value"]
-        for item in form_factor_options
-        + internal_construction_options
-        + electrochemical_reference_options
-    ]
+    available_options = [item["value"] for item in form_factor_options + internal_construction_options + electrochemical_reference_options]
 
     # Reset all styles to default opacity (10%)
     for style in current_styles:
@@ -282,9 +265,7 @@ def update_landing_image_alpha(
     # Update styles for matching keys in available options
     for idx, key in enumerate(LANDING_PAGE_IMAGE_URLS.keys()):
         if key in available_options:
-            current_styles[idx][
-                "opacity"
-            ] = "50%"  # Set to 50% if key is in available options
+            current_styles[idx]["opacity"] = "50%"  # Set to 50% if key is in available options
 
         # Set opacity to 100% if the key matches any of the value inputs
         if key in [
@@ -377,9 +358,7 @@ def upload_cell(pickled_cell):
     ],
     prevent_initial_call=True,
 )
-def show_and_hide_cell_type_and_tabs(
-    continue_clicks, back_clicks, continue_style, back_style
-):
+def show_and_hide_cell_type_and_tabs(continue_clicks, back_clicks, continue_style, back_style):
     """
     Show or hide the cell type and tabs based on button clicks.
     """
@@ -423,13 +402,9 @@ def update_warnings_tab(warnings_data):
             [
                 dbc.CardHeader(
                     [
-                        html.H5(
-                            f"{warning['category']}", className=f"text-{severity_color}"
-                        ),
+                        html.H5(f"{warning['category']}", className=f"text-{severity_color}"),
                         html.Small(
-                            dt.datetime.fromtimestamp(warning["timestamp"]).strftime(
-                                "%H:%M:%S"
-                            ),
+                            dt.datetime.fromtimestamp(warning["timestamp"]).strftime("%H:%M:%S"),
                             className="text-muted",
                         ),
                     ]

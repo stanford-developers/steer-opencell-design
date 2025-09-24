@@ -18,9 +18,7 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
         """
         Set up
         """
-        self.cathode_active_material1 = CathodeMaterial.from_database(
-            "NaNiMn P2-O3 Composite"
-        )
+        self.cathode_active_material1 = CathodeMaterial.from_database("NaNiMn P2-O3 Composite")
         self.cathode_active_material1.density = 4
         self.cathode_active_material1.specific_cost = 11.26
 
@@ -74,21 +72,15 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
         figure = self.cathode_formulation.plot_half_cell_curve(add_materials=True)
 
         self.assertEqual(
-            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"]
-            .round(1)
-            .iloc[10],
+            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[10],
             12.8,
         )
         self.assertEqual(
-            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"]
-            .round(1)
-            .iloc[20],
+            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[20],
             25.7,
         )
         self.assertEqual(
-            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"]
-            .round(1)
-            .iloc[80],
+            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[80],
             102.8,
         )
 
@@ -169,21 +161,15 @@ class TestMultiCathodeFormulation(unittest.TestCase):
         figure = self.cathode_formulation.plot_half_cell_curve(add_materials=True)
 
         self.assertEqual(
-            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"]
-            .round(1)
-            .iloc[10],
+            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[10],
             0.2,
         )
         self.assertEqual(
-            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"]
-            .round(1)
-            .iloc[20],
+            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[20],
             0.2,
         )
         self.assertEqual(
-            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"]
-            .round(1)
-            .iloc[80],
+            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[80],
             134.4,
         )
 
@@ -253,21 +239,15 @@ class TestSimpleAnodeFormulation(unittest.TestCase):
         figure = self.anode_formulation.plot_half_cell_curve(add_materials=True)
 
         self.assertEqual(
-            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"]
-            .round(1)
-            .iloc[10],
+            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[10],
             0,
         )
         self.assertEqual(
-            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"]
-            .round(1)
-            .iloc[20],
+            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[20],
             1.8,
         )
         self.assertEqual(
-            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"]
-            .round(1)
-            .iloc[80],
+            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[80],
             262.1,
         )
         # figure.show()
@@ -312,21 +292,15 @@ class TestDualAnodeFormulation(unittest.TestCase):
         figure = self.anode_formulation.plot_half_cell_curve(add_materials=True)
 
         self.assertEqual(
-            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"]
-            .round(1)
-            .iloc[10],
+            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[10],
             0.4,
         )
         self.assertEqual(
-            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"]
-            .round(1)
-            .iloc[20],
+            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[20],
             0.5,
         )
         self.assertEqual(
-            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"]
-            .round(1)
-            .iloc[80],
+            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[80],
             76.3,
         )
 

@@ -27,17 +27,11 @@ from steer_opencell_design.Components.Separators import Separator
 class TestCylindricalCase(unittest.TestCase):
     def setUp(self):
         # build the encapsulation
-        cylindrical_shell = CylindricalCanister(
-            formula="Al", outer_diameter=21.6, wall_thickness=0.3, length=115
-        )
+        cylindrical_shell = CylindricalCanister(formula="Al", outer_diameter=21.6, wall_thickness=0.3, length=115)
 
         # build the connectors
-        anode_connector = CylindricalTerminalConnector(
-            formula="Al", diameter=10, thickness=1, fill_factor=0.8
-        )
-        cathode_connector = CylindricalTerminalConnector(
-            formula="Al", diameter=10, thickness=1, fill_factor=0.8
-        )
+        anode_connector = CylindricalTerminalConnector(formula="Al", diameter=10, thickness=1, fill_factor=0.8)
+        cathode_connector = CylindricalTerminalConnector(formula="Al", diameter=10, thickness=1, fill_factor=0.8)
 
         lid = CylindricalLidAssembly(cost=0.1, mass=5, thickness=3)
 
@@ -80,9 +74,7 @@ class TestPrismaticCase(unittest.TestCase):
             conductive_additives={cathode_conductive_additive: 6},
         )
 
-        cathode_current_collector = CurrentCollector(
-            formula="Al", thickness=15, length=160, width=108, bare_area=822
-        )
+        cathode_current_collector = CurrentCollector(formula="Al", thickness=15, length=160, width=108, bare_area=822)
 
         cathode = Cathode(
             formulation=cathode_formulation,
@@ -110,9 +102,7 @@ class TestPrismaticCase(unittest.TestCase):
             conductive_additives={anode_conductive_additive: 9},
         )
 
-        anode_current_collector = CurrentCollector(
-            formula="Cu", thickness=15, length=160, width=108, bare_area=755
-        )
+        anode_current_collector = CurrentCollector(formula="Cu", thickness=15, length=160, width=108, bare_area=755)
 
         anode = Anode(
             formulation=anode_formulation,
@@ -141,18 +131,12 @@ class TestPrismaticCase(unittest.TestCase):
             wall_thickness=0.8,
         )
 
-        prismatic_lid = PrismaticLid(
-            cost=0.34, mass=40.56, external_width=13, internal_width=8
-        )
+        prismatic_lid = PrismaticLid(cost=0.34, mass=40.56, external_width=13, internal_width=8)
 
         self.prismatic_case = PrismaticCase(lid=prismatic_lid, shell=prismatic_shell)
 
-        self.stack_1 = self.prismatic_case.get_optimized_stack(
-            cathode=cathode, anode=anode, separator=separator
-        )
-        self.stack_2 = self.prismatic_case.get_optimized_stack(
-            cathode=cathode, anode=anode, separator=separator, n_stacks=2
-        )
+        self.stack_1 = self.prismatic_case.get_optimized_stack(cathode=cathode, anode=anode, separator=separator)
+        self.stack_2 = self.prismatic_case.get_optimized_stack(cathode=cathode, anode=anode, separator=separator, n_stacks=2)
 
     def test_case(self):
         self.assertEqual(self.prismatic_case.cost, 0.48)

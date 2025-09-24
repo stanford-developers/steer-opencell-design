@@ -74,10 +74,7 @@ class TriggerRouter:
     @staticmethod
     def is_component_selector(triggered_id: str) -> bool:
         """Check if trigger is a component selector."""
-        return any(
-            triggered_id.endswith(pattern)
-            for pattern in TriggerRouter.COMPONENT_SELECTOR_PATTERNS
-        )
+        return any(triggered_id.endswith(pattern) for pattern in TriggerRouter.COMPONENT_SELECTOR_PATTERNS)
 
     @staticmethod
     def get_component_type_from_selector(triggered_id: str) -> str:

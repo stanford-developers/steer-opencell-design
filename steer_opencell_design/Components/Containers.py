@@ -100,16 +100,8 @@ class Pouch:
         self._width = stack._width + 2 * self._heat_seal_size_sides
         self._length = stack._length + self._heat_seal_size_top
         self._area = self._width * self._length
-        self._mass = (
-            self._area * self._laminate._areal_mass * 2
-            + self._positive_terminal._mass
-            + self._negative_terminal._mass
-        )
-        self._cost = (
-            self._area * self._laminate._areal_cost * 2
-            + self._positive_terminal._cost
-            + self._negative_terminal._cost
-        )
+        self._mass = self._area * self._laminate._areal_mass * 2 + self._positive_terminal._mass + self._negative_terminal._mass
+        self._cost = self._area * self._laminate._areal_cost * 2 + self._positive_terminal._cost + self._negative_terminal._cost
 
     @property
     def name(self) -> str:
@@ -120,45 +112,35 @@ class Pouch:
         if hasattr(self, "_area"):
             return round(self._area * M_TO_CM**2, 2)
         else:
-            raise AttributeError(
-                "The pouch needs to be used in a pouch cell to calculate its dimensions"
-            )
+            raise AttributeError("The pouch needs to be used in a pouch cell to calculate its dimensions")
 
     @property
     def mass(self) -> float:
         if hasattr(self, "_mass"):
             return round(self._mass * KG_TO_G, 2)
         else:
-            raise AttributeError(
-                "The pouch needs to be used in a pouch cell to calculate its mass"
-            )
+            raise AttributeError("The pouch needs to be used in a pouch cell to calculate its mass")
 
     @property
     def cost(self) -> float:
         if hasattr(self, "_cost"):
             return round(self._cost, 2)
         else:
-            raise AttributeError(
-                "The pouch needs to be used in a pouch cell to calculate its cost"
-            )
+            raise AttributeError("The pouch needs to be used in a pouch cell to calculate its cost")
 
     @property
     def length(self) -> float:
         if hasattr(self, "_length"):
             return round(self._length * M_TO_MM, 2)
         else:
-            raise AttributeError(
-                "The pouch needs to be used in a pouch cell to calculate its dimensions"
-            )
+            raise AttributeError("The pouch needs to be used in a pouch cell to calculate its dimensions")
 
     @property
     def width(self) -> float:
         if hasattr(self, "_width"):
             return round(self._width * M_TO_MM, 2)
         else:
-            raise AttributeError(
-                "The pouch needs to be used in a pouch cell to calculate its dimensions"
-            )
+            raise AttributeError("The pouch needs to be used in a pouch cell to calculate its dimensions")
 
     @property
     def tape(self) -> Tape:
@@ -320,18 +302,12 @@ class CylindricalTerminalConnector:
         """
         Retrieve the properties of the tab material.
         """
-        data_path = (
-            Path(__file__).parent / "../../Data/materials_properties.db"
-        ).resolve()
+        data_path = (Path(__file__).parent / "../../Data/materials_properties.db").resolve()
         materials_database = DataManager(data_path)
-        available_materials = materials_database.get_unique_values(
-            "current_collectors", "formula"
-        )
+        available_materials = materials_database.get_unique_values("current_collectors", "formula")
 
         if self._formula not in available_materials:
-            raise ValueError(
-                f"{self._formula} is not available in the materials database. Allowed values are: {available_materials}"
-            )
+            raise ValueError(f"{self._formula} is not available in the materials database. Allowed values are: {available_materials}")
 
         data = materials_database.get_data(
             "current_collectors",
@@ -368,33 +344,15 @@ class CylindricalTerminalConnector:
         Calculate the properties of the terminal connector.
         """
         self._radius = self._diameter / 2
-        self._mass = (
-            np.pi
-            * (self._radius**2)
-            * self._thickness
-            * self._density
-            * self._fill_factor
-        )
+        self._mass = np.pi * (self._radius**2) * self._thickness * self._density * self._fill_factor
         self._cost = self._mass * self._specific_cost
 
     def _calculate_footprint(self):
-        self._circle = (
-            pd.DataFrame(
-                {"theta": np.linspace(0, 2 * np.pi, 30), "radius": self._radius}
-            )
-            .assign(x=lambda x: x["radius"] * np.cos(x["theta"]))
-            .assign(y=lambda x: x["radius"] * np.sin(x["theta"]))
-            .sort_values(by="theta", ascending=True)
-            .drop(columns=["theta", "radius"])
-        )
+        self._circle = pd.DataFrame({"theta": np.linspace(0, 2 * np.pi, 30), "radius": self._radius}).assign(x=lambda x: x["radius"] * np.cos(x["theta"])).assign(y=lambda x: x["radius"] * np.sin(x["theta"])).sort_values(by="theta", ascending=True).drop(columns=["theta", "radius"])
 
     @property
     def circle(self) -> pd.DataFrame:
-        return (
-            self._circle.assign(x=lambda x: x["x"] * M_TO_MM)
-            .assign(y=lambda x: x["y"] * M_TO_MM)
-            .rename(columns={"x": "X [mm]", "y": "Y [mm]"})
-        )
+        return self._circle.assign(x=lambda x: x["x"] * M_TO_MM).assign(y=lambda x: x["y"] * M_TO_MM).rename(columns={"x": "X [mm]", "y": "Y [mm]"})
 
     @property
     def mass(self) -> float:
@@ -506,18 +464,12 @@ class CylindricalCanister:
         """
         Retrieve the properties of the tab material.
         """
-        data_path = (
-            Path(__file__).parent / "../../Data/materials_properties.db"
-        ).resolve()
+        data_path = (Path(__file__).parent / "../../Data/materials_properties.db").resolve()
         materials_database = DataManager(data_path)
-        available_materials = materials_database.get_unique_values(
-            "current_collectors", "formula"
-        )
+        available_materials = materials_database.get_unique_values("current_collectors", "formula")
 
         if self._formula not in available_materials:
-            raise ValueError(
-                f"{self._formula} is not available in the materials database. Allowed values are: {available_materials}"
-            )
+            raise ValueError(f"{self._formula} is not available in the materials database. Allowed values are: {available_materials}")
 
         data = materials_database.get_data(
             "current_collectors",
@@ -558,11 +510,7 @@ class CylindricalCanister:
         self._outer_radius = self._outer_diameter / 2
 
         base_plate_volume = np.pi * self._outer_diameter**2 * self._wall_thickness
-        sides_volume = (
-            np.pi
-            * (self._outer_radius**2 - self._inner_radius**2)
-            * (self._length - self._wall_thickness)
-        )
+        sides_volume = np.pi * (self._outer_radius**2 - self._inner_radius**2) * (self._length - self._wall_thickness)
 
         self._volume = base_plate_volume + sides_volume
         self._mass = self._volume * self._density
@@ -627,33 +575,21 @@ class CylindricalCase:
 
         self._lid_assembly = deepcopy(lid_assembly)
 
-    def _check_cathode_terminal_connector(
-        self, cathode_terminal_connector: CylindricalTerminalConnector
-    ):
+    def _check_cathode_terminal_connector(self, cathode_terminal_connector: CylindricalTerminalConnector):
         if not isinstance(cathode_terminal_connector, CylindricalTerminalConnector):
-            raise TypeError(
-                "Cathode terminal connector must be a CylindricalTerminalCollector"
-            )
+            raise TypeError("Cathode terminal connector must be a CylindricalTerminalCollector")
 
         if cathode_terminal_connector._radius > self._canister._inner_radius:
-            raise ValueError(
-                f"Cathode terminal connector radius ({cathode_terminal_connector.radius} mm) must be smaller than canister inner radius ({self._canister.inner_radius} mm)"
-            )
+            raise ValueError(f"Cathode terminal connector radius ({cathode_terminal_connector.radius} mm) must be smaller than canister inner radius ({self._canister.inner_radius} mm)")
 
         self._cathode_terminal_connector = deepcopy(cathode_terminal_connector)
 
-    def _check_anode_terminal_connector(
-        self, anode_terminal_connector: CylindricalTerminalConnector
-    ):
+    def _check_anode_terminal_connector(self, anode_terminal_connector: CylindricalTerminalConnector):
         if not isinstance(anode_terminal_connector, CylindricalTerminalConnector):
-            raise TypeError(
-                "Anode terminal connector must be a CylindricalTerminalCollector"
-            )
+            raise TypeError("Anode terminal connector must be a CylindricalTerminalCollector")
 
         if anode_terminal_connector._radius > self._canister._inner_radius:
-            raise ValueError(
-                f"Anode terminal connector radius ({anode_terminal_connector.radius} mm) must be smaller than canister inner radius ({self._canister.inner_radius} mm)"
-            )
+            raise ValueError(f"Anode terminal connector radius ({anode_terminal_connector.radius} mm) must be smaller than canister inner radius ({self._canister.inner_radius} mm)")
 
         self._anode_terminal_connector = deepcopy(anode_terminal_connector)
 
@@ -667,18 +603,8 @@ class CylindricalCase:
         self._name = name
 
     def _calculate_properties(self):
-        self._cost = (
-            self._canister._cost
-            + self._lid_assembly._cost
-            + self._cathode_terminal_connector._cost
-            + self._anode_terminal_connector._cost
-        )
-        self._mass = (
-            self._canister._mass
-            + self._lid_assembly._mass
-            + self._cathode_terminal_connector._mass
-            + self._anode_terminal_connector._mass
-        )
+        self._cost = self._canister._cost + self._lid_assembly._cost + self._cathode_terminal_connector._cost + self._anode_terminal_connector._cost
+        self._mass = self._canister._mass + self._lid_assembly._mass + self._cathode_terminal_connector._mass + self._anode_terminal_connector._mass
 
         self._length = self._canister._length
         self._outer_radius = self._canister._outer_radius
@@ -686,35 +612,13 @@ class CylindricalCase:
         self._closed_volume = self._length * np.pi * (self._outer_radius**2)
 
         self._inner_radius = self._canister._inner_radius
-        self._inner_height = (
-            self._length
-            - self._lid_assembly._thickness
-            - self._cathode_terminal_connector._thickness
-            - self._anode_terminal_connector._thickness
-            - self._canister._wall_thickness
-        )
+        self._inner_height = self._length - self._lid_assembly._thickness - self._cathode_terminal_connector._thickness - self._anode_terminal_connector._thickness - self._canister._wall_thickness
         self._inner_volume = np.pi * (self._inner_radius**2) * self._inner_height
 
     def _calculate_footprint(self):
-        self._inner_circle = (
-            pd.DataFrame(
-                {"theta": np.linspace(0, 2 * np.pi, 30), "radius": self._inner_radius}
-            )
-            .assign(x=lambda x: x["radius"] * np.cos(x["theta"]))
-            .assign(y=lambda x: x["radius"] * np.sin(x["theta"]))
-            .sort_values(by="theta", ascending=True)
-            .drop(columns=["theta", "radius"])
-        )
+        self._inner_circle = pd.DataFrame({"theta": np.linspace(0, 2 * np.pi, 30), "radius": self._inner_radius}).assign(x=lambda x: x["radius"] * np.cos(x["theta"])).assign(y=lambda x: x["radius"] * np.sin(x["theta"])).sort_values(by="theta", ascending=True).drop(columns=["theta", "radius"])
 
-        self._outer_circle = (
-            pd.DataFrame(
-                {"theta": np.linspace(0, 2 * np.pi, 30), "radius": self._outer_radius}
-            )
-            .assign(x=lambda x: x["radius"] * np.cos(x["theta"]))
-            .assign(y=lambda x: x["radius"] * np.sin(x["theta"]))
-            .sort_values(by="theta", ascending=False)
-            .drop(columns=["theta", "radius"])
-        )
+        self._outer_circle = pd.DataFrame({"theta": np.linspace(0, 2 * np.pi, 30), "radius": self._outer_radius}).assign(x=lambda x: x["radius"] * np.cos(x["theta"])).assign(y=lambda x: x["radius"] * np.sin(x["theta"])).sort_values(by="theta", ascending=False).drop(columns=["theta", "radius"])
 
     def get_top_down_view(
         self,
@@ -784,9 +688,7 @@ class CylindricalCase:
 
         return fig
 
-    def get_bottom_up_view(
-        self, paper_bgcolor="white", plot_bgcolor="white", title=None, **kwargs
-    ):
+    def get_bottom_up_view(self, paper_bgcolor="white", plot_bgcolor="white", title=None, **kwargs):
         """
         Get a bottom up view of the cylindrical case
         """
@@ -902,11 +804,7 @@ class CylindricalCase:
         )
 
         # lid assembly
-        pos_y = (
-            self.inner_height / 2
-            + self._cathode_terminal_connector.thickness
-            + self._lid_assembly.thickness
-        )
+        pos_y = self.inner_height / 2 + self._cathode_terminal_connector.thickness + self._lid_assembly.thickness
         neg_y = self.inner_height / 2 + self._cathode_terminal_connector.thickness
         lid_x = [
             -self.inner_radius,
@@ -929,16 +827,8 @@ class CylindricalCase:
         )
 
         # canister
-        pos_y = (
-            self.inner_height / 2
-            + self._cathode_terminal_connector.thickness
-            + self._lid_assembly.thickness
-        )
-        neg_y = (
-            -self.inner_height / 2
-            - self._anode_terminal_connector.thickness
-            - self._canister.wall_thickness
-        )
+        pos_y = self.inner_height / 2 + self._cathode_terminal_connector.thickness + self._lid_assembly.thickness
+        neg_y = -self.inner_height / 2 - self._anode_terminal_connector.thickness - self._canister.wall_thickness
         canister_x = [
             -self.outer_radius,
             self.outer_radius,
@@ -985,19 +875,11 @@ class CylindricalCase:
 
     @property
     def inner_circle(self) -> pd.DataFrame:
-        return (
-            self._inner_circle.assign(x=lambda x: x["x"] * M_TO_MM)
-            .assign(y=lambda x: x["y"] * M_TO_MM)
-            .rename(columns={"x": "X [mm]", "y": "Y [mm]"})
-        )
+        return self._inner_circle.assign(x=lambda x: x["x"] * M_TO_MM).assign(y=lambda x: x["y"] * M_TO_MM).rename(columns={"x": "X [mm]", "y": "Y [mm]"})
 
     @property
     def outer_circle(self) -> pd.DataFrame:
-        return (
-            self._outer_circle.assign(x=lambda x: x["x"] * M_TO_MM)
-            .assign(y=lambda x: x["y"] * M_TO_MM)
-            .rename(columns={"x": "X [mm]", "y": "Y [mm]"})
-        )
+        return self._outer_circle.assign(x=lambda x: x["x"] * M_TO_MM).assign(y=lambda x: x["y"] * M_TO_MM).rename(columns={"x": "X [mm]", "y": "Y [mm]"})
 
     @property
     def cost(self) -> float:
@@ -1070,12 +952,8 @@ class PrismaticShell:
         self._external_width = self._internal_width + 2 * self._wall_thickness
         self._external_length = self._internal_length + 2 * self._wall_thickness
         self._external_height = self._internal_height + 2 * self._wall_thickness
-        self._external_volume = (
-            self._external_width * self._external_length * self._external_height
-        )
-        self._internal_volume = (
-            self._internal_width * self._internal_length * self._internal_height
-        )
+        self._external_volume = self._external_width * self._external_length * self._external_height
+        self._internal_volume = self._internal_width * self._internal_length * self._internal_height
 
     def _check_cost(self, cost: float):
         if not isinstance(cost, (int, float)):
@@ -1292,9 +1170,7 @@ class PrismaticLid:
 
 
 class PrismaticCase:
-    def __init__(
-        self, shell: PrismaticShell, lid: PrismaticLid, name: str = "Prismatic Case"
-    ):
+    def __init__(self, shell: PrismaticShell, lid: PrismaticLid, name: str = "Prismatic Case"):
         """
         Class representing a casing used for a prismatic cell.
 
@@ -1314,16 +1190,12 @@ class PrismaticCase:
         self._internal_width = self._shell._internal_width + self._lid._internal_width
         self._internal_length = self._shell._internal_length
         self._internal_height = self._shell._internal_height
-        self._internal_volume = (
-            self._internal_height * self._internal_length * self._internal_width
-        )
+        self._internal_volume = self._internal_height * self._internal_length * self._internal_width
 
         self._external_width = self._shell._external_width + self._lid._external_width
         self._external_length = self._shell._external_length
         self._external_height = self._shell._external_height
-        self._external_volume = (
-            self._external_height * self._external_length * self._external_width
-        )
+        self._external_volume = self._external_height * self._external_length * self._external_width
 
     def _check_shell(self, shell: PrismaticShell):
         if not isinstance(shell, PrismaticShell):
@@ -1364,13 +1236,9 @@ class PrismaticCase:
         """
         # Check stack is small enough to fit in the prismatic case
         if anode.current_collector._width > self._internal_width:
-            raise ValueError(
-                "Anode current collector width is too large for the prismatic case"
-            )
+            raise ValueError("Anode current collector width is too large for the prismatic case")
         if anode.current_collector._length > self._internal_length:
-            raise ValueError(
-                "Anode current collector length is too large for the prismatic case"
-            )
+            raise ValueError("Anode current collector length is too large for the prismatic case")
 
         target_stack_height = self._internal_height / n_stacks
         stack_layers = 2
@@ -1383,17 +1251,11 @@ class PrismaticCase:
         )
 
         if stack._length > self._internal_length:
-            raise ValueError(
-                "Stack length is too large for the prismatic case. Reduce your current collector lengths."
-            )
+            raise ValueError("Stack length is too large for the prismatic case. Reduce your current collector lengths.")
         if stack._width > self._internal_width:
-            raise ValueError(
-                "Stack width is too large for the prismatic case. Reduce your current collector widths."
-            )
+            raise ValueError("Stack width is too large for the prismatic case. Reduce your current collector widths.")
         if stack._thickness > target_stack_height:
-            raise ValueError(
-                "Stack is too thick for the prismatic case even with one layer. Check your inputs."
-            )
+            raise ValueError("Stack is too thick for the prismatic case even with one layer. Check your inputs.")
 
         initial_layer_guess = int(target_stack_height // (stack._thickness / 2))
         stack = Stack(

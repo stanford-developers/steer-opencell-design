@@ -110,9 +110,7 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
 
     def test_electrodes(self):
         self.assertTrue(isinstance(self.cathode, Cathode))
-        self.assertTrue(
-            isinstance(self.cathode.current_collector, PunchedCurrentCollector)
-        )
+        self.assertTrue(isinstance(self.cathode.current_collector, PunchedCurrentCollector))
         self.assertTrue(isinstance(self.cathode.formulation, CathodeFormulation))
 
         self.assertEqual(
@@ -155,12 +153,8 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
                     total += value
             return total
 
-        self.assertAlmostEqual(
-            self.cathode._cost, sum_nested_dict(self.cathode._cost_breakdown), 5
-        )
-        self.assertAlmostEqual(
-            self.cathode._mass, sum_nested_dict(self.cathode._mass_breakdown), 5
-        )
+        self.assertAlmostEqual(self.cathode._cost, sum_nested_dict(self.cathode._cost_breakdown), 5)
+        self.assertAlmostEqual(self.cathode._mass, sum_nested_dict(self.cathode._mass_breakdown), 5)
 
         self.assertEqual(self.cathode.calender_density, 2.60)
         self.assertEqual(self.cathode.mass_loading, 10.68)
@@ -322,12 +316,8 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
                     total += value
             return total
 
-        self.assertAlmostEqual(
-            self.cathode._cost, sum_nested_dict(self.cathode._cost_breakdown), 5
-        )
-        self.assertAlmostEqual(
-            self.cathode._mass, sum_nested_dict(self.cathode._mass_breakdown), 5
-        )
+        self.assertAlmostEqual(self.cathode._cost, sum_nested_dict(self.cathode._cost_breakdown), 5)
+        self.assertAlmostEqual(self.cathode._mass, sum_nested_dict(self.cathode._mass_breakdown), 5)
 
     def test_half_cell_curve(self):
         figure1 = self.cathode.plot_half_cell_curve(areal=False)
@@ -383,9 +373,7 @@ class testAnodeTabWelded(unittest.TestCase):
 
     def test_electrodes(self):
         self.assertTrue(isinstance(self.anode, Anode))
-        self.assertTrue(
-            isinstance(self.anode.current_collector, TabWeldedCurrentCollector)
-        )
+        self.assertTrue(isinstance(self.anode.current_collector, TabWeldedCurrentCollector))
         self.assertTrue(isinstance(self.anode.formulation, AnodeFormulation))
 
         self.assertEqual(
@@ -422,12 +410,8 @@ class testAnodeTabWelded(unittest.TestCase):
                     total += value
             return total
 
-        self.assertAlmostEqual(
-            self.anode._cost, sum_nested_dict(self.anode._cost_breakdown), 5
-        )
-        self.assertAlmostEqual(
-            self.anode._mass, sum_nested_dict(self.anode._mass_breakdown), 5
-        )
+        self.assertAlmostEqual(self.anode._cost, sum_nested_dict(self.anode._cost_breakdown), 5)
+        self.assertAlmostEqual(self.anode._mass, sum_nested_dict(self.anode._mass_breakdown), 5)
 
     def test_half_cell_curve(self):
         figure1 = self.anode.plot_half_cell_curve(areal=False)
@@ -488,9 +472,7 @@ class TestElectrodeControlModes(unittest.TestCase):
         """Test that default control mode is MAINTAIN_CALENDER_DENSITY."""
         from steer_opencell_design.Components.Electrodes import ElectrodeControlMode
 
-        self.assertEqual(
-            self.cathode._control_mode, ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY
-        )
+        self.assertEqual(self.cathode._control_mode, ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY)
 
         # Test default behavior - coating thickness change should adjust mass loading
         initial_calender_density = self.cathode.calender_density
@@ -502,15 +484,11 @@ class TestElectrodeControlModes(unittest.TestCase):
         self.cathode.coating_thickness = new_coating_thickness
 
         # Calender density should remain the same (within tolerance)
-        self.assertAlmostEqual(
-            self.cathode.calender_density, initial_calender_density, places=6
-        )
+        self.assertAlmostEqual(self.cathode.calender_density, initial_calender_density, places=6)
 
         # Mass loading should have changed proportionally
         expected_mass_loading = initial_mass_loading * 1.2
-        self.assertAlmostEqual(
-            self.cathode.mass_loading, expected_mass_loading, places=2
-        )
+        self.assertAlmostEqual(self.cathode.mass_loading, expected_mass_loading, places=2)
 
     def test_maintain_mass_loading_mode(self):
         """Test MAINTAIN_MASS_LOADING control mode."""
@@ -528,15 +506,11 @@ class TestElectrodeControlModes(unittest.TestCase):
         self.cathode.coating_thickness = new_coating_thickness
 
         # Mass loading should remain the same
-        self.assertAlmostEqual(
-            self.cathode.mass_loading, initial_mass_loading, places=6
-        )
+        self.assertAlmostEqual(self.cathode.mass_loading, initial_mass_loading, places=6)
 
         # Calender density should have changed
         expected_calender_density = initial_calender_density / 1.5
-        self.assertAlmostEqual(
-            self.cathode.calender_density, expected_calender_density, places=2
-        )
+        self.assertAlmostEqual(self.cathode.calender_density, expected_calender_density, places=2)
 
         # Test 2: Change calender density -> should adjust coating thickness
         current_coating_thickness = self.cathode.coating_thickness
@@ -544,15 +518,11 @@ class TestElectrodeControlModes(unittest.TestCase):
         self.cathode.calender_density = new_calender_density
 
         # Mass loading should remain the same
-        self.assertAlmostEqual(
-            self.cathode.mass_loading, initial_mass_loading, places=6
-        )
+        self.assertAlmostEqual(self.cathode.mass_loading, initial_mass_loading, places=6)
 
         # Coating thickness should have changed
         expected_coating_thickness = current_coating_thickness / 1.3
-        self.assertAlmostEqual(
-            self.cathode.coating_thickness, expected_coating_thickness, delta=0.5
-        )
+        self.assertAlmostEqual(self.cathode.coating_thickness, expected_coating_thickness, delta=0.5)
 
     def test_maintain_coating_thickness_mode(self):
         """Test MAINTAIN_COATING_THICKNESS control mode."""
@@ -570,15 +540,11 @@ class TestElectrodeControlModes(unittest.TestCase):
         self.cathode.mass_loading = new_mass_loading
 
         # Coating thickness should remain the same
-        self.assertAlmostEqual(
-            self.cathode.coating_thickness, initial_coating_thickness, places=6
-        )
+        self.assertAlmostEqual(self.cathode.coating_thickness, initial_coating_thickness, places=6)
 
         # Calender density should have changed
         expected_calender_density = initial_calender_density * 1.4
-        self.assertAlmostEqual(
-            self.cathode.calender_density, expected_calender_density, places=4
-        )
+        self.assertAlmostEqual(self.cathode.calender_density, expected_calender_density, places=4)
 
         # Test 2: Change calender density -> should adjust mass loading
         current_mass_loading = self.cathode.mass_loading
@@ -586,15 +552,11 @@ class TestElectrodeControlModes(unittest.TestCase):
         self.cathode.calender_density = new_calender_density
 
         # Coating thickness should remain the same
-        self.assertAlmostEqual(
-            self.cathode.coating_thickness, initial_coating_thickness, places=6
-        )
+        self.assertAlmostEqual(self.cathode.coating_thickness, initial_coating_thickness, places=6)
 
         # Mass loading should have changed
         expected_mass_loading = current_mass_loading * 0.8
-        self.assertAlmostEqual(
-            self.cathode.mass_loading, expected_mass_loading, places=2
-        )
+        self.assertAlmostEqual(self.cathode.mass_loading, expected_mass_loading, places=2)
 
     def test_coating_thickness_setter_with_maintain_coating_thickness_mode(self):
         """Test that coating thickness setter works correctly in MAINTAIN_COATING_THICKNESS mode."""
@@ -613,9 +575,7 @@ class TestElectrodeControlModes(unittest.TestCase):
         self.cathode.coating_thickness = new_coating_thickness
 
         # Coating thickness should have changed
-        self.assertAlmostEqual(
-            self.cathode.coating_thickness, new_coating_thickness, places=1
-        )
+        self.assertAlmostEqual(self.cathode.coating_thickness, new_coating_thickness, places=1)
 
         # In MAINTAIN_COATING_THICKNESS mode, neither mass loading nor calender density
         # should automatically adjust to this change - it should be an independent setting
@@ -639,14 +599,10 @@ class TestElectrodeControlModes(unittest.TestCase):
         self.cathode.coating_thickness = new_coating_thickness
 
         # Coating thickness should change
-        self.assertAlmostEqual(
-            self.cathode.coating_thickness, new_coating_thickness, places=1
-        )
+        self.assertAlmostEqual(self.cathode.coating_thickness, new_coating_thickness, places=1)
 
         # Calender density should remain constant (within tolerance)
-        self.assertAlmostEqual(
-            self.cathode.calender_density, initial_calender_density, places=5
-        )
+        self.assertAlmostEqual(self.cathode.calender_density, initial_calender_density, places=5)
 
         # Test MAINTAIN_MASS_LOADING mode
         self.cathode.control_mode = ElectrodeControlMode.MAINTAIN_MASS_LOADING
@@ -659,11 +615,7 @@ class TestElectrodeControlModes(unittest.TestCase):
         self.cathode.coating_thickness = new_coating_thickness_2
 
         # Coating thickness should change
-        self.assertAlmostEqual(
-            self.cathode.coating_thickness, new_coating_thickness_2, places=1
-        )
+        self.assertAlmostEqual(self.cathode.coating_thickness, new_coating_thickness_2, places=1)
 
         # Mass loading should remain constant (within tolerance)
-        self.assertAlmostEqual(
-            self.cathode.mass_loading, initial_mass_loading, places=5
-        )
+        self.assertAlmostEqual(self.cathode.mass_loading, initial_mass_loading, places=5)

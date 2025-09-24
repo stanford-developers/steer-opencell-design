@@ -15,10 +15,7 @@ cathode_insulation_material_parameters = ds.html.Div(
             id="cathode_insulation_material_selector",
             placeholder="Select Cathode Insulation Material",
             style={"width": "calc(50%)"},
-            options=[
-                {"label": material, "value": material}
-                for material in INSULATION_MATERIALS
-            ],
+            options=[{"label": material, "value": material} for material in INSULATION_MATERIALS],
         ),
         ds.html.Br(),
         SliderWithTextInput(
@@ -201,10 +198,7 @@ anode_insulation_material_parameters = ds.html.Div(
             id="anode_insulation_material_selector",
             placeholder="Select Anode Insulation Material",
             style={"width": "calc(50%)"},
-            options=[
-                {"label": material, "value": material}
-                for material in INSULATION_MATERIALS
-            ],
+            options=[{"label": material, "value": material} for material in INSULATION_MATERIALS],
         ),
         ds.html.Br(),
         SliderWithTextInput(

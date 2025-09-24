@@ -56,9 +56,7 @@ def create_generic_current_collector_callback(
         trigger_type = TriggerRouter.get_trigger_type(triggered_id, triggered_prop_id)
 
         if trigger_type == TriggerType.CELL_STORE or trigger_type == TriggerType.STYLE:
-            return handle_cell_store_update(
-                current_collector, config, existing_warnings
-            )
+            return handle_cell_store_update(current_collector, config, existing_warnings)
 
         elif trigger_type == TriggerType.PROPERTY:
             return handle_property_update(

@@ -86,17 +86,10 @@ class _ElectrodeFormulation(ValidationMixin):
         """
 
         def extract_material_data(material_dict):
-            return [
-                (material._density, fraction)
-                for material, fraction in material_dict.items()
-            ]
+            return [(material._density, fraction) for material, fraction in material_dict.items()]
 
         # Collect (density, mass_fraction) pairs from all sources
-        components = (
-            extract_material_data(self._active_materials)
-            + extract_material_data(self._binders)
-            + extract_material_data(self._conductive_additives)
-        )
+        components = extract_material_data(self._active_materials) + extract_material_data(self._binders) + extract_material_data(self._conductive_additives)
 
         # Weighted average density
         self._density = sum(d * mf for d, mf in components)
@@ -111,16 +104,9 @@ class _ElectrodeFormulation(ValidationMixin):
         """
 
         def extract_cost_data(material_dict):
-            return [
-                (material._specific_cost, fraction)
-                for material, fraction in material_dict.items()
-            ]
+            return [(material._specific_cost, fraction) for material, fraction in material_dict.items()]
 
-        components = (
-            extract_cost_data(self._active_materials)
-            + extract_cost_data(self._binders)
-            + extract_cost_data(self._conductive_additives)
-        )
+        components = extract_cost_data(self._active_materials) + extract_cost_data(self._binders) + extract_cost_data(self._conductive_additives)
 
         self._specific_cost = sum(cost * mf for cost, mf in components)
         return self._specific_cost
@@ -141,17 +127,10 @@ class _ElectrodeFormulation(ValidationMixin):
             return "#{:02x}{:02x}{:02x}".format(*map(lambda x: int(round(x)), rgb))
 
         def extract_color_data(material_dict):
-            return [
-                (hex_to_rgb(material._color), fraction)
-                for material, fraction in material_dict.items()
-            ]
+            return [(hex_to_rgb(material._color), fraction) for material, fraction in material_dict.items()]
 
         # Gather all (rgb, fraction) pairs
-        components = (
-            extract_color_data(self._active_materials)
-            + extract_color_data(self._binders)
-            + extract_color_data(self._conductive_additives)
-        )
+        components = extract_color_data(self._active_materials) + extract_color_data(self._binders) + extract_color_data(self._conductive_additives)
 
         # Weighted average of RGB channels
         total_r = sum(rgb[0] * f for rgb, f in components)
@@ -169,10 +148,7 @@ class _ElectrodeFormulation(ValidationMixin):
         """
         if not hasattr(self, "_voltage_operation_window"):
             # If voltage operation window hasn't been set yet (during initialization)
-            voltage_operation_windows = [
-                material._voltage_operation_window
-                for material in self._active_materials.keys()
-            ]
+            voltage_operation_windows = [material._voltage_operation_window for material in self._active_materials.keys()]
             starts, middles, ends = zip(*voltage_operation_windows)
 
             if type(self) == CathodeFormulation:
@@ -219,11 +195,7 @@ class _ElectrodeFormulation(ValidationMixin):
         """
         Validate the electrode formulation to ensure it meets the required criteria.
         """
-        total_fraction = (
-            sum(self._active_materials.values())
-            + sum(self._binders.values())
-            + sum(self._conductive_additives.values())
-        )
+        total_fraction = sum(self._active_materials.values()) + sum(self._binders.values()) + sum(self._conductive_additives.values())
 
         if not (0.999 <= total_fraction <= 1.001):
             warnings.warn(
@@ -251,44 +223,17 @@ class _ElectrodeFormulation(ValidationMixin):
             )
 
     def _get_specific_cost_breakdown(self) -> None:
-        active_material_specific_costs = [
-            c._specific_cost for c in self._active_materials.keys()
-        ]
+        active_material_specific_costs = [c._specific_cost for c in self._active_materials.keys()]
 
-        active_material_costs = {
-            key.name: value * self._active_materials[key]
-            for key, value in zip(
-                self._active_materials.keys(), active_material_specific_costs
-            )
-        }
+        active_material_costs = {key.name: value * self._active_materials[key] for key, value in zip(self._active_materials.keys(), active_material_specific_costs)}
 
         binder_specific_costs = [c._specific_cost for c in self._binders.keys()]
-        binder_costs = (
-            {
-                key.name: value * self._binders[key]
-                for key, value in zip(self._binders.keys(), binder_specific_costs)
-            }
-            if self._binders
-            else {}
-        )
+        binder_costs = {key.name: value * self._binders[key] for key, value in zip(self._binders.keys(), binder_specific_costs)} if self._binders else {}
 
-        conductive_additive_costs = [
-            c._specific_cost for c in self._conductive_additives.keys()
-        ]
-        conductive_additive_costs = (
-            {
-                key.name: value * self._conductive_additives[key]
-                for key, value in zip(
-                    self._conductive_additives.keys(), conductive_additive_costs
-                )
-            }
-            if self._conductive_additives
-            else {}
-        )
+        conductive_additive_costs = [c._specific_cost for c in self._conductive_additives.keys()]
+        conductive_additive_costs = {key.name: value * self._conductive_additives[key] for key, value in zip(self._conductive_additives.keys(), conductive_additive_costs)} if self._conductive_additives else {}
 
-        self._specific_cost_breakdown = (
-            active_material_costs | binder_costs | conductive_additive_costs
-        )
+        self._specific_cost_breakdown = active_material_costs | binder_costs | conductive_additive_costs
 
     def _get_density_breakdown(self) -> Dict[str, float]:
         """
@@ -298,44 +243,17 @@ class _ElectrodeFormulation(ValidationMixin):
         """
         active_material_densities = [c._density for c in self._active_materials.keys()]
 
-        active_material_density_breakdown = {
-            key.name: value * self._active_materials[key]
-            for key, value in zip(
-                self._active_materials.keys(), active_material_densities
-            )
-        }
+        active_material_density_breakdown = {key.name: value * self._active_materials[key] for key, value in zip(self._active_materials.keys(), active_material_densities)}
 
         binder_densities = [c._density for c in self._binders.keys()]
 
-        binder_density_breakdown = (
-            {
-                key.name: value * self._binders[key]
-                for key, value in zip(self._binders.keys(), binder_densities)
-            }
-            if self._binders
-            else {}
-        )
+        binder_density_breakdown = {key.name: value * self._binders[key] for key, value in zip(self._binders.keys(), binder_densities)} if self._binders else {}
 
-        conductive_additive_densities = [
-            c._density for c in self._conductive_additives.keys()
-        ]
+        conductive_additive_densities = [c._density for c in self._conductive_additives.keys()]
 
-        conductive_additive_density_breakdown = (
-            {
-                key.name: value * self._conductive_additives[key]
-                for key, value in zip(
-                    self._conductive_additives.keys(), conductive_additive_densities
-                )
-            }
-            if self._conductive_additives
-            else {}
-        )
+        conductive_additive_density_breakdown = {key.name: value * self._conductive_additives[key] for key, value in zip(self._conductive_additives.keys(), conductive_additive_densities)} if self._conductive_additives else {}
 
-        self._density_breakdown = (
-            active_material_density_breakdown
-            | binder_density_breakdown
-            | conductive_additive_density_breakdown
-        )
+        self._density_breakdown = active_material_density_breakdown | binder_density_breakdown | conductive_additive_density_breakdown
 
     def _calculate_half_cell_curve(self) -> None:
         """
@@ -437,21 +355,15 @@ class _ElectrodeFormulation(ValidationMixin):
             discharge_dfs.append(discharge_interp)
 
         # Sum across interpolated curves
-        summed_charge_capacity = (
-            np.sum(charge_dfs, axis=0) if charge_dfs else np.array([])
-        )
-        summed_discharge_capacity = (
-            np.sum(discharge_dfs, axis=0) if discharge_dfs else np.array([])
-        )
+        summed_charge_capacity = np.sum(charge_dfs, axis=0) if charge_dfs else np.array([])
+        summed_discharge_capacity = np.sum(discharge_dfs, axis=0) if discharge_dfs else np.array([])
 
         # Assemble final half-cell curve - always charge first, then discharge
         curves_to_stack = []
 
         # Always add charge curve first (if it exists) - sorted from lowest to highest specific capacity
         if len(summed_charge_capacity) > 0:
-            charge_df = np.column_stack(
-                [summed_charge_capacity, v_charge_grid, np.ones_like(v_charge_grid)]
-            )
+            charge_df = np.column_stack([summed_charge_capacity, v_charge_grid, np.ones_like(v_charge_grid)])
             # Sort charge curve by specific capacity (ascending - lowest to highest)
             charge_df = charge_df[np.argsort(charge_df[:, 0])]
             curves_to_stack.append(charge_df)
@@ -480,10 +392,7 @@ class _ElectrodeFormulation(ValidationMixin):
         Check if current voltage cutoff is compatible with new materials and adjust if necessary.
         """
         # First, calculate the new voltage operation window
-        voltage_operation_windows = [
-            material._voltage_operation_window
-            for material in self._active_materials.keys()
-        ]
+        voltage_operation_windows = [material._voltage_operation_window for material in self._active_materials.keys()]
         starts, middles, ends = zip(*voltage_operation_windows)
 
         # Determine the common voltage operation window
@@ -498,15 +407,8 @@ class _ElectrodeFormulation(ValidationMixin):
 
         # Check if there's a valid common range
         if not valid_range:
-            material_ranges = [
-                f"{mat.name}: {mat._voltage_operation_window}"
-                for mat in self._active_materials.keys()
-            ]
-            raise ValueError(
-                f"The active materials have incompatible voltage operation windows.\n"
-                f"Material ranges: {material_ranges}\n"
-                f"No common voltage range exists for these materials."
-            )
+            material_ranges = [f"{mat.name}: {mat._voltage_operation_window}" for mat in self._active_materials.keys()]
+            raise ValueError(f"The active materials have incompatible voltage operation windows.\n" f"Material ranges: {material_ranges}\n" f"No common voltage range exists for these materials.")
 
         # Store the new voltage operation window
         self._voltage_operation_window = (common_start, common_end)
@@ -548,9 +450,7 @@ class _ElectrodeFormulation(ValidationMixin):
             for material in self._active_materials.keys():
                 material.voltage_cutoff = self._voltage_cutoff
 
-    def plot_half_cell_curve(
-        self, add_materials: bool = False, show_direction: bool = True, **kwargs
-    ) -> go.Figure:
+    def plot_half_cell_curve(self, add_materials: bool = False, show_direction: bool = True, **kwargs) -> go.Figure:
         """
         Plot the half-cell curve for the formulation.
 
@@ -601,14 +501,9 @@ class _ElectrodeFormulation(ValidationMixin):
                 x=main_curve_data["Specific Capacity (mAh/g)"],
                 y=main_curve_data["Voltage (V)"],
                 name=self.name,
-                line=dict(
-                    color=self._color, width=kwargs.get("line_width", 3), shape="spline"
-                ),
+                line=dict(color=self._color, width=kwargs.get("line_width", 3), shape="spline"),
                 mode="lines",
-                hovertemplate="<b>%{fullData.name}</b><br>"
-                + "Capacity: %{x:.2f} mAh/g<br>"
-                + "Voltage: %{y:.3f} V<br>"
-                + "Direction: %{customdata}<extra></extra>",
+                hovertemplate="<b>%{fullData.name}</b><br>" + "Capacity: %{x:.2f} mAh/g<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
                 customdata=main_curve_data["Direction"],
                 showlegend=True,
             )
@@ -635,10 +530,7 @@ class _ElectrodeFormulation(ValidationMixin):
                                     dash=dash_style,
                                 ),
                                 mode="lines",
-                                hovertemplate="<b>%{fullData.name}</b><br>"
-                                + "Capacity: %{x:.2f} mAh/g<br>"
-                                + "Voltage: %{y:.3f} V<br>"
-                                + "<i>Individual Material</i><extra></extra>",
+                                hovertemplate="<b>%{fullData.name}</b><br>" + "Capacity: %{x:.2f} mAh/g<br>" + "Voltage: %{y:.3f} V<br>" + "<i>Individual Material</i><extra></extra>",
                                 opacity=kwargs.get("material_opacity", 0.7),
                             )
                         )
@@ -720,19 +612,11 @@ class _ElectrodeFormulation(ValidationMixin):
 
     @property
     def binders(self) -> Dict[Binder, float]:
-        return (
-            {key: value * 100 for key, value in self._binders.items()}
-            if self._binders != {}
-            else {}
-        )
+        return {key: value * 100 for key, value in self._binders.items()} if self._binders != {} else {}
 
     @property
     def conductive_additives(self) -> Dict[ConductiveAdditive, float]:
-        return (
-            {key: value * 100 for key, value in self._conductive_additives.items()}
-            if self._conductive_additives != {}
-            else {}
-        )
+        return {key: value * 100 for key, value in self._conductive_additives.items()} if self._conductive_additives != {} else {}
 
     @property
     def voltage_cutoff(self) -> float:
@@ -765,16 +649,11 @@ class _ElectrodeFormulation(ValidationMixin):
 
     @property
     def specific_cost_breakdown(self) -> Dict[str, float]:
-        return {
-            key: round(value, 4) for key, value in self._specific_cost_breakdown.items()
-        }
+        return {key: round(value, 4) for key, value in self._specific_cost_breakdown.items()}
 
     @property
     def density_breakdown(self) -> Dict[str, float]:
-        return {
-            key: round(value * KG_TO_G / (M_TO_CM**3), 4)
-            for key, value in self._density_breakdown.items()
-        }
+        return {key: round(value * KG_TO_G / (M_TO_CM**3), 4) for key, value in self._density_breakdown.items()}
 
     @property
     def specific_volume(self) -> float:
@@ -800,12 +679,8 @@ class _ElectrodeFormulation(ValidationMixin):
         actual_max = max(min_voltage, max_voltage)
 
         # Round the bounds conservatively (inward to stay within window)
-        rounded_min = (
-            np.ceil(actual_min * 1000) / 1000
-        )  # Round up (more conservative for min)
-        rounded_max = (
-            np.floor(actual_max * 1000) / 1000
-        )  # Round down (more conservative for max)
+        rounded_min = np.ceil(actual_min * 1000) / 1000  # Round up (more conservative for min)
+        rounded_max = np.floor(actual_max * 1000) / 1000  # Round down (more conservative for max)
 
         # Return in original order
         if min_voltage <= max_voltage:
@@ -821,11 +696,8 @@ class _ElectrodeFormulation(ValidationMixin):
                 columns=["specific_capacity", "voltage", "direction"],
             )
             .assign(
-                direction=lambda x: np.where(
-                    x["direction"] == 1, "charge", "discharge"
-                ),
-                specific_capacity=lambda x: x["specific_capacity"]
-                * (S_TO_H * A_TO_mA / KG_TO_G),
+                direction=lambda x: np.where(x["direction"] == 1, "charge", "discharge"),
+                specific_capacity=lambda x: x["specific_capacity"] * (S_TO_H * A_TO_mA / KG_TO_G),
             )
             .rename(
                 columns={
@@ -861,19 +733,13 @@ class _ElectrodeFormulation(ValidationMixin):
 
     @conductive_additives.setter
     @calculate_all_properties
-    def conductive_additives(
-        self, conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None
-    ):
+    def conductive_additives(self, conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None):
         if conductive_additives != {}:
             for key, value in conductive_additives.items():
                 self.validate_type(key, ConductiveAdditive, "Conductive additive")
                 self.validate_percentage(value, f"Mass fraction for {key.name}")
 
-        self._conductive_additives = {
-            key: value / 100
-            for key, value in conductive_additives.items()
-            if key is not None
-        }
+        self._conductive_additives = {key: value / 100 for key, value in conductive_additives.items() if key is not None}
 
     @binders.setter
     @calculate_all_properties
@@ -893,9 +759,7 @@ class _ElectrodeFormulation(ValidationMixin):
         """
         # Check if active_materials is empty
         if len(active_materials) == 0:
-            raise ValueError(
-                "You must include at least one active material in the formulation."
-            )
+            raise ValueError("You must include at least one active material in the formulation.")
 
         # Check the types and values of the active materials
         for key, value in active_materials.items():
@@ -903,9 +767,7 @@ class _ElectrodeFormulation(ValidationMixin):
             self.validate_percentage(value, f"Mass fraction for {key.name}")
 
         # Store the new active materials
-        self._active_materials = {
-            key: value / 100 for key, value in active_materials.items()
-        }
+        self._active_materials = {key: value / 100 for key, value in active_materials.items()}
 
         # Handle voltage cutoff compatibility with new materials
         self._handle_voltage_cutoff_compatibility()

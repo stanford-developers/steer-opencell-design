@@ -41,10 +41,7 @@ def toggle_cathode_insulation_parameters(cell_data, current_style):
         current_style = {}
 
     # Show if insulation_area > 0, else hide
-    if (
-        hasattr(current_collector, "insulation_area")
-        and current_collector.insulation_area > 0
-    ):
+    if hasattr(current_collector, "insulation_area") and current_collector.insulation_area > 0:
         # Remove 'display' if present, or set to 'block'
         style = dict(current_style)
         style.pop("display", None)
@@ -77,10 +74,7 @@ def toggle_anode_insulation_parameters(cell_data, current_style):
         current_style = {}
 
     # Show if insulation_area > 0, else hide
-    if (
-        hasattr(current_collector, "insulation_area")
-        and current_collector.insulation_area > 0
-    ):
+    if hasattr(current_collector, "insulation_area") and current_collector.insulation_area > 0:
         # Remove 'display' if present, or set to 'block'
         style = dict(current_style)
         style.pop("display", None)
@@ -400,9 +394,7 @@ def update_cathode_plots(
         plot_b = cathode.get_cross_section(title="Cross-Section Cathode View")
         plot_cost_breakdown = cathode.plot_cost_breakdown(title="Cost Breakdown Plot")
         plot_mass_breakdown = cathode.plot_mass_breakdown(title="Mass Breakdown Plot")
-        properties_table = create_properties_table(
-            properties, table_id="cathode_properties_table", decimal_places=2
-        )
+        properties_table = create_properties_table(properties, table_id="cathode_properties_table", decimal_places=2)
         return (
             no_update,
             plot_b,
@@ -467,9 +459,7 @@ def update_anode_plots(
         plot_b = anode.get_cross_section(title="Cross-Section Anode View")
         plot_cost_breakdown = anode.plot_cost_breakdown(title="Cost Breakdown Plot")
         plot_mass_breakdown = anode.plot_mass_breakdown(title="Mass Breakdown Plot")
-        properties_table = create_properties_table(
-            properties, table_id="anode_properties_table", decimal_places=2
-        )
+        properties_table = create_properties_table(properties, table_id="anode_properties_table", decimal_places=2)
         return (
             no_update,
             plot_b,
@@ -526,15 +516,11 @@ def update_cathode_control_mode(selected_mode, cell_data):
     }
 
     if ctx.triggered_id == "cell_store":
-        return no_update, mode_reverse_mapping.get(
-            cathode.control_mode, "MAINTAIN_CALENDER_DENSITY"
-        )
+        return no_update, mode_reverse_mapping.get(cathode.control_mode, "MAINTAIN_CALENDER_DENSITY")
 
     elif ctx.triggered_id == "cathode_control_mode_selector":
         # get the control mode from the value
-        mode = mode_mapping.get(
-            selected_mode, ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY
-        )
+        mode = mode_mapping.get(selected_mode, ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY)
 
         # set the control mode to the cathode
         cathode.control_mode = mode
@@ -588,15 +574,11 @@ def update_anode_control_mode(selected_mode, cell_data):
     }
 
     if ctx.triggered_id == "cell_store":
-        return no_update, mode_reverse_mapping.get(
-            anode.control_mode, "MAINTAIN_CALENDER_DENSITY"
-        )
+        return no_update, mode_reverse_mapping.get(anode.control_mode, "MAINTAIN_CALENDER_DENSITY")
 
     elif ctx.triggered_id == "anode_control_mode_selector":
         # get the control mode from the value
-        mode = mode_mapping.get(
-            selected_mode, ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY
-        )
+        mode = mode_mapping.get(selected_mode, ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY)
 
         # set the control mode to the anode
         anode.control_mode = mode
@@ -608,4 +590,3 @@ def update_anode_control_mode(selected_mode, cell_data):
         new_key = set_cell_to_cache(new_cell)
 
         return {"cache_key": new_key}, no_update
-

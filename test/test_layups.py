@@ -43,9 +43,7 @@ class TestSimpleLaminate(unittest.TestCase):
         material.specific_cost = 6
         material.density = 3.6
 
-        conductive_additive = ConductiveAdditive(
-            name="super_P", specific_cost=15, density=2.0, color="#000000"
-        )
+        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
         binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
 
         formulation = CathodeFormulation(
@@ -54,9 +52,7 @@ class TestSimpleLaminate(unittest.TestCase):
             conductive_additives={conductive_additive: 3},
         )
 
-        current_collector_material = CurrentCollectorMaterial(
-            name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA"
-        )
+        current_collector_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
 
         current_collector = NotchedCurrentCollector(
             material=current_collector_material,
@@ -120,13 +116,9 @@ class TestSimpleLaminate(unittest.TestCase):
             porosity=45,
         )
 
-        top_separator = Separator(
-            material=separator_material, thickness=25, width=310, length=4800
-        )
+        top_separator = Separator(material=separator_material, thickness=25, width=310, length=4800)
 
-        bottom_separator = Separator(
-            material=separator_material, thickness=25, width=310, length=4800
-        )
+        bottom_separator = Separator(material=separator_material, thickness=25, width=310, length=4800)
 
         self.layup = Laminate(
             anode=anode,
@@ -138,9 +130,7 @@ class TestSimpleLaminate(unittest.TestCase):
     def test_laminate(self):
         # This is a placeholder for an actual test
         self.assertTrue(isinstance(self.layup, Laminate))
-        self.assertEqual(
-            self.layup.anode_overhangs, {"left": 0, "right": 0, "top": 3, "bottom": 3}
-        )
+        self.assertEqual(self.layup.anode_overhangs, {"left": 0, "right": 0, "top": 3, "bottom": 3})
         self.assertEqual(
             self.layup.bottom_separator_overhangs,
             {"left": 150, "right": 150, "top": 5, "bottom": 5},
@@ -185,15 +175,11 @@ class TestSimpleLaminate(unittest.TestCase):
 
     def test_double_set(self):
         self.layup.anode.current_collector.width = 100
-        self.layup.anode.current_collector = deepcopy(
-            self.layup.anode.current_collector
-        )
+        self.layup.anode.current_collector = deepcopy(self.layup.anode.current_collector)
         self.layup.anode = deepcopy(self.layup.anode)
 
         self.layup.anode.current_collector.width = 500
-        self.layup.anode.current_collector = deepcopy(
-            self.layup.anode.current_collector
-        )
+        self.layup.anode.current_collector = deepcopy(self.layup.anode.current_collector)
         self.layup.anode = deepcopy(self.layup.anode)
 
         fig1 = self.layup.anode._get_full_top_down_view()
@@ -227,9 +213,7 @@ class TestSimpleLaminate(unittest.TestCase):
         self.layup.overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
 
         self.layup.anode_overhang_top = 6
-        self.assertEqual(
-            self.layup.anode_overhangs, {"left": 0, "right": 0, "top": 6, "bottom": 0}
-        )
+        self.assertEqual(self.layup.anode_overhangs, {"left": 0, "right": 0, "top": 6, "bottom": 0})
         fig1 = self.layup.get_top_down_view()
 
         # fig1.show()
@@ -259,9 +243,7 @@ class TestSimpleMonoLayer(unittest.TestCase):
         material.specific_cost = 6
         material.density = 3.6
 
-        conductive_additive = ConductiveAdditive(
-            name="super_P", specific_cost=15, density=2.0, color="#000000"
-        )
+        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
         binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
 
         formulation = CathodeFormulation(
@@ -270,9 +252,7 @@ class TestSimpleMonoLayer(unittest.TestCase):
             conductive_additives={conductive_additive: 3},
         )
 
-        current_collector_material = CurrentCollectorMaterial(
-            name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA"
-        )
+        current_collector_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
 
         current_collector = PunchedCurrentCollector(
             material=current_collector_material,
@@ -327,9 +307,7 @@ class TestSimpleMonoLayer(unittest.TestCase):
             porosity=45,
         )
 
-        separator = Separator(
-            material=separator_material, thickness=25, width=310, length=326
-        )
+        separator = Separator(material=separator_material, thickness=25, width=310, length=326)
 
         self.monolayer = MonoLayer(
             anode=anode,
@@ -513,9 +491,7 @@ class TestZFoldMonoLayer(unittest.TestCase):
         material.specific_cost = 6
         material.density = 3.6
 
-        conductive_additive = ConductiveAdditive(
-            name="super_P", specific_cost=15, density=2.0, color="#000000"
-        )
+        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
         binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
 
         formulation = CathodeFormulation(
@@ -524,9 +500,7 @@ class TestZFoldMonoLayer(unittest.TestCase):
             conductive_additives={conductive_additive: 3},
         )
 
-        current_collector_material = CurrentCollectorMaterial(
-            name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA"
-        )
+        current_collector_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
 
         current_collector = PunchedCurrentCollector(
             material=current_collector_material,
@@ -600,23 +574,15 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.assertTrue(isinstance(self.zfoldmonolayer, MonoLayer))
 
         # Check that separator lengths are constrained correctly
-        expected_bottom_length = (
-            self.zfoldmonolayer.cathode.current_collector._x_body_length
-            + 2 * self.zfoldmonolayer._bottom_separator._thickness
-        ) * M_TO_MM
-        expected_top_length = (
-            self.zfoldmonolayer.anode.current_collector._x_body_length
-            + 2 * self.zfoldmonolayer._top_separator._thickness
-        ) * M_TO_MM
+        expected_bottom_length = (self.zfoldmonolayer.cathode.current_collector._x_body_length + 2 * self.zfoldmonolayer._bottom_separator._thickness) * M_TO_MM
+        expected_top_length = (self.zfoldmonolayer.anode.current_collector._x_body_length + 2 * self.zfoldmonolayer._top_separator._thickness) * M_TO_MM
 
         self.assertAlmostEqual(
             self.zfoldmonolayer._bottom_separator.length,
             expected_bottom_length,
             places=1,
         )
-        self.assertAlmostEqual(
-            self.zfoldmonolayer._top_separator.length, expected_top_length, places=1
-        )
+        self.assertAlmostEqual(self.zfoldmonolayer._top_separator.length, expected_top_length, places=1)
 
         self.assertEqual(
             self.zfoldmonolayer.anode_overhangs,
@@ -699,23 +665,15 @@ class TestZFoldMonoLayer(unittest.TestCase):
 
         # Length should be constrained by Z-fold geometry for both internal separators
         # We can check via internal attributes since unified interface doesn't expose them
-        expected_bottom_length = (
-            self.zfoldmonolayer.cathode.current_collector._x_body_length
-            + 2 * new_separator._thickness
-        ) * M_TO_MM
-        expected_top_length = (
-            self.zfoldmonolayer.anode.current_collector._x_body_length
-            + 2 * new_separator._thickness
-        ) * M_TO_MM
+        expected_bottom_length = (self.zfoldmonolayer.cathode.current_collector._x_body_length + 2 * new_separator._thickness) * M_TO_MM
+        expected_top_length = (self.zfoldmonolayer.anode.current_collector._x_body_length + 2 * new_separator._thickness) * M_TO_MM
 
         self.assertAlmostEqual(
             self.zfoldmonolayer._bottom_separator.length,
             expected_bottom_length,
             places=1,
         )
-        self.assertAlmostEqual(
-            self.zfoldmonolayer._top_separator.length, expected_top_length, places=1
-        )
+        self.assertAlmostEqual(self.zfoldmonolayer._top_separator.length, expected_top_length, places=1)
 
         fig1 = self.zfoldmonolayer.get_top_down_view()
         # fig1.show()
@@ -759,23 +717,15 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.zfoldmonolayer.separator = new_separator
 
         # Both separators should be updated with correct lengths
-        expected_bottom_length = (
-            self.zfoldmonolayer.cathode.current_collector._x_body_length
-            + 2 * new_separator._thickness
-        ) * M_TO_MM
-        expected_top_length = (
-            self.zfoldmonolayer.anode.current_collector._x_body_length
-            + 2 * new_separator._thickness
-        ) * M_TO_MM
+        expected_bottom_length = (self.zfoldmonolayer.cathode.current_collector._x_body_length + 2 * new_separator._thickness) * M_TO_MM
+        expected_top_length = (self.zfoldmonolayer.anode.current_collector._x_body_length + 2 * new_separator._thickness) * M_TO_MM
 
         self.assertAlmostEqual(
             self.zfoldmonolayer._bottom_separator.length,
             expected_bottom_length,
             places=1,
         )
-        self.assertAlmostEqual(
-            self.zfoldmonolayer._top_separator.length, expected_top_length, places=1
-        )
+        self.assertAlmostEqual(self.zfoldmonolayer._top_separator.length, expected_top_length, places=1)
         self.assertEqual(self.zfoldmonolayer.separator.name, "New Z-Fold Separator")
 
         fig1 = self.zfoldmonolayer.get_top_down_view()
