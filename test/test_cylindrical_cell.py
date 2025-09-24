@@ -118,25 +118,17 @@ class TestCylindricalJellyRoll(unittest.TestCase):
         )
 
         # construct the stack
-        cylindrical_jelly_roll = CylindricalJellyRoll(
-            anode=anode, cathode=cathode, separator=separator, mandrel_diameter=8
-        )
+        cylindrical_jelly_roll = CylindricalJellyRoll(anode=anode, cathode=cathode, separator=separator, mandrel_diameter=8)
 
         # build the electrolyte
         electrolyte = Electrolyte(specific_cost=8.94, density=1.2)
 
         # build the encapsulation
-        cylindrical_shell = CylindricalCanister(
-            formula="Al", outer_diameter=21.6, wall_thickness=0.3, length=115
-        )
+        cylindrical_shell = CylindricalCanister(formula="Al", outer_diameter=21.6, wall_thickness=0.3, length=115)
 
         # build the connectors
-        anode_connector = CylindricalTerminalConnector(
-            formula="Al", diameter=10, thickness=1, fill_factor=0.8
-        )
-        cathode_connector = CylindricalTerminalConnector(
-            formula="Al", diameter=10, thickness=1, fill_factor=0.8
-        )
+        anode_connector = CylindricalTerminalConnector(formula="Al", diameter=10, thickness=1, fill_factor=0.8)
+        cathode_connector = CylindricalTerminalConnector(formula="Al", diameter=10, thickness=1, fill_factor=0.8)
 
         lid = CylindricalLidAssembly(cost=0.1, mass=5, thickness=1)
 

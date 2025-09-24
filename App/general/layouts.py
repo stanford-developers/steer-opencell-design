@@ -49,9 +49,7 @@ thumbnail = ds.html.Div(
 
 header = ds.html.Div(
     [
-        ds.html.H1(
-            "OpenCell Design Tool", style=HEADER_STYLE | {"padding-left": "20px"}
-        ),
+        ds.html.H1("OpenCell Design Tool", style=HEADER_STYLE | {"padding-left": "20px"}),
         # ds.html.P(["Please reach out to Dr. Nicholas Siemons at nsiemons@stanford.edu for help or feedback."], style={'padding-left': '20px'}),
         ds.html.Br(),
         ds.html.Br(),
@@ -124,10 +122,7 @@ cell_type = ds.html.Div(
                 ds.html.H5("Form Factor"),
                 ds.dcc.Dropdown(
                     id="form_factor_dropdown",
-                    options=[
-                        {"label": i.replace("_", " ").title(), "value": i}
-                        for i in FORM_FACTOR_OPTIONS
-                    ],
+                    options=[{"label": i.replace("_", " ").title(), "value": i} for i in FORM_FACTOR_OPTIONS],
                     style={"width": "80%"},
                 ),
                 ds.html.Br(),
@@ -164,11 +159,7 @@ cell_type = ds.html.Div(
                     [
                         ds.dcc.Upload(
                             id="upload_cell",
-                            children=[
-                                ds.html.A(
-                                    "Select .pkl file for upload", style=BUTTON_STYLE
-                                )
-                            ],
+                            children=[ds.html.A("Select .pkl file for upload", style=BUTTON_STYLE)],
                         ),
                     ],
                     style={"width": "80%"},
@@ -344,12 +335,8 @@ main_tabs = ds.html.Div(
             ],
             value="cathode",
         ),
-        ds.html.Div(
-            id="cathode_tab", children=[cathode_tabs_div], style={"display": "block"}
-        ),
-        ds.html.Div(
-            id="anode_tab", children=[anode_tabs_div], style={"display": "none"}
-        ),
+        ds.html.Div(id="cathode_tab", children=[cathode_tabs_div], style={"display": "block"}),
+        ds.html.Div(id="anode_tab", children=[anode_tabs_div], style={"display": "none"}),
         ds.html.Div(id="layup_tab", children=[layup_layout], style={"display": "none"}),
         ds.html.Div(
             id="electrode_assembly_tab",

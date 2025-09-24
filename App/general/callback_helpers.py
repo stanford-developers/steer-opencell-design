@@ -24,15 +24,7 @@ def get_internal_construction_options(form_factor):
     list
         A list of dictionaries containing the internal construction options.
     """
-    options = (
-        DataManager()
-        .get_data("cells")
-        .query(f"form_factor == '{form_factor}'")
-        .filter(["internal_construction"])
-        .sort_values(by="internal_construction")
-        .drop_duplicates()
-        .internal_construction.tolist()
-    )
+    options = DataManager().get_data("cells").query(f"form_factor == '{form_factor}'").filter(["internal_construction"]).sort_values(by="internal_construction").drop_duplicates().internal_construction.tolist()
 
     return [{"label": option, "value": option} for option in options]
 
@@ -53,23 +45,12 @@ def get_electrochemical_reference_options(internal_construction, form_factor):
     list
         A list of dictionaries containing the electrochemical reference options.
     """
-    options = (
-        DataManager()
-        .get_data("cells")
-        .query(f"form_factor == '{form_factor}'")
-        .query(f"internal_construction == '{internal_construction}'")
-        .filter(["reference"])
-        .sort_values(by="reference")
-        .drop_duplicates()
-        .reference.tolist()
-    )
+    options = DataManager().get_data("cells").query(f"form_factor == '{form_factor}'").query(f"internal_construction == '{internal_construction}'").filter(["reference"]).sort_values(by="reference").drop_duplicates().reference.tolist()
 
     return [{"label": option, "value": option} for option in options]
 
 
-def get_cell_name_options(
-    internal_construction, electrochemical_reference, form_factor
-):
+def get_cell_name_options(internal_construction, electrochemical_reference, form_factor):
     """
     Fetch cell name options based on the internal construction, electrochemical reference, and form factor.
 
@@ -87,17 +68,7 @@ def get_cell_name_options(
     list
         A list of dictionaries containing the cell name options.
     """
-    options = (
-        DataManager()
-        .get_data("cells")
-        .query(f"form_factor == '{form_factor}'")
-        .query(f"internal_construction == '{internal_construction}'")
-        .query(f"reference == '{electrochemical_reference}'")
-        .filter(["name"])
-        .sort_values(by="name")
-        .drop_duplicates()
-        .name.tolist()
-    )
+    options = DataManager().get_data("cells").query(f"form_factor == '{form_factor}'").query(f"internal_construction == '{internal_construction}'").query(f"reference == '{electrochemical_reference}'").filter(["name"]).sort_values(by="name").drop_duplicates().name.tolist()
 
     return [{"label": option, "value": option} for option in options]
 
@@ -118,15 +89,7 @@ def get_active_materials(electrochemical_reference, electrode: str):
     """
     table = "cathode_materials" if electrode == "cathode" else "anode_materials"
 
-    options = (
-        DataManager()
-        .get_data(table)
-        .query(f"reference == '{electrochemical_reference}'")
-        .filter(["name"])
-        .sort_values(by="name")
-        .drop_duplicates()
-        .name.tolist()
-    )
+    options = DataManager().get_data(table).query(f"reference == '{electrochemical_reference}'").filter(["name"]).sort_values(by="name").drop_duplicates().name.tolist()
 
     return options
 
@@ -161,9 +124,7 @@ def deserialize_object(serialized_object: str) -> Type:
 ### Callback Helpers ###
 
 
-def generate_parameters(
-    object, config: Type
-) -> Tuple[List[float], List[float], List[float], List[Dict[int, str]]]:
+def generate_parameters(object, config: Type) -> Tuple[List[float], List[float], List[float], List[Dict[int, str]]]:
     """Generate parameter lists for any object."""
     parameter_values = []
     min_values = []
@@ -192,9 +153,7 @@ def generate_parameters(
     return parameter_values, min_values, max_values
 
 
-def generate_rangeslider_values(
-    object, range_params: list
-) -> Tuple[
+def generate_rangeslider_values(object, range_params: list) -> Tuple[
     List[Tuple[float, float]],
     List[float],
     List[float],
@@ -229,22 +188,12 @@ def validate_dependent_properties(object, config: Type) -> None:
             continue
 
 
-def validate_single_property(
-    object, property_name: str, value: str, config: Type
-) -> None:
-    
-    if (
-        hasattr(config, "radioitem_parameters")
-        and config.radioitem_parameters
-        and property_name in config.radioitem_parameters
-    ):
+def validate_single_property(object, property_name: str, value: str, config: Type) -> None:
+
+    if hasattr(config, "radioitem_parameters") and config.radioitem_parameters and property_name in config.radioitem_parameters:
         return value
 
-    if (
-        hasattr(config, "text_parameters")
-        and config.text_parameters
-        and property_name in config.text_parameters
-    ):
+    if hasattr(config, "text_parameters") and config.text_parameters and property_name in config.text_parameters:
         return value
 
     if hasattr(object, f"{property_name}_hard_range"):
@@ -252,16 +201,9 @@ def validate_single_property(
     elif hasattr(object, f"{property_name}_range"):
         param_range = getattr(object, f"{property_name}_range", None)
     else:
-        raise AttributeError(
-            f"Property {property_name} does not have an associated range attribute."
-        )
+        raise AttributeError(f"Property {property_name} does not have an associated range attribute.")
 
-    if (
-        param_range
-        and hasattr(config, "parameter_list")
-        and config.parameter_list
-        and property_name in config.parameter_list
-    ):
+    if param_range and hasattr(config, "parameter_list") and config.parameter_list and property_name in config.parameter_list:
         if value < param_range[0]:
             return param_range[0]
         elif value > param_range[1]:
@@ -269,12 +211,7 @@ def validate_single_property(
         else:
             return value
 
-    if (
-        param_range
-        and hasattr(config, "range_slider_parameters")
-        and config.range_slider_parameters
-        and property_name in config.range_slider_parameters
-    ):
+    if param_range and hasattr(config, "range_slider_parameters") and config.range_slider_parameters and property_name in config.range_slider_parameters:
         lower_bound = value[0] if value[0] > param_range[0] else param_range[0]
         upper_bound = value[1] if value[1] < param_range[1] else param_range[1]
         return (lower_bound, upper_bound)
@@ -303,11 +240,7 @@ def create_no_update_response(
         response += (no_update,)
 
     if hasattr(config, "range_slider_parameters") and config.range_slider_parameters:
-        n_rangeslider = (
-            len(config.range_slider_parameters)
-            if n_rangeslider is None
-            else n_rangeslider
-        )
+        n_rangeslider = len(config.range_slider_parameters) if n_rangeslider is None else n_rangeslider
         response += (
             [no_update] * n_rangeslider,  # range_slider_values
             [no_update] * n_rangeslider,  # range slider mins
@@ -462,9 +395,7 @@ def _create_fallback_message() -> html.Div:
     )
 
 
-def create_trigger_data(
-    trigger_id: Dict = None, cell_data: Dict = None
-) -> Dict[str, Any]:
+def create_trigger_data(trigger_id: Dict = None, cell_data: Dict = None) -> Dict[str, Any]:
     trigger_data = {"timestamp": time.time()}
 
     if trigger_id is not None:

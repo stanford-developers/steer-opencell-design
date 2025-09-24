@@ -16,9 +16,7 @@ layup_design = ds.html.Div(
             id="layup_design",
             placeholder="Select Layup Design",
             style={"width": "calc(50%)"},
-            options=[
-                {"label": design, "value": design.lower()} for design in LAYUP_DESIGNS
-            ],
+            options=[{"label": design, "value": design.lower()} for design in LAYUP_DESIGNS],
         ),
         ds.html.Br(),
         ds.html.Br(),
@@ -43,10 +41,7 @@ layup_control_modes = ds.html.Div(
         ds.dcc.RadioItems(
             id="layup_control_mode_selector",
             options=[
-                {
-                    "label": "Fixed Component Geometries", 
-                    "value": "FIXED_COMPONENT"
-                },
+                {"label": "Fixed Component Geometries", "value": "FIXED_COMPONENT"},
                 {
                     "label": "Fixed Overhangs",
                     "value": "FIXED_OVERHANGS",
@@ -75,10 +70,7 @@ separator_material_parameters = ds.html.Div(
             id="separator_material_selector",
             placeholder="Select Separator Material",
             style={"width": "calc(50%)"},
-            options=[
-                {"label": material, "value": material}
-                for material in SEPARATOR_MATERIALS
-            ],
+            options=[{"label": material, "value": material} for material in SEPARATOR_MATERIALS],
         ),
         ds.html.Br(),
         SliderWithTextInput(
@@ -108,40 +100,16 @@ zfold_design_parameters = ds.html.Div(
         ds.html.Br(),
         ds.html.H5("Anode", style={"font-weight": "bold"}),
         ds.html.Br(),
-        SliderWithTextInput(
-            id_base={"object": "zfoldmonolayer"},
-            property_name="anode_overhang_left",
-            title="Left Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "zfoldmonolayer"},
-            property_name="anode_overhang_right",
-            title="Right Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "zfoldmonolayer"},
-            property_name="anode_overhang_top",
-            title="Top Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "zfoldmonolayer"},
-            property_name="anode_overhang_bottom",
-            title="Bottom Overhang (mm)"
-        )(),
+        SliderWithTextInput(id_base={"object": "zfoldmonolayer"}, property_name="anode_overhang_left", title="Left Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "zfoldmonolayer"}, property_name="anode_overhang_right", title="Right Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "zfoldmonolayer"}, property_name="anode_overhang_top", title="Top Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "zfoldmonolayer"}, property_name="anode_overhang_bottom", title="Bottom Overhang (mm)")(),
         ds.html.Br(),
         ds.html.Br(),
         ds.html.H5("Separator", style={"font-weight": "bold"}),
         ds.html.Br(),
-        SliderWithTextInput(
-            id_base={"object": "zfoldmonolayer"},
-            property_name="separator_overhang_top",
-            title="Top Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "zfoldmonolayer"},
-            property_name="separator_overhang_bottom",
-            title="Bottom Overhang (mm)"
-        )(),
+        SliderWithTextInput(id_base={"object": "zfoldmonolayer"}, property_name="separator_overhang_top", title="Top Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "zfoldmonolayer"}, property_name="separator_overhang_bottom", title="Bottom Overhang (mm)")(),
     ],
 )
 
@@ -153,74 +121,26 @@ laminate_design_parameters = ds.html.Div(
         ds.html.Br(),
         ds.html.H5("Anode", style={"font-weight": "bold"}),
         ds.html.Br(),
-        SliderWithTextInput(
-            id_base={"object": "laminate"},
-            property_name="anode_overhang_left",
-            title="Left Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "laminate"},
-            property_name="anode_overhang_right",
-            title="Right Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "laminate"},
-            property_name="anode_overhang_top",
-            title="Top Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "laminate"},
-            property_name="anode_overhang_bottom",
-            title="Bottom Overhang (mm)"
-        )(),
+        SliderWithTextInput(id_base={"object": "laminate"}, property_name="anode_overhang_left", title="Left Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "laminate"}, property_name="anode_overhang_right", title="Right Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "laminate"}, property_name="anode_overhang_top", title="Top Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "laminate"}, property_name="anode_overhang_bottom", title="Bottom Overhang (mm)")(),
         ds.html.Br(),
         ds.html.Br(),
         ds.html.H5("Top Separator", style={"font-weight": "bold"}),
         ds.html.Br(),
-        SliderWithTextInput(
-            id_base={"object": "laminate"},
-            property_name="top_separator_overhang_left",
-            title="Left Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "laminate"},
-            property_name="top_separator_overhang_right",
-            title="Right Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "laminate"},
-            property_name="top_separator_overhang_top",
-            title="Top Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "laminate"},
-            property_name="top_separator_overhang_bottom",
-            title="Bottom Overhang (mm)"
-        )(),
+        SliderWithTextInput(id_base={"object": "laminate"}, property_name="top_separator_overhang_left", title="Left Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "laminate"}, property_name="top_separator_overhang_right", title="Right Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "laminate"}, property_name="top_separator_overhang_top", title="Top Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "laminate"}, property_name="top_separator_overhang_bottom", title="Bottom Overhang (mm)")(),
         ds.html.Br(),
         ds.html.Br(),
         ds.html.H5("Bottom Separator", style={"font-weight": "bold"}),
         ds.html.Br(),
-        SliderWithTextInput(
-            id_base={"object": "laminate"},
-            property_name="bottom_separator_overhang_left",
-            title="Left Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "laminate"},
-            property_name="bottom_separator_overhang_right",
-            title="Right Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "laminate"},
-            property_name="bottom_separator_overhang_top",
-            title="Top Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "laminate"},
-            property_name="bottom_separator_overhang_bottom",
-            title="Bottom Overhang (mm)"
-        )(),
+        SliderWithTextInput(id_base={"object": "laminate"}, property_name="bottom_separator_overhang_left", title="Left Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "laminate"}, property_name="bottom_separator_overhang_right", title="Right Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "laminate"}, property_name="bottom_separator_overhang_top", title="Top Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "laminate"}, property_name="bottom_separator_overhang_bottom", title="Bottom Overhang (mm)")(),
     ],
 )
 
@@ -232,74 +152,26 @@ stacked_design_parameters = ds.html.Div(
         ds.html.Br(),
         ds.html.H5("Anode", style={"font-weight": "bold"}),
         ds.html.Br(),
-        SliderWithTextInput(
-            id_base={"object": "stacked"},
-            property_name="anode_overhang_left",
-            title="Left Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "stacked"},
-            property_name="anode_overhang_right",
-            title="Right Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "stacked"},
-            property_name="anode_overhang_top",
-            title="Top Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "stacked"},
-            property_name="anode_overhang_bottom",
-            title="Bottom Overhang (mm)"
-        )(),
+        SliderWithTextInput(id_base={"object": "stacked"}, property_name="anode_overhang_left", title="Left Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "stacked"}, property_name="anode_overhang_right", title="Right Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "stacked"}, property_name="anode_overhang_top", title="Top Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "stacked"}, property_name="anode_overhang_bottom", title="Bottom Overhang (mm)")(),
         ds.html.Br(),
         ds.html.Br(),
         ds.html.H5("Top Separator", style={"font-weight": "bold"}),
         ds.html.Br(),
-        SliderWithTextInput(
-            id_base={"object": "stacked"},
-            property_name="top_separator_overhang_left",
-            title="Left Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "stacked"},
-            property_name="top_separator_overhang_right",
-            title="Right Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "stacked"},
-            property_name="top_separator_overhang_top",
-            title="Top Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "stacked"},
-            property_name="top_separator_overhang_bottom",
-            title="Bottom Overhang (mm)"
-        )(),
+        SliderWithTextInput(id_base={"object": "stacked"}, property_name="top_separator_overhang_left", title="Left Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "stacked"}, property_name="top_separator_overhang_right", title="Right Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "stacked"}, property_name="top_separator_overhang_top", title="Top Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "stacked"}, property_name="top_separator_overhang_bottom", title="Bottom Overhang (mm)")(),
         ds.html.Br(),
         ds.html.Br(),
         ds.html.H5("Bottom Separator", style={"font-weight": "bold"}),
         ds.html.Br(),
-        SliderWithTextInput(
-            id_base={"object": "stacked"},
-            property_name="bottom_separator_overhang_left",
-            title="Left Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "stacked"},
-            property_name="bottom_separator_overhang_right",
-            title="Right Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "stacked"},
-            property_name="bottom_separator_overhang_top",
-            title="Top Overhang (mm)"
-        )(),
-        SliderWithTextInput(
-            id_base={"object": "stacked"},
-            property_name="bottom_separator_overhang_bottom",
-            title="Bottom Overhang (mm)"
-        )(),
+        SliderWithTextInput(id_base={"object": "stacked"}, property_name="bottom_separator_overhang_left", title="Left Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "stacked"}, property_name="bottom_separator_overhang_right", title="Right Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "stacked"}, property_name="bottom_separator_overhang_top", title="Top Overhang (mm)")(),
+        SliderWithTextInput(id_base={"object": "stacked"}, property_name="bottom_separator_overhang_bottom", title="Bottom Overhang (mm)")(),
     ],
 )
 
@@ -385,5 +257,3 @@ layup_layout = ds.html.Div(
         "width": "calc(100%)",
     },
 )
-
-

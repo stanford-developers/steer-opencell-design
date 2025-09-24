@@ -35,32 +35,22 @@ def _build_basic_response(slider_configs: dict, cache_key: str = None) -> List[A
     ]
 
 
-def _add_dropdown_menu(
-    response: List[Any], object_instance: Type, config: Type
-) -> None:
+def _add_dropdown_menu(response: List[Any], object_instance: Type, config: Type) -> None:
     """Add dropdown menu value if applicable."""
     if hasattr(config, "dropdown_menu") and config.dropdown_menu:
         response.append(object_instance.name)
 
 
-def _add_range_slider_components(
-    response: List[Any], object_instance: Type, config: Type
-) -> None:
+def _add_range_slider_components(response: List[Any], object_instance: Type, config: Type) -> None:
     """Add range slider components if applicable."""
-    if not (
-        hasattr(config, "range_slider_parameters") and config.range_slider_parameters
-    ):
+    if not (hasattr(config, "range_slider_parameters") and config.range_slider_parameters):
         return
 
     # Generate range slider values
-    start_values, end_values, min_values, max_values = generate_rangeslider_values(
-        object_instance, config.range_slider_parameters
-    )
+    start_values, end_values, min_values, max_values = generate_rangeslider_values(object_instance, config.range_slider_parameters)
 
     # Create range slider configurations
-    range_slider_configs = create_range_slider_config(
-        min_values, max_values, start_values, end_values
-    )
+    range_slider_configs = create_range_slider_config(min_values, max_values, start_values, end_values)
 
     # Add all range slider components to response
     response.extend(
@@ -76,37 +66,27 @@ def _add_range_slider_components(
     )
 
 
-def _add_radioitem_components(
-    response: List[Any], object_instance: Type, config: Type
-) -> None:
+def _add_radioitem_components(response: List[Any], object_instance: Type, config: Type) -> None:
     """Add radio item components if applicable."""
     if not (hasattr(config, "radioitem_parameters") and config.radioitem_parameters):
         return
 
     # Add radio item values
-    radioitem_values = [
-        getattr(object_instance, param) for param in config.radioitem_parameters
-    ]
+    radioitem_values = [getattr(object_instance, param) for param in config.radioitem_parameters]
     response.extend([radioitem_values])
 
 
-def _add_text_item_components(
-    response: List[Any], object_instance: Type, config: Type
-) -> None:
+def _add_text_item_components(response: List[Any], object_instance: Type, config: Type) -> None:
     """Add text item components if applicable."""
     if not (hasattr(config, "text_parameters") and config.text_parameters):
         return
 
     # Add text item values
-    text_item_values = [
-        getattr(object_instance, param) for param in config.text_parameters
-    ]
+    text_item_values = [getattr(object_instance, param) for param in config.text_parameters]
     response.extend([text_item_values])
 
 
-def handle_cell_store_update(
-    object_instance: Type, config: Type, existing_warnings: List[str] = []
-) -> Tuple:
+def handle_cell_store_update(object_instance: Type, config: Type, existing_warnings: List[str] = []) -> Tuple:
     """
     Handle cell store update for any collector type.
 
@@ -122,17 +102,13 @@ def handle_cell_store_update(
     """
     source = f"{config.__class__.__name__}_cell_store_update"
 
-    with capture_warnings(
-        existing_warnings, source=source, clear_source_warnings=True
-    ) as warnings_list:
-        
+    with capture_warnings(existing_warnings, source=source, clear_source_warnings=True) as warnings_list:
+
         # Validate all dependent properties first
         validate_dependent_properties(object_instance, config)
 
         # Generate basic parameters
-        parameter_list, min_values, max_values = generate_parameters(
-            object_instance, config
-        )
+        parameter_list, min_values, max_values = generate_parameters(object_instance, config)
 
         # Create slider configurations
         slider_configs = create_slider_config(min_values, max_values, parameter_list)
@@ -163,7 +139,7 @@ def handle_property_update(
     radioitem_values: str = None,
     text_item_values: str = None,
 ) -> Tuple:
-    
+
     # determine the property and subtype from the triggered ID
     property_name = triggered_id["property"]
 
@@ -171,10 +147,8 @@ def handle_property_update(
     subtype = SubType(triggered_id["subtype"])
 
     source = f"{config.__class__.__name__}_{property_name}_{subtype}"
-    with capture_warnings(
-        existing_warnings, source=source, clear_source_warnings=True
-    ) as warnings_list:
-        
+    with capture_warnings(existing_warnings, source=source, clear_source_warnings=True) as warnings_list:
+
         # determine the value from the inputs and the subtype
         value = determine_value(
             config,
@@ -205,9 +179,7 @@ def handle_property_update(
         new_key = set_cell_to_cache(new_cell)
 
         # get the new parameters
-        parameter_list, min_values, max_values = generate_parameters(
-            object_instance, config
-        )
+        parameter_list, min_values, max_values = generate_parameters(object_instance, config)
 
         # Create slider configurations
         slider_configs = create_slider_config(min_values, max_values, parameter_list)

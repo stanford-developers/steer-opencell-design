@@ -72,30 +72,15 @@ class _ElectrodeAssembly:
         :param separator: Separator: separator used in the stack
         """
         if hasattr(separator, "_fold_length"):
-            if (
-                separator._fold_length < self._cathode._current_collector._length
-                or separator._fold_length < self._anode._current_collector._length
-            ):
-                raise ValueError(
-                    "separator length must be greater or equal to cathode and anode length"
-                )
+            if separator._fold_length < self._cathode._current_collector._length or separator._fold_length < self._anode._current_collector._length:
+                raise ValueError("separator length must be greater or equal to cathode and anode length")
 
         if hasattr(separator, "_length"):
-            if (
-                separator._length < self._cathode._current_collector._length
-                or separator._length < self._anode._current_collector._length
-            ):
-                raise ValueError(
-                    "separator length must be greater or equal to cathode and anode length"
-                )
+            if separator._length < self._cathode._current_collector._length or separator._length < self._anode._current_collector._length:
+                raise ValueError("separator length must be greater or equal to cathode and anode length")
 
-        if (
-            separator._width < self._cathode._current_collector._width
-            or separator._width < self._anode._current_collector._width
-        ):
-            raise ValueError(
-                "separator width must be greater or equal to cathode and anode width"
-            )
+        if separator._width < self._cathode._current_collector._width or separator._width < self._anode._current_collector._width:
+            raise ValueError("separator width must be greater or equal to cathode and anode width")
 
         self._separator = deepcopy(separator)
 
@@ -109,12 +94,8 @@ class _ElectrodeAssembly:
         cap_max = min(cathode_curve["capacity"].max(), anode_curve["capacity"].max())
         cap_grid = np.linspace(cap_min, cap_max, 100)
 
-        cathode_voltage = np.interp(
-            cap_grid, cathode_curve["capacity"], cathode_curve["voltage"]
-        )
-        anode_voltage = np.interp(
-            cap_grid, anode_curve["capacity"], anode_curve["voltage"]
-        )
+        cathode_voltage = np.interp(cap_grid, cathode_curve["capacity"], cathode_curve["voltage"])
+        anode_voltage = np.interp(cap_grid, anode_curve["capacity"], anode_curve["voltage"])
 
         full_cell_voltage = cathode_voltage - anode_voltage
 
@@ -132,58 +113,21 @@ class _ElectrodeAssembly:
         """
         Function to calculate the full cell curves of the stack
         """
-        cathode_half_cell = self._cathode_half_cell_curve.copy().assign(
-            electrode="cathode"
-        )
+        cathode_half_cell = self._cathode_half_cell_curve.copy().assign(electrode="cathode")
 
         if not self._anode_free:
-            anode_half_cell = self._anode_half_cell_curve.copy().assign(
-                electrode="anode"
-            )
+            anode_half_cell = self._anode_half_cell_curve.copy().assign(electrode="anode")
         else:
-            anode_half_cell = (
-                cathode_half_cell.copy().assign(electrode="anode").assign(voltage=0)
-            )
+            anode_half_cell = cathode_half_cell.copy().assign(electrode="anode").assign(voltage=0)
 
-        full_cell_curve = (
-            pd.concat([cathode_half_cell, anode_half_cell])
-            .groupby(["direction"], group_keys=True)
-            .apply(
-                lambda df: (
-                    df.sort_values(by="capacity", ascending=True).pipe(
-                        self._linear_interpolate_on_capacity
-                    )
-                )
-            )
-            .reset_index()
-        )
+        full_cell_curve = pd.concat([cathode_half_cell, anode_half_cell]).groupby(["direction"], group_keys=True).apply(lambda df: (df.sort_values(by="capacity", ascending=True).pipe(self._linear_interpolate_on_capacity))).reset_index()
 
-        cathode_discharge_min = cathode_half_cell.query("direction == 'discharge'")[
-            "capacity"
-        ].min()
-        anode_discharge_min = anode_half_cell.query("direction == 'discharge'")[
-            "capacity"
-        ].min()
+        cathode_discharge_min = cathode_half_cell.query("direction == 'discharge'")["capacity"].min()
+        anode_discharge_min = anode_half_cell.query("direction == 'discharge'")["capacity"].min()
 
-        full_cell_curve = full_cell_curve.query(
-            'not (direction == "discharge" and capacity < @cathode_discharge_min)'
-        ).query('not (direction == "discharge" and capacity < @anode_discharge_min)')
+        full_cell_curve = full_cell_curve.query('not (direction == "discharge" and capacity < @cathode_discharge_min)').query('not (direction == "discharge" and capacity < @anode_discharge_min)')
 
-        full_cell_curve = (
-            full_cell_curve.assign(
-                sort_key_1=lambda x: [
-                    -c if d == "discharge" else c
-                    for c, d in zip(x["capacity"], x["direction"])
-                ]
-            )
-            .assign(
-                sort_key_2=lambda x: [
-                    1 if d == "discharge" else 0 for d in x["direction"]
-                ]
-            )
-            .sort_values(by=["electrode", "sort_key_2", "sort_key_1"])
-            .drop(columns=["sort_key_2", "sort_key_1"])
-        )
+        full_cell_curve = full_cell_curve.assign(sort_key_1=lambda x: [-c if d == "discharge" else c for c, d in zip(x["capacity"], x["direction"])]).assign(sort_key_2=lambda x: [1 if d == "discharge" else 0 for d in x["direction"]]).sort_values(by=["electrode", "sort_key_2", "sort_key_1"]).drop(columns=["sort_key_2", "sort_key_1"])
 
         self._full_cell_curve = full_cell_curve
 
@@ -246,9 +190,7 @@ class _ElectrodeAssembly:
         if not hasattr(self, "_cathode_half_cell_curve"):
             raise AttributeError("Half cell curves have not been calculated yet")
 
-        return self._cathode_half_cell_curve.assign(
-            capacity=lambda x: x["capacity"] * S_TO_H
-        ).rename(
+        return self._cathode_half_cell_curve.assign(capacity=lambda x: x["capacity"] * S_TO_H).rename(
             columns={
                 "capacity": "Capacity (Ah)",
                 "voltage": "Voltage (V)",
@@ -266,9 +208,7 @@ class _ElectrodeAssembly:
         if not hasattr(self, "_anode_half_cell_curve"):
             raise AttributeError("Half cell curves have not been calculated yet")
 
-        return self._anode_half_cell_curve.assign(
-            capacity=lambda x: x["capacity"] * S_TO_H
-        ).rename(
+        return self._anode_half_cell_curve.assign(capacity=lambda x: x["capacity"] * S_TO_H).rename(
             columns={
                 "capacity": "Capacity (Ah)",
                 "voltage": "Voltage (V)",
@@ -286,9 +226,7 @@ class _ElectrodeAssembly:
         if not hasattr(self, "_full_cell_curve"):
             raise AttributeError("Full cell curves have not been calculated yet")
 
-        return self._full_cell_curve.assign(
-            capacity=lambda x: x["capacity"] * S_TO_H
-        ).rename(
+        return self._full_cell_curve.assign(capacity=lambda x: x["capacity"] * S_TO_H).rename(
             columns={
                 "capacity": "Capacity (Ah)",
                 "voltage": "Voltage (V)",
@@ -298,10 +236,7 @@ class _ElectrodeAssembly:
 
     @property
     def mass_breakdown(self):
-        return {
-            item.replace("_", " ").capitalize(): round(value * KG_TO_G, 2)
-            for item, value in self._mass_breakdown.items()
-        }
+        return {item.replace("_", " ").capitalize(): round(value * KG_TO_G, 2) for item, value in self._mass_breakdown.items()}
 
     @property
     def active_geometric_area(self):
@@ -309,22 +244,12 @@ class _ElectrodeAssembly:
 
     @property
     def cost_breakdown(self):
-        return {
-            key.replace("_", " ").capitalize(): round(value, 2)
-            for key, value in self._cost_breakdown.items()
-        }
+        return {key.replace("_", " ").capitalize(): round(value, 2) for key, value in self._cost_breakdown.items()}
 
     @property
     def cathode_cost_breakdown(self):
         if hasattr(self, "_cathode_cost_breakdown"):
-            rounded_dict = {
-                item.replace("_", " ").capitalize(): (
-                    {key: round(value, 3) for key, value in value.items()}
-                    if isinstance(value, dict)
-                    else round(value, 2)
-                )
-                for item, value in self._cathode_cost_breakdown.items()
-            }
+            rounded_dict = {item.replace("_", " ").capitalize(): ({key: round(value, 3) for key, value in value.items()} if isinstance(value, dict) else round(value, 2)) for item, value in self._cathode_cost_breakdown.items()}
             return rounded_dict
         else:
             raise AttributeError("Cathode cost breakdown not calculated yet.")
@@ -332,14 +257,7 @@ class _ElectrodeAssembly:
     @property
     def anode_cost_breakdown(self):
         if hasattr(self, "_anode_cost_breakdown"):
-            rounded_dict = {
-                item.replace("_", " ").capitalize(): (
-                    {key: round(value, 3) for key, value in value.items()}
-                    if isinstance(value, dict)
-                    else round(value, 2)
-                )
-                for item, value in self._anode_cost_breakdown.items()
-            }
+            rounded_dict = {item.replace("_", " ").capitalize(): ({key: round(value, 3) for key, value in value.items()} if isinstance(value, dict) else round(value, 2)) for item, value in self._anode_cost_breakdown.items()}
             return rounded_dict
         else:
             raise AttributeError("Anode cost breakdown not calculated yet.")
@@ -347,14 +265,7 @@ class _ElectrodeAssembly:
     @property
     def cathode_mass_breakdown(self):
         if hasattr(self, "_cathode_mass_breakdown"):
-            rounded_dict = {
-                item.replace("_", " ").capitalize(): (
-                    {key: round(value * KG_TO_G, 2) for key, value in value.items()}
-                    if isinstance(value, dict)
-                    else round(value, 3)
-                )
-                for item, value in self._cathode_mass_breakdown.items()
-            }
+            rounded_dict = {item.replace("_", " ").capitalize(): ({key: round(value * KG_TO_G, 2) for key, value in value.items()} if isinstance(value, dict) else round(value, 3)) for item, value in self._cathode_mass_breakdown.items()}
             return rounded_dict
         else:
             raise AttributeError("Cathode mass breakdown not calculated yet.")
@@ -362,14 +273,7 @@ class _ElectrodeAssembly:
     @property
     def anode_mass_breakdown(self):
         if hasattr(self, "_anode_mass_breakdown"):
-            rounded_dict = {
-                item.replace("_", " ").capitalize(): (
-                    {key: round(value * KG_TO_G, 2) for key, value in value.items()}
-                    if isinstance(value, dict)
-                    else round(value, 3)
-                )
-                for item, value in self._anode_mass_breakdown.items()
-            }
+            rounded_dict = {item.replace("_", " ").capitalize(): ({key: round(value * KG_TO_G, 2) for key, value in value.items()} if isinstance(value, dict) else round(value, 3)) for item, value in self._anode_mass_breakdown.items()}
             return rounded_dict
         else:
             raise AttributeError("Anode mass breakdown not calculated yet.")
@@ -407,16 +311,10 @@ class _JellyRoll(_ElectrodeAssembly):
         :param anode: Anode: anode used in the stack
         """
         if not isinstance(anode, Anode) and not isinstance(anode, CurrentCollector):
-            raise ValueError(
-                "Anode must be an instance of the Anode class or CurrentCollector class"
-            )
+            raise ValueError("Anode must be an instance of the Anode class or CurrentCollector class")
 
-        if not isinstance(
-            anode._current_collector, TabWeldedCurrentCollector
-        ) and not isinstance(anode._current_collector, NotchedCurrentCollector):
-            raise ValueError(
-                "Anode current collector must be an instance of the TabWeldedCurrentCollector or NotchedCurrentCollector class"
-            )
+        if not isinstance(anode._current_collector, TabWeldedCurrentCollector) and not isinstance(anode._current_collector, NotchedCurrentCollector):
+            raise ValueError("Anode current collector must be an instance of the TabWeldedCurrentCollector or NotchedCurrentCollector class")
 
         if isinstance(anode, CurrentCollector):
             self._anode_free = True
@@ -439,12 +337,8 @@ class _JellyRoll(_ElectrodeAssembly):
         if not isinstance(cathode, Cathode):
             raise ValueError("Cathode must be an instance of the Cathode class")
 
-        if not isinstance(
-            cathode._current_collector, TabWeldedCurrentCollector
-        ) and not isinstance(cathode._current_collector, NotchedCurrentCollector):
-            raise ValueError(
-                "Cathode current collector must be an instance of the TabWeldedCurrentCollector or NotchedCurrentCollector class"
-            )
+        if not isinstance(cathode._current_collector, TabWeldedCurrentCollector) and not isinstance(cathode._current_collector, NotchedCurrentCollector):
+            raise ValueError("Cathode current collector must be an instance of the TabWeldedCurrentCollector or NotchedCurrentCollector class")
 
         self._cathode = deepcopy(cathode)
 
@@ -452,47 +346,27 @@ class _JellyRoll(_ElectrodeAssembly):
         self._active_geometric_area = self._cathode._single_sided_area * 2
 
     def _calculate_anode_properties(self):
-        anode_overhang = (
-            self._anode._single_sided_area / self._cathode._single_sided_area
-        ) - 1
+        anode_overhang = (self._anode._single_sided_area / self._cathode._single_sided_area) - 1
         self._anode._overhang = anode_overhang
 
     def _calculate_separator_properties(self):
-        self._separator._length = (self._separator._fold_length * 2) + (
-            (self._cathode._thickness + self._separator._thickness) * PI
-        )
+        self._separator._length = (self._separator._fold_length * 2) + ((self._cathode._thickness + self._separator._thickness) * PI)
         self._separator._calculate_area_properties()
 
     def _calculate_roll_properties(self):
-        self._pore_volume = (
-            self._anode._pore_volume
-            + self._cathode._pore_volume
-            + self._separator._pore_volume
-        )
+        self._pore_volume = self._anode._pore_volume + self._cathode._pore_volume + self._separator._pore_volume
         self._width = self._separator._width
-        self._electrode_thickness = (
-            self._separator._thickness * 2
-            + self._anode._thickness
-            + self._cathode._thickness
-        )
+        self._electrode_thickness = self._separator._thickness * 2 + self._anode._thickness + self._cathode._thickness
 
     def _calculate_components(self):
-        self._cathode_active_materials = list(
-            self._cathode._formulation._active_materials.keys()
-        )
+        self._cathode_active_materials = list(self._cathode._formulation._active_materials.keys())
         self._cathode_binders = list(self._cathode._formulation._binders.keys())
-        self._cathode_conductive_additives = list(
-            self._cathode._formulation._conductive_additives.keys()
-        )
+        self._cathode_conductive_additives = list(self._cathode._formulation._conductive_additives.keys())
         self._cathode_current_collectors = [self._cathode._current_collector]
 
-        self._anode_active_materials = list(
-            self._anode._formulation._active_materials.keys()
-        )
+        self._anode_active_materials = list(self._anode._formulation._active_materials.keys())
         self._anode_binders = list(self._anode._formulation._binders.keys())
-        self._anode_conductive_additives = list(
-            self._anode._formulation._conductive_additives.keys()
-        )
+        self._anode_conductive_additives = list(self._anode._formulation._conductive_additives.keys())
         self._anode_current_collectors = [self._anode._current_collector]
 
     def _calculate_mass_breakdown(self):
@@ -516,9 +390,7 @@ class _JellyRoll(_ElectrodeAssembly):
         self._cathode._calculate_half_cell_curve(grid_n=grid_n)
         self._anode._calculate_half_cell_curve(grid_n=grid_n)
 
-        self._cathode_half_cell_curve = self._cathode._half_cell_curve.groupby(
-            "direction", as_index=False
-        ).apply(
+        self._cathode_half_cell_curve = self._cathode._half_cell_curve.groupby("direction", as_index=False).apply(
             lambda x: x.sort_values(
                 "capacity",
                 ascending=True if x["direction"].values[0] == "charge" else False,
@@ -526,9 +398,7 @@ class _JellyRoll(_ElectrodeAssembly):
         )
 
         if not self._anode_free:
-            self._anode_half_cell_curve = self._anode._half_cell_curve.groupby(
-                "direction", as_index=False
-            ).apply(
+            self._anode_half_cell_curve = self._anode._half_cell_curve.groupby("direction", as_index=False).apply(
                 lambda x: x.sort_values(
                     "capacity",
                     ascending=True if x["direction"].values[0] == "charge" else False,
@@ -541,36 +411,28 @@ class _JellyRoll(_ElectrodeAssembly):
         cathode_mass_breakdown = self._cathode._mass_breakdown.copy()
         current_collector_value = cathode_mass_breakdown["current_collector"]
         cathode_mass_breakdown.pop("current_collector")
-        cathode_mass_breakdown["current_collectors"] = {
-            self._cathode._current_collector: current_collector_value
-        }
+        cathode_mass_breakdown["current_collectors"] = {self._cathode._current_collector: current_collector_value}
         self._cathode_mass_breakdown = cathode_mass_breakdown
 
     def _calculate_anode_mass_breakdown(self):
         anode_mass_breakdown = self._anode._mass_breakdown.copy()
         current_collector_value = anode_mass_breakdown["current_collector"]
         anode_mass_breakdown.pop("current_collector")
-        anode_mass_breakdown["current_collectors"] = {
-            self._anode._current_collector: current_collector_value
-        }
+        anode_mass_breakdown["current_collectors"] = {self._anode._current_collector: current_collector_value}
         self._anode_mass_breakdown = anode_mass_breakdown
 
     def _calculate_cathode_cost_breakdown(self):
         cathode_cost_breakdown = self._cathode._cost_breakdown.copy()
         current_collector_value = cathode_cost_breakdown["current_collector"]
         cathode_cost_breakdown.pop("current_collector")
-        cathode_cost_breakdown["current_collectors"] = {
-            self._cathode._current_collector: current_collector_value
-        }
+        cathode_cost_breakdown["current_collectors"] = {self._cathode._current_collector: current_collector_value}
         self._cathode_cost_breakdown = cathode_cost_breakdown
 
     def _calculate_anode_cost_breakdown(self):
         anode_cost_breakdown = self._anode._cost_breakdown.copy()
         current_collector_value = anode_cost_breakdown["current_collector"]
         anode_cost_breakdown.pop("current_collector")
-        anode_cost_breakdown["current_collectors"] = {
-            self._anode._current_collector: current_collector_value
-        }
+        anode_cost_breakdown["current_collectors"] = {self._anode._current_collector: current_collector_value}
         self._anode_cost_breakdown = anode_cost_breakdown
 
     @property
@@ -640,14 +502,7 @@ class CylindricalJellyRoll(_JellyRoll):
             theta += dtheta
             theta_list.append(theta)
 
-        self._spiral = (
-            pd.DataFrame({"theta": theta_list, "r": r_list})
-            .assign(r_outer=lambda x: x["r"] + self._electrode_thickness)
-            .assign(x=lambda x: x["r"] * np.cos(x["theta"]))
-            .assign(y=lambda x: x["r"] * np.sin(x["theta"]))
-            .assign(x_outer=lambda x: x["r_outer"] * np.cos(x["theta"]))
-            .assign(y_outer=lambda x: x["r_outer"] * np.sin(x["theta"]))
-        )
+        self._spiral = pd.DataFrame({"theta": theta_list, "r": r_list}).assign(r_outer=lambda x: x["r"] + self._electrode_thickness).assign(x=lambda x: x["r"] * np.cos(x["theta"])).assign(y=lambda x: x["r"] * np.sin(x["theta"])).assign(x_outer=lambda x: x["r_outer"] * np.cos(x["theta"])).assign(y_outer=lambda x: x["r_outer"] * np.sin(x["theta"]))
 
     def _center_and_calculate_radius(self):
         """
@@ -670,12 +525,7 @@ class CylindricalJellyRoll(_JellyRoll):
         x_center = bounding_circle.centroid.x
         y_center = bounding_circle.centroid.y
 
-        spiral = (
-            spiral.assign(x=lambda x: x["x"] - x_center)
-            .assign(y=lambda x: x["y"] - y_center)
-            .assign(x_outer=lambda x: x["x_outer"] - x_center)
-            .assign(y_outer=lambda x: x["y_outer"] - y_center)
-        )
+        spiral = spiral.assign(x=lambda x: x["x"] - x_center).assign(y=lambda x: x["y"] - y_center).assign(x_outer=lambda x: x["x_outer"] - x_center).assign(y_outer=lambda x: x["y_outer"] - y_center)
 
         self._shift_vector = np.array([x_center, y_center])
         self._radius = (bounding_circle.bounds[2] - bounding_circle.bounds[0]) / 2
@@ -683,9 +533,7 @@ class CylindricalJellyRoll(_JellyRoll):
         self._n_turns = theta_max / (2 * np.pi)
         self._spiral = spiral
 
-    def get_top_down_view(
-        self, encapsulation=None, paper_bgcolor="white", plot_bgcolor="white", **kwargs
-    ) -> go.Figure:
+    def get_top_down_view(self, encapsulation=None, paper_bgcolor="white", plot_bgcolor="white", **kwargs) -> go.Figure:
         """
         Function to show the jelly roll wrapped up
         """
@@ -701,29 +549,12 @@ class CylindricalJellyRoll(_JellyRoll):
                     fig.add_trace(trace)
 
         def get_coil(df, thickness):
-            df1 = (
-                df.copy().filter(["r", "theta"]).sort_values(by="theta", ascending=True)
-            )
-            df2 = (
-                df.copy()
-                .filter(["r", "theta"])
-                .sort_values(by="theta", ascending=False)
-                .assign(r=lambda x: x["r"] + thickness)
-            )
+            df1 = df.copy().filter(["r", "theta"]).sort_values(by="theta", ascending=True)
+            df2 = df.copy().filter(["r", "theta"]).sort_values(by="theta", ascending=False).assign(r=lambda x: x["r"] + thickness)
 
             df = pd.concat([df1, df2])
 
-            df = (
-                df.assign(
-                    x=lambda x: (x["r"] * np.cos(x["theta"])) - self._shift_vector[0]
-                )
-                .assign(
-                    y=lambda x: (x["r"] * np.sin(x["theta"])) - self._shift_vector[1]
-                )
-                .assign(x=lambda x: x["x"] * M_TO_MM)
-                .assign(y=lambda x: x["y"] * M_TO_MM)
-                .rename(columns={"x": "X (mm)", "y": "Y (mm)"})
-            )
+            df = df.assign(x=lambda x: (x["r"] * np.cos(x["theta"])) - self._shift_vector[0]).assign(y=lambda x: (x["r"] * np.sin(x["theta"])) - self._shift_vector[1]).assign(x=lambda x: x["x"] * M_TO_MM).assign(y=lambda x: x["y"] * M_TO_MM).rename(columns={"x": "X (mm)", "y": "Y (mm)"})
 
             return df, df2
 
@@ -758,9 +589,7 @@ class CylindricalJellyRoll(_JellyRoll):
         )
 
         # anode current collector
-        plot_data, edge_data = get_coil(
-            edge_data, self._anode._current_collector._thickness
-        )
+        plot_data, edge_data = get_coil(edge_data, self._anode._current_collector._thickness)
         fig.add_trace(
             go.Scatter(
                 x=plot_data["X (mm)"],
@@ -816,9 +645,7 @@ class CylindricalJellyRoll(_JellyRoll):
         )
 
         # cathode current collector
-        plot_data, edge_data = get_coil(
-            edge_data, self._cathode._current_collector._thickness
-        )
+        plot_data, edge_data = get_coil(edge_data, self._cathode._current_collector._thickness)
         fig.add_trace(
             go.Scatter(
                 x=plot_data["X (mm)"],
@@ -892,10 +719,7 @@ class CylindricalJellyRoll(_JellyRoll):
 
         # cathode_tab
         neg_y_disp = self._cathode._current_collector.width / 2
-        pos_y_disp = (
-            self._cathode._current_collector.width / 2
-            + self._cathode._current_collector.tab_width
-        )
+        pos_y_disp = self._cathode._current_collector.width / 2 + self._cathode._current_collector.tab_width
         left_x = -self.radius + self.diameter * slider
         right_x = self.radius + self.diameter * slider
         tab_x = [left_x, right_x, right_x, left_x, left_x]
@@ -951,10 +775,7 @@ class CylindricalJellyRoll(_JellyRoll):
         )
 
         # anode_tab
-        neg_y_disp = (
-            -self._anode._current_collector.width / 2
-            - self._anode._current_collector.tab_width
-        )
+        neg_y_disp = -self._anode._current_collector.width / 2 - self._anode._current_collector.tab_width
         pos_y_disp = -self._anode._current_collector.width / 2
         left_x = -self.radius + self.diameter * 2 * slider
         right_x = self.radius + self.diameter * 2 * slider
@@ -1005,9 +826,7 @@ class CylindricalJellyRoll(_JellyRoll):
 
         return fig
 
-    def get_layup(
-        self, paper_bgcolor="white", plot_bgcolor="white", **kwargs
-    ) -> go.Figure:
+    def get_layup(self, paper_bgcolor="white", plot_bgcolor="white", **kwargs) -> go.Figure:
         """
         Function to show the jelly roll layed out flat
         """
@@ -1016,9 +835,7 @@ class CylindricalJellyRoll(_JellyRoll):
         all_y = []
 
         # Cathode
-        for trace in self._cathode._current_collector.get_top_down_view(
-            split=False
-        ).data:
+        for trace in self._cathode._current_collector.get_top_down_view(split=False).data:
             trace.legendgroup = "Cathode"
             trace.showlegend = True if trace.name == "Main Body" else False
             trace.name = "Cathode"
@@ -1057,12 +874,8 @@ class CylindricalJellyRoll(_JellyRoll):
 
         # Compute axis ranges with a small margin
         if all_x and all_y:
-            x_margin = (
-                0.05 * (max(all_x) - min(all_x)) if max(all_x) > min(all_x) else 1
-            )
-            y_margin = (
-                0.05 * (max(all_y) - min(all_y)) if max(all_y) > min(all_y) else 1
-            )
+            x_margin = 0.05 * (max(all_x) - min(all_x)) if max(all_x) > min(all_x) else 1
+            y_margin = 0.05 * (max(all_y) - min(all_y)) if max(all_y) > min(all_y) else 1
             x_range = [min(all_x) - x_margin, max(all_x) + x_margin]
             y_range = [min(all_y) - y_margin, max(all_y) + y_margin]
         else:
@@ -1080,9 +893,7 @@ class CylindricalJellyRoll(_JellyRoll):
             yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)", range=y_range),
             paper_bgcolor=paper_bgcolor,
             plot_bgcolor=plot_bgcolor,
-            legend=dict(
-                orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5
-            ),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
             **kwargs,
         )
 
@@ -1106,11 +917,7 @@ class CylindricalJellyRoll(_JellyRoll):
 
     @property
     def spiral(self):
-        return (
-            self._spiral.assign(r=lambda x: x["r"] * M_TO_MM)
-            .assign(theta=lambda x: x["theta"] * DEG_TO_RAD)
-            .rename(columns={"theta": "Theta (deg)", "r": "Radius (mm)"})
-        )
+        return self._spiral.assign(r=lambda x: x["r"] * M_TO_MM).assign(theta=lambda x: x["theta"] * DEG_TO_RAD).rename(columns={"theta": "Theta (deg)", "r": "Radius (mm)"})
 
 
 class FlatJellyRoll(_JellyRoll):
@@ -1167,11 +974,7 @@ class FlatJellyRoll(_JellyRoll):
             left_radius = left_radius + self._electrode_thickness
 
         self._thickness = self._electrode_thickness * (top_layers + bottom_layers)
-        self._length = (
-            self._focal_length
-            + (left_turns * self._electrode_thickness)
-            + (right_turns * self._electrode_thickness)
-        )
+        self._length = self._focal_length + (left_turns * self._electrode_thickness) + (right_turns * self._electrode_thickness)
 
     @property
     def focal_length(self):
@@ -1290,12 +1093,7 @@ class Stack(_ElectrodeAssembly):
 
         dummy = pd.DataFrame(columns=["direction", "voltage", "capacity"])
         anode_half_cell = (
-            pd.concat(
-                [
-                    a._half_cell_curve if not a._anode_free else dummy
-                    for a in self._anodes[:-1]
-                ]
-            )  # one anode's worth of material is not used on the outsides of the stack
+            pd.concat([a._half_cell_curve if not a._anode_free else dummy for a in self._anodes[:-1]])  # one anode's worth of material is not used on the outsides of the stack
             .groupby(["direction", "voltage"], as_index=False)["capacity"]
             .sum()
             .groupby("direction", as_index=False)
@@ -1321,9 +1119,7 @@ class Stack(_ElectrodeAssembly):
             raise ValueError("Number of layers must be greater than 0")
 
         if n_layers == 1:
-            raise Warning(
-                "You have made a stack of just one layer. Consider using the single layer electrode tape object instead. A stack of one layer will have two anodes and one cathode."
-            )
+            raise Warning("You have made a stack of just one layer. Consider using the single layer electrode tape object instead. A stack of one layer will have two anodes and one cathode.")
 
         self._n_layers = n_layers
 
@@ -1369,13 +1165,9 @@ class Stack(_ElectrodeAssembly):
             current_collector = c._current_collector
             current_collector_cost = c._current_collector._cost
             if current_collector in cathode_cost_breakdown["current_collectors"]:
-                cathode_cost_breakdown["current_collectors"][
-                    current_collector
-                ] += current_collector_cost
+                cathode_cost_breakdown["current_collectors"][current_collector] += current_collector_cost
             else:
-                cathode_cost_breakdown["current_collectors"][
-                    current_collector
-                ] = current_collector_cost
+                cathode_cost_breakdown["current_collectors"][current_collector] = current_collector_cost
 
         self._cathode_cost_breakdown = cathode_cost_breakdown
 
@@ -1410,13 +1202,9 @@ class Stack(_ElectrodeAssembly):
             current_collector = a._current_collector
             current_collector_cost = a._current_collector._cost
             if current_collector in anode_cost_breakdown["current_collectors"]:
-                anode_cost_breakdown["current_collectors"][
-                    current_collector
-                ] += current_collector_cost
+                anode_cost_breakdown["current_collectors"][current_collector] += current_collector_cost
             else:
-                anode_cost_breakdown["current_collectors"][
-                    current_collector
-                ] = current_collector_cost
+                anode_cost_breakdown["current_collectors"][current_collector] = current_collector_cost
 
         self._anode_cost_breakdown = anode_cost_breakdown
 
@@ -1459,13 +1247,9 @@ class Stack(_ElectrodeAssembly):
             current_collector = c._current_collector
             current_collector_mass = c._current_collector._mass
             if current_collector in cathode_mass_breakdown["current_collectors"]:
-                cathode_mass_breakdown["current_collectors"][
-                    current_collector
-                ] += current_collector_mass
+                cathode_mass_breakdown["current_collectors"][current_collector] += current_collector_mass
             else:
-                cathode_mass_breakdown["current_collectors"][
-                    current_collector
-                ] = current_collector_mass
+                cathode_mass_breakdown["current_collectors"][current_collector] = current_collector_mass
 
         self._cathode_mass_breakdown = cathode_mass_breakdown
 
@@ -1500,39 +1284,22 @@ class Stack(_ElectrodeAssembly):
             current_collector = a._current_collector
             current_collector_mass = a._current_collector._mass
             if current_collector in anode_mass_breakdown["current_collectors"]:
-                anode_mass_breakdown["current_collectors"][
-                    current_collector
-                ] += current_collector_mass
+                anode_mass_breakdown["current_collectors"][current_collector] += current_collector_mass
             else:
-                anode_mass_breakdown["current_collectors"][
-                    current_collector
-                ] = current_collector_mass
+                anode_mass_breakdown["current_collectors"][current_collector] = current_collector_mass
 
         self._anode_mass_breakdown = anode_mass_breakdown
 
     def _calculate_stack_properties(self):
-        self._pore_volume = (
-            self._total_anode_pore_volume
-            + self._total_cathode_pore_volume
-            + self._separator._pore_volume
-        )
-        self._length = self._separator._fold_length + (
-            self._separator._thickness * self._additional_separator_wraps * 2
-        )
+        self._pore_volume = self._total_anode_pore_volume + self._total_cathode_pore_volume + self._separator._pore_volume
+        self._length = self._separator._fold_length + (self._separator._thickness * self._additional_separator_wraps * 2)
         self._width = self._separator._width
 
     def _calculate_active_area(self):
-        self._active_geometric_area = sum(
-            [c._single_sided_area * 2 for c in self._cathodes]
-        )
+        self._active_geometric_area = sum([c._single_sided_area * 2 for c in self._cathodes])
 
     def _calculate_separator_properties(self):
-        self._n_separator_folds = (
-            len(self._cathodes)
-            + len(self._anodes)
-            + 1
-            + 2 * self._additional_separator_wraps
-        )
+        self._n_separator_folds = len(self._cathodes) + len(self._anodes) + 1 + 2 * self._additional_separator_wraps
         self._calculate_separator_length()
         self._separator._calculate_area_properties()
 
@@ -1554,20 +1321,14 @@ class Stack(_ElectrodeAssembly):
             anode_cap_len += PI * (a._thickness + self._separator._thickness)
 
         # get the area of the sides of the stack from the additional separator wraps. thickness changes with each wrap
-        stack_thickness = (
-            self._total_anode_thickness
-            + self._total_cathode_thickness
-            + (self._separator._thickness * self._n_separator_folds)
-        )
+        stack_thickness = self._total_anode_thickness + self._total_cathode_thickness + (self._separator._thickness * self._n_separator_folds)
 
         for w in range(self._additional_separator_wraps):
             stack_thickness += self._separator._thickness * 2
         side_length = stack_thickness * 2
 
         # get the total length
-        total_length = (
-            length_between_layers + cathode_cap_len + anode_cap_len + side_length
-        )
+        total_length = length_between_layers + cathode_cap_len + anode_cap_len + side_length
 
         self._separator._length = total_length
         self._thickness = stack_thickness
@@ -1576,9 +1337,7 @@ class Stack(_ElectrodeAssembly):
         self._total_anode_thickness = sum([a._thickness for a in self._anodes])
         self._total_anode_pore_volume = sum([a._pore_volume for a in self._anodes])
 
-        anode_overhang = (
-            self._anodes[0]._single_sided_area / self._cathodes[0]._single_sided_area
-        ) - 1
+        anode_overhang = (self._anodes[0]._single_sided_area / self._cathodes[0]._single_sided_area) - 1
         for a in self._anodes:
             a._overhang = anode_overhang
 
@@ -1606,14 +1365,10 @@ class Stack(_ElectrodeAssembly):
         """
         for c in self._cathodes:
             if c._current_collector._length > anode._current_collector._length:
-                raise ValueError(
-                    "Cathode current collector length must be greater or equal to anode length"
-                )
+                raise ValueError("Cathode current collector length must be greater or equal to anode length")
 
             if c._current_collector._width > anode._current_collector._width:
-                raise ValueError(
-                    "Cathode current collector width must be greater or equal to anode width"
-                )
+                raise ValueError("Cathode current collector width must be greater or equal to anode width")
 
         self._anodes = [copy(anode) for _ in range(n_layers)]
 
@@ -1676,12 +1431,8 @@ class Stack(_ElectrodeAssembly):
 
         # Compute axis ranges with a small margin
         if all_x and all_y:
-            x_margin = (
-                0.05 * (max(all_x) - min(all_x)) if max(all_x) > min(all_x) else 1
-            )
-            y_margin = (
-                0.05 * (max(all_y) - min(all_y)) if max(all_y) > min(all_y) else 1
-            )
+            x_margin = 0.05 * (max(all_x) - min(all_x)) if max(all_x) > min(all_x) else 1
+            y_margin = 0.05 * (max(all_y) - min(all_y)) if max(all_y) > min(all_y) else 1
             x_range = [min(all_x) - x_margin, max(all_x) + x_margin]
             y_range = [min(all_y) - y_margin, max(all_y) + y_margin]
         else:
@@ -1699,9 +1450,7 @@ class Stack(_ElectrodeAssembly):
             yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)", range=y_range),
             paper_bgcolor=paper_bgcolor,
             plot_bgcolor=plot_bgcolor,
-            legend=dict(
-                orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5
-            ),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
             **kwargs,
         )
 

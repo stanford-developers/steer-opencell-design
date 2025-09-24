@@ -49,20 +49,12 @@ def update_layup_dropdown_options(data, current_style, current_options):
         },
         MonoLayer: {
             "display": "block",
-            "options": [
-                {"label": item, "value": item.lower()}
-                for item in LAYUP_DESIGNS
-                if item != "Laminate"
-            ],
+            "options": [{"label": item, "value": item.lower()} for item in LAYUP_DESIGNS if item != "Laminate"],
             "value": "stacked",
         },
         ZFoldMonoLayer: {
             "display": "block",
-            "options": [
-                {"label": item, "value": item.lower()}
-                for item in LAYUP_DESIGNS
-                if item != "Laminate"
-            ],
+            "options": [{"label": item, "value": item.lower()} for item in LAYUP_DESIGNS if item != "Laminate"],
             "value": "z-fold",
         },
     }
@@ -87,9 +79,7 @@ def update_layup_dropdown_options(data, current_style, current_options):
         Input("layup_tab", "style"),
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
-        Input(
-            "layup_opacity_slider", "value"
-        ),  # Fixed: Changed from drag_value to value for better responsiveness
+        Input("layup_opacity_slider", "value"),  # Fixed: Changed from drag_value to value for better responsiveness
     ],
     [
         State("layup_plot", "figure"),  # Capture current figure state
@@ -135,8 +125,7 @@ def update_layup_plots(
         for new_trace in fig.data:
             for old_trace in current_traces:
                 # Match traces by name and legendgroup
-                if (getattr(new_trace, "name", None) == old_trace.get("name") and 
-                    getattr(new_trace, "legendgroup", None) == old_trace.get("legendgroup")):
+                if getattr(new_trace, "name", None) == old_trace.get("name") and getattr(new_trace, "legendgroup", None) == old_trace.get("legendgroup"):
                     if "visible" in old_trace:
                         new_trace.visible = old_trace["visible"]
                     break
@@ -175,7 +164,7 @@ def update_layup_plots(
 
         if "visible" in visibility_data:
             visible_states = visibility_data["visible"]
-            
+
             # Handle both single trace and multiple trace cases
             if isinstance(trace_indices, list):
                 # Multiple traces case
@@ -274,9 +263,7 @@ def update_layup_control_mode(selected_mode, cell_data):
 
     elif ctx.triggered_id == "layup_control_mode_selector":
 
-        mode = mode_mapping.get(
-            selected_mode, OverhangControlMode.FIXED_OVERHANGS
-        )
+        mode = mode_mapping.get(selected_mode, OverhangControlMode.FIXED_OVERHANGS)
 
         # set the control mode to the layup
         layup.overhang_control_mode = mode
@@ -374,9 +361,7 @@ def update_layup_design(design_value, cell_data):
     new_layup = convert_layup(layup, target_type_name)
 
     # Assign the new layup to the cell and get the key
-    new_cell = set_object_to_cell(
-        cell, new_layup, LAYUP_CONFIGS[LayupType.GENERIC]
-    )
+    new_cell = set_object_to_cell(cell, new_layup, LAYUP_CONFIGS[LayupType.GENERIC])
 
     # Generate a new cache key
     new_key = set_cell_to_cache(new_cell)
@@ -389,23 +374,85 @@ def update_layup_design(design_value, cell_data):
     [
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
-        Output({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "value",),
-        Output({"object": "zfoldmonolayer","property": ALL,"subtype": "slider",}, "min",),
-        Output({"object": "zfoldmonolayer","property": ALL, "subtype": "slider",}, "max",),
-        Output({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider",}, "marks",),
-        Output({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider",}, "step",),
-        Output({"object": "zfoldmonolayer", "property": ALL, "subtype": "input",}, "step",),
+        Output(
+            {"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"},
+            "value",
+        ),
+        Output(
+            {
+                "object": "zfoldmonolayer",
+                "property": ALL,
+                "subtype": "slider",
+            },
+            "min",
+        ),
+        Output(
+            {
+                "object": "zfoldmonolayer",
+                "property": ALL,
+                "subtype": "slider",
+            },
+            "max",
+        ),
+        Output(
+            {
+                "object": "zfoldmonolayer",
+                "property": ALL,
+                "subtype": "slider",
+            },
+            "marks",
+        ),
+        Output(
+            {
+                "object": "zfoldmonolayer",
+                "property": ALL,
+                "subtype": "slider",
+            },
+            "step",
+        ),
+        Output(
+            {
+                "object": "zfoldmonolayer",
+                "property": ALL,
+                "subtype": "input",
+            },
+            "step",
+        ),
     ],
     [
         Input("layup_tab", "style"),
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
-        Input({"object": "zfoldmonolayer", "property": ALL, "subtype": "input"},  "n_submit",),
-        Input({"object": "zfoldmonolayer", "property": ALL, "subtype": "input",},"n_blur",),
-        Input({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider",},"value",),
+        Input(
+            {"object": "zfoldmonolayer", "property": ALL, "subtype": "input"},
+            "n_submit",
+        ),
+        Input(
+            {
+                "object": "zfoldmonolayer",
+                "property": ALL,
+                "subtype": "input",
+            },
+            "n_blur",
+        ),
+        Input(
+            {
+                "object": "zfoldmonolayer",
+                "property": ALL,
+                "subtype": "slider",
+            },
+            "value",
+        ),
     ],
     [
-        State({"object": "zfoldmonolayer", "property": ALL, "subtype": "input",},"value",),
+        State(
+            {
+                "object": "zfoldmonolayer",
+                "property": ALL,
+                "subtype": "input",
+            },
+            "value",
+        ),
         State("warnings_store", "data"),
     ],
     prevent_initial_call=True,
@@ -420,9 +467,7 @@ def update_zfold_monolayer(
     input_values,
     existing_warnings,
 ):
-    callback_function = create_layup_callback(
-        LayupType.ZFOLDMONOLAYER
-    )
+    callback_function = create_layup_callback(LayupType.ZFOLDMONOLAYER)
 
     response = callback_function(
         existing_warnings,
@@ -439,23 +484,85 @@ def update_zfold_monolayer(
     [
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
-        Output({"object": "laminate", "property": ALL, "subtype": "slider"}, "value",),
-        Output({"object": "laminate","property": ALL,"subtype": "slider",}, "min",),
-        Output({"object": "laminate","property": ALL, "subtype": "slider",}, "max",),
-        Output({"object": "laminate", "property": ALL, "subtype": "slider",}, "marks",),
-        Output({"object": "laminate", "property": ALL, "subtype": "slider",}, "step",),
-        Output({"object": "laminate", "property": ALL, "subtype": "input",}, "step",),
+        Output(
+            {"object": "laminate", "property": ALL, "subtype": "slider"},
+            "value",
+        ),
+        Output(
+            {
+                "object": "laminate",
+                "property": ALL,
+                "subtype": "slider",
+            },
+            "min",
+        ),
+        Output(
+            {
+                "object": "laminate",
+                "property": ALL,
+                "subtype": "slider",
+            },
+            "max",
+        ),
+        Output(
+            {
+                "object": "laminate",
+                "property": ALL,
+                "subtype": "slider",
+            },
+            "marks",
+        ),
+        Output(
+            {
+                "object": "laminate",
+                "property": ALL,
+                "subtype": "slider",
+            },
+            "step",
+        ),
+        Output(
+            {
+                "object": "laminate",
+                "property": ALL,
+                "subtype": "input",
+            },
+            "step",
+        ),
     ],
     [
         Input("layup_tab", "style"),
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
-        Input({"object": "laminate", "property": ALL, "subtype": "input"},  "n_submit",),
-        Input({"object": "laminate", "property": ALL, "subtype": "input",},"n_blur",),
-        Input({"object": "laminate", "property": ALL, "subtype": "slider",},"value",),
+        Input(
+            {"object": "laminate", "property": ALL, "subtype": "input"},
+            "n_submit",
+        ),
+        Input(
+            {
+                "object": "laminate",
+                "property": ALL,
+                "subtype": "input",
+            },
+            "n_blur",
+        ),
+        Input(
+            {
+                "object": "laminate",
+                "property": ALL,
+                "subtype": "slider",
+            },
+            "value",
+        ),
     ],
     [
-        State({"object": "laminate", "property": ALL, "subtype": "input",},"value",),
+        State(
+            {
+                "object": "laminate",
+                "property": ALL,
+                "subtype": "input",
+            },
+            "value",
+        ),
         State("warnings_store", "data"),
     ],
     prevent_initial_call=True,
@@ -470,9 +577,7 @@ def update_laminate(
     input_values,
     existing_warnings,
 ):
-    callback_function = create_layup_callback(
-        LayupType.LAMINATE
-    )
+    callback_function = create_layup_callback(LayupType.LAMINATE)
 
     response = callback_function(
         existing_warnings,
@@ -489,23 +594,85 @@ def update_laminate(
     [
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
-        Output({"object": "stacked", "property": ALL, "subtype": "slider"}, "value",),
-        Output({"object": "stacked","property": ALL,"subtype": "slider",}, "min",),
-        Output({"object": "stacked","property": ALL, "subtype": "slider",}, "max",),
-        Output({"object": "stacked", "property": ALL, "subtype": "slider",}, "marks",),
-        Output({"object": "stacked", "property": ALL, "subtype": "slider",}, "step",),
-        Output({"object": "stacked", "property": ALL, "subtype": "input",}, "step",),
+        Output(
+            {"object": "stacked", "property": ALL, "subtype": "slider"},
+            "value",
+        ),
+        Output(
+            {
+                "object": "stacked",
+                "property": ALL,
+                "subtype": "slider",
+            },
+            "min",
+        ),
+        Output(
+            {
+                "object": "stacked",
+                "property": ALL,
+                "subtype": "slider",
+            },
+            "max",
+        ),
+        Output(
+            {
+                "object": "stacked",
+                "property": ALL,
+                "subtype": "slider",
+            },
+            "marks",
+        ),
+        Output(
+            {
+                "object": "stacked",
+                "property": ALL,
+                "subtype": "slider",
+            },
+            "step",
+        ),
+        Output(
+            {
+                "object": "stacked",
+                "property": ALL,
+                "subtype": "input",
+            },
+            "step",
+        ),
     ],
     [
         Input("layup_tab", "style"),
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
-        Input({"object": "stacked", "property": ALL, "subtype": "input"},  "n_submit",),
-        Input({"object": "stacked", "property": ALL, "subtype": "input",},"n_blur",),
-        Input({"object": "stacked", "property": ALL, "subtype": "slider",},"value",),
+        Input(
+            {"object": "stacked", "property": ALL, "subtype": "input"},
+            "n_submit",
+        ),
+        Input(
+            {
+                "object": "stacked",
+                "property": ALL,
+                "subtype": "input",
+            },
+            "n_blur",
+        ),
+        Input(
+            {
+                "object": "stacked",
+                "property": ALL,
+                "subtype": "slider",
+            },
+            "value",
+        ),
     ],
     [
-        State({"object": "stacked", "property": ALL, "subtype": "input",},"value",),
+        State(
+            {
+                "object": "stacked",
+                "property": ALL,
+                "subtype": "input",
+            },
+            "value",
+        ),
         State("warnings_store", "data"),
     ],
     prevent_initial_call=True,
@@ -520,10 +687,8 @@ def update_monolayer(
     input_values,
     existing_warnings,
 ):
-    
-    callback_function = create_layup_callback(
-        LayupType.MONOLAYER
-    )
+
+    callback_function = create_layup_callback(LayupType.MONOLAYER)
 
     response = callback_function(
         existing_warnings,
@@ -534,4 +699,3 @@ def update_monolayer(
     )
 
     return response
-

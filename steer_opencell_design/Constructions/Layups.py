@@ -86,12 +86,7 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
 
     def _calculate_bulk_properties(self):
         # calculate thickness
-        self._thickness = (
-            self._cathode.thickness
-            + self._bottom_separator.thickness
-            + self._anode.thickness
-            + self._top_separator.thickness
-        )
+        self._thickness = self._cathode.thickness + self._bottom_separator.thickness + self._anode.thickness + self._top_separator.thickness
 
     def _calculate_coordinates(self):
         self._calculate_anode_overhangs()
@@ -100,21 +95,9 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         self._set_z_positions()
 
     def _set_z_positions(self):
-        _bottom_separator_z = (
-            self._cathode._current_collector._datum[2]
-            + (self._cathode._thickness / 2 + self._bottom_separator._thickness / 2)
-            * UM_TO_M
-        )
-        _anode_z = (
-            _bottom_separator_z
-            + (self._bottom_separator._thickness / 2 + self._anode._thickness / 2)
-            * UM_TO_M
-        )
-        _top_separator_z = (
-            _anode_z
-            + (self._anode._thickness / 2 + self._top_separator._thickness / 2)
-            * UM_TO_M
-        )
+        _bottom_separator_z = self._cathode._current_collector._datum[2] + (self._cathode._thickness / 2 + self._bottom_separator._thickness / 2) * UM_TO_M
+        _anode_z = _bottom_separator_z + (self._bottom_separator._thickness / 2 + self._anode._thickness / 2) * UM_TO_M
+        _top_separator_z = _anode_z + (self._anode._thickness / 2 + self._top_separator._thickness / 2) * UM_TO_M
 
         self._bottom_separator.datum = (
             self._bottom_separator.datum[0],
@@ -138,47 +121,18 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         """
         Calculate the anode overhangs relative to the cathode.
         """
-        if (
-            hasattr(self, "_cathode")
-            and hasattr(self, "_anode")
-            and self._cathode is not None
-            and self._anode is not None
-        ):
+        if hasattr(self, "_cathode") and hasattr(self, "_anode") and self._cathode is not None and self._anode is not None:
             # Cathode edges (using internal SI units - meters)
-            cathode_left = (
-                self._cathode._current_collector._datum[0]
-                - self._cathode._current_collector._x_body_length / 2
-            )
-            cathode_right = (
-                self._cathode._current_collector._datum[0]
-                + self._cathode._current_collector._x_body_length / 2
-            )
-            cathode_bottom = (
-                self._cathode._current_collector._datum[1]
-                - self._cathode._current_collector._y_body_length / 2
-            )
-            cathode_top = (
-                self._cathode._current_collector._datum[1]
-                + self._cathode._current_collector._y_body_length / 2
-            )
+            cathode_left = self._cathode._current_collector._datum[0] - self._cathode._current_collector._x_body_length / 2
+            cathode_right = self._cathode._current_collector._datum[0] + self._cathode._current_collector._x_body_length / 2
+            cathode_bottom = self._cathode._current_collector._datum[1] - self._cathode._current_collector._y_body_length / 2
+            cathode_top = self._cathode._current_collector._datum[1] + self._cathode._current_collector._y_body_length / 2
 
             # Anode edges (using internal SI units - meters)
-            anode_left = (
-                self._anode._current_collector._datum[0]
-                - self._anode._current_collector._x_body_length / 2
-            )
-            anode_right = (
-                self._anode._current_collector._datum[0]
-                + self._anode._current_collector._x_body_length / 2
-            )
-            anode_bottom = (
-                self._anode._current_collector._datum[1]
-                - self._anode._current_collector._y_body_length / 2
-            )
-            anode_top = (
-                self._anode._current_collector._datum[1]
-                + self._anode._current_collector._y_body_length / 2
-            )
+            anode_left = self._anode._current_collector._datum[0] - self._anode._current_collector._x_body_length / 2
+            anode_right = self._anode._current_collector._datum[0] + self._anode._current_collector._x_body_length / 2
+            anode_bottom = self._anode._current_collector._datum[1] - self._anode._current_collector._y_body_length / 2
+            anode_top = self._anode._current_collector._datum[1] + self._anode._current_collector._y_body_length / 2
 
             # Calculate overhangs (positive values mean anode extends beyond cathode)
             self._anode_overhang_left = cathode_left - anode_left
@@ -197,29 +151,12 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         """
         Calculate the bottom separator overhangs relative to the cathode.
         """
-        if (
-            hasattr(self, "_cathode")
-            and hasattr(self, "_bottom_separator")
-            and self._cathode is not None
-            and self._bottom_separator is not None
-        ):
+        if hasattr(self, "_cathode") and hasattr(self, "_bottom_separator") and self._cathode is not None and self._bottom_separator is not None:
             # Cathode edges (using internal SI units - meters)
-            cathode_left = (
-                self._cathode._current_collector._datum[0]
-                - self._cathode._current_collector._x_body_length / 2
-            )
-            cathode_right = (
-                self._cathode._current_collector._datum[0]
-                + self._cathode._current_collector._x_body_length / 2
-            )
-            cathode_bottom = (
-                self._cathode._current_collector._datum[1]
-                - self._cathode._current_collector._y_body_length / 2
-            )
-            cathode_top = (
-                self._cathode._current_collector._datum[1]
-                + self._cathode._current_collector._y_body_length / 2
-            )
+            cathode_left = self._cathode._current_collector._datum[0] - self._cathode._current_collector._x_body_length / 2
+            cathode_right = self._cathode._current_collector._datum[0] + self._cathode._current_collector._x_body_length / 2
+            cathode_bottom = self._cathode._current_collector._datum[1] - self._cathode._current_collector._y_body_length / 2
+            cathode_top = self._cathode._current_collector._datum[1] + self._cathode._current_collector._y_body_length / 2
 
             # Bottom separator edges (using internal SI units - meters)
             separator_left = min(self._bottom_separator._coordinates[:, 0])
@@ -244,29 +181,12 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         """
         Calculate the top separator overhangs relative to the cathode.
         """
-        if (
-            hasattr(self, "_cathode")
-            and hasattr(self, "_top_separator")
-            and self._cathode is not None
-            and self._top_separator is not None
-        ):
+        if hasattr(self, "_cathode") and hasattr(self, "_top_separator") and self._cathode is not None and self._top_separator is not None:
             # Cathode edges (using internal SI units - meters)
-            cathode_left = (
-                self._cathode._current_collector._datum[0]
-                - self._cathode._current_collector._x_body_length / 2
-            )
-            cathode_right = (
-                self._cathode._current_collector._datum[0]
-                + self._cathode._current_collector._x_body_length / 2
-            )
-            cathode_bottom = (
-                self._cathode._current_collector._datum[1]
-                - self._cathode._current_collector._y_body_length / 2
-            )
-            cathode_top = (
-                self._cathode._current_collector._datum[1]
-                + self._cathode._current_collector._y_body_length / 2
-            )
+            cathode_left = self._cathode._current_collector._datum[0] - self._cathode._current_collector._x_body_length / 2
+            cathode_right = self._cathode._current_collector._datum[0] + self._cathode._current_collector._x_body_length / 2
+            cathode_bottom = self._cathode._current_collector._datum[1] - self._cathode._current_collector._y_body_length / 2
+            cathode_top = self._cathode._current_collector._datum[1] + self._cathode._current_collector._y_body_length / 2
 
             # Top separator edges (using internal SI units - meters)
             separator_left = min(self._top_separator._coordinates[:, 0])
@@ -309,12 +229,8 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         charge_x_max = min(cathode_charge[:, 4].max(), anode_charge[:, 4].max())
 
         # For discharge: find overlapping range (intersection)
-        discharge_x_min = max(
-            cathode_discharge[:, 4].min(), anode_discharge[:, 4].min()
-        )
-        discharge_x_max = min(
-            cathode_discharge[:, 4].max(), anode_discharge[:, 4].max()
-        )
+        discharge_x_min = max(cathode_discharge[:, 4].min(), anode_discharge[:, 4].min())
+        discharge_x_max = min(cathode_discharge[:, 4].max(), anode_discharge[:, 4].max())
 
         # Create interpolation functions for voltage vs areal capacity
 
@@ -330,17 +246,13 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         discharge_x_common = np.linspace(discharge_x_min, discharge_x_max, n_points)
 
         # Interpolate voltages using numpy.interp (voltage = column 1, areal capacity = column 4)
-        cathode_charge_voltage = np.interp(
-            charge_x_common, cathode_charge_sorted[:, 4], cathode_charge_sorted[:, 1]
-        )
+        cathode_charge_voltage = np.interp(charge_x_common, cathode_charge_sorted[:, 4], cathode_charge_sorted[:, 1])
         cathode_discharge_voltage = np.interp(
             discharge_x_common,
             cathode_discharge_sorted[:, 4],
             cathode_discharge_sorted[:, 1],
         )
-        anode_charge_voltage = np.interp(
-            charge_x_common, anode_charge_sorted[:, 4], anode_charge_sorted[:, 1]
-        )
+        anode_charge_voltage = np.interp(charge_x_common, anode_charge_sorted[:, 4], anode_charge_sorted[:, 1])
         anode_discharge_voltage = np.interp(
             discharge_x_common,
             anode_discharge_sorted[:, 4],
@@ -366,18 +278,14 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
             [
                 discharge_x_common[::-1],  # Column 0: areal capacity (descending)
                 discharge_voltage_full[::-1],  # Column 1: voltage
-                np.zeros(
-                    len(discharge_x_common)
-                ),  # Column 2: direction (0 = discharge)
+                np.zeros(len(discharge_x_common)),  # Column 2: direction (0 = discharge)
             ]
         )
 
         # Recombine: charge first (ascending), then discharge (descending)
         self._half_cell_curve = np.vstack([charge_curve, discharge_curve])
 
-    def _adjust_overhang_fixed_component(
-        self, component: str, target_overhang: float, direction: str
-    ) -> None:
+    def _adjust_overhang_fixed_component(self, component: str, target_overhang: float, direction: str) -> None:
         """
         Adjust overhang by moving the component position (fixed component mode).
 
@@ -411,32 +319,19 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         component_obj.datum = datum
 
         # Special handling for ZFoldMonoLayer: when anode moves left/right, top separator should follow
-        if (hasattr(self, '__class__') and 
-            self.__class__.__name__ == 'ZFoldMonoLayer' and 
-            component == "anode" and 
-            direction in ["left", "right"]):
-            
+        if hasattr(self, "__class__") and self.__class__.__name__ == "ZFoldMonoLayer" and component == "anode" and direction in ["left", "right"]:
+
             # Get the top separator and adjust its position by the same amount
             top_separator_datum = self._top_separator.datum
-            
+
             if direction == "left":
-                top_separator_datum = (
-                    top_separator_datum[0] - overhang_difference, 
-                    top_separator_datum[1], 
-                    top_separator_datum[2]
-                )
+                top_separator_datum = (top_separator_datum[0] - overhang_difference, top_separator_datum[1], top_separator_datum[2])
             elif direction == "right":
-                top_separator_datum = (
-                    top_separator_datum[0] + overhang_difference, 
-                    top_separator_datum[1], 
-                    top_separator_datum[2]
-                )
-            
+                top_separator_datum = (top_separator_datum[0] + overhang_difference, top_separator_datum[1], top_separator_datum[2])
+
             self._top_separator.datum = top_separator_datum
 
-    def _adjust_overhang_fixed_overhangs(
-        self, component: str, target_overhang: float, direction: str
-    ) -> None:
+    def _adjust_overhang_fixed_overhangs(self, component: str, target_overhang: float, direction: str) -> None:
         """
         Adjust overhang by extending the component dimensions (fixed overhangs mode).
 
@@ -459,18 +354,14 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         if component == "anode":
             # Determine which dimension and position to adjust
             if direction in ["left", "right"]:
-                self.anode.current_collector.x_body_length += (
-                    overhang_difference * M_TO_MM
-                )
+                self.anode.current_collector.x_body_length += overhang_difference * M_TO_MM
                 position_adjustment = (overhang_difference / 2) * M_TO_MM
                 if direction == "left":
                     self.anode.current_collector.datum_x -= position_adjustment
                 else:  # right
                     self.anode.current_collector.datum_x += position_adjustment
             else:  # bottom or top
-                self.anode.current_collector.y_body_length += (
-                    overhang_difference * M_TO_MM
-                )
+                self.anode.current_collector.y_body_length += overhang_difference * M_TO_MM
                 position_adjustment = (overhang_difference / 2) * M_TO_MM
                 if direction == "bottom":
                     self.anode.current_collector.datum_y -= position_adjustment
@@ -653,10 +544,7 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
                     color=self.cathode.formulation.color,
                 ),
                 customdata=cathode_half_cell["Direction"],
-                hovertemplate="<b>Cathode</b><br>"
-                + "Capacity: %{x:.2f} mAh/cm²<br>"
-                + "Voltage: %{y:.3f} V<br>"
-                + "Direction: %{customdata}<extra></extra>",
+                hovertemplate="<b>Cathode</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
             )
         )
 
@@ -671,10 +559,7 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
                     color=self.anode.formulation.color,
                 ),
                 customdata=anode_half_cell["Direction"],
-                hovertemplate="<b>Anode</b><br>"
-                + "Capacity: %{x:.2f} mAh/cm²<br>"
-                + "Voltage: %{y:.3f} V<br>"
-                + "Direction: %{customdata}<extra></extra>",
+                hovertemplate="<b>Anode</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
             )
         )
 
@@ -690,10 +575,7 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
                 name=f"{self.name} Full-Cell",
                 line=dict(width=kwargs.get("line_width", 2), color=full_cell_color),
                 customdata=full_cell_curve["Direction"],
-                hovertemplate="<b>Full-Cell</b><br>"
-                + "Capacity: %{x:.2f} mAh/cm²<br>"
-                + "Voltage: %{y:.3f} V<br>"
-                + "Direction: %{customdata}<extra></extra>",
+                hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
             )
         )
 
@@ -785,11 +667,8 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
                 columns=["areal_capacity", "voltage", "direction"],
             )
             .assign(
-                direction=lambda x: np.where(
-                    x["direction"] == 1, "charge", "discharge"
-                ),
-                areal_capacity=lambda x: x["areal_capacity"]
-                * (S_TO_H * A_TO_mA / M_TO_CM**2),
+                direction=lambda x: np.where(x["direction"] == 1, "charge", "discharge"),
+                areal_capacity=lambda x: x["areal_capacity"] * (S_TO_H * A_TO_mA / M_TO_CM**2),
             )
             .rename(
                 columns={
@@ -848,30 +727,18 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         # if there is an anode, update its ranges
         if self._update_properties:
             # update the anode ranges
-            self._anode.current_collector.set_ranges_from_reference(
-                self.cathode.current_collector
-            )
+            self._anode.current_collector.set_ranges_from_reference(self.cathode.current_collector)
 
             # if the anode has a shorter length then update it
-            if (
-                self.anode.current_collector._x_body_length
-                < self.cathode.current_collector._x_body_length
-            ):
+            if self.anode.current_collector._x_body_length < self.cathode.current_collector._x_body_length:
                 new_anode_current_collector = deepcopy(self.anode.current_collector)
-                new_anode_current_collector.x_body_length = (
-                    cathode.current_collector.x_body_length
-                )
+                new_anode_current_collector.x_body_length = cathode.current_collector.x_body_length
                 self.anode.current_collector = new_anode_current_collector
 
             # if the anode has a shorter width then update it
-            if (
-                self.anode.current_collector._y_body_length
-                < self.cathode.current_collector._y_body_length
-            ):
+            if self.anode.current_collector._y_body_length < self.cathode.current_collector._y_body_length:
                 new_anode_current_collector = deepcopy(self.anode.current_collector)
-                new_anode_current_collector.y_body_length = (
-                    cathode.current_collector.y_body_length
-                )
+                new_anode_current_collector.y_body_length = cathode.current_collector.y_body_length
                 self.anode.current_collector = new_anode_current_collector
 
         # set the cathode to self
@@ -913,9 +780,7 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         anode = deepcopy(anode)
 
         # set the ranges on the anode current collector based on the cathode current collector
-        anode.current_collector.set_ranges_from_reference(
-            self.cathode.current_collector
-        )
+        anode.current_collector.set_ranges_from_reference(self.cathode.current_collector)
 
         # modify the anodes datum position
         if not self._update_properties:
@@ -1278,13 +1143,9 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         self.validate_positive_float(overhang, "bottom_separator_overhang_bottom")
 
         if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component(
-                "bottom_separator", overhang, "bottom"
-            )
+            self._adjust_overhang_fixed_component("bottom_separator", overhang, "bottom")
         elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs(
-                "bottom_separator", overhang, "bottom"
-            )
+            self._adjust_overhang_fixed_overhangs("bottom_separator", overhang, "bottom")
 
     @bottom_separator_overhang_top.setter
     @calculate_all_properties
@@ -1833,10 +1694,7 @@ class MonoLayer(_Layup):
         self._bottom_separator = bottom_separator
 
         # Add MonoLayer-specific rotation logic
-        if (
-            hasattr(self._bottom_separator, "_rotated_xy")
-            and not self._bottom_separator._rotated_xy
-        ):
+        if hasattr(self._bottom_separator, "_rotated_xy") and not self._bottom_separator._rotated_xy:
             self._bottom_separator._rotate_90_xy()
 
     @top_separator.setter
@@ -1866,10 +1724,7 @@ class MonoLayer(_Layup):
         self._top_separator = top_separator
 
         # Add MonoLayer-specific rotation logic
-        if (
-            hasattr(self._top_separator, "_rotated_xy")
-            and not self._top_separator._rotated_xy
-        ):
+        if hasattr(self._top_separator, "_rotated_xy") and not self._top_separator._rotated_xy:
             self._top_separator._rotate_90_xy()
 
 
@@ -1897,13 +1752,9 @@ class ZFoldMonoLayer(MonoLayer):
         top_separator = deepcopy(separator)
         bottom_separator = deepcopy(separator)
 
-        top_separator.length = (
-            anode.current_collector._x_body_length + 2 * top_separator._thickness
-        ) * M_TO_MM
+        top_separator.length = (anode.current_collector._x_body_length + 2 * top_separator._thickness) * M_TO_MM
 
-        bottom_separator.length = (
-            cathode.current_collector._x_body_length + 2 * bottom_separator._thickness
-        ) * M_TO_MM
+        bottom_separator.length = (cathode.current_collector._x_body_length + 2 * bottom_separator._thickness) * M_TO_MM
 
         # Bypass MonoLayer.__init__ to avoid calling blocked setters
         # Call _Layup.__init__ directly and set up necessary attributes
@@ -1924,7 +1775,7 @@ class ZFoldMonoLayer(MonoLayer):
 
     @classmethod
     def from_monolayer(cls, monolayer: MonoLayer) -> "ZFoldMonoLayer":
-        
+
         separator = deepcopy(monolayer.bottom_separator)
 
         # Ensure separator is rotated to have length along the x axis
@@ -1932,9 +1783,7 @@ class ZFoldMonoLayer(MonoLayer):
             separator._rotate_90_xy()
 
         # ensure the separator width is wide enough
-        if separator.width < (
-            monolayer.anode.current_collector.y_body_length
-        ):
+        if separator.width < (monolayer.anode.current_collector.y_body_length):
             separator.width = monolayer.anode.current_collector.y_body_length
 
         return cls(
@@ -1972,13 +1821,8 @@ class ZFoldMonoLayer(MonoLayer):
         top_separator = deepcopy(separator)
 
         # Set lengths according to Z-fold constraints
-        bottom_separator.length = (
-            self.cathode.current_collector._x_body_length
-            + 2 * bottom_separator._thickness
-        ) * M_TO_MM
-        top_separator.length = (
-            self.anode.current_collector._x_body_length + 2 * top_separator._thickness
-        ) * M_TO_MM
+        bottom_separator.length = (self.cathode.current_collector._x_body_length + 2 * bottom_separator._thickness) * M_TO_MM
+        top_separator.length = (self.anode.current_collector._x_body_length + 2 * top_separator._thickness) * M_TO_MM
 
         # Set positions based on existing datums if updating properties
         if not self._update_properties:
@@ -2041,19 +1885,11 @@ class ZFoldMonoLayer(MonoLayer):
         self.validate_positive_float(overhang, "separator_overhang_bottom")
 
         if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_zfold_overhang_fixed_component(
-                "bottom_separator", overhang, "bottom"
-            )
-            self._adjust_zfold_overhang_fixed_component(
-                "top_separator", overhang, "bottom"
-            )
+            self._adjust_zfold_overhang_fixed_component("bottom_separator", overhang, "bottom")
+            self._adjust_zfold_overhang_fixed_component("top_separator", overhang, "bottom")
         elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_zfold_overhang_fixed_overhangs(
-                "bottom_separator", overhang, "bottom"
-            )
-            self._adjust_zfold_overhang_fixed_overhangs(
-                "top_separator", overhang, "bottom"
-            )
+            self._adjust_zfold_overhang_fixed_overhangs("bottom_separator", overhang, "bottom")
+            self._adjust_zfold_overhang_fixed_overhangs("top_separator", overhang, "bottom")
 
     @property
     def separator_overhang_top(self) -> float:
@@ -2075,20 +1911,12 @@ class ZFoldMonoLayer(MonoLayer):
 
         if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
             # Move both separators to achieve the target overhang
-            self._adjust_zfold_overhang_fixed_component(
-                "bottom_separator", overhang, "top"
-            )
-            self._adjust_zfold_overhang_fixed_component(
-                "top_separator", overhang, "top"
-            )
+            self._adjust_zfold_overhang_fixed_component("bottom_separator", overhang, "top")
+            self._adjust_zfold_overhang_fixed_component("top_separator", overhang, "top")
         elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
             # Extend both separators to achieve the target overhang
-            self._adjust_zfold_overhang_fixed_overhangs(
-                "bottom_separator", overhang, "top"
-            )
-            self._adjust_zfold_overhang_fixed_overhangs(
-                "top_separator", overhang, "top"
-            )
+            self._adjust_zfold_overhang_fixed_overhangs("bottom_separator", overhang, "top")
+            self._adjust_zfold_overhang_fixed_overhangs("top_separator", overhang, "top")
 
     @property
     def separator_overhangs(self) -> dict:
@@ -2133,21 +1961,10 @@ class ZFoldMonoLayer(MonoLayer):
         Left/right overhangs are constrained by Z-fold geometry.
         Top/bottom overhangs are shared between top and bottom separators.
         """
-        if (
-            hasattr(self, "_cathode")
-            and hasattr(self, "_bottom_separator")
-            and self._cathode is not None
-            and self._bottom_separator is not None
-        ):
+        if hasattr(self, "_cathode") and hasattr(self, "_bottom_separator") and self._cathode is not None and self._bottom_separator is not None:
             # Cathode edges (using internal SI units - meters)
-            cathode_bottom = (
-                self._cathode._current_collector._datum[1]
-                - self._cathode._current_collector._y_body_length / 2
-            )
-            cathode_top = (
-                self._cathode._current_collector._datum[1]
-                + self._cathode._current_collector._y_body_length / 2
-            )
+            cathode_bottom = self._cathode._current_collector._datum[1] - self._cathode._current_collector._y_body_length / 2
+            cathode_top = self._cathode._current_collector._datum[1] + self._cathode._current_collector._y_body_length / 2
 
             # Bottom separator edges (using internal SI units - meters)
             separator_bottom = min(self._bottom_separator._coordinates[:, 1])
@@ -2163,9 +1980,7 @@ class ZFoldMonoLayer(MonoLayer):
             if hasattr(self, "_top_separator") and self._top_separator is not None:
                 self._top_separator_overhang_left = 0.0  # Constrained by Z-fold
                 self._top_separator_overhang_right = 0.0  # Constrained by Z-fold
-                self._top_separator_overhang_bottom = (
-                    self._bottom_separator_overhang_bottom
-                )
+                self._top_separator_overhang_bottom = self._bottom_separator_overhang_bottom
                 self._top_separator_overhang_top = self._bottom_separator_overhang_top
 
         else:
@@ -2183,9 +1998,7 @@ class ZFoldMonoLayer(MonoLayer):
         # Overhangs are calculated and synchronized in _calculate_bottom_separator_overhangs
         pass
 
-    def _adjust_zfold_overhang_fixed_component(
-        self, component: str, target_overhang: float, direction: str
-    ) -> None:
+    def _adjust_zfold_overhang_fixed_component(self, component: str, target_overhang: float, direction: str) -> None:
         """
         Adjust separator position to achieve target overhang (Z-fold specific).
 
@@ -2201,13 +2014,9 @@ class ZFoldMonoLayer(MonoLayer):
         # Access internal overhang values directly to avoid AttributeError
         # Use internal property names which return values in meters (not mm)
         if component == "bottom_separator":
-            current_overhang = (
-                getattr(self, f"_bottom_separator_overhang_{direction}") * M_TO_MM
-            )
+            current_overhang = getattr(self, f"_bottom_separator_overhang_{direction}") * M_TO_MM
         elif component == "top_separator":
-            current_overhang = (
-                getattr(self, f"_top_separator_overhang_{direction}") * M_TO_MM
-            )
+            current_overhang = getattr(self, f"_top_separator_overhang_{direction}") * M_TO_MM
         else:
             raise ValueError(f"Unknown component: {component}")
 
@@ -2231,9 +2040,7 @@ class ZFoldMonoLayer(MonoLayer):
         # set the datum
         component_obj.datum = datum
 
-    def _adjust_zfold_overhang_fixed_overhangs(
-        self, component: str, target_overhang: float, direction: str
-    ) -> None:
+    def _adjust_zfold_overhang_fixed_overhangs(self, component: str, target_overhang: float, direction: str) -> None:
         """
         Adjust separator dimensions to achieve target overhang (Z-fold specific).
 
@@ -2302,72 +2109,49 @@ class ZFoldMonoLayer(MonoLayer):
     @property
     def bottom_separator(self) -> None:
         """Individual separator access disabled. Use 'separator' property instead."""
-        raise AttributeError(
-            "ZFoldMonoLayer uses unified 'separator' property. Individual 'bottom_separator' access is not available."
-        )
+        raise AttributeError("ZFoldMonoLayer uses unified 'separator' property. Individual 'bottom_separator' access is not available.")
 
     @property
     def top_separator(self) -> None:
         """Individual separator access disabled. Use 'separator' property instead."""
-        raise AttributeError(
-            "ZFoldMonoLayer uses unified 'separator' property. Individual 'top_separator' access is not available."
-        )
+        raise AttributeError("ZFoldMonoLayer uses unified 'separator' property. Individual 'top_separator' access is not available.")
 
     @property
     def bottom_separator_overhang_bottom(self) -> None:
         """Individual overhang access disabled. Use 'separator_overhang_bottom' property instead."""
-        raise AttributeError(
-            "ZFoldMonoLayer uses unified 'separator_overhang_bottom' property. Individual 'bottom_separator_overhang_bottom' access is not available."
-        )
+        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_bottom' property. Individual 'bottom_separator_overhang_bottom' access is not available.")
 
     @property
     def bottom_separator_overhang_top(self) -> None:
         """Individual overhang access disabled. Use 'separator_overhang_top' property instead."""
-        raise AttributeError(
-            "ZFoldMonoLayer uses unified 'separator_overhang_top' property. Individual 'bottom_separator_overhang_top' access is not available."
-        )
+        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_top' property. Individual 'bottom_separator_overhang_top' access is not available.")
 
     @property
     def bottom_separator_overhang_left(self) -> None:
         """Individual overhang access disabled. Use 'separator_overhang_left' property instead."""
-        raise AttributeError(
-            "ZFoldMonoLayer uses unified 'separator_overhang_left' property. Individual 'bottom_separator_overhang_left' access is not available."
-        )
+        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_left' property. Individual 'bottom_separator_overhang_left' access is not available.")
 
     @property
     def bottom_separator_overhang_right(self) -> None:
         """Individual overhang access disabled. Use 'separator_overhang_right' property instead."""
-        raise AttributeError(
-            "ZFoldMonoLayer uses unified 'separator_overhang_right' property. Individual 'bottom_separator_overhang_right' access is not available."
-        )
+        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_right' property. Individual 'bottom_separator_overhang_right' access is not available.")
 
     @property
     def top_separator_overhang_bottom(self) -> None:
         """Individual overhang access disabled. Use 'separator_overhang_bottom' property instead."""
-        raise AttributeError(
-            "ZFoldMonoLayer uses unified 'separator_overhang_bottom' property. Individual 'top_separator_overhang_bottom' access is not available."
-        )
+        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_bottom' property. Individual 'top_separator_overhang_bottom' access is not available.")
 
     @property
     def top_separator_overhang_top(self) -> None:
         """Individual overhang access disabled. Use 'separator_overhang_top' property instead."""
-        raise AttributeError(
-            "ZFoldMonoLayer uses unified 'separator_overhang_top' property. Individual 'top_separator_overhang_top' access is not available."
-        )
+        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_top' property. Individual 'top_separator_overhang_top' access is not available.")
 
     @property
     def top_separator_overhang_left(self) -> None:
         """Individual overhang access disabled. Use 'separator_overhang_left' property instead."""
-        raise AttributeError(
-            "ZFoldMonoLayer uses unified 'separator_overhang_left' property. Individual 'top_separator_overhang_left' access is not available."
-        )
+        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_left' property. Individual 'top_separator_overhang_left' access is not available.")
 
     @property
     def top_separator_overhang_right(self) -> None:
         """Individual overhang access disabled. Use 'separator_overhang_right' property instead."""
-        raise AttributeError(
-            "ZFoldMonoLayer uses unified 'separator_overhang_right' property. Individual 'top_separator_overhang_right' access is not available."
-        )
-
-
-
+        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_right' property. Individual 'top_separator_overhang_right' access is not available.")

@@ -41,9 +41,7 @@ class MyCache:
                     "args": str(args),
                     "kwargs": str(sorted(kwargs.items())),
                 }
-                cache_key = hashlib.md5(
-                    json.dumps(key_data, sort_keys=True).encode()
-                ).hexdigest()
+                cache_key = hashlib.md5(json.dumps(key_data, sort_keys=True).encode()).hexdigest()
 
                 # Try to get from cache
                 result = self.cache.get(cache_key)

@@ -38,9 +38,7 @@ def get_slider_config(material, material_config: MaterialConfig):
     """Get slider configuration for a material based on its config."""
 
     # Get the parameter list and their min/max values
-    parameter_list, min_values, max_values = generate_parameters(
-        material, material_config
-    )
+    parameter_list, min_values, max_values = generate_parameters(material, material_config)
 
     # Create and return the slider configuration
     slider_config = create_slider_config(min_values, max_values, parameter_list)
@@ -48,11 +46,7 @@ def get_slider_config(material, material_config: MaterialConfig):
     return slider_config
 
 
-def get_slider_configs_from_material_dict(
-    material_dict: Dict[
-        CathodeMaterial | AnodeMaterial | Binder | ConductiveAdditive, float
-    ]
-):
+def get_slider_configs_from_material_dict(material_dict: Dict[CathodeMaterial | AnodeMaterial | Binder | ConductiveAdditive, float]):
     """Get slider configurations for all materials in the dictionary."""
 
     if not material_dict:
@@ -70,10 +64,7 @@ def get_slider_configs_from_material_dict(
     # Get the material config based on the material type
     material_config = get_material_config(material_type)
 
-    slider_configs = [
-        get_slider_config(material, material_config)
-        for material in material_dict.keys()
-    ]
+    slider_configs = [get_slider_config(material, material_config) for material in material_dict.keys()]
 
     return slider_configs
 
@@ -170,55 +161,23 @@ def get_formulation_response(
     n_conductive = len(formulation.conductive_additives)
 
     # create the dropdown values response
-    active_dropdown_values = [
-        material.name for material in formulation.active_materials.keys()
-    ] + [None] * (n_active_div - n_active)
-    binder_dropdown_values = [
-        material.name for material in formulation.binders.keys()
-    ] + [None] * (n_binder_div - n_binder)
-    conductive_dropdown_values = [
-        material.name for material in formulation.conductive_additives.keys()
-    ] + [None] * (n_conductive_div - n_conductive)
-    dropdown_values_response = (
-        active_dropdown_values + binder_dropdown_values + conductive_dropdown_values
-    )
+    active_dropdown_values = [material.name for material in formulation.active_materials.keys()] + [None] * (n_active_div - n_active)
+    binder_dropdown_values = [material.name for material in formulation.binders.keys()] + [None] * (n_binder_div - n_binder)
+    conductive_dropdown_values = [material.name for material in formulation.conductive_additives.keys()] + [None] * (n_conductive_div - n_conductive)
+    dropdown_values_response = active_dropdown_values + binder_dropdown_values + conductive_dropdown_values
 
     # create the weight fractions response
-    active_weight_fractions = list(formulation.active_materials.values()) + [0] * (
-        n_active_div - n_active
-    )
-    binder_weight_fractions = list(formulation.binders.values()) + [0] * (
-        n_binder_div - n_binder
-    )
-    conductive_weight_fractions = list(formulation.conductive_additives.values()) + [
-        0
-    ] * (n_conductive_div - n_conductive)
-    weight_fractions_response = (
-        active_weight_fractions + binder_weight_fractions + conductive_weight_fractions
-    )
+    active_weight_fractions = list(formulation.active_materials.values()) + [0] * (n_active_div - n_active)
+    binder_weight_fractions = list(formulation.binders.values()) + [0] * (n_binder_div - n_binder)
+    conductive_weight_fractions = list(formulation.conductive_additives.values()) + [0] * (n_conductive_div - n_conductive)
+    weight_fractions_response = active_weight_fractions + binder_weight_fractions + conductive_weight_fractions
 
     # create the slider responses
-    material_config = get_material_config(
-        type(list(formulation.active_materials.keys())[0])
-    )
-    active_slider_configs = get_slider_configs_from_material_dict(
-        formulation.active_materials
-    ) + [get_zero_response_material(material_config)] * (n_active_div - n_active)
-    binder_slider_configs = get_slider_configs_from_material_dict(
-        formulation.binders
-    ) + [get_zero_response_material(MATERIAL_CONFIGS[MaterialType.BINDER])] * (
-        n_binder_div - n_binder
-    )
-    conductive_slider_configs = get_slider_configs_from_material_dict(
-        formulation.conductive_additives
-    ) + [
-        get_zero_response_material(MATERIAL_CONFIGS[MaterialType.CONDUCTIVE_ADDITIVE])
-    ] * (
-        n_conductive_div - n_conductive
-    )
-    flattened_slider_responses = flatten_slider_configs(
-        active_slider_configs, binder_slider_configs, conductive_slider_configs
-    )
+    material_config = get_material_config(type(list(formulation.active_materials.keys())[0]))
+    active_slider_configs = get_slider_configs_from_material_dict(formulation.active_materials) + [get_zero_response_material(material_config)] * (n_active_div - n_active)
+    binder_slider_configs = get_slider_configs_from_material_dict(formulation.binders) + [get_zero_response_material(MATERIAL_CONFIGS[MaterialType.BINDER])] * (n_binder_div - n_binder)
+    conductive_slider_configs = get_slider_configs_from_material_dict(formulation.conductive_additives) + [get_zero_response_material(MATERIAL_CONFIGS[MaterialType.CONDUCTIVE_ADDITIVE])] * (n_conductive_div - n_conductive)
+    flattened_slider_responses = flatten_slider_configs(active_slider_configs, binder_slider_configs, conductive_slider_configs)
 
     return (
         dropdown_values_response,
@@ -239,15 +198,9 @@ def create_no_update_response(
     n_conductive_div = len(conductive_div_styles)
 
     # slideroutputs lengths
-    active_n_response = (
-        len(MATERIAL_CONFIGS[MaterialType.CATHODE_ACTIVE_MATERIAL].parameter_list)
-        if type(formulation) == CathodeFormulation
-        else len(MATERIAL_CONFIGS[MaterialType.ANODE_ACTIVE_MATERIAL].parameter_list)
-    )
+    active_n_response = len(MATERIAL_CONFIGS[MaterialType.CATHODE_ACTIVE_MATERIAL].parameter_list) if type(formulation) == CathodeFormulation else len(MATERIAL_CONFIGS[MaterialType.ANODE_ACTIVE_MATERIAL].parameter_list)
     binder_n_response = len(MATERIAL_CONFIGS[MaterialType.BINDER].parameter_list)
-    conductive_n_response = len(
-        MATERIAL_CONFIGS[MaterialType.CONDUCTIVE_ADDITIVE].parameter_list
-    )
+    conductive_n_response = len(MATERIAL_CONFIGS[MaterialType.CONDUCTIVE_ADDITIVE].parameter_list)
 
     return (
         no_update,
@@ -256,42 +209,12 @@ def create_no_update_response(
         [no_update] * (n_active_div + n_binder_div + n_conductive_div),
         [no_update] * (n_active_div + n_binder_div + n_conductive_div),
         [no_update] * (n_active_div + n_binder_div + n_conductive_div),
-        [no_update]
-        * (
-            n_active_div * active_n_response
-            + n_binder_div * binder_n_response
-            + n_conductive_div * conductive_n_response
-        ),
-        [no_update]
-        * (
-            n_active_div * active_n_response
-            + n_binder_div * binder_n_response
-            + n_conductive_div * conductive_n_response
-        ),
-        [no_update]
-        * (
-            n_active_div * active_n_response
-            + n_binder_div * binder_n_response
-            + n_conductive_div * conductive_n_response
-        ),
-        [no_update]
-        * (
-            n_active_div * active_n_response
-            + n_binder_div * binder_n_response
-            + n_conductive_div * conductive_n_response
-        ),
-        [no_update]
-        * (
-            n_active_div * active_n_response
-            + n_binder_div * binder_n_response
-            + n_conductive_div * conductive_n_response
-        ),
-        [no_update]
-        * (
-            n_active_div * active_n_response
-            + n_binder_div * binder_n_response
-            + n_conductive_div * conductive_n_response
-        ),
+        [no_update] * (n_active_div * active_n_response + n_binder_div * binder_n_response + n_conductive_div * conductive_n_response),
+        [no_update] * (n_active_div * active_n_response + n_binder_div * binder_n_response + n_conductive_div * conductive_n_response),
+        [no_update] * (n_active_div * active_n_response + n_binder_div * binder_n_response + n_conductive_div * conductive_n_response),
+        [no_update] * (n_active_div * active_n_response + n_binder_div * binder_n_response + n_conductive_div * conductive_n_response),
+        [no_update] * (n_active_div * active_n_response + n_binder_div * binder_n_response + n_conductive_div * conductive_n_response),
+        [no_update] * (n_active_div * active_n_response + n_binder_div * binder_n_response + n_conductive_div * conductive_n_response),
     )
 
 
@@ -315,34 +238,24 @@ def replace_material_key_by_index(materials_dict: Dict, index: int, new_material
     return materials_dict
 
 
-def update_formulation_material_at_index(
-    formulation, category: str, index: int, new_material
-):
+def update_formulation_material_at_index(formulation, category: str, index: int, new_material):
     """Update specific material in formulation by index"""
     if category == "active_material":
         active_materials_dict = deepcopy(formulation.active_materials)
-        new_active_materials_dict = replace_material_key_by_index(
-            active_materials_dict, index, new_material
-        )
+        new_active_materials_dict = replace_material_key_by_index(active_materials_dict, index, new_material)
         formulation.active_materials = new_active_materials_dict
     elif category == "binder":
         binder_materials_dict = deepcopy(formulation.binders)
-        new_binder_materials = replace_material_key_by_index(
-            binder_materials_dict, index, new_material
-        )
+        new_binder_materials = replace_material_key_by_index(binder_materials_dict, index, new_material)
         formulation.binders = new_binder_materials
     elif category == "conductive_additive":
         conductive_additives_dict = deepcopy(formulation.conductive_additives)
-        new_conductive_additives = replace_material_key_by_index(
-            conductive_additives_dict, index, new_material
-        )
+        new_conductive_additives = replace_material_key_by_index(conductive_additives_dict, index, new_material)
         formulation.conductive_additives = new_conductive_additives
     return formulation
 
 
-def update_formulation_weight_fraction_at_index(
-    formulation, category: str, index: int, new_weight_fraction: float
-):
+def update_formulation_weight_fraction_at_index(formulation, category: str, index: int, new_weight_fraction: float):
     """Update specific material weight fraction in formulation by index"""
     if category == "active_material":
         active_materials_dict = deepcopy(formulation.active_materials)
@@ -412,24 +325,16 @@ def handle_cell_store_update_materials(
     div_style_response = active_div_styles + binder_div_styles + conductive_div_styles
 
     # create the dropdown options response
-    active_dropdown_options = [
-        cathode_active_options
-        if type(formulation) == CathodeFormulation
-        else anode_active_options
-    ] * n_active_div
+    active_dropdown_options = [cathode_active_options if type(formulation) == CathodeFormulation else anode_active_options] * n_active_div
     binder_dropdown_options = [BINDER_MATERIALS] * n_binder_div
     conductive_dropdown_options = [CONDUCTIVE_ADDITIVE_MATERIALS] * n_conductive_div
-    dropdown_options_response = (
-        active_dropdown_options + binder_dropdown_options + conductive_dropdown_options
-    )
+    dropdown_options_response = active_dropdown_options + binder_dropdown_options + conductive_dropdown_options
 
     (
         dropdown_values_response,
         weight_fractions_response,
         flattened_slider_responses,
-    ) = get_formulation_response(
-        formulation, n_active_div, n_binder_div, n_conductive_div
-    )
+    ) = get_formulation_response(formulation, n_active_div, n_binder_div, n_conductive_div)
 
     return (
         no_update,
@@ -456,9 +361,7 @@ def handle_add_material_div(
     # get the number of visible divs in each category
     n_active = sum(1 for style in active_div_styles if style.get("display") != "none")
     n_binder = sum(1 for style in binder_div_styles if style.get("display") != "none")
-    n_conductive = sum(
-        1 for style in conductive_div_styles if style.get("display") != "none"
-    )
+    n_conductive = sum(1 for style in conductive_div_styles if style.get("display") != "none")
 
     # get the button action type and the material category
     material_category = trigger_id.get("material")
@@ -466,32 +369,16 @@ def handle_add_material_div(
     # if add button then make one more div visible
     if material_category == "active_material":
         update_div_visibility(active_div_styles, n_active + 1)
-        div_response = (
-            active_div_styles
-            + [no_update] * n_binder_div
-            + [no_update] * n_conductive_div
-        )
+        div_response = active_div_styles + [no_update] * n_binder_div + [no_update] * n_conductive_div
     elif material_category == "binder":
         update_div_visibility(binder_div_styles, n_binder + 1)
-        div_response = (
-            [no_update] * n_active_div
-            + binder_div_styles
-            + [no_update] * n_conductive_div
-        )
+        div_response = [no_update] * n_active_div + binder_div_styles + [no_update] * n_conductive_div
     elif material_category == "conductive_additive":
         update_div_visibility(conductive_div_styles, n_conductive + 1)
-        div_response = (
-            [no_update] * n_active_div
-            + [no_update] * n_binder_div
-            + conductive_div_styles
-        )
+        div_response = [no_update] * n_active_div + [no_update] * n_binder_div + conductive_div_styles
 
     # create a default no update response
-    default_response = list(
-        create_no_update_response(
-            formulation, active_div_styles, binder_div_styles, conductive_div_styles
-        )
-    )
+    default_response = list(create_no_update_response(formulation, active_div_styles, binder_div_styles, conductive_div_styles))
 
     # modify the style response in the default response
     default_response[2] = div_response
@@ -518,80 +405,38 @@ def handle_remove_material(
     # get the number of visible divs in each category
     n_active = sum(1 for style in active_div_styles if style.get("display") != "none")
     n_binder = sum(1 for style in binder_div_styles if style.get("display") != "none")
-    n_conductive = sum(
-        1 for style in conductive_div_styles if style.get("display") != "none"
-    )
+    n_conductive = sum(1 for style in conductive_div_styles if style.get("display") != "none")
 
     # get the button action type and the material category
     material_category = trigger_id.get("material")
 
     # if remove button and more than one div visible then make one less div visible
-    if (
-        material_category == "active_material"
-        and n_active > 1
-        and (n_active - 1) >= len(formulation.active_materials)
-    ):
+    if material_category == "active_material" and n_active > 1 and (n_active - 1) >= len(formulation.active_materials):
         update_div_visibility(active_div_styles, n_active - 1)
-        div_response = (
-            active_div_styles
-            + [no_update] * n_binder_div
-            + [no_update] * n_conductive_div
-        )
-        default_response = list(
-            create_no_update_response(
-                formulation, active_div_styles, binder_div_styles, conductive_div_styles
-            )
-        )
+        div_response = active_div_styles + [no_update] * n_binder_div + [no_update] * n_conductive_div
+        default_response = list(create_no_update_response(formulation, active_div_styles, binder_div_styles, conductive_div_styles))
         default_response[2] = div_response
         return tuple(default_response)
 
-    elif (
-        material_category == "binder"
-        and n_binder > 0
-        and (n_binder - 1) >= len(formulation.binders)
-    ):
+    elif material_category == "binder" and n_binder > 0 and (n_binder - 1) >= len(formulation.binders):
         update_div_visibility(binder_div_styles, n_binder - 1)
-        div_response = (
-            [no_update] * n_active_div
-            + binder_div_styles
-            + [no_update] * n_conductive_div
-        )
-        default_response = list(
-            create_no_update_response(
-                formulation, active_div_styles, binder_div_styles, conductive_div_styles
-            )
-        )
+        div_response = [no_update] * n_active_div + binder_div_styles + [no_update] * n_conductive_div
+        default_response = list(create_no_update_response(formulation, active_div_styles, binder_div_styles, conductive_div_styles))
         default_response[2] = div_response
         return tuple(default_response)
 
-    elif (
-        material_category == "conductive_additive"
-        and n_conductive > 0
-        and (n_conductive - 1) >= len(formulation.conductive_additives)
-    ):
+    elif material_category == "conductive_additive" and n_conductive > 0 and (n_conductive - 1) >= len(formulation.conductive_additives):
         update_div_visibility(conductive_div_styles, n_conductive - 1)
-        div_response = (
-            [no_update] * n_active_div
-            + [no_update] * n_binder_div
-            + conductive_div_styles
-        )
-        default_response = list(
-            create_no_update_response(
-                formulation, active_div_styles, binder_div_styles, conductive_div_styles
-            )
-        )
+        div_response = [no_update] * n_active_div + [no_update] * n_binder_div + conductive_div_styles
+        default_response = list(create_no_update_response(formulation, active_div_styles, binder_div_styles, conductive_div_styles))
         default_response[2] = div_response
         return tuple(default_response)
 
     # If user trying to remove the last material in a category, return no update
     elif material_category == "active_material" and n_active == 1:
-        return create_no_update_response(
-            formulation, active_div_styles, binder_div_styles, conductive_div_styles
-        )
+        return create_no_update_response(formulation, active_div_styles, binder_div_styles, conductive_div_styles)
 
-    elif material_category == "active_material" and n_active == len(
-        formulation.active_materials
-    ):
+    elif material_category == "active_material" and n_active == len(formulation.active_materials):
         # remove the last active material from the formulation
         active_materials = deepcopy(formulation.active_materials)
         material_to_remove = list(active_materials.keys())[-1]
@@ -599,9 +444,7 @@ def handle_remove_material(
 
         # reassign the formulation active materials
         source = f"{formulation_config.__class__.__name__}_{material_category}"
-        with capture_warnings(
-            existing_warnings, source=source, clear_source_warnings=True
-        ) as warnings_list:
+        with capture_warnings(existing_warnings, source=source, clear_source_warnings=True) as warnings_list:
             formulation.active_materials = active_materials
 
         # assign the formulation back to the cell
@@ -612,20 +455,14 @@ def handle_remove_material(
 
         # make one less div visible
         update_div_visibility(active_div_styles, n_active - 1)
-        div_response = (
-            active_div_styles
-            + [no_update] * n_binder_div
-            + [no_update] * n_conductive_div
-        )
+        div_response = active_div_styles + [no_update] * n_binder_div + [no_update] * n_conductive_div
 
         # get the updated formulation response
         (
             dropdown_values_response,
             weight_fractions_response,
             flattened_slider_responses,
-        ) = get_formulation_response(
-            formulation, n_active_div, n_binder_div, n_conductive_div
-        )
+        ) = get_formulation_response(formulation, n_active_div, n_binder_div, n_conductive_div)
 
     elif material_category == "binder" and n_binder == len(formulation.binders):
         # remove the last binder from the formulation
@@ -635,9 +472,7 @@ def handle_remove_material(
 
         # reassign the formulation binders
         source = f"{formulation_config.__class__.__name__}_{material_category}"
-        with capture_warnings(
-            existing_warnings, source=source, clear_source_warnings=True
-        ) as warnings_list:
+        with capture_warnings(existing_warnings, source=source, clear_source_warnings=True) as warnings_list:
             formulation.binders = binders
 
         # assign the formulation back to the cell
@@ -648,24 +483,16 @@ def handle_remove_material(
 
         # make one less div visible
         update_div_visibility(binder_div_styles, n_binder - 1)
-        div_response = (
-            [no_update] * n_active_div
-            + binder_div_styles
-            + [no_update] * n_conductive_div
-        )
+        div_response = [no_update] * n_active_div + binder_div_styles + [no_update] * n_conductive_div
 
         # get the updated formulation response
         (
             dropdown_values_response,
             weight_fractions_response,
             flattened_slider_responses,
-        ) = get_formulation_response(
-            formulation, n_active_div, n_binder_div, n_conductive_div
-        )
+        ) = get_formulation_response(formulation, n_active_div, n_binder_div, n_conductive_div)
 
-    elif material_category == "conductive_additive" and n_conductive == len(
-        formulation.conductive_additives
-    ):
+    elif material_category == "conductive_additive" and n_conductive == len(formulation.conductive_additives):
         # remove the last conductive additive from the formulation
         conductive_additives = deepcopy(formulation.conductive_additives)
         material_to_remove = list(conductive_additives.keys())[-1]
@@ -673,9 +500,7 @@ def handle_remove_material(
 
         # reassign the formulation conductive additives
         source = f"{formulation_config.__class__.__name__}_{material_category}"
-        with capture_warnings(
-            existing_warnings, source=source, clear_source_warnings=True
-        ) as warnings_list:
+        with capture_warnings(existing_warnings, source=source, clear_source_warnings=True) as warnings_list:
             formulation.conductive_additives = conductive_additives
 
         # assign the formulation back to the cell
@@ -686,20 +511,14 @@ def handle_remove_material(
 
         # make one less div visible
         update_div_visibility(conductive_div_styles, n_conductive - 1)
-        div_response = (
-            [no_update] * n_active_div
-            + [no_update] * n_binder_div
-            + conductive_div_styles
-        )
+        div_response = [no_update] * n_active_div + [no_update] * n_binder_div + conductive_div_styles
 
         # get the updated formulation response
         (
             dropdown_values_response,
             weight_fractions_response,
             flattened_slider_responses,
-        ) = get_formulation_response(
-            formulation, n_active_div, n_binder_div, n_conductive_div
-        )
+        ) = get_formulation_response(formulation, n_active_div, n_binder_div, n_conductive_div)
 
     return (
         warnings_list,
@@ -766,11 +585,7 @@ def handle_indexed_dropdown_update(
     # get new material
     if triggered_category == "active_material":
         material_name = active_dropdown_values[triggered_index]
-        new_material = (
-            CathodeMaterial.from_database(material_name)
-            if formulation_config.formulation_type == CathodeFormulation
-            else AnodeMaterial.from_database(material_name)
-        )
+        new_material = CathodeMaterial.from_database(material_name) if formulation_config.formulation_type == CathodeFormulation else AnodeMaterial.from_database(material_name)
     elif triggered_category == "binder":
         material_name = binder_dropdown_values[triggered_index]
         new_material = Binder.from_database(material_name)
@@ -779,13 +594,9 @@ def handle_indexed_dropdown_update(
         new_material = ConductiveAdditive.from_database(material_name)
 
     source = f"{formulation_config.__class__.__name__}"
-    with capture_warnings(
-        existing_warnings, source=source, clear_source_warnings=True
-    ) as warnings_list:
+    with capture_warnings(existing_warnings, source=source, clear_source_warnings=True) as warnings_list:
         # get a new formulation with the updated material
-        new_formulation = update_formulation_material_at_index(
-            formulation, triggered_category, triggered_index, new_material
-        )
+        new_formulation = update_formulation_material_at_index(formulation, triggered_category, triggered_index, new_material)
 
         # assign the formulation back to the cell
         new_cell = set_object_to_cell(cell, new_formulation, formulation_config)
@@ -802,9 +613,7 @@ def handle_indexed_dropdown_update(
         dropdown_values_response,
         weight_fractions_response,
         flattened_slider_responses,
-    ) = get_formulation_response(
-        new_formulation, n_active_div, n_binder_div, n_conductive_div
-    )
+    ) = get_formulation_response(new_formulation, n_active_div, n_binder_div, n_conductive_div)
 
     return (
         existing_warnings,
@@ -842,13 +651,9 @@ def handle_weight_fraction_update(
         new_weight_fraction = conductive_weight_fractions[triggered_index]
 
     source = f"{formulation_config.__class__.__name__}"
-    with capture_warnings(
-        existing_warnings, source=source, clear_source_warnings=True
-    ) as warnings_list:
+    with capture_warnings(existing_warnings, source=source, clear_source_warnings=True) as warnings_list:
         # get a new formulation with the updated weight fraction
-        new_formulation = update_formulation_weight_fraction_at_index(
-            formulation, triggered_category, triggered_index, new_weight_fraction
-        )
+        new_formulation = update_formulation_weight_fraction_at_index(formulation, triggered_category, triggered_index, new_weight_fraction)
 
         # assign the formulation back to the cell
         new_cell = set_object_to_cell(cell, new_formulation, formulation_config)
@@ -857,11 +662,7 @@ def handle_weight_fraction_update(
     new_key = set_cell_to_cache(new_cell)
 
     # get basic no response values
-    response = list(
-        create_no_update_response(
-            formulation, active_div_styles, binder_div_styles, conductive_div_styles
-        )
-    )
+    response = list(create_no_update_response(formulation, active_div_styles, binder_div_styles, conductive_div_styles))
 
     # update the warnings response
     response[0] = warnings_list
@@ -897,34 +698,22 @@ def handle_material_property_update(
         material = list(formulation.active_materials.keys())[triggered_index]
         material_config = get_material_config(type(material))
         param_len = len(material_config.parameter_list)
-        slider_values = active_slider_values[
-            triggered_index * param_len : (triggered_index + 1) * param_len
-        ]
-        input_values = active_input_values[
-            triggered_index * param_len : (triggered_index + 1) * param_len
-        ]
+        slider_values = active_slider_values[triggered_index * param_len : (triggered_index + 1) * param_len]
+        input_values = active_input_values[triggered_index * param_len : (triggered_index + 1) * param_len]
 
     elif triggered_category == "binder":
         material = list(formulation.binders.keys())[triggered_index]
         material_config = MATERIAL_CONFIGS[MaterialType.BINDER]
         param_len = len(material_config.parameter_list)
-        slider_values = binder_slider_values[
-            triggered_index * param_len : (triggered_index + 1) * param_len
-        ]
-        input_values = binder_input_values[
-            triggered_index * param_len : (triggered_index + 1) * param_len
-        ]
+        slider_values = binder_slider_values[triggered_index * param_len : (triggered_index + 1) * param_len]
+        input_values = binder_input_values[triggered_index * param_len : (triggered_index + 1) * param_len]
 
     elif triggered_category == "conductive_additive":
         material = list(formulation.conductive_additives.keys())[triggered_index]
         material_config = MATERIAL_CONFIGS[MaterialType.CONDUCTIVE_ADDITIVE]
         param_len = len(material_config.parameter_list)
-        slider_values = conductive_slider_values[
-            triggered_index * param_len : (triggered_index + 1) * param_len
-        ]
-        input_values = conductive_input_values[
-            triggered_index * param_len : (triggered_index + 1) * param_len
-        ]
+        slider_values = conductive_slider_values[triggered_index * param_len : (triggered_index + 1) * param_len]
+        input_values = conductive_input_values[triggered_index * param_len : (triggered_index + 1) * param_len]
 
     # determine the subtype from the triggered ID
     subtype = SubType(trigger_id["subtype"])
@@ -933,15 +722,11 @@ def handle_material_property_update(
     property_name = trigger_id["property"]
 
     # determine the value from the inputs and the subtype
-    value = determine_value(
-        material_config, subtype, property_name, input_values, slider_values
-    )
+    value = determine_value(material_config, subtype, property_name, input_values, slider_values)
 
     # set the property on the material
     source = f"{formulation_config.__class__.__name__}"
-    with capture_warnings(
-        existing_warnings, source=source, clear_source_warnings=True
-    ) as warnings_list:
+    with capture_warnings(existing_warnings, source=source, clear_source_warnings=True) as warnings_list:
         # set the property on the material
         setattr(material, property_name, value)
 
@@ -960,11 +745,7 @@ def handle_material_property_update(
         new_key = set_cell_to_cache(new_cell)
 
     # get the basic response
-    response = list(
-        create_no_update_response(
-            formulation, active_div_styles, binder_div_styles, conductive_div_styles
-        )
-    )
+    response = list(create_no_update_response(formulation, active_div_styles, binder_div_styles, conductive_div_styles))
 
     # update the warnings response
     response[0] = warnings_list
@@ -973,8 +754,6 @@ def handle_material_property_update(
     response[1] = {"cache_key": new_key}
 
     if subtype == SubType.INPUT:
-        response[6] = (
-            active_input_values + binder_input_values + conductive_input_values
-        )
+        response[6] = active_input_values + binder_input_values + conductive_input_values
 
     return response

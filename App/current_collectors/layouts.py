@@ -20,10 +20,7 @@ cathode_current_collector_material_parameters = ds.html.Div(
             id="cathode_current_collector_material_selector",
             placeholder="Select Cathode Current Collector Material",
             style={"width": "calc(50%)"},
-            options=[
-                {"label": material, "value": material}
-                for material in CURRENT_COLLECTOR_MATERIALS
-            ],
+            options=[{"label": material, "value": material} for material in CURRENT_COLLECTOR_MATERIALS],
         ),
         ds.html.Br(),
         SliderWithTextInput(
@@ -49,10 +46,7 @@ cathode_current_collector_design_parameters = ds.html.Div(
             id="cathode_current_collector_design",
             placeholder="Select Cathode Current Collector Design",
             style={"width": "calc(50%)"},
-            options=[
-                {"label": design, "value": design.lower()}
-                for design in CURRENT_COLLECTOR_DESIGNS
-            ],
+            options=[{"label": design, "value": design.lower()} for design in CURRENT_COLLECTOR_DESIGNS],
         ),
         ds.html.Br(),
         ds.html.Br(),
@@ -299,10 +293,7 @@ cathode_tabbed_design_parameters = ds.html.Div(
             id="cathode_current_collector_tab_material_selector",
             placeholder="Select Cathode Current Collector Material",
             style={"width": "calc(50%)"},
-            options=[
-                {"label": material, "value": material}
-                for material in CURRENT_COLLECTOR_MATERIALS
-            ],
+            options=[{"label": material, "value": material} for material in CURRENT_COLLECTOR_MATERIALS],
         ),
         ds.html.Br(),
         SliderWithTextInput(
@@ -347,9 +338,7 @@ cathode_tabbed_design_parameters = ds.html.Div(
         ),
         ds.html.Br(),
         ds.html.Br(),
-        ds.html.P(
-            'Tab Positions Relative to Start of Tape (mm). Enter positions as a comma-separated list (e.g., "0, 100, 200")'
-        ),
+        ds.html.P('Tab Positions Relative to Start of Tape (mm). Enter positions as a comma-separated list (e.g., "0, 100, 200")'),
         ds.dcc.Input(
             id={
                 "electrode": "cathode",
@@ -473,10 +462,7 @@ anode_current_collector_material_parameters = ds.html.Div(
             id="anode_current_collector_material_selector",
             placeholder="Select Anode Current Collector Material",
             style={"width": "calc(50%)"},
-            options=[
-                {"label": material, "value": material}
-                for material in CURRENT_COLLECTOR_MATERIALS
-            ],
+            options=[{"label": material, "value": material} for material in CURRENT_COLLECTOR_MATERIALS],
         ),
         ds.html.Br(),
         SliderWithTextInput(
@@ -502,10 +488,7 @@ anode_current_collector_design_parameters = ds.html.Div(
             id="anode_current_collector_design",
             placeholder="Select Anode Current Collector Design",
             style={"width": "calc(50%)"},
-            options=[
-                {"label": design, "value": design.lower()}
-                for design in CURRENT_COLLECTOR_DESIGNS
-            ],
+            options=[{"label": design, "value": design.lower()} for design in CURRENT_COLLECTOR_DESIGNS],
         ),
         ds.html.Br(),
         ds.html.Br(),
@@ -752,10 +735,7 @@ anode_tabbed_design_parameters = ds.html.Div(
             id="anode_current_collector_tab_material_selector",
             placeholder="Select Anode Current Collector Material",
             style={"width": "calc(50%)"},
-            options=[
-                {"label": material, "value": material}
-                for material in CURRENT_COLLECTOR_MATERIALS
-            ],
+            options=[{"label": material, "value": material} for material in CURRENT_COLLECTOR_MATERIALS],
         ),
         ds.html.Br(),
         SliderWithTextInput(
@@ -800,9 +780,7 @@ anode_tabbed_design_parameters = ds.html.Div(
         ),
         ds.html.Br(),
         ds.html.Br(),
-        ds.html.P(
-            'Tab Positions Relative to Start of Tape (mm). Enter positions as a comma-separated list (e.g., "0, 100, 200")'
-        ),
+        ds.html.P('Tab Positions Relative to Start of Tape (mm). Enter positions as a comma-separated list (e.g., "0, 100, 200")'),
         ds.dcc.Input(
             id={
                 "electrode": "anode",

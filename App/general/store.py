@@ -16,8 +16,6 @@ cell_store = ds.dcc.Store(id="cell_store", data={"cache_key": None})
 
 warnings_store = ds.dcc.Store(id="warnings_store", data=[])
 
-cathode_active_material_store = ds.dcc.Store(
-    id="cathode_active_material_store", data=[]
-)
+cathode_active_material_store = ds.dcc.Store(id="cathode_active_material_store", data=[])
 
 anode_active_material_store = ds.dcc.Store(id="anode_active_material_store", data=[])

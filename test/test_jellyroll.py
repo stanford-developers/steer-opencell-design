@@ -253,9 +253,7 @@ class TestCylindricalJellyRoll(unittest.TestCase):
         """
         self.assertEqual(round(self.cylindrical_jelly_roll._mandrel_diameter, 4), 0.005)
         self.assertEqual(self.cylindrical_jelly_roll.mandrel_diameter, 5)
-        self.assertEqual(
-            round(self.cylindrical_jelly_roll._electrode_thickness, 5), 0.00042
-        )
+        self.assertEqual(round(self.cylindrical_jelly_roll._electrode_thickness, 5), 0.00042)
         self.assertEqual(self.cylindrical_jelly_roll.electrode_thickness, 0.42)
         self.assertEqual(self.cylindrical_jelly_roll.n_turns, 42.3)
         self.assertEqual(self.cylindrical_jelly_roll.radius, 20.39)

@@ -35,13 +35,9 @@ from enum import Enum
 class ElectrodeControlMode(Enum):
     """Control modes for electrode property interdependencies."""
 
-    MAINTAIN_CALENDER_DENSITY = (
-        "maintain_calender_density"  # Keep calender density constant (current behavior)
-    )
+    MAINTAIN_CALENDER_DENSITY = "maintain_calender_density"  # Keep calender density constant (current behavior)
     MAINTAIN_MASS_LOADING = "maintain_mass_loading"  # Keep mass loading constant
-    MAINTAIN_COATING_THICKNESS = (
-        "maintain_coating_thickness"  # Keep coating thickness constant
-    )
+    MAINTAIN_COATING_THICKNESS = "maintain_coating_thickness"  # Keep coating thickness constant
 
 
 class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin):
@@ -163,26 +159,18 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
     @control_mode.setter
     def control_mode(self, mode: ElectrodeControlMode):
         if not isinstance(mode, ElectrodeControlMode):
-            raise ValueError(
-                f"Mode must be an ElectrodeControlMode enum, got {type(mode)}"
-            )
+            raise ValueError(f"Mode must be an ElectrodeControlMode enum, got {type(mode)}")
         self._control_mode = mode
 
-    def _calculate_mass_loading(
-        self, calender_density: float, coating_thickness: float
-    ) -> None:
+    def _calculate_mass_loading(self, calender_density: float, coating_thickness: float) -> None:
         _calender_density = calender_density * (G_TO_KG / CM_TO_M**3)
         _coating_thickness = coating_thickness * UM_TO_M
         self._mass_loading = _calender_density * _coating_thickness
 
-    def _calculate_coating_thickness(
-        self, _mass_loading: float, _calender_density: float
-    ) -> None:
+    def _calculate_coating_thickness(self, _mass_loading: float, _calender_density: float) -> None:
         self._coating_thickness = _mass_loading / _calender_density
 
-    def _calculate_calender_density(
-        self, mass_loading: float, coating_thickness: float
-    ) -> None:
+    def _calculate_calender_density(self, mass_loading: float, coating_thickness: float) -> None:
         _mass_loading = mass_loading * (MG_TO_KG / CM_TO_M**2)
         _coating_thickness = coating_thickness * UM_TO_M
         self._calender_density = _mass_loading / _coating_thickness
@@ -222,18 +210,12 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
             side_multiplier = 1 if side == "a" else -1
 
             # Calculate coating coordinates
-            coating_coordinates = getattr(
-                self._current_collector, f"_{side}_side_coated_coordinates"
-            )
+            coating_coordinates = getattr(self._current_collector, f"_{side}_side_coated_coordinates")
 
             coating_datum = (
                 self._current_collector._datum[0],
                 self._current_collector._datum[1],
-                self._current_collector._datum[2]
-                + side_multiplier
-                * (
-                    self._current_collector._thickness / 2 + self._coating_thickness / 2
-                ),
+                self._current_collector._datum[2] + side_multiplier * (self._current_collector._thickness / 2 + self._coating_thickness / 2),
             )
 
             x, y, z, _ = self.extrude_footprint(
@@ -243,21 +225,11 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
                 self._coating_thickness,
             )
 
-            setattr(
-                self, f"_{side}_side_coating_coordinates", np.column_stack([x, y, z])
-            )
+            setattr(self, f"_{side}_side_coating_coordinates", np.column_stack([x, y, z]))
 
-            if (
-                hasattr(self._current_collector, f"_{side}_side_insulation_coordinates")
-                and getattr(
-                    self._current_collector, f"_{side}_side_insulation_coordinates"
-                )
-                is not None
-            ):
+            if hasattr(self._current_collector, f"_{side}_side_insulation_coordinates") and getattr(self._current_collector, f"_{side}_side_insulation_coordinates") is not None:
                 # Calculate insulation coordinates
-                insulation_coordinates = getattr(
-                    self._current_collector, f"_{side}_side_insulation_coordinates"
-                )
+                insulation_coordinates = getattr(self._current_collector, f"_{side}_side_insulation_coordinates")
 
                 x, y, z, _ = self.extrude_footprint(
                     insulation_coordinates[:, 0],
@@ -292,23 +264,13 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
 
         # calculate the mass breakdown
         self._mass_breakdown = {
-            self._formulation.name: {
-                k: float(v * self._minimum_coating_volume)
-                for k, v in self._formulation._density_breakdown.items()
-            },
+            self._formulation.name: {k: float(v * self._minimum_coating_volume) for k, v in self._formulation._density_breakdown.items()},
             self._current_collector.name: self._current_collector._mass,
         }
 
         # insulation mass
-        if (
-            hasattr(self, "_insulation_material")
-            and self._insulation_material is not None
-        ):
-            _insulator_mass = (
-                self._current_collector._insulation_area
-                * self._insulation_material._density
-                * self._insulation_thickness
-            )
+        if hasattr(self, "_insulation_material") and self._insulation_material is not None:
+            _insulator_mass = self._current_collector._insulation_area * self._insulation_material._density * self._insulation_thickness
             self._mass += _insulator_mass
             self._mass_breakdown[self._insulation_material.name] = _insulator_mass
 
@@ -326,23 +288,13 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
 
         # calculate the cost breakdown
         self._cost_breakdown = {
-            self._formulation.name: {
-                k: float(v * self._coating_mass)
-                for k, v in self._formulation._specific_cost_breakdown.items()
-            },
+            self._formulation.name: {k: float(v * self._coating_mass) for k, v in self._formulation._specific_cost_breakdown.items()},
             self._current_collector.name: self._current_collector._cost,
         }
 
         # insulation cost
-        if (
-            hasattr(self, "_insulation_material")
-            and self._insulation_material is not None
-        ):
-            _insulator_cost = (
-                self._current_collector._insulation_area
-                * self._insulation_material._specific_cost
-                * self._insulation_thickness
-            )
+        if hasattr(self, "_insulation_material") and self._insulation_material is not None:
+            _insulator_cost = self._current_collector._insulation_area * self._insulation_material._specific_cost * self._insulation_thickness
             self._cost += _insulator_cost
             self._cost_breakdown[self._insulation_material.name] = _insulator_cost
 
@@ -352,18 +304,12 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
         """
         Calculate the thickness properties of the electrode.
         """
-        self._coating_volume = (
-            self._current_collector._coated_area * self._coating_thickness
-        )
-        self._thickness = (
-            self._coating_thickness * 2 + self._current_collector._thickness
-        )
+        self._coating_volume = self._current_collector._coated_area * self._coating_thickness
+        self._thickness = self._coating_thickness * 2 + self._current_collector._thickness
         self._pore_volume = self._coating_volume * self._porosity
 
         _minimum_coating_thickness = self._mass_loading / self._formulation._density
-        self._minimum_coating_volume = (
-            _minimum_coating_thickness * self._current_collector._coated_area
-        )
+        self._minimum_coating_volume = _minimum_coating_thickness * self._current_collector._coated_area
 
         if self._coating_thickness < _minimum_coating_thickness:
             warnings.warn(
@@ -395,11 +341,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
         Helper method to get a top-down view of the electrode.
         """
         figure = self._current_collector._get_full_top_down_view(**kwargs)
-        figure.data = [
-            trace
-            for trace in figure.data
-            if trace.name == "Body" or trace.name == "Tab"
-        ]
+        figure.data = [trace for trace in figure.data if trace.name == "Body" or trace.name == "Tab"]
         figure.add_trace(self.top_down_coating_trace)
 
         # Only add insulation trace if it exists and is not None
@@ -411,23 +353,13 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
 
     def _get_full_right_left_view(self, **kwargs) -> pd.DataFrame:
         figure = self._current_collector.get_right_left_view(**kwargs)
-        figure.data = [
-            trace
-            for trace in figure.data
-            if trace.name == "Body" or trace.name == "Tab"
-        ]
+        figure.data = [trace for trace in figure.data if trace.name == "Body" or trace.name == "Tab"]
         figure.add_trace(self.right_left_a_side_coating_trace)
         figure.add_trace(self.right_left_b_side_coating_trace)
 
-        if (
-            hasattr(self, "_insulation_material")
-            and self._insulation_material is not None
-        ):
+        if hasattr(self, "_insulation_material") and self._insulation_material is not None:
             figure.add_trace(self.right_left_a_side_insulation_trace)
-        if (
-            hasattr(self, "_insulation_material")
-            and self._insulation_material is not None
-        ):
+        if hasattr(self, "_insulation_material") and self._insulation_material is not None:
             figure.add_trace(self.right_left_b_side_insulation_trace)
 
         return figure
@@ -480,11 +412,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
 
     def get_top_down_view(self, **kwargs) -> go.Figure:
         figure = self.current_collector.get_top_down_view(**kwargs)
-        figure.data = [
-            trace
-            for trace in figure.data
-            if trace.name == "Body" or trace.name == "Tab"
-        ]
+        figure.data = [trace for trace in figure.data if trace.name == "Body" or trace.name == "Tab"]
 
         # Get the traces to add
         coating_trace = self.top_down_coating_trace
@@ -586,9 +514,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
         Get the coordinates of the a side insulated area.
         """
         # get the coordinates
-        a_side_insulation_coordinates = self.order_coordinates_clockwise(
-            self.a_side_insulation_coordinates, plane="yz"
-        )
+        a_side_insulation_coordinates = self.order_coordinates_clockwise(self.a_side_insulation_coordinates, plane="yz")
 
         # make the trace
         a_side_insulation_trace = go.Scatter(
@@ -611,9 +537,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
         Get the coordinates of the b side insulated area.
         """
         # get the coordinates
-        b_side_insulation_coordinates = self.order_coordinates_clockwise(
-            self.b_side_insulation_coordinates, plane="yz"
-        )
+        b_side_insulation_coordinates = self.order_coordinates_clockwise(self.b_side_insulation_coordinates, plane="yz")
 
         # make the trace
         b_side_insulation_trace = go.Scatter(
@@ -636,9 +560,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
         Get the coordinates of the a side coated area.
         """
         # get the coordinates
-        a_side_coating_coordinates = self.order_coordinates_clockwise(
-            self.a_side_coating_coordinates, plane="yz"
-        )
+        a_side_coating_coordinates = self.order_coordinates_clockwise(self.a_side_coating_coordinates, plane="yz")
 
         # make the trace
         a_side_coating_trace = go.Scatter(
@@ -661,9 +583,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
         Get the coordinates of the b side coated area.
         """
         # get the coordinates
-        b_side_coating_coordinates = self.order_coordinates_clockwise(
-            self.b_side_coating_coordinates, plane="yz"
-        )
+        b_side_coating_coordinates = self.order_coordinates_clockwise(self.b_side_coating_coordinates, plane="yz")
 
         # make the trace
         b_side_coating_trace = go.Scatter(
@@ -687,11 +607,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
     @property
     def top_down_coating_trace(self) -> go.Scatter:
         side = self.current_collector.top_side
-        coated_area_coordinates = (
-            self.a_side_coating_coordinates
-            if side == "a"
-            else self.b_side_coating_coordinates
-        )
+        coated_area_coordinates = self.a_side_coating_coordinates if side == "a" else self.b_side_coating_coordinates
 
         # make the coated area trace
         coated_area_trace = go.Scatter(
@@ -715,11 +631,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
             return None
 
         side = self.current_collector.top_side
-        insulation_coordinates = (
-            self.a_side_insulation_coordinates
-            if side == "a"
-            else self.b_side_insulation_coordinates
-        )
+        insulation_coordinates = self.a_side_insulation_coordinates if side == "a" else self.b_side_insulation_coordinates
 
         # make the insulation area trace
         insulation_area_trace = go.Scatter(
@@ -884,14 +796,10 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
                 ],
             )
             .assign(
-                direction=lambda x: np.where(
-                    x["direction"] == 1, "charge", "discharge"
-                ),
-                specific_capacity=lambda x: x["specific_capacity"]
-                * (S_TO_H * A_TO_mA / KG_TO_G),
+                direction=lambda x: np.where(x["direction"] == 1, "charge", "discharge"),
+                specific_capacity=lambda x: x["specific_capacity"] * (S_TO_H * A_TO_mA / KG_TO_G),
                 capacity=lambda x: x["capacity"] * (S_TO_H),
-                areal_capacity=lambda x: x["areal_capacity"]
-                * (S_TO_H * A_TO_mA / M_TO_CM**2),
+                areal_capacity=lambda x: x["areal_capacity"] * (S_TO_H * A_TO_mA / M_TO_CM**2),
             )
             .filter(items=["capacity", "voltage", "direction", "areal_capacity"])
             .rename(
@@ -928,12 +836,8 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
         max_porosity = self.porosity_range[1] / 100
         min_porosity = self.porosity_range[0] / 100
 
-        min_calender_density = (
-            (1 - max_porosity) / self._formulation._specific_volume
-        ) * (KG_TO_G / M_TO_CM**3)
-        max_calender_density = (
-            (1 - min_porosity) / self._formulation._specific_volume
-        ) * (KG_TO_G / M_TO_CM**3)
+        min_calender_density = ((1 - max_porosity) / self._formulation._specific_volume) * (KG_TO_G / M_TO_CM**3)
+        max_calender_density = ((1 - min_porosity) / self._formulation._specific_volume) * (KG_TO_G / M_TO_CM**3)
 
         return (min_calender_density, max_calender_density)
 
@@ -942,12 +846,8 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
         max_porosity = self.porosity_hard_range[1] / 100
         min_porosity = self.porosity_hard_range[0] / 100
 
-        min_calender_density = (
-            (1 - max_porosity) / self._formulation._specific_volume
-        ) * (KG_TO_G / M_TO_CM**3)
-        max_calender_density = (
-            (1 - min_porosity) / self._formulation._specific_volume
-        ) * (KG_TO_G / M_TO_CM**3)
+        min_calender_density = ((1 - max_porosity) / self._formulation._specific_volume) * (KG_TO_G / M_TO_CM**3)
+        max_calender_density = ((1 - min_porosity) / self._formulation._specific_volume) * (KG_TO_G / M_TO_CM**3)
 
         return (min_calender_density, max_calender_density)
 
@@ -956,9 +856,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
         """
         Get the A side insulation coordinates of the current collector.
         """
-        return pd.DataFrame(
-            self._a_side_insulation_coordinates, columns=["x", "y", "z"]
-        ).assign(
+        return pd.DataFrame(self._a_side_insulation_coordinates, columns=["x", "y", "z"]).assign(
             x=lambda x: (x["x"].astype(float) * M_TO_MM).round(10),
             y=lambda x: (x["y"].astype(float) * M_TO_MM).round(10),
             z=lambda x: (x["z"].astype(float) * M_TO_MM).round(10),
@@ -969,9 +867,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
         """
         Get the B side insulation coordinates of the current collector.
         """
-        return pd.DataFrame(
-            self._b_side_insulation_coordinates, columns=["x", "y", "z"]
-        ).assign(
+        return pd.DataFrame(self._b_side_insulation_coordinates, columns=["x", "y", "z"]).assign(
             x=lambda x: (x["x"].astype(float) * M_TO_MM).round(10),
             y=lambda x: (x["y"].astype(float) * M_TO_MM).round(10),
             z=lambda x: (x["z"].astype(float) * M_TO_MM).round(10),
@@ -982,9 +878,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
         """
         Get the A side coating coordinates of the current collector.
         """
-        return pd.DataFrame(
-            self._a_side_coating_coordinates, columns=["x", "y", "z"]
-        ).assign(
+        return pd.DataFrame(self._a_side_coating_coordinates, columns=["x", "y", "z"]).assign(
             x=lambda x: (x["x"].astype(float) * M_TO_MM).round(10),
             y=lambda x: (x["y"].astype(float) * M_TO_MM).round(10),
             z=lambda x: (x["z"].astype(float) * M_TO_MM).round(10),
@@ -995,9 +889,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
         """
         Get the B side coating coordinates of the current collector.
         """
-        return pd.DataFrame(
-            self._b_side_coating_coordinates, columns=["x", "y", "z"]
-        ).assign(
+        return pd.DataFrame(self._b_side_coating_coordinates, columns=["x", "y", "z"]).assign(
             x=lambda x: (x["x"].astype(float) * M_TO_MM).round(10),
             y=lambda x: (x["y"].astype(float) * M_TO_MM).round(10),
             z=lambda x: (x["z"].astype(float) * M_TO_MM).round(10),
@@ -1015,27 +907,15 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
     @property
     def mass_loading_range(self) -> Tuple[float, float]:
         return (
-            self.calender_density_range[0]
-            * self.coating_thickness_range[0]
-            * UM_TO_CM
-            * G_TO_mG,
-            self.calender_density_range[1]
-            * self.coating_thickness_range[1]
-            * UM_TO_CM
-            * G_TO_mG,
+            self.calender_density_range[0] * self.coating_thickness_range[0] * UM_TO_CM * G_TO_mG,
+            self.calender_density_range[1] * self.coating_thickness_range[1] * UM_TO_CM * G_TO_mG,
         )
 
     @property
     def mass_loading_hard_range(self) -> Tuple[float, float]:
         return (
-            self.calender_density_hard_range[0]
-            * self.coating_thickness_hard_range[0]
-            * UM_TO_CM
-            * G_TO_mG,
-            self.calender_density_hard_range[1]
-            * self.coating_thickness_hard_range[1]
-            * UM_TO_CM
-            * G_TO_mG,
+            self.calender_density_hard_range[0] * self.coating_thickness_hard_range[0] * UM_TO_CM * G_TO_mG,
+            self.calender_density_hard_range[1] * self.coating_thickness_hard_range[1] * UM_TO_CM * G_TO_mG,
         )
 
     @property
@@ -1181,9 +1061,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
         """
         self.validate_percentage(porosity, "porosity")
         porosity_fraction = porosity / 100
-        new_calender_density = (
-            1 - porosity_fraction
-        ) / self._formulation._specific_volume
+        new_calender_density = (1 - porosity_fraction) / self._formulation._specific_volume
         self.calender_density = new_calender_density * (KG_TO_G / M_TO_CM**3)
 
     @formulation.setter
@@ -1210,22 +1088,13 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
     @insulation_material.setter
     @calculate_bulk_properties
     def insulation_material(self, insulation_material: InsulationMaterial | None):
-        self.validate_type(
-            insulation_material, InsulationMaterial, "insulation material"
-        ) if insulation_material else None
+        self.validate_type(insulation_material, InsulationMaterial, "insulation material") if insulation_material else None
 
         if self._current_collector.insulation_area != 0 and insulation_material is None:
-            raise ValueError(
-                "Insulation material must be provided if the current collector has an insulation width"
-            )
+            raise ValueError("Insulation material must be provided if the current collector has an insulation width")
 
-        if (
-            self._current_collector.insulation_area == 0
-            and insulation_material is not None
-        ):
-            raise ValueError(
-                "Insulation material cannot be provided if the current collector does not have an insulation area"
-            )
+        if self._current_collector.insulation_area == 0 and insulation_material is not None:
+            raise ValueError("Insulation material cannot be provided if the current collector does not have an insulation area")
 
         self._insulation_material = insulation_material
 
@@ -1256,13 +1125,8 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
 
         # if the current collector has insulation, load up a default material if none is provided
         if self._current_collector.insulation_area != 0:
-            if (
-                not hasattr(self, "_insulation_material")
-                or self._insulation_material is None
-            ):
-                self._insulation_material = InsulationMaterial.from_database(
-                    "Aluminium Oxide, 95%"
-                )
+            if not hasattr(self, "_insulation_material") or self._insulation_material is None:
+                self._insulation_material = InsulationMaterial.from_database("Aluminium Oxide, 95%")
 
     @name.setter
     def name(self, name: str):
@@ -1364,9 +1228,7 @@ class Anode(_Electrode):
             raise ValueError("Top overhang must be greater than or equal to zero")
 
         if not hasattr(self, "_top_overhang"):
-            raise AttributeError(
-                "Top overhang has not been set yet. This indicates that the anode is not part of a layup or stack, and so the top overhang cannot be set."
-            )
+            raise AttributeError("Top overhang has not been set yet. This indicates that the anode is not part of a layup or stack, and so the top overhang cannot be set.")
 
         old_top_overhang = self.top_overhang
         new_top_overhang = top_overhang
@@ -1402,9 +1264,7 @@ class Anode(_Electrode):
             raise ValueError("Bottom overhang must be greater than or equal to zero")
 
         if not hasattr(self, "_bottom_overhang"):
-            raise AttributeError(
-                "Bottom overhang has not been set yet. This indicates that the anode is not part of a layup or stack, and so the bottom overhang cannot be set."
-            )
+            raise AttributeError("Bottom overhang has not been set yet. This indicates that the anode is not part of a layup or stack, and so the bottom overhang cannot be set.")
 
         old_bottom_overhang = self.bottom_overhang
         new_bottom_overhang = bottom_overhang

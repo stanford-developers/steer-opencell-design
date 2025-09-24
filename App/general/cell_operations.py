@@ -24,12 +24,7 @@ def get_cell_from_database(cell_name: str) -> Type:
     from pickle import loads
 
     # get the pickled cell data from the database
-    pickled_cell = (
-        DataManager()
-        .get_data("cells")
-        .query(f"name == '{cell_name}'")
-        .iloc[0]["object"]
-    )
+    pickled_cell = DataManager().get_data("cells").query(f"name == '{cell_name}'").iloc[0]["object"]
 
     # decode the base64 encoded data
     cell = SerializerMixin.deserialize(pickled_cell)
@@ -134,9 +129,7 @@ def set_object_to_cell(cell: Type, obj: Any, config: Type) -> Type:
         raise AttributeError("Config must have a 'cell_path' attribute")
 
     # Handle direct cell replacement case
-    if not config.cell_path or (
-        len(config.cell_path) == 1 and config.cell_path[0] == ""
-    ):
+    if not config.cell_path or (len(config.cell_path) == 1 and config.cell_path[0] == ""):
         # Return the new object directly (replaces the entire cell)
         return obj
 
@@ -147,18 +140,14 @@ def set_object_to_cell(cell: Type, obj: Any, config: Type) -> Type:
     # Navigate and collect all intermediate objects
     for path_component in config.cell_path[:-1]:
         if not hasattr(current_obj, path_component):
-            raise ValueError(
-                f"Invalid cell path: '{path_component}' not found in {type(current_obj).__name__}"
-            )
+            raise ValueError(f"Invalid cell path: '{path_component}' not found in {type(current_obj).__name__}")
         current_obj = getattr(current_obj, path_component)
         object_path.append(current_obj)
 
     # Set the final object (this triggers the final setter)
     final_attribute = config.cell_path[-1]
     if not hasattr(current_obj, final_attribute):
-        raise ValueError(
-            f"Invalid cell path: '{final_attribute}' not found in {type(current_obj).__name__}"
-        )
+        raise ValueError(f"Invalid cell path: '{final_attribute}' not found in {type(current_obj).__name__}")
 
     setattr(current_obj, final_attribute, obj)
 
@@ -183,10 +172,7 @@ def get_object_from_cell(cell: Type, config: Type) -> Any:
         raise AttributeError("Config must have a 'cell_path' attribute")
 
     # Handle direct cell access case
-    if not config.cell_path or (
-        len(config.cell_path) == 1
-        and config.cell_path[0] in ["", "__self__", "__root__"]
-    ):
+    if not config.cell_path or (len(config.cell_path) == 1 and config.cell_path[0] in ["", "__self__", "__root__"]):
         return cell
 
     # Navigate to the target object
@@ -194,9 +180,7 @@ def get_object_from_cell(cell: Type, config: Type) -> Any:
 
     for path_component in config.cell_path:
         if not hasattr(current_obj, path_component):
-            raise ValueError(
-                f"Invalid cell path: '{path_component}' not found in {type(current_obj).__name__}"
-            )
+            raise ValueError(f"Invalid cell path: '{path_component}' not found in {type(current_obj).__name__}")
         current_obj = getattr(current_obj, path_component)
 
     return current_obj
