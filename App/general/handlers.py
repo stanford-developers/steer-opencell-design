@@ -19,19 +19,60 @@ from steer_core.Apps.Utils.SliderControls import (
 from steer_core.Apps.ContextManagers import capture_warnings
 
 
-def _build_basic_response(slider_configs: dict, cache_key: str = None) -> List[Any]:
+# Helper function for safe comparison
+def _compare_and_update_responses(new_vals, original_vals):
+    if original_vals is None or len(new_vals) != len(original_vals):
+        return new_vals
+    
+    updated_vals = []
+    for new, original in zip(new_vals, original_vals):
+        try:
+            # Use no_update if values are equal, otherwise use new value
+            updated_vals.append(no_update if new == original else new)
+        except (TypeError, ValueError):
+            # If comparison fails, use new value
+            updated_vals.append(new)
+    return updated_vals
+
+
+def _build_basic_response(
+        slider_configs: dict, 
+        cache_key: str = None,
+        original_values=None,
+        original_mins=None,
+        original_maxs=None,
+        original_slider_marks=None,
+        original_slider_steps=None,
+        original_input_steps=None,
+    ) -> List[Any]:
+
     """Build the basic response components from slider configurations."""
 
     dict_key = {"cache_key": cache_key} if cache_key is not None else no_update
 
+    slider_vals = slider_configs["grid_slider_vals"]
+    min_vals = slider_configs["min_vals"]
+    max_vals = slider_configs["max_vals"]
+    mark_vals = slider_configs["mark_vals"]
+    step_vals = slider_configs["step_vals"]
+    input_step_vals = slider_configs["input_step_vals"]
+
+    # Apply comparisons
+    slider_vals = _compare_and_update_responses(slider_vals, original_values)
+    min_vals = _compare_and_update_responses(min_vals, original_mins)
+    max_vals = _compare_and_update_responses(max_vals, original_maxs)
+    mark_vals = _compare_and_update_responses(mark_vals, original_slider_marks)
+    step_vals = _compare_and_update_responses(step_vals, original_slider_steps)
+    input_step_vals = _compare_and_update_responses(input_step_vals, original_input_steps)
+
     return [
         dict_key,
-        slider_configs["grid_slider_vals"],
-        slider_configs["min_vals"],
-        slider_configs["max_vals"],
-        slider_configs["mark_vals"],
-        slider_configs["step_vals"],
-        slider_configs["input_step_vals"],
+        slider_vals,
+        min_vals,
+        max_vals,
+        mark_vals,
+        step_vals,
+        input_step_vals,
     ]
 
 
@@ -41,8 +82,21 @@ def _add_dropdown_menu(response: List[Any], object_instance: Type, config: Type)
         response.append(object_instance.name)
 
 
-def _add_range_slider_components(response: List[Any], object_instance: Type, config: Type) -> None:
+def _add_range_slider_components(
+        response: List[Any], 
+        object_instance: Type, 
+        config: Type,
+        original_rangeslider_values=None,
+        original_rangeslider_mins=None,
+        original_rangeslider_maxs=None,
+        original_rangeslider_marks=None,
+        original_rangeslider_steps=None,
+        original_input_start_steps=None,
+        original_input_end_steps=None
+    ) -> None:
+
     """Add range slider components if applicable."""
+
     if not (hasattr(config, "range_slider_parameters") and config.range_slider_parameters):
         return
 
@@ -52,16 +106,33 @@ def _add_range_slider_components(response: List[Any], object_instance: Type, con
     # Create range slider configurations
     range_slider_configs = create_range_slider_config(min_values, max_values, start_values, end_values)
 
+    rangeslider_vals = range_slider_configs["grid_slider_vals"]
+    min_vals = range_slider_configs["min_vals"]
+    max_vals = range_slider_configs["max_vals"]
+    mark_vals = range_slider_configs["mark_vals"]
+    step_vals = range_slider_configs["step_vals"]
+    input_start_step_vals = range_slider_configs["input_step_vals"]
+    input_end_step_vals = range_slider_configs["input_step_vals"]
+
+    # Apply comparisons
+    rangeslider_vals = _compare_and_update_responses(rangeslider_vals, original_rangeslider_values)
+    min_vals = _compare_and_update_responses(min_vals, original_rangeslider_mins)
+    max_vals = _compare_and_update_responses(max_vals, original_rangeslider_maxs)
+    mark_vals = _compare_and_update_responses(mark_vals, original_rangeslider_marks)
+    step_vals = _compare_and_update_responses(step_vals, original_rangeslider_steps)
+    input_start_step_vals = _compare_and_update_responses(input_start_step_vals, original_input_start_steps)
+    input_end_step_vals = _compare_and_update_responses(input_end_step_vals, original_input_end_steps)
+
     # Add all range slider components to response
     response.extend(
         [
-            range_slider_configs["grid_slider_vals"],
-            range_slider_configs["min_vals"],
-            range_slider_configs["max_vals"],
-            range_slider_configs["mark_vals"],
-            range_slider_configs["step_vals"],
-            range_slider_configs["input_step_vals"],
-            range_slider_configs["input_step_vals"],
+            rangeslider_vals,
+            min_vals,
+            max_vals,
+            mark_vals,
+            step_vals,
+            input_start_step_vals,
+            input_end_step_vals,
         ]
     )
 
@@ -138,6 +209,19 @@ def handle_property_update(
     input_end_values: List[float] = None,
     radioitem_values: str = None,
     text_item_values: str = None,
+    original_values=None,
+    original_mins=None,
+    original_maxs=None,
+    original_slider_marks=None,
+    original_slider_steps=None,
+    original_input_steps=None,
+    original_rangeslider_values=None,
+    original_rangeslider_mins=None,
+    original_rangeslider_maxs=None,
+    original_rangeslider_marks=None,
+    original_rangeslider_steps=None,
+    original_input_start_steps=None,
+    original_input_end_steps=None
 ) -> Tuple:
 
     # determine the property and subtype from the triggered ID
@@ -185,12 +269,35 @@ def handle_property_update(
         slider_configs = create_slider_config(min_values, max_values, parameter_list)
 
         # Build the base response
-        response = _build_basic_response(slider_configs, new_key)
+        response = _build_basic_response(
+            slider_configs, 
+            new_key,
+            original_values,
+            original_mins,
+            original_maxs,
+            original_slider_marks,
+            original_slider_steps,
+            original_input_steps
+        )
 
         # Add optional components based on configuration
         _add_dropdown_menu(response, object_instance, config)
-        _add_range_slider_components(response, object_instance, config)
+
+        _add_range_slider_components(
+            response, 
+            object_instance, 
+            config,
+            original_rangeslider_values,
+            original_rangeslider_mins,
+            original_rangeslider_maxs,
+            original_rangeslider_marks,
+            original_rangeslider_steps,
+            original_input_start_steps,
+            original_input_end_steps
+        )
+        
         _add_radioitem_components(response, object_instance, config)
+        
         _add_text_item_components(response, object_instance, config)
 
     return (warnings_list,) + tuple(response)

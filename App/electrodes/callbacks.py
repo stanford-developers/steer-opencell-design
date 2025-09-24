@@ -90,105 +90,31 @@ def toggle_anode_insulation_parameters(cell_data, current_style):
     [
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "electrode",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "electrode",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "electrode",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "electrode",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "electrode",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "electrode",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "step",
-        ),
+        Output({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "slider"}, "value"),
+        Output({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "input"}, "step"),
     ],
     [
         Input("cathode_electrode_tab", "style"),
         Input("cathode_tab", "style"),
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "electrode",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "electrode",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "electrode",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
+        Input({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "input"}, "n_submit"),
+        Input({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "slider"}, "value"),
     ],
     [
-        State(
-            {
-                "electrode": "cathode",
-                "object": "electrode",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "value",
-        ),
+        State({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "input"}, "value"),
         State("warnings_store", "data"),
+        State({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "slider"}, "value"),
+        State({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "slider"}, "min"),
+        State({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "slider"}, "max"),
+        State({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "slider"}, "marks"),
+        State({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "slider"}, "step"),
+        State({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "input"}, "step"),
     ],
     prevent_initial_call=True,
 )
@@ -202,15 +128,27 @@ def update_cathode(
     slider_values,
     input_values,
     existing_warnings,
+    original_values,
+    original_mins,
+    original_maxs,
+    original_slider_marks,
+    original_slider_steps,
+    original_input_steps
 ):
     callback_function = create_electrode_callback(ElectrodeType.CATHODE)
 
     response = callback_function(
-        existing_warnings,
-        cell_data,
-        input_values,
-        slider_values,
+        existing_warnings=existing_warnings,
+        cell_data=cell_data,
+        input_values=input_values,
+        slider_values=slider_values,
         viewing_styles=[cc_tab_style, tab_style, tabs_panel_style],
+        original_values=original_values,
+        original_mins=original_mins,
+        original_maxs=original_maxs,
+        original_slider_marks=original_slider_marks,
+        original_slider_steps=original_slider_steps,
+        original_input_steps=original_input_steps
     )
 
     return response
@@ -220,105 +158,31 @@ def update_cathode(
     [
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "electrode",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "electrode",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "electrode",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "electrode",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "electrode",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "electrode",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "step",
-        ),
+        Output({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "slider"}, "value"),
+        Output({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "input"}, "step"),
     ],
     [
         Input("anode_electrode_tab", "style"),
         Input("anode_tab", "style"),
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "electrode",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "electrode",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "electrode",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
+        Input({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "input"}, "n_submit"),
+        Input({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "slider"}, "value"),
     ],
     [
-        State(
-            {
-                "electrode": "anode",
-                "object": "electrode",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "value",
-        ),
+        State({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "input"}, "value"),
         State("warnings_store", "data"),
+        State({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "slider"}, "value"),
+        State({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "slider"}, "min"),
+        State({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "slider"}, "max"),
+        State({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "slider"}, "marks"),
+        State({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "slider"}, "step"),
+        State({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "input"}, "step"),
     ],
     prevent_initial_call=True,
 )
@@ -332,6 +196,12 @@ def update_anode(
     slider_values,
     input_values,
     existing_warnings,
+    original_values,
+    original_mins,
+    original_maxs,
+    original_slider_marks,
+    original_slider_steps,
+    original_input_steps
 ):
     callback_function = create_electrode_callback(ElectrodeType.ANODE)
 
@@ -341,6 +211,12 @@ def update_anode(
         input_values,
         slider_values,
         viewing_styles=[cc_tab_style, tab_style, tabs_panel_style],
+        original_values=original_values,
+        original_mins=original_mins,
+        original_maxs=original_maxs,
+        original_slider_marks=original_slider_marks,
+        original_slider_steps=original_slider_steps,
+        original_input_steps=original_input_steps
     )
 
     return response

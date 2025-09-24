@@ -22,7 +22,14 @@ def create_layup_callback(layup_key: LayupType) -> callable:
         input_values: list,
         slider_values: list,
         viewing_styles=[],
+        original_values=None,
+        original_mins=None,
+        original_maxs=None,
+        original_slider_marks=None,
+        original_slider_steps=None,
+        original_input_steps=None
     ) -> Tuple:
+        
         # Get the triggered ID
         triggered_id = ctx.triggered_id
 
@@ -59,6 +66,12 @@ def create_layup_callback(layup_key: LayupType) -> callable:
                 config,
                 input_values,
                 slider_values,
+                original_values=original_values,
+                original_mins=original_mins,
+                original_maxs=original_maxs,
+                original_slider_marks=original_slider_marks,
+                original_slider_steps=original_slider_steps,
+                original_input_steps=original_input_steps
             )
 
         # Fallback

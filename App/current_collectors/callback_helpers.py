@@ -31,6 +31,19 @@ def create_generic_current_collector_callback(
         radioitem_values=None,
         textitem_values=None,  # Add this parameter
         viewing_styles=[],
+        original_values=None,
+        original_mins=None,
+        original_maxs=None,
+        original_slider_marks=None,
+        original_slider_steps=None,
+        original_input_steps=None,
+        original_rangeslider_values=None,
+        original_rangeslider_mins=None,
+        original_rangeslider_maxs=None,
+        original_rangeslider_marks=None,
+        original_rangeslider_steps=None,
+        original_input_start_steps=None,
+        original_input_end_steps=None
     ) -> Tuple:
         # Get the triggered ID
         triggered_id = ctx.triggered_id
@@ -72,6 +85,19 @@ def create_generic_current_collector_callback(
                 input_end_values,
                 radioitem_values,
                 textitem_values,
+                original_values,
+                original_mins,
+                original_maxs,
+                original_slider_marks,
+                original_slider_steps,
+                original_input_steps,
+                original_rangeslider_values,
+                original_rangeslider_mins,
+                original_rangeslider_maxs,
+                original_rangeslider_marks,
+                original_rangeslider_steps,
+                original_input_start_steps,
+                original_input_end_steps,
             )
 
         return create_no_update_response(config, existing_warnings)

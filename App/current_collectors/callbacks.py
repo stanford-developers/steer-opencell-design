@@ -353,105 +353,31 @@ def update_anode_current_collector_design_parameters(design):
     [
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "punched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "punched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "punched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "punched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "punched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "punched_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "step",
-        ),
+        Output({"electrode": "cathode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        Output({"electrode": "cathode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"electrode": "cathode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"electrode": "cathode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"electrode": "cathode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"electrode": "cathode", "object": "punched_current_collector", "property": ALL, "subtype": "input"}, "step"),
     ],
     [
         Input("cathode_current_collector_tab", "style"),
         Input("cathode_tab", "style"),
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "punched_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "punched_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "punched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
+        Input({"electrode": "cathode", "object": "punched_current_collector", "property": ALL, "subtype": "input"}, "n_submit"),
+        Input({"electrode": "cathode", "object": "punched_current_collector", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"electrode": "cathode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "value"),
     ],
     [
-        State(
-            {
-                "electrode": "cathode",
-                "object": "punched_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "value",
-        ),
+        State({"electrode": "cathode", "object": "punched_current_collector", "property": ALL, "subtype": "input"}, "value"),
         State("warnings_store", "data"),
+        State({"electrode": "cathode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        State({"electrode": "cathode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "min"),
+        State({"electrode": "cathode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "max"),
+        State({"electrode": "cathode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "marks"),
+        State({"electrode": "cathode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "step"),
+        State({"electrode": "cathode", "object": "punched_current_collector", "property": ALL, "subtype": "input"}, "step"),
     ],
     prevent_initial_call=True,
 )
@@ -465,6 +391,12 @@ def update_cathode_punched_current_collector(
     slider_values,
     input_values,
     existing_warnings,
+    original_values,
+    original_mins,
+    original_maxs,
+    original_slider_marks,
+    original_slider_steps,
+    original_input_steps
 ):
     callback_function = create_generic_current_collector_callback(CollectorType.CATHODE_PUNCHED)
 
@@ -474,6 +406,12 @@ def update_cathode_punched_current_collector(
         input_values,
         slider_values,
         viewing_styles=[cc_tab_style, tabs_panel_style, main_tabs_container_style],
+        original_values=original_values,
+        original_mins=original_mins,
+        original_maxs=original_maxs,
+        original_slider_marks=original_slider_marks,
+        original_slider_steps=original_slider_steps,
+        original_input_steps=original_input_steps
     )
 
     return response
@@ -483,105 +421,31 @@ def update_cathode_punched_current_collector(
     [
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "punched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "punched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "punched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "punched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "punched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "punched_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "step",
-        ),
+        Output({"electrode": "anode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        Output({"electrode": "anode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"electrode": "anode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"electrode": "anode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"electrode": "anode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"electrode": "anode", "object": "punched_current_collector", "property": ALL, "subtype": "input"}, "step"),
     ],
     [
         Input("anode_current_collector_tab", "style"),
         Input("anode_tab", "style"),
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "punched_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "punched_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "punched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
+        Input({"electrode": "anode", "object": "punched_current_collector", "property": ALL, "subtype": "input"}, "n_submit"),
+        Input({"electrode": "anode", "object": "punched_current_collector", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"electrode": "anode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "value"),
     ],
     [
-        State(
-            {
-                "electrode": "anode",
-                "object": "punched_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "value",
-        ),
+        State({"electrode": "anode", "object": "punched_current_collector", "property": ALL, "subtype": "input"}, "value"),
         State("warnings_store", "data"),
+        State({"electrode": "anode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        State({"electrode": "anode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "min"),
+        State({"electrode": "anode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "max"),
+        State({"electrode": "anode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "marks"),
+        State({"electrode": "anode", "object": "punched_current_collector", "property": ALL, "subtype": "slider"}, "step"),
+        State({"electrode": "anode", "object": "punched_current_collector", "property": ALL, "subtype": "input"}, "step"),
     ],
     prevent_initial_call=True,
 )
@@ -595,6 +459,12 @@ def update_anode_punched_current_collector(
     slider_values,
     input_values,
     existing_warnings,
+    original_values,
+    original_mins,
+    original_maxs,
+    original_slider_marks,
+    original_slider_steps,
+    original_input_steps
 ):
     callback_function = create_generic_current_collector_callback(CollectorType.ANODE_PUNCHED)
 
@@ -604,6 +474,12 @@ def update_anode_punched_current_collector(
         input_values,
         slider_values,
         viewing_styles=[cc_tab_style, tabs_panel_style, main_tabs_container_style],
+        original_values=original_values,
+        original_mins=original_mins,
+        original_maxs=original_maxs,
+        original_slider_marks=original_slider_marks,
+        original_slider_steps=original_slider_steps,
+        original_input_steps=original_input_steps
     )
 
     return response
@@ -613,231 +489,52 @@ def update_anode_punched_current_collector(
     [
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "step",
-        ),
+        Output({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        Output({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "input"}, "step"),
+        Output({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "value"),
+        Output({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "min"),
+        Output({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "max"),
+        Output({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "marks"),
+        Output({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "step"),
+        Output({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "input_start"}, "step"),
+        Output({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "input_end"}, "step"),
     ],
     [
         Input("cathode_current_collector_tab", "style"),
         Input("cathode_tab", "style"),
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "value",
-        ),
+        Input({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "input"}, "n_submit"),
+        Input({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        Input({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "input_start"}, "n_submit"),
+        Input({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "input_start"}, "n_blur"),
+        Input({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "input_end"}, "n_submit"),
+        Input({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "input_end"}, "n_blur"),
+        Input({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "value"),
     ],
     [
-        State(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "value",
-        ),
-        State(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "value",
-        ),
-        State(
-            {
-                "electrode": "cathode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "value",
-        ),
+        State({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "input"}, "value"),
+        State({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "input_start"}, "value"),
+        State({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "input_end"}, "value"),
         State("warnings_store", "data"),
+        State({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        State({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "min"),
+        State({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "max"),
+        State({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "marks"),
+        State({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "step"),
+        State({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "input"}, "step"),
+        State({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "value"),
+        State({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "min"),
+        State({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "max"),
+        State({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "marks"),
+        State({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "step"),
+        State({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "input_start"}, "step"),
+        State({"electrode": "cathode", "object": "tabless_current_collector", "property": ALL, "subtype": "input_end"}, "step"),
     ],
     prevent_initial_call=True,
 )
@@ -858,6 +555,19 @@ def update_cathode_tabless_collector(
     input_start_values,
     input_end_values,
     existing_warnings,
+    original_slider_values,
+    original_slider_mins,
+    original_slider_maxs,
+    original_slider_marks,
+    original_slider_steps,
+    original_input_steps,
+    original_rangeslider_values,
+    original_rangeslider_mins,
+    original_rangeslider_maxs,
+    original_rangeslider_marks,
+    original_rangeslider_steps,
+    original_input_start_steps,
+    original_input_end_steps
 ):
     callback_function = create_generic_current_collector_callback(CollectorType.CATHODE_TABLESS)
 
@@ -870,6 +580,19 @@ def update_cathode_tabless_collector(
         input_start_values,
         input_end_values,
         viewing_styles=[cc_tab_style, tabs_panel_style, main_tabs_container_style],
+        original_values=original_slider_values,
+        original_mins=original_slider_mins,
+        original_maxs=original_slider_maxs,
+        original_slider_marks=original_slider_marks,
+        original_slider_steps=original_slider_steps,
+        original_input_steps=original_input_steps,
+        original_rangeslider_values=original_rangeslider_values,
+        original_rangeslider_mins=original_rangeslider_mins,
+        original_rangeslider_maxs=original_rangeslider_maxs,
+        original_rangeslider_marks=original_rangeslider_marks,
+        original_rangeslider_steps=original_rangeslider_steps,
+        original_input_start_steps=original_input_start_steps,
+        original_input_end_steps=original_input_end_steps
     )
 
     return response
@@ -879,231 +602,52 @@ def update_cathode_tabless_collector(
     [
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "step",
-        ),
+        Output({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        Output({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "input"}, "step"),
+        Output({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "value"),
+        Output({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "min"),
+        Output({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "max"),
+        Output({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "marks"),
+        Output({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "step"),
+        Output({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "input_start"}, "step"),
+        Output({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "input_end"}, "step"),
     ],
     [
         Input("anode_current_collector_tab", "style"),
         Input("anode_tab", "style"),
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "value",
-        ),
+        Input({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "input"}, "n_submit"),
+        Input({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        Input({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "input_start"}, "n_submit"),
+        Input({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "input_start"}, "n_blur"),
+        Input({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "input_end"}, "n_submit"),
+        Input({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "input_end"}, "n_blur"),
+        Input({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "value"),
     ],
     [
-        State(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "value",
-        ),
-        State(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "value",
-        ),
-        State(
-            {
-                "electrode": "anode",
-                "object": "tabless_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "value",
-        ),
+        State({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "input"}, "value"),
+        State({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "input_start"}, "value"),
+        State({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "input_end"}, "value"),
         State("warnings_store", "data"),
+        State({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        State({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "min"),
+        State({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "max"),
+        State({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "marks"),
+        State({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "slider"}, "step"),
+        State({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "input"}, "step"),
+        State({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "value"),
+        State({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "min"),
+        State({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "max"),
+        State({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "marks"),
+        State({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "rangeslider"}, "step"),
+        State({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "input_start"}, "step"),
+        State({"electrode": "anode", "object": "tabless_current_collector", "property": ALL, "subtype": "input_end"}, "step"),
     ],
     prevent_initial_call=True,
 )
@@ -1124,6 +668,19 @@ def update_anode_tabless_collector(
     input_start_values,
     input_end_values,
     existing_warnings,
+    original_slider_values,
+    original_slider_mins,
+    original_slider_maxs,
+    original_slider_marks,
+    original_slider_steps,
+    original_input_steps,
+    original_rangeslider_values,
+    original_rangeslider_mins,
+    original_rangeslider_maxs,
+    original_rangeslider_marks,
+    original_rangeslider_steps,
+    original_input_start_steps,
+    original_input_end_steps
 ):
     callback_function = create_generic_current_collector_callback(CollectorType.ANODE_TABLESS)
 
@@ -1136,6 +693,19 @@ def update_anode_tabless_collector(
         input_start_values,
         input_end_values,
         viewing_styles=[cc_tab_style, tabs_panel_style, main_tabs_container_style],
+        original_values=original_slider_values,
+        original_mins=original_slider_mins,
+        original_maxs=original_slider_maxs,
+        original_slider_marks=original_slider_marks,
+        original_slider_steps=original_slider_steps,
+        original_input_steps=original_input_steps,
+        original_rangeslider_values=original_rangeslider_values,
+        original_rangeslider_mins=original_rangeslider_mins,
+        original_rangeslider_maxs=original_rangeslider_maxs,
+        original_rangeslider_marks=original_rangeslider_marks,
+        original_rangeslider_steps=original_rangeslider_steps,
+        original_input_start_steps=original_input_start_steps,
+        original_input_end_steps=original_input_end_steps
     )
 
     return response
@@ -1145,231 +715,52 @@ def update_anode_tabless_collector(
     [
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "step",
-        ),
+        Output({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        Output({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "input"}, "step"),
+        Output({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "value"),
+        Output({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "min"),
+        Output({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "max"),
+        Output({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "marks"),
+        Output({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "step"),
+        Output({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "input_start"}, "step"),
+        Output({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "input_end"}, "step"),
     ],
     [
         Input("cathode_current_collector_tab", "style"),
         Input("cathode_tab", "style"),
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "value",
-        ),
+        Input({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "input"}, "n_submit"),
+        Input({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        Input({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "input_start"}, "n_submit"),
+        Input({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "input_start"}, "n_blur"),
+        Input({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "input_end"}, "n_submit"),
+        Input({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "input_end"}, "n_blur"),
+        Input({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "value"),
     ],
     [
-        State(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "value",
-        ),
-        State(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "value",
-        ),
-        State(
-            {
-                "electrode": "cathode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "value",
-        ),
+        State({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "input"}, "value"),
+        State({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "input_start"}, "value"),
+        State({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "input_end"}, "value"),
         State("warnings_store", "data"),
+        State({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        State({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "min"),
+        State({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "max"),
+        State({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "marks"),
+        State({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "step"),
+        State({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "input"}, "step"),
+        State({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "value"),
+        State({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "min"),
+        State({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "max"),
+        State({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "marks"),
+        State({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "step"),
+        State({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "input_start"}, "step"),
+        State({"electrode": "cathode", "object": "notched_current_collector", "property": ALL, "subtype": "input_end"}, "step"),
     ],
     prevent_initial_call=True,
 )
@@ -1390,6 +781,19 @@ def update_cathode_notched_collector(
     input_start_values,
     input_end_values,
     existing_warnings,
+    original_slider_values,
+    original_slider_mins,
+    original_slider_maxs,
+    original_slider_marks,
+    original_slider_steps,
+    original_input_steps,
+    original_rangeslider_values,
+    original_rangeslider_mins,
+    original_rangeslider_maxs,
+    original_rangeslider_marks,
+    original_rangeslider_steps,
+    original_input_start_steps,
+    original_input_end_steps
 ):
     callback_function = create_generic_current_collector_callback(CollectorType.CATHODE_NOTCHED)
 
@@ -1402,6 +806,19 @@ def update_cathode_notched_collector(
         input_start_values,
         input_end_values,
         viewing_styles=[cc_tab_style, tabs_panel_style, main_tabs_container_style],
+        original_values=original_slider_values,
+        original_mins=original_slider_mins,
+        original_maxs=original_slider_maxs,
+        original_slider_marks=original_slider_marks,
+        original_slider_steps=original_slider_steps,
+        original_input_steps=original_input_steps,
+        original_rangeslider_values=original_rangeslider_values,
+        original_rangeslider_mins=original_rangeslider_mins,
+        original_rangeslider_maxs=original_rangeslider_maxs,
+        original_rangeslider_marks=original_rangeslider_marks,
+        original_rangeslider_steps=original_rangeslider_steps,
+        original_input_start_steps=original_input_start_steps,
+        original_input_end_steps=original_input_end_steps
     )
 
     return response
@@ -1411,231 +828,53 @@ def update_cathode_notched_collector(
     [
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "step",
-        ),
+        Output({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        Output({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "input"}, "step"),
+        Output({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "value"),
+        Output({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "min"),
+        Output({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "max"),
+        Output({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "marks"),
+        Output({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "step"),
+        Output({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "input_start"}, "step"),
+        Output({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "input_end"}, "step"),
     ],
     [
         Input("anode_current_collector_tab", "style"),
         Input("anode_tab", "style"),
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "value",
-        ),
+        Input({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "input"}, "n_submit"),
+        Input({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        Input({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "input_start"}, "n_submit"),
+        Input({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "input_start"}, "n_blur"),
+        Input({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "input_end"}, "n_submit"),
+        Input({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "input_end"}, "n_blur"),
+        Input({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "value"),
     ],
     [
-        State(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "value",
-        ),
-        State(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "value",
-        ),
-        State(
-            {
-                "electrode": "anode",
-                "object": "notched_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "value",
-        ),
+        State({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "input"}, "value"),
+        State({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "input_start"}, "value"),
+        State({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "input_end"}, "value"),
         State("warnings_store", "data"),
+        State({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        State({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "min"),
+        State({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "max"),
+        State({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "marks"),
+        State({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "slider"}, "step"),
+        State({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "input"}, "step"),
+        State({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "value"),
+        State({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "min"),
+        State({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "max"),
+        State({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "marks"),
+        State({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "rangeslider"}, "step"),
+        State({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "input_start"}, "step"),
+        State({"electrode": "anode", "object": "notched_current_collector", "property": ALL, "subtype": "input_end"}, "step"),
+        
     ],
     prevent_initial_call=True,
 )
@@ -1656,6 +895,19 @@ def update_anode_notched_collector(
     input_start_values,
     input_end_values,
     existing_warnings,
+    original_slider_values,
+    original_slider_mins,
+    original_slider_maxs,
+    original_slider_marks,
+    original_slider_steps,
+    original_input_steps,
+    original_rangeslider_values,
+    original_rangeslider_mins,
+    original_rangeslider_maxs,
+    original_rangeslider_marks,
+    original_rangeslider_steps,
+    original_input_start_steps,
+    original_input_end_steps
 ):
     callback_function = create_generic_current_collector_callback(CollectorType.ANODE_NOTCHED)
 
@@ -1668,6 +920,19 @@ def update_anode_notched_collector(
         input_start_values,
         input_end_values,
         viewing_styles=[cc_tab_style, tabs_panel_style, main_tabs_container_style],
+        original_values=original_slider_values,
+        original_mins=original_slider_mins,
+        original_maxs=original_slider_maxs,
+        original_slider_marks=original_slider_marks,
+        original_slider_steps=original_slider_steps,
+        original_input_steps=original_input_steps,
+        original_rangeslider_values=original_rangeslider_values,
+        original_rangeslider_mins=original_rangeslider_mins,
+        original_rangeslider_maxs=original_rangeslider_maxs,
+        original_rangeslider_marks=original_rangeslider_marks,
+        original_rangeslider_steps=original_rangeslider_steps,
+        original_input_start_steps=original_input_start_steps,
+        original_input_end_steps=original_input_end_steps
     )
 
     return response
@@ -1677,267 +942,56 @@ def update_anode_notched_collector(
     [
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "radioitem",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "text_input",
-            },
-            "value",
-        ),
+        Output({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        Output({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input"}, "step"),
+        Output({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "value"),
+        Output({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "min"),
+        Output({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "max"),
+        Output({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "marks"),
+        Output({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "step"),
+        Output({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input_start"}, "step"),
+        Output({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input_end"}, "step"),
+        Output({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "radioitem"}, "value"),
+        Output({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "text_input"}, "value"),
     ],
     [
         Input("cathode_current_collector_tab", "style"),
         Input("cathode_tab", "style"),
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "value",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "radioitem",
-            },
-            "value",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "text_input",
-            },
-            "value",
-        ),
+        Input({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input"}, "n_submit"),
+        Input({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        Input({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input_start"}, "n_submit"),
+        Input({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input_start"}, "n_blur"),
+        Input({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input_end"}, "n_submit"),
+        Input({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input_end"}, "n_blur"),
+        Input({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "value"),
+        Input({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "radioitem"}, "value"),
+        Input({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "text_input"}, "value"),
     ],
     [
-        State(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "value",
-        ),
-        State(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "value",
-        ),
-        State(
-            {
-                "electrode": "cathode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "value",
-        ),
+        State({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input"}, "value"),
+        State({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input_start"}, "value"),
+        State({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input_end"}, "value"),
         State("warnings_store", "data"),
+        State({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        State({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "min"),
+        State({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "max"),
+        State({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "marks"),
+        State({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "step"),
+        State({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input"}, "step"),
+        State({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "value"),
+        State({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "min"),
+        State({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "max"),
+        State({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "marks"),
+        State({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "step"),
+        State({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input_start"}, "step"),
+        State({"electrode": "cathode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input_end"}, "step"),
     ],
     prevent_initial_call=True,
 )
@@ -1960,6 +1014,19 @@ def update_cathode_tabbed_collector(
     input_start_values,
     input_end_values,
     existing_warnings,
+    original_slider_values,
+    original_slider_mins,
+    original_slider_maxs,
+    original_slider_marks,
+    original_slider_steps,
+    original_input_steps,
+    original_rangeslider_values,
+    original_rangeslider_mins,
+    original_rangeslider_maxs,
+    original_rangeslider_marks,
+    original_rangeslider_steps,
+    original_input_start_steps,
+    original_input_end_steps
 ):
     callback_function = create_generic_current_collector_callback(CollectorType.CATHODE_TABBED)
 
@@ -1973,6 +1040,20 @@ def update_cathode_tabbed_collector(
         input_end_values,
         radioitem_values,
         text_item_values,
+        viewing_styles=[cc_tab_style, tabs_panel_style, main_tabs_container_style],
+        original_values=original_slider_values,
+        original_mins=original_slider_mins,
+        original_maxs=original_slider_maxs,
+        original_slider_marks=original_slider_marks,
+        original_slider_steps=original_slider_steps,
+        original_input_steps=original_input_steps,
+        original_rangeslider_values=original_rangeslider_values,
+        original_rangeslider_mins=original_rangeslider_mins,
+        original_rangeslider_maxs=original_rangeslider_maxs,
+        original_rangeslider_marks=original_rangeslider_marks,
+        original_rangeslider_steps=original_rangeslider_steps,
+        original_input_start_steps=original_input_start_steps,
+        original_input_end_steps=original_input_end_steps
     )
 
     return response
@@ -1982,267 +1063,56 @@ def update_cathode_tabbed_collector(
     [
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "radioitem",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "text_input",
-            },
-            "value",
-        ),
+        Output({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        Output({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input"}, "step"),
+        Output({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "value"),
+        Output({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "min"),
+        Output({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "max"),
+        Output({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "marks"),
+        Output({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "step"),
+        Output({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input_start"}, "step"),
+        Output({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input_end"}, "step"),
+        Output({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "radioitem"}, "value"),
+        Output({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "text_input"}, "value"),
     ],
     [
         Input("anode_current_collector_tab", "style"),
         Input("anode_tab", "style"),
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "rangeslider",
-            },
-            "value",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "radioitem",
-            },
-            "value",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "text_input",
-            },
-            "value",
-        ),
+        Input({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input"}, "n_submit"),
+        Input({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        Input({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input_start"}, "n_submit"),
+        Input({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input_start"}, "n_blur"),
+        Input({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input_end"}, "n_submit"),
+        Input({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input_end"}, "n_blur"),
+        Input({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "value"),
+        Input({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "radioitem"}, "value"),
+        Input({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "text_input"}, "value"),
     ],
     [
-        State(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "value",
-        ),
-        State(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input_start",
-            },
-            "value",
-        ),
-        State(
-            {
-                "electrode": "anode",
-                "object": "tabbed_current_collector",
-                "property": ALL,
-                "subtype": "input_end",
-            },
-            "value",
-        ),
+        State({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input"}, "value"),
+        State({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input_start"}, "value"),
+        State({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input_end"}, "value"),
         State("warnings_store", "data"),
+        State({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "value"),
+        State({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "min"),
+        State({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "max"),
+        State({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "marks"),
+        State({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "slider"}, "step"),
+        State({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input"}, "step"),
+        State({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "value"),
+        State({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "min"),
+        State({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "max"),
+        State({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "marks"),
+        State({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "rangeslider"}, "step"),
+        State({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input_start"}, "step"),
+        State({"electrode": "anode", "object": "tabbed_current_collector", "property": ALL, "subtype": "input_end"}, "step"),
     ],
     prevent_initial_call=True,
 )
@@ -2265,6 +1135,19 @@ def update_anode_tabbed_collector(
     input_start_values,
     input_end_values,
     existing_warnings,
+    original_slider_values,
+    original_slider_mins,
+    original_slider_maxs,
+    original_slider_marks,
+    original_slider_steps,
+    original_input_steps,
+    original_rangeslider_values,
+    original_rangeslider_mins,
+    original_rangeslider_maxs,
+    original_rangeslider_marks,
+    original_rangeslider_steps,
+    original_input_start_steps,
+    original_input_end_steps
 ):
     callback_function = create_generic_current_collector_callback(CollectorType.ANODE_TABBED)
 
@@ -2279,6 +1162,19 @@ def update_anode_tabbed_collector(
         radioitem_values,
         text_item_values,
         viewing_styles=[cc_tab_style, tabs_panel_style, main_tabs_container_style],
+        original_values=original_slider_values,
+        original_mins=original_slider_mins,
+        original_maxs=original_slider_maxs,
+        original_slider_marks=original_slider_marks,
+        original_slider_steps=original_slider_steps,
+        original_input_steps=original_input_steps,
+        original_rangeslider_values=original_rangeslider_values,
+        original_rangeslider_mins=original_rangeslider_mins,
+        original_rangeslider_maxs=original_rangeslider_maxs,
+        original_rangeslider_marks=original_rangeslider_marks,
+        original_rangeslider_steps=original_rangeslider_steps,
+        original_input_start_steps=original_input_start_steps,
+        original_input_end_steps=original_input_end_steps
     )
 
     return response
@@ -2369,3 +1265,5 @@ def update_anode_current_collector_properties(cc_tab_style, tab_style, tabs_pane
 
     # return the plots
     return [properties_table]
+
+
