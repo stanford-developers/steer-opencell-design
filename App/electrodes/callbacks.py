@@ -7,7 +7,8 @@ from App.electrodes.configs import ELECTRODE_CONFIGS
 
 from App.current_collectors.configs import COLLECTOR_CONFIGS
 
-from App.general.enumerated_classes import ElectrodeType, MaterialType, CollectorType
+from App.general.enumerated_classes import ElectrodeType, CollectorType
+
 from App.general.cell_operations import (
     get_object_from_cell,
     set_object_to_cell,
@@ -607,3 +608,4 @@ def update_anode_control_mode(selected_mode, cell_data):
         new_key = set_cell_to_cache(new_cell)
 
         return {"cache_key": new_key}, no_update
+

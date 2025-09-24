@@ -232,6 +232,7 @@ def validate_dependent_properties(object, config: Type) -> None:
 def validate_single_property(
     object, property_name: str, value: str, config: Type
 ) -> None:
+    
     if (
         hasattr(config, "radioitem_parameters")
         and config.radioitem_parameters
@@ -246,7 +247,14 @@ def validate_single_property(
     ):
         return value
 
-    param_range = getattr(object, f"{property_name}_hard_range", None)
+    if hasattr(object, f"{property_name}_hard_range"):
+        param_range = getattr(object, f"{property_name}_hard_range", None)
+    elif hasattr(object, f"{property_name}_range"):
+        param_range = getattr(object, f"{property_name}_range", None)
+    else:
+        raise AttributeError(
+            f"Property {property_name} does not have an associated range attribute."
+        )
 
     if (
         param_range
