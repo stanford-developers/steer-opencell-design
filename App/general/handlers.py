@@ -125,6 +125,7 @@ def handle_cell_store_update(
     with capture_warnings(
         existing_warnings, source=source, clear_source_warnings=True
     ) as warnings_list:
+        
         # Validate all dependent properties first
         validate_dependent_properties(object_instance, config)
 
@@ -162,6 +163,7 @@ def handle_property_update(
     radioitem_values: str = None,
     text_item_values: str = None,
 ) -> Tuple:
+    
     # determine the property and subtype from the triggered ID
     property_name = triggered_id["property"]
 
@@ -172,6 +174,7 @@ def handle_property_update(
     with capture_warnings(
         existing_warnings, source=source, clear_source_warnings=True
     ) as warnings_list:
+        
         # determine the value from the inputs and the subtype
         value = determine_value(
             config,

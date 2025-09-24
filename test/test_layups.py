@@ -496,6 +496,13 @@ class TestSimpleMonoLayer(unittest.TestCase):
         # fig2.show()
         # fig3.show()
 
+    def test_make_zfold_monolayer(self):
+        zfold_monolayer = ZFoldMonoLayer.from_monolayer(self.monolayer)
+        self.assertTrue(isinstance(zfold_monolayer, ZFoldMonoLayer))
+
+        fig1 = zfold_monolayer.get_top_down_view()
+        # fig1.show()
+
 
 class TestZFoldMonoLayer(unittest.TestCase):
     def setUp(self):
@@ -806,6 +813,14 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.assertEqual(self.zfoldmonolayer.separator_overhang_bottom, 6.0)
 
         fig1 = self.zfoldmonolayer.get_top_down_view()
+        # fig1.show()
+
+    def test_make_monolayer(self):
+
+        monolayer = MonoLayer.from_zfold_monolayer(self.zfoldmonolayer)
+        self.assertTrue(isinstance(monolayer, MonoLayer))
+
+        fig1 = monolayer.get_top_down_view()
         # fig1.show()
 
 

@@ -410,6 +410,30 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
 
         component_obj.datum = datum
 
+        # Special handling for ZFoldMonoLayer: when anode moves left/right, top separator should follow
+        if (hasattr(self, '__class__') and 
+            self.__class__.__name__ == 'ZFoldMonoLayer' and 
+            component == "anode" and 
+            direction in ["left", "right"]):
+            
+            # Get the top separator and adjust its position by the same amount
+            top_separator_datum = self._top_separator.datum
+            
+            if direction == "left":
+                top_separator_datum = (
+                    top_separator_datum[0] - overhang_difference, 
+                    top_separator_datum[1], 
+                    top_separator_datum[2]
+                )
+            elif direction == "right":
+                top_separator_datum = (
+                    top_separator_datum[0] + overhang_difference, 
+                    top_separator_datum[1], 
+                    top_separator_datum[2]
+                )
+            
+            self._top_separator.datum = top_separator_datum
+
     def _adjust_overhang_fixed_overhangs(
         self, component: str, target_overhang: float, direction: str
     ) -> None:
@@ -587,7 +611,7 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
             ),
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            title=kwargs.get("title", f"{self.name} Top-Down View"),
+            title=kwargs.get("title", f"Top-Down View"),
             **kwargs,
         )
 
@@ -675,7 +699,7 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
 
         # Enhanced layout with better defaults
         fig.update_layout(
-            title=kwargs.get("title", f"{self.name} Areal Capacity Curves"),
+            title=kwargs.get("title", f"Areal Capacity Curves"),
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             xaxis=dict(
@@ -940,7 +964,7 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         float
             Left overhang in mm. Positive values indicate anode extends beyond cathode.
         """
-        return round(self._anode_overhang_left * M_TO_MM, 3)
+        return round(self._anode_overhang_left * M_TO_MM, 2)
 
     @property
     def anode_overhang_right(self) -> float:
@@ -952,7 +976,7 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         float
             Right overhang in mm. Positive values indicate anode extends beyond cathode.
         """
-        return round(self._anode_overhang_right * M_TO_MM, 3)
+        return round(self._anode_overhang_right * M_TO_MM, 2)
 
     @property
     def anode_overhang_bottom(self) -> float:
@@ -964,7 +988,7 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         float
             Bottom overhang in mm. Positive values indicate anode extends beyond cathode.
         """
-        return round(self._anode_overhang_bottom * M_TO_MM, 3)
+        return round(self._anode_overhang_bottom * M_TO_MM, 2)
 
     @property
     def anode_overhang_top(self) -> float:
@@ -976,7 +1000,7 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         float
             Top overhang in mm. Positive values indicate anode extends beyond cathode.
         """
-        return round(self._anode_overhang_top * M_TO_MM, 3)
+        return round(self._anode_overhang_top * M_TO_MM, 2)
 
     @property
     def anode_overhangs(self) -> dict:
@@ -1297,11 +1321,9 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
             return (0.0, 20.0)
         else:  # FIXED_COMPONENT
-            return (
-                0.0,
-                self.bottom_separator_overhang_left
-                + self.bottom_separator_overhang_right,
-            )
+            min = 0
+            max = (self._bottom_separator_overhang_left + self._bottom_separator_overhang_right) * M_TO_MM
+            return (min, max)
 
     @property
     def bottom_separator_overhang_right_range(self) -> tuple:
@@ -1318,11 +1340,9 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
             return (0.0, 20.0)
         else:  # FIXED_COMPONENT
-            return (
-                0.0,
-                self.bottom_separator_overhang_left
-                + self.bottom_separator_overhang_right,
-            )
+            min = 0
+            max = (self._bottom_separator_overhang_left + self._bottom_separator_overhang_right) * M_TO_MM
+            return (min, max)
 
     @property
     def bottom_separator_overhang_bottom_range(self) -> tuple:
@@ -1339,11 +1359,9 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
             return (0.0, 20.0)
         else:  # FIXED_COMPONENT
-            return (
-                0.0,
-                self.bottom_separator_overhang_bottom
-                + self.bottom_separator_overhang_top,
-            )
+            min = 0
+            max = (self._bottom_separator_overhang_bottom + self._bottom_separator_overhang_top) * M_TO_MM
+            return (min, max)
 
     @property
     def bottom_separator_overhang_top_range(self) -> tuple:
@@ -1360,11 +1378,9 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
             return (0.0, 20.0)
         else:  # FIXED_COMPONENT
-            return (
-                0.0,
-                self.bottom_separator_overhang_bottom
-                + self.bottom_separator_overhang_top,
-            )
+            min = 0
+            max = (self._bottom_separator_overhang_bottom + self._bottom_separator_overhang_top) * M_TO_MM
+            return (min, max)
 
     #### TOP SEPARATOR OVERHANG PROPERTY/SETTERS ####
 
@@ -1722,6 +1738,35 @@ class MonoLayer(_Layup):
             "Cathode Current Collector",
         )
 
+    @classmethod
+    def from_zfold_monolayer(cls, zfold_monolayer: "ZFoldMonoLayer") -> "MonoLayer":
+        """
+        Create a MonoLayer instance from a ZFoldMonoLayer instance.
+
+        Parameters
+        ----------
+        zfold_monolayer : ZFoldMonoLayer
+            The ZFoldMonoLayer instance to convert.
+
+        Returns
+        -------
+        MonoLayer
+            A new MonoLayer instance with the same properties as the input ZFoldMonoLayer.
+        """
+        bottom_separator = deepcopy(zfold_monolayer._bottom_separator)
+        bottom_separator.width = zfold_monolayer.anode.current_collector.x_body_length + 4
+        bottom_separator.length = zfold_monolayer.anode.current_collector.y_body_length + 4
+
+        top_separator = deepcopy(bottom_separator)
+
+        return cls(
+            cathode=deepcopy(zfold_monolayer.cathode),
+            bottom_separator=bottom_separator,
+            anode=deepcopy(zfold_monolayer.anode),
+            top_separator=top_separator,
+            transverse=zfold_monolayer.transverse,
+        )
+
     @property
     def transverse(self):
         return self._transverse
@@ -1844,7 +1889,6 @@ class ZFoldMonoLayer(MonoLayer):
         separator: Separator,
         anode: Anode,
         transverse: bool = False,
-        overhang_control_mode: OverhangControlMode = OverhangControlMode.FIXED_COMPONENT,
         name: str = "Z-Fold MonoLayer",
     ):
         self._update_properties = False
@@ -1856,13 +1900,14 @@ class ZFoldMonoLayer(MonoLayer):
         top_separator.length = (
             anode.current_collector._x_body_length + 2 * top_separator._thickness
         ) * M_TO_MM
+
         bottom_separator.length = (
             cathode.current_collector._x_body_length + 2 * bottom_separator._thickness
         ) * M_TO_MM
 
         # Bypass MonoLayer.__init__ to avoid calling blocked setters
         # Call _Layup.__init__ directly and set up necessary attributes
-        self._overhang_control_mode = overhang_control_mode
+        self._overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
         self._cathode = cathode
         self._anode = anode
         self._top_separator = top_separator
@@ -1876,6 +1921,28 @@ class ZFoldMonoLayer(MonoLayer):
     # ============================================================================
     # Core Component Properties
     # ============================================================================
+
+    @classmethod
+    def from_monolayer(cls, monolayer: MonoLayer) -> "ZFoldMonoLayer":
+        
+        separator = deepcopy(monolayer.bottom_separator)
+
+        # Ensure separator is rotated to have length along the x axis
+        if separator._rotated_xy:
+            separator._rotate_90_xy()
+
+        # ensure the separator width is wide enough
+        if separator.width < (
+            monolayer.anode.current_collector.y_body_length
+        ):
+            separator.width = monolayer.anode.current_collector.y_body_length
+
+        return cls(
+            cathode=deepcopy(monolayer.cathode),
+            separator=separator,
+            anode=deepcopy(monolayer.anode),
+            transverse=monolayer.transverse,
+        )
 
     @property
     def separator(self) -> Separator:
@@ -2049,12 +2116,12 @@ class ZFoldMonoLayer(MonoLayer):
     @property
     def separator_overhang_bottom_range(self) -> tuple:
         """Get the valid range for bottom separator overhang."""
-        return super().bottom_separator_overhang_bottom_range
+        return self.bottom_separator_overhang_bottom_range
 
     @property
     def separator_overhang_top_range(self) -> tuple:
         """Get the valid range for top separator overhang."""
-        return super().bottom_separator_overhang_top_range
+        return self.bottom_separator_overhang_top_range
 
     # ============================================================================
     # Internal/Helper Methods
@@ -2301,3 +2368,6 @@ class ZFoldMonoLayer(MonoLayer):
         raise AttributeError(
             "ZFoldMonoLayer uses unified 'separator_overhang_right' property. Individual 'top_separator_overhang_right' access is not available."
         )
+
+
+

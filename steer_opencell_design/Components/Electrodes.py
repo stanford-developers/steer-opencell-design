@@ -176,10 +176,8 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
         self._mass_loading = _calender_density * _coating_thickness
 
     def _calculate_coating_thickness(
-        self, mass_loading: float, calender_density: float
+        self, _mass_loading: float, _calender_density: float
     ) -> None:
-        _mass_loading = mass_loading * (MG_TO_KG / CM_TO_M**2)
-        _calender_density = calender_density * (G_TO_KG / CM_TO_M**3)
         self._coating_thickness = _mass_loading / _calender_density
 
     def _calculate_calender_density(
@@ -192,7 +190,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
     # === CALCULATE PROPERTIES ===
 
     def _calculate_all_properties(self) -> None:
-        self._calculate_coating_thickness(self.mass_loading, self.calender_density)
+        self._calculate_coating_thickness(self._mass_loading, self._calender_density)
         self._calculate_bulk_properties()
         self._calculate_half_cell_curve()
         self._calculate_coordinates()
@@ -1161,8 +1159,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
         self.coating_thickness = new_coating_thickness
 
     @coating_thickness.setter
-    @calculate_bulk_properties
-    @calculate_coordinates
+    @calculate_all_properties
     def coating_thickness(self, coating_thickness: float):
         """
         Set the coating thickness of the electrode. Behavior depends on control mode.
@@ -1202,8 +1199,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
         self._voltage_cutoff = voltage
 
     @calender_density.setter
-    @calculate_bulk_properties
-    @calculate_coordinates
+    @calculate_all_properties
     def calender_density(self, calender_density: float):
         self.validate_positive_float(calender_density, "calender density")
         self._calender_density = calender_density * (G_TO_KG / CM_TO_M**3)
@@ -1240,8 +1236,7 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
         self._insulation_thickness = insulation_thickness * UM_TO_M
 
     @mass_loading.setter
-    @calculate_bulk_properties
-    @calculate_coordinates
+    @calculate_all_properties
     def mass_loading(self, mass_loading: float):
         self.validate_positive_float(mass_loading, "mass loading")
         self._mass_loading = mass_loading * (MG_TO_KG / CM_TO_M**2)
@@ -1250,7 +1245,8 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
             self._update_dependent_properties("mass_loading", mass_loading)
 
     @current_collector.setter
-    @calculate_all_properties
+    @calculate_bulk_properties
+    @calculate_coordinates
     def current_collector(self, current_collector: _CurrentCollector):
         # validate the current collector
         self.validate_type(current_collector, _CurrentCollector, "current collector")

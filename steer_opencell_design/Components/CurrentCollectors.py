@@ -39,6 +39,7 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
     lithium-ion batteries and similar electrochemical cells.
 
     The class handles:
+    
     - Geometric coordinate calculations for 3D visualization
     - Area calculations for coated and uncoated regions
     - Material property management and validation
