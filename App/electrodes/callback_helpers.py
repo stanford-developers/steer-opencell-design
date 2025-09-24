@@ -21,6 +21,12 @@ def create_electrode_callback(electrode_key: ElectrodeType) -> callable:
         input_values: list,
         slider_values: list,
         viewing_styles=[],
+        original_values=None,
+        original_mins=None,
+        original_maxs=None,
+        original_slider_marks=None,
+        original_slider_steps=None,
+        original_input_steps=None
     ) -> Tuple:
         # Get the triggered ID
         triggered_id = ctx.triggered_id
@@ -48,13 +54,19 @@ def create_electrode_callback(electrode_key: ElectrodeType) -> callable:
         # trigger if a property is updated
         elif trigger_type == TriggerType.PROPERTY:
             return handle_property_update(
-                existing_warnings,
-                triggered_id,
-                cell,
-                electrode,
-                config,
-                input_values,
-                slider_values,
+                existing_warnings=existing_warnings,
+                triggered_id=triggered_id,
+                cell=cell,
+                object_instance=electrode,
+                config=config,
+                input_values=input_values,
+                slider_values=slider_values,
+                original_values=original_values,
+                original_mins=original_mins,
+                original_maxs=original_maxs,
+                original_slider_marks=original_slider_marks,
+                original_slider_steps=original_slider_steps,
+                original_input_steps=original_input_steps
             )
 
         # Fallback

@@ -7,60 +7,12 @@ from App.general.enumerated_classes import MaterialType, ElectrodeType
     [
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "step",
-        ),
+        Output({"electrode": "cathode", "object": "material", "property": ALL, "subtype": "slider"}, "value"),
+        Output({"electrode": "cathode", "object": "material", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"electrode": "cathode", "object": "material", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"electrode": "cathode", "object": "material", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"electrode": "cathode", "object": "material", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"electrode": "cathode", "object": "material", "property": ALL, "subtype": "input"}, "step"),
         Output("cathode_current_collector_material_selector", "value"),
     ],
     [
@@ -69,44 +21,12 @@ from App.general.enumerated_classes import MaterialType, ElectrodeType
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
         Input("cathode_current_collector_material_selector", "value"),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
+        Input({"electrode": "cathode", "object": "material", "property": ALL, "subtype": "input"}, "n_submit"),
+        Input({"electrode": "cathode", "object": "material", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"electrode": "cathode", "object": "material", "property": ALL, "subtype": "slider"}, "value"),
     ],
     [
-        State(
-            {
-                "electrode": "cathode",
-                "object": "material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "value",
-        ),
+        State({"electrode": "cathode", "object": "material", "property": ALL, "subtype": "input"}, "value"),
         State("warnings_store", "data"),
     ],
     prevent_initial_call=True,
@@ -143,60 +63,12 @@ def update_cathode_current_collector_material(
     [
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "step",
-        ),
+        Output({"electrode": "anode", "object": "material", "property": ALL, "subtype": "slider"}, "value"),
+        Output({"electrode": "anode", "object": "material", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"electrode": "anode", "object": "material", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"electrode": "anode", "object": "material", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"electrode": "anode", "object": "material", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"electrode": "anode", "object": "material", "property": ALL, "subtype": "input"}, "step"),
         Output("anode_current_collector_material_selector", "value"),
     ],
     [
@@ -205,44 +77,12 @@ def update_cathode_current_collector_material(
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
         Input("anode_current_collector_material_selector", "value"),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
+        Input({"electrode": "anode", "object": "material", "property": ALL, "subtype": "input"}, "n_submit"),
+        Input({"electrode": "anode", "object": "material", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"electrode": "anode", "object": "material", "property": ALL, "subtype": "slider"}, "value"),
     ],
     [
-        State(
-            {
-                "electrode": "anode",
-                "object": "material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "value",
-        ),
+        State({"electrode": "anode", "object": "material", "property": ALL, "subtype": "input"}, "value"),
         State("warnings_store", "data"),
     ],
     prevent_initial_call=True,
@@ -279,60 +119,12 @@ def update_anode_current_collector_material(
     [
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tab_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tab_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tab_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tab_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tab_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "tab_material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "step",
-        ),
+        Output({"electrode": "cathode", "object": "tab_material", "property": ALL, "subtype": "slider"}, "value"),
+        Output({"electrode": "cathode", "object": "tab_material", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"electrode": "cathode", "object": "tab_material", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"electrode": "cathode", "object": "tab_material", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"electrode": "cathode", "object": "tab_material", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"electrode": "cathode", "object": "tab_material", "property": ALL, "subtype": "input"}, "step"),
         Output("cathode_current_collector_tab_material_selector", "value"),
     ],
     [
@@ -341,44 +133,12 @@ def update_anode_current_collector_material(
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
         Input("cathode_current_collector_tab_material_selector", "value"),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tab_material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tab_material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "tab_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
+        Input({"electrode": "cathode", "object": "tab_material", "property": ALL, "subtype": "input"}, "n_submit"),
+        Input({"electrode": "cathode", "object": "tab_material", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"electrode": "cathode", "object": "tab_material", "property": ALL, "subtype": "slider"}, "value"),
     ],
     [
-        State(
-            {
-                "electrode": "cathode",
-                "object": "tab_material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "value",
-        ),
+        State({"electrode": "cathode", "object": "tab_material", "property": ALL, "subtype": "input"}, "value"),
         State("warnings_store", "data"),
     ],
     prevent_initial_call=True,
@@ -413,60 +173,12 @@ def update_cathode_current_collector_tab_material(
     [
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tab_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tab_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tab_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tab_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tab_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "tab_material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "step",
-        ),
+        Output({"electrode": "anode", "object": "tab_material", "property": ALL, "subtype": "slider"}, "value"),
+        Output({"electrode": "anode", "object": "tab_material", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"electrode": "anode", "object": "tab_material", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"electrode": "anode", "object": "tab_material", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"electrode": "anode", "object": "tab_material", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"electrode": "anode", "object": "tab_material", "property": ALL, "subtype": "input"}, "step"),
         Output("anode_current_collector_tab_material_selector", "value"),
     ],
     [
@@ -475,44 +187,12 @@ def update_cathode_current_collector_tab_material(
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
         Input("anode_current_collector_tab_material_selector", "value"),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tab_material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tab_material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "tab_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
+        Input({"electrode": "anode", "object": "tab_material", "property": ALL, "subtype": "input"}, "n_submit"),
+        Input({"electrode": "anode", "object": "tab_material", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"electrode": "anode", "object": "tab_material", "property": ALL, "subtype": "slider"}, "value"),
     ],
     [
-        State(
-            {
-                "electrode": "anode",
-                "object": "tab_material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "value",
-        ),
+        State({"electrode": "anode", "object": "tab_material", "property": ALL, "subtype": "input"}, "value"),
         State("warnings_store", "data"),
     ],
     prevent_initial_call=True,
@@ -547,60 +227,12 @@ def update_anode_current_collector_tab_material(
     [
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "insulation_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "insulation_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "insulation_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "insulation_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "insulation_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "cathode",
-                "object": "insulation_material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "step",
-        ),
+        Output({"electrode": "cathode", "object": "insulation_material", "property": ALL, "subtype": "slider"}, "value"),
+        Output({"electrode": "cathode", "object": "insulation_material", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"electrode": "cathode", "object": "insulation_material", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"electrode": "cathode", "object": "insulation_material", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"electrode": "cathode", "object": "insulation_material", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"electrode": "cathode", "object": "insulation_material", "property": ALL, "subtype": "input"}, "step"),
         Output("cathode_insulation_material_selector", "value"),
     ],
     [
@@ -609,44 +241,12 @@ def update_anode_current_collector_tab_material(
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
         Input("cathode_insulation_material_selector", "value"),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "insulation_material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "insulation_material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "cathode",
-                "object": "insulation_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
+        Input({"electrode": "cathode", "object": "insulation_material", "property": ALL, "subtype": "input"}, "n_submit"),
+        Input({"electrode": "cathode", "object": "insulation_material", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"electrode": "cathode", "object": "insulation_material", "property": ALL, "subtype": "slider"}, "value"),
     ],
     [
-        State(
-            {
-                "electrode": "cathode",
-                "object": "insulation_material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "value",
-        ),
+        State({"electrode": "cathode", "object": "insulation_material", "property": ALL, "subtype": "input"}, "value"),
         State("warnings_store", "data"),
     ],
     prevent_initial_call=True,
@@ -681,60 +281,12 @@ def update_cathode_current_collector_insulation_material(
     [
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "insulation_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "insulation_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "min",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "insulation_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "max",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "insulation_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "marks",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "insulation_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "step",
-        ),
-        Output(
-            {
-                "electrode": "anode",
-                "object": "insulation_material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "step",
-        ),
+        Output({"electrode": "anode", "object": "insulation_material", "property": ALL, "subtype": "slider"}, "value"),
+        Output({"electrode": "anode", "object": "insulation_material", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"electrode": "anode", "object": "insulation_material", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"electrode": "anode", "object": "insulation_material", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"electrode": "anode", "object": "insulation_material", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"electrode": "anode", "object": "insulation_material", "property": ALL, "subtype": "input"}, "step"),
         Output("anode_insulation_material_selector", "value"),
     ],
     [
@@ -743,44 +295,12 @@ def update_cathode_current_collector_insulation_material(
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
         Input("anode_insulation_material_selector", "value"),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "insulation_material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_submit",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "insulation_material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "n_blur",
-        ),
-        Input(
-            {
-                "electrode": "anode",
-                "object": "insulation_material",
-                "property": ALL,
-                "subtype": "slider",
-            },
-            "value",
-        ),
+        Input({"electrode": "anode", "object": "insulation_material", "property": ALL, "subtype": "input"}, "n_submit"),
+        Input({"electrode": "anode", "object": "insulation_material", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"electrode": "anode", "object": "insulation_material", "property": ALL, "subtype": "slider"}, "value"),
     ],
     [
-        State(
-            {
-                "electrode": "anode",
-                "object": "insulation_material",
-                "property": ALL,
-                "subtype": "input",
-            },
-            "value",
-        ),
+        State({"electrode": "anode", "object": "insulation_material", "property": ALL, "subtype": "input"}, "value"),
         State("warnings_store", "data"),
     ],
     prevent_initial_call=True,
