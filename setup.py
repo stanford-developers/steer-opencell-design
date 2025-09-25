@@ -16,7 +16,7 @@ setup(
     url="https://github.com/stanford-developers/steer-opencell-design/",
     packages=find_packages(),
     install_requires=[
-        "steer-core==0.1.16",
+        "steer-core==0.1.18",
         "steer-materials==0.1.11",
         "pandas==2.1.4",
         "numpy==1.26.4",

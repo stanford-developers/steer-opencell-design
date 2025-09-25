@@ -151,6 +151,7 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         """
         Calculate the bottom separator overhangs relative to the cathode.
         """
+
         if hasattr(self, "_cathode") and hasattr(self, "_bottom_separator") and self._cathode is not None and self._bottom_separator is not None:
             # Cathode edges (using internal SI units - meters)
             cathode_left = self._cathode._current_collector._datum[0] - self._cathode._current_collector._x_body_length / 2
@@ -707,6 +708,7 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
     @separator.setter
     @calculate_volumes
     def separator(self, separator: Separator):
+
         # validate the type
         self.validate_type(separator, Separator, "Separator")
 
@@ -726,6 +728,7 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
 
         # if there is an anode, update its ranges
         if self._update_properties:
+
             # update the anode ranges
             self._anode.current_collector.set_ranges_from_reference(self.cathode.current_collector)
 
@@ -787,6 +790,12 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
             anode.datum = (self.cathode.datum[0], self.cathode.datum[1], anode.datum[2])
         elif self._update_properties:
             anode.datum = (anode.datum[0], anode.datum[1], anode.datum[2])
+
+        # reset the separator to ensure it has the right propertions
+        self._update_properties = False
+        separator = self._bottom_separator
+        self.separator = separator
+        self._update_properties = True
 
         # assign to self
         self._anode = anode
@@ -1823,6 +1832,11 @@ class ZFoldMonoLayer(MonoLayer):
         # Set lengths according to Z-fold constraints
         bottom_separator.length = (self.cathode.current_collector._x_body_length + 2 * bottom_separator._thickness) * M_TO_MM
         top_separator.length = (self.anode.current_collector._x_body_length + 2 * top_separator._thickness) * M_TO_MM
+
+        # make sure it is wide enough for the anode
+        if bottom_separator.width < (self.anode.current_collector.y_body_length):
+            bottom_separator.width = self.anode.current_collector.y_body_length
+            top_separator.width = self.anode.current_collector.y_body_length
 
         # Set positions based on existing datums if updating properties
         if not self._update_properties:
