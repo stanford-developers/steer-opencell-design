@@ -12,10 +12,11 @@ clientside_callback(
     ),
     Input(
         {"electrode": MATCH, "object": MATCH, "property": MATCH, "subtype": "slider"},
-        "drag_value",
+        "value",
     ),
     prevent_initial_call=True,
 )
+
 
 
 clientside_callback(
@@ -25,7 +26,7 @@ clientside_callback(
     }
     """,
     Output({"object": MATCH, "property": MATCH, "subtype": "input"}, "value"),
-    Input({"object": MATCH, "property": MATCH, "subtype": "slider"}, "drag_value"),
+    Input({"object": MATCH, "property": MATCH, "subtype": "slider"}, "value"),
     prevent_initial_call=True,
 )
 
@@ -55,7 +56,7 @@ clientside_callback(
             "material": MATCH,
             "subtype": "slider",
         },
-        "drag_value",
+        "value",
     ),
     prevent_initial_call=True,
 )
@@ -97,7 +98,7 @@ clientside_callback(
             "property": MATCH,
             "subtype": "rangeslider",
         },
-        "drag_value",
+        "value",
     ),
     prevent_initial_call=True,
 )
