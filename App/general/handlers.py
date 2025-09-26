@@ -16,6 +16,7 @@ from steer_core.Apps.Utils.SliderControls import (
     create_slider_config,
     create_range_slider_config,
 )
+
 from steer_core.Apps.ContextManagers import capture_warnings
 
 
@@ -136,15 +137,35 @@ def _add_range_slider_components(
         ]
     )
 
+def _add_radioitem_components(
+        response: List[Any], 
+        object_instance: Type, 
+        config: Type,
+        original_radioitem_values=None
+    ) -> None:
 
-def _add_radioitem_components(response: List[Any], object_instance: Type, config: Type) -> None:
     """Add radio item components if applicable."""
+    
     if not (hasattr(config, "radioitem_parameters") and config.radioitem_parameters):
         return
 
     # Add radio item values
     radioitem_values = [getattr(object_instance, param) for param in config.radioitem_parameters]
-    response.extend([radioitem_values])
+
+    # extract string if an enum
+    for i, r in enumerate(radioitem_values):
+        if hasattr(r, 'value'):
+            r = r.value
+            radioitem_values[i] = r
+
+    # apply comparisons
+    radioitem_values = _compare_and_update_responses(radioitem_values, original_radioitem_values)
+
+    response.extend(
+        [
+            radioitem_values
+        ]
+    )
 
 
 def _add_text_item_components(response: List[Any], object_instance: Type, config: Type) -> None:
@@ -221,7 +242,8 @@ def handle_property_update(
     original_rangeslider_marks=None,
     original_rangeslider_steps=None,
     original_input_start_steps=None,
-    original_input_end_steps=None
+    original_input_end_steps=None,
+    original_radioitem_values=None
 ) -> Tuple:
 
     # determine the property and subtype from the triggered ID
@@ -296,7 +318,12 @@ def handle_property_update(
             original_input_end_steps
         )
         
-        _add_radioitem_components(response, object_instance, config)
+        _add_radioitem_components(
+            response, 
+            object_instance, 
+            config,
+            original_radioitem_values
+        )
         
         _add_text_item_components(response, object_instance, config)
 

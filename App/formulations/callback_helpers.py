@@ -3,7 +3,7 @@ from dash import ctx
 import time
 from dash.exceptions import PreventUpdate
 
-from App.general.callback_helpers import create_no_update_response
+from App.general.callback_helpers import create_no_update_response, prevent_update_from_styles
 from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
 from App.general.handlers import handle_cell_store_update, handle_property_update
 
@@ -72,8 +72,7 @@ def create_generic_formulation_callback(formulation_type: FormulationType) -> ca
         triggered_prop_id = list(ctx.triggered_prop_ids.keys())[0].split(".")[-1]
 
         # If all display is none for any of the viewing styles, return no update
-        if any(d.get("display") == "none" for d in viewing_styles):
-            raise PreventUpdate
+        prevent_update_from_styles(viewing_styles)
 
         # Get the cell from cache
         cell = get_cell_from_cache(cell_data["cache_key"])
@@ -128,8 +127,7 @@ def create_generic_formulation_div_callback(
     ) -> Tuple:
         
         # If all display is none for any of the viewing styles, return no update
-        if any(d.get("display") == "none" for d in viewing_styles):
-            raise PreventUpdate
+        prevent_update_from_styles(viewing_styles)
 
         # Get the triggered ID
         trigger_id = ctx.triggered_id

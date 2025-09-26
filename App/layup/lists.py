@@ -84,3 +84,7 @@ ZFOLDMONOLAYER_SETTABLE_PARAMETERS = [
     "separator_overhang_top",
     "separator_overhang_bottom",
 ]
+
+LAYUP_MODES_LIST = [
+    "overhang_control_mode"
+]

@@ -12,7 +12,7 @@ from App.formulations.configs import FORMULATION_CONFIGS
 
 from App.general.enumerated_classes import FormulationType
 from App.general.cell_operations import get_object_from_cell
-from App.general.callback_helpers import create_properties_table
+from App.general.callback_helpers import create_properties_table, prevent_update_from_styles
 
 from steer_core.Apps.ContextManagers import capture_warnings
 
@@ -312,8 +312,7 @@ def update_cathode_formulation_plots(
     Update the cathode current collector plots based on the current collector store data.
     """
     # If all display is none for any of the viewing styles, return no update
-    if any(d.get("display") == "none" for d in [cathode_tab_style, tabs_panel_style, main_tabs_panel_style]):
-        raise PreventUpdate
+    prevent_update_from_styles([cathode_tab_style, tabs_panel_style, main_tabs_panel_style])
 
     # Get the configuration
     config = FORMULATION_CONFIGS[FormulationType.CATHODE]
@@ -354,8 +353,7 @@ def update_anode_formulation_plots(anode_tab_style, tabs_panel_style, main_tabs_
     Update the anode current collector plots based on the current collector store data.
     """
     # If all display is none for any of the viewing styles, return no update
-    if any(d.get("display") == "none" for d in [anode_tab_style, tabs_panel_style, main_tabs_panel_style]):
-        raise PreventUpdate
+    prevent_update_from_styles([anode_tab_style, tabs_panel_style, main_tabs_panel_style])
 
     # Get the configuration
     config = FORMULATION_CONFIGS[FormulationType.ANODE]

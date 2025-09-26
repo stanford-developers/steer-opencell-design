@@ -14,6 +14,10 @@ from dash.exceptions import PreventUpdate
 def prevent_update_from_styles(
         viewing_styles: List[Dict[str, Any]]
     ) -> None:
+
+    if len(viewing_styles) == 0:
+        return
+
     # If all display is none for any of the viewing styles, return no update
     if any(d.get("display") == "none" for d in viewing_styles):
         raise PreventUpdate

@@ -34,7 +34,6 @@ from enum import Enum
 
 class ElectrodeControlMode(Enum):
     """Control modes for electrode property interdependencies."""
-
     MAINTAIN_CALENDER_DENSITY = "maintain_calender_density"  # Keep calender density constant (current behavior)
     MAINTAIN_MASS_LOADING = "maintain_mass_loading"  # Keep mass loading constant
     MAINTAIN_COATING_THICKNESS = "maintain_coating_thickness"  # Keep coating thickness constant
@@ -157,10 +156,20 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
         return self._control_mode
 
     @control_mode.setter
-    def control_mode(self, mode: ElectrodeControlMode):
-        if not isinstance(mode, ElectrodeControlMode):
-            raise ValueError(f"Mode must be an ElectrodeControlMode enum, got {type(mode)}")
-        self._control_mode = mode
+    def control_mode(self, mode: ElectrodeControlMode | str) -> None:
+
+        if isinstance(mode, ElectrodeControlMode):
+            self._control_mode = mode
+            return
+        
+        elif isinstance(mode, str):
+            for enum_member in ElectrodeControlMode:
+                if mode.lower().replace(" ", "_") == enum_member.value:
+                    self._control_mode = enum_member
+                    return
+                
+        else:
+            raise ValueError(f"Invalid control mode: {mode}. Available modes are: {[e.value for e in ElectrodeControlMode]}")
 
     def _calculate_mass_loading(self, calender_density: float, coating_thickness: float) -> None:
         _calender_density = calender_density * (G_TO_KG / CM_TO_M**3)
