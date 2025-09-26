@@ -6,7 +6,7 @@ from App.general.enumerated_classes import ElectrodeType
 from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
 from App.general.trigger_router import TriggerRouter, TriggerType
 from App.general.handlers import handle_cell_store_update, handle_property_update
-from App.general.callback_helpers import create_no_update_response
+from App.general.callback_helpers import prevent_update_from_styles
 
 from App.electrodes.configs import ELECTRODE_CONFIGS
 
@@ -22,6 +22,7 @@ def create_electrode_callback(electrode_key: ElectrodeType) -> callable:
         input_values: list,
         slider_values: list,
         viewing_styles=[],
+        control_mode_values=None,
         original_values=None,
         original_mins=None,
         original_maxs=None,
@@ -37,8 +38,7 @@ def create_electrode_callback(electrode_key: ElectrodeType) -> callable:
         triggered_prop_id = list(ctx.triggered_prop_ids.keys())[0].split(".")[-1]
 
         # If all display is none for any of the viewing styles, return no update
-        if any(d.get("display") == "none" for d in viewing_styles):
-            raise PreventUpdate
+        prevent_update_from_styles(viewing_styles)
 
         # Get the cell from cache
         cell = get_cell_from_cache(cell_data["cache_key"])
@@ -63,6 +63,7 @@ def create_electrode_callback(electrode_key: ElectrodeType) -> callable:
                 config=config,
                 input_values=input_values,
                 slider_values=slider_values,
+                radioitem_values=control_mode_values,
                 original_values=original_values,
                 original_mins=original_mins,
                 original_maxs=original_maxs,
@@ -70,7 +71,7 @@ def create_electrode_callback(electrode_key: ElectrodeType) -> callable:
                 original_slider_steps=original_slider_steps,
                 original_input_steps=original_input_steps
             )
-
+        
         # Fallback
         raise PreventUpdate
 

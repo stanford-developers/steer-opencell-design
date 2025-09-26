@@ -49,19 +49,21 @@ cathode_control_modes = ds.html.Div(
             style={"margin-bottom": "10px", "color": "#666"},
         ),
         ds.dcc.RadioItems(
-            id="cathode_control_mode_selector",
+            id={"electrode": "cathode", "object": "electrode", "property": "control_mode", "subtype": "radioitem"},
             options=[
-                {"label": " Maintain Mass Loading", "value": "MAINTAIN_MASS_LOADING"},
+                {
+                    "label": " Maintain Mass Loading", 
+                    "value": "maintain_mass_loading"},
                 {
                     "label": " Maintain Calender Density",
-                    "value": "MAINTAIN_CALENDER_DENSITY",
+                    "value": "maintain_calender_density",
                 },
                 {
                     "label": " Maintain Coating Thickness",
-                    "value": "MAINTAIN_COATING_THICKNESS",
+                    "value": "maintain_coating_thickness",
                 },
             ],
-            value="MAINTAIN_CALENDER_DENSITY",  # Default to current behavior (single value, not list)
+            value="maintain_calender_density",  # Default to current behavior (single value, not list)
             style={"margin": "10px 0"},
             inputStyle={"margin-right": "8px", "transform": "scale(1.2)"},
             labelStyle={
@@ -232,19 +234,22 @@ anode_control_modes = ds.html.Div(
             style={"margin-bottom": "10px", "color": "#666"},
         ),
         ds.dcc.RadioItems(
-            id="anode_control_mode_selector",
+            id={"electrode": "anode", "object": "electrode", "property": "control_mode", "subtype": "radioitem"},
             options=[
-                {"label": " Maintain Mass Loading", "value": "MAINTAIN_MASS_LOADING"},
+                {
+                    "label": " Maintain Mass Loading",
+                    "value": "maintain_mass_loading"
+                },
                 {
                     "label": " Maintain Calender Density",
-                    "value": "MAINTAIN_CALENDER_DENSITY",
+                    "value": "maintain_calender_density",
                 },
                 {
                     "label": " Maintain Coating Thickness",
-                    "value": "MAINTAIN_COATING_THICKNESS",
+                    "value": "maintain_coating_thickness",
                 },
             ],
-            value="MAINTAIN_CALENDER_DENSITY",
+            value="maintain_calender_density",
             style={"margin": "10px 0"},
             inputStyle={"margin-right": "8px", "transform": "scale(1.2)"},
             labelStyle={
