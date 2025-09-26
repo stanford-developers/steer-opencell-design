@@ -9,6 +9,7 @@ from App.electrodes.configs import ELECTRODE_CONFIGS
 from App.current_collectors.configs import COLLECTOR_CONFIGS
 
 from App.general.enumerated_classes import ElectrodeType, CollectorType
+from App.general.callback_helpers import prevent_update_from_styles
 
 from App.general.cell_operations import (
     get_object_from_cell,
@@ -22,12 +23,31 @@ from steer_opencell_design.Components.Electrodes import ElectrodeControlMode
 
 
 @callback(
-    Output("cathode_insulation_material_parameters", "style"),
-    Input("cell_store", "data"),
-    State("cathode_insulation_material_parameters", "style"),
+    [
+        Output("cathode_insulation_material_parameters", "style"),
+    ],
+    [
+        Input("cathode_electrode_tab", "style"),
+        Input("cathode_tab", "style"),
+        Input("tabs_panel", "style"),
+        Input("cell_store", "data"),
+    ],
+    [
+        State("cathode_insulation_material_parameters", "style"),
+    ],
     prevent_initial_call=True,
 )
-def toggle_cathode_insulation_parameters(cell_data, current_style):
+def toggle_cathode_insulation_parameters(
+    electrode_tab_style,
+    tab_style,
+    tabs_panel_style,
+    cell_data, 
+    current_style
+    ):
+
+    # prevent update if any of the viewing styles is 'none'
+    prevent_update_from_styles([electrode_tab_style, tab_style, tabs_panel_style])
+
     # Get the configuration for cathode
     config = COLLECTOR_CONFIGS[CollectorType.CATHODE_GENERIC]
 
@@ -46,21 +66,40 @@ def toggle_cathode_insulation_parameters(cell_data, current_style):
         # Remove 'display' if present, or set to 'block'
         style = dict(current_style)
         style.pop("display", None)
-        return style
+        return (style,)
     else:
         # Set 'display' to 'none'
         style = dict(current_style)
         style["display"] = "none"
-        return style
+        return (style,)
 
 
 @callback(
-    Output("anode_insulation_material_parameters", "style"),
-    Input("cell_store", "data"),
-    State("anode_insulation_material_parameters", "style"),
+    [
+        Output("anode_insulation_material_parameters", "style"),
+    ],
+    [
+        Input("anode_electrode_tab", "style"),
+        Input("anode_tab", "style"),
+        Input("tabs_panel", "style"),
+        Input("cell_store", "data"),
+    ],
+    [
+        State("anode_insulation_material_parameters", "style"),
+    ],
     prevent_initial_call=True,
 )
-def toggle_anode_insulation_parameters(cell_data, current_style):
+def toggle_anode_insulation_parameters(
+    electrode_tab_style,
+    tab_style,
+    tabs_panel_style,
+    cell_data,
+    current_style
+    ):
+
+    # prevent update if any of the viewing styles is 'none'
+    prevent_update_from_styles([electrode_tab_style, tab_style, tabs_panel_style])
+
     # Get the configuration for anode
     config = COLLECTOR_CONFIGS[CollectorType.ANODE_GENERIC]
 
@@ -79,12 +118,12 @@ def toggle_anode_insulation_parameters(cell_data, current_style):
         # Remove 'display' if present, or set to 'block'
         style = dict(current_style)
         style.pop("display", None)
-        return style
+        return (style,)
     else:
         # Set 'display' to 'none'
         style = dict(current_style)
         style["display"] = "none"
-        return style
+        return (style,)
 
 
 @callback(
@@ -97,6 +136,7 @@ def toggle_anode_insulation_parameters(cell_data, current_style):
         Output({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "slider"}, "marks"),
         Output({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "slider"}, "step"),
         Output({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "input"}, "step"),
+        Output({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "radioitem"}, "value"),
     ],
     [
         Input("cathode_electrode_tab", "style"),
@@ -106,6 +146,7 @@ def toggle_anode_insulation_parameters(cell_data, current_style):
         Input({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "input"}, "n_submit"),
         Input({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "input"}, "n_blur"),
         Input({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "slider"}, "value"),
+        Input({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "radioitem"}, "value"),
     ],
     [
         State({"electrode": "cathode", "object": "electrode", "property": ALL, "subtype": "input"}, "value"),
@@ -127,6 +168,7 @@ def update_cathode(
     input_n_sub,
     input_n_blur,
     slider_values,
+    control_mode_values,
     input_values,
     existing_warnings,
     original_values,
@@ -144,6 +186,7 @@ def update_cathode(
         input_values=input_values,
         slider_values=slider_values,
         viewing_styles=[cc_tab_style, tab_style, tabs_panel_style],
+        control_mode_values=control_mode_values,
         original_values=original_values,
         original_mins=original_mins,
         original_maxs=original_maxs,
@@ -165,6 +208,7 @@ def update_cathode(
         Output({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "slider"}, "marks"),
         Output({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "slider"}, "step"),
         Output({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "input"}, "step"),
+        Output({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "radioitem"}, "value"),
     ],
     [
         Input("anode_electrode_tab", "style"),
@@ -174,6 +218,7 @@ def update_cathode(
         Input({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "input"}, "n_submit"),
         Input({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "input"}, "n_blur"),
         Input({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "slider"}, "value"),
+        Input({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "radioitem"}, "value"),
     ],
     [
         State({"electrode": "anode", "object": "electrode", "property": ALL, "subtype": "input"}, "value"),
@@ -195,6 +240,7 @@ def update_anode(
     input_n_sub,
     input_n_blur,
     slider_values,
+    control_mode_values,
     input_values,
     existing_warnings,
     original_values,
@@ -212,6 +258,7 @@ def update_anode(
         input_values,
         slider_values,
         viewing_styles=[cc_tab_style, tab_style, tabs_panel_style],
+        control_mode_values=control_mode_values,
         original_values=original_values,
         original_mins=original_mins,
         original_maxs=original_maxs,
@@ -238,6 +285,13 @@ def update_anode(
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
     ],
+    [
+        State("cathode_top_down_plot", "figure"),
+        State("cathode_cross_section_plot", "figure"), 
+        State("cathode_cost_breakdown_plot", "figure"),
+        State("cathode_mass_breakdown_plot", "figure"),
+        State("cathode_properties_div", "children"),
+    ],
     prevent_initial_call=True,
 )
 def update_cathode_plots(
@@ -246,44 +300,75 @@ def update_cathode_plots(
     tab_style,
     tabs_panel_style,
     cell_data,
+    current_top_down_plot,
+    current_cross_section_plot,
+    current_cost_breakdown_plot,
+    current_mass_breakdown_plot,
+    current_properties_div,
 ):
     """
-    Update the cathode current collector plots based on the current collector store data.
+    Update the cathode plots based on the current collector store data.
+    Optimized to avoid unnecessary plot regeneration.
     """
-    # If all display is none for any of the viewing styles, return no update
-    if any(d.get("display") == "none" for d in [tab_style, tabs_panel_style]):
+    # Early exit if main panels are hidden
+    prevent_update_from_styles([tab_style, tabs_panel_style])
+    
+    # Check what triggered this callback
+    triggered = ctx.triggered[0] if ctx.triggered else {}
+    triggered_id = triggered.get("prop_id", "")
+    
+    # If only style changes triggered and no tabs are visible, prevent update
+    electrode_visible = electrode_tab_style and electrode_tab_style.get("display") == "block"
+    cc_visible = cc_tab_style and cc_tab_style.get("display") == "block"
+    
+    if not electrode_visible and not cc_visible:
         raise PreventUpdate
-
-    # Get the configuration
+    
+    # Only regenerate plots if cell_store changed or switching between visible tabs
+    needs_regeneration = (
+        "cell_store.data" in triggered_id or
+        (electrode_visible and not current_cross_section_plot) or
+        (cc_visible and not current_top_down_plot)
+    )
+    
+    if not needs_regeneration:
+        # Return current plots with no_update for unchanged ones
+        if electrode_visible:
+            return no_update, no_update, no_update, no_update, no_update
+        elif cc_visible:
+            return no_update, no_update, no_update, no_update, no_update
+    
+    # Get cathode object (only when needed)
     config = ELECTRODE_CONFIGS[ElectrodeType.CATHODE]
-
-    # get the cell from the cache
     cell = cache.get(cell_data["cache_key"])
-
-    # get the current collector from the cell
     cathode = get_object_from_cell(cell, config)
-
-    # Get the properties
-    properties = cathode.properties
-
-    # Only update if the electrode tab is visible
-    if electrode_tab_style.get("display") == "block":
-        plot_b = cathode.get_cross_section(title="Cross-Section Cathode View")
+    
+    if electrode_visible:
+        # Generate expensive plots only when electrode tab is active
+        plot_cross_section = cathode.get_cross_section(title="Cross-Section Cathode View")
         plot_cost_breakdown = cathode.plot_cost_breakdown(title="Cost Breakdown Plot")
         plot_mass_breakdown = cathode.plot_mass_breakdown(title="Mass Breakdown Plot")
-        properties_table = create_properties_table(properties, table_id="cathode_properties_table", decimal_places=2)
+        
+        properties = cathode.properties
+        properties_table = create_properties_table(
+            properties, 
+            table_id="cathode_properties_table", 
+            decimal_places=2
+        )
+        
         return (
-            no_update,
-            plot_b,
+            no_update,  # Keep existing top-down plot
+            plot_cross_section,
             plot_cost_breakdown,
             plot_mass_breakdown,
             properties_table,
         )
-
-    elif cc_tab_style.get("display") == "block":
-        plot_a = cathode.get_top_down_view(title="Top-Down Cathode View")
-        return plot_a, no_update, no_update, no_update, no_update
-
+    
+    elif cc_visible:
+        # Generate only the top-down plot when CC tab is active
+        plot_top_down = cathode.get_top_down_view(title="Top-Down Cathode View")
+        return plot_top_down, no_update, no_update, no_update, no_update
+    
     else:
         raise PreventUpdate
 
@@ -303,6 +388,13 @@ def update_cathode_plots(
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
     ],
+    [
+        State("anode_top_down_plot", "figure"),
+        State("anode_cross_section_plot", "figure"),
+        State("anode_cost_breakdown_plot", "figure"),
+        State("anode_mass_breakdown_plot", "figure"),
+        State("anode_properties_div", "children"),
+    ],
     prevent_initial_call=True,
 )
 def update_anode_plots(
@@ -311,159 +403,70 @@ def update_anode_plots(
     tab_style,
     tabs_panel_style,
     cell_data,
+    current_top_down_plot,
+    current_cross_section_plot,
+    current_cost_breakdown_plot,
+    current_mass_breakdown_plot,
+    current_properties_div,
 ):
     """
-    Update the anode current collector plots based on the current collector store data.
+    Update the anode plots based on the current collector store data.
+    Optimized to avoid unnecessary plot regeneration.
     """
-    # If all display is none for any of the viewing styles, return no update
-    if any(d.get("display") == "none" for d in [tab_style, tabs_panel_style]):
+    # Early exit if main panels are hidden
+    prevent_update_from_styles([tab_style, tabs_panel_style])
+    
+    # Check what triggered this callback
+    triggered = ctx.triggered[0] if ctx.triggered else {}
+    triggered_id = triggered.get("prop_id", "")
+    
+    # If only style changes triggered and no tabs are visible, prevent update
+    electrode_visible = electrode_tab_style and electrode_tab_style.get("display") == "block"
+    cc_visible = cc_tab_style and cc_tab_style.get("display") == "block"
+    
+    if not electrode_visible and not cc_visible:
         raise PreventUpdate
-
-    # Get the configuration
+    
+    # Only regenerate plots if cell_store changed or switching between visible tabs
+    needs_regeneration = (
+        "cell_store.data" in triggered_id or
+        (electrode_visible and not current_cross_section_plot) or
+        (cc_visible and not current_top_down_plot)
+    )
+    
+    if not needs_regeneration:
+        return no_update, no_update, no_update, no_update, no_update
+    
+    # Get anode object (only when needed)
     config = ELECTRODE_CONFIGS[ElectrodeType.ANODE]
-
-    # get the cell from the cache
     cell = cache.get(cell_data["cache_key"])
-
-    # get the current collector from the cell
     anode = get_object_from_cell(cell, config)
-
-    # Get the properties
-    properties = anode.properties
-
-    # Only update if the electrode tab is visible
-    if electrode_tab_style.get("display") == "block":
-        plot_b = anode.get_cross_section(title="Cross-Section Anode View")
+    
+    if electrode_visible:
+        plot_cross_section = anode.get_cross_section(title="Cross-Section Anode View")
         plot_cost_breakdown = anode.plot_cost_breakdown(title="Cost Breakdown Plot")
         plot_mass_breakdown = anode.plot_mass_breakdown(title="Mass Breakdown Plot")
-        properties_table = create_properties_table(properties, table_id="anode_properties_table", decimal_places=2)
+        
+        properties = anode.properties
+        properties_table = create_properties_table(
+            properties,
+            table_id="anode_properties_table",
+            decimal_places=2
+        )
+        
         return (
             no_update,
-            plot_b,
+            plot_cross_section,
             plot_cost_breakdown,
             plot_mass_breakdown,
             properties_table,
         )
-
-    elif cc_tab_style.get("display") == "block":
-        plot_a = anode.get_top_down_view(title="Top-Down Anode View")
-        return plot_a, no_update, no_update, no_update, no_update
-
+    
+    elif cc_visible:
+        plot_top_down = anode.get_top_down_view(title="Top-Down Anode View")
+        return plot_top_down, no_update, no_update, no_update, no_update
+    
     else:
         raise PreventUpdate
 
 
-@callback(
-    [
-        Output("cell_store", "data", allow_duplicate=True),
-        Output("cathode_control_mode_selector", "value"),
-    ],
-    [
-        Input("cathode_control_mode_selector", "value"),
-        Input("cell_store", "data"),
-    ],
-    prevent_initial_call=True,
-)
-def update_cathode_control_mode(selected_mode, cell_data):
-    """
-    Update the cathode control mode based on the radio button selection,
-    and update the radio button to reflect the current control mode.
-    """
-    # Get the configuration
-    config = ELECTRODE_CONFIGS[ElectrodeType.CATHODE]
-
-    # Get the cell from the cache
-    cell = cache.get(cell_data["cache_key"])
-
-    # Get the cathode from the cell
-    cathode = get_object_from_cell(cell, config)
-
-    # get the mode map
-    mode_mapping = {
-        "MAINTAIN_MASS_LOADING": ElectrodeControlMode.MAINTAIN_MASS_LOADING,
-        "MAINTAIN_CALENDER_DENSITY": ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY,
-        "MAINTAIN_COATING_THICKNESS": ElectrodeControlMode.MAINTAIN_COATING_THICKNESS,
-    }
-
-    # map the control mode to the UI string
-    mode_reverse_mapping = {
-        ElectrodeControlMode.MAINTAIN_MASS_LOADING: "MAINTAIN_MASS_LOADING",
-        ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY: "MAINTAIN_CALENDER_DENSITY",
-        ElectrodeControlMode.MAINTAIN_COATING_THICKNESS: "MAINTAIN_COATING_THICKNESS",
-    }
-
-    if ctx.triggered_id == "cell_store":
-        return no_update, mode_reverse_mapping.get(cathode.control_mode, "MAINTAIN_CALENDER_DENSITY")
-
-    elif ctx.triggered_id == "cathode_control_mode_selector":
-        # get the control mode from the value
-        mode = mode_mapping.get(selected_mode, ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY)
-
-        # set the control mode to the cathode
-        cathode.control_mode = mode
-
-        # set the cathode to the cell
-        new_cell = set_object_to_cell(cell, cathode, config)
-
-        # set the new cell to the cache
-        new_key = set_cell_to_cache(new_cell)
-
-        return {"cache_key": new_key}, no_update
-
-
-@callback(
-    [
-        Output("cell_store", "data", allow_duplicate=True),
-        Output("anode_control_mode_selector", "value"),
-    ],
-    [
-        Input("anode_control_mode_selector", "value"),
-        Input("cell_store", "data"),
-    ],
-    prevent_initial_call=True,
-)
-def update_anode_control_mode(selected_mode, cell_data):
-    """
-    Update the anode control mode based on the radio button selection,
-    and update the radio button to reflect the current control mode.
-    """
-    # Get the configuration
-    config = ELECTRODE_CONFIGS[ElectrodeType.ANODE]
-
-    # Get the cell from the cache
-    cell = cache.get(cell_data["cache_key"])
-
-    # Get the anode from the cell
-    anode = get_object_from_cell(cell, config)
-
-    # get the mode map
-    mode_mapping = {
-        "MAINTAIN_MASS_LOADING": ElectrodeControlMode.MAINTAIN_MASS_LOADING,
-        "MAINTAIN_CALENDER_DENSITY": ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY,
-        "MAINTAIN_COATING_THICKNESS": ElectrodeControlMode.MAINTAIN_COATING_THICKNESS,
-    }
-
-    # map the control mode to the UI string
-    mode_reverse_mapping = {
-        ElectrodeControlMode.MAINTAIN_MASS_LOADING: "MAINTAIN_MASS_LOADING",
-        ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY: "MAINTAIN_CALENDER_DENSITY",
-        ElectrodeControlMode.MAINTAIN_COATING_THICKNESS: "MAINTAIN_COATING_THICKNESS",
-    }
-
-    if ctx.triggered_id == "cell_store":
-        return no_update, mode_reverse_mapping.get(anode.control_mode, "MAINTAIN_CALENDER_DENSITY")
-
-    elif ctx.triggered_id == "anode_control_mode_selector":
-        # get the control mode from the value
-        mode = mode_mapping.get(selected_mode, ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY)
-
-        # set the control mode to the anode
-        anode.control_mode = mode
-
-        # set the anode to the cell
-        new_cell = set_object_to_cell(cell, anode, config)
-
-        # set the new cell to the cache
-        new_key = set_cell_to_cache(new_cell)
-
-        return {"cache_key": new_key}, no_update

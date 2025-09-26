@@ -14,3 +14,8 @@ ELECTRODE_SETTABLE_PARAMETERS = [
     "calender_density",
     "porosity",
 ]
+
+
+ELECTRODE_MODES_LIST = [
+    "control_mode"
+]
