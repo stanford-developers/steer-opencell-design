@@ -1,292 +1,107 @@
 import time
 from dash import callback, Input, Output, State, no_update, ALL, ctx
+from dash.exceptions import PreventUpdate
 
 from App.cache_service import cache
 
-from App.current_collectors.layouts import *
-from App.current_collectors.callbacks import CURRENT_COLLECTOR_DESIGNS
-from App.current_collectors.callback_helpers import (
-    create_generic_current_collector_callback,
-)
+
 from App.current_collectors.configs import COLLECTOR_CONFIGS
 
-from App.general.enumerated_classes import CollectorType
-from App.general.cell_operations import set_object_to_cell, get_object_from_cell
-from App.general.callback_helpers import create_properties_table
-
-from steer_opencell_design.Components.CurrentCollectors import (
-    PunchedCurrentCollector,
-    NotchedCurrentCollector,
-    TablessCurrentCollector,
-    TabWeldedCurrentCollector,
+from App.current_collectors.callback_helpers import (
+    create_generic_current_collector_callback,
+    create_dropdown_options_callback,
+    update_style_display,
 )
+
+from App.general.enumerated_classes import CollectorType
+from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
+from App.general.callback_helpers import create_properties_table, prevent_update_from_styles
 
 
 @callback(
     [
-        Output("cathode_current_collector_design", "options"),
+        Output("cell_store", "data", allow_duplicate=True),
+        Output({'electrode': 'cathode', 'object': 'current_collector', 'subtype': 'dropdown'}, "options"),
         Output("cathode_current_collector_design_div", "style"),
-        Output("cathode_current_collector_design", "value"),
+        Output({'electrode': 'cathode', 'object': 'current_collector', 'subtype': 'dropdown'}, "value"),
     ],
-    [
+    [  
+        Input("cathode_current_collector_tab", "style"),
+        Input("cathode_tab", "style"),
+        Input("tabs_panel", "style"),
         Input("cell_store", "data"),
+        Input({'electrode': 'cathode', 'object': 'current_collector', 'subtype': 'dropdown'}, "value"),
     ],
     [
         State("cathode_current_collector_design_div", "style"),
-        State("cathode_current_collector_design", "options"),
     ],
     prevent_initial_call=True,
 )
-def update_cathode_dropdown_options(data, current_style, current_options):
+def update_cathode_dropdown_options(
+    cc_tab_style,
+    tab_style,
+    tabs_panel_style,
+    data, 
+    dropdown_value,
+    current_style,
+    ):
     """
     Update the cathode current collector design dropdown menu options, style, and value
     based on the current collector store data.
     """
-    # get the config of the item
-    config = COLLECTOR_CONFIGS[CollectorType.CATHODE_GENERIC]
+    callback_function = create_dropdown_options_callback(CollectorType.CATHODE_GENERIC)
 
-    # get the cell from the cache
-    cell = cache.get(data["cache_key"])
+    response = callback_function(
+        data, 
+        current_style,
+        dropdown_value,
+        viewing_styles=[cc_tab_style, tab_style, tabs_panel_style]
+    )
 
-    # get the current collector from the cell
-    current_collector = get_object_from_cell(cell, config)
-
-    # Define type mappings
-    type_config = {
-        PunchedCurrentCollector: {
-            "display": "none",
-            "options": [{"label": "Punched", "value": "punched"}],
-            "value": "punched",
-        },
-        NotchedCurrentCollector: {
-            "display": "block",
-            "options": [{"label": item, "value": item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != "Punched"],
-            "value": "notched",
-        },
-        TablessCurrentCollector: {
-            "display": "block",
-            "options": [{"label": item, "value": item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != "Punched"],
-            "value": "tabless",
-        },
-        TabWeldedCurrentCollector: {
-            "display": "block",
-            "options": [{"label": item, "value": item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != "Punched"],
-            "value": "tabbed",
-        },
-    }
-
-    # Get configuration for current collector type
-    collector_type = type(current_collector)
-
-    # get the configuration for the current collector type
-    config = type_config.get(collector_type)
-
-    # set the style according to the config display value
-    current_style["display"] = config["display"]
-
-    return config["options"], current_style, config["value"]
+    return response
 
 
 @callback(
     [
-        Output("anode_current_collector_design", "options"),
+        Output("cell_store", "data", allow_duplicate=True),
+        Output({'electrode': 'anode', 'object': 'current_collector', 'subtype': 'dropdown'}, "options"),
         Output("anode_current_collector_design_div", "style"),
-        Output("anode_current_collector_design", "value"),
+        Output({'electrode': 'anode', 'object': 'current_collector', 'subtype': 'dropdown'}, "value"),
     ],
-    [
+    [  
+        Input("anode_current_collector_tab", "style"),
+        Input("anode_tab", "style"),
+        Input("tabs_panel", "style"),
         Input("cell_store", "data"),
+        Input({'electrode': 'anode', 'object': 'current_collector', 'subtype': 'dropdown'}, "value"),
     ],
     [
         State("anode_current_collector_design_div", "style"),
-        State("anode_current_collector_design", "options"),
     ],
     prevent_initial_call=True,
 )
-def update_anode_dropdown_options(data, current_style, current_options):
+def update_anode_dropdown_options(
+    cc_tab_style,
+    tab_style,
+    tabs_panel_style,
+    data, 
+    dropdown_value,
+    current_style,
+    ):
     """
     Update the anode current collector design dropdown menu options, style, and value
     based on the current collector store data.
     """
-    # get the config of the item
-    config = COLLECTOR_CONFIGS[CollectorType.ANODE_GENERIC]
+    callback_function = create_dropdown_options_callback(CollectorType.ANODE_GENERIC)
 
-    # get the cell from the cache
-    cell = cache.get(data["cache_key"])
+    response = callback_function(
+        data, 
+        current_style,
+        dropdown_value,
+        viewing_styles=[cc_tab_style, tab_style, tabs_panel_style]
+    )
 
-    # get the current collector from the cell
-    current_collector = get_object_from_cell(cell, config)
-
-    # Define type mappings
-    type_config = {
-        PunchedCurrentCollector: {
-            "display": "none",
-            "options": [{"label": "Punched", "value": "punched"}],
-            "value": "punched",
-        },
-        NotchedCurrentCollector: {
-            "display": "block",
-            "options": [{"label": item, "value": item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != "Punched"],
-            "value": "notched",
-        },
-        TablessCurrentCollector: {
-            "display": "block",
-            "options": [{"label": item, "value": item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != "Punched"],
-            "value": "tabless",
-        },
-        TabWeldedCurrentCollector: {
-            "display": "block",
-            "options": [{"label": item, "value": item.lower()} for item in CURRENT_COLLECTOR_DESIGNS if item != "Punched"],
-            "value": "tabbed",
-        },
-    }
-
-    # Get configuration for current collector type
-    collector_type = type(current_collector)
-
-    # get the configuration for the current collector type
-    config = type_config.get(collector_type)
-
-    # set the style according to the config display value
-    current_style["display"] = config["display"]
-
-    return config["options"], current_style, config["value"]
-
-
-@callback(
-    Output("cell_store", "data", allow_duplicate=True),
-    Input("cathode_current_collector_design", "value"),
-    State("cell_store", "data"),
-    prevent_initial_call=True,
-)
-def update_cathode_current_collector_design(design_value, cell_data):
-    """Handle current collector design changes and convert between types."""
-
-    # Check if design_value or cell_data is None
-    if not design_value or not cell_data:
-        return no_update
-
-    # if design_value is punched, return no_update
-    if design_value == "punched":
-        return no_update
-
-    # Get current cell and collector
-    cell = cache.get(cell_data["cache_key"])
-
-    current_collector = get_object_from_cell(cell, COLLECTOR_CONFIGS[CollectorType.CATHODE_GENERIC])
-
-    type_name = type(current_collector).__name__
-
-    # Map design values to collector types
-    design_to_type = {
-        "notched": "NotchedCurrentCollector",
-        "tabless": "TablessCurrentCollector",
-        "tabbed": "TabWeldedCurrentCollector",
-    }
-
-    # get the name of the target collector type
-    target_type_name = design_to_type.get(design_value)
-
-    # If already the correct type, no conversion needed
-    if type_name == target_type_name:
-        return no_update
-
-    # Additional check: If this is likely triggered by cell upload (not user interaction)
-    # Check if the current dropdown value already matches the collector type
-    current_dropdown_value_map = {
-        "NotchedCurrentCollector": "notched",
-        "TablessCurrentCollector": "tabless",
-        "TabWeldedCurrentCollector": "tabbed",
-        "PunchedCurrentCollector": "punched",
-    }
-
-    expected_dropdown_value = current_dropdown_value_map.get(type_name)
-    if design_value == expected_dropdown_value:
-        # This is likely a cell upload scenario - dropdown was set to match existing collector
-        return no_update
-
-    # Import function to convert current collector
-    from App.current_collectors.callback_helpers import convert_current_collector
-    from App.general.cell_operations import set_cell_to_cache
-
-    # Do the conversion
-    new_collector = convert_current_collector(current_collector, target_type_name)
-
-    # Assign the new current collector to the cell and get the key
-    new_cell = set_object_to_cell(cell, new_collector, COLLECTOR_CONFIGS[CollectorType.CATHODE_GENERIC])
-
-    # Generate a new cache key
-    new_key = set_cell_to_cache(new_cell)
-
-    # Update the dash store with the new cell key
-    return {"cache_key": new_key}
-
-
-@callback(
-    Output("cell_store", "data", allow_duplicate=True),
-    Input("anode_current_collector_design", "value"),
-    State("cell_store", "data"),
-    prevent_initial_call=True,
-)
-def update_anode_current_collector_design(design_value, cell_data):
-    """Handle current collector design changes and convert between types."""
-
-    # Check if design_value or cell_data is None
-    if not design_value or not cell_data:
-        return no_update
-
-    # if design_value is punched, return no_update
-    if design_value == "punched":
-        return no_update
-
-    # Get current cell and collector
-    cell = cache.get(cell_data["cache_key"])
-
-    current_collector = get_object_from_cell(cell, COLLECTOR_CONFIGS[CollectorType.ANODE_GENERIC])
-
-    type_name = type(current_collector).__name__
-
-    # Map design values to collector types
-    design_to_type = {
-        "notched": "NotchedCurrentCollector",
-        "tabless": "TablessCurrentCollector",
-        "tabbed": "TabWeldedCurrentCollector",
-    }
-
-    # get the name of the target collector type
-    target_type_name = design_to_type.get(design_value)
-
-    # If already the correct type, no conversion needed
-    if type_name == target_type_name:
-        return no_update
-
-    # Additional check: If this is likely triggered by cell upload (not user interaction)
-    # Check if the current dropdown value already matches the collector type
-    current_dropdown_value_map = {
-        "NotchedCurrentCollector": "notched",
-        "TablessCurrentCollector": "tabless",
-        "TabWeldedCurrentCollector": "tabbed",
-        "PunchedCurrentCollector": "punched",
-    }
-
-    expected_dropdown_value = current_dropdown_value_map.get(type_name)
-    if design_value == expected_dropdown_value:
-        return no_update
-
-    # Import function to convert current collector
-    from App.current_collectors.callback_helpers import convert_current_collector
-    from App.general.cell_operations import set_cell_to_cache
-
-    # Do the conversion
-    new_collector = convert_current_collector(current_collector, target_type_name)
-
-    # Assign the new current collector to the cell and get the key
-    new_cell = set_object_to_cell(cell, new_collector, COLLECTOR_CONFIGS[CollectorType.ANODE_GENERIC])
-
-    # Generate a new cache key
-    new_key = set_cell_to_cache(new_cell)
-
-    # Update the dash store with the new cell key
-    return {"cache_key": new_key}
+    return response
 
 
 @callback(
@@ -296,28 +111,70 @@ def update_anode_current_collector_design(design_value, cell_data):
         Output("cathode_tabless_design_parameters", "style"),
         Output("cathode_tabbed_design_parameters", "style"),
     ],
-    Input("cathode_current_collector_design", "value"),
+    [
+        Input("cathode_current_collector_tab", "style"),
+        Input("cathode_tab", "style"),
+        Input("tabs_panel", "style"),
+        Input("cell_store", "data")
+    ],
+    [
+        State("cathode_punched_design_parameters", "style"),
+        State("cathode_notched_design_parameters", "style"),
+        State("cathode_tabless_design_parameters", "style"),
+        State("cathode_tabbed_design_parameters", "style"),
+    ],
     prevent_initial_call=True,
 )
-def update_cathode_current_collector_design_parameters(design):
+def update_cathode_current_collector_design_parameters(
+    cc_tab_style,
+    tab_style,
+    tabs_panel_style,
+    cell_data,
+    punched_style,
+    notched_style,
+    tabless_style,
+    tabbed_style
+    ):
     """
     Update the cathode current collector design parameters based on the current collector store data.
     """
-    styles = {"display": "none"}
-    active_style = {"display": "block"}
+    
+    # If all display is none for any of the viewing styles, return no update
+    prevent_update_from_styles([cc_tab_style, tab_style, tabs_panel_style])
 
-    if design is None:
-        return [no_update] * 4
+    # get the config
+    config = COLLECTOR_CONFIGS[CollectorType.CATHODE_GENERIC]
 
-    if design == "punched":
-        return [active_style, styles, styles, styles]
-    elif design == "notched":
-        return [styles, active_style, styles, styles]
-    elif design == "tabless":
-        return [styles, styles, active_style, styles]
-    elif design == "tabbed":
-        return [styles, styles, styles, active_style]
+    # get the cell from the cache
+    cell = get_cell_from_cache(cell_data["cache_key"])
 
+    # get the current collector
+    current_collector = get_object_from_cell(cell, config)
+
+    # get the current collector type
+    cc_type = type(current_collector).__name__
+
+    # Map collector types to their active component
+    collector_type_mapping = {
+        "PunchedCurrentCollector": "punched",
+        "NotchedCurrentCollector": "notched", 
+        "TablessCurrentCollector": "tabless",
+        "TabWeldedCurrentCollector": "tabbed"
+    }
+    
+    active_component = collector_type_mapping.get(cc_type)
+    if not active_component:
+        # Fallback to original behavior if unknown type
+        return (no_update, no_update, no_update, no_update)
+    
+    # Update styles based on which component should be active
+    punched_style = update_style_display(punched_style, "block" if active_component == "punched" else "none")
+    notched_style = update_style_display(notched_style, "block" if active_component == "notched" else "none") 
+    tabless_style = update_style_display(tabless_style, "block" if active_component == "tabless" else "none")
+    tabbed_style = update_style_display(tabbed_style, "block" if active_component == "tabbed" else "none")
+
+    return (punched_style, notched_style, tabless_style, tabbed_style)
+    
 
 @callback(
     [
@@ -326,27 +183,37 @@ def update_cathode_current_collector_design_parameters(design):
         Output("anode_tabless_design_parameters", "style"),
         Output("anode_tabbed_design_parameters", "style"),
     ],
-    Input("anode_current_collector_design", "value"),
+    Input({'electrode': 'anode', 'object': 'current_collector', 'subtype': 'dropdown'}, "value"),
     prevent_initial_call=True,
 )
 def update_anode_current_collector_design_parameters(design):
     """
     Update the anode current collector design parameters based on the current collector store data.
     """
-    styles = {"display": "none"}
-    active_style = {"display": "block"}
-
     if design is None:
-        return [no_update] * 4
+        raise PreventUpdate
 
-    if design == "punched":
-        return [active_style, styles, styles, styles]
-    elif design == "notched":
-        return [styles, active_style, styles, styles]
-    elif design == "tabless":
-        return [styles, styles, active_style, styles]
-    elif design == "tabbed":
-        return [styles, styles, styles, active_style]
+    # Map design values to their active component
+    design_mapping = {
+        "punched": "punched",
+        "notched": "notched", 
+        "tabless": "tabless",
+        "tabbed": "tabbed"
+    }
+    
+    active_component = design_mapping.get(design)
+    if not active_component:
+        # Fallback for unknown design
+        return [no_update, no_update, no_update, no_update]
+    
+    # Update styles based on which component should be active
+    # Note: Using None as current_style since these are fresh creates
+    punched_style = update_style_display(None, "block" if active_component == "punched" else "none")
+    notched_style = update_style_display(None, "block" if active_component == "notched" else "none") 
+    tabless_style = update_style_display(None, "block" if active_component == "tabless" else "none")
+    tabbed_style = update_style_display(None, "block" if active_component == "tabbed" else "none")
+
+    return [punched_style, notched_style, tabless_style, tabbed_style]
 
 
 @callback(
@@ -795,6 +662,7 @@ def update_cathode_notched_collector(
     original_input_start_steps,
     original_input_end_steps
 ):
+    
     callback_function = create_generic_current_collector_callback(CollectorType.CATHODE_NOTCHED)
 
     response = callback_function(
@@ -1189,17 +1057,15 @@ def update_anode_tabbed_collector(
         Input("cathode_tab", "style"),
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
-        Input("continue_to_design", "n_clicks"),
     ],
     prevent_initial_call=True,
 )
-def update_cathode_current_collector_properties(cc_tab_style, tab_style, tabs_panel_style, cell_data, continue_to_design):
+def update_cathode_current_collector_properties(cc_tab_style, tab_style, tabs_panel_style, cell_data):
     """
     Update the cathode current collector plots based on the current collector store data.
     """
     # If all display is none for any of the viewing styles, return no update
-    if any(d.get("display") == "none" for d in [cc_tab_style, tab_style, tabs_panel_style]):
-        return no_update
+    prevent_update_from_styles([cc_tab_style, tab_style, tabs_panel_style])
 
     # get the config for the cathode generic current collector
     config = COLLECTOR_CONFIGS[CollectorType.CATHODE_GENERIC]
@@ -1233,17 +1099,15 @@ def update_cathode_current_collector_properties(cc_tab_style, tab_style, tabs_pa
         Input("anode_tab", "style"),
         Input("tabs_panel", "style"),
         Input("cell_store", "data"),
-        Input("continue_to_design", "n_clicks"),
     ],
     prevent_initial_call=True,
 )
-def update_anode_current_collector_properties(cc_tab_style, tab_style, tabs_panel_style, cell_data, continue_to_design):
+def update_anode_current_collector_properties(cc_tab_style, tab_style, tabs_panel_style, cell_data):
     """
     Update the anode current collector plots based on the current collector store data.
     """
     # If all display is none for any of the viewing styles, return no update
-    if any(d.get("display") == "none" for d in [cc_tab_style, tab_style, tabs_panel_style]):
-        return no_update
+    prevent_update_from_styles([cc_tab_style, tab_style, tabs_panel_style])
 
     config = COLLECTOR_CONFIGS[CollectorType.ANODE_GENERIC]
 

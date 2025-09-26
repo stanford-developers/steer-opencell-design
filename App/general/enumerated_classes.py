@@ -26,6 +26,7 @@ class TriggerType(Enum):
     BUTTON = "button"
     INDEXED_DROPDOWN = "indexed_dropdown"
     WEIGHT_FRACTION = "weight_fraction"
+    DROPDOWN = "dropdown"
 
 
 class ActionType(Enum):

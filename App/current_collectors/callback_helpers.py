@@ -1,16 +1,18 @@
 from typing import Type, List, Tuple
 from dash import no_update, ctx
 import time
+from dash.exceptions import PreventUpdate
 
 from steer_opencell_design.Components.CurrentCollectors import *
 
-from App.general.callback_helpers import create_no_update_response
+from App.general.callback_helpers import prevent_update_from_styles
 from App.general.enumerated_classes import *
 from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
 from App.general.trigger_router import TriggerRouter, TriggerType
 from App.general.handlers import handle_cell_store_update, handle_property_update
 
 from App.current_collectors.configs import COLLECTOR_CONFIGS
+from App.current_collectors.handlers import handle_cell_store_cc_design_dropdown, handle_dropdown_cc_design_dropdown
 
 
 def create_generic_current_collector_callback(
@@ -45,6 +47,7 @@ def create_generic_current_collector_callback(
         original_input_start_steps=None,
         original_input_end_steps=None
     ) -> Tuple:
+        
         # Get the triggered ID
         triggered_id = ctx.triggered_id
 
@@ -52,8 +55,7 @@ def create_generic_current_collector_callback(
         triggered_prop_id = list(ctx.triggered_prop_ids.keys())[0].split(".")[-1]
 
         # If all display is none for any of the viewing styles, return no update
-        if any(d.get("display") == "none" for d in viewing_styles):
-            return create_no_update_response(config, existing_warnings)
+        prevent_update_from_styles(viewing_styles)
 
         # Get the cell from cache
         cell = get_cell_from_cache(cell_data["cache_key"])
@@ -63,7 +65,7 @@ def create_generic_current_collector_callback(
 
         # no response if the current collector type does not match the expected type
         if config.collector_type != type(current_collector):
-            return create_no_update_response(config, existing_warnings)
+            raise PreventUpdate
 
         # Map the triggered ID to the appropriate action using ENUMS
         trigger_type = TriggerRouter.get_trigger_type(triggered_id, triggered_prop_id)
@@ -100,55 +102,72 @@ def create_generic_current_collector_callback(
                 original_input_end_steps,
             )
 
-        return create_no_update_response(config, existing_warnings)
+        raise PreventUpdate
 
     return generic_update_current_collector
 
 
-def convert_current_collector(current_collector: Type, target_type_name: str):
-    """Convert current collector from one type to another using from_* constructors."""
+def create_dropdown_options_callback(collector_type: CollectorType) -> callable:
+    
+    config = COLLECTOR_CONFIGS[collector_type]
 
-    # Get the current type name
-    current_type_name = type(current_collector).__name__
+    def callback_function(
+                data, 
+                current_style,
+                dropdown_value,
+                viewing_styles=[],
+        ):
+        
+        # If all display is none for any of the viewing styles, return no update
+        prevent_update_from_styles(viewing_styles)
 
-    # Define conversion methods for each source -> target combination
-    conversion_map = {
-        # From NotchedCurrentCollector
-        (
-            "NotchedCurrentCollector",
-            "TablessCurrentCollector",
-        ): lambda cc: TablessCurrentCollector.from_notched(cc),
-        (
-            "NotchedCurrentCollector",
-            "TabWeldedCurrentCollector",
-        ): lambda cc: TabWeldedCurrentCollector.from_notched(cc),
-        # From TablessCurrentCollector
-        (
-            "TablessCurrentCollector",
-            "NotchedCurrentCollector",
-        ): lambda cc: NotchedCurrentCollector.from_tabless(cc),
-        (
-            "TablessCurrentCollector",
-            "TabWeldedCurrentCollector",
-        ): lambda cc: TabWeldedCurrentCollector.from_tabless(cc),
-        # From TabWeldedCurrentCollector
-        (
-            "TabWeldedCurrentCollector",
-            "NotchedCurrentCollector",
-        ): lambda cc: NotchedCurrentCollector.from_tab_welded(cc),
-        (
-            "TabWeldedCurrentCollector",
-            "TablessCurrentCollector",
-        ): lambda cc: TablessCurrentCollector.from_tab_welded(cc),
-    }
+        # Get the triggered ID
+        triggered_id = ctx.triggered_id
 
-    # Generate the conversion key
-    conversion_key = (current_type_name, target_type_name)
+        # get the propid
+        triggered_prop_id = list(ctx.triggered_prop_ids.keys())[0].split(".")[-1]
 
-    # create the function to convert
-    converter = conversion_map[conversion_key]
+        # get the cell from the cache
+        cell = get_cell_from_cache(data["cache_key"])
 
-    # create the new current collector using the converter
-    new_current_collector = converter(current_collector)
+        # get the current collector from the cell
+        current_collector = get_object_from_cell(cell, config)
 
-    return new_current_collector
+        # Map the triggered ID to the appropriate action using ENUMS
+        trigger_type = TriggerRouter.get_trigger_type(triggered_id, triggered_prop_id)
+
+        if trigger_type == TriggerType.CELL_STORE or trigger_type == TriggerType.STYLE:
+            return handle_cell_store_cc_design_dropdown(
+                current_collector,
+                current_style,
+            )
+        
+        elif trigger_type == TriggerType.DROPDOWN:
+            return handle_dropdown_cc_design_dropdown(
+                cell,
+                current_collector,
+                dropdown_value,
+                config
+            )
+        
+        raise PreventUpdate
+    
+    return callback_function
+
+
+def update_style_display(current_style, target_display):
+    """
+    Helper function to update style display property with safe None handling.
+    
+    Args:
+        current_style: Current style dict or None
+        target_display: Target display value ("block" or "none")
+        
+    Returns:
+        no_update if style already has target display, otherwise updated style dict
+    """
+    current_display = (current_style or {}).get("display")
+    if current_display == target_display:
+        return no_update
+    return {**(current_style or {}), "display": target_display}
+

@@ -1,5 +1,6 @@
 from typing import Tuple, Type
 from dash import ctx, no_update
+from dash.exceptions import PreventUpdate
 
 from App.layup.configs import LAYUP_CONFIGS
 from App.general.enumerated_classes import LayupType
@@ -38,7 +39,7 @@ def create_layup_callback(layup_key: LayupType) -> callable:
 
         # If all display is none for any of the viewing styles, return no update
         if any(d.get("display") == "none" for d in viewing_styles):
-            return create_no_update_response(config, existing_warnings)
+            raise PreventUpdate
 
         # Get the cell from cache
         cell = get_cell_from_cache(cell_data["cache_key"])
@@ -47,7 +48,7 @@ def create_layup_callback(layup_key: LayupType) -> callable:
         layup = get_object_from_cell(cell, config)
 
         if type(layup) != config.layup_type:
-            return create_no_update_response(config, existing_warnings)
+            raise PreventUpdate
 
         # Map the triggered ID to the appropriate action using ENUMS
         trigger_type = TriggerRouter.get_trigger_type(triggered_id, triggered_prop_id)
@@ -75,7 +76,7 @@ def create_layup_callback(layup_key: LayupType) -> callable:
             )
 
         # Fallback
-        return create_no_update_response(config, existing_warnings)
+        raise PreventUpdate
 
     return generic_update_layup
 

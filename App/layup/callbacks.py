@@ -1,4 +1,5 @@
 from dash import no_update, Input, Output, State, callback, ALL, ctx
+from dash.exceptions import PreventUpdate
 
 from App.cache_service import cache
 
@@ -104,7 +105,7 @@ def update_layup_plots(
 
     # If all display is none for any of the viewing styles, return no update
     if any(d.get("display") == "none" for d in [tab_style, tabs_panel_style]):
-        return no_update
+        raise PreventUpdate
 
     # Get the configuration
     config = LAYUP_CONFIGS[LayupType.GENERIC]
@@ -227,16 +228,27 @@ def update_areal_capacity_plot(
         Output("layup_control_mode_selector", "value"),
     ],
     [
+        Input("layup_tab", "style"),
+        Input("tabs_panel", "style"),
         Input("layup_control_mode_selector", "value"),
         Input("cell_store", "data"),
     ],
     prevent_initial_call=True,
 )
-def update_layup_control_mode(selected_mode, cell_data):
+def update_layup_control_mode(
+    tab_style,
+    tabs_panel_style,
+    selected_mode, 
+    cell_data
+):
     """
     Update the layup control mode based on the radio button selection,
     and update the radio button to reflect the current control mode.
     """
+    # If all display is none for any of the viewing styles, return no update
+    if any(d.get("display") == "none" for d in [tab_style, tabs_panel_style]):
+        raise PreventUpdate
+    
     # Get the configuration
     config = LAYUP_CONFIGS[LayupType.GENERIC]
 

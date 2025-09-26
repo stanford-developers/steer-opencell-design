@@ -1,4 +1,5 @@
 from dash import callback, Input, Output, ALL, State, ctx, no_update
+from dash.exceptions import PreventUpdate
 
 from App.general.callback_helpers import create_properties_table
 
@@ -251,7 +252,7 @@ def update_cathode_plots(
     """
     # If all display is none for any of the viewing styles, return no update
     if any(d.get("display") == "none" for d in [tab_style, tabs_panel_style]):
-        return no_update, no_update, no_update, no_update, no_update
+        raise PreventUpdate
 
     # Get the configuration
     config = ELECTRODE_CONFIGS[ElectrodeType.CATHODE]
@@ -284,7 +285,7 @@ def update_cathode_plots(
         return plot_a, no_update, no_update, no_update, no_update
 
     else:
-        return no_update, no_update, no_update, no_update, no_update
+        raise PreventUpdate
 
 
 @callback(
@@ -316,7 +317,7 @@ def update_anode_plots(
     """
     # If all display is none for any of the viewing styles, return no update
     if any(d.get("display") == "none" for d in [tab_style, tabs_panel_style]):
-        return no_update, no_update, no_update, no_update, no_update
+        raise PreventUpdate
 
     # Get the configuration
     config = ELECTRODE_CONFIGS[ElectrodeType.ANODE]
@@ -349,7 +350,7 @@ def update_anode_plots(
         return plot_a, no_update, no_update, no_update, no_update
 
     else:
-        return no_update, no_update, no_update, no_update, no_update
+        raise PreventUpdate
 
 
 @callback(

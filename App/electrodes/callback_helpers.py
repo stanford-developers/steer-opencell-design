@@ -1,5 +1,6 @@
-from dash import ctx, no_update
+from dash import ctx
 from typing import Tuple, Type
+from dash.exceptions import PreventUpdate
 
 from App.general.enumerated_classes import ElectrodeType
 from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
@@ -28,6 +29,7 @@ def create_electrode_callback(electrode_key: ElectrodeType) -> callable:
         original_slider_steps=None,
         original_input_steps=None
     ) -> Tuple:
+        
         # Get the triggered ID
         triggered_id = ctx.triggered_id
 
@@ -36,7 +38,7 @@ def create_electrode_callback(electrode_key: ElectrodeType) -> callable:
 
         # If all display is none for any of the viewing styles, return no update
         if any(d.get("display") == "none" for d in viewing_styles):
-            return create_no_update_response(config, existing_warnings)
+            raise PreventUpdate
 
         # Get the cell from cache
         cell = get_cell_from_cache(cell_data["cache_key"])
@@ -70,6 +72,6 @@ def create_electrode_callback(electrode_key: ElectrodeType) -> callable:
             )
 
         # Fallback
-        return create_no_update_response(config, existing_warnings)
+        raise PreventUpdate
 
     return generic_update_electrode
