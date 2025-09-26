@@ -324,19 +324,8 @@ def update_cathode_plots(
     if not electrode_visible and not cc_visible:
         raise PreventUpdate
     
-    # Only regenerate plots if cell_store changed or switching between visible tabs
-    needs_regeneration = (
-        "cell_store.data" in triggered_id or
-        (electrode_visible and not current_cross_section_plot) or
-        (cc_visible and not current_top_down_plot)
-    )
-    
-    if not needs_regeneration:
-        # Return current plots with no_update for unchanged ones
-        if electrode_visible:
-            return no_update, no_update, no_update, no_update, no_update
-        elif cc_visible:
-            return no_update, no_update, no_update, no_update, no_update
+    # Determine if cell_store data changed (plots need to be regenerated)
+    cell_store_changed = "cell_store.data" in triggered_id
     
     # Get cathode object (only when needed)
     config = ELECTRODE_CONFIGS[ElectrodeType.CATHODE]
@@ -344,7 +333,7 @@ def update_cathode_plots(
     cathode = get_object_from_cell(cell, config)
     
     if electrode_visible:
-        # Generate expensive plots only when electrode tab is active
+        # Generate plots for electrode tab
         plot_cross_section = cathode.get_cross_section(title="Cross-Section Cathode View")
         plot_cost_breakdown = cathode.plot_cost_breakdown(title="Cost Breakdown Plot")
         plot_mass_breakdown = cathode.plot_mass_breakdown(title="Mass Breakdown Plot")
@@ -356,8 +345,14 @@ def update_cathode_plots(
             decimal_places=2
         )
         
+        # Always generate top-down plot if cell store changed or if it doesn't exist
+        if cell_store_changed or not current_top_down_plot:
+            plot_top_down = cathode.get_top_down_view(title="Top-Down Cathode View")
+        else:
+            plot_top_down = no_update
+            
         return (
-            no_update,  # Keep existing top-down plot
+            plot_top_down,
             plot_cross_section,
             plot_cost_breakdown,
             plot_mass_breakdown,
@@ -365,9 +360,31 @@ def update_cathode_plots(
         )
     
     elif cc_visible:
-        # Generate only the top-down plot when CC tab is active
+        # Always generate top-down plot for CC tab (it's the main plot for this tab)
         plot_top_down = cathode.get_top_down_view(title="Top-Down Cathode View")
-        return plot_top_down, no_update, no_update, no_update, no_update
+        
+        # Only update other plots if cell store changed and they exist
+        if cell_store_changed and current_cross_section_plot:
+            plot_cross_section = cathode.get_cross_section(title="Cross-Section Cathode View")
+            plot_cost_breakdown = cathode.plot_cost_breakdown(title="Cost Breakdown Plot")
+            plot_mass_breakdown = cathode.plot_mass_breakdown(title="Mass Breakdown Plot")
+            
+            properties = cathode.properties
+            properties_table = create_properties_table(
+                properties, 
+                table_id="cathode_properties_table", 
+                decimal_places=2
+            )
+            
+            return (
+                plot_top_down,
+                plot_cross_section,
+                plot_cost_breakdown, 
+                plot_mass_breakdown,
+                properties_table,
+            )
+        else:
+            return plot_top_down, no_update, no_update, no_update, no_update
     
     else:
         raise PreventUpdate
@@ -427,15 +444,8 @@ def update_anode_plots(
     if not electrode_visible and not cc_visible:
         raise PreventUpdate
     
-    # Only regenerate plots if cell_store changed or switching between visible tabs
-    needs_regeneration = (
-        "cell_store.data" in triggered_id or
-        (electrode_visible and not current_cross_section_plot) or
-        (cc_visible and not current_top_down_plot)
-    )
-    
-    if not needs_regeneration:
-        return no_update, no_update, no_update, no_update, no_update
+    # Determine if cell_store data changed (plots need to be regenerated)
+    cell_store_changed = "cell_store.data" in triggered_id
     
     # Get anode object (only when needed)
     config = ELECTRODE_CONFIGS[ElectrodeType.ANODE]
@@ -443,6 +453,7 @@ def update_anode_plots(
     anode = get_object_from_cell(cell, config)
     
     if electrode_visible:
+        # Generate plots for electrode tab
         plot_cross_section = anode.get_cross_section(title="Cross-Section Anode View")
         plot_cost_breakdown = anode.plot_cost_breakdown(title="Cost Breakdown Plot")
         plot_mass_breakdown = anode.plot_mass_breakdown(title="Mass Breakdown Plot")
@@ -454,8 +465,14 @@ def update_anode_plots(
             decimal_places=2
         )
         
+        # Always generate top-down plot if cell store changed or if it doesn't exist
+        if cell_store_changed or not current_top_down_plot:
+            plot_top_down = anode.get_top_down_view(title="Top-Down Anode View")
+        else:
+            plot_top_down = no_update
+            
         return (
-            no_update,
+            plot_top_down,
             plot_cross_section,
             plot_cost_breakdown,
             plot_mass_breakdown,
@@ -463,8 +480,31 @@ def update_anode_plots(
         )
     
     elif cc_visible:
+        # Always generate top-down plot for CC tab (it's the main plot for this tab)
         plot_top_down = anode.get_top_down_view(title="Top-Down Anode View")
-        return plot_top_down, no_update, no_update, no_update, no_update
+        
+        # Only update other plots if cell store changed and they exist
+        if cell_store_changed and current_cross_section_plot:
+            plot_cross_section = anode.get_cross_section(title="Cross-Section Anode View")
+            plot_cost_breakdown = anode.plot_cost_breakdown(title="Cost Breakdown Plot")
+            plot_mass_breakdown = anode.plot_mass_breakdown(title="Mass Breakdown Plot")
+            
+            properties = anode.properties
+            properties_table = create_properties_table(
+                properties,
+                table_id="anode_properties_table",
+                decimal_places=2
+            )
+            
+            return (
+                plot_top_down,
+                plot_cross_section,
+                plot_cost_breakdown, 
+                plot_mass_breakdown,
+                properties_table,
+            )
+        else:
+            return plot_top_down, no_update, no_update, no_update, no_update
     
     else:
         raise PreventUpdate
