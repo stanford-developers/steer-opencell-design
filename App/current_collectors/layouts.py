@@ -43,7 +43,7 @@ cathode_current_collector_design_parameters = ds.html.Div(
     children=[
         ds.html.H5("Select design", style={"font-weight": "bold"}),
         ds.dcc.Dropdown(
-            id="cathode_current_collector_design",
+            id={'electrode': 'cathode', 'object': 'current_collector', 'subtype': 'dropdown'},
             placeholder="Select Cathode Current Collector Design",
             style={"width": "calc(50%)"},
             options=[{"label": design, "value": design.lower()} for design in CURRENT_COLLECTOR_DESIGNS],
@@ -485,7 +485,7 @@ anode_current_collector_design_parameters = ds.html.Div(
     children=[
         ds.html.H5("Select design", style={"font-weight": "bold"}),
         ds.dcc.Dropdown(
-            id="anode_current_collector_design",
+            id={'electrode': 'anode', 'object': 'current_collector', 'subtype': 'dropdown'},
             placeholder="Select Anode Current Collector Design",
             style={"width": "calc(50%)"},
             options=[{"label": design, "value": design.lower()} for design in CURRENT_COLLECTOR_DESIGNS],

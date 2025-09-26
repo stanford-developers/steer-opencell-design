@@ -1,8 +1,9 @@
 from typing import Tuple
 from dash import ctx
 import time
+from dash.exceptions import PreventUpdate
 
-from App.general.callback_helpers import create_no_update_response, generate_parameters
+from App.general.callback_helpers import create_no_update_response
 from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
 from App.general.handlers import handle_cell_store_update, handle_property_update
 
@@ -72,7 +73,7 @@ def create_generic_formulation_callback(formulation_type: FormulationType) -> ca
 
         # If all display is none for any of the viewing styles, return no update
         if any(d.get("display") == "none" for d in viewing_styles):
-            return create_no_update_response(config)
+            raise PreventUpdate
 
         # Get the cell from cache
         cell = get_cell_from_cache(cell_data["cache_key"])
@@ -98,7 +99,7 @@ def create_generic_formulation_callback(formulation_type: FormulationType) -> ca
             )
 
         else:
-            return create_no_update_response(len(config.parameter_list))
+            raise PreventUpdate
 
     return generic_update_formulation
 
@@ -125,6 +126,11 @@ def create_generic_formulation_div_callback(
         input_values,
         viewing_styles=[],
     ) -> Tuple:
+        
+        # If all display is none for any of the viewing styles, return no update
+        if any(d.get("display") == "none" for d in viewing_styles):
+            raise PreventUpdate
+
         # Get the triggered ID
         trigger_id = ctx.triggered_id
 
@@ -204,14 +210,7 @@ def create_generic_formulation_div_callback(
 
         # If all display is none for any of the viewing styles, return no update
         if any(d.get("display") == "none" for d in viewing_styles):
-            from App.formulations.handlers import create_no_update_response
-
-            return create_no_update_response(
-                formulation_config,
-                active_div_styles,
-                binder_div_styles,
-                conductive_div_styles,
-            )
+            raise PreventUpdate
 
         # Handle the case that the cell store is triggered
         if trigger_type == TriggerType.CELL_STORE or trigger_type == TriggerType.STYLE:

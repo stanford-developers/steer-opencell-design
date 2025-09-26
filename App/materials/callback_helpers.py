@@ -1,5 +1,6 @@
 from dash import no_update, ctx
 from typing import Tuple, Type
+from dash.exceptions import PreventUpdate
 
 from App.materials.configs import MATERIAL_CONFIGS
 
@@ -34,7 +35,7 @@ def create_material_callback(material_type: MaterialType) -> callable:
 
         # If all display is none for any of the viewing styles, return no update
         if any(d.get("display") == "none" for d in viewing_styles):
-            return create_no_update_response(config, existing_warnings)
+            raise PreventUpdate
 
         # get the cell from cache
         cell = get_cell_from_cache(cell_data["cache_key"])
@@ -43,11 +44,11 @@ def create_material_callback(material_type: MaterialType) -> callable:
         try:
             material = get_object_from_cell(cell, config)
         except Exception as e:
-            return create_no_update_response(config, existing_warnings)
+            raise PreventUpdate
 
         # check if material is None
         if material is None:
-            return create_no_update_response(config, existing_warnings)
+            raise PreventUpdate
 
         # Get the trigger type using the TriggerRouter
         trigger_type = TriggerRouter.get_trigger_type(triggered_id, triggered_prop_id)
@@ -69,6 +70,6 @@ def create_material_callback(material_type: MaterialType) -> callable:
                 slider_values,
             )
 
-        return create_no_update_response(config)
+        raise PreventUpdate
 
     return update_material

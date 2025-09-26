@@ -1,5 +1,6 @@
 from time import time
 from dash import callback, Input, Output, State, no_update, ALL
+from dash.exceptions import PreventUpdate
 
 from App.cache_service import cache
 
@@ -312,7 +313,7 @@ def update_cathode_formulation_plots(
     """
     # If all display is none for any of the viewing styles, return no update
     if any(d.get("display") == "none" for d in [cathode_tab_style, tabs_panel_style, main_tabs_panel_style]):
-        return no_update, no_update
+        raise PreventUpdate
 
     # Get the configuration
     config = FORMULATION_CONFIGS[FormulationType.CATHODE]
@@ -354,7 +355,7 @@ def update_anode_formulation_plots(anode_tab_style, tabs_panel_style, main_tabs_
     """
     # If all display is none for any of the viewing styles, return no update
     if any(d.get("display") == "none" for d in [anode_tab_style, tabs_panel_style, main_tabs_panel_style]):
-        return no_update, no_update
+        raise PreventUpdate
 
     # Get the configuration
     config = FORMULATION_CONFIGS[FormulationType.ANODE]

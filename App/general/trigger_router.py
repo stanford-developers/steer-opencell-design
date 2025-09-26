@@ -65,6 +65,9 @@ class TriggerRouter:
 
         elif "index" in triggered_id and triggered_id.get("subtype") == "dropdown":
             return TriggerType.INDEXED_DROPDOWN
+        
+        elif triggered_id.get("subtype") == "dropdown":
+            return TriggerType.DROPDOWN
 
         elif triggered_id.get("subtype") == "weight_fraction":
             return TriggerType.WEIGHT_FRACTION

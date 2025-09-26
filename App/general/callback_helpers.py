@@ -6,8 +6,17 @@ from App.general.enumerated_classes import CategoricalProperty
 from steer_core.DataManager import DataManager
 
 from dash import no_update, dash_table, html
+from dash.exceptions import PreventUpdate
 
 ### Database Helpers ###
+
+
+def prevent_update_from_styles(
+        viewing_styles: List[Dict[str, Any]]
+    ) -> None:
+    # If all display is none for any of the viewing styles, return no update
+    if any(d.get("display") == "none" for d in viewing_styles):
+        raise PreventUpdate
 
 
 def get_internal_construction_options(form_factor):
