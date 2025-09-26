@@ -39,15 +39,18 @@ layup_control_modes = ds.html.Div(
             style={"margin-bottom": "10px", "color": "#666"},
         ),
         ds.dcc.RadioItems(
-            id="layup_control_mode_selector",
+            id={"object": "layup", "property": "overhang_control_mode", "subtype": "radioitem"},
             options=[
-                {"label": "Fixed Component Geometries", "value": "FIXED_COMPONENT"},
+                {
+                    "label": "Fixed Component Geometries", 
+                    "value": "fixed_component"
+                },
                 {
                     "label": "Fixed Overhangs",
-                    "value": "FIXED_OVERHANGS",
+                    "value": "fixed_overhangs",
                 },
             ],
-            value="FIXED_COMPONENT",
+            value="fixed_component",
             style={"margin": "10px 0"},
             inputStyle={"margin-right": "8px", "transform": "scale(1.2)"},
             labelStyle={

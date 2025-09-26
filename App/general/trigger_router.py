@@ -87,3 +87,4 @@ class TriggerRouter:
                 return triggered_id.replace(pattern, "")
 
         return triggered_id
+

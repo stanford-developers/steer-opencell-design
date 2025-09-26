@@ -4,7 +4,8 @@ import time
 import datetime as dt
 from base64 import b64decode
 from pickle import loads
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Callable, Any
+import functools
 
 from App.general.store import LANDING_PAGE_IMAGE_URLS
 
@@ -25,22 +26,56 @@ from App.general.callback_helpers import (
         Output("warnings_tab", "style"),
     ],
     Input("main-tabs-container", "value"),
+    [
+        State("cathode_tab", "style"),
+        State("anode_tab", "style"),
+        State("layup_tab", "style"),
+        State("electrode_assembly_tab", "style"),
+        State("warnings_tab", "style"),
+    ],
     prevent_initial_call=True,
 )
-def show_main_tab_content(active_tab) -> List:
+def show_main_tab_content(
+    active_tab,
+    cathode_style,
+    anode_style,
+    layup_style,
+    electrode_assembly_style,
+    warnings_style,
+) -> List:
     """
     Function to show or hide main content based on the active tab.
+    Only updates styles when the display property needs to change.
     """
-    styles = {"display": "none"}
-    active_style = {"display": "block"}
+    tab_names = ["cathode", "anode", "layup", "electrode_assembly", "warnings"]
 
-    return [
-        active_style if active_tab == "cathode" else styles,
-        active_style if active_tab == "anode" else styles,
-        active_style if active_tab == "layup" else styles,
-        active_style if active_tab == "electrode_assembly" else styles,
-        active_style if active_tab == "warnings" else styles,
+    current_styles = [
+        cathode_style,
+        anode_style,
+        layup_style,
+        electrode_assembly_style,
+        warnings_style,
     ]
+    
+    updated_styles = []
+    
+    for i, (tab_name, current_style) in enumerate(zip(tab_names, current_styles)):
+
+        # Determine what the display should be
+        should_display = "block" if active_tab == tab_name else "none"
+        
+        # Get current display value (handle None style case)
+        current_display = (current_style or {}).get("display")
+        
+        # If display is already correct, return no_update
+        if current_display == should_display:
+            updated_styles.append(no_update)
+        else:
+            # Create new style preserving existing properties
+            new_style = {**(current_style or {}), "display": should_display}
+            updated_styles.append(new_style)
+    
+    return updated_styles
 
 
 @callback(
@@ -50,20 +85,44 @@ def show_main_tab_content(active_tab) -> List:
         Output("cathode_electrode_tab", "style"),
     ],
     Input("cathode-tabs-container", "value"),
+    [
+        State("cathode_current_collector_tab", "style"),
+        State("cathode_formulation_tab", "style"),
+        State("cathode_electrode_tab", "style"),
+    ],
     prevent_initial_call=True,
 )
-def show_cathode_tab_content(active_tab):
+def show_cathode_tab_content(
+    active_tab,
+    current_collector_style,
+    formulation_style,
+    electrode_style,
+):
     """
     Function to show or hide cathode sub-tab content based on the active tab.
+    Only updates styles when the display property needs to change.
     """
-    styles = {"display": "none"}
-    active_style = {"display": "block"}
-
-    return [
-        active_style if active_tab == "cathode_current_collector" else styles,
-        active_style if active_tab == "cathode_formulation" else styles,
-        active_style if active_tab == "cathode_electrode" else styles,
-    ]
+    tab_names = ["cathode_current_collector", "cathode_formulation", "cathode_electrode"]
+    current_styles = [current_collector_style, formulation_style, electrode_style]
+    
+    updated_styles = []
+    
+    for tab_name, current_style in zip(tab_names, current_styles):
+        # Determine what the display should be
+        should_display = "block" if active_tab == tab_name else "none"
+        
+        # Get current display value (handle None style case)
+        current_display = (current_style or {}).get("display")
+        
+        # If display is already correct, return no_update
+        if current_display == should_display:
+            updated_styles.append(no_update)
+        else:
+            # Create new style preserving existing properties
+            new_style = {**(current_style or {}), "display": should_display}
+            updated_styles.append(new_style)
+    
+    return updated_styles
 
 
 @callback(
@@ -73,20 +132,44 @@ def show_cathode_tab_content(active_tab):
         Output("anode_electrode_tab", "style"),
     ],
     Input("anode-tabs-container", "value"),
+    [
+        State("anode_current_collector_tab", "style"),
+        State("anode_formulation_tab", "style"),
+        State("anode_electrode_tab", "style"),
+    ],
     prevent_initial_call=True,
 )
-def show_anode_tab_content(active_tab):
+def show_anode_tab_content(
+    active_tab,
+    current_collector_style,
+    formulation_style,
+    electrode_style,
+):
     """
     Function to show or hide anode sub-tab content based on the active tab.
+    Only updates styles when the display property needs to change.
     """
-    styles = {"display": "none"}
-    active_style = {"display": "block"}
-
-    return [
-        active_style if active_tab == "anode_current_collector" else styles,
-        active_style if active_tab == "anode_formulation" else styles,
-        active_style if active_tab == "anode_electrode" else styles,
-    ]
+    tab_names = ["anode_current_collector", "anode_formulation", "anode_electrode"]
+    current_styles = [current_collector_style, formulation_style, electrode_style]
+    
+    updated_styles = []
+    
+    for tab_name, current_style in zip(tab_names, current_styles):
+        # Determine what the display should be
+        should_display = "block" if active_tab == tab_name else "none"
+        
+        # Get current display value (handle None style case)
+        current_display = (current_style or {}).get("display")
+        
+        # If display is already correct, return no_update
+        if current_display == should_display:
+            updated_styles.append(no_update)
+        else:
+            # Create new style preserving existing properties
+            new_style = {**(current_style or {}), "display": should_display}
+            updated_styles.append(new_style)
+    
+    return updated_styles
 
 
 @callback(
@@ -103,7 +186,12 @@ def show_anode_tab_content(active_tab):
     ],
     prevent_initial_call=True,
 )
-def update_internal_construction_options(form_factor, form_factor_schematic_button_clicks, form_factor_options) -> Tuple[List[dict], str]:
+def update_internal_construction_options(
+    form_factor, 
+    form_factor_schematic_button_clicks, 
+    form_factor_options
+    ) -> Tuple[List[dict], str]:
+    
     # get the triggered ID to determine which input caused the callback
     trigger = ctx.triggered_id
 
@@ -251,6 +339,7 @@ def update_landing_image_alpha(
     electrochemical_reference_value,
     current_styles,
 ):
+    
     # Ensure current_styles is initialized correctly
     if not current_styles:
         current_styles = [{"width": "40%", "opacity": "20%"} for _ in LANDING_PAGE_IMAGE_URLS]
@@ -283,7 +372,7 @@ def update_landing_image_alpha(
     [Input("cell_name_dropdown", "value")],
     prevent_initial_call=True,
 )
-def get_cell_from_database(cell_name: str) -> Dict:
+def load_cell_from_name_dropdown(cell_name: str) -> Dict:
     """
     Callback to fetch the cell from the database based on the selected cell name.
 
@@ -361,18 +450,38 @@ def upload_cell(pickled_cell):
 def show_and_hide_cell_type_and_tabs(continue_clicks, back_clicks, continue_style, back_style):
     """
     Show or hide the cell type and tabs based on button clicks.
+    Only updates styles when the display property needs to change.
     """
     ctx_id = ctx.triggered_id
 
+    # Determine target display values based on button clicked
     if ctx_id == "continue_to_design":
-        continue_style["display"] = "none"
-        back_style["display"] = "block"
-
+        target_continue_display = "none"
+        target_back_display = "block"
     elif ctx_id == "back_to_cell_type":
-        continue_style["display"] = "flex"
-        back_style["display"] = "none"
+        target_continue_display = "flex"
+        target_back_display = "none"
+    else:
+        # No valid trigger, return no updates
+        return no_update, no_update
 
-    return continue_style, back_style
+    # Check current display values and only update if needed
+    current_continue_display = (continue_style or {}).get("display")
+    current_back_display = (back_style or {}).get("display")
+
+    # Update continue_style only if needed
+    if current_continue_display == target_continue_display:
+        updated_continue_style = no_update
+    else:
+        updated_continue_style = {**(continue_style or {}), "display": target_continue_display}
+
+    # Update back_style only if needed
+    if current_back_display == target_back_display:
+        updated_back_style = no_update
+    else:
+        updated_back_style = {**(back_style or {}), "display": target_back_display}
+
+    return updated_continue_style, updated_back_style
 
 
 @callback(
@@ -452,3 +561,4 @@ def update_warnings_tab_label(warnings_data, current_tabs):
                 tab["props"]["label"] = "Warnings"
 
     return current_tabs
+

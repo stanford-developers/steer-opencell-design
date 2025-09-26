@@ -3,8 +3,6 @@ from dash import callback, Input, Output, State, no_update, ALL, ctx
 from dash.exceptions import PreventUpdate
 
 from App.cache_service import cache
-
-
 from App.current_collectors.configs import COLLECTOR_CONFIGS
 
 from App.current_collectors.callback_helpers import (
@@ -18,47 +16,49 @@ from App.general.cell_operations import get_cell_from_cache, get_object_from_cel
 from App.general.callback_helpers import create_properties_table, prevent_update_from_styles
 
 
-@callback(
-    [
-        Output("cell_store", "data", allow_duplicate=True),
-        Output({'electrode': 'cathode', 'object': 'current_collector', 'subtype': 'dropdown'}, "options"),
-        Output("cathode_current_collector_design_div", "style"),
-        Output({'electrode': 'cathode', 'object': 'current_collector', 'subtype': 'dropdown'}, "value"),
-    ],
-    [  
-        Input("cathode_current_collector_tab", "style"),
-        Input("cathode_tab", "style"),
-        Input("tabs_panel", "style"),
-        Input("cell_store", "data"),
-        Input({'electrode': 'cathode', 'object': 'current_collector', 'subtype': 'dropdown'}, "value"),
-    ],
-    [
-        State("cathode_current_collector_design_div", "style"),
-    ],
-    prevent_initial_call=True,
-)
-def update_cathode_dropdown_options(
-    cc_tab_style,
-    tab_style,
-    tabs_panel_style,
-    data, 
-    dropdown_value,
-    current_style,
-    ):
-    """
-    Update the cathode current collector design dropdown menu options, style, and value
-    based on the current collector store data.
-    """
-    callback_function = create_dropdown_options_callback(CollectorType.CATHODE_GENERIC)
 
-    response = callback_function(
-        data, 
-        current_style,
-        dropdown_value,
-        viewing_styles=[cc_tab_style, tab_style, tabs_panel_style]
-    )
 
-    return response
+# @callback(
+#     [
+#         Output("cell_store", "data", allow_duplicate=True),
+#         Output({'electrode': 'cathode', 'object': 'current_collector', 'subtype': 'dropdown'}, "options"),
+#         Output("cathode_current_collector_design_div", "style"),
+#         Output({'electrode': 'cathode', 'object': 'current_collector', 'subtype': 'dropdown'}, "value"),
+#     ],
+#     [  
+#         Input("cathode_current_collector_tab", "style"),
+#         Input("cathode_tab", "style"),
+#         Input("tabs_panel", "style"),
+#         Input("cell_store", "data"),
+#         Input({'electrode': 'cathode', 'object': 'current_collector', 'subtype': 'dropdown'}, "value"),
+#     ],
+#     [
+#         State("cathode_current_collector_design_div", "style"),
+#     ],
+#     prevent_initial_call=True,
+# )
+# def update_cathode_dropdown_options(
+#     cc_tab_style,
+#     tab_style,
+#     tabs_panel_style,
+#     data, 
+#     dropdown_value,
+#     current_style,
+#     ):
+#     """
+#     Update the anode current collector design dropdown menu options, style, and value
+#     based on the current collector store data.
+#     """
+#     callback_function = create_dropdown_options_callback(CollectorType.CATHODE_GENERIC)
+
+#     response = callback_function(
+#         data, 
+#         current_style,
+#         dropdown_value,
+#         viewing_styles=[cc_tab_style, tab_style, tabs_panel_style]
+#     )
+
+#     return response
 
 
 @callback(

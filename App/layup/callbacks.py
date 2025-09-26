@@ -5,6 +5,7 @@ from App.cache_service import cache
 
 from App.general.enumerated_classes import CollectorType, LayupType
 from App.general.cell_operations import get_object_from_cell, set_object_to_cell, set_cell_to_cache
+from App.general.callback_helpers import prevent_update_from_styles
 from App.layup.configs import LAYUP_CONFIGS
 from App.layup.lists import LAYUP_DESIGNS
 from App.layup.callback_helpers import create_layup_callback
@@ -19,6 +20,8 @@ from steer_opencell_design.Constructions.Layups import Laminate, MonoLayer, ZFol
         Output("layup_design", "value"),
     ],
     [
+        Input("layup_tab", "style"),
+        Input("tabs_panel", "style"),
         Input("cell_store", "data"),
     ],
     [
@@ -27,11 +30,20 @@ from steer_opencell_design.Constructions.Layups import Laminate, MonoLayer, ZFol
     ],
     prevent_initial_call=True,
 )
-def update_layup_dropdown_options(data, current_style, current_options):
+def update_layup_dropdown_options(
+    tab_style,
+    panel_style,
+    data, 
+    current_style, 
+    current_options
+    ):
     """
     Update the cathode current collector design dropdown menu options, style, and value
     based on the current collector store data.
     """
+    # If all display is none for any of the viewing styles, return no update
+    prevent_update_from_styles([tab_style, panel_style])
+    
     # get the config of the item
     config = LAYUP_CONFIGS[LayupType.GENERIC]
 
@@ -202,10 +214,8 @@ def update_areal_capacity_plot(
     """
     Update the areal capacity design plot based on the current data.
     """
-
     # If all display is none for any of the viewing styles, return no update
-    if any(d.get("display") == "none" for d in [tab_style, tabs_panel_style]):
-        return no_update
+    prevent_update_from_styles([tab_style, tabs_panel_style])
 
     # Get the configuration
     config = LAYUP_CONFIGS[LayupType.GENERIC]
@@ -220,73 +230,6 @@ def update_areal_capacity_plot(
     fig = layup.get_areal_capacity_plot()
 
     return (fig,)
-
-
-@callback(
-    [
-        Output("cell_store", "data", allow_duplicate=True),
-        Output("layup_control_mode_selector", "value"),
-    ],
-    [
-        Input("layup_tab", "style"),
-        Input("tabs_panel", "style"),
-        Input("layup_control_mode_selector", "value"),
-        Input("cell_store", "data"),
-    ],
-    prevent_initial_call=True,
-)
-def update_layup_control_mode(
-    tab_style,
-    tabs_panel_style,
-    selected_mode, 
-    cell_data
-):
-    """
-    Update the layup control mode based on the radio button selection,
-    and update the radio button to reflect the current control mode.
-    """
-    # If all display is none for any of the viewing styles, return no update
-    if any(d.get("display") == "none" for d in [tab_style, tabs_panel_style]):
-        raise PreventUpdate
-    
-    # Get the configuration
-    config = LAYUP_CONFIGS[LayupType.GENERIC]
-
-    # Get the cell from the cache
-    cell = cache.get(cell_data["cache_key"])
-
-    # Get the cathode from the cell
-    layup = get_object_from_cell(cell, config)
-
-    # get the mode map
-    mode_mapping = {
-        "FIXED_COMPONENT": OverhangControlMode.FIXED_COMPONENT,
-        "FIXED_OVERHANGS": OverhangControlMode.FIXED_OVERHANGS,
-    }
-
-    # map the control mode to the UI string
-    mode_reverse_mapping = {
-        OverhangControlMode.FIXED_COMPONENT: "FIXED_COMPONENT",
-        OverhangControlMode.FIXED_OVERHANGS: "FIXED_OVERHANGS",
-    }
-
-    if ctx.triggered_id == "cell_store":
-        return no_update, mode_reverse_mapping.get(layup.overhang_control_mode)
-
-    elif ctx.triggered_id == "layup_control_mode_selector":
-
-        mode = mode_mapping.get(selected_mode, OverhangControlMode.FIXED_OVERHANGS)
-
-        # set the control mode to the layup
-        layup.overhang_control_mode = mode
-
-        # set the cathode to the cell
-        new_cell = set_object_to_cell(cell, layup, config)
-
-        # set the new cell to the cache
-        new_key = set_cell_to_cache(new_cell)
-
-        return {"cache_key": new_key}, no_update
 
 
 @callback(
@@ -392,6 +335,7 @@ def update_layup_design(design_value, cell_data):
         Output({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "marks"),
         Output({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "step"),
         Output({"object": "zfoldmonolayer", "property": ALL, "subtype": "input"}, "step"),
+        Output({"object": "layup", "property": ALL, "subtype": "radioitem"}, "value", allow_duplicate=True),
     ],
     [
         Input("layup_tab", "style"),
@@ -400,6 +344,7 @@ def update_layup_design(design_value, cell_data):
         Input({"object": "zfoldmonolayer", "property": ALL, "subtype": "input"},"n_submit",),
         Input({"object": "zfoldmonolayer", "property": ALL, "subtype": "input"}, "n_blur"),
         Input({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "value"),
+        Input({"object": "layup", "property": ALL, "subtype": "radioitem"}, "value"),
     ],
     [
         State({"object": "zfoldmonolayer", "property": ALL, "subtype": "input"}, "value"),
@@ -410,6 +355,7 @@ def update_layup_design(design_value, cell_data):
         State({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "marks"),
         State({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "step"),
         State({"object": "zfoldmonolayer", "property": ALL, "subtype": "input"}, "step"),
+        State({"object": "layup", "property": ALL, "subtype": "radioitem"}, "value"),
     ],
     prevent_initial_call=True,
 )
@@ -420,6 +366,7 @@ def update_zfold_monolayer(
     input_n_sub,
     input_n_blur,
     slider_values,
+    radioitem_values,
     input_values,
     existing_warnings,
     original_values,
@@ -428,6 +375,7 @@ def update_zfold_monolayer(
     original_slider_marks,
     original_slider_steps,
     original_input_steps,
+    original_radioitem_values
 ):
     callback_function = create_layup_callback(LayupType.ZFOLDMONOLAYER)
 
@@ -436,6 +384,7 @@ def update_zfold_monolayer(
         cell_data,
         input_values,
         slider_values,
+        radioitem_values=radioitem_values,
         viewing_styles=[tabs_panel_style, main_tabs_container_style],
         original_values=original_values,
         original_mins=original_mins,
@@ -443,6 +392,7 @@ def update_zfold_monolayer(
         original_slider_marks=original_slider_marks,
         original_slider_steps=original_slider_steps,
         original_input_steps=original_input_steps,
+        original_radioitem_values=original_radioitem_values
     )
 
     return response
@@ -458,6 +408,7 @@ def update_zfold_monolayer(
         Output({"object": "laminate", "property": ALL, "subtype": "slider"}, "marks"),
         Output({"object": "laminate", "property": ALL, "subtype": "slider"}, "step"),
         Output({"object": "laminate", "property": ALL, "subtype": "input"}, "step"),
+        Output({"object": "layup", "property": ALL, "subtype": "radioitem"}, "value", allow_duplicate=True),
     ],
     [
         Input("layup_tab", "style"),
@@ -469,6 +420,7 @@ def update_zfold_monolayer(
         ),
         Input({"object": "laminate", "property": ALL, "subtype": "input"}, "n_blur"),
         Input({"object": "laminate", "property": ALL, "subtype": "slider"}, "value"),
+        Input({"object": "layup", "property": ALL, "subtype": "radioitem"}, "value"),
     ],
     [
         State({"object": "laminate", "property": ALL, "subtype": "input"}, "value"),
@@ -479,6 +431,7 @@ def update_zfold_monolayer(
         State({"object": "laminate", "property": ALL, "subtype": "slider"}, "marks"),
         State({"object": "laminate", "property": ALL, "subtype": "slider"}, "step"),
         State({"object": "laminate", "property": ALL, "subtype": "input"}, "step"),
+        State({"object": "layup", "property": ALL, "subtype": "radioitem"}, "value"),
     ],
     prevent_initial_call=True,
 )
@@ -489,6 +442,7 @@ def update_laminate(
     input_n_sub,
     input_n_blur,
     slider_values,
+    radioitem_values,
     input_values,
     existing_warnings,
     original_values,
@@ -497,6 +451,7 @@ def update_laminate(
     original_slider_marks,
     original_slider_steps,
     original_input_steps,
+    original_radioitem_values
 ):
     callback_function = create_layup_callback(LayupType.LAMINATE)
 
@@ -505,6 +460,7 @@ def update_laminate(
         cell_data,
         input_values,
         slider_values,
+        radioitem_values=radioitem_values,
         viewing_styles=[tabs_panel_style, main_tabs_container_style],
         original_values=original_values,
         original_mins=original_mins,
@@ -512,6 +468,7 @@ def update_laminate(
         original_slider_marks=original_slider_marks,
         original_slider_steps=original_slider_steps,
         original_input_steps=original_input_steps,
+        original_radioitem_values=original_radioitem_values
     )
 
     return response
@@ -527,6 +484,7 @@ def update_laminate(
         Output({"object": "stacked", "property": ALL, "subtype": "slider"}, "marks"),
         Output({"object": "stacked", "property": ALL, "subtype": "slider"}, "step"),
         Output({"object": "stacked", "property": ALL, "subtype": "input"}, "step"),
+        Output({"object": "layup", "property": ALL, "subtype": "radioitem"}, "value", allow_duplicate=True),
     ],
     [
         Input("layup_tab", "style"),
@@ -538,6 +496,7 @@ def update_laminate(
         ),
         Input({"object": "stacked", "property": ALL, "subtype": "input"}, "n_blur"),
         Input({"object": "stacked", "property": ALL, "subtype": "slider"}, "value"),
+        Input({"object": "layup", "property": ALL, "subtype": "radioitem"}, "value"),
     ],
     [
         State({"object": "stacked", "property": ALL, "subtype": "input"}, "value"),
@@ -548,6 +507,7 @@ def update_laminate(
         State({"object": "stacked", "property": ALL, "subtype": "slider"}, "marks"),
         State({"object": "stacked", "property": ALL, "subtype": "slider"}, "step"),
         State({"object": "stacked", "property": ALL, "subtype": "input"}, "step"),
+        State({"object": "layup", "property": ALL, "subtype": "radioitem"}, "value"),
     ],
     prevent_initial_call=True,
 )
@@ -558,6 +518,7 @@ def update_monolayer(
     input_n_sub,
     input_n_blur,
     slider_values,
+    radioitem_values,
     input_values,
     existing_warnings,
     original_values,
@@ -566,6 +527,7 @@ def update_monolayer(
     original_slider_marks,
     original_slider_steps,
     original_input_steps,
+    original_radioitem_values
 ):
 
     callback_function = create_layup_callback(LayupType.MONOLAYER)
@@ -575,6 +537,7 @@ def update_monolayer(
         cell_data,
         input_values,
         slider_values,
+        radioitem_values=radioitem_values,
         viewing_styles=[tabs_panel_style, main_tabs_container_style],
         original_values=original_values,
         original_mins=original_mins,
@@ -582,6 +545,9 @@ def update_monolayer(
         original_slider_marks=original_slider_marks,
         original_slider_steps=original_slider_steps,
         original_input_steps=original_input_steps,
+        original_radioitem_values=original_radioitem_values
     )
 
     return response
+
+

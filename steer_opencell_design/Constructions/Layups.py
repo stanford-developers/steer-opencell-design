@@ -1482,8 +1482,16 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
 
     @overhang_control_mode.setter
     def overhang_control_mode(self, mode: OverhangControlMode):
-        self.validate_type(mode, OverhangControlMode, "overhang_control_mode")
-        self._overhang_control_mode = mode
+
+        if isinstance(mode, OverhangControlMode):
+            self._overhang_control_mode = mode
+            return
+        
+        elif isinstance(mode, str):
+            for enum_member in OverhangControlMode:
+                if mode.lower().replace(" ", "_") == enum_member.value:
+                    self._overhang_control_mode = enum_member
+                    return
 
     #### STRING REPRESENTATIONS ####
 

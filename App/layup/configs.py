@@ -10,16 +10,17 @@ from App.layup.lists import (
     MONOLAYER_SETTABLE_PARAMETERS,
     ZFOLDMONOLAYER_PARAMETER_LIST,
     ZFOLDMONOLAYER_SETTABLE_PARAMETERS,
+    LAYUP_MODES_LIST,
 )
 
 
 @dataclass
 class LayupConfig:
     """Configuration for different current collector types."""
-
     layup_type: Type
     parameter_list: List[str]
     settable_parameters: List[str]
+    radioitem_parameters: List[str]
     cell_path: List[str]
 
 
@@ -29,24 +30,28 @@ LAYUP_CONFIGS = {
         layup_type=Laminate,
         parameter_list=LAMINATE_PARAMETER_LIST,
         settable_parameters=LAMINATE_SETTABLE_PARAMETERS,
+        radioitem_parameters=LAYUP_MODES_LIST,
         cell_path=[],
     ),
     LayupType.MONOLAYER: LayupConfig(
         layup_type=MonoLayer,
         parameter_list=MONOLAYER_PARAMETER_LIST,
         settable_parameters=MONOLAYER_SETTABLE_PARAMETERS,
+        radioitem_parameters=LAYUP_MODES_LIST,
         cell_path=[],
     ),
     LayupType.ZFOLDMONOLAYER: LayupConfig(
         layup_type=ZFoldMonoLayer,
         parameter_list=ZFOLDMONOLAYER_PARAMETER_LIST,
         settable_parameters=ZFOLDMONOLAYER_SETTABLE_PARAMETERS,
+        radioitem_parameters=LAYUP_MODES_LIST,
         cell_path=[],
     ),
     LayupType.GENERIC: LayupConfig(
         layup_type=_Layup,
         parameter_list=[],
         settable_parameters=[],
+        radioitem_parameters=[],
         cell_path=[],
     ),
 }
