@@ -7,7 +7,7 @@ from App.materials.configs import MATERIAL_CONFIGS
 from App.general.enumerated_classes import TriggerType, MaterialType
 from App.general.trigger_router import TriggerRouter
 from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
-from App.general.callback_helpers import create_no_update_response
+from App.general.callback_helpers import prevent_update_from_styles
 
 
 def create_material_callback(material_type: MaterialType) -> callable:
@@ -34,8 +34,7 @@ def create_material_callback(material_type: MaterialType) -> callable:
         triggered_prop_id = list(ctx.triggered_prop_ids.keys())[0].split(".")[-1]
 
         # If all display is none for any of the viewing styles, return no update
-        if any(d.get("display") == "none" for d in viewing_styles):
-            raise PreventUpdate
+        prevent_update_from_styles(viewing_styles)
 
         # get the cell from cache
         cell = get_cell_from_cache(cell_data["cache_key"])

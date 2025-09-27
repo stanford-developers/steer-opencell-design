@@ -37,11 +37,11 @@ def register_callbacks(app):
 
     # Import callback modules dynamically
     callback_modules = [
+        "App.general.clientside_callbacks",
         "App.general.callbacks",
         "App.current_collectors.callbacks",
         "App.electrodes.callbacks",
         "App.materials.callbacks",
-        "App.general.clientside_callbacks",
         "App.formulations.callbacks",
         "App.layup.callbacks",
     ]
