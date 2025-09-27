@@ -30,9 +30,15 @@ from enum import Enum
 
 class OverhangControlMode(Enum):
     """Control modes for anode overhang adjustments."""
-
     FIXED_COMPONENT = "fixed_component"  # Move anode position to achieve overhang
     FIXED_OVERHANGS = "fixed_overhangs"  # Extend anode body to achieve overhang
+
+
+class NPRatioControlMode(Enum):
+    """Control modes for N/P ratio adjustments."""
+    FIXED_ANODE = "fixed_anode"  # Adjust cathode mass loading to achieve N/P ratio
+    FIXED_CATHODE = "fixed_cathode"  # Adjust anode mass loading to achieve N/P ratio
+    FIXED_THICKNESS = "fixed_thickness"  # Adjust both mass loadings to keep the same thickness but the target N/P ratio
 
 
 class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
@@ -69,6 +75,7 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         self._update_properties = False
 
         self.overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
+        self.np_ratio_control_mode = NPRatioControlMode.FIXED_ANODE
 
         self.cathode = cathode
         self.bottom_separator = bottom_separator
@@ -826,6 +833,60 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         # assign to self
         self._top_separator = top_separator
 
+    @np_ratio.setter
+    @calculate_all_properties
+    def np_ratio(self, np_ratio: float) -> None:
+        """
+        Set the n/p ratio (anode to cathode capacity ratio) of the layup.
+
+        Parameters
+        ----------
+        np_ratio : float
+            Target n/p ratio (must be > 0)
+        """
+        self.validate_positive_float(np_ratio, "np_ratio")
+
+        if self.np_ratio_control_mode == NPRatioControlMode.FIXED_CATHODE:
+            self.anode.mass_loading = (self.np_ratio / np_ratio) * self.anode.mass_loading
+            self.anode = self.anode
+
+        elif self.np_ratio_control_mode == NPRatioControlMode.FIXED_ANODE:
+            self.cathode.mass_loading = (np_ratio / self.np_ratio) * self.cathode.mass_loading
+            self.cathode = self.cathode
+
+        elif self.np_ratio_control_mode == NPRatioControlMode.FIXED_THICKNESS:
+
+            # Store current thickness ratio constants (mass_loading / thickness)
+            cathode_thickness_ratio_constant = self.cathode._mass_loading / self.cathode._thickness
+            anode_thickness_ratio_constant = self.anode._mass_loading / self.anode._thickness
+            
+            # Store total thickness constraint
+            total_thickness = self.cathode._thickness + self.anode._thickness
+            
+            # Get current capacities to calculate scaling factors
+            cathode_areal_cap_per_mass_loading = self.cathode._half_cell_curve[:, 4].max() / self.cathode._mass_loading
+            anode_areal_cap_per_mass_loading = self.anode._half_cell_curve[:, 4].max() / self.anode._mass_loading
+
+            # Calculate capacity per unit thickness
+            cathode_cap_per_thickness = cathode_thickness_ratio_constant * cathode_areal_cap_per_mass_loading
+            anode_cap_per_thickness = anode_thickness_ratio_constant * anode_areal_cap_per_mass_loading
+
+            # Solving for cathode_thickness:
+            cathode_thickness_new = total_thickness / (1 + (np_ratio * cathode_cap_per_thickness) / anode_cap_per_thickness)
+            anode_thickness_new = total_thickness - cathode_thickness_new
+            
+            # Calculate new mass loadings
+            cathode_mass_loading_new = cathode_thickness_new * cathode_thickness_ratio_constant
+            anode_mass_loading_new = anode_thickness_new * anode_thickness_ratio_constant
+            
+            # Apply the new mass loadings
+            self.cathode.mass_loading = cathode_mass_loading_new
+            self.anode.mass_loading = anode_mass_loading_new
+            
+            # Trigger setters to update properties
+            self.cathode = self.cathode
+            self.anode = self.anode
+
     #### ANODE OVERHANG PROPERTY/SETTERS ####
 
     @property
@@ -1491,6 +1552,26 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
             for enum_member in OverhangControlMode:
                 if mode.lower().replace(" ", "_") == enum_member.value:
                     self._overhang_control_mode = enum_member
+                    return
+
+    #### N/P RATIO CONTROL MODE ####
+
+    @property
+    def np_ratio_control_mode(self) -> NPRatioControlMode:
+        """Get the current N/P ratio control mode."""
+        return self.
+    
+    @np_ratio_control_mode.setter
+    def np_ratio_control_mode(self, mode: NPRatioControlMode):
+
+        if isinstance(mode, NPRatioControlMode):
+            self._np_ratio_control_mode = mode
+            return
+        
+        elif isinstance(mode, str):
+            for enum_member in NPRatioControlMode:
+                if mode.lower().replace(" ", "_") == enum_member.value:
+                    self._np_ratio_control_mode = enum_member
                     return
 
     #### STRING REPRESENTATIONS ####
