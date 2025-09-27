@@ -111,24 +111,6 @@ cathode_plots = ds.html.Div(
             responsive=True,
             config={"modeBarButtonsToRemove": ["autoScale2d", "resetScale2d"]},
         ),
-        # Container for cost and mass breakdown plots side by side
-        ds.html.Div(
-            [
-                ds.dcc.Graph(
-                    id="cathode_cost_breakdown_plot",
-                    style={"width": "25vw", "height": "40vw"},
-                    responsive=True,
-                    config={"modeBarButtonsToRemove": ["autoScale2d", "resetScale2d"]},
-                ),
-                ds.dcc.Graph(
-                    id="cathode_mass_breakdown_plot",
-                    style={"width": "25vw", "height": "40vw"},
-                    responsive=True,
-                    config={"modeBarButtonsToRemove": ["autoScale2d", "resetScale2d"]},
-                ),
-            ],
-            style={"display": "flex", "flex-direction": "row"},
-        ),
     ],
     style={"display": "flex", "flex-direction": "column"},
 )
@@ -296,24 +278,6 @@ anode_plots = ds.html.Div(
             style={"width": "50vw", "height": "40vw"},
             responsive=True,
             config={"modeBarButtonsToRemove": ["autoScale2d", "resetScale2d"]},
-        ),
-        # Container for cost and mass breakdown plots side by side
-        ds.html.Div(
-            [
-                ds.dcc.Graph(
-                    id="anode_cost_breakdown_plot",
-                    style={"width": "25vw", "height": "40vw"},
-                    responsive=True,
-                    config={"modeBarButtonsToRemove": ["autoScale2d", "resetScale2d"]},
-                ),
-                ds.dcc.Graph(
-                    id="anode_mass_breakdown_plot",
-                    style={"width": "25vw", "height": "40vw"},
-                    responsive=True,
-                    config={"modeBarButtonsToRemove": ["autoScale2d", "resetScale2d"]},
-                ),
-            ],
-            style={"display": "flex", "flex-direction": "row"},
         ),
     ],
     style={"display": "flex", "flex-direction": "column"},

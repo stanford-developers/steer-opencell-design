@@ -274,8 +274,6 @@ def update_anode(
     [
         Output("cathode_top_down_plot", "figure"),
         Output("cathode_cross_section_plot", "figure"),
-        Output("cathode_cost_breakdown_plot", "figure"),
-        Output("cathode_mass_breakdown_plot", "figure"),
         Output("cathode_properties_div", "children"),
     ],
     [
@@ -288,8 +286,6 @@ def update_anode(
     [
         State("cathode_top_down_plot", "figure"),
         State("cathode_cross_section_plot", "figure"), 
-        State("cathode_cost_breakdown_plot", "figure"),
-        State("cathode_mass_breakdown_plot", "figure"),
         State("cathode_properties_div", "children"),
     ],
     prevent_initial_call=True,
@@ -302,8 +298,6 @@ def update_cathode_plots(
     cell_data,
     current_top_down_plot,
     current_cross_section_plot,
-    current_cost_breakdown_plot,
-    current_mass_breakdown_plot,
     current_properties_div,
 ):
     """
@@ -335,8 +329,6 @@ def update_cathode_plots(
     if electrode_visible:
         # Generate plots for electrode tab
         plot_cross_section = cathode.get_cross_section(title="Cross-Section Cathode View")
-        plot_cost_breakdown = cathode.plot_cost_breakdown(title="Cost Breakdown Plot")
-        plot_mass_breakdown = cathode.plot_mass_breakdown(title="Mass Breakdown Plot")
         
         properties = cathode.properties
         properties_table = create_properties_table(
@@ -354,8 +346,6 @@ def update_cathode_plots(
         return (
             plot_top_down,
             plot_cross_section,
-            plot_cost_breakdown,
-            plot_mass_breakdown,
             properties_table,
         )
     
@@ -366,8 +356,6 @@ def update_cathode_plots(
         # Only update other plots if cell store changed and they exist
         if cell_store_changed and current_cross_section_plot:
             plot_cross_section = cathode.get_cross_section(title="Cross-Section Cathode View")
-            plot_cost_breakdown = cathode.plot_cost_breakdown(title="Cost Breakdown Plot")
-            plot_mass_breakdown = cathode.plot_mass_breakdown(title="Mass Breakdown Plot")
             
             properties = cathode.properties
             properties_table = create_properties_table(
@@ -379,12 +367,10 @@ def update_cathode_plots(
             return (
                 plot_top_down,
                 plot_cross_section,
-                plot_cost_breakdown, 
-                plot_mass_breakdown,
                 properties_table,
             )
         else:
-            return plot_top_down, no_update, no_update, no_update, no_update
+            return plot_top_down, no_update, no_update
     
     else:
         raise PreventUpdate
@@ -394,8 +380,6 @@ def update_cathode_plots(
     [
         Output("anode_top_down_plot", "figure"),
         Output("anode_cross_section_plot", "figure"),
-        Output("anode_cost_breakdown_plot", "figure"),
-        Output("anode_mass_breakdown_plot", "figure"),
         Output("anode_properties_div", "children"),
     ],
     [
@@ -408,8 +392,6 @@ def update_cathode_plots(
     [
         State("anode_top_down_plot", "figure"),
         State("anode_cross_section_plot", "figure"),
-        State("anode_cost_breakdown_plot", "figure"),
-        State("anode_mass_breakdown_plot", "figure"),
         State("anode_properties_div", "children"),
     ],
     prevent_initial_call=True,
@@ -422,8 +404,6 @@ def update_anode_plots(
     cell_data,
     current_top_down_plot,
     current_cross_section_plot,
-    current_cost_breakdown_plot,
-    current_mass_breakdown_plot,
     current_properties_div,
 ):
     """
@@ -455,8 +435,6 @@ def update_anode_plots(
     if electrode_visible:
         # Generate plots for electrode tab
         plot_cross_section = anode.get_cross_section(title="Cross-Section Anode View")
-        plot_cost_breakdown = anode.plot_cost_breakdown(title="Cost Breakdown Plot")
-        plot_mass_breakdown = anode.plot_mass_breakdown(title="Mass Breakdown Plot")
         
         properties = anode.properties
         properties_table = create_properties_table(
@@ -474,8 +452,6 @@ def update_anode_plots(
         return (
             plot_top_down,
             plot_cross_section,
-            plot_cost_breakdown,
-            plot_mass_breakdown,
             properties_table,
         )
     
@@ -486,8 +462,6 @@ def update_anode_plots(
         # Only update other plots if cell store changed and they exist
         if cell_store_changed and current_cross_section_plot:
             plot_cross_section = anode.get_cross_section(title="Cross-Section Anode View")
-            plot_cost_breakdown = anode.plot_cost_breakdown(title="Cost Breakdown Plot")
-            plot_mass_breakdown = anode.plot_mass_breakdown(title="Mass Breakdown Plot")
             
             properties = anode.properties
             properties_table = create_properties_table(
@@ -499,12 +473,10 @@ def update_anode_plots(
             return (
                 plot_top_down,
                 plot_cross_section,
-                plot_cost_breakdown, 
-                plot_mass_breakdown,
                 properties_table,
             )
         else:
-            return plot_top_down, no_update, no_update, no_update, no_update
+            return plot_top_down, no_update, no_update
     
     else:
         raise PreventUpdate

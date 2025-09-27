@@ -22,6 +22,7 @@ from steer_core.Apps.ContextManagers import capture_warnings
 
 # Helper function for safe comparison
 def _compare_and_update_responses(new_vals, original_vals):
+    
     if original_vals is None or len(new_vals) != len(original_vals):
         return new_vals
     
