@@ -17,6 +17,7 @@ from steer_opencell_design.Constructions.Layups import (
     MonoLayer,
     ZFoldMonoLayer,
     OverhangControlMode,
+    NPRatioControlMode,
 )
 
 from steer_materials.CellMaterials.Base import (
@@ -232,6 +233,171 @@ class TestSimpleLaminate(unittest.TestCase):
 
         # fig1.show()
         # fig2.show()
+
+    def test_np_ratio_control_mode_property(self):
+        """Test np_ratio_control_mode property getter and setter."""
+        # Test default mode
+        self.assertEqual(self.layup.np_ratio_control_mode, NPRatioControlMode.FIXED_ANODE)
+
+        # Test setting different modes
+        self.layup.np_ratio_control_mode = NPRatioControlMode.FIXED_CATHODE
+        self.assertEqual(self.layup.np_ratio_control_mode, NPRatioControlMode.FIXED_CATHODE)
+
+        self.layup.np_ratio_control_mode = NPRatioControlMode.FIXED_THICKNESS
+        self.assertEqual(self.layup.np_ratio_control_mode, NPRatioControlMode.FIXED_THICKNESS)
+
+        # Test setting by string value
+        self.layup.np_ratio_control_mode = "fixed_anode"
+        self.assertEqual(self.layup.np_ratio_control_mode, NPRatioControlMode.FIXED_ANODE)
+
+    def test_np_ratio_property_getter(self):
+        """Test that np_ratio property returns correct value."""
+        # Get initial N/P ratio
+        initial_np_ratio = self.layup.np_ratio
+        
+        # Verify it's calculated correctly
+        anode_capacity = self.layup.anode._mass_loading * self.layup.anode._half_cell_curve[:, 4].max() / self.layup.anode._mass_loading
+        cathode_capacity = self.layup.cathode._mass_loading * self.layup.cathode._half_cell_curve[:, 4].max() / self.layup.cathode._mass_loading
+        expected_np_ratio = anode_capacity / cathode_capacity
+        
+        self.assertAlmostEqual(initial_np_ratio, expected_np_ratio, places=2)
+
+    def test_np_ratio_setter_fixed_cathode_mode(self):
+        """Test np_ratio setter in FIXED_CATHODE mode."""
+        # Set to FIXED_CATHODE mode
+        self.layup.np_ratio_control_mode = NPRatioControlMode.FIXED_CATHODE
+        
+        # Store initial values
+        initial_cathode_mass_loading = self.layup.cathode.mass_loading
+        initial_anode_mass_loading = self.layup.anode.mass_loading
+        initial_np_ratio = self.layup.np_ratio
+        
+        # Set new N/P ratio
+        target_np_ratio = 1.5
+        self.layup.np_ratio = target_np_ratio
+
+        # Check that N/P ratio changed to target
+        self.assertAlmostEqual(self.layup.np_ratio, target_np_ratio, places=2)
+        
+        # Check that cathode mass loading stayed the same (FIXED_CATHODE)
+        self.assertAlmostEqual(self.layup.cathode.mass_loading, initial_cathode_mass_loading, places=3)
+        
+        # Check that anode mass loading changed appropriately
+        expected_anode_mass_loading = (target_np_ratio / initial_np_ratio) * initial_anode_mass_loading
+        self.assertAlmostEqual(self.layup.anode.mass_loading, expected_anode_mass_loading, places=2)
+
+    def test_np_ratio_setter_fixed_anode_mode(self):
+        """Test np_ratio setter in FIXED_ANODE mode."""
+        # Set to FIXED_ANODE mode (should be default, but explicit)
+        self.layup.np_ratio_control_mode = NPRatioControlMode.FIXED_ANODE
+        
+        # Store initial values
+        initial_cathode_mass_loading = self.layup.cathode.mass_loading
+        initial_anode_mass_loading = self.layup.anode.mass_loading
+        initial_np_ratio = self.layup.np_ratio
+        
+        # Set new N/P ratio
+        target_np_ratio = 1.2
+        self.layup.np_ratio = target_np_ratio
+
+        # Check that N/P ratio changed to target
+        self.assertAlmostEqual(self.layup.np_ratio, target_np_ratio, places=2)
+        
+        # Check that anode mass loading stayed the same (FIXED_ANODE)
+        self.assertAlmostEqual(self.layup.anode.mass_loading, initial_anode_mass_loading, places=3)
+        
+        # Check that cathode mass loading changed appropriately
+        expected_cathode_mass_loading = (initial_np_ratio / target_np_ratio) * initial_cathode_mass_loading
+        self.assertAlmostEqual(self.layup.cathode.mass_loading, expected_cathode_mass_loading, places=2)
+
+    def test_np_ratio_setter_fixed_thickness_mode(self):
+        """Test np_ratio setter in FIXED_THICKNESS mode."""
+        # Set to FIXED_THICKNESS mode
+        self.layup.np_ratio_control_mode = NPRatioControlMode.FIXED_THICKNESS
+        
+        # Store initial values
+        initial_cathode_thickness = self.layup.cathode.thickness
+        initial_anode_thickness = self.layup.anode.thickness
+        initial_total_thickness = initial_cathode_thickness + initial_anode_thickness
+        initial_np_ratio = self.layup.np_ratio
+        
+        # Set new N/P ratio
+        target_np_ratio = 1.3
+        self.layup.np_ratio = target_np_ratio
+        
+        # Check that N/P ratio changed to target
+        self.assertAlmostEqual(self.layup.np_ratio, target_np_ratio, places=2)
+        
+        # Check that total thickness remained constant
+        new_total_thickness = self.layup.cathode.thickness + self.layup.anode.thickness
+        self.assertAlmostEqual(new_total_thickness, initial_total_thickness, places=6)
+        
+        # Check that individual thicknesses changed appropriately
+        self.assertNotEqual(self.layup.cathode.thickness, initial_cathode_thickness)
+        self.assertNotEqual(self.layup.anode.thickness, initial_anode_thickness)
+
+    def test_np_ratio_consistency_across_modes(self):
+        """Test that same N/P ratio can be achieved in different modes."""
+        target_np_ratio = 1.4
+        
+        # Test FIXED_CATHODE mode
+        self.layup.np_ratio_control_mode = NPRatioControlMode.FIXED_CATHODE
+        self.layup.np_ratio = target_np_ratio
+        cathode_mode_np_ratio = self.layup.np_ratio
+        
+        # Reset layup (create new instance with same initial conditions)
+        self.setUp()  # Reset to initial state
+        
+        # Test FIXED_ANODE mode  
+        self.layup.np_ratio_control_mode = NPRatioControlMode.FIXED_ANODE
+        self.layup.np_ratio = target_np_ratio
+        anode_mode_np_ratio = self.layup.np_ratio
+        
+        # Both should achieve the same N/P ratio
+        self.assertAlmostEqual(cathode_mode_np_ratio, anode_mode_np_ratio, places=2)
+        self.assertAlmostEqual(cathode_mode_np_ratio, target_np_ratio, places=2)
+
+    def test_mass_loading_calculations_fixed_thickness(self):
+        """Test detailed mass loading calculations in FIXED_THICKNESS mode."""
+        self.layup.np_ratio_control_mode = NPRatioControlMode.FIXED_THICKNESS
+        
+        # Store detailed initial values
+        initial_cathode_thickness = self.layup.cathode._thickness
+        initial_anode_thickness = self.layup.anode._thickness
+        initial_total_thickness = initial_cathode_thickness + initial_anode_thickness
+        
+        target_np_ratio = 1.6
+        self.layup.np_ratio = target_np_ratio
+        
+        new_np_ratio = self.layup.np_ratio
+
+        # Verify thickness ratios are maintained
+        new_cathode_thickness = self.layup.cathode._thickness
+        new_anode_thickness = self.layup.anode._thickness
+        new_total_thickness = new_cathode_thickness + new_anode_thickness
+
+        self.assertAlmostEqual(initial_total_thickness, new_total_thickness, places=4)
+
+    def test_layup_properties_update_after_np_ratio_change(self):
+        """Test that layup properties are properly updated after N/P ratio changes."""
+        # Store initial properties
+        initial_thickness = self.layup.thickness
+        initial_capacity_curve = self.layup.half_cell_curve.copy()
+        
+        # Change N/P ratio
+        self.layup.np_ratio_control_mode = NPRatioControlMode.FIXED_CATHODE
+        self.layup.np_ratio = 1.8
+        
+        # Check that properties were updated
+        new_thickness = self.layup.thickness
+        new_capacity_curve = self.layup.half_cell_curve
+        
+        # Thickness should change if anode mass loading changed
+        self.assertNotEqual(initial_thickness, new_thickness)
+        
+        # Capacity curve should be updated  
+        self.assertFalse(initial_capacity_curve.equals(new_capacity_curve))
+
 
 
 class TestSimpleMonoLayer(unittest.TestCase):
