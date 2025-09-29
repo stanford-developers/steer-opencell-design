@@ -10,6 +10,7 @@ from App.electrodes.callbacks import *
 
 # Set high level layout
 def create_app():
+    
     # Initialize the dash app
     app = ds.Dash(
         __name__,

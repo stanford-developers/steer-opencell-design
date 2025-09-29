@@ -243,6 +243,7 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
         self._b_in_fill_pattern = dict(shape="/", size=10, solidity=0.6, fgcolor=self._material._color)
 
     def _get_full_top_down_view(self, **kwargs) -> go.Figure:
+        
         fig = go.Figure()
 
         z_coords = self._body_coordinates[:, 2]
