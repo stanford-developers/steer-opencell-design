@@ -103,3 +103,14 @@ class LayupType(Enum):
     MONOLAYER = "monolayer"
     ZFOLDMONOLAYER = "zfoldmonolayer"
     GENERIC = "generic"
+
+
+class SeparatorType(Enum):
+    TOP_LAMINATE = "top_laminate"
+    BOTTOM_LAMINATE = "bottom_laminate"
+    TOP_MONOLAYER = "monolayer"
+    BOTTOM_MONOLAYER = "bottom_monolayer"
+    ZFOLDMONOLAYER = "zfoldmonolayer"
+    GENERIC = "generic"
+
+

@@ -15,3 +15,6 @@ ACTIVE_SETTABLE_PARAMETERS = [
     "reversible_capacity_scaling",
     "irreversible_capacity_scaling",
 ]
+
+SEPARATOR_PARAMETER_LIST = ["density", "specific_cost", "porosity"]
+SEPARATOR_SETTABLE_PARAMETERS = ["density", "specific_cost", "porosity"]

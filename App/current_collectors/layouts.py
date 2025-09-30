@@ -890,3 +890,4 @@ anode_current_collector_layout = ds.html.Div(
         "width": "calc(100%)",
     },
 )
+

@@ -8,19 +8,8 @@ from steer_core.DataManager import DataManager
 from dash import no_update, dash_table, html
 from dash.exceptions import PreventUpdate
 
+
 ### Database Helpers ###
-
-
-def prevent_update_from_styles(
-        viewing_styles: List[Dict[str, Any]]
-    ) -> None:
-
-    if len(viewing_styles) == 0:
-        return
-
-    # If all display is none for any of the viewing styles, return no update
-    if any(d.get("display") == "none" for d in viewing_styles):
-        raise PreventUpdate
 
 
 def get_internal_construction_options(form_factor):
@@ -37,7 +26,16 @@ def get_internal_construction_options(form_factor):
     list
         A list of dictionaries containing the internal construction options.
     """
-    options = DataManager().get_data("cells").query(f"form_factor == '{form_factor}'").filter(["internal_construction"]).sort_values(by="internal_construction").drop_duplicates().internal_construction.tolist()
+    options = (
+        DataManager()
+        .get_data("cells")
+        .query(f"form_factor == '{form_factor}'")
+        .filter(["internal_construction"])
+        .sort_values(by="internal_construction")
+        .drop_duplicates()
+        .internal_construction
+        .tolist()
+    )
 
     return [{"label": option, "value": option} for option in options]
 
@@ -58,7 +56,17 @@ def get_electrochemical_reference_options(internal_construction, form_factor):
     list
         A list of dictionaries containing the electrochemical reference options.
     """
-    options = DataManager().get_data("cells").query(f"form_factor == '{form_factor}'").query(f"internal_construction == '{internal_construction}'").filter(["reference"]).sort_values(by="reference").drop_duplicates().reference.tolist()
+    options = (
+        DataManager()
+        .get_data("cells")
+        .query(f"form_factor == '{form_factor}'")
+        .query(f"internal_construction == '{internal_construction}'")
+        .filter(["reference"])
+        .sort_values(by="reference")
+        .drop_duplicates()
+        .reference
+        .tolist()
+    )
 
     return [{"label": option, "value": option} for option in options]
 
@@ -81,7 +89,18 @@ def get_cell_name_options(internal_construction, electrochemical_reference, form
     list
         A list of dictionaries containing the cell name options.
     """
-    options = DataManager().get_data("cells").query(f"form_factor == '{form_factor}'").query(f"internal_construction == '{internal_construction}'").query(f"reference == '{electrochemical_reference}'").filter(["name"]).sort_values(by="name").drop_duplicates().name.tolist()
+    options = (
+        DataManager()
+        .get_data("cells")
+        .query(f"form_factor == '{form_factor}'")
+        .query(f"internal_construction == '{internal_construction}'")
+        .query(f"reference == '{electrochemical_reference}'")
+        .filter(["name"])
+        .sort_values(by="name")
+        .drop_duplicates()
+        .name
+        .tolist()
+    )
 
     return [{"label": option, "value": option} for option in options]
 
@@ -135,6 +154,74 @@ def deserialize_object(serialized_object: str) -> Type:
 
 
 ### Callback Helpers ###
+
+
+def update_style_display(current_style, target_display):
+    """
+    Helper function to update style display property with safe None handling.
+    
+    Args:
+        current_style: Current style dict or None
+        target_display: Target display value ("block" or "none")
+        
+    Returns:
+        no_update if style already has target display, otherwise updated style dict
+    """
+    current_display = (current_style or {}).get("display")
+    if current_display == target_display:
+        return no_update
+    return {**(current_style or {}), "display": target_display}
+
+
+def update_tab_styles(active_tab: str, tab_names: List[str], current_styles: List[dict]) -> List:
+    """
+    Helper function to update tab styles based on the active tab.
+    Only updates styles when the display property needs to change.
+    
+    Parameters
+    ----------
+    active_tab : str
+        The currently active tab name
+    tab_names : List[str]
+        List of all tab names to check against
+    current_styles : List[dict]
+        List of current style dictionaries for each tab
+        
+    Returns
+    -------
+    List
+        List of updated styles or no_update for each tab
+    """
+    updated_styles = []
+    
+    for tab_name, current_style in zip(tab_names, current_styles):
+        # Determine what the display should be
+        should_display = "block" if active_tab == tab_name else "none"
+        
+        # Get current display value (handle None style case)
+        current_display = (current_style or {}).get("display")
+        
+        # If display is already correct, return no_update
+        if current_display == should_display:
+            updated_styles.append(no_update)
+        else:
+            # Create new style preserving existing properties
+            new_style = {**(current_style or {}), "display": should_display}
+            updated_styles.append(new_style)
+    
+    return updated_styles
+
+
+def prevent_update_from_styles(
+        viewing_styles: List[Dict[str, Any]]
+    ) -> None:
+
+    if len(viewing_styles) == 0:
+        return
+
+    # If all display is none for any of the viewing styles, return no update
+    if any(d.get("display") == "none" for d in viewing_styles):
+        raise PreventUpdate
 
 
 def generate_parameters(object, config: Type) -> Tuple[List[float], List[float], List[float], List[Dict[int, str]]]:
@@ -417,3 +504,4 @@ def create_trigger_data(trigger_id: Dict = None, cell_data: Dict = None) -> Dict
         trigger_data["cell_data"] = cell_data
 
     return trigger_data
+

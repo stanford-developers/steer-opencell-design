@@ -215,7 +215,15 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
             self._top_separator_overhang_bottom = 0.0
             self._top_separator_overhang_top = 0.0
 
-    def _calculate_half_cell_curves(self):
+    def _calculate_half_cell_curves(self) -> np.ndarray:
+        """
+        Calculate the half-cell curves for the cathode and anode.
+
+        Returns
+        -------
+        np.ndarray
+            The combined half-cell curve for the full cell.
+        """
         cathode_half_cell = copy(self._cathode._half_cell_curve)
         anode_half_cell = copy(self._anode._half_cell_curve)
 
@@ -292,6 +300,8 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
 
         # Recombine: charge first (ascending), then discharge (descending)
         self._half_cell_curve = np.vstack([charge_curve, discharge_curve])
+
+        return self._half_cell_curve
 
     def _adjust_overhang_fixed_component(self, component: str, target_overhang: float, direction: str) -> None:
         """
@@ -666,6 +676,13 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
         Get the n/p ratio of the layup (anode to cathode capacity ratio).
         """
         return round(self._np_ratio, 3)
+
+    @property
+    def np_ratio_range(self) -> Tuple[float, float]:
+        """
+        Get the n/p ratio range based on electrode capacities.
+        """
+        return 0, 1.5
 
     @property
     def half_cell_curve(self) -> pd.DataFrame:
@@ -1633,6 +1650,12 @@ class Laminate(_Layup):
             "Cathode Current Collector",
         )
 
+        # set separator width/length ranges based on anode size
+        self._top_separator._set_width_range(self._anode, extended_range=0.1)
+        self._top_separator._set_length_range(self._anode, extended_range=1)
+        self._bottom_separator._set_width_range(self._cathode, extended_range=0.1)
+        self._bottom_separator._set_length_range(self._cathode, extended_range=1)
+
 
 class MonoLayer(_Layup):
     """
@@ -1686,17 +1709,26 @@ class MonoLayer(_Layup):
         self._update_properties = True
 
     def _calculate_all_properties(self):
+
         super()._calculate_all_properties()
+
         self.validate_type(
             self.anode.current_collector,
             PunchedCurrentCollector,
             "Anode Current Collector",
         )
+
         self.validate_type(
             self.cathode.current_collector,
             PunchedCurrentCollector,
             "Cathode Current Collector",
         )
+
+        # set separator width/length ranges based on anode size
+        self._top_separator._set_width_range(self._anode, extended_range=0.1)
+        self._top_separator._set_length_range(self._anode, extended_range=0.1)
+        self._bottom_separator._set_width_range(self._cathode, extended_range=0.1)
+        self._bottom_separator._set_length_range(self._cathode, extended_range=0.1)
 
     @classmethod
     def from_zfold_monolayer(cls, zfold_monolayer: "ZFoldMonoLayer") -> "MonoLayer":
@@ -1858,6 +1890,8 @@ class ZFoldMonoLayer(MonoLayer):
         # Bypass MonoLayer.__init__ to avoid calling blocked setters
         # Call _Layup.__init__ directly and set up necessary attributes
         self._overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
+        self._np_ratio_control_mode = NPRatioControlMode.FIXED_CATHODE
+
         self._cathode = cathode
         self._anode = anode
         self._top_separator = top_separator
@@ -1867,6 +1901,13 @@ class ZFoldMonoLayer(MonoLayer):
 
         self._calculate_all_properties()
         self._update_properties = True
+
+    def _calculate_all_properties(self):
+
+        super()._calculate_all_properties()
+
+        # set separator width/length ranges based on anode size
+        self._bottom_separator._set_width_range(self._anode, extended_range=0.1)
 
     # ============================================================================
     # Core Component Properties
@@ -2259,3 +2300,4 @@ class ZFoldMonoLayer(MonoLayer):
     def top_separator_overhang_right(self) -> None:
         """Individual overhang access disabled. Use 'separator_overhang_right' property instead."""
         raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_right' property. Individual 'top_separator_overhang_right' access is not available.")
+
