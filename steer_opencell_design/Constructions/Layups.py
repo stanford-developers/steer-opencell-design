@@ -774,6 +774,7 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
     @bottom_separator.setter
     @calculate_volumes
     def bottom_separator(self, bottom_separator: Separator):
+
         # validate the type
         self.validate_type(bottom_separator, Separator, "Bottom Separator")
 
@@ -1263,7 +1264,10 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
             FIXED_COMPONENT: (0, left + right overhang total)
         """
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            return (0.0, 20.0)
+            if type(self) == Laminate:
+                return (0.0, 500.0)
+            else:
+                return (0.0, 20.0)
         else:  # FIXED_COMPONENT
             min = 0
             max = (self._bottom_separator_overhang_left + self._bottom_separator_overhang_right) * M_TO_MM
@@ -1282,7 +1286,10 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
             FIXED_COMPONENT: (0, left + right overhang total)
         """
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            return (0.0, 20.0)
+            if type(self) == Laminate:
+                return (0.0, 500.0)
+            else:
+                return (0.0, 20.0)
         else:  # FIXED_COMPONENT
             min = 0
             max = (self._bottom_separator_overhang_left + self._bottom_separator_overhang_right) * M_TO_MM
@@ -1480,7 +1487,10 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
             FIXED_COMPONENT: (0, left + right overhang total)
         """
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            return (0.0, 20.0)
+            if type(self) == Laminate:
+                return (0.0, 500.0)
+            else:
+                return (0.0, 20.0)
         else:  # FIXED_COMPONENT
             return (
                 0.0,
@@ -1500,7 +1510,10 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
             FIXED_COMPONENT: (0, left + right overhang total)
         """
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            return (0.0, 20.0)
+            if type(self) == Laminate:
+                return (0.0, 500.0)
+            else:
+                return (0.0, 20.0)
         else:  # FIXED_COMPONENT
             return (
                 0.0,
@@ -1882,9 +1895,7 @@ class ZFoldMonoLayer(MonoLayer):
         # Create copies of the separator with Z-fold length constraints
         top_separator = deepcopy(separator)
         bottom_separator = deepcopy(separator)
-
         top_separator.length = (anode.current_collector._x_body_length + 2 * top_separator._thickness) * M_TO_MM
-
         bottom_separator.length = (cathode.current_collector._x_body_length + 2 * bottom_separator._thickness) * M_TO_MM
 
         # Bypass MonoLayer.__init__ to avoid calling blocked setters

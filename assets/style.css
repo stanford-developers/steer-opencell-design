@@ -1,3 +1,24 @@
+/* Scale down the entire app using zoom */
+body {
+    zoom: 0.85;
+}
+
+/* Fallback for Firefox */
+@-moz-document url-prefix() {
+    body {
+        zoom: 1;
+        transform: scale(0.85);
+        transform-origin: top left;
+        width: calc(100% / 0.85);
+        height: calc(100% / 0.85);
+    }
+}
+
+/* Ensure the viewport adjusts properly */
+html {
+    overflow-x: auto;
+}
+
 /* Change the slider track color */
 .rc-slider-track {
     background-color: #6c757d;
