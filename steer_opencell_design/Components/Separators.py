@@ -9,6 +9,8 @@ from steer_core.Decorators.General import (
 
 from steer_materials.CellMaterials.Base import SeparatorMaterial
 
+from steer_opencell_design.Components.Electrodes import _Electrode
+
 from typing import Tuple
 from copy import deepcopy
 from App.styles import *
@@ -126,6 +128,20 @@ class Separator(CoordinateMixin, ValidationMixin):
             self._rotated_xy = not self._rotated_xy
 
         return self
+
+    def _set_width_range(self, electrode: _Electrode, extended_range: float):
+
+        if not self._rotated_xy:
+            self._width_range = (electrode._current_collector._y_body_length, electrode._current_collector._y_body_length + extended_range)
+        elif self._rotated_xy:
+            self._width_range = (electrode._current_collector._x_body_length, electrode._current_collector._x_body_length + extended_range)
+
+    def _set_length_range(self, electrode: _Electrode, extended_range: float):
+
+        if not self._rotated_xy:
+            self._length_range = (electrode._current_collector._x_body_length, electrode._current_collector._x_body_length + extended_range)
+        elif self._rotated_xy:
+            self._length_range = (electrode._current_collector._y_body_length, electrode._current_collector._y_body_length + extended_range)
 
     def get_top_down_view(self, **kwargs) -> go.Figure:
         if self._coordinates is None:
@@ -260,8 +276,30 @@ class Separator(CoordinateMixin, ValidationMixin):
         return round(self._length * M_TO_MM, 2)
 
     @property
+    def length_range(self):
+
+        if hasattr(self, "_length_range") and hasattr(self, "_length"):
+            return (
+                round(self._length_range[0] * M_TO_MM, 2),
+                round(self._length_range[1] * M_TO_MM, 2),
+            )
+        else:
+            return (0, 500)
+
+    @property
     def width(self) -> float:
         return round(self._width * M_TO_MM, 2)
+
+    @property
+    def width_range(self):
+
+        if hasattr(self, "_width_range"):
+            return (
+                round(self._width_range[0] * M_TO_MM, 2),
+                round(self._width_range[1] * M_TO_MM, 2),
+            )
+        else:
+            return (0, 500)
 
     @property
     def material(self) -> SeparatorMaterial:
@@ -270,6 +308,10 @@ class Separator(CoordinateMixin, ValidationMixin):
     @property
     def thickness(self):
         return round(self._thickness * M_TO_UM, 2)
+
+    @property
+    def thickness_range(self):
+        return (0, 100)
 
     @areal_cost.setter
     @calculate_all_properties
@@ -339,3 +381,4 @@ class Separator(CoordinateMixin, ValidationMixin):
 
     def __repr__(self):
         return self.__str__()
+

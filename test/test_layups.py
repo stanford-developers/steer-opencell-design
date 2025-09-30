@@ -399,7 +399,6 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertFalse(initial_capacity_curve.equals(new_capacity_curve))
 
 
-
 class TestSimpleMonoLayer(unittest.TestCase):
     def setUp(self):
         ########################
@@ -649,6 +648,7 @@ class TestSimpleMonoLayer(unittest.TestCase):
 
 
 class TestZFoldMonoLayer(unittest.TestCase):
+
     def setUp(self):
         ########################
         # make a basic cathode
@@ -738,6 +738,10 @@ class TestZFoldMonoLayer(unittest.TestCase):
         """Test basic Z-fold monolayer functionality."""
         self.assertTrue(isinstance(self.zfoldmonolayer, ZFoldMonoLayer))
         self.assertTrue(isinstance(self.zfoldmonolayer, MonoLayer))
+        self.assertTrue(hasattr(self.zfoldmonolayer, "np_ratio"))
+        self.assertTrue(hasattr(self.zfoldmonolayer, "np_ratio_control_mode"))
+        self.assertTrue(hasattr(self.zfoldmonolayer, "_np_ratio"))
+        self.assertTrue(hasattr(self.zfoldmonolayer, "_np_ratio_control_mode"))
 
         # Check that separator lengths are constrained correctly
         expected_bottom_length = (self.zfoldmonolayer.cathode.current_collector._x_body_length + 2 * self.zfoldmonolayer._bottom_separator._thickness) * M_TO_MM

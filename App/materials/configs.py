@@ -22,6 +22,8 @@ from App.materials.lists import (
     REGULAR_SETTABLE_PARAMETERS,
     ACTIVE_PARAMETER_LIST,
     ACTIVE_SETTABLE_PARAMETERS,
+    SEPARATOR_PARAMETER_LIST,
+    SEPARATOR_SETTABLE_PARAMETERS,
 )
 
 from steer_core.Apps.Components.MaterialSelectors import (
@@ -115,8 +117,8 @@ MATERIAL_CONFIGS = {
     ),
     MaterialType.SEPARATOR_MATERIAL: MaterialConfig(
         material_type=SeparatorMaterial,
-        parameter_list=REGULAR_PARAMETER_LIST,
-        settable_parameters=REGULAR_SETTABLE_PARAMETERS,
+        parameter_list=SEPARATOR_PARAMETER_LIST,
+        settable_parameters=SEPARATOR_SETTABLE_PARAMETERS,
         cell_path=["separator", "material"],
         dropdown_menu=True,
     ),

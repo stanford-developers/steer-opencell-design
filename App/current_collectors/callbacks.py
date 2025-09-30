@@ -8,12 +8,17 @@ from App.current_collectors.configs import COLLECTOR_CONFIGS
 from App.current_collectors.callback_helpers import (
     create_generic_current_collector_callback,
     create_dropdown_options_callback,
-    update_style_display,
 )
-
 from App.general.enumerated_classes import CollectorType
-from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
-from App.general.callback_helpers import create_properties_table, prevent_update_from_styles
+from App.general.cell_operations import (
+    get_cell_from_cache, 
+    get_object_from_cell
+)
+from App.general.callback_helpers import (
+    create_properties_table, 
+    prevent_update_from_styles, 
+    update_style_display
+)
 
 
 

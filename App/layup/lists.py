@@ -36,6 +36,20 @@ LAMINATE_SETTABLE_PARAMETERS = [
 ]
 
 
+LAMINATE_SEPARATOR_PARAMETERS = [
+    "length",
+    "width",
+    "thickness",
+]
+
+
+LAMINATE_SEPARATOR_SETTABLE_PARAMETERS = [
+    "length",
+    "width",
+    "thickness",
+]
+
+
 MONOLAYER_PARAMETER_LIST = [
     "anode_overhang_left",
     "anode_overhang_right",
@@ -67,6 +81,20 @@ MONOLAYER_SETTABLE_PARAMETERS = [
 ]
 
 
+MONOLAYER_SEPARATOR_PARAMETERS = [
+    "length",
+    "width",
+    "thickness",
+]
+
+
+MONOLAYER_SEPARATOR_SETTABLE_PARAMETERS = [
+    "length",
+    "width",
+    "thickness",
+]
+
+
 ZFOLDMONOLAYER_PARAMETER_LIST = [
     "anode_overhang_left",
     "anode_overhang_right",
@@ -85,6 +113,27 @@ ZFOLDMONOLAYER_SETTABLE_PARAMETERS = [
     "separator_overhang_bottom",
 ]
 
-LAYUP_MODES_LIST = [
-    "overhang_control_mode"
+ZFOLDMONOLAYER_SEPARATOR_PARAMETERS = [
+    "thickness",
+    "width",
 ]
+
+ZFOLDMONOLAYER_SEPARATOR_SETTABLE_PARAMETERS = [
+    "thickness",
+    "width",
+]
+
+LAYUP_MODES_LIST = [
+    "overhang_control_mode",
+    "np_ratio_control_mode",
+]
+
+GENERIC_PARAMETER_LIST = [
+    "np_ratio"
+]
+
+GENERIC_SETTABLE_PARAMETERS = [
+    "np_ratio"
+]
+
+

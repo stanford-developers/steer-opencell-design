@@ -9,7 +9,7 @@ from App.current_collectors.layouts import anode_current_collector_layout
 from App.formulations.layouts import anode_formulation_layout
 from App.electrodes.layouts import anode_electrode_layout
 
-from App.layup.layouts import layup_layout
+from App.layup.layouts import layup_mechanicals_layout, layup_areal_layout
 
 from App.electrode_assembly.layouts import electrode_assembly_layout
 
@@ -288,6 +288,42 @@ anode_tabs_div = ds.html.Div(
 )
 
 
+layup_tabs_div = ds.html.Div(
+    id="layup_tabs_panel",
+    children=[
+        ds.dcc.Tabs(
+            id="layup-tabs-container",
+            children=[
+                ds.dcc.Tab(
+                    label="Mechanicals",
+                    value="layup_mechanicals_layout",
+                    className="tab-style",
+                    selected_className="tab-selected-style",
+                ),
+                ds.dcc.Tab(
+                    label="Areal Designer",
+                    value="layup_areal_layout",
+                    className="tab-style",
+                    selected_className="tab-selected-style",
+                ),
+            ],
+            value="layup_mechanicals_layout",
+        ),
+        ds.html.Div(
+            id="layup_mechanicals_layout",
+            children=[layup_mechanicals_layout],
+            style={"display": "block"},
+        ),
+        ds.html.Div(
+            id="layup_areal_layout",
+            children=[layup_areal_layout],
+            style={"display": "none"},
+        ),
+    ],
+    style=DIV_STYLE | {"display": "block"},
+)
+
+
 main_tabs = ds.html.Div(
     id="tabs_panel",
     children=[
@@ -337,7 +373,7 @@ main_tabs = ds.html.Div(
         ),
         ds.html.Div(id="cathode_tab", children=[cathode_tabs_div], style={"display": "block"}),
         ds.html.Div(id="anode_tab", children=[anode_tabs_div], style={"display": "none"}),
-        ds.html.Div(id="layup_tab", children=[layup_layout], style={"display": "none"}),
+        ds.html.Div(id="layup_tab", children=[layup_tabs_div], style={"display": "none"}),
         ds.html.Div(
             id="electrode_assembly_tab",
             children=[electrode_assembly_layout],
@@ -347,3 +383,5 @@ main_tabs = ds.html.Div(
     ],
     style=DIV_STYLE | {"display": "none"},
 )
+
+

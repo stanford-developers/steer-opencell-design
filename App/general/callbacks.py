@@ -14,6 +14,7 @@ from App.general.callback_helpers import (
     get_electrochemical_reference_options,
     get_cell_name_options,
     get_active_materials,
+    update_tab_styles
 )
 
 
@@ -57,25 +58,7 @@ def show_main_tab_content(
         warnings_style,
     ]
     
-    updated_styles = []
-    
-    for i, (tab_name, current_style) in enumerate(zip(tab_names, current_styles)):
-
-        # Determine what the display should be
-        should_display = "block" if active_tab == tab_name else "none"
-        
-        # Get current display value (handle None style case)
-        current_display = (current_style or {}).get("display")
-        
-        # If display is already correct, return no_update
-        if current_display == should_display:
-            updated_styles.append(no_update)
-        else:
-            # Create new style preserving existing properties
-            new_style = {**(current_style or {}), "display": should_display}
-            updated_styles.append(new_style)
-    
-    return updated_styles
+    return update_tab_styles(active_tab, tab_names, current_styles)
 
 
 @callback(
@@ -104,25 +87,7 @@ def show_cathode_tab_content(
     """
     tab_names = ["cathode_current_collector", "cathode_formulation", "cathode_electrode"]
     current_styles = [current_collector_style, formulation_style, electrode_style]
-    
-    updated_styles = []
-    
-    for tab_name, current_style in zip(tab_names, current_styles):
-        # Determine what the display should be
-        should_display = "block" if active_tab == tab_name else "none"
-        
-        # Get current display value (handle None style case)
-        current_display = (current_style or {}).get("display")
-        
-        # If display is already correct, return no_update
-        if current_display == should_display:
-            updated_styles.append(no_update)
-        else:
-            # Create new style preserving existing properties
-            new_style = {**(current_style or {}), "display": should_display}
-            updated_styles.append(new_style)
-    
-    return updated_styles
+    return update_tab_styles(active_tab, tab_names, current_styles)
 
 
 @callback(
@@ -151,25 +116,33 @@ def show_anode_tab_content(
     """
     tab_names = ["anode_current_collector", "anode_formulation", "anode_electrode"]
     current_styles = [current_collector_style, formulation_style, electrode_style]
-    
-    updated_styles = []
-    
-    for tab_name, current_style in zip(tab_names, current_styles):
-        # Determine what the display should be
-        should_display = "block" if active_tab == tab_name else "none"
-        
-        # Get current display value (handle None style case)
-        current_display = (current_style or {}).get("display")
-        
-        # If display is already correct, return no_update
-        if current_display == should_display:
-            updated_styles.append(no_update)
-        else:
-            # Create new style preserving existing properties
-            new_style = {**(current_style or {}), "display": should_display}
-            updated_styles.append(new_style)
-    
-    return updated_styles
+    return update_tab_styles(active_tab, tab_names, current_styles)
+
+
+@callback(
+    [
+        Output("layup_mechanicals_layout", "style"),
+        Output("layup_areal_layout", "style"),
+    ],
+    Input("layup-tabs-container", "value"),
+    [
+        State("layup_mechanicals_layout", "style"),
+        State("layup_areal_layout", "style"),
+    ],
+    prevent_initial_call=True,
+)
+def show_layup_tab_content(
+    active_tab,
+    current_mechanicals_style,
+    current_areal_style,
+):
+    """
+    Function to show or hide layup sub-tab content based on the active tab.
+    Only updates styles when the display property needs to change.
+    """
+    tab_names = ["layup_mechanicals_layout", "layup_areal_layout"]
+    current_styles = [current_mechanicals_style, current_areal_style]
+    return update_tab_styles(active_tab, tab_names, current_styles)
 
 
 @callback(

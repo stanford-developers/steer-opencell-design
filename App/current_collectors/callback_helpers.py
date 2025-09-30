@@ -154,20 +154,3 @@ def create_dropdown_options_callback(collector_type: CollectorType) -> callable:
     
     return callback_function
 
-
-def update_style_display(current_style, target_display):
-    """
-    Helper function to update style display property with safe None handling.
-    
-    Args:
-        current_style: Current style dict or None
-        target_display: Target display value ("block" or "none")
-        
-    Returns:
-        no_update if style already has target display, otherwise updated style dict
-    """
-    current_display = (current_style or {}).get("display")
-    if current_display == target_display:
-        return no_update
-    return {**(current_style or {}), "display": target_display}
-
