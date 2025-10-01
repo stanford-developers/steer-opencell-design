@@ -1,22 +1,76 @@
-/* Scale down the entire app using zoom */
-body {
-    zoom: 0.85;
-}
-
-/* Fallback for Firefox */
-@-moz-document url-prefix() {
-    body {
-        zoom: 1;
-        transform: scale(0.85);
-        transform-origin: top left;
-        width: calc(100% / 0.85);
-        height: calc(100% / 0.85);
-    }
-}
-
-/* Ensure the viewport adjusts properly */
+/* Use font-size based scaling instead of zoom to avoid positioning issues */
 html {
+    font-size: 14px; /* Down from default 16px (87.5% scale) */
     overflow-x: auto;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+/* Scale components individually for better control */
+.container-fluid {
+    max-width: 98%;
+    margin: 0 auto;
+}
+
+/* Compact spacing */
+.row {
+    margin-left: -8px;
+    margin-right: -8px;
+}
+
+.col {
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+/* Scale dash components appropriately */
+.dash-table-container {
+    font-size: 0.9rem;
+}
+
+.dash-graph {
+    margin: 0.5rem 0;
+}
+
+/* Keep sliders at normal proportions to maintain tooltip positioning */
+.rc-slider {
+    margin: 0.75rem 0;
+}
+
+.rc-slider-tooltip {
+    font-size: 0.8rem;
+}
+
+/* Scale input fields */
+input[type="number"],
+.dash-input {
+    font-size: 0.9rem;
+    padding: 0.25rem 0.5rem;
+}
+
+/* Scale buttons */
+button,
+.btn {
+    font-size: 0.9rem;
+    padding: 0.4rem 0.8rem;
+}
+
+/* Scale dropdowns */
+.dash-dropdown {
+    font-size: 0.9rem;
+}
+
+/* Compact margins */
+.mb-3 {
+    margin-bottom: 0.8rem !important;
+}
+
+.p-3 {
+    padding: 0.8rem !important;
 }
 
 /* Change the slider track color */
@@ -48,12 +102,12 @@ html {
 }
 
 
-/* Base tab style */
+/* Base tab style - scaled down */
 .tab-style {
     background-color: black;
     border: none;
-    padding: 12px 20px;
-    font-size: 16px;
+    padding: 10px 16px;
+    font-size: 14px;
     color: #555;
     cursor: pointer;
     transition: color 0.2s, border-bottom 0.2s;
@@ -74,10 +128,10 @@ html {
     background-color: white;
 }
 
-/* Tabs container: optional cleanup */
+/* Tabs container: scaled down spacing */
 .dash-tabs {
     border-bottom: 1px solid #e0e0e0;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 
 
