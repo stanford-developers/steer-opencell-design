@@ -2,12 +2,6 @@ import dash as ds
 from App.cache_service import cache
 from App.styles import *
 
-# Import components
-from App.general.callbacks import *
-from App.current_collectors.callbacks import *
-from App.electrodes.callbacks import *
-
-
 # Set high level layout
 def create_app():
     
