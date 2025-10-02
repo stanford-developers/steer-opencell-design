@@ -13,10 +13,10 @@ from steer_opencell_design.Components.Electrodes import _Electrode
 
 from typing import Tuple
 from copy import deepcopy
-from App.styles import *
 
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 
 
 class Separator(CoordinateMixin, ValidationMixin):

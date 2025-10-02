@@ -13,6 +13,7 @@ LANDING_PAGE_IMAGE_URLS = {
 }
 
 cell_store = ds.dcc.Store(id="cell_store", data={"cache_key": None})
+old_cell_store = ds.dcc.Store(id="old_cell_store", data={"cache_key": None})
 
 warnings_store = ds.dcc.Store(id="warnings_store", data=[])
 

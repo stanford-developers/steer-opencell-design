@@ -6,7 +6,7 @@ from steer_opencell_design.Components.CurrentCollectors import (
     NotchedCurrentCollector,
 )
 
-from App.styles import *
+from App.general.styles import *
 from steer_core.Constants.Units import *
 from steer_core.Constants.Universal import PI
 

@@ -341,8 +341,12 @@ def update_landing_image_alpha(
 
 
 @callback(
-    [Output("cell_store", "data", allow_duplicate=True)],
-    [Input("cell_name_dropdown", "value")],
+    [
+        Output("cell_store", "data", allow_duplicate=True)
+    ],
+    [
+        Input("cell_name_dropdown", "value")
+    ],
     prevent_initial_call=True,
 )
 def load_cell_from_name_dropdown(cell_name: str) -> Dict:

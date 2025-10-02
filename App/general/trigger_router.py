@@ -71,6 +71,9 @@ class TriggerRouter:
 
         elif triggered_id.get("subtype") == "weight_fraction":
             return TriggerType.WEIGHT_FRACTION
+        
+        elif triggered_id.get("type") == "trigger":
+            return TriggerType.CELL_STORE
 
         raise ValueError(f"Unknown dict trigger: {triggered_id}")
 

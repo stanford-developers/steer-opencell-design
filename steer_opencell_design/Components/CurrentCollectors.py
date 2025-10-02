@@ -17,7 +17,6 @@ from steer_core.Constants.Units import *
 from steer_materials.CellMaterials.Base import CurrentCollectorMaterial
 
 # import base functions
-from App.styles import *
 from abc import ABC, abstractmethod
 from typing import Tuple, Optional, Iterable
 from plotly.subplots import make_subplots

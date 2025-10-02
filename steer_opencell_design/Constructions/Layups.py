@@ -17,7 +17,6 @@ from steer_core.Decorators.Electrochemical import (
     calculate_half_cell_curves_properties,
 )
 
-from App.styles import *
 from steer_core.Constants.Units import *
 
 from copy import copy, deepcopy

@@ -11,7 +11,7 @@ from steer_opencell_design.Components.Containers import (
     CylindricalCase,
 )
 
-from App.styles import *
+from App.general.styles import *
 from steer_opencell_design.Constants import *
 from steer_opencell_design.Decorators import get_colorway
 

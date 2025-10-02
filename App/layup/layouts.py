@@ -1,12 +1,16 @@
 import dash as ds
-from App.styles import *
+from App.general.styles import *
 
-from App.layup.lists import LAYUP_DESIGNS
-
-from App.database_service import SEPARATOR_MATERIALS
+from App.general.database_service import SEPARATOR_MATERIALS
 
 from steer_core.Apps.Components.SliderComponents import SliderWithTextInput
 
+
+LAYUP_DESIGNS = [
+    "Z-Fold Monolayer",
+    "Laminate",
+    "Stacked",
+]
 
 layup_design = ds.html.Div(
     id="layup_design_div",
