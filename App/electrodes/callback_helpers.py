@@ -2,13 +2,12 @@ from dash import ctx
 from typing import Tuple, Type
 from dash.exceptions import PreventUpdate
 
-from App.general.enumerated_classes import ElectrodeType
 from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
 from App.general.trigger_router import TriggerRouter, TriggerType
 from App.general.handlers import handle_cell_store_update, handle_property_update
 from App.general.callback_helpers import prevent_update_from_styles
 
-from App.electrodes.configs import ELECTRODE_CONFIGS
+from App.electrodes.configs import ELECTRODE_CONFIGS, ElectrodeType
 
 
 def create_electrode_callback(electrode_key: ElectrodeType) -> callable:

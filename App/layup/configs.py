@@ -1,66 +1,97 @@
-from typing import Type, List
+from typing import Type, List, Optional
 from dataclasses import dataclass
-from steer_opencell_design.Constructions.Layups import Laminate, MonoLayer, ZFoldMonoLayer, _Layup
-from App.general.enumerated_classes import LayupType, SeparatorType
+from enum import Enum
 
-from App.layup.lists import (
-    LAMINATE_PARAMETER_LIST,
-    LAMINATE_SETTABLE_PARAMETERS,
-    LAMINATE_SEPARATOR_PARAMETERS,
-    LAMINATE_SEPARATOR_SETTABLE_PARAMETERS,
-    MONOLAYER_PARAMETER_LIST,
-    MONOLAYER_SETTABLE_PARAMETERS,
-    MONOLAYER_SEPARATOR_PARAMETERS,
-    MONOLAYER_SEPARATOR_SETTABLE_PARAMETERS,
-    ZFOLDMONOLAYER_PARAMETER_LIST,
-    ZFOLDMONOLAYER_SETTABLE_PARAMETERS,
-    ZFOLDMONOLAYER_SEPARATOR_PARAMETERS,
-    ZFOLDMONOLAYER_SEPARATOR_SETTABLE_PARAMETERS,
-    LAYUP_MODES_LIST,
-    GENERIC_PARAMETER_LIST,
-    GENERIC_SETTABLE_PARAMETERS,
-)
+from steer_opencell_design.Constructions.Layups import Laminate, MonoLayer, ZFoldMonoLayer, _Layup
+
+
+# Define LayupType enum
+class LayupType(Enum):
+    LAMINATE = "laminate"
+    MONOLAYER = "monolayer"
+    ZFOLDMONOLAYER = "zfoldmonolayer"
+    GENERIC = "generic"
+
+
+# Define SeparatorType enum
+class SeparatorType(Enum):
+    TOP_LAMINATE = "top_laminate"
+    BOTTOM_LAMINATE = "bottom_laminate"
+    TOP_MONOLAYER = "monolayer"
+    BOTTOM_MONOLAYER = "bottom_monolayer"
+    ZFOLDMONOLAYER = "zfoldmonolayer"
+    GENERIC = "generic"
 
 
 @dataclass
 class LayupConfig:
-    """Configuration for different current collector types."""
+    """Configuration for different layup types."""
     layup_type: Type
-    parameter_list: List[str]
-    settable_parameters: List[str]
-    radioitem_parameters: List[str]
     cell_path: List[str]
+    parameter_list: List[str]
+    radioitem_parameters: Optional[List[str]] = None
 
 
-# Define configurations
+# Define layup configurations
 LAYUP_CONFIGS = {
     LayupType.LAMINATE: LayupConfig(
         layup_type=Laminate,
-        parameter_list=LAMINATE_PARAMETER_LIST,
-        settable_parameters=LAMINATE_SETTABLE_PARAMETERS,
-        radioitem_parameters=[],
         cell_path=[],
+        parameter_list=[
+            "anode_overhang_left",
+            "anode_overhang_right",
+            "anode_overhang_top",
+            "anode_overhang_bottom",
+            "top_separator_overhang_left",
+            "top_separator_overhang_right",
+            "top_separator_overhang_top",
+            "top_separator_overhang_bottom",
+            "bottom_separator_overhang_left",
+            "bottom_separator_overhang_right",
+            "bottom_separator_overhang_top",
+            "bottom_separator_overhang_bottom",
+        ],
     ),
     LayupType.MONOLAYER: LayupConfig(
         layup_type=MonoLayer,
-        parameter_list=MONOLAYER_PARAMETER_LIST,
-        settable_parameters=MONOLAYER_SETTABLE_PARAMETERS,
-        radioitem_parameters=[],
         cell_path=[],
+        parameter_list=[
+            "anode_overhang_left",
+            "anode_overhang_right",
+            "anode_overhang_top",
+            "anode_overhang_bottom",
+            "top_separator_overhang_left",
+            "top_separator_overhang_right",
+            "top_separator_overhang_top",
+            "top_separator_overhang_bottom",
+            "bottom_separator_overhang_left",
+            "bottom_separator_overhang_right",
+            "bottom_separator_overhang_top",
+            "bottom_separator_overhang_bottom",
+        ],
     ),
     LayupType.ZFOLDMONOLAYER: LayupConfig(
         layup_type=ZFoldMonoLayer,
-        parameter_list=ZFOLDMONOLAYER_PARAMETER_LIST,
-        settable_parameters=ZFOLDMONOLAYER_SETTABLE_PARAMETERS,
-        radioitem_parameters=[],
         cell_path=[],
+        parameter_list=[
+            "anode_overhang_left",
+            "anode_overhang_right",
+            "anode_overhang_top",
+            "anode_overhang_bottom",
+            "separator_overhang_top",
+            "separator_overhang_bottom",
+        ],
     ),
     LayupType.GENERIC: LayupConfig(
         layup_type=_Layup,
-        parameter_list=GENERIC_PARAMETER_LIST,
-        settable_parameters=GENERIC_SETTABLE_PARAMETERS,
-        radioitem_parameters=LAYUP_MODES_LIST,
         cell_path=[],
+        parameter_list=[
+            "np_ratio",
+        ],
+        radioitem_parameters=[
+            "overhang_control_mode",
+            "np_ratio_control_mode",
+        ],
     ),
 }
 
@@ -68,40 +99,53 @@ LAYUP_CONFIGS = {
 @dataclass
 class SeparatorConfig:
     """Configuration for different separator types."""
-    parameter_list: List[str]
-    settable_parameters: List[str]
     cell_path: List[str]
+    parameter_list: List[str]
 
+# Define separator configurations
 SEPARATOR_CONFIGS = {
     SeparatorType.TOP_LAMINATE: SeparatorConfig(
-        parameter_list=LAMINATE_SEPARATOR_PARAMETERS,
-        settable_parameters=LAMINATE_SEPARATOR_SETTABLE_PARAMETERS,
         cell_path=["top_separator"],
+        parameter_list=[
+            "length",
+            "width",
+            "thickness",
+        ],
     ),
     SeparatorType.BOTTOM_LAMINATE: SeparatorConfig(
-        parameter_list=LAMINATE_SEPARATOR_PARAMETERS,
-        settable_parameters=LAMINATE_SEPARATOR_SETTABLE_PARAMETERS,
         cell_path=["bottom_separator"],
+        parameter_list=[
+            "length",
+            "width",
+            "thickness",
+        ],
     ),
     SeparatorType.TOP_MONOLAYER: SeparatorConfig(
-        parameter_list=MONOLAYER_SEPARATOR_PARAMETERS,
-        settable_parameters=MONOLAYER_SEPARATOR_SETTABLE_PARAMETERS,
         cell_path=["top_separator"],
+        parameter_list=[
+            "length",
+            "width",
+            "thickness",
+        ],
     ),
     SeparatorType.BOTTOM_MONOLAYER: SeparatorConfig(
-        parameter_list=MONOLAYER_SEPARATOR_PARAMETERS,
-        settable_parameters=MONOLAYER_SEPARATOR_SETTABLE_PARAMETERS,
         cell_path=["bottom_separator"],
+        parameter_list=[
+            "length",
+            "width",
+            "thickness",
+        ],
     ),
     SeparatorType.ZFOLDMONOLAYER: SeparatorConfig(
-        parameter_list=ZFOLDMONOLAYER_SEPARATOR_PARAMETERS,
-        settable_parameters=ZFOLDMONOLAYER_SEPARATOR_SETTABLE_PARAMETERS,
         cell_path=["separator"],
+        parameter_list=[
+            "thickness",
+            "width",
+        ],
     ),
     SeparatorType.GENERIC: SeparatorConfig(
-        parameter_list=[],
-        settable_parameters=[],
         cell_path=["generic"],
+        parameter_list=[],
     ),
 }
 

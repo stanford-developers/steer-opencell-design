@@ -345,10 +345,10 @@ def determine_value(
 ) -> Any:
     # Determine the value from the input type
     if subtype == SubType.INPUT:
-        property_index = config.settable_parameters.index(property_name)
+        property_index = config.parameter_list.index(property_name)
         value = input_values[property_index]
     elif subtype == SubType.SLIDER:
-        property_index = config.settable_parameters.index(property_name)
+        property_index = config.parameter_list.index(property_name)
         value = slider_values[property_index]
     elif subtype == SubType.RANGESLIDER:
         property_index = config.range_slider_parameters.index(property_name)

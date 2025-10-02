@@ -8,7 +8,8 @@ from App.general.cell_operations import get_cell_from_cache, get_object_from_cel
 from App.general.handlers import handle_cell_store_update, handle_property_update
 
 from App.general.trigger_router import TriggerRouter, TriggerType
-from App.general.enumerated_classes import FormulationType, MaterialType
+from App.formulations.configs import FORMULATION_CONFIGS, FormulationType
+from App.materials.configs import MaterialType
 
 from App.formulations.configs import FORMULATION_CONFIGS
 

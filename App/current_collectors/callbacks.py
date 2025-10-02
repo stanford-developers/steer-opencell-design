@@ -3,13 +3,12 @@ from dash import callback, Input, Output, State, no_update, ALL, ctx
 from dash.exceptions import PreventUpdate
 
 from App.cache_service import cache
-from App.current_collectors.configs import COLLECTOR_CONFIGS
+from App.current_collectors.configs import COLLECTOR_CONFIGS, CollectorType
 
 from App.current_collectors.callback_helpers import (
     create_generic_current_collector_callback,
     create_dropdown_options_callback,
 )
-from App.general.enumerated_classes import CollectorType
 from App.general.cell_operations import (
     get_cell_from_cache, 
     get_object_from_cell
@@ -268,6 +267,7 @@ def update_cathode_punched_current_collector(
     original_slider_steps,
     original_input_steps
 ):
+
     callback_function = create_generic_current_collector_callback(CollectorType.CATHODE_PUNCHED)
 
     response = callback_function(

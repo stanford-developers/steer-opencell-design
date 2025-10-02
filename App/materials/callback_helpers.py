@@ -4,13 +4,15 @@ from dash.exceptions import PreventUpdate
 
 from App.materials.configs import MATERIAL_CONFIGS
 
-from App.general.enumerated_classes import TriggerType, MaterialType
+from App.general.enumerated_classes import TriggerType
+from App.materials.configs import MaterialType
 from App.general.trigger_router import TriggerRouter
 from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
 from App.general.callback_helpers import prevent_update_from_styles
 
 
 def create_material_callback(material_type: MaterialType) -> callable:
+    
     config = MATERIAL_CONFIGS[material_type]
 
     def update_material(
@@ -39,7 +41,7 @@ def create_material_callback(material_type: MaterialType) -> callable:
         # get the cell from cache
         cell = get_cell_from_cache(cell_data["cache_key"])
 
-        # get the current collector from the cell, either cathode or anode depending on electrode
+        # get the current collector material from the cell
         try:
             material = get_object_from_cell(cell, config)
         except Exception as e:

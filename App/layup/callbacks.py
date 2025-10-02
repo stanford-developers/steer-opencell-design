@@ -3,10 +3,9 @@ from dash.exceptions import PreventUpdate
 
 from App.cache_service import cache
 
-from App.general.enumerated_classes import LayupType, SeparatorType
 from App.general.cell_operations import get_object_from_cell, set_object_to_cell, get_cell_from_cache, set_cell_to_cache
 from App.general.callback_helpers import prevent_update_from_styles, update_style_display
-from App.layup.configs import LAYUP_CONFIGS
+from App.layup.configs import LAYUP_CONFIGS, LayupType, SeparatorType
 from App.layup.lists import LAYUP_DESIGNS
 from App.layup.callback_helpers import create_layup_callback, convert_layup, create_layup_separator_callback
 
