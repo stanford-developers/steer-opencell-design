@@ -54,18 +54,11 @@ def create_generic_current_collector_callback(
         # get the propid
         triggered_prop_id = list(ctx.triggered_prop_ids.keys())[0].split(".")[-1]
 
-        # If all display is none for any of the viewing styles, return no update
-        prevent_update_from_styles(viewing_styles)
-
         # Get the cell from cache
         cell = get_cell_from_cache(cell_data["cache_key"])
 
         # get the current collector from the cell, either cathode or anode depending on electrode
         current_collector = get_object_from_cell(cell, config)
-
-        # no response if the current collector type does not match the expected type
-        if config.collector_type != type(current_collector):
-            raise PreventUpdate
 
         # Map the triggered ID to the appropriate action using ENUMS
         trigger_type = TriggerRouter.get_trigger_type(triggered_id, triggered_prop_id)
