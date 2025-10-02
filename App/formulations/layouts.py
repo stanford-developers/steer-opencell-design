@@ -4,7 +4,7 @@ from steer_core.Apps.Components.MaterialSelectors import (
     MaterialSelector,
     ActiveMaterialSelector,
 )
-from App.styles import ADD_REMOVE_BUTTON_STYLE, ADD_REMOVE_BUTTON_CONTAINER_STYLE
+from App.general.styles import ADD_REMOVE_BUTTON_STYLE, ADD_REMOVE_BUTTON_CONTAINER_STYLE
 
 
 #############################

@@ -15,7 +15,7 @@ from App.general.cell_operations import (
     set_cell_to_cache,
 )
 
-from App.cache_service import cache
+from App.general.cache_service import cache
 
 from steer_opencell_design.Components.Electrodes import ElectrodeControlMode
 

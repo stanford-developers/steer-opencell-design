@@ -1,6 +1,6 @@
 import dash as ds
-from App.cache_service import cache
-from App.styles import *
+from App.general.cache_service import cache
+from App.general.styles import *
 
 # Set high level layout
 def create_app():
@@ -34,11 +34,12 @@ def register_callbacks(app):
     callback_modules = [
         "App.general.clientside_callbacks",
         "App.general.callbacks",
+        "App.general.orchestra",
         "App.current_collectors.callbacks",
-        "App.electrodes.callbacks",
-        "App.materials.callbacks",
-        "App.formulations.callbacks",
-        "App.layup.callbacks",
+        # "App.electrodes.callbacks",
+        # "App.materials.callbacks",
+        # "App.formulations.callbacks",
+        # "App.layup.callbacks",
     ]
 
     for module_name in callback_modules:
@@ -46,6 +47,7 @@ def register_callbacks(app):
 
 
 def register_layouts(app):
+
     from App.general.layouts import stores, thumbnail, header, cell_type, main_tabs
 
     app.layout = ds.html.Div([stores, thumbnail, header, cell_type, main_tabs])

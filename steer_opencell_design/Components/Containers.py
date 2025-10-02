@@ -5,7 +5,7 @@ from steer_opencell_design.Constructions.ElectrodeAssemblies import Stack
 
 from steer_opencell_design.DataManager import DataManager
 
-from App.styles import *
+from App.general.styles import *
 from steer_opencell_design.Constants import *
 
 from pathlib import Path

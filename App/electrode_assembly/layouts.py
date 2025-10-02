@@ -1,5 +1,5 @@
 import dash as ds
-from App.styles import *
+from App.general.styles import *
 
 electrode_assembly_layout = ds.html.Div(
     id="electrode_assembly_layout",

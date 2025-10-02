@@ -2,7 +2,7 @@ from time import time
 from dash import callback, Input, Output, State, no_update, ALL
 from dash.exceptions import PreventUpdate
 
-from App.cache_service import cache
+from App.general.cache_service import cache
 
 from App.formulations.callback_helpers import (
     create_generic_formulation_callback,

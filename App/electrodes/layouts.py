@@ -1,6 +1,6 @@
 import dash as ds
 from steer_core.Apps.Components.SliderComponents import SliderWithTextInput
-from App.database_service import INSULATION_MATERIALS
+from App.general.database_service import INSULATION_MATERIALS
 
 
 #############################

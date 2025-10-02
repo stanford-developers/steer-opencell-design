@@ -42,13 +42,5 @@ class TabWeldSide(Enum):
 
 class CategoricalProperty(Enum):
     """Categorical properties that don't have ranges."""
-
     TAB_WELD_SIDE = "tab_weld_side"
 
-
-class PropertyCategory(Enum):
-    """Categories of properties."""
-
-    NUMERICAL = auto()
-    CATEGORICAL = auto()
-    RANGE = auto()

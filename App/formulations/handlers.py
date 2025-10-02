@@ -6,7 +6,7 @@ from copy import deepcopy
 from App.formulations.configs import FormulationConfig
 from App.general.callback_helpers import generate_parameters, create_no_update_response
 from App.general.cell_operations import set_object_to_cell, set_cell_to_cache
-from App.database_service import BINDER_MATERIALS, CONDUCTIVE_ADDITIVE_MATERIALS
+from App.general.database_service import BINDER_MATERIALS, CONDUCTIVE_ADDITIVE_MATERIALS
 from App.general.handlers import determine_value
 from App.materials.configs import MaterialType, MATERIAL_CONFIGS, MaterialConfig
 from App.general.enumerated_classes import SubType
