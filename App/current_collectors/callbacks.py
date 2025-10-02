@@ -21,8 +21,6 @@ from App.general.callback_helpers import (
 )
 
 
-
-
 @callback(
     [
         Output("cell_store", "data", allow_duplicate=True),
