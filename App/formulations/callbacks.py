@@ -8,9 +8,7 @@ from App.formulations.callback_helpers import (
     create_generic_formulation_callback,
     create_generic_formulation_div_callback,
 )
-from App.formulations.configs import FORMULATION_CONFIGS
-
-from App.general.enumerated_classes import FormulationType
+from App.formulations.configs import FORMULATION_CONFIGS, FormulationType
 from App.general.cell_operations import get_object_from_cell
 from App.general.callback_helpers import create_properties_table, prevent_update_from_styles
 
@@ -374,3 +372,4 @@ def update_anode_formulation_plots(anode_tab_style, tabs_panel_style, main_tabs_
     properties_table = create_properties_table(properties, table_id="cathode_properties_table", decimal_places=2)
 
     return plot_a, properties_table
+

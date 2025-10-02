@@ -2,8 +2,7 @@ from typing import Tuple, Type
 from dash import ctx, no_update
 from dash.exceptions import PreventUpdate
 
-from App.layup.configs import LAYUP_CONFIGS, SEPARATOR_CONFIGS
-from App.general.enumerated_classes import LayupType
+from App.layup.configs import LAYUP_CONFIGS, SEPARATOR_CONFIGS, LayupType
 from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
 from App.general.handlers import handle_cell_store_update, handle_property_update
 from App.general.trigger_router import TriggerRouter

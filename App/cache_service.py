@@ -6,6 +6,7 @@ import redis
 
 
 class MyCache:
+    
     def __init__(self):
         self.cache = Cache()
         self._hit_count = 0

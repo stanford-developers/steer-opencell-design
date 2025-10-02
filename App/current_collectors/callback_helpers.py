@@ -11,7 +11,7 @@ from App.general.cell_operations import get_cell_from_cache, get_object_from_cel
 from App.general.trigger_router import TriggerRouter, TriggerType
 from App.general.handlers import handle_cell_store_update, handle_property_update
 
-from App.current_collectors.configs import COLLECTOR_CONFIGS
+from App.current_collectors.configs import COLLECTOR_CONFIGS, CollectorType
 from App.current_collectors.handlers import handle_cell_store_cc_design_dropdown, handle_dropdown_cc_design_dropdown
 
 
@@ -31,7 +31,7 @@ def create_generic_current_collector_callback(
         input_start_values=None,
         input_end_values=None,
         radioitem_values=None,
-        textitem_values=None,  # Add this parameter
+        textitem_values=None,
         viewing_styles=[],
         original_values=None,
         original_mins=None,

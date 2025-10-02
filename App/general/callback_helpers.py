@@ -275,7 +275,7 @@ def generate_rangeslider_values(object, range_params: list) -> Tuple[
 
 def validate_dependent_properties(object, config: Type) -> None:
     """Validate and clamp dependent properties to their valid ranges."""
-    for param in config.settable_parameters:
+    for param in config.parameter_list:
         try:
             param_range = getattr(object, f"{param}_hard_range")
             param_value = getattr(object, param)
