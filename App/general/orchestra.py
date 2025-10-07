@@ -62,5 +62,15 @@ def has_changed(old_cell, new_cell, config) -> bool:
         new_obj = get_object_from_cell(new_cell, config)
         return old_obj != new_obj
     except Exception as e:
-        return False
+        return True
+
+
+def has_type_changed(old_cell, new_cell, config) -> bool:
+    """Check if the type of the relevant part of the cell has changed."""
+    try:
+        old_obj = get_object_from_cell(old_cell, config)
+        new_obj = get_object_from_cell(new_cell, config)
+        return type(old_obj) != type(new_obj)
+    except Exception as e:
+        return True
 
