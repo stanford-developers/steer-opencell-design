@@ -347,7 +347,8 @@ def update_landing_image_alpha(
 @callback(
     [
         Output("last_triggered", "data", allow_duplicate=True),
-        Output("cell_store", "data", allow_duplicate=True)
+        Output("cell_store", "data", allow_duplicate=True),
+        Output("old_cell_store", "data", allow_duplicate=True),
     ],
     [
         Input("cell_name_dropdown", "value")
@@ -372,7 +373,7 @@ def load_cell_from_name_dropdown(cell_name: str) -> Dict:
     cell = get_cell_from_database(cell_name)
     new_key = set_cell_to_cache(cell)
 
-    return (callback_name, {"cache_key": new_key})
+    return callback_name, {"cache_key": new_key}, {"cache_key": None}
 
 
 @callback(

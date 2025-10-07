@@ -1,6 +1,7 @@
 # import core mixins
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
+from steer_core.Mixins.Dunder import DunderMixin
 
 # import core decorators
 from steer_core.Decorators.General import (
@@ -28,7 +29,12 @@ import pandas as pd
 import numpy as np
 
 
-class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
+class _CurrentCollector(
+    ABC, 
+    CoordinateMixin, 
+    ValidationMixin,
+    DunderMixin
+    ):
     """
     Abstract base class for all current collector implementations.
 
@@ -980,12 +986,6 @@ class _CurrentCollector(ABC, CoordinateMixin, ValidationMixin):
     def name(self, name: str) -> None:
         self.validate_string(name, "name")
         self._name = name
-
-    def __str__(self):
-        return f"{self.__class__.__name__}"
-
-    def __repr__(self):
-        return self.__str__()
 
 
 class _TabbedCurrentCollector(_CurrentCollector):
@@ -3267,12 +3267,6 @@ class WeldTab(ValidationMixin, CoordinateMixin):
     def length(self, length: float) -> None:
         self.validate_positive_float(length, "length")
         self._length = float(length) * MM_TO_M
-
-    def __str__(self):
-        return self.__class__.__name__
-
-    def __repr__(self):
-        return self.__str__()
 
 
 class TabWeldedCurrentCollector(_TapeCurrentCollector):

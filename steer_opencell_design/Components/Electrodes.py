@@ -9,6 +9,7 @@ from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Mixins.Plotter import PlotterMixin
+from steer_core.Mixins.Dunder import DunderMixin
 
 from steer_core.Constants.Units import *
 
@@ -39,7 +40,13 @@ class ElectrodeControlMode(Enum):
     MAINTAIN_COATING_THICKNESS = "maintain_coating_thickness"  # Keep coating thickness constant
 
 
-class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin):
+class _Electrode(
+    ValidationMixin, 
+    CoordinateMixin, 
+    SerializerMixin, 
+    PlotterMixin,
+    DunderMixin
+    ):
     """
     Base class for electrodes, representing the common properties and methods of an electrode.
     """
@@ -1147,12 +1154,6 @@ class _Electrode(ValidationMixin, CoordinateMixin, SerializerMixin, PlotterMixin
     def datum(self, datum: Tuple[float, float, float]):
         self.validate_datum(datum)
         self.current_collector.datum = datum
-
-    def __str__(self) -> str:
-        return self._name
-
-    def __repr__(self) -> str:
-        return self.__str__()
 
 
 class Anode(_Electrode):

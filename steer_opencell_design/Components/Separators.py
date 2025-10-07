@@ -1,6 +1,9 @@
 from steer_core.Constants.Units import *
+
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
+from steer_core.Mixins.Dunder import DunderMixin
+
 from steer_core.Decorators.Coordinates import calculate_coordinates
 from steer_core.Decorators.General import (
     calculate_all_properties,
@@ -19,7 +22,11 @@ import pandas as pd
 import plotly.graph_objects as go
 
 
-class Separator(CoordinateMixin, ValidationMixin):
+class Separator(
+    CoordinateMixin, 
+    ValidationMixin,
+    DunderMixin
+    ):
     def __init__(
         self,
         material: SeparatorMaterial,
@@ -372,13 +379,4 @@ class Separator(CoordinateMixin, ValidationMixin):
     def thickness(self, thickness: float) -> None:
         self.validate_positive_float(thickness, "Thickness")
         self._thickness = float(thickness) * UM_TO_M
-
-    def __str__(self):
-        if self._name is not None:
-            return f"{self._name}"
-        else:
-            return f"Separator"
-
-    def __repr__(self):
-        return self.__str__()
 

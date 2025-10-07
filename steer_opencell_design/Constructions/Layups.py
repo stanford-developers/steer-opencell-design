@@ -9,13 +9,10 @@ from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Mixins.Colors import ColorMixin
+from steer_core.Mixins.Dunder import DunderMixin
 
 from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Decorators.Coordinates import calculate_volumes
-from steer_core.Decorators.Electrochemical import (
-    calculate_half_cell_curve,
-    calculate_half_cell_curves_properties,
-)
 
 from steer_core.Constants.Units import *
 
@@ -40,7 +37,13 @@ class NPRatioControlMode(Enum):
     FIXED_THICKNESS = "fixed_thickness"  # Adjust both mass loadings to keep the same thickness but the target N/P ratio
 
 
-class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
+class _Layup(
+    CoordinateMixin, 
+    ValidationMixin, 
+    SerializerMixin, 
+    ColorMixin, 
+    DunderMixin
+):
     """
     Base class for layup structures containing common functionality for overhang calculations
     and electrode positioning. This class provides the foundation for both MonoLayer and Laminate classes.
@@ -1599,30 +1602,6 @@ class _Layup(CoordinateMixin, ValidationMixin, SerializerMixin, ColorMixin):
                     self._np_ratio_control_mode = enum_member
                     return
 
-    #### STRING REPRESENTATIONS ####
-
-    def __str__(self):
-        """
-        String representation of the Layup object.
-
-        Returns
-        -------
-        str
-            A string representation of the MonoLayer.
-        """
-        return f"{self.__class__.__name__}: {self.name} | Anode: {self.anode.name} | Cathode: {self.cathode.name} | Bottom Sep: {self.bottom_separator.name} | Top Sep: {self.top_separator.name} | Anode Overhangs (L,R,B,T): ({self.anode_overhang_left} mm, {self.anode_overhang_right} mm, {self.anode_overhang_bottom} mm, {self.anode_overhang_top} mm) | Bottom Sep Overhangs (L,R,B,T): ({self.bottom_separator_overhang_left} mm, {self.bottom_separator_overhang_right} mm, {self.bottom_separator_overhang_bottom} mm, {self.bottom_separator_overhang_top} mm) | Top Sep Overhangs (L,R,B,T): ({self.top_separator_overhang_left} mm, {self.top_separator_overhang_right} mm, {self.top_separator_overhang_bottom} mm, {self.top_separator_overhang_top} mm)"
-
-    def __repr__(self):
-        """
-        Official string representation of the MonoLayer object.
-
-        Returns
-        -------
-        str
-            An official string representation of the MonoLayer.
-        """
-        return self.__str__()
-
 
 class Laminate(_Layup):
     def __init__(
@@ -2248,14 +2227,6 @@ class ZFoldMonoLayer(MonoLayer):
             component_obj.datum_y -= position_adjustment
         else:  # top
             component_obj.datum_y += position_adjustment
-
-    # ============================================================================
-    # String Representation
-    # ============================================================================
-
-    def __str__(self):
-        """String representation of the Z-Fold MonoLayer object."""
-        return f"{self.__class__.__name__}: {self.name} | Anode: {self.anode.name} | Cathode: {self.cathode.name} | Separator: {self.separator.name} | Anode Overhangs (L,R,B,T): ({self.anode_overhang_left} mm, {self.anode_overhang_right} mm, {self.anode_overhang_bottom} mm, {self.anode_overhang_top} mm) | Separator Overhangs (B,T): ({self.separator_overhang_bottom} mm, {self.separator_overhang_top} mm)"
 
     # ============================================================================
     # Blocked Properties - Individual Separator APIs Disabled

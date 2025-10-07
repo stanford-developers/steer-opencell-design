@@ -6,7 +6,7 @@ import time
 from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
 from App.current_collectors.layout_configs import COLLECTOR_CONFIGS, CollectorType
 from App.materials.configs import MaterialType, MATERIAL_CONFIGS
-from App.general.orchestra import is_visible, CallbackTriggerConfig, TriggerCondition, has_changed
+from App.general.orchestra import is_visible, has_changed, has_type_changed, CallbackTriggerConfig, TriggerCondition
 
 from steer_opencell_design.Components.CurrentCollectors import (
     PunchedCurrentCollector,
@@ -44,7 +44,7 @@ current_collector_trigger_stores = html.Div([
 ##### Trigger Conditions #####
 ##############################
 
-def is_punched(new_cell, config: CollectorType) -> bool:
+def is_punched(old_cell, new_cell, config: CollectorType) -> bool:
     """Check if cathode collector is punched type."""
     try:
         collector = get_object_from_cell(new_cell, config)
@@ -52,7 +52,7 @@ def is_punched(new_cell, config: CollectorType) -> bool:
     except Exception as e:
         return False
 
-def is_notched(new_cell, config: CollectorType) -> bool:
+def is_notched(old_cell, new_cell, config: CollectorType) -> bool:
     """Check if cathode collector is notched type."""
     try:
         collector = get_object_from_cell(new_cell, config)
@@ -60,7 +60,7 @@ def is_notched(new_cell, config: CollectorType) -> bool:
     except Exception as e:
         return False
 
-def is_tabless(new_cell, config: CollectorType) -> bool:
+def is_tabless(old_cell, new_cell, config: CollectorType) -> bool:
     """Check if cathode collector is tabless type."""
     try:
         collector = get_object_from_cell(new_cell, config)
@@ -68,7 +68,7 @@ def is_tabless(new_cell, config: CollectorType) -> bool:
     except Exception as e:
         return False
 
-def is_tabbed(new_cell, config: CollectorType) -> bool:
+def is_tabbed(old_cell, new_cell, config: CollectorType) -> bool:
     """Check if cathode collector is tabbed type."""
     try:
         collector = get_object_from_cell(new_cell, config)
@@ -86,6 +86,9 @@ COLLECTOR_TRIGGER_CONFIGS = {
 
     "update_cathode_current_collector_design": CallbackTriggerConfig(
         config=COLLECTOR_CONFIGS[CollectorType.CATHODE_GENERIC],
+        conditions=[
+            TriggerCondition(check_function=has_type_changed)
+        ],
         required_visibility=[
             "cathode_current_collector_tab",
             "cathode_tab", 
@@ -94,7 +97,9 @@ COLLECTOR_TRIGGER_CONFIGS = {
     ),
     "update_cathode_punched_current_collector": CallbackTriggerConfig(
         config=COLLECTOR_CONFIGS[CollectorType.CATHODE_PUNCHED],
-        conditions=[TriggerCondition(check_function=is_punched)],
+        conditions=[
+            TriggerCondition(check_function=is_punched),
+        ],
         required_visibility=[
             "cathode_current_collector_tab",
             "cathode_tab", 
@@ -103,7 +108,9 @@ COLLECTOR_TRIGGER_CONFIGS = {
     ),
     "update_cathode_notched_current_collector": CallbackTriggerConfig(
         config=COLLECTOR_CONFIGS[CollectorType.CATHODE_NOTCHED],
-        conditions=[TriggerCondition(check_function=is_notched)],
+        conditions=[
+            TriggerCondition(check_function=is_notched),
+        ],
         required_visibility=[
             "cathode_current_collector_tab",
             "cathode_tab",
@@ -112,7 +119,9 @@ COLLECTOR_TRIGGER_CONFIGS = {
     ),
     "update_cathode_tabless_current_collector": CallbackTriggerConfig(
         config=COLLECTOR_CONFIGS[CollectorType.CATHODE_TABLESS],
-        conditions=[TriggerCondition(check_function=is_tabless)],
+        conditions=[
+            TriggerCondition(check_function=is_tabless),
+        ],
         required_visibility=[
             "cathode_current_collector_tab",
             "cathode_tab",
@@ -121,7 +130,9 @@ COLLECTOR_TRIGGER_CONFIGS = {
     ),
     "update_cathode_tabbed_current_collector": CallbackTriggerConfig(
         config=COLLECTOR_CONFIGS[CollectorType.CATHODE_TABBED],
-        conditions=[TriggerCondition(check_function=is_tabbed)],
+        conditions=[
+            TriggerCondition(check_function=is_tabbed),
+        ],
         required_visibility=[
             "cathode_current_collector_tab",
             "cathode_tab",
@@ -131,6 +142,9 @@ COLLECTOR_TRIGGER_CONFIGS = {
 
     "update_anode_current_collector_design": CallbackTriggerConfig(
         config=COLLECTOR_CONFIGS[CollectorType.ANODE_GENERIC],
+        conditions=[
+            TriggerCondition(check_function=has_type_changed)
+        ],
         required_visibility=[
             "anode_tab", 
             "tabs_panel"
@@ -138,7 +152,9 @@ COLLECTOR_TRIGGER_CONFIGS = {
     ),
     "update_anode_punched_current_collector": CallbackTriggerConfig(
         config=COLLECTOR_CONFIGS[CollectorType.ANODE_PUNCHED],
-        conditions=[TriggerCondition(check_function=is_punched)],
+        conditions=[
+            TriggerCondition(check_function=is_punched),
+        ],
         required_visibility=[
             "anode_current_collector_tab",
             "anode_tab",
@@ -147,7 +163,9 @@ COLLECTOR_TRIGGER_CONFIGS = {
     ),
     "update_anode_notched_current_collector": CallbackTriggerConfig(
         config=COLLECTOR_CONFIGS[CollectorType.ANODE_NOTCHED],
-        conditions=[TriggerCondition(check_function=is_notched)],
+        conditions=[
+            TriggerCondition(check_function=is_notched),
+        ],
         required_visibility=[
             "anode_current_collector_tab",
             "anode_tab",
@@ -156,7 +174,9 @@ COLLECTOR_TRIGGER_CONFIGS = {
     ),
     "update_anode_tabless_current_collector": CallbackTriggerConfig(
         config=COLLECTOR_CONFIGS[CollectorType.ANODE_TABLESS],
-        conditions=[TriggerCondition(check_function=is_tabless)],
+        conditions=[
+            TriggerCondition(check_function=is_tabless),
+        ],
         required_visibility=[
             "anode_current_collector_tab",
             "anode_tab",
@@ -165,7 +185,9 @@ COLLECTOR_TRIGGER_CONFIGS = {
     ),
     "update_anode_tabbed_current_collector": CallbackTriggerConfig(
         config=COLLECTOR_CONFIGS[CollectorType.ANODE_TABBED],
-        conditions=[TriggerCondition(check_function=is_tabbed)],
+        conditions=[
+            TriggerCondition(check_function=is_tabbed),
+        ],
         required_visibility=[
             "anode_current_collector_tab",
             "anode_tab",
@@ -284,17 +306,10 @@ def orchestrate_current_collector_callbacks(
         circular_condition = last_triggered_callback != callback_name
         conditions_dict["anti_circular"] = circular_condition
 
-        # Condition 3: Object change check
-        if old_cell is not None:
-            object_changed_condition = has_changed(old_cell, new_cell, trigger_config.config)
-        else:
-            object_changed_condition = True  # If no old cell, assume changed
-        conditions_dict["object_changed"] = object_changed_condition
-
-        # Condition 4: Callback-specific conditions (if any)
+        # Condition 3: Callback-specific conditions (if any)
         if trigger_config.conditions:
             for condition in trigger_config.conditions:
-                condition_result = condition.check_function(new_cell, trigger_config.config)
+                condition_result = condition.check_function(old_cell, new_cell, trigger_config.config)
                 condition_name = getattr(condition, 'name', condition.check_function.__name__)
                 conditions_dict[condition_name] = condition_result
         

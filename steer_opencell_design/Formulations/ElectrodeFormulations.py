@@ -1,7 +1,9 @@
 from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Decorators.Electrochemical import calculate_half_cell_curve
 from steer_core.Constants.Units import *
+
 from steer_core.Mixins.TypeChecker import ValidationMixin
+from steer_core.Mixins.Dunder import DunderMixin
 
 from steer_materials.CellMaterials.Electrode import (
     _ActiveMaterial,
@@ -16,7 +18,11 @@ from typing import Dict, Optional, Any
 import warnings
 
 
-class _ElectrodeFormulation(ValidationMixin):
+class _ElectrodeFormulation(
+    ValidationMixin, 
+    DunderMixin
+    ):
+
     def __init__(
         self,
         active_materials: Dict[_ActiveMaterial, float],
@@ -796,12 +802,6 @@ class _ElectrodeFormulation(ValidationMixin):
 
         # Validate and adjust if necessary
         self._validate_and_set_voltage_cutoff()
-
-    def __str__(self) -> str:
-        return self._name if self._name else "Electrode Formulation"
-
-    def __repr__(self) -> str:
-        return self.__str__()
 
 
 class CathodeFormulation(_ElectrodeFormulation):
