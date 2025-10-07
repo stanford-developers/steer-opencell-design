@@ -1,4 +1,54 @@
 
+import dash as ds
+from dash import Input, Output, callback
+from App.results.layouts import results_sidebar
+
+@callback(
+    Output("results_sidebar_container", "children"),
+    Input("tabs_panel", "style"),
+    prevent_initial_call=True,
+)
+def populate_results_sidebar(tabs_panel_style):
+    """
+    Populate the results sidebar when the main tabs panel is displayed.
+    """
+    if tabs_panel_style.get("display") == "none":
+        return []
+    
+    return [results_sidebar]
+
+@callback(
+    [
+        Output("mechanicals_tab", "style"),
+        Output("load_balancing_tab", "style"),
+        Output("construction_tab", "style"),
+        Output("results_tab", "style"),
+    ],
+    Input("results-tabs-container", "value"),
+    prevent_initial_call=True,
+)
+def update_results_tabs(active_tab):
+    """
+    Update the display style of results tabs based on the selected tab.
+    """
+    styles = {
+        "mechanicals": {"display": "none", "padding-top": "20px"},
+        "load_balancing": {"display": "none", "padding-top": "20px"},
+        "construction": {"display": "none", "padding-top": "20px"},
+        "results": {"display": "none", "padding-top": "20px"},
+    }
+    
+    if active_tab in styles:
+        styles[active_tab]["display"] = "block"
+    
+    return [
+        styles["mechanicals"],
+        styles["load_balancing"], 
+        styles["construction"],
+        styles["results"],
+    ]
+
+
 # @callback(
 #     [
 #         Output("cathode_current_collector_properties_div", "children"),

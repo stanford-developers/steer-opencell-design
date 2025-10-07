@@ -40,6 +40,7 @@ def register_callbacks(app):
         "App.materials.callbacks",
         # "App.formulations.callbacks",
         # "App.layup.callbacks",
+        "App.results.callbacks",
     ]
 
     for module_name in callback_modules:
@@ -50,7 +51,13 @@ def register_layouts(app):
 
     from App.general.layouts import stores, thumbnail, header, cell_type, main_tabs
 
-    app.layout = ds.html.Div([stores, thumbnail, header, cell_type, main_tabs])
+    app.layout = ds.html.Div([
+        stores, 
+        thumbnail, 
+        header, 
+        cell_type,  
+        main_tabs
+    ])
 
 
 app = create_app()
