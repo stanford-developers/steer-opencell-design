@@ -77,10 +77,10 @@ def get_cell_from_cache(cache_key: str) -> Type:
     from App.general.cache_service import cache
 
     # Retrieve the object from the cache
-    cell = cache.get(cache_key)
-
-    if cell is None:
-        raise ValueError(f"No cell found in cache with key: {cache_key}")
+    try:
+        cell = cache.get(cache_key)
+    except Exception as e:
+        return None
 
     return cell
 
