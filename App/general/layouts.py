@@ -330,14 +330,15 @@ layup_tabs_div = ds.html.Div(
 )
 
 
-main_tabs = ds.html.Div(
-    id="tabs_panel",
+# Main tabs content (will be placed in left column)
+main_tabs_content = ds.html.Div(
+    id="main_tabs_content",
     children=[
         ds.html.Br(),
         ds.html.Button(
             id="back_to_cell_type",
             children="\u2190 Back to Cell Type",
-            style=BUTTON_STYLE | {"width": "10%", "border": "none"},
+            style=BUTTON_STYLE | {"width": "15%", "border": "none"},
         ),
         ds.html.Br(),
         ds.html.Br(),
@@ -386,6 +387,45 @@ main_tabs = ds.html.Div(
             style={"display": "none"},
         ),
         ds.html.Div(id="warnings_tab", children=[warnings], style={"display": "none"}),
+    ]
+)
+
+# Split layout with main tabs (2/3) and results sidebar (1/3)
+main_tabs = ds.html.Div(
+    id="tabs_panel",
+    children=[
+        ds.html.Div(
+            style={
+                "display": "flex",
+                "flexDirection": "row",
+                "width": "100%",
+                "gap": "0px"
+            },
+            children=[
+                # Main content area (golden ratio smaller portion)
+                ds.html.Div(
+                    children=[main_tabs_content],
+                    style={
+                        "flex": "1",
+                        "paddingRight": "15px"
+                    }
+                ),
+                # Results area (golden ratio larger portion)
+                ds.html.Div(
+                    id="results_sidebar_container",
+                    children=[],  # Will be populated by callback
+                    style={
+                        "flex": "1.618",
+                        "backgroundColor": "#f8f9fa",
+                        "border": "1px solid #dee2e6",
+                        "borderRadius": "8px",
+                        "padding": "20px",
+                        "marginLeft": "10px",
+                        "minHeight": "calc(100vh - 300px)"
+                    }
+                )
+            ]
+        )
     ],
     style=DIV_STYLE | {"display": "none"},
 )
