@@ -214,105 +214,32 @@ cathode_conductive_additive_buttons_div = ds.html.Div(
     style=ADD_REMOVE_BUTTON_CONTAINER_STYLE,
 )
 
-cathode_formulation_plots = ds.html.Div(
-    [
-        # First plot on top (full width)
-        ds.html.Div(
-            [
-                ds.html.H5(
-                    "Half Cell Curve",
-                    style={"margin": "0 0 2px 0", "textAlign": "center"},
-                ),
-                ds.dcc.Graph(
-                    id="cathode_formulation_specific_capacity_plot",
-                    style={"width": "100%", "height": "50vh"},
-                    responsive=True,
-                    config={"responsive": True},
-                ),
-            ]
-        ),
-        # Line break between top and bottom plots
-        ds.html.Br(),
-    ],
-    style={
-        "display": "flex",
-        "flex-direction": "column",
-        "flex": "1",  # Takes all remaining space instead of fixed 30%
-        "padding": "10px",  # Reduced padding from 20px to 10px
-        "box-sizing": "border-box",
-        "min-height": "40vh",  # Ensures minimum height
-        "overflow": "hidden",  # Prevent overflow
-    },
-)
 
-cathode_properties = ds.html.Div(
-    [
-        ds.html.Br(),
-        ds.html.H5("Cathode Formulation Properties", style={"font-weight": "bold"}),
-        ds.html.Br(),
-        # Container div for the properties table
-        ds.html.Div(
-            id="cathode_formulation_properties_div",
-            children=[
-                ds.html.P(
-                    "Properties will be displayed here when calculated.",
-                    style={"font-style": "italic", "color": "#666"},
-                )
-            ],
-            style={
-                "border": "1px solid #ddd",
-                "border-radius": "4px",
-                "padding": "15px",
-                "margin": "10px 0",
-                "background-color": "#f9f9f9",
-                "min-height": "200px",
-                "width": "80%",
-            },
-        ),
-    ],
-    style={"padding": "20px", "width": "100%"},
-)
 
 cathode_formulation_layout = ds.html.Div(
     [
-        ds.html.Div(
-            [
-                ds.html.Div(
-                    [
-                        ds.html.Br(),
-                        ds.html.Br(),
-                        cathode_message,
-                        ds.html.Br(),
-                        ds.html.Br(),
-                        cathode_parameters,
-                        ds.html.Br(),
-                        ds.html.Br(),
-                        ds.html.H5("Active Materials"),
-                        cathode_active_material_div,
-                        cathode_active_material_buttons_div,
-                        ds.html.Br(),
-                        ds.html.Br(),
-                        ds.html.H5("Binders"),
-                        cathode_binder_div,
-                        cathode_binder_buttons_div,
-                        ds.html.Br(),
-                        ds.html.H5("Conductive Additives"),
-                        cathode_conductive_additive_div,
-                        cathode_conductive_additive_buttons_div,
-                        ds.html.Br(),
-                        cathode_properties,
-                        ds.html.Div(style={"height": "400px"}),
-                    ],
-                    style={
-                        "flex": "0 0 55%",
-                        "padding": "20px",
-                        "box-sizing": "border-box",
-                    },
-                ),
-                cathode_formulation_plots,  # This will automatically take the remaining 30%
-            ],
-            style={"display": "flex", "flex-direction": "row", "width": "100%"},
-        )
+        ds.html.Br(),
+        ds.html.Br(),
+        cathode_message,
+        ds.html.Br(),
+        ds.html.Br(),
+        cathode_parameters,
+        ds.html.Br(),
+        ds.html.Br(),
+        ds.html.H5("Active Materials"),
+        cathode_active_material_div,
+        cathode_active_material_buttons_div,
+        ds.html.Br(),
+        ds.html.Br(),
+        ds.html.H5("Binders"),
+        cathode_binder_div,
+        cathode_binder_buttons_div,
+        ds.html.Br(),
+        ds.html.H5("Conductive Additives"),
+        cathode_conductive_additive_div,
+        cathode_conductive_additive_buttons_div,
+        ds.html.Br(),
+        ds.html.Div(style={"height": "400px"}),
     ],
     style={"padding": "20px", "width": "100%"},
 )
@@ -525,105 +452,32 @@ anode_conductive_additive_buttons_div = ds.html.Div(
     style=ADD_REMOVE_BUTTON_CONTAINER_STYLE,
 )
 
-anode_formulation_plots = ds.html.Div(
-    [
-        # First plot on top (full width)
-        ds.html.Div(
-            [
-                ds.html.H5(
-                    "Half Cell Curve",
-                    style={"margin": "0 0 2px 0", "textAlign": "center"},
-                ),
-                ds.dcc.Graph(
-                    id="anode_formulation_specific_capacity_plot",
-                    style={"width": "100%", "height": "50vh"},
-                    responsive=True,
-                    config={"responsive": True},
-                ),
-            ]
-        ),
-        # Line break between top and bottom plots
-        ds.html.Br(),
-    ],
-    style={
-        "display": "flex",
-        "flex-direction": "column",
-        "flex": "1",  # Takes all remaining space instead of fixed 30%
-        "padding": "10px",  # Reduced padding from 20px to 10px
-        "box-sizing": "border-box",
-        "min-height": "40vh",  # Ensures minimum height
-        "overflow": "hidden",  # Prevent overflow
-    },
-)
 
-anode_properties = ds.html.Div(
-    [
-        ds.html.Br(),
-        ds.html.H5("Anode Formulation Properties", style={"font-weight": "bold"}),
-        ds.html.Br(),
-        # Container div for the properties table
-        ds.html.Div(
-            id="anode_formulation_properties_div",
-            children=[
-                ds.html.P(
-                    "Properties will be displayed here when calculated.",
-                    style={"font-style": "italic", "color": "#666"},
-                )
-            ],
-            style={
-                "border": "1px solid #ddd",
-                "border-radius": "4px",
-                "padding": "15px",
-                "margin": "10px 0",
-                "background-color": "#f9f9f9",
-                "min-height": "200px",
-                "width": "80%",
-            },
-        ),
-    ],
-    style={"padding": "20px", "width": "100%"},
-)
 
 anode_formulation_layout = ds.html.Div(
     [
-        ds.html.Div(
-            [
-                ds.html.Div(
-                    [
-                        ds.html.Br(),
-                        ds.html.Br(),
-                        anode_message,
-                        ds.html.Br(),
-                        ds.html.Br(),
-                        anode_parameters,
-                        ds.html.Br(),
-                        ds.html.Br(),
-                        ds.html.H5("Active Materials"),
-                        anode_active_material_div,
-                        anode_active_material_buttons_div,
-                        ds.html.Br(),
-                        ds.html.Br(),
-                        ds.html.H5("Binders"),
-                        anode_binder_div,
-                        anode_binder_buttons_div,
-                        ds.html.Br(),
-                        ds.html.H5("Conductive Additives"),
-                        anode_conductive_additive_div,
-                        anode_conductive_additive_buttons_div,
-                        ds.html.Br(),
-                        anode_properties,
-                        ds.html.Div(style={"height": "400px"}),
-                    ],
-                    style={
-                        "flex": "0 0 55%",
-                        "padding": "20px",
-                        "box-sizing": "border-box",
-                    },
-                ),
-                anode_formulation_plots,
-            ],
-            style={"display": "flex", "flex-direction": "row", "width": "100%"},
-        )
+        ds.html.Br(),
+        ds.html.Br(),
+        anode_message,
+        ds.html.Br(),
+        ds.html.Br(),
+        anode_parameters,
+        ds.html.Br(),
+        ds.html.Br(),
+        ds.html.H5("Active Materials"),
+        anode_active_material_div,
+        anode_active_material_buttons_div,
+        ds.html.Br(),
+        ds.html.Br(),
+        ds.html.H5("Binders"),
+        anode_binder_div,
+        anode_binder_buttons_div,
+        ds.html.Br(),
+        ds.html.H5("Conductive Additives"),
+        anode_conductive_additive_div,
+        anode_conductive_additive_buttons_div,
+        ds.html.Br(),
+        ds.html.Div(style={"height": "400px"}),
     ],
     style={"padding": "20px", "width": "100%"},
 )
