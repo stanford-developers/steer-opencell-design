@@ -8,7 +8,6 @@ from App.general.enumerated_classes import TriggerType
 from App.materials.configs import MaterialType
 from App.general.trigger_router import TriggerRouter
 from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
-from App.general.callback_helpers import prevent_update_from_styles
 
 
 def create_material_callback(material_type: MaterialType) -> callable:
@@ -21,7 +20,6 @@ def create_material_callback(material_type: MaterialType) -> callable:
         material_name,
         input_values,
         slider_values,
-        viewing_styles=[],
     ):
         from App.materials.handlers import handle_selector_update
         from App.general.handlers import (
@@ -35,11 +33,9 @@ def create_material_callback(material_type: MaterialType) -> callable:
         # get the propid
         triggered_prop_id = list(ctx.triggered_prop_ids.keys())[0].split(".")[-1]
 
-        # If all display is none for any of the viewing styles, return no update
-        prevent_update_from_styles(viewing_styles)
-
         # get the cell from cache
-        cell = get_cell_from_cache(cell_data["cache_key"])
+        cell_key = cell_data["cache_key"]
+        cell = get_cell_from_cache(cell_key)
 
         # get the current collector material from the cell
         try:
@@ -65,6 +61,7 @@ def create_material_callback(material_type: MaterialType) -> callable:
                 existing_warnings,
                 triggered_id,
                 cell,
+                cell_key,
                 material,
                 config,
                 input_values,

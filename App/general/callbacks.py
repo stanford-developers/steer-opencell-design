@@ -1,4 +1,6 @@
+import inspect
 from dash import callback, Output, Input, State, no_update, ctx, ALL, html
+from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import time
 import datetime as dt
@@ -16,6 +18,8 @@ from App.general.callback_helpers import (
     get_active_materials,
     update_tab_styles
 )
+
+from App.general.cell_operations import get_cell_from_database, set_cell_to_cache
 
 
 @callback(
@@ -342,6 +346,7 @@ def update_landing_image_alpha(
 
 @callback(
     [
+        Output("last_triggered", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True)
     ],
     [
@@ -358,12 +363,16 @@ def load_cell_from_name_dropdown(cell_name: str) -> Dict:
     contents : str
         The selected cell name from the dropdown.
     """
-    from App.general.cell_operations import get_cell_from_database, set_cell_to_cache
+    # get the name of this callback
+    callback_name = inspect.currentframe().f_code.co_name
+    
+    if cell_name is None:
+        raise PreventUpdate
 
     cell = get_cell_from_database(cell_name)
     new_key = set_cell_to_cache(cell)
 
-    return [{"cache_key": new_key}]
+    return (callback_name, {"cache_key": new_key})
 
 
 @callback(

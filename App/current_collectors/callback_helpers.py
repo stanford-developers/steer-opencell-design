@@ -5,13 +5,12 @@ from dash.exceptions import PreventUpdate
 
 from steer_opencell_design.Components.CurrentCollectors import *
 
-from App.general.callback_helpers import prevent_update_from_styles
 from App.general.enumerated_classes import *
 from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
 from App.general.trigger_router import TriggerRouter, TriggerType
 from App.general.handlers import handle_cell_store_update, handle_property_update
 
-from App.current_collectors.configs import COLLECTOR_CONFIGS, CollectorType
+from App.current_collectors.layout_configs import COLLECTOR_CONFIGS, CollectorType
 from App.current_collectors.handlers import handle_cell_store_cc_design_dropdown, handle_dropdown_cc_design_dropdown
 
 
@@ -32,7 +31,6 @@ def create_generic_current_collector_callback(
         input_end_values=None,
         radioitem_values=None,
         textitem_values=None,
-        viewing_styles=[],
         original_values=None,
         original_mins=None,
         original_maxs=None,
@@ -55,7 +53,8 @@ def create_generic_current_collector_callback(
         triggered_prop_id = list(ctx.triggered_prop_ids.keys())[0].split(".")[-1]
 
         # Get the cell from cache
-        cell = get_cell_from_cache(cell_data["cache_key"])
+        cache_key = cell_data["cache_key"]
+        cell = get_cell_from_cache(cache_key)
 
         # get the current collector from the cell, either cathode or anode depending on electrode
         current_collector = get_object_from_cell(cell, config)
@@ -71,6 +70,7 @@ def create_generic_current_collector_callback(
                 existing_warnings,
                 triggered_id,
                 cell,
+                cache_key,
                 current_collector,
                 config,
                 input_values,
@@ -105,15 +105,14 @@ def create_dropdown_options_callback(collector_type: CollectorType) -> callable:
     config = COLLECTOR_CONFIGS[collector_type]
 
     def callback_function(
-                data, 
-                current_style,
-                dropdown_value,
-                viewing_styles=[],
-        ):
-        
-        # If all display is none for any of the viewing styles, return no update
-        prevent_update_from_styles(viewing_styles)
-
+        cell_data, 
+        dropdown_value,
+        current_dropdown_style,
+        punched_style,
+        notched_style,
+        tabless_style,
+        tabbed_style
+    ):
         # Get the triggered ID
         triggered_id = ctx.triggered_id
 
@@ -121,7 +120,7 @@ def create_dropdown_options_callback(collector_type: CollectorType) -> callable:
         triggered_prop_id = list(ctx.triggered_prop_ids.keys())[0].split(".")[-1]
 
         # get the cell from the cache
-        cell = get_cell_from_cache(data["cache_key"])
+        cell = get_cell_from_cache(cell_data["cache_key"])
 
         # get the current collector from the cell
         current_collector = get_object_from_cell(cell, config)
@@ -132,7 +131,11 @@ def create_dropdown_options_callback(collector_type: CollectorType) -> callable:
         if trigger_type == TriggerType.CELL_STORE or trigger_type == TriggerType.STYLE:
             return handle_cell_store_cc_design_dropdown(
                 current_collector,
-                current_style,
+                current_dropdown_style,
+                punched_style,
+                notched_style,
+                tabless_style,
+                tabbed_style
             )
         
         elif trigger_type == TriggerType.DROPDOWN:
@@ -140,7 +143,12 @@ def create_dropdown_options_callback(collector_type: CollectorType) -> callable:
                 cell,
                 current_collector,
                 dropdown_value,
-                config
+                config,
+                current_dropdown_style,
+                punched_style,
+                notched_style,
+                tabless_style,
+                tabbed_style
             )
         
         raise PreventUpdate

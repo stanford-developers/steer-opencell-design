@@ -1902,8 +1902,8 @@ class ZFoldMonoLayer(MonoLayer):
         self._overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
         self._np_ratio_control_mode = NPRatioControlMode.FIXED_CATHODE
 
-        self._cathode = cathode
-        self._anode = anode
+        self.cathode = cathode
+        self.anode = anode
         self._top_separator = top_separator
         self._bottom_separator = bottom_separator
         self._transverse = transverse
