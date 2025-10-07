@@ -39,7 +39,8 @@ def _compare_and_update_responses(new_vals, original_vals):
 
 def _build_basic_response(
         slider_configs: dict, 
-        cache_key: str = None,
+        new_cache_key: str = None,
+        old_cache_key: str = None,
         original_values=None,
         original_mins=None,
         original_maxs=None,
@@ -50,7 +51,8 @@ def _build_basic_response(
 
     """Build the basic response components from slider configurations."""
 
-    dict_key = {"cache_key": cache_key} if cache_key is not None else no_update
+    new_cell_data = {"cache_key": new_cache_key} if new_cache_key is not None else no_update
+    old_cell_data = {"cache_key": old_cache_key} if old_cache_key is not None else no_update
 
     slider_vals = slider_configs["grid_slider_vals"]
     min_vals = slider_configs["min_vals"]
@@ -68,7 +70,8 @@ def _build_basic_response(
     input_step_vals = _compare_and_update_responses(input_step_vals, original_input_steps)
 
     return [
-        dict_key,
+        new_cell_data,
+        old_cell_data,
         slider_vals,
         min_vals,
         max_vals,
@@ -179,7 +182,11 @@ def _add_text_item_components(response: List[Any], object_instance: Type, config
     response.extend([text_item_values])
 
 
-def handle_cell_store_update(object_instance: Type, config: Type, existing_warnings: List[str] = []) -> Tuple:
+def handle_cell_store_update(
+        object_instance: Type, 
+        config: Type, 
+        existing_warnings: List[str] = []
+    ) -> Tuple:
     """
     Handle cell store update for any collector type.
 
@@ -222,6 +229,7 @@ def handle_property_update(
     existing_warnings: List[str],
     triggered_id: dict,
     cell: Type,
+    cell_key: str,
     object_instance: Type,
     config: Type,
     input_values: List[float],
@@ -293,14 +301,15 @@ def handle_property_update(
 
         # Build the base response
         response = _build_basic_response(
-            slider_configs, 
-            new_key,
-            original_values,
-            original_mins,
-            original_maxs,
-            original_slider_marks,
-            original_slider_steps,
-            original_input_steps
+            slider_configs=slider_configs, 
+            new_cache_key=new_key,
+            old_cache_key=cell_key,
+            original_values=original_values,
+            original_mins=original_mins,
+            original_maxs=original_maxs,
+            original_slider_marks=original_slider_marks,
+            original_slider_steps=original_slider_steps,
+            original_input_steps=original_input_steps
         )
 
         # Add optional components based on configuration

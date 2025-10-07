@@ -5,7 +5,8 @@ from App.current_collectors.layouts import cathode_current_collector_layout, ano
 from App.formulations.layouts import cathode_formulation_layout, anode_formulation_layout
 from App.electrodes.layouts import cathode_electrode_layout, anode_electrode_layout
 
-from App.general.orchestra import current_collector_trigger_stores
+from App.current_collectors.orchestra import current_collector_trigger_stores
+from App.general.orchestra import last_triggered
 
 from App.layup.layouts import layup_mechanicals_layout, layup_areal_layout
 
@@ -27,9 +28,13 @@ stores = ds.html.Div(
     [
         cell_store,
         old_cell_store,
+
         warnings_store,
+
         cathode_active_material_store,
         anode_active_material_store,
+
+        last_triggered,
         current_collector_trigger_stores,
     ]
 )

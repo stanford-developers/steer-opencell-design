@@ -20,14 +20,16 @@ def get_cell_from_database(cell_name: str) -> Type:
     Type
         The cell object retrieved from the database.
     """
-    from base64 import b64decode
-    from pickle import loads
-
     # get the pickled cell data from the database
-    pickled_cell = DataManager().get_data("cells").query(f"name == '{cell_name}'").iloc[0]["object"]
+    serialized_cell = (
+        DataManager()
+        .get_data("cells")
+        .query(f"name == '{cell_name}'")
+        .iloc[0]["object"]
+    )
 
     # decode the base64 encoded data
-    cell = SerializerMixin.deserialize(pickled_cell)
+    cell = SerializerMixin.deserialize(serialized_cell)
 
     return cell
 

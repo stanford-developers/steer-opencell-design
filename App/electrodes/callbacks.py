@@ -5,8 +5,8 @@ from App.general.callback_helpers import create_properties_table
 
 from App.electrodes.callback_helpers import create_electrode_callback
 from App.electrodes.configs import ELECTRODE_CONFIGS, ElectrodeType
-from App.current_collectors.configs import COLLECTOR_CONFIGS
-from App.current_collectors.configs import CollectorType
+from App.current_collectors.layout_configs import COLLECTOR_CONFIGS
+from App.current_collectors.layout_configs import CollectorType
 from App.general.callback_helpers import prevent_update_from_styles
 
 from App.general.cell_operations import (

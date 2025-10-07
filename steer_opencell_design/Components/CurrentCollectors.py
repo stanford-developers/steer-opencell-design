@@ -7,7 +7,7 @@ from steer_core.Decorators.General import (
     calculate_all_properties,
     calculate_bulk_properties,
 )
-from steer_core.Decorators.Coordinates import calculate_coordinates, calculate_areas
+from steer_core.Decorators.Coordinates import calculate_areas
 from steer_core.Decorators.Objects import calculate_weld_tab_properties
 
 # import core units

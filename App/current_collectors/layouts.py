@@ -381,69 +381,20 @@ cathode_tabbed_design_parameters = ds.html.Div(
     ],
 )
 
-cathode_plots = ds.html.Div(
-    [
-        ds.dcc.Graph(
-            id="cathode_top_down_plot",
-            style={"width": "50vw", "height": "40vw"},
-            responsive=True,
-            config={"modeBarButtonsToRemove": ["autoScale2d", "resetScale2d"]},
-        ),
-    ],
-    style={"display": "flex", "flex-direction": "column"},
-)
-
-cathode_current_collector_properties = ds.html.Div(
-    [
-        ds.html.Br(),
-        ds.html.H5("Current Collector Properties", style={"font-weight": "bold"}),
-        ds.html.Br(),
-        # Container div for the properties table
-        ds.html.Div(
-            id="cathode_current_collector_properties_div",
-            children=[
-                ds.html.P(
-                    "Properties will be displayed here when calculated.",
-                    style={"font-style": "italic", "color": "#666"},
-                )
-            ],
-            style={
-                "border": "1px solid #ddd",
-                "border-radius": "4px",
-                "padding": "15px",
-                "margin": "10px 0",
-                "background-color": "#f9f9f9",
-                "min-height": "200px",
-                "width": "80%",
-            },
-        ),
-    ],
-    style={"padding": "20px", "width": "100%"},
-)
-
 cathode_current_collector_layout = ds.html.Div(
     [
-        ds.html.Div(
-            [
-                ds.html.Br(),
-                ds.html.Br(),
-                ds.html.Br(),
-                cathode_current_collector_material_parameters,
-                cathode_current_collector_design_parameters,
-                cathode_punched_design_parameters,
-                cathode_notched_design_parameters,
-                cathode_tabless_design_parameters,
-                cathode_tabbed_design_parameters,
-                cathode_current_collector_properties,
-                ds.html.Div(style={"height": "200px"}),
-            ],
-            style={"flex": "1", "padding": "20px", "width": "calc(50%)"},
-        ),
-        cathode_plots,
+        ds.html.Br(),
+        ds.html.Br(),
+        ds.html.Br(),
+        cathode_current_collector_material_parameters,
+        cathode_current_collector_design_parameters,
+        cathode_punched_design_parameters,
+        cathode_notched_design_parameters,
+        cathode_tabless_design_parameters,
+        cathode_tabbed_design_parameters,
+        ds.html.Div(style={"height": "200px"}),
     ],
     style={
-        "display": "flex",
-        "flex-direction": "row",
         "padding": "20px",
         "width": "calc(100%)",
     },
@@ -823,69 +774,20 @@ anode_tabbed_design_parameters = ds.html.Div(
     ],
 )
 
-anode_plots = ds.html.Div(
-    [
-        ds.dcc.Graph(
-            id="anode_top_down_plot",
-            style={"width": "50vw", "height": "40vw"},
-            responsive=True,
-            config={"modeBarButtonsToRemove": ["autoScale2d", "resetScale2d"]},
-        ),
-    ],
-    style={"display": "flex", "flex-direction": "column"},
-)
-
-anode_current_collector_properties = ds.html.Div(
-    [
-        ds.html.Br(),
-        ds.html.H5("Current Collector Properties", style={"font-weight": "bold"}),
-        ds.html.Br(),
-        # Container div for the properties table
-        ds.html.Div(
-            id="anode_current_collector_properties_div",
-            children=[
-                ds.html.P(
-                    "Properties will be displayed here when calculated.",
-                    style={"font-style": "italic", "color": "#666"},
-                )
-            ],
-            style={
-                "border": "1px solid #ddd",
-                "border-radius": "4px",
-                "padding": "15px",
-                "margin": "10px 0",
-                "background-color": "#f9f9f9",
-                "min-height": "200px",
-                "width": "80%",
-            },
-        ),
-    ],
-    style={"padding": "20px", "width": "100%"},
-)
-
 anode_current_collector_layout = ds.html.Div(
     [
-        ds.html.Div(
-            [
-                ds.html.Br(),
-                ds.html.Br(),
-                ds.html.Br(),
-                anode_current_collector_material_parameters,
-                anode_current_collector_design_parameters,
-                anode_punched_design_parameters,
-                anode_notched_design_parameters,
-                anode_tabless_design_parameters,
-                anode_tabbed_design_parameters,
-                anode_current_collector_properties,
-                ds.html.Div(style={"height": "200px"}),
-            ],
-            style={"flex": "1", "padding": "20px", "width": "calc(50%)"},
-        ),
-        anode_plots,
+        ds.html.Br(),
+        ds.html.Br(),
+        ds.html.Br(),
+        anode_current_collector_material_parameters,
+        anode_current_collector_design_parameters,
+        anode_punched_design_parameters,
+        anode_notched_design_parameters,
+        anode_tabless_design_parameters,
+        anode_tabbed_design_parameters,
+        ds.html.Div(style={"height": "200px"}),
     ],
     style={
-        "display": "flex",
-        "flex-direction": "row",
         "padding": "20px",
         "width": "calc(100%)",
     },
