@@ -230,20 +230,20 @@ cathode_tabs_div = ds.html.Div(
         ds.html.Div(
             id="cathode_current_collector_tab",
             children=[cathode_current_collector_layout],
-            style={"display": "block"},
+            style={"display": "block", "padding": "20px 0"},
         ),
         ds.html.Div(
             id="cathode_formulation_tab",
             children=[cathode_formulation_layout],
-            style={"display": "none"},
+            style={"display": "none", "padding": "20px 0"},
         ),
         ds.html.Div(
             id="cathode_electrode_tab",
             children=[cathode_electrode_layout],
-            style={"display": "none"},
+            style={"display": "none", "padding": "20px 0"},
         ),
     ],
-    style=DIV_STYLE | {"display": "block"},
+    style={"margin-left": "20px", "margin-right": "20px", "display": "block"},
 )
 
 
@@ -277,20 +277,20 @@ anode_tabs_div = ds.html.Div(
         ds.html.Div(
             id="anode_current_collector_tab",
             children=[anode_current_collector_layout],
-            style={"display": "block"},
+            style={"display": "block", "padding": "20px 0"},
         ),
         ds.html.Div(
             id="anode_formulation_tab",
             children=[anode_formulation_layout],
-            style={"display": "none"},
+            style={"display": "none", "padding": "20px 0"},
         ),
         ds.html.Div(
             id="anode_electrode_tab",
             children=[anode_electrode_layout],
-            style={"display": "none"},
+            style={"display": "none", "padding": "20px 0"},
         ),
     ],
-    style=DIV_STYLE | {"display": "block"},
+    style={"margin-left": "20px", "margin-right": "20px", "display": "block"},
 )
 
 
@@ -318,15 +318,15 @@ layup_tabs_div = ds.html.Div(
         ds.html.Div(
             id="layup_mechanicals_layout",
             children=[layup_mechanicals_layout],
-            style={"display": "block"},
+            style={"display": "block", "padding": "20px 0"},
         ),
         ds.html.Div(
             id="layup_areal_layout",
             children=[layup_areal_layout],
-            style={"display": "none"},
+            style={"display": "none", "padding": "20px 0"},
         ),
     ],
-    style=DIV_STYLE | {"display": "block"},
+    style={"margin-left": "20px", "margin-right": "20px", "display": "block"},
 )
 
 
@@ -369,24 +369,13 @@ main_tabs_content = ds.html.Div(
                     className="tab-style",
                     selected_className="tab-selected-style",
                 ),
-                ds.dcc.Tab(
-                    label="Warnings",
-                    value="warnings",
-                    className="tab-style",
-                    selected_className="tab-selected-style",
-                ),
             ],
             value="cathode",
         ),
-        ds.html.Div(id="cathode_tab", children=[cathode_tabs_div], style={"display": "block"}),
-        ds.html.Div(id="anode_tab", children=[anode_tabs_div], style={"display": "none"}),
-        ds.html.Div(id="layup_tab", children=[layup_tabs_div], style={"display": "none"}),
-        ds.html.Div(
-            id="electrode_assembly_tab",
-            children=[electrode_assembly_layout],
-            style={"display": "none"},
-        ),
-        ds.html.Div(id="warnings_tab", children=[warnings], style={"display": "none"}),
+        ds.html.Div(id="cathode_tab", children=[cathode_tabs_div], style={"display": "block", "padding": "20px 0"}),
+        ds.html.Div(id="anode_tab", children=[anode_tabs_div], style={"display": "none", "padding": "20px 0"}),
+        ds.html.Div(id="layup_tab", children=[layup_tabs_div], style={"display": "none", "padding": "20px 0"}),
+        ds.html.Div(id="electrode_assembly_tab",children=[electrode_assembly_layout],style={"display": "none", "padding": "20px 0"},),
     ]
 )
 

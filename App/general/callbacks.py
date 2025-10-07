@@ -28,7 +28,6 @@ from App.general.cell_operations import get_cell_from_database, set_cell_to_cach
         Output("anode_tab", "style"),
         Output("layup_tab", "style"),
         Output("electrode_assembly_tab", "style"),
-        Output("warnings_tab", "style"),
     ],
     Input("main-tabs-container", "value"),
     [
@@ -36,7 +35,6 @@ from App.general.cell_operations import get_cell_from_database, set_cell_to_cach
         State("anode_tab", "style"),
         State("layup_tab", "style"),
         State("electrode_assembly_tab", "style"),
-        State("warnings_tab", "style"),
     ],
     prevent_initial_call=True,
 )
@@ -46,20 +44,18 @@ def show_main_tab_content(
     anode_style,
     layup_style,
     electrode_assembly_style,
-    warnings_style,
 ) -> List:
     """
     Function to show or hide main content based on the active tab.
     Only updates styles when the display property needs to change.
     """
-    tab_names = ["cathode", "anode", "layup", "electrode_assembly", "warnings"]
+    tab_names = ["cathode", "anode", "layup", "electrode_assembly"]
 
     current_styles = [
         cathode_style,
         anode_style,
         layup_style,
         electrode_assembly_style,
-        warnings_style,
     ]
     
     return update_tab_styles(active_tab, tab_names, current_styles)
