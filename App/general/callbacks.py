@@ -360,16 +360,13 @@ def load_cell_from_name_dropdown(cell_name: str) -> Dict:
     contents : str
         The selected cell name from the dropdown.
     """
-    # get the name of this callback
-    callback_name = inspect.currentframe().f_code.co_name
-    
     if cell_name is None:
         raise PreventUpdate
 
     cell = get_cell_from_database(cell_name)
     new_key = set_cell_to_cache(cell)
 
-    return callback_name, {"cache_key": new_key}, {"cache_key": None}
+    return "Cell Loaded", {"cache_key": new_key}, {"cache_key": None}
 
 
 @callback(
