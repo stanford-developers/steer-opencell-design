@@ -1,7 +1,8 @@
 
 import dash as ds
-from dash import Input, Output, callback
+from dash import Input, Output, callback, State
 from App.results.layouts import results_sidebar
+from App.general.callback_helpers import update_tab_styles
 
 @callback(
     Output("results_sidebar_container", "children"),
@@ -23,30 +24,33 @@ def populate_results_sidebar(tabs_panel_style):
         Output("load_balancing_tab", "style"),
         Output("construction_tab", "style"),
         Output("results_tab", "style"),
+        Output("warnings_tab", "style"),
     ],
     Input("results-tabs-container", "value"),
+    [
+        State("mechanicals_tab", "style"),
+        State("load_balancing_tab", "style"),
+        State("construction_tab", "style"),
+        State("results_tab", "style"),
+        State("warnings_tab", "style"),
+    ],
     prevent_initial_call=True,
 )
-def update_results_tabs(active_tab):
+def update_results_tabs(active_tab, mechanicals_style, load_balancing_style, construction_style, results_style, warnings_style):
     """
     Update the display style of results tabs based on the selected tab.
     """
-    styles = {
-        "mechanicals": {"display": "none", "padding-top": "20px"},
-        "load_balancing": {"display": "none", "padding-top": "20px"},
-        "construction": {"display": "none", "padding-top": "20px"},
-        "results": {"display": "none", "padding-top": "20px"},
-    }
-    
-    if active_tab in styles:
-        styles[active_tab]["display"] = "block"
-    
-    return [
-        styles["mechanicals"],
-        styles["load_balancing"], 
-        styles["construction"],
-        styles["results"],
+    tab_names = ["mechanicals", "load_balancing", "construction", "results", "warnings"]
+
+    current_styles = [
+        mechanicals_style,
+        load_balancing_style,
+        construction_style,
+        results_style,
+        warnings_style,
     ]
+    
+    return update_tab_styles(active_tab, tab_names, current_styles)
 
 
 # @callback(

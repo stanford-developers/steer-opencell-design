@@ -102,36 +102,74 @@ button,
 }
 
 
-/* Base tab style - scaled down */
+/* Minimalist main tabs */
 .tab-style {
-    background-color: black;
+    background: transparent;
     border: none;
-    padding: 10px 16px;
-    font-size: 14px;
-    color: #555;
-    cursor: pointer;
-    transition: color 0.2s, border-bottom 0.2s;
     border-bottom: 2px solid transparent;
+    padding: 16px 20px;
+    font-size: 14px;
+    color: #6c757d;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-right: 8px;
+    font-weight: 400;
+    position: relative;
 }
 
 /* Hover effect */
 .tab-style:hover {
-    color: #000;
-    border-bottom: 2px solid #ccc;
+    color: #495057;
+    border-bottom-color: #dee2e6;
 }
 
 /* Selected tab */
-.tab-selected {
-    color: #000;
-    border-bottom: 2px solid #007bff; /* Blue highlight */
+.tab-selected-style {
+    color: #212529;
+    border-bottom-color: #007bff;
     font-weight: 500;
-    background-color: white;
 }
 
-/* Tabs container: scaled down spacing */
+/* Minimalist results tabs */
+.results-tab-style {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 16px 20px;
+    font-size: 14px;
+    color: #6c757d;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-right: 8px;
+    font-weight: 400;
+    position: relative;
+}
+
+.results-tab-style:hover {
+    color: #495057;
+    border-bottom-color: #dee2e6;
+}
+
+.results-tab-selected-style {
+    color: #212529;
+    border-bottom-color: #007bff;
+    font-weight: 500;
+}
+
+/* Minimalist tabs container */
 .dash-tabs {
-    border-bottom: 1px solid #e0e0e0;
-    margin-bottom: 8px;
+    border-bottom: 1px solid #e9ecef;
+    margin-bottom: 20px;
+    background: transparent;
+    padding: 0;
+}
+
+/* Minimalist results tabs container */
+#results-tabs-container {
+    background: transparent;
+    border-bottom: 1px solid #e9ecef;
+    margin-bottom: 20px;
+    padding: 0;
 }
 
 
