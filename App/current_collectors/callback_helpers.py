@@ -10,7 +10,7 @@ from App.general.cell_operations import get_cell_from_cache, get_object_from_cel
 from App.general.trigger_router import TriggerRouter, TriggerType
 from App.general.handlers import handle_cell_store_update, handle_property_update
 
-from App.current_collectors.layout_configs import COLLECTOR_CONFIGS, CollectorType
+from App.current_collectors.configs import COLLECTOR_CONFIGS, CollectorType
 from App.current_collectors.handlers import handle_cell_store_cc_design_dropdown, handle_dropdown_cc_design_dropdown
 
 

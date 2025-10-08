@@ -1,6 +1,7 @@
 import unittest
 from pickle import loads, dumps
 from base64 import b64decode, b64encode
+from copy import deepcopy
 
 from steer_materials.CellMaterials.Base import CurrentCollectorMaterial
 
@@ -57,6 +58,11 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         self.assertEqual(self.current_collector.body_area, 350.4)
         self.assertEqual(self.current_collector.coated_area, 2 * 169.6)
         self.assertEqual(self.current_collector.insulation_area, 7.6)
+
+    def test_equality(self):
+        copy_cc = deepcopy(self.current_collector)
+        condition = copy_cc == self.current_collector
+        self.assertTrue(condition)
 
     def test_figures_and_datum_setter(self):
         fig_a = self.current_collector.get_top_down_view()
@@ -241,6 +247,11 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         figure1 = go.Figure(data=fig11.data + fig21.data)
         # figure1.show()
 
+    def test_equality(self):
+        copy_cc = deepcopy(self.current_collector)
+        condition = copy_cc == self.current_collector
+        self.assertTrue(condition)
+
 
 class TestNotchedCurrentCollector2(unittest.TestCase):
     def setUp(self):
@@ -262,6 +273,11 @@ class TestNotchedCurrentCollector2(unittest.TestCase):
             coated_tab_height=4,
             insulation_width=2,
         )
+
+    def test_equality(self):
+        copy_cc = deepcopy(self.current_collector)
+        condition = copy_cc == self.current_collector
+        self.assertTrue(condition)
 
     def test_current_collector(self):
         """
@@ -319,6 +335,11 @@ class TestNotchedCurrentCollector3(unittest.TestCase):
             insulation_width=0,
         )
 
+    def test_equality(self):
+        copy_cc = deepcopy(self.current_collector)
+        condition = copy_cc == self.current_collector
+        self.assertTrue(condition)
+
     def test_current_collector(self):
         """
         Test figures
@@ -350,6 +371,11 @@ class TestTablessCurrentCollector(unittest.TestCase):
             bare_lengths_b_side=(30, 140),
             insulation_width=8,
         )
+
+    def test_equality(self):
+        copy_cc = deepcopy(self.current_collector)
+        condition = copy_cc == self.current_collector
+        self.assertTrue(condition)
 
     def test_current_collector(self):
         """
@@ -419,6 +445,11 @@ class TestWeldTab(unittest.TestCase):
 
         self.weldtab = WeldTab(material=self.material, width=5, length=115, thickness=20)
 
+    def test_equality(self):
+        copy_cc = deepcopy(self.weldtab)
+        condition = copy_cc == self.weldtab
+        self.assertTrue(condition)
+
     def test_weldtab(self):
         """
         Test instantiation
@@ -466,6 +497,11 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
             bare_lengths_a_side=(15, 80),
             bare_lengths_b_side=(20, 80),
         )
+
+    def test_equality(self):
+        copy_cc = deepcopy(self.current_collector)
+        condition = copy_cc == self.current_collector
+        self.assertTrue(condition)
 
     def test_current_collector(self):
         self.assertIsInstance(self.current_collector, TabWeldedCurrentCollector)

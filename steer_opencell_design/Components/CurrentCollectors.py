@@ -447,14 +447,14 @@ class _CurrentCollector(
         figure = go.Figure()
 
         figure.add_trace(self.right_left_body_trace)
-        figure.add_trace(self.right_left_a_side_coated_coordinates)
-        figure.add_trace(self.right_left_b_side_coated_coordinates)
+        figure.add_trace(self.right_left_a_side_coated_trace)
+        figure.add_trace(self.right_left_b_side_coated_trace)
 
         if hasattr(self, "_right_left_a_side_insulation_coordinates") and self._right_left_a_side_insulation_coordinates is not None:
-            figure.add_trace(self.right_left_a_side_insulation_coordinates)
+            figure.add_trace(self.right_left_a_side_insulation_trace)
 
         if hasattr(self, "_right_left_b_side_insulation_coordinates") and self._right_left_b_side_insulation_coordinates is not None:
-            figure.add_trace(self.right_left_b_side_insulation_coordinates)
+            figure.add_trace(self.right_left_b_side_insulation_trace)
 
         figure.update_layout(
             xaxis=dict(showgrid=False, zeroline=False, title="X (mm)", scaleanchor="y"),
@@ -511,7 +511,7 @@ class _CurrentCollector(
         pass
 
     @property
-    def right_left_b_side_insulation_coordinates(self) -> pd.DataFrame:
+    def right_left_b_side_insulation_trace(self) -> pd.DataFrame:
         """
         Get the coordinates of the b side insulation area.
         """
@@ -535,7 +535,7 @@ class _CurrentCollector(
         return b_side_insulation_trace
 
     @property
-    def right_left_a_side_insulation_coordinates(self) -> pd.DataFrame:
+    def right_left_a_side_insulation_trace(self) -> pd.DataFrame:
         """
         Get the coordinates of the a side insulation area.
         """
@@ -559,7 +559,7 @@ class _CurrentCollector(
         return a_side_insulation_trace
 
     @property
-    def right_left_b_side_coated_coordinates(self) -> pd.DataFrame:
+    def right_left_b_side_coated_trace(self) -> pd.DataFrame:
         """
         Get the coordinates of the b side coated area.
         """
@@ -583,7 +583,7 @@ class _CurrentCollector(
         return b_side_coated_trace
 
     @property
-    def right_left_a_side_coated_coordinates(self) -> pd.DataFrame:
+    def right_left_a_side_coated_trace(self) -> pd.DataFrame:
         """
         Get the coordinates of the a side coated area.
         """
@@ -1207,10 +1207,6 @@ class _TabbedCurrentCollector(_CurrentCollector):
         return round(self._total_height * M_TO_MM, 2)
 
     @property
-    def tab_position(self) -> float:
-        return round(self._tab_position * M_TO_MM, 1)
-
-    @property
     def tab_position_range(self) -> Tuple[float, float]:
         return self.tab_position_hard_range
 
@@ -1219,21 +1215,6 @@ class _TabbedCurrentCollector(_CurrentCollector):
         min = self._tab_width / 2 + 1 * MM_TO_M
         max = self._x_body_length - self._tab_width / 2 - 1 * MM_TO_M
         return (round(min * M_TO_MM, 1), round(max * M_TO_MM, 1))
-
-    @tab_position.setter
-    def tab_position(self, tab_position: float) -> None:
-        self.validate_positive_float(tab_position, "tab_position")
-
-        self._tab_position = float(tab_position) * MM_TO_M
-
-        if self._tab_position - self._tab_width / 2 < 0:
-            raise ValueError("Tab position cannot be less than half the tab width.")
-
-        if self._tab_position + self._tab_width / 2 > self.x_body_length:
-            raise ValueError("Tab position plus half the tab width cannot be greater than the length of the current collector.")
-
-        if self._update_properties:
-            self._calculate_coordinates()
 
     @tab_width.setter
     @calculate_all_properties
@@ -2121,6 +2102,25 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
     def tab_width_range(self) -> Tuple[float, float]:
         return self.tab_width_hard_range
 
+    @property
+    def tab_position(self) -> float:
+        return round(self._tab_position * M_TO_MM, 1)
+
+    @tab_position.setter
+    def tab_position(self, tab_position: float) -> None:
+        self.validate_positive_float(tab_position, "tab_position")
+
+        self._tab_position = float(tab_position) * MM_TO_M
+
+        if self._tab_position - self._tab_width / 2 < 0:
+            raise ValueError("Tab position cannot be less than half the tab width.")
+
+        if self._tab_position + self._tab_width / 2 > self.x_body_length:
+            raise ValueError("Tab position plus half the tab width cannot be greater than the length of the current collector.")
+
+        if self._update_properties:
+            self._calculate_coordinates()
+
     @width.setter
     def width(self, width: float) -> None:
         self.validate_positive_float(width, "width")
@@ -2590,14 +2590,6 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         return self.tab_gap_range
 
     @property
-    def coated_area_a_side(self) -> float:
-        return round(self._coated_area_a_side * M_TO_MM**2, 2)
-
-    @property
-    def coated_area_b_side(self) -> float:
-        return round(self._coated_area_b_side * M_TO_MM**2, 2)
-
-    @property
     def tab_width_hard_range(self) -> Tuple[float, float]:
         min = 0.01
         max = 0.5
@@ -2926,7 +2918,7 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         self._tab_height = float(tab_height) * MM_TO_M
 
 
-class WeldTab(ValidationMixin, CoordinateMixin):
+class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin):
     """
     Specification and modeling class for separately manufactured welded tabs.
 

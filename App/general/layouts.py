@@ -6,6 +6,7 @@ from App.formulations.layouts import cathode_formulation_layout, anode_formulati
 from App.electrodes.layouts import cathode_electrode_layout, anode_electrode_layout
 
 from App.current_collectors.orchestra import current_collector_trigger_stores
+from App.results.orchestra import results_trigger_stores
 from App.general.orchestra import last_triggered
 
 from App.layup.layouts import layup_mechanicals_layout, layup_areal_layout
@@ -21,23 +22,27 @@ from App.general.store import (
     LANDING_PAGE_IMAGE_URLS,
 )
 
+from App.results.layouts import (
+    mechanicals_tab_content,
+    load_balancing_tab_content,
+    construction_tab_content,
+    results_tab_content,
+    warnings_tab_content
+)
+
 from App.general.database_service import FORM_FACTOR_OPTIONS
 
 
-stores = ds.html.Div(
-    [
+stores = ds.html.Div([
         cell_store,
         old_cell_store,
-
         warnings_store,
-
         cathode_active_material_store,
         anode_active_material_store,
-
         last_triggered,
         current_collector_trigger_stores,
-    ]
-)
+        results_trigger_stores
+])
 
 
 thumbnail = ds.html.Div(
@@ -61,9 +66,6 @@ header = ds.html.Div(
         ds.html.Br(),
     ]
 )
-
-
-warnings = ds.html.Div([], style=DIV_STYLE)
 
 
 cell_type_button_panel = ds.html.Div(
@@ -379,6 +381,83 @@ main_tabs_content = ds.html.Div(
     ]
 )
 
+
+
+# Results sidebar with tabs
+results_sidebar = ds.html.Div(
+    id="results_sidebar",
+    children=[
+        ds.html.H4("Analysis Dashboard", style={"color": "#333", "margin-bottom": "20px"}),
+        ds.dcc.Tabs(
+            id="results-tabs-container",
+            children=[
+                ds.dcc.Tab(
+                    label="Mechanicals",
+                    value="mechanicals",
+                    className="results-tab-style",
+                    selected_className="results-tab-selected-style",
+                ),
+                ds.dcc.Tab(
+                    label="Load Balancing",
+                    value="load_balancing",
+                    className="results-tab-style",
+                    selected_className="results-tab-selected-style",
+                ),
+                ds.dcc.Tab(
+                    label="Construction",
+                    value="construction",
+                    className="results-tab-style",
+                    selected_className="results-tab-selected-style",
+                ),
+                ds.dcc.Tab(
+                    label="Results",
+                    value="results",
+                    className="results-tab-style",
+                    selected_className="results-tab-selected-style",
+                ),
+                ds.dcc.Tab(
+                    label="Warnings",
+                    value="warnings",
+                    className="results-tab-style",
+                    selected_className="results-tab-selected-style",
+                ),
+            ],
+            value="mechanicals",
+        ),
+        ds.html.Div(
+            id="mechanicals_tab", 
+            children=[mechanicals_tab_content], 
+            style={"display": "block", "padding": "20px 0"}
+        ),
+        ds.html.Div(
+            id="load_balancing_tab", 
+            children=[load_balancing_tab_content], 
+            style={"display": "none", "padding": "20px 0"}
+        ),
+        ds.html.Div(
+            id="construction_tab", 
+            children=[construction_tab_content], 
+            style={"display": "none", "padding": "20px 0"}
+        ),
+        ds.html.Div(
+            id="results_tab", 
+            children=[results_tab_content], 
+            style={"display": "none", "padding": "20px 0"}
+        ),
+        ds.html.Div(
+            id="warnings_tab", 
+            children=[warnings_tab_content], 
+            style={"display": "none", "padding": "20px 0"}
+        ),
+    ],
+    style={
+        "height": "100%",
+        "overflowY": "auto"
+    }
+)
+
+
+
 # Split layout with main tabs (2/3) and results sidebar (1/3)
 main_tabs = ds.html.Div(
     id="tabs_panel",
@@ -401,8 +480,7 @@ main_tabs = ds.html.Div(
                 ),
                 # Results area (golden ratio larger portion)
                 ds.html.Div(
-                    id="results_sidebar_container",
-                    children=[],  # Will be populated by callback
+                    children=[results_sidebar],  # Will be populated by callback
                     style={
                         "flex": "1.618",
                         "backgroundColor": "#f8f9fa",

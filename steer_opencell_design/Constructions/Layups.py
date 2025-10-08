@@ -2234,51 +2234,41 @@ class ZFoldMonoLayer(MonoLayer):
 
     @property
     def bottom_separator(self) -> None:
-        """Individual separator access disabled. Use 'separator' property instead."""
-        raise AttributeError("ZFoldMonoLayer uses unified 'separator' property. Individual 'bottom_separator' access is not available.")
+        return None
 
     @property
     def top_separator(self) -> None:
-        """Individual separator access disabled. Use 'separator' property instead."""
-        raise AttributeError("ZFoldMonoLayer uses unified 'separator' property. Individual 'top_separator' access is not available.")
+        return None
 
     @property
     def bottom_separator_overhang_bottom(self) -> None:
-        """Individual overhang access disabled. Use 'separator_overhang_bottom' property instead."""
-        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_bottom' property. Individual 'bottom_separator_overhang_bottom' access is not available.")
+        return None
 
     @property
     def bottom_separator_overhang_top(self) -> None:
-        """Individual overhang access disabled. Use 'separator_overhang_top' property instead."""
-        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_top' property. Individual 'bottom_separator_overhang_top' access is not available.")
+        return None
 
     @property
     def bottom_separator_overhang_left(self) -> None:
-        """Individual overhang access disabled. Use 'separator_overhang_left' property instead."""
-        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_left' property. Individual 'bottom_separator_overhang_left' access is not available.")
+        return None
 
     @property
     def bottom_separator_overhang_right(self) -> None:
-        """Individual overhang access disabled. Use 'separator_overhang_right' property instead."""
-        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_right' property. Individual 'bottom_separator_overhang_right' access is not available.")
+        return None
 
     @property
     def top_separator_overhang_bottom(self) -> None:
-        """Individual overhang access disabled. Use 'separator_overhang_bottom' property instead."""
-        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_bottom' property. Individual 'top_separator_overhang_bottom' access is not available.")
+        return None
 
     @property
     def top_separator_overhang_top(self) -> None:
-        """Individual overhang access disabled. Use 'separator_overhang_top' property instead."""
-        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_top' property. Individual 'top_separator_overhang_top' access is not available.")
+        return None
 
     @property
     def top_separator_overhang_left(self) -> None:
-        """Individual overhang access disabled. Use 'separator_overhang_left' property instead."""
-        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_left' property. Individual 'top_separator_overhang_left' access is not available.")
+        return None
 
     @property
     def top_separator_overhang_right(self) -> None:
-        """Individual overhang access disabled. Use 'separator_overhang_right' property instead."""
-        raise AttributeError("ZFoldMonoLayer uses unified 'separator_overhang_right' property. Individual 'top_separator_overhang_right' access is not available.")
+        return None
 
