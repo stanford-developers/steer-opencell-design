@@ -1,6 +1,6 @@
 import unittest
-import numpy as np
-import plotly.graph_objects as go
+from copy import deepcopy
+
 from steer_opencell_design.Formulations.ElectrodeFormulations import (
     CathodeFormulation,
     AnodeFormulation,
@@ -135,6 +135,7 @@ class TestMultiCathodeFormulation(unittest.TestCase):
         )
 
     def test_formulation(self):
+
         self.assertTrue(isinstance(self.cathode_formulation, CathodeFormulation))
         self.assertEqual(len(self.cathode_formulation._active_materials), 2)
         self.assertEqual(len(self.cathode_formulation._binders), 2)
@@ -155,6 +156,11 @@ class TestMultiCathodeFormulation(unittest.TestCase):
         figure = self.cathode_formulation.plot_half_cell_curve(add_materials=True)
 
         # figure.show()
+
+    def test_equality(self):
+        copy_formulation = deepcopy(self.cathode_formulation)
+        condition = self.cathode_formulation == copy_formulation
+        self.assertTrue(condition)
 
     def test_voltage_cutoff(self):
         self.cathode_formulation.voltage_cutoff = 4.09

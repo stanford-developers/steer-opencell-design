@@ -1,3 +1,4 @@
+from copy import deepcopy
 import unittest
 import numpy as np
 from steer_opencell_design.Components.Separators import Separator
@@ -20,6 +21,11 @@ class TestSeparator(unittest.TestCase):
 
         # Create additional material for testing material setter - use available material
         self.alternative_material = SeparatorMaterial.from_database(name="Polyethylene")
+
+    def test_equality(self):
+        temp_separator = deepcopy(self.separator)
+        condition = self.separator == temp_separator
+        self.assertTrue(condition)
 
     def test_separator_properties(self):
         """

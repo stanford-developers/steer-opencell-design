@@ -41,6 +41,7 @@ def register_callbacks(app):
         # "App.formulations.callbacks",
         # "App.layup.callbacks",
         "App.results.callbacks",
+        "App.results.orchestra",
     ]
 
     for module_name in callback_modules:
@@ -65,3 +66,4 @@ server = app.server
 
 if __name__ == "__main__":
     app.run(debug=True)
+

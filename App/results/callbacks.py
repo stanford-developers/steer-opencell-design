@@ -1,22 +1,10 @@
 
-import dash as ds
+import inspect
 from dash import Input, Output, callback, State
-from App.results.layouts import results_sidebar
 from App.general.callback_helpers import update_tab_styles
+from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
+from App.electrodes.configs import ELECTRODE_CONFIGS, ElectrodeType
 
-@callback(
-    Output("results_sidebar_container", "children"),
-    Input("tabs_panel", "style"),
-    prevent_initial_call=True,
-)
-def populate_results_sidebar(tabs_panel_style):
-    """
-    Populate the results sidebar when the main tabs panel is displayed.
-    """
-    if tabs_panel_style.get("display") == "none":
-        return []
-    
-    return [results_sidebar]
 
 @callback(
     [
@@ -53,86 +41,64 @@ def update_results_tabs(active_tab, mechanicals_style, load_balancing_style, con
     return update_tab_styles(active_tab, tab_names, current_styles)
 
 
-# @callback(
-#     [
-#         Output("cathode_current_collector_properties_div", "children"),
-#     ],
-#     [
-#         Input("cathode_current_collector_tab", "style"),
-#         Input("cathode_tab", "style"),
-#         Input("tabs_panel", "style"),
-#         Input("cell_store", "data"),
-#     ],
-#     prevent_initial_call=True,
-# )
-# def update_cathode_current_collector_properties(cc_tab_style, tab_style, tabs_panel_style, cell_data):
-#     """
-#     Update the cathode current collector plots based on the current collector store data.
-#     """
-#     # If all display is none for any of the viewing styles, return no update
-#     prevent_update_from_styles([cc_tab_style, tab_style, tabs_panel_style])
+##############################
+#### Current Collector Graphs ####
+##############################
 
-#     # get the config for the cathode generic current collector
-#     config = COLLECTOR_CONFIGS[CollectorType.CATHODE_GENERIC]
-
-#     # get the cell from the cache
-#     cell = cache.get(cell_data["cache_key"])
-
-#     # get the current collector from the cell
-#     current_collector = get_object_from_cell(cell, config)
-
-#     # get the current collector properties
-#     properties = current_collector.properties
-
-#     # Create properties table using utility function
-#     properties_table = create_properties_table(
-#         properties,
-#         table_id="cathode_current_collector_properties_table",
-#         decimal_places=2,
-#     )
-
-#     # return the plots
-#     return [properties_table]
+@callback(
+    [
+        Output("last_triggered", "data", allow_duplicate=True),
+        Output("cathode_a_side", "figure"),
+        Output("cathode_b_side", "figure"),
+    ],
+    Input({"type": "trigger", "callback": "update_cathode_mechanicals_plots"}, "data"),
+    State("cell_store", "data"),
+    prevent_initial_call=True,
+)
+def update_cathode_mechanicals_plots(trigger_data, cell_data):
+    """
+    Update both cathode A side and B side current collector graphs.
+    """
+    # Get cell from cache
+    cell_key = cell_data["cache_key"]
+    cell = get_cell_from_cache(cell_key)
+    
+    # Get cathode current collector
+    cathode_collector = get_object_from_cell(cell, ELECTRODE_CONFIGS[ElectrodeType.CATHODE])
+    
+    # Get both A side and B side view figures from the current collector
+    fig_a_side = cathode_collector.get_a_side_view(title="Cathode A-Side")
+    fig_b_side = cathode_collector.get_b_side_view(title="Cathode B-Side")
+    
+    callback_name = inspect.currentframe().f_code.co_name
+    return (callback_name,) + (fig_a_side, fig_b_side)
 
 
-# @callback(
-#     [
-#         Output("anode_current_collector_properties_div", "children"),
-#     ],
-#     [
-#         Input("anode_current_collector_tab", "style"),
-#         Input("anode_tab", "style"),
-#         Input("tabs_panel", "style"),
-#         Input("cell_store", "data"),
-#     ],
-#     prevent_initial_call=True,
-# )
-# def update_anode_current_collector_properties(cc_tab_style, tab_style, tabs_panel_style, cell_data):
-#     """
-#     Update the anode current collector plots based on the current collector store data.
-#     """
-#     # If all display is none for any of the viewing styles, return no update
-#     prevent_update_from_styles([cc_tab_style, tab_style, tabs_panel_style])
-
-#     config = COLLECTOR_CONFIGS[CollectorType.ANODE_GENERIC]
-
-#     # get the cell from the cache
-#     cell = cache.get(cell_data["cache_key"])
-
-#     # get the current collector from the cell
-#     current_collector = get_object_from_cell(cell, config)
-
-#     # get the current collector properties
-#     properties = current_collector.properties
-
-#     # Create properties table using utility function
-#     properties_table = create_properties_table(
-#         properties,
-#         table_id="anode_current_collector_properties_table",
-#         decimal_places=2,
-#     )
-
-#     # return the plots
-#     return [properties_table]
-
+@callback(
+    [
+        Output("last_triggered", "data", allow_duplicate=True),
+        Output("anode_a_side", "figure"),
+        Output("anode_b_side", "figure"),
+    ],
+    Input({"type": "trigger", "callback": "update_anode_mechanicals_plots"}, "data"),
+    State("cell_store", "data"),
+    prevent_initial_call=True,
+)
+def update_anode_mechanicals_plots(trigger_data, cell_data):
+    """
+    Update both anode A side and B side current collector graphs.
+    """
+    # Get cell from cache
+    cell_key = cell_data["cache_key"]
+    cell = get_cell_from_cache(cell_key)
+    
+    # Get anode current collector
+    anode_collector = get_object_from_cell(cell, ELECTRODE_CONFIGS[ElectrodeType.ANODE])
+    
+    # Get both A side and B side view figures from the current collector
+    fig_a_side = anode_collector.get_a_side_view(title="Anode A-Side")
+    fig_b_side = anode_collector.get_b_side_view(title="Anode B-Side")
+    
+    callback_name = inspect.currentframe().f_code.co_name
+    return (callback_name,) + (fig_a_side, fig_b_side)
 

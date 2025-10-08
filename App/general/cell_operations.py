@@ -85,7 +85,7 @@ def get_cell_from_cache(cache_key: str) -> Type:
     return cell
 
 
-def set_object_to_cell(cell: Type, obj: Any, config: Type) -> Type:
+def set_object_to_cell(cell: Type, obj: Any,  config: Type) -> Type:
     """
     Generic function to set any object to a cell based on configuration.
     This version triggers setters for all intermediate objects in the path.

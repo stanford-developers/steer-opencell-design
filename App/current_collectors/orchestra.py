@@ -3,9 +3,16 @@ from typing import Dict, Optional, List
 import time
 
 from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
-from App.current_collectors.layout_configs import COLLECTOR_CONFIGS, CollectorType
+from App.current_collectors.configs import COLLECTOR_CONFIGS, CollectorType
 from App.materials.configs import MaterialType, MATERIAL_CONFIGS
-from App.general.orchestra import is_visible, has_changed, has_type_changed, CallbackTriggerConfig, TriggerCondition
+from App.general.orchestra import (
+    has_changed,
+    has_type_changed,
+    create_trigger_store,
+    orchestrate_callbacks_generic,
+    CallbackTriggerConfig, 
+    TriggerCondition,
+)
 
 from steer_opencell_design.Components.CurrentCollectors import (
     PunchedCurrentCollector,
@@ -17,10 +24,6 @@ from steer_opencell_design.Components.CurrentCollectors import (
 ##############################
 ####### Trigger Stores #######
 ##############################
-
-def create_trigger_store(callback_name: str) -> dcc.Store:
-    """Create a trigger store for a callback."""
-    return dcc.Store(id={"type": "trigger", "callback": callback_name}, data=[])
 
 CATHODE_CALLBACKS = [
     "update_cathode_current_collector_design",
@@ -222,48 +225,6 @@ COLLECTOR_TRIGGER_CONFIGS = {
 }
 
 ##############################
-##### Helper Functions #######
-##############################
-
-def _evaluate_conditions(
-    trigger_config: CallbackTriggerConfig,
-    old_cell: Optional[object],
-    new_cell: Optional[object]
-) -> Dict[str, bool]:
-    
-    """Evaluate all conditions for a callback trigger."""
-    
-    conditions_dict = {}
-    
-    if trigger_config.conditions:
-        for condition in trigger_config.conditions:
-            condition_result = condition.check_function(old_cell, new_cell, trigger_config.config)
-            condition_name = getattr(condition, 'name', condition.check_function.__name__)
-            conditions_dict[condition_name] = condition_result
-    
-    return conditions_dict
-
-def _should_fire_on_cell_load(
-    trigger_config: CallbackTriggerConfig,
-    old_cell: Optional[object],
-    new_cell: Optional[object]
-) -> bool:
-    
-    """Determine if callback should fire on cell load."""
-
-    if not trigger_config.conditions:
-        return True
-    
-    condition_results = _evaluate_conditions(trigger_config, old_cell, new_cell)
-
-    return all(condition_results.values())
-
-def _trigger_callback(callback_name: str, timestamp: float) -> None:
-    """Trigger a callback by updating its trigger store."""
-    print(f"############ Triggering {callback_name}... ################")
-    set_props({"type": "trigger", "callback": callback_name}, {"data": timestamp})
-
-##############################
 ##### Callback Triggers #####
 ##############################
 
@@ -294,14 +255,9 @@ def orchestrate_current_collector_callbacks(
     last_triggered_callback: str,
 ) -> None:
     """Orchestrate all current collector callbacks by updating their trigger stores."""
-    print("Orchestrating current collector callbacks...")
 
     timestamp = time.time()
     
-    # Get cells from cache
-    new_cell = get_cell_from_cache(cell_data["cache_key"])
-    old_cell = get_cell_from_cache(old_cell_data["cache_key"])
-
     # Create visibility context
     visibility_styles = {
         "cathode_current_collector_tab": cathode_cc_tab_style,
@@ -311,36 +267,14 @@ def orchestrate_current_collector_callbacks(
         "tabs_panel": tabs_panel_style,
     }
 
-    # Handle cell loaded case
-    if last_triggered_callback == "Cell Loaded":
-        for callback_name, trigger_config in COLLECTOR_TRIGGER_CONFIGS.items():
-            if _should_fire_on_cell_load(trigger_config, old_cell, new_cell):
-                print(f"############ Cell Loaded - Triggering {callback_name}... ################")
-                _trigger_callback(callback_name, timestamp)
-        return
-
-    # Handle normal cases
-    for callback_name, trigger_config in COLLECTOR_TRIGGER_CONFIGS.items():
-        # Check visibility
-        required_styles = [visibility_styles.get(element_id) for element_id in trigger_config.required_visibility]
-        visibility_condition = is_visible(required_styles)
-        
-        # Check anti-circular logic
-        anti_circular_condition = last_triggered_callback != callback_name
-        
-        # Check callback-specific conditions
-        callback_conditions = _evaluate_conditions(trigger_config, old_cell, new_cell)
-        
-        # Combine all conditions
-        all_conditions = {
-            "visibility": visibility_condition,
-            "anti_circular": anti_circular_condition,
-            **callback_conditions
-        }
-        
-        print(f"callback name: {callback_name}, conditions: {all_conditions}")
-        
-        # Trigger if all conditions are met
-        if all(all_conditions.values()):
-            _trigger_callback(callback_name, timestamp)
+    # Use generic orchestration function
+    orchestrate_callbacks_generic(
+        trigger_configs=COLLECTOR_TRIGGER_CONFIGS,
+        cell_data=cell_data,
+        old_cell_data=old_cell_data,
+        visibility_styles=visibility_styles,
+        last_triggered_callback=last_triggered_callback,
+        timestamp=timestamp,
+        debug_name="Current Collectors"
+    )
 

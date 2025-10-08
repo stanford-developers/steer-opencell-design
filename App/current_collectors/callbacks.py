@@ -2,7 +2,7 @@ import time
 import inspect
 from dash import callback, Input, Output, State, ALL
 
-from App.current_collectors.layout_configs import CollectorType
+from App.current_collectors.configs import CollectorType
 
 from App.current_collectors.callback_helpers import (
     create_generic_current_collector_callback,

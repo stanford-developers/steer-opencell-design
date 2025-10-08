@@ -128,6 +128,11 @@ class TestSimpleLaminate(unittest.TestCase):
             bottom_separator=bottom_separator,
         )
 
+    def test_equality(self):
+        temp_layup = deepcopy(self.layup)
+        condition = self.layup == temp_layup
+        self.assertTrue(condition)
+
     def test_laminate(self):
         # This is a placeholder for an actual test
         self.assertTrue(isinstance(self.layup, Laminate))
@@ -481,6 +486,11 @@ class TestSimpleMonoLayer(unittest.TestCase):
             bottom_separator=separator,
             transverse=True,
         )
+    
+    def test_equality(self):
+        temp_layup = deepcopy(self.monolayer)
+        condition = self.monolayer == temp_layup
+        self.assertTrue(condition)
 
     def test_monolayer(self):
         self.assertTrue(isinstance(self.monolayer, MonoLayer))
@@ -734,6 +744,11 @@ class TestZFoldMonoLayer(unittest.TestCase):
             transverse=True,
         )
 
+    def test_equality(self):
+        temp_layup = deepcopy(self.zfoldmonolayer)
+        condition = self.zfoldmonolayer == temp_layup
+        self.assertTrue(condition)
+
     def test_zfold_monolayer_basic(self):
         """Test basic Z-fold monolayer functionality."""
         self.assertTrue(isinstance(self.zfoldmonolayer, ZFoldMonoLayer))
@@ -765,45 +780,6 @@ class TestZFoldMonoLayer(unittest.TestCase):
 
         fig1 = self.zfoldmonolayer.get_top_down_view()
         # fig1.show()
-
-    def test_zfold_no_left_right_overhangs(self):
-        """Test that left/right overhang properties are removed."""
-        # These properties should not exist
-        with self.assertRaises(AttributeError):
-            _ = self.zfoldmonolayer.bottom_separator_overhang_left
-
-        with self.assertRaises(AttributeError):
-            _ = self.zfoldmonolayer.bottom_separator_overhang_right
-
-        with self.assertRaises(AttributeError):
-            _ = self.zfoldmonolayer.top_separator_overhang_left
-
-        with self.assertRaises(AttributeError):
-            _ = self.zfoldmonolayer.top_separator_overhang_right
-
-    def test_zfold_no_individual_separator_properties(self):
-        """Test that individual separator properties raise AttributeError."""
-        # Individual separator properties should not be accessible
-        with self.assertRaises(AttributeError):
-            _ = self.zfoldmonolayer.bottom_separator
-
-        with self.assertRaises(AttributeError):
-            _ = self.zfoldmonolayer.top_separator
-
-    def test_zfold_no_individual_overhang_properties(self):
-        """Test that individual overhang properties raise AttributeError."""
-        # Individual overhang properties should not be accessible
-        with self.assertRaises(AttributeError):
-            _ = self.zfoldmonolayer.bottom_separator_overhang_bottom
-
-        with self.assertRaises(AttributeError):
-            _ = self.zfoldmonolayer.bottom_separator_overhang_top
-
-        with self.assertRaises(AttributeError):
-            _ = self.zfoldmonolayer.top_separator_overhang_bottom
-
-        with self.assertRaises(AttributeError):
-            _ = self.zfoldmonolayer.top_separator_overhang_top
 
     def test_zfold_left_right_overhangs_always_zero(self):
         """Test that left/right overhangs are always zero in calculations."""

@@ -333,6 +333,7 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
 
 
 class testAnodeTabWelded(unittest.TestCase):
+
     def setUp(self):
         active_material = AnodeMaterial.from_database("Synthetic Graphite")
         conductive_additive = ConductiveAdditive.from_database("Super P")
@@ -412,6 +413,11 @@ class testAnodeTabWelded(unittest.TestCase):
 
         self.assertAlmostEqual(self.anode._cost, sum_nested_dict(self.anode._cost_breakdown), 5)
         self.assertAlmostEqual(self.anode._mass, sum_nested_dict(self.anode._mass_breakdown), 5)
+
+    def test_equality(self):
+        temp_electrode = deepcopy(self.anode)
+        condition = temp_electrode == self.anode
+        self.assertTrue(condition)
 
     def test_half_cell_curve(self):
         figure1 = self.anode.plot_half_cell_curve(areal=False)

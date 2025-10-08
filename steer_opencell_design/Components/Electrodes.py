@@ -59,7 +59,6 @@ class _Electrode(
         calender_density: float,
         insulation_material: InsulationMaterial = None,
         insulation_thickness: float = 0.0,
-        voltage_cutoff: float = None,
         name: str = "Electrode",
         datum: Tuple[float, float, float] = (0.0, 0.0, 0.0),
     ):
@@ -80,8 +79,6 @@ class _Electrode(
             The insulation material used in the electrode (default is None).
         insulation_thickness : float, optional
             The thickness of the insulation material in micrometers (default is 0.0).
-        voltage_cutoff : float, optional
-            The maximum voltage of the half cell curves (default is None).
         name : str, optional
             The name of the electrode (default is 'Electrode').
         ----------
@@ -92,7 +89,6 @@ class _Electrode(
         self.formulation = formulation
         self.current_collector = current_collector
         self.datum = datum
-        self.voltage_cutoff = voltage_cutoff
         self.insulation_material = insulation_material
         self.insulation_thickness = insulation_thickness
         self.mass_loading = mass_loading
@@ -529,46 +525,54 @@ class _Electrode(
         """
         Get the coordinates of the a side insulated area.
         """
-        # get the coordinates
-        a_side_insulation_coordinates = self.order_coordinates_clockwise(self.a_side_insulation_coordinates, plane="yz")
+        try:
+            # get the coordinates
+            a_side_insulation_coordinates = self.order_coordinates_clockwise(self.a_side_insulation_coordinates, plane="yz")
 
-        # make the trace
-        a_side_insulation_trace = go.Scatter(
-            x=a_side_insulation_coordinates["y"],
-            y=a_side_insulation_coordinates["z"],
-            mode="lines",
-            name="A Side Insulated Area",
-            line=dict(width=1, color="black"),
-            fill="toself",
-            fillcolor=self._insulation_material._color,
-            legendgroup="A Side Insulated Area",
-            showlegend=True,
-        )
+            # make the trace
+            a_side_insulation_trace = go.Scatter(
+                x=a_side_insulation_coordinates["y"],
+                y=a_side_insulation_coordinates["z"],
+                mode="lines",
+                name="A Side Insulated Area",
+                line=dict(width=1, color="black"),
+                fill="toself",
+                fillcolor=self._insulation_material._color,
+                legendgroup="A Side Insulated Area",
+                showlegend=True,
+            )
 
-        return a_side_insulation_trace
+            return a_side_insulation_trace
+
+        except Exception as e:
+            return None
 
     @property
     def right_left_b_side_insulation_trace(self) -> pd.DataFrame:
         """
         Get the coordinates of the b side insulated area.
         """
-        # get the coordinates
-        b_side_insulation_coordinates = self.order_coordinates_clockwise(self.b_side_insulation_coordinates, plane="yz")
+        try:
+            # get the coordinates
+            b_side_insulation_coordinates = self.order_coordinates_clockwise(self.b_side_insulation_coordinates, plane="yz")
 
-        # make the trace
-        b_side_insulation_trace = go.Scatter(
-            x=b_side_insulation_coordinates["y"],
-            y=b_side_insulation_coordinates["z"],
-            mode="lines",
-            name="B Side Insulated Area",
-            line=dict(width=1, color="black"),
-            fill="toself",
-            fillcolor=self._insulation_material._color,
-            legendgroup="B Side Insulated Area",
-            showlegend=True,
-        )
+            # make the trace
+            b_side_insulation_trace = go.Scatter(
+                x=b_side_insulation_coordinates["y"],
+                y=b_side_insulation_coordinates["z"],
+                mode="lines",
+                name="B Side Insulated Area",
+                line=dict(width=1, color="black"),
+                fill="toself",
+                fillcolor=self._insulation_material._color,
+                legendgroup="B Side Insulated Area",
+                showlegend=True,
+            )
 
-        return b_side_insulation_trace
+            return b_side_insulation_trace
+        
+        except Exception as e:
+            return None
 
     @property
     def right_left_a_side_coating_trace(self) -> pd.DataFrame:
@@ -702,10 +706,6 @@ class _Electrode(
     @property
     def formulation(self) -> _ElectrodeFormulation:
         return self._formulation
-
-    @property
-    def voltage_cutoff(self) -> float:
-        return round(self._voltage_cutoff, 3)
 
     @property
     def insulation_material(self) -> InsulationMaterial:
@@ -1086,12 +1086,6 @@ class _Electrode(
         self.validate_type(formulation, _ElectrodeFormulation, "formulation")
         self._formulation = formulation
 
-    @voltage_cutoff.setter
-    @calculate_half_cell_curve
-    def voltage_cutoff(self, voltage: float):
-        self.formulation.voltage_cutoff = voltage
-        self._voltage_cutoff = voltage
-
     @calender_density.setter
     @calculate_all_properties
     def calender_density(self, calender_density: float):
@@ -1169,7 +1163,6 @@ class Anode(_Electrode):
         calender_density: float,
         insulation_material: InsulationMaterial = None,
         insulation_thickness: float = 0.0,
-        voltage_cutoff: float = None,
         name: str = "Anode",
     ):
         """
@@ -1189,8 +1182,6 @@ class Anode(_Electrode):
             The insulation material used in the anode (default is None).
         insulation_thickness : float, optional
             The thickness of the insulation material in micrometers (default is 0.0).
-        voltage_cutoff : float, optional
-            The maximum voltage of the half cell curves (default is None).
         name : str, optional
             The name of the anode (default is 'Anode').
         ----------
@@ -1203,7 +1194,6 @@ class Anode(_Electrode):
             name=name,
             insulation_material=insulation_material,
             insulation_thickness=insulation_thickness,
-            voltage_cutoff=voltage_cutoff,
         )
 
         self._update_properties = True
@@ -1307,7 +1297,6 @@ class Cathode(_Electrode):
         calender_density: float,
         insulation_material: InsulationMaterial = None,
         insulation_thickness: float = 0.0,
-        voltage_cutoff: float = None,
         name: str = "Cathode",
     ):
         """
@@ -1327,8 +1316,6 @@ class Cathode(_Electrode):
             The insulation material used in the cathode (default is None).
         insulation_thickness : float, optional
             The thickness of the insulation in micrometers (default is 0.0).
-        voltage_cutoff : float, optional
-            The maximum voltage of the half cell curves (default is None).
         name : str, optional
             The name of the cathode (default is 'Cathode').
         """
@@ -1340,7 +1327,6 @@ class Cathode(_Electrode):
             name=name,
             insulation_material=insulation_material,
             insulation_thickness=insulation_thickness,
-            voltage_cutoff=voltage_cutoff,
         )
 
         self._update_properties = True

@@ -3,7 +3,7 @@ from dash import no_update
 
 from App.general.callback_helpers import update_style_display
 from App.general.cell_operations import set_cell_to_cache, set_object_to_cell
-from App.current_collectors.layout_configs import CurrentCollectorConfig
+from App.current_collectors.configs import CurrentCollectorConfig
 from App.current_collectors.layouts import CURRENT_COLLECTOR_DESIGNS
 
 from steer_opencell_design.Components.CurrentCollectors import (
