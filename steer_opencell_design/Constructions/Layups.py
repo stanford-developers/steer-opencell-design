@@ -91,7 +91,7 @@ class _Layup(
     def _calculate_all_properties(self):
         self._calculate_coordinates()
         self._calculate_bulk_properties()
-        self._calculate_half_cell_curves()
+        self._calculate_full_cell_curves()
 
     def _calculate_bulk_properties(self):
         # calculate thickness
@@ -217,7 +217,7 @@ class _Layup(
             self._top_separator_overhang_bottom = 0.0
             self._top_separator_overhang_top = 0.0
 
-    def _calculate_half_cell_curves(self) -> np.ndarray:
+    def _calculate_full_cell_curves(self) -> np.ndarray:
         """
         Calculate the half-cell curves for the cathode and anode.
 
@@ -301,9 +301,9 @@ class _Layup(
         )
 
         # Recombine: charge first (ascending), then discharge (descending)
-        self._half_cell_curve = np.vstack([charge_curve, discharge_curve])
+        self._full_cell_curve = np.vstack([charge_curve, discharge_curve])
 
-        return self._half_cell_curve
+        return self._full_cell_curve
 
     def _adjust_overhang_fixed_component(self, component: str, target_overhang: float, direction: str) -> None:
         """
@@ -553,16 +553,16 @@ class _Layup(
 
         fig = go.Figure()
 
+        # Thicker lines for better visibility
+        line_width = kwargs.get("line_width", 2.5)
+        
         fig.add_trace(
             go.Scatter(
                 x=cathode_half_cell["Areal Capacity (mAh/cm²)"],
                 y=cathode_half_cell["Voltage (V)"],
                 mode="lines",
                 name=f"{self.cathode.name} Half-Cell",
-                line=dict(
-                    width=kwargs.get("line_width", 2),
-                    color=self.cathode.formulation.color,
-                ),
+                line=dict(color=self.cathode.formulation.color, width=line_width),
                 customdata=cathode_half_cell["Direction"],
                 hovertemplate="<b>Cathode</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
             )
@@ -574,18 +574,15 @@ class _Layup(
                 y=anode_half_cell["Voltage (V)"],
                 mode="lines",
                 name=f"{self.anode.name} Half-Cell",
-                line=dict(
-                    width=kwargs.get("line_width", 2),
-                    color=self.anode.formulation.color,
-                ),
+                line=dict(color=self.anode.formulation.color, width=line_width),
                 customdata=anode_half_cell["Direction"],
                 hovertemplate="<b>Anode</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
             )
         )
 
         # Add full-cell curve
-        full_cell_curve = self.half_cell_curve
-        full_cell_color = kwargs.get("full_cell_color", "#2ca02c")  # Default green
+        full_cell_curve = self.full_cell_curve
+        full_cell_color = kwargs.get("full_cell_color", "#ff8c00")  # Default orange
 
         fig.add_trace(
             go.Scatter(
@@ -593,72 +590,36 @@ class _Layup(
                 y=full_cell_curve["Voltage (V)"],
                 mode="lines",
                 name=f"{self.name} Full-Cell",
-                line=dict(width=kwargs.get("line_width", 2), color=full_cell_color),
+                line=dict(color=full_cell_color, width=line_width + 0.5),  # Slightly thicker for emphasis
                 customdata=full_cell_curve["Direction"],
                 hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
             )
         )
 
-        # Enhanced layout with better defaults
+        # Enhanced layout with zero lines and faint grid
         fig.update_layout(
             title=kwargs.get("title", f"Areal Capacity Curves"),
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             xaxis=dict(
-                title="Areal Capacity (mAh/cm²)",  # Fixed: matches data units
-                showgrid=kwargs.get("show_grid", True),
-                gridcolor=kwargs.get("grid_color", "lightgray"),
-                zeroline=kwargs.get("show_zeroline", True),
-                zerolinecolor=kwargs.get("zeroline_color", "black"),
-                zerolinewidth=kwargs.get("zeroline_width", 1),
+                title="Areal Capacity (mAh/cm²)",
+                showgrid=True,
+                gridcolor="rgba(128, 128, 128, 0.2)",  # Faint gray grid lines
+                gridwidth=1,
+                zeroline=True,
+                zerolinecolor="rgba(0, 0, 0, 0.5)",  # Semi-transparent black zero line
+                zerolinewidth=1,
             ),
             yaxis=dict(
                 title="Voltage (V)",
-                showgrid=kwargs.get("show_grid", True),
-                gridcolor=kwargs.get("grid_color", "lightgray"),
-                zeroline=kwargs.get("show_zeroline", True),
-                zerolinecolor=kwargs.get("zeroline_color", "black"),
-                zerolinewidth=kwargs.get("zeroline_width", 1),
-            ),
-            legend=dict(
-                orientation=kwargs.get("legend_orientation", "v"),
-                yanchor=kwargs.get("legend_yanchor", "top"),
-                y=kwargs.get("legend_y", 1),
-                xanchor=kwargs.get("legend_xanchor", "left"),
-                x=kwargs.get("legend_x", 1.02),
-            ),
-            margin=dict(
-                l=kwargs.get("margin_l", 50),
-                r=kwargs.get("margin_r", 50),
-                t=kwargs.get("margin_t", 50),
-                b=kwargs.get("margin_b", 50),
+                showgrid=True,
+                gridcolor="rgba(128, 128, 128, 0.2)",  # Faint gray grid lines
+                gridwidth=1,
+                zeroline=True,
+                zerolinecolor="rgba(0, 0, 0, 0.5)",  # Semi-transparent black zero line
+                zerolinewidth=1,
             ),
             hovermode="closest",
-            **{
-                k: v
-                for k, v in kwargs.items()
-                if k
-                not in [
-                    "line_width",
-                    "material_line_width",
-                    "material_opacity",
-                    "show_grid",
-                    "grid_color",
-                    "show_zeroline",
-                    "zeroline_color",
-                    "zeroline_width",
-                    "legend_orientation",
-                    "legend_yanchor",
-                    "legend_y",
-                    "legend_xanchor",
-                    "legend_x",
-                    "margin_l",
-                    "margin_r",
-                    "margin_t",
-                    "margin_b",
-                    "title",
-                ]
-            },
         )
 
         return fig
@@ -687,10 +648,10 @@ class _Layup(
         return 0, 1.5
 
     @property
-    def half_cell_curve(self) -> pd.DataFrame:
+    def full_cell_curve(self) -> pd.DataFrame:
         return (
             pd.DataFrame(
-                self._half_cell_curve,
+                self._full_cell_curve,
                 columns=["areal_capacity", "voltage", "direction"],
             )
             .assign(

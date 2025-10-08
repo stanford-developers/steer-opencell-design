@@ -62,9 +62,6 @@ RESULTS_TRIGGER_CONFIGS = {
 
     "update_cathode_cross_section": CallbackTriggerConfig(
         config=ELECTRODE_CONFIGS[ElectrodeType.CATHODE],
-        conditions=[
-            TriggerCondition(check_function=has_changed)
-        ],
         required_visibility=[
             "load_balancing_tab",
             "tabs_panel"
@@ -73,9 +70,6 @@ RESULTS_TRIGGER_CONFIGS = {
 
     "update_anode_cross_section": CallbackTriggerConfig(
         config=ELECTRODE_CONFIGS[ElectrodeType.ANODE],
-        conditions=[
-            TriggerCondition(check_function=has_changed)
-        ],
         required_visibility=[
             "load_balancing_tab",
             "tabs_panel"

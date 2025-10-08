@@ -42,8 +42,11 @@ def register_callbacks(app):
         "App.electrodes.orchestra",
 
         "App.materials.callbacks",
+
         # "App.formulations.callbacks",
-        # "App.layup.callbacks",
+
+        "App.layup.callbacks",
+        "App.layup.orchestra",
         
         "App.results.callbacks",
         "App.results.orchestra",

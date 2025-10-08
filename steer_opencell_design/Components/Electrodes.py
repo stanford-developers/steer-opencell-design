@@ -496,7 +496,13 @@ class _Electrode(
             Custom y-axis range as [min, max]. If not provided, automatically calculated 
             based on electrode thickness and datum position.
         """
-        figure = self._get_full_right_left_view(**kwargs)
+        # Get base figure with current collector and coating traces
+        figure = self._current_collector.get_right_left_view(**kwargs)
+        figure.data = [trace for trace in figure.data if trace.name == "Body" or trace.name == "Tab"]
+        figure.add_trace(self.right_left_a_side_coating_trace)
+        figure.add_trace(self.right_left_b_side_coating_trace)
+        
+        # Note: Insulation traces are intentionally excluded
 
         # Get datum coordinates in mm (for plotting)
         datum_y = self.datum[1]  # y-coordinate of datum
@@ -522,11 +528,26 @@ class _Electrode(
                 range=y_range,
                 scaleanchor="y",  # Lock aspect ratio
                 scaleratio=1,
+                # Hide x-axis line, ticks, and marks
+                showline=False,
+                showticklabels=False,
+                showgrid=False,
+                ticks="",
             ),
             yaxis=dict(
                 scaleratio=1,
             ),
-            **kwargs,
+            # Place legend at the bottom
+            legend=dict(
+                orientation="h",  # Horizontal orientation
+                yanchor="top",
+                y=-0.1,  # Position below the plot
+                xanchor="center",
+                x=0.5,  # Center horizontally
+            ),
+            # Add some bottom margin for the legend
+            margin=dict(b=80) if "margin" not in kwargs else dict(**kwargs.get("margin", {}), b=80),
+            **{k: v for k, v in kwargs.items() if k != "margin"},
         )
 
         return figure
