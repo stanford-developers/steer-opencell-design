@@ -7,6 +7,7 @@ from App.electrodes.layouts import cathode_electrode_layout, anode_electrode_lay
 
 from App.current_collectors.orchestra import current_collector_trigger_stores
 from App.electrodes.orchestra import electrode_trigger_stores
+from App.layup.orchestra import layup_trigger_stores
 from App.results.orchestra import results_trigger_stores
 from App.general.orchestra import last_triggered
 
@@ -43,6 +44,7 @@ stores = ds.html.Div([
         last_triggered,
         current_collector_trigger_stores,
         electrode_trigger_stores,
+        layup_trigger_stores,
         results_trigger_stores
 ])
 
