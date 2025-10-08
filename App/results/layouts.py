@@ -17,6 +17,49 @@ FIGURE_GRAPH_STYLE = {
     "height": "570px"  # Much taller to make figures truly square
 }
 
+# Load balancing specific styles
+LOAD_BALANCING_CONTAINER_BASE = {
+    "border": "1px solid #ddd",
+    "border-radius": "4px",
+    "padding": "10px",
+}
+
+LOAD_BALANCING_LEFT_CONTAINER = {
+    **LOAD_BALANCING_CONTAINER_BASE,
+    "width": "100%",
+    "margin-bottom": "20px",
+    "height": "650px"
+}
+
+LOAD_BALANCING_LEFT_CONTAINER_BOTTOM = {
+    **LOAD_BALANCING_CONTAINER_BASE,
+    "width": "100%",
+    "height": "650px"
+}
+
+LOAD_BALANCING_RIGHT_CONTAINER = {
+    **LOAD_BALANCING_CONTAINER_BASE,
+    "width": "64%",
+    "display": "inline-block",
+    "vertical-align": "top",
+    "height": "1320px"
+}
+
+LOAD_BALANCING_LEFT_COLUMN_STYLE = {
+    "width": "32%",
+    "display": "inline-block",
+    "vertical-align": "top",
+    "margin-right": "2%"
+}
+
+LOAD_BALANCING_SMALL_GRAPH_STYLE = {
+    "height": "630px"
+}
+
+LOAD_BALANCING_LARGE_GRAPH_STYLE = {
+    "height": "1270px"
+}
+
 mechanicals_tab_content = ds.html.Div(
     id="mechanicals_tab_content",
     children=[
@@ -88,7 +131,50 @@ mechanicals_tab_content = ds.html.Div(
 load_balancing_tab_content = ds.html.Div(
     id="load_balancing_tab_content",
     children=[
-        ds.html.P("Load balancing content will be displayed here", style={"color": "#6c757d", "line-height": "1.5"}),
+        ds.html.Div(
+            children=[
+                # Left column - two figures stacked vertically (1/3 width)
+                ds.html.Div(
+                    children=[
+                        # Top left - Cathode Cross Section
+                        ds.html.Div(
+                            children=[
+                                ds.dcc.Graph(
+                                    id="cathode_cross_section",
+                                    config={'displayModeBar': False},
+                                    style=LOAD_BALANCING_SMALL_GRAPH_STYLE
+                                )
+                            ],
+                            style=LOAD_BALANCING_LEFT_CONTAINER
+                        ),
+                        # Bottom left - Anode Cross Section
+                        ds.html.Div(
+                            children=[
+                                ds.dcc.Graph(
+                                    id="anode_cross_section",
+                                    config={'displayModeBar': False},
+                                    style=LOAD_BALANCING_SMALL_GRAPH_STYLE
+                                )
+                            ],
+                            style=LOAD_BALANCING_LEFT_CONTAINER_BOTTOM
+                        ),
+                    ],
+                    style=LOAD_BALANCING_LEFT_COLUMN_STYLE
+                ),
+                # Right column - large figure (2/3 width)
+                ds.html.Div(
+                    children=[
+                        ds.dcc.Graph(
+                            id="areal_capacity_plot",
+                            config={'displayModeBar': False},
+                            style=LOAD_BALANCING_LARGE_GRAPH_STYLE
+                        )
+                    ],
+                    style=LOAD_BALANCING_RIGHT_CONTAINER
+                ),
+            ],
+            style={"width": "100%", "padding": "10px"}
+        )
     ]
 )
 

@@ -1,9 +1,13 @@
 
 import inspect
 from dash import Input, Output, callback, State
+
+from steer_core.Constants.Units import M_TO_MM
+
 from App.general.callback_helpers import update_tab_styles
 from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
 from App.electrodes.configs import ELECTRODE_CONFIGS, ElectrodeType
+from App.layup.configs import LAYUP_CONFIGS, LayupType
 
 
 @callback(
@@ -102,3 +106,103 @@ def update_anode_mechanicals_plots(trigger_data, cell_data):
     callback_name = inspect.currentframe().f_code.co_name
     return (callback_name,) + (fig_a_side, fig_b_side)
 
+
+##############################
+#### Cross Section Graphs ####
+##############################
+
+@callback(
+    [
+        Output("last_triggered", "data", allow_duplicate=True),
+        Output("cathode_cross_section", "figure"),
+    ],
+    Input({"type": "trigger", "callback": "update_cathode_cross_section"}, "data"),
+    State("cell_store", "data"),
+    prevent_initial_call=True,
+)
+def update_cathode_cross_section(trigger_data, cell_data):
+    """
+    Update cathode cross section plot.
+    """
+    # Get cell from cache
+    cell_key = cell_data["cache_key"]
+    cell = get_cell_from_cache(cell_key)
+    
+    # Get both cathode and anode electrodes to calculate y-axis range
+    cathode = get_object_from_cell(cell, ELECTRODE_CONFIGS[ElectrodeType.CATHODE])
+    anode = get_object_from_cell(cell, ELECTRODE_CONFIGS[ElectrodeType.ANODE])
+    
+    # Calculate y-axis range as max thickness * 1.2
+    cathode_thickness = cathode._thickness
+    anode_thickness = anode._thickness
+    max_thickness = max(cathode_thickness, anode_thickness)
+    max_thickness = max_thickness * M_TO_MM
+    y_axis_range = [-max_thickness/2 * 1.2, max_thickness/2 * 1.2]
+    
+    # Generate cross section figure
+    fig = cathode.get_cross_section(y_axis_range=y_axis_range, title="Cathode Cross Section")
+    
+    callback_name = inspect.currentframe().f_code.co_name
+    return (callback_name, fig)
+
+
+@callback(
+    [
+        Output("last_triggered", "data", allow_duplicate=True),
+        Output("anode_cross_section", "figure"),
+    ],
+    Input({"type": "trigger", "callback": "update_anode_cross_section"}, "data"),
+    State("cell_store", "data"),
+    prevent_initial_call=True,
+)
+def update_anode_cross_section(trigger_data, cell_data):
+    """
+    Update anode cross section plot.
+    """
+    # Get cell from cache
+    cell_key = cell_data["cache_key"]
+    cell = get_cell_from_cache(cell_key)
+    
+    # Get both cathode and anode electrodes to calculate y-axis range
+    cathode = get_object_from_cell(cell, ELECTRODE_CONFIGS[ElectrodeType.CATHODE])
+    anode = get_object_from_cell(cell, ELECTRODE_CONFIGS[ElectrodeType.ANODE])
+    
+    # Calculate y-axis range as max thickness * 1.2
+    cathode_thickness = cathode._thickness
+    anode_thickness = anode._thickness
+    max_thickness = max(cathode_thickness, anode_thickness)
+    max_thickness = max_thickness * M_TO_MM
+    y_axis_range = [-max_thickness/2 * 1.2, max_thickness/2 * 1.2]
+    
+    # Generate cross section figure
+    fig = anode.get_cross_section(y_axis_range=y_axis_range, title="Anode Cross Section")
+
+    callback_name = inspect.currentframe().f_code.co_name
+    return (callback_name, fig)
+
+
+@callback(
+    [
+        Output("last_triggered", "data", allow_duplicate=True),
+        Output("areal_capacity_plot", "figure"),
+    ],
+    Input({"type": "trigger", "callback": "update_areal_capacity_plot"}, "data"),
+    State("cell_store", "data"),
+    prevent_initial_call=True,
+)
+def update_areal_capacity_plot(trigger_data, cell_data):
+    """
+    Update areal capacity plot.
+    """
+    # Get cell from cache
+    cell_key = cell_data["cache_key"]
+    cell = get_cell_from_cache(cell_key)
+    
+    # Get the layup object
+    layup = get_object_from_cell(cell, LAYUP_CONFIGS[LayupType.GENERIC])
+    
+    # Get the areal capacity plot
+    fig = layup.get_areal_capacity_plot(title="Areal Capacity")
+
+    callback_name = inspect.currentframe().f_code.co_name
+    return (callback_name, fig)
