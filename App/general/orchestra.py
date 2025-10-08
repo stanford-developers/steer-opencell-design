@@ -182,10 +182,9 @@ def orchestrate_callbacks_generic(
             **callback_conditions
         }
         
-        # Debug output (can be controlled per module)
-        # print(f"orchestrating {debug_name}, callback name: {callback_name}, conditions: {all_conditions}")
-        
         # Trigger if all conditions are met
         if all(all_conditions.values()):
+            # Debug output (can be controlled per module)
+            print(f"orchestrating {debug_name}, callback name: {callback_name}, conditions: {all_conditions}")
             trigger_callback(callback_name, timestamp)
 
