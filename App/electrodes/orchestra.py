@@ -5,6 +5,7 @@ import time
 from App.general.cell_operations import get_cell_from_cache, get_object_from_cell
 from App.electrodes.configs import ELECTRODE_CONFIGS, ElectrodeType
 from App.current_collectors.configs import COLLECTOR_CONFIGS, CollectorType
+from App.materials.configs import MATERIAL_CONFIGS, MaterialType
 from App.general.orchestra import (
     has_type_changed,
     create_trigger_store,
@@ -19,12 +20,14 @@ from App.general.orchestra import (
 
 CATHODE_CALLBACKS = [
     "toggle_cathode_insulation_parameters_style",
-    # "update_cathode",  # Currently commented out
+    "update_cathode_current_collector_insulation_material",
+    "update_cathode",
 ]
 
 ANODE_CALLBACKS = [
     "toggle_anode_insulation_parameters_style",
-    # "update_anode",  # Currently commented out
+    "update_anode_current_collector_insulation_material",
+    "update_anode",
 ]
 
 ALL_CALLBACKS = CATHODE_CALLBACKS + ANODE_CALLBACKS
@@ -41,6 +44,16 @@ ELECTRODE_TRIGGER_CONFIGS = {
 
     "toggle_cathode_insulation_parameters_style": CallbackTriggerConfig(
         config=COLLECTOR_CONFIGS[CollectorType.CATHODE_GENERIC],
+        conditions=[],
+        required_visibility=[
+            "cathode_electrode_tab",
+            "cathode_tab", 
+            "tabs_panel"
+        ]
+    ),
+    "update_cathode_current_collector_insulation_material": CallbackTriggerConfig(
+        config=MATERIAL_CONFIGS[MaterialType.CATHODE_INSULATION],
+        conditions=[],
         required_visibility=[
             "cathode_electrode_tab",
             "cathode_tab", 
@@ -50,6 +63,16 @@ ELECTRODE_TRIGGER_CONFIGS = {
 
     "toggle_anode_insulation_parameters_style": CallbackTriggerConfig(
         config=COLLECTOR_CONFIGS[CollectorType.ANODE_GENERIC],
+        conditions=[],
+        required_visibility=[
+            "anode_electrode_tab",
+            "anode_tab", 
+            "tabs_panel"
+        ]
+    ),
+    "update_anode_current_collector_insulation_material": CallbackTriggerConfig(
+        config=MATERIAL_CONFIGS[MaterialType.ANODE_INSULATION],
+        conditions=[],
         required_visibility=[
             "anode_electrode_tab",
             "anode_tab", 
@@ -57,30 +80,25 @@ ELECTRODE_TRIGGER_CONFIGS = {
         ]
     ),
 
-    # Future configurations for when electrode update callbacks are uncommented
-    # "update_cathode": CallbackTriggerConfig(
-    #     config=ELECTRODE_CONFIGS[ElectrodeType.CATHODE],
-    #     conditions=[
-    #         TriggerCondition(check_function=has_type_changed)
-    #     ],
-    #     required_visibility=[
-    #         "cathode_electrode_tab",
-    #         "cathode_tab", 
-    #         "tabs_panel"
-    #     ]
-    # ),
+    "update_cathode": CallbackTriggerConfig(
+        config=ELECTRODE_CONFIGS[ElectrodeType.CATHODE],
+        conditions=[],
+        required_visibility=[
+            "cathode_electrode_tab",
+            "cathode_tab", 
+            "tabs_panel"
+        ]
+    ),
 
-    # "update_anode": CallbackTriggerConfig(
-    #     config=ELECTRODE_CONFIGS[ElectrodeType.ANODE],
-    #     conditions=[
-    #         TriggerCondition(check_function=has_type_changed)
-    #     ],
-    #     required_visibility=[
-    #         "anode_electrode_tab",
-    #         "anode_tab", 
-    #         "tabs_panel"
-    #     ]
-    # ),
+    "update_anode": CallbackTriggerConfig(
+        config=ELECTRODE_CONFIGS[ElectrodeType.ANODE],
+        conditions=[],
+        required_visibility=[
+            "anode_electrode_tab",
+            "anode_tab", 
+            "tabs_panel"
+        ]
+    ),
 
 }
 
