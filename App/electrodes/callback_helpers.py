@@ -20,7 +20,6 @@ def create_electrode_callback(electrode_key: ElectrodeType) -> callable:
         cell_data: dict,
         input_values: list,
         slider_values: list,
-        viewing_styles=[],
         control_mode_values=None,
         original_values=None,
         original_mins=None,
@@ -36,11 +35,9 @@ def create_electrode_callback(electrode_key: ElectrodeType) -> callable:
         # get the propid
         triggered_prop_id = list(ctx.triggered_prop_ids.keys())[0].split(".")[-1]
 
-        # If all display is none for any of the viewing styles, return no update
-        prevent_update_from_styles(viewing_styles)
-
         # Get the cell from cache
-        cell = get_cell_from_cache(cell_data["cache_key"])
+        cell_key = cell_data["cache_key"]
+        cell = get_cell_from_cache(cell_key)
 
         # get the electrode from the cell, either cathode or anode depending on electrode
         electrode = get_object_from_cell(cell, config)
@@ -58,6 +55,7 @@ def create_electrode_callback(electrode_key: ElectrodeType) -> callable:
                 existing_warnings=existing_warnings,
                 triggered_id=triggered_id,
                 cell=cell,
+                cell_key=cell_key,
                 object_instance=electrode,
                 config=config,
                 input_values=input_values,
