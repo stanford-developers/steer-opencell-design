@@ -32,6 +32,7 @@ CATHODE_CALLBACKS = [
     "update_cathode_tabless_current_collector",
     "update_cathode_tabbed_current_collector",
     "update_cathode_current_collector_material",
+    "update_cathode_current_collector_tab_material",
 ]
 
 ANODE_CALLBACKS = [
@@ -41,6 +42,7 @@ ANODE_CALLBACKS = [
     "update_anode_tabless_current_collector",
     "update_anode_tabbed_current_collector",
     "update_anode_current_collector_material",
+    "update_anode_current_collector_tab_material",
 ]
 
 ALL_CALLBACKS = CATHODE_CALLBACKS + ANODE_CALLBACKS
@@ -93,7 +95,6 @@ COLLECTOR_TRIGGER_CONFIGS = {
     "update_cathode_punched_current_collector": CallbackTriggerConfig(
         config=COLLECTOR_CONFIGS[CollectorType.CATHODE_PUNCHED],
         conditions=[
-            TriggerCondition(check_function=has_changed),
             TriggerCondition(check_function=is_punched),
         ],
         required_visibility=[
@@ -105,7 +106,6 @@ COLLECTOR_TRIGGER_CONFIGS = {
     "update_cathode_notched_current_collector": CallbackTriggerConfig(
         config=COLLECTOR_CONFIGS[CollectorType.CATHODE_NOTCHED],
         conditions=[
-            TriggerCondition(check_function=has_changed),
             TriggerCondition(check_function=is_notched),
         ],
         required_visibility=[
@@ -117,7 +117,6 @@ COLLECTOR_TRIGGER_CONFIGS = {
     "update_cathode_tabless_current_collector": CallbackTriggerConfig(
         config=COLLECTOR_CONFIGS[CollectorType.CATHODE_TABLESS],
         conditions=[
-            TriggerCondition(check_function=has_changed),
             TriggerCondition(check_function=is_tabless),
         ],
         required_visibility=[
@@ -129,7 +128,6 @@ COLLECTOR_TRIGGER_CONFIGS = {
     "update_cathode_tabbed_current_collector": CallbackTriggerConfig(
         config=COLLECTOR_CONFIGS[CollectorType.CATHODE_TABBED],
         conditions=[
-            TriggerCondition(check_function=has_changed),
             TriggerCondition(check_function=is_tabbed),
         ],
         required_visibility=[
@@ -153,7 +151,6 @@ COLLECTOR_TRIGGER_CONFIGS = {
     "update_anode_punched_current_collector": CallbackTriggerConfig(
         config=COLLECTOR_CONFIGS[CollectorType.ANODE_PUNCHED],
         conditions=[
-            TriggerCondition(check_function=has_changed),
             TriggerCondition(check_function=is_punched),
         ],
         required_visibility=[
@@ -165,7 +162,6 @@ COLLECTOR_TRIGGER_CONFIGS = {
     "update_anode_notched_current_collector": CallbackTriggerConfig(
         config=COLLECTOR_CONFIGS[CollectorType.ANODE_NOTCHED],
         conditions=[
-            TriggerCondition(check_function=has_changed),
             TriggerCondition(check_function=is_notched),
         ],
         required_visibility=[
@@ -177,7 +173,6 @@ COLLECTOR_TRIGGER_CONFIGS = {
     "update_anode_tabless_current_collector": CallbackTriggerConfig(
         config=COLLECTOR_CONFIGS[CollectorType.ANODE_TABLESS],
         conditions=[
-            TriggerCondition(check_function=has_changed),
             TriggerCondition(check_function=is_tabless),
         ],
         required_visibility=[
@@ -189,7 +184,6 @@ COLLECTOR_TRIGGER_CONFIGS = {
     "update_anode_tabbed_current_collector": CallbackTriggerConfig(
         config=COLLECTOR_CONFIGS[CollectorType.ANODE_TABBED],
         conditions=[
-            TriggerCondition(check_function=has_changed),
             TriggerCondition(check_function=is_tabbed),
         ],
         required_visibility=[
@@ -201,8 +195,17 @@ COLLECTOR_TRIGGER_CONFIGS = {
 
     "update_cathode_current_collector_material": CallbackTriggerConfig(
         config=MATERIAL_CONFIGS[MaterialType.CATHODE_CURRENT_COLLECTOR],
+        conditions=[],
+        required_visibility=[
+            "cathode_current_collector_tab",
+            "cathode_tab",
+            "tabs_panel"
+        ]
+    ),
+    "update_cathode_current_collector_tab_material": CallbackTriggerConfig(
+        config=COLLECTOR_CONFIGS[CollectorType.CATHODE_GENERIC],
         conditions=[
-            TriggerCondition(check_function=has_changed),
+            TriggerCondition(check_function=is_tabbed),
         ],
         required_visibility=[
             "cathode_current_collector_tab",
@@ -212,8 +215,17 @@ COLLECTOR_TRIGGER_CONFIGS = {
     ),
     "update_anode_current_collector_material": CallbackTriggerConfig(
         config=MATERIAL_CONFIGS[MaterialType.ANODE_CURRENT_COLLECTOR],
+        conditions=[],
+        required_visibility=[
+            "anode_current_collector_tab",
+            "anode_tab",
+            "tabs_panel"
+        ]
+    ),
+    "update_anode_current_collector_tab_material": CallbackTriggerConfig(
+        config=COLLECTOR_CONFIGS[CollectorType.ANODE_GENERIC],
         conditions=[
-            TriggerCondition(check_function=has_changed),
+            TriggerCondition(check_function=is_tabbed),
         ],
         required_visibility=[
             "anode_current_collector_tab",

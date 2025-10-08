@@ -36,6 +36,7 @@ from steer_core.Constants.Units import *
 
 
 class TestSimpleLaminate(unittest.TestCase):
+    
     def setUp(self):
         ########################
         # make a basic cathode
