@@ -364,6 +364,7 @@ class _Electrode(
         return figure
 
     def _get_full_right_left_view(self, **kwargs) -> pd.DataFrame:
+
         figure = self._current_collector.get_right_left_view(**kwargs)
         figure.data = [trace for trace in figure.data if trace.name == "Body" or trace.name == "Tab"]
         figure.add_trace(self.right_left_a_side_coating_trace)
@@ -485,9 +486,15 @@ class _Electrode(
             self._flip("y")
             return figure
 
-    def get_cross_section(self, **kwargs) -> go.Figure:
+    def get_cross_section(self, y_axis_range=None, **kwargs) -> go.Figure:
         """
         Get a cross-section view of the electrode, zoomed in around the datum.
+        
+        Parameters
+        ----------
+        y_axis_range : list or tuple, optional
+            Custom y-axis range as [min, max]. If not provided, automatically calculated 
+            based on electrode thickness and datum position.
         """
         figure = self._get_full_right_left_view(**kwargs)
 
@@ -495,15 +502,19 @@ class _Electrode(
         datum_y = self.datum[1]  # y-coordinate of datum
         datum_z = self.datum[2]  # z-coordinate of datum
 
-        # Get total thickness in mm (electrode thickness includes coating on both sides + current collector)
-        total_thickness_mm = self.thickness * UM_TO_MM
+        # Use custom y_axis_range if provided, otherwise calculate default range
+        if y_axis_range is not None:
+            y_range = list(y_axis_range)  # Convert to list to ensure it's mutable
+        else:
+            # Get total thickness in mm (electrode thickness includes coating on both sides + current collector)
+            total_thickness_mm = self.thickness * UM_TO_MM
 
-        # Calculate zoom range (1.5x the thickness)
-        zoom_range = total_thickness_mm * 1.5
-        half_range = zoom_range / 2
+            # Calculate zoom range (1.5x the thickness)
+            zoom_range = total_thickness_mm * 1.5
+            half_range = zoom_range / 2
 
-        # Set axis ranges centered on datum
-        y_range = [datum_y - half_range, datum_y + half_range]
+            # Set axis ranges centered on datum
+            y_range = [datum_y - half_range, datum_y + half_range]
 
         # Update layout to zoom in and lock aspect ratio
         figure.update_layout(
