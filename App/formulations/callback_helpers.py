@@ -64,7 +64,6 @@ def create_generic_formulation_callback(formulation_type: FormulationType) -> ca
         cell_data,
         input_values=None,
         slider_values=None,
-        viewing_styles=[],
     ) -> Tuple:
         # Get the triggered ID
         triggered_id = ctx.triggered_id
@@ -72,11 +71,9 @@ def create_generic_formulation_callback(formulation_type: FormulationType) -> ca
         # get the propid
         triggered_prop_id = list(ctx.triggered_prop_ids.keys())[0].split(".")[-1]
 
-        # If all display is none for any of the viewing styles, return no update
-        prevent_update_from_styles(viewing_styles)
-
         # Get the cell from cache
-        cell = get_cell_from_cache(cell_data["cache_key"])
+        cache_key = cell_data["cache_key"]
+        cell = get_cell_from_cache(cache_key)
 
         # get the formulation from the cell
         formulation = get_object_from_cell(cell, config)
@@ -89,13 +86,14 @@ def create_generic_formulation_callback(formulation_type: FormulationType) -> ca
 
         elif trigger_type == TriggerType.PROPERTY:
             return handle_property_update(
-                existing_warnings,
-                triggered_id,
-                cell,
-                formulation,
-                config,
-                input_values,
-                slider_values,
+                existing_warnings=existing_warnings,
+                triggered_id=triggered_id,
+                cell=cell,
+                cell_key=cache_key,
+                object_instance=formulation,
+                config=config,
+                input_values=input_values,
+                slider_values=slider_values,
             )
 
         else:
@@ -124,17 +122,14 @@ def create_generic_formulation_div_callback(
         anode_active_options,
         slider_values,
         input_values,
-        viewing_styles=[],
     ) -> Tuple:
-        
-        # If all display is none for any of the viewing styles, return no update
-        prevent_update_from_styles(viewing_styles)
 
         # Get the triggered ID
         trigger_id = ctx.triggered_id
 
         # Get the cell from cache
-        cell = get_cell_from_cache(cell_data["cache_key"])
+        cell_key = cell_data["cache_key"]
+        cell = get_cell_from_cache(cell_key)
 
         # Get the formulation from the cell
         formulation = get_object_from_cell(cell, formulation_config)
@@ -207,10 +202,6 @@ def create_generic_formulation_div_callback(
             conductive_div_count,
         )
 
-        # If all display is none for any of the viewing styles, return no update
-        if any(d.get("display") == "none" for d in viewing_styles):
-            raise PreventUpdate
-
         # Handle the case that the cell store is triggered
         if trigger_type == TriggerType.CELL_STORE or trigger_type == TriggerType.STYLE:
             return handle_cell_store_update_materials(
@@ -227,6 +218,7 @@ def create_generic_formulation_div_callback(
             return handle_indexed_dropdown_update(
                 existing_warnings=existing_warnings,
                 cell=cell,
+                cell_key=cell_key,
                 trigger_id=trigger_id,
                 formulation=formulation,
                 formulation_config=formulation_config,
@@ -239,6 +231,7 @@ def create_generic_formulation_div_callback(
             return handle_material_button_update(
                 existing_warnings=existing_warnings,
                 cell=cell,
+                cell_key=cell_key,
                 trigger_id=trigger_id,
                 formulation=formulation,
                 formulation_config=formulation_config,
@@ -267,6 +260,7 @@ def create_generic_formulation_div_callback(
                 existing_warnings=existing_warnings,
                 trigger_id=trigger_id,
                 cell=cell,
+                cell_key=cell_key,
                 formulation=formulation,
                 formulation_config=formulation_config,
                 active_div_styles=active_div_styles,

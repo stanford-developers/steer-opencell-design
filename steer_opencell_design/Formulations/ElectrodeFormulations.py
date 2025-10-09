@@ -740,6 +740,11 @@ class _ElectrodeFormulation(
     @conductive_additives.setter
     @calculate_all_properties
     def conductive_additives(self, conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None):
+
+        # remove cases where either the key or value is None
+        conductive_additives = {k: v for k, v in conductive_additives.items() if k is not None and v is not None}
+
+        # validate types
         if conductive_additives != {}:
             for key, value in conductive_additives.items():
                 self.validate_type(key, ConductiveAdditive, "Conductive additive")
@@ -750,11 +755,17 @@ class _ElectrodeFormulation(
     @binders.setter
     @calculate_all_properties
     def binders(self, binders: Optional[Dict[Binder, float]] = None):
+
+        # remove cases where either the key or value is None
+        binders = {k: v for k, v in binders.items() if k is not None and v is not None}
+
+        # validate types
         if binders != {}:
             for key, value in binders.items():
                 self.validate_type(key, Binder, "Binder")
                 self.validate_percentage(value, f"Mass fraction for {key.name}")
 
+        # assign
         self._binders = {key: value / 100 for key, value in binders.items()}
 
     @active_materials.setter
@@ -766,6 +777,9 @@ class _ElectrodeFormulation(
         # Check if active_materials is empty
         if len(active_materials) == 0:
             raise ValueError("You must include at least one active material in the formulation.")
+        
+        # remove cases where either the key or value is None
+        active_materials = {k: v for k, v in active_materials.items() if k is not None and v is not None}
 
         # Check the types and values of the active materials
         for key, value in active_materials.items():

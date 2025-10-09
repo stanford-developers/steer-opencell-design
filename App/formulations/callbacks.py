@@ -1,4 +1,5 @@
 from time import time
+import inspect
 from dash import callback, Input, Output, State, no_update, ALL
 from dash.exceptions import PreventUpdate
 
@@ -17,8 +18,11 @@ from steer_core.Apps.ContextManagers import capture_warnings
 
 @callback(
     [
+        Output("last_triggered", "data", allow_duplicate=True),
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
+        Output("old_cell_store", "data", allow_duplicate=True),
+
         Output({"electrode": "cathode", "object": "formulation", "property": ALL, "subtype": "slider"}, "value"),
         Output({"electrode": "cathode", "object": "formulation", "property": ALL, "subtype": "slider"}, "min"),
         Output({"electrode": "cathode", "object": "formulation", "property": ALL, "subtype": "slider"}, "max"),
@@ -27,31 +31,30 @@ from steer_core.Apps.ContextManagers import capture_warnings
         Output({"electrode": "cathode", "object": "formulation", "property": ALL, "subtype": "input"}, "step"),
     ],
     [
-        Input("cathode_formulation_tab", "style"),
-        Input("cathode_tab", "style"),
-        Input("tabs_panel", "style"),
-        Input("cell_store", "data"),
+        Input({"type": "trigger", "callback": "update_cathode_formulation_main"}, "data"),
         Input({"electrode": "cathode", "object": "formulation", "property": ALL, "subtype": "input"}, "n_submit"),
         Input({"electrode": "cathode", "object": "formulation", "property": ALL, "subtype": "input"}, "n_blur"),
         Input({"electrode": "cathode", "object": "formulation", "property": ALL, "subtype": "slider"}, "value"),
     ],
     [
+        State("cell_store", "data"),
         State({"electrode": "cathode", "object": "formulation", "property": ALL, "subtype": "input"}, "value"),
         State("warnings_store", "data"),
     ],
     prevent_initial_call=True,
 )
 def update_cathode_formulation_main(
-    cc_tab_style,
-    tab_style,
-    tabs_panel_style,
-    cell_data,
+    trigger_data,
     input_n_sub,
     input_n_blur,
     slider_values,
+    cell_data,
     input_values,
     existing_warnings,
 ):
+    
+    callback_name = inspect.currentframe().f_code.co_name
+    
     callback_function = create_generic_formulation_callback(FormulationType.CATHODE)
 
     response = callback_function(
@@ -59,16 +62,18 @@ def update_cathode_formulation_main(
         cell_data,
         input_values,
         slider_values,
-        viewing_styles=[cc_tab_style, tab_style, tabs_panel_style],
     )
 
-    return response
+    return (callback_name, ) + response
 
 
 @callback(
     [
+        Output("last_triggered", "data", allow_duplicate=True),
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
+        Output("old_cell_store", "data", allow_duplicate=True),
+
         Output({"electrode": "anode", "object": "formulation", "property": ALL, "subtype": "slider"}, "value"),
         Output({"electrode": "anode", "object": "formulation", "property": ALL, "subtype": "slider"}, "min"),
         Output({"electrode": "anode", "object": "formulation", "property": ALL, "subtype": "slider"}, "max"),
@@ -77,31 +82,30 @@ def update_cathode_formulation_main(
         Output({"electrode": "anode", "object": "formulation", "property": ALL, "subtype": "input"}, "step"),
     ],
     [
-        Input("anode_formulation_tab", "style"),
-        Input("anode_tab", "style"),
-        Input("tabs_panel", "style"),
-        Input("cell_store", "data"),
+        Input({"type": "trigger", "callback": "update_anode_formulation_main"}, "data"),
         Input({"electrode": "anode", "object": "formulation", "property": ALL, "subtype": "input"}, "n_submit"),
         Input({"electrode": "anode", "object": "formulation", "property": ALL, "subtype": "input"}, "n_blur"),
         Input({"electrode": "anode", "object": "formulation", "property": ALL, "subtype": "slider"}, "value"),
     ],
     [
+        State("cell_store", "data"),
         State({"electrode": "anode", "object": "formulation", "property": ALL, "subtype": "input"}, "value"),
         State("warnings_store", "data"),
     ],
     prevent_initial_call=True,
 )
 def update_anode_formulation_main(
-    cc_tab_style,
-    tab_style,
-    tabs_panel_style,
-    cell_data,
+    trigger_data,
     input_n_sub,
     input_n_blur,
     slider_values,
+    cell_data,
     input_values,
     existing_warnings,
 ):
+
+    callback_name = inspect.currentframe().f_code.co_name
+    
     callback_function = create_generic_formulation_callback(FormulationType.ANODE)
 
     response = callback_function(
@@ -109,16 +113,17 @@ def update_anode_formulation_main(
         cell_data,
         input_values,
         slider_values,
-        viewing_styles=[cc_tab_style, tab_style, tabs_panel_style],
     )
 
-    return response
+    return (callback_name, ) + response
 
 
 @callback(
     [
+        Output("last_triggered", "data", allow_duplicate=True),
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
+        Output("old_cell_store", "data", allow_duplicate=True),
         Output({"electrode": "cathode", "object": "formulation", "material": ALL, "index": ALL}, "style"),
         Output({"electrode": "cathode", "object": "formulation", "material": ALL, "index": ALL, "subtype": "dropdown"}, "options"),
         Output({"electrode": "cathode", "object": "formulation", "material": ALL, "index": ALL, "subtype": "dropdown"}, "value"),
@@ -131,10 +136,7 @@ def update_anode_formulation_main(
         Output({"electrode": "cathode", "object": "formulation", "material": ALL, "index": ALL, "property": ALL, "subtype": "input"}, "step"),
     ],
     [
-        Input("cathode_formulation_tab", "style"),
-        Input("cathode_tab", "style"),
-        Input("tabs_panel", "style"),
-        Input("cell_store", "data"),
+        Input({"type": "trigger", "callback": "update_cathode_formulation_div"}, "data"),
         Input({"electrode": "cathode", "object": "formulation", "action": ALL, "material": ALL}, "n_clicks"),
         Input({"electrode": "cathode", "object": "formulation", "material": ALL, "index": ALL, "subtype": "dropdown"}, "value"),
         Input({"electrode": "cathode", "object": "formulation", "material": ALL, "index": ALL, "subtype": "weight_fraction"}, "n_submit"),
@@ -144,6 +146,7 @@ def update_anode_formulation_main(
         Input({"electrode": "cathode", "object": "formulation", "material": ALL, "index": ALL, "property": ALL, "subtype": "slider"}, "value"),
     ],
     [
+        State("cell_store", "data"),
         State("warnings_store", "data"),
         State({"electrode": "cathode", "object": "formulation", "material": ALL, "index": ALL}, "style"),
         State({"electrode": "cathode", "object": "formulation", "material": ALL, "index": ALL, "subtype": "dropdown"}, "value"),
@@ -158,10 +161,7 @@ def update_anode_formulation_main(
     prevent_initial_call=True,
 )
 def update_cathode_formulation_div(
-    cc_tab_style,
-    tab_style,
-    tabs_panel_style,
-    cell_data,
+    trigger_data,
     action_button_clicks,
     dropdown_values,
     weight_fraction_n_sub,
@@ -169,6 +169,7 @@ def update_cathode_formulation_div(
     input_n_sub,
     input_n_blur,
     slider_values,
+    cell_data,
     existing_warnings,
     all_div_styles,
     all_dropdown_values,
@@ -180,6 +181,8 @@ def update_cathode_formulation_div(
     anode_material_options,
     input_values,
 ):
+    callback_name = inspect.currentframe().f_code.co_name
+    
     callback_function = create_generic_formulation_div_callback(FormulationType.CATHODE)
 
     response = callback_function(
@@ -195,16 +198,17 @@ def update_cathode_formulation_div(
         anode_material_options,
         slider_values=slider_values,
         input_values=input_values,
-        viewing_styles=[cc_tab_style, tab_style, tabs_panel_style],
     )
 
-    return response
+    return (callback_name, ) + response
 
 
 @callback(
     [
+        Output("last_triggered", "data", allow_duplicate=True),
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
+        Output("old_cell_store", "data", allow_duplicate=True),
         Output({"electrode": "anode", "object": "formulation", "material": ALL, "index": ALL}, "style"),
         Output({"electrode": "anode", "object": "formulation", "material": ALL, "index": ALL, "subtype": "dropdown"}, "options"),
         Output({"electrode": "anode", "object": "formulation", "material": ALL, "index": ALL, "subtype": "dropdown"}, "value"),
@@ -217,10 +221,7 @@ def update_cathode_formulation_div(
         Output({"electrode": "anode", "object": "formulation", "material": ALL, "index": ALL, "property": ALL, "subtype": "input"}, "step"),
     ],
     [
-        Input("anode_formulation_tab", "style"),
-        Input("anode_tab", "style"),
-        Input("tabs_panel", "style"),
-        Input("cell_store", "data"),
+        Input({"type": "trigger", "callback": "update_anode_formulation_div"}, "data"),
         Input({"electrode": "anode", "object": "formulation", "action": ALL, "material": ALL}, "n_clicks"),
         Input({"electrode": "anode", "object": "formulation", "material": ALL, "index": ALL, "subtype": "dropdown"}, "value"),
         Input({"electrode": "anode", "object": "formulation", "material": ALL, "index": ALL, "subtype": "weight_fraction"}, "n_submit"),
@@ -230,6 +231,7 @@ def update_cathode_formulation_div(
         Input({"electrode": "anode", "object": "formulation", "material": ALL, "index": ALL, "property": ALL, "subtype": "slider"}, "value"),
     ],
     [
+        State("cell_store", "data"),
         State("warnings_store", "data"),
         State({"electrode": "anode", "object": "formulation", "material": ALL, "index": ALL}, "style"),
         State({"electrode": "anode", "object": "formulation", "material": ALL, "index": ALL, "subtype": "dropdown"}, "value"),
@@ -244,10 +246,7 @@ def update_cathode_formulation_div(
     prevent_initial_call=True,
 )
 def update_anode_formulation_div(
-    cc_tab_style,
-    tab_style,
-    tabs_panel_style,
-    cell_data,
+    trigger_data,
     action_button_clicks,
     dropdown_values,
     weight_fraction_n_sub,
@@ -255,6 +254,7 @@ def update_anode_formulation_div(
     input_n_sub,
     input_n_blur,
     slider_values,
+    cell_data,
     existing_warnings,
     all_div_styles,
     all_dropdown_values,
@@ -266,6 +266,8 @@ def update_anode_formulation_div(
     anode_material_options,
     input_values,
 ):
+    callback_name = inspect.currentframe().f_code.co_name
+    
     callback_function = create_generic_formulation_div_callback(FormulationType.ANODE)
 
     response = callback_function(
@@ -281,95 +283,7 @@ def update_anode_formulation_div(
         anode_material_options,
         slider_values=slider_values,
         input_values=input_values,
-        viewing_styles=[cc_tab_style, tab_style, tabs_panel_style],
     )
 
-    return response
-
-
-@callback(
-    [
-        Output("cathode_formulation_specific_capacity_plot", "figure"),
-        Output("cathode_formulation_properties_div", "children"),
-    ],
-    [
-        Input("cathode_formulation_tab", "style"),
-        Input("cathode_tab", "style"),
-        Input("tabs_panel", "style"),
-        Input("cell_store", "data"),
-    ],
-    prevent_initial_call=True,
-)
-def update_cathode_formulation_plots(
-    cathode_tab_style,
-    tabs_panel_style,
-    main_tabs_panel_style,
-    cell_data,
-):
-    """
-    Update the cathode current collector plots based on the current collector store data.
-    """
-    # If all display is none for any of the viewing styles, return no update
-    prevent_update_from_styles([cathode_tab_style, tabs_panel_style, main_tabs_panel_style])
-
-    # Get the configuration
-    config = FORMULATION_CONFIGS[FormulationType.CATHODE]
-
-    # get the cell from the cache
-    cell = cache.get(cell_data["cache_key"])
-
-    # get the current collector from the cell
-    formulation = get_object_from_cell(cell, config)
-
-    # get the plots from the current collector
-    plot_a = formulation.plot_half_cell_curve(add_materials=True)
-
-    # Get the properties
-    properties = formulation.properties
-
-    # Create properties table using utility function
-    properties_table = create_properties_table(properties, table_id="cathode_properties_table", decimal_places=2)
-
-    return plot_a, properties_table
-
-
-@callback(
-    [
-        Output("anode_formulation_specific_capacity_plot", "figure"),
-        Output("anode_formulation_properties_div", "children"),
-    ],
-    [
-        Input("anode_formulation_tab", "style"),
-        Input("anode_tab", "style"),
-        Input("tabs_panel", "style"),
-        Input("cell_store", "data"),
-    ],
-    prevent_initial_call=True,
-)
-def update_anode_formulation_plots(anode_tab_style, tabs_panel_style, main_tabs_panel_style, cell_data):
-    """
-    Update the anode current collector plots based on the current collector store data.
-    """
-    # If all display is none for any of the viewing styles, return no update
-    prevent_update_from_styles([anode_tab_style, tabs_panel_style, main_tabs_panel_style])
-
-    # Get the configuration
-    config = FORMULATION_CONFIGS[FormulationType.ANODE]
-
-    # get the cell from the cache
-    cell = cache.get(cell_data["cache_key"])
-
-    # get the current collector from the cell
-    formulation = get_object_from_cell(cell, config)
-
-    # get the plots from the current collector
-    plot_a = formulation.plot_half_cell_curve(add_materials=True)
-
-    # Get the properties
-    properties = formulation.properties
-
-    # Create properties table using utility function
-    properties_table = create_properties_table(properties, table_id="cathode_properties_table", decimal_places=2)
-
-    return plot_a, properties_table
+    return (callback_name, ) + response
 

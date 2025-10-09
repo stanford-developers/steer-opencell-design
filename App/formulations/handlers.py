@@ -205,6 +205,7 @@ def create_no_update_response(
     return (
         no_update,
         no_update,
+        no_update,
         [no_update] * (n_active_div + n_binder_div + n_conductive_div),
         [no_update] * (n_active_div + n_binder_div + n_conductive_div),
         [no_update] * (n_active_div + n_binder_div + n_conductive_div),
@@ -339,6 +340,7 @@ def handle_cell_store_update_materials(
     return (
         no_update,
         no_update,
+        no_update,
         div_style_response,
         dropdown_options_response,
         dropdown_values_response,
@@ -381,7 +383,7 @@ def handle_add_material_div(
     default_response = list(create_no_update_response(formulation, active_div_styles, binder_div_styles, conductive_div_styles))
 
     # modify the style response in the default response
-    default_response[2] = div_response
+    default_response[3] = div_response
 
     # return response
     return tuple(default_response)
@@ -391,6 +393,7 @@ def handle_remove_material(
     existing_warnings: List[str],
     trigger_id: Dict[str, str | float],
     cell: Any,
+    cell_key: str,
     formulation: CathodeFormulation | AnodeFormulation,
     formulation_config: FormulationConfig,
     active_div_styles: List[Dict[str, Any]],
@@ -533,6 +536,7 @@ def handle_remove_material(
 def handle_material_button_update(
     existing_warnings: List[str],
     cell,
+    cell_key: str,
     trigger_id: Dict[str, str | float],
     formulation: CathodeFormulation | AnodeFormulation,
     formulation_config: FormulationConfig,
@@ -558,6 +562,7 @@ def handle_material_button_update(
             existing_warnings=existing_warnings,
             trigger_id=trigger_id,
             cell=cell,
+            cell_key=cell_key,
             formulation=formulation,
             formulation_config=formulation_config,
             active_div_styles=active_div_styles,
@@ -568,6 +573,7 @@ def handle_material_button_update(
 
 def handle_indexed_dropdown_update(
     cell: Any,
+    cell_key: str,
     trigger_id: dict | str,
     existing_warnings: List[str],
     formulation: CathodeFormulation | AnodeFormulation,
@@ -618,6 +624,7 @@ def handle_indexed_dropdown_update(
     return (
         existing_warnings,
         {"cache_key": new_key},
+        {"cache_key": cell_key},
         [no_update] * (n_active_div + n_binder_div + n_conductive_div),
         [no_update] * (n_active_div + n_binder_div + n_conductive_div),
         dropdown_values_response,
@@ -675,6 +682,7 @@ def handle_weight_fraction_update(
 
 def handle_material_property_update(
     cell: Any,
+    cell_key: str,
     trigger_id: Dict[str, str | float],
     existing_warnings: List[str],
     formulation: CathodeFormulation | AnodeFormulation,
@@ -753,7 +761,11 @@ def handle_material_property_update(
     # update the cell store response
     response[1] = {"cache_key": new_key}
 
+    # update the cell store response
+    response[2] = {"cache_key": cell_key}
+
     if subtype == SubType.INPUT:
-        response[6] = active_input_values + binder_input_values + conductive_input_values
+        response[7] = active_input_values + binder_input_values + conductive_input_values
 
     return response
+
