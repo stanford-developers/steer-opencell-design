@@ -121,7 +121,7 @@ def should_fire_on_cell_load(
 
 def trigger_callback(callback_name: str, timestamp: float) -> None:
     """Trigger a callback by updating its trigger store."""
-    print(f"Triggering callback: {callback_name}")
+    # print(f"Triggering callback: {callback_name}")
     set_props({"type": "trigger", "callback": callback_name}, {"data": timestamp})
 
 
@@ -152,7 +152,7 @@ def orchestrate_callbacks_generic(
     new_cell = get_cell_from_cache(cell_data["cache_key"])
     old_cell = get_cell_from_cache(old_cell_data["cache_key"])
 
-    print(f"Orchestrating {debug_name} callbacks...")
+    # print(f"Orchestrating {debug_name} callbacks...")
 
     # Handle cell loaded case - fire all callbacks that meet conditions
     if last_triggered_callback == "Cell Loaded":
@@ -185,6 +185,6 @@ def orchestrate_callbacks_generic(
         # Trigger if all conditions are met
         if all(all_conditions.values()):
             # Debug output (can be controlled per module)
-            print(f"orchestrating {debug_name}, callback name: {callback_name}, conditions: {all_conditions}")
+            # print(f"orchestrating {debug_name}, callback name: {callback_name}, conditions: {all_conditions}")
             trigger_callback(callback_name, timestamp)
 
