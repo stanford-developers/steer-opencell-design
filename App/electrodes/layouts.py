@@ -1,6 +1,7 @@
 import dash as ds
 from steer_core.Apps.Components.SliderComponents import SliderWithTextInput
 from App.general.database_service import INSULATION_MATERIALS
+from App.general.styles import *
 
 
 #############################
@@ -10,11 +11,11 @@ from App.general.database_service import INSULATION_MATERIALS
 cathode_insulation_material_parameters = ds.html.Div(
     id="cathode_insulation_material_parameters",
     children=[
-        ds.html.H5("Select insulation material", style={"font-weight": "bold"}),
+        ds.html.H5("Select insulation material", style=SECTION_HEADER_STYLE),
         ds.dcc.Dropdown(
             id="cathode_insulation_material_selector",
             placeholder="Select Cathode Insulation Material",
-            style={"width": "calc(50%)"},
+            style=DROPDOWN_WIDTH_HALF,
             options=[{"label": material, "value": material} for material in INSULATION_MATERIALS],
         ),
         ds.html.Br(),
@@ -42,11 +43,11 @@ cathode_control_modes = ds.html.Div(
     id="cathode_control_modes",
     children=[
         ds.html.Br(),
-        ds.html.H5("Control Mode", style={"font-weight": "bold"}),
+        ds.html.H5("Control Mode", style=SECTION_HEADER_STYLE),
         ds.html.Br(),
         ds.html.P(
             "Select which property to maintain constant when other parameters change:",
-            style={"margin-bottom": "10px", "color": "#666"},
+            style=DESCRIPTION_TEXT_STYLE,
         ),
         ds.dcc.RadioItems(
             id={"electrode": "cathode", "object": "electrode", "property": "control_mode", "subtype": "radioitem"},
@@ -64,14 +65,9 @@ cathode_control_modes = ds.html.Div(
                 },
             ],
             value="maintain_calender_density",  # Default to current behavior (single value, not list)
-            style={"margin": "10px 0"},
-            inputStyle={"margin-right": "8px", "transform": "scale(1.2)"},
-            labelStyle={
-                "display": "flex",
-                "align-items": "center",
-                "margin-bottom": "8px",
-                "font-weight": "bold",
-            },
+            style=CONTROL_MODE_CONTAINER,
+            inputStyle=CONTROL_MODE_INPUT_STYLE,
+            labelStyle=CONTROL_MODE_LABEL_STYLE,
         ),
         ds.html.Br(),
     ],
@@ -104,16 +100,13 @@ cathode_design_parameters = ds.html.Div(
 )
 
 cathode_electrode_layout = ds.html.Div(
-    [
-        ds.html.Br(),
-        ds.html.Br(),
-        ds.html.Br(),
+    id="cathode_electrode_layout",
+    children=[
         cathode_insulation_material_parameters,
         cathode_control_modes,
-        cathode_design_parameters,
-        ds.html.Div(style={"height": "200px"}),
+        ds.html.Div(style=ELECTRODE_SPACING_DIV),
     ],
-    style={"padding": "20px", "width": "100%"},
+    style=ELECTRODE_LAYOUT_CONTAINER,
 )
 
 
@@ -121,15 +114,14 @@ cathode_electrode_layout = ds.html.Div(
 ######### ANODE #############
 #############################
 
-
 anode_insulation_material_parameters = ds.html.Div(
     id="anode_insulation_material_parameters",
     children=[
-        ds.html.H5("Select insulation material", style={"font-weight": "bold"}),
+        ds.html.H5("Select insulation material", style=SECTION_HEADER_STYLE),
         ds.dcc.Dropdown(
             id="anode_insulation_material_selector",
             placeholder="Select Anode Insulation Material",
-            style={"width": "calc(50%)"},
+            style=DROPDOWN_WIDTH_HALF,
             options=[{"label": material, "value": material} for material in INSULATION_MATERIALS],
         ),
         ds.html.Br(),
@@ -157,11 +149,11 @@ anode_control_modes = ds.html.Div(
     id="anode_control_modes",
     children=[
         ds.html.Br(),
-        ds.html.H5("Control Mode", style={"font-weight": "bold"}),
+        ds.html.H5("Control Mode", style=SECTION_HEADER_STYLE),
         ds.html.Br(),
         ds.html.P(
             "Select which property to maintain constant when other parameters change:",
-            style={"margin-bottom": "10px", "color": "#666"},
+            style=DESCRIPTION_TEXT_STYLE,
         ),
         ds.dcc.RadioItems(
             id={"electrode": "anode", "object": "electrode", "property": "control_mode", "subtype": "radioitem"},
@@ -179,15 +171,10 @@ anode_control_modes = ds.html.Div(
                     "value": "maintain_coating_thickness",
                 },
             ],
-            value="maintain_calender_density",
-            style={"margin": "10px 0"},
-            inputStyle={"margin-right": "8px", "transform": "scale(1.2)"},
-            labelStyle={
-                "display": "flex",
-                "align-items": "center",
-                "margin-bottom": "8px",
-                "font-weight": "bold",
-            },
+            value="maintain_calender_density",  # Default to current behavior (single value, not list)
+            style=CONTROL_MODE_CONTAINER,
+            inputStyle=CONTROL_MODE_INPUT_STYLE,
+            labelStyle=CONTROL_MODE_LABEL_STYLE,
         ),
         ds.html.Br(),
     ],
@@ -227,7 +214,7 @@ anode_electrode_layout = ds.html.Div(
         anode_insulation_material_parameters,
         anode_control_modes,
         anode_design_parameters,
-        ds.html.Div(style={"height": "200px"}),
+        ds.html.Div(style=ELECTRODE_SPACING_DIV),
     ],
-    style={"padding": "20px", "width": "100%"},
+    style=ELECTRODE_LAYOUT_CONTAINER,
 )

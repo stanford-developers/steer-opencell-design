@@ -15,11 +15,11 @@ LAYUP_DESIGNS = [
 layup_design = ds.html.Div(
     id="layup_design_div",
     children=[
-        ds.html.H5("Layup design", style={"font-weight": "bold"}),
+        ds.html.H5("Layup design", style=SECTION_HEADER_STYLE),
         ds.dcc.Dropdown(
             id="layup_design",
             placeholder="Select Layup Design",
-            style={"width": "calc(50%)"},
+            style=DROPDOWN_WIDTH_HALF,
             options=[{"label": design, "value": design.lower()} for design in LAYUP_DESIGNS],
         ),
         ds.html.Br(),
@@ -34,9 +34,9 @@ layup_design = ds.html.Div(
 separator_material_parameters = ds.html.Div(
     id="separator_material_parameters",
     children=[
-        ds.html.H4("Separator", style={"font-weight": "bold"}),
+        ds.html.H4("Separator", style=SECTION_HEADER_STYLE),
         ds.html.Br(),
-        ds.html.H5("Material", style={"font-weight": "bold"}),
+        ds.html.H5("Material", style=SECTION_HEADER_STYLE),
         ds.dcc.Dropdown(
             id="separator_material_selector",
             placeholder="Select Separator Material",

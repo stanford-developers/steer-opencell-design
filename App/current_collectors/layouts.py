@@ -17,11 +17,11 @@ CURRENT_COLLECTOR_DESIGNS = ["Punched", "Notched", "Tabless", "Tabbed"]
 cathode_current_collector_material_parameters = ds.html.Div(
     id="cathode_current_collector_material_parameters",
     children=[
-        ds.html.H5("Select current collector material", style={"font-weight": "bold"}),
+        ds.html.H5("Select current collector material", style=SECTION_HEADER_STYLE),
         ds.dcc.Dropdown(
             id="cathode_current_collector_material_selector",
             placeholder="Select Cathode Current Collector Material",
-            style={"width": "calc(50%)"},
+            style=DROPDOWN_WIDTH_HALF,
             options=[{"label": material, "value": material} for material in CURRENT_COLLECTOR_MATERIALS],
         ),
         ds.html.Br(),
@@ -53,7 +53,6 @@ cathode_current_collector_design_parameters = ds.html.Div(
         ds.html.Br(),
         ds.html.Br(),
     ],
-    style={},
 )
 
 cathode_punched_design_parameters = ds.html.Div(

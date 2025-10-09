@@ -1,65 +1,6 @@
 import dash as ds
 from App.general.styles import *
 
-
-# Define common styles as constants
-FIGURE_CONTAINER_STYLE = {
-    "width": "48%", 
-    "display": "inline-block", 
-    "margin": "1%",
-    "border": "1px solid #ddd",
-    "border-radius": "4px",
-    "padding": "10px",
-    "height": "600px"  # Much taller for proper square appearance
-}
-
-FIGURE_GRAPH_STYLE = {
-    "height": "570px"  # Much taller to make figures truly square
-}
-
-# Load balancing specific styles
-LOAD_BALANCING_CONTAINER_BASE = {
-    "border": "1px solid #ddd",
-    "border-radius": "4px",
-    "padding": "10px",
-}
-
-LOAD_BALANCING_LEFT_CONTAINER = {
-    **LOAD_BALANCING_CONTAINER_BASE,
-    "width": "100%",
-    "margin-bottom": "20px",
-    "height": "650px"
-}
-
-LOAD_BALANCING_LEFT_CONTAINER_BOTTOM = {
-    **LOAD_BALANCING_CONTAINER_BASE,
-    "width": "100%",
-    "height": "650px"
-}
-
-LOAD_BALANCING_RIGHT_CONTAINER = {
-    **LOAD_BALANCING_CONTAINER_BASE,
-    "width": "64%",
-    "display": "inline-block",
-    "vertical-align": "top",
-    "height": "1320px"
-}
-
-LOAD_BALANCING_LEFT_COLUMN_STYLE = {
-    "width": "32%",
-    "display": "inline-block",
-    "vertical-align": "top",
-    "margin-right": "2%"
-}
-
-LOAD_BALANCING_SMALL_GRAPH_STYLE = {
-    "height": "630px"
-}
-
-LOAD_BALANCING_LARGE_GRAPH_STYLE = {
-    "height": "1270px"
-}
-
 mechanicals_tab_content = ds.html.Div(
     id="mechanicals_tab_content",
     children=[
@@ -92,7 +33,7 @@ mechanicals_tab_content = ds.html.Div(
                             style=FIGURE_CONTAINER_STYLE
                         ),
                     ],
-                    style={"width": "100%", "margin-bottom": "20px"}
+                    style=FULL_WIDTH_WITH_MARGIN
                 ),
                 # Bottom row
                 ds.html.Div(
@@ -120,10 +61,10 @@ mechanicals_tab_content = ds.html.Div(
                             style=FIGURE_CONTAINER_STYLE
                         ),
                     ],
-                    style={"width": "100%"}
+                    style=FULL_WIDTH_CONTAINER
                 ),
             ],
-            style={"width": "100%", "padding": "10px"}
+            style=FULL_WIDTH_WITH_PADDING
         )
     ]
 )
@@ -188,7 +129,7 @@ construction_tab_content = ds.html.Div(
                     children=[
                         ds.html.Div(
                             children=[
-                                ds.html.Label("Opacity:", style={"margin-right": "10px", "font-weight": "bold", "min-width": "80px"}),
+                                ds.html.Label("Opacity:", style=CONSTRUCTION_OPACITY_LABEL_STYLE),
                                 ds.html.Div(
                                     children=[
                                         ds.dcc.Slider(
@@ -201,29 +142,17 @@ construction_tab_content = ds.html.Div(
                                             tooltip={"placement": "bottom", "always_visible": True}
                                         )
                                     ],
-                                    style={"flex": "1", "margin-right": "20px"}
+                                    style=CONSTRUCTION_SLIDER_CONTAINER_STYLE
                                 )
                             ],
-                            style={
-                                "display": "flex",
-                                "align-items": "center",
-                                "margin-bottom": "10px",
-                                "padding": "0 10px"
-                            }
+                            style=CONSTRUCTION_OPACITY_CONTAINER_STYLE
                         ),
                         ds.dcc.Graph(
                             id="layup_design_figure",
                             style=FIGURE_GRAPH_STYLE
                         )
                     ],
-                    style={
-                        "width": "100%",
-                        "border": "1px solid #ddd",
-                        "border-radius": "4px",
-                        "padding": "10px",
-                        "margin-bottom": "20px",
-                        "height": "650px"  # Increased height to accommodate slider
-                    }
+                    style=CONSTRUCTION_FIGURE_CONTAINER_STYLE
                 ),
                 # Bottom row - two half-width figures
                 ds.html.Div(
@@ -251,10 +180,10 @@ construction_tab_content = ds.html.Div(
                             style=FIGURE_CONTAINER_STYLE
                         ),
                     ],
-                    style={"width": "100%"}
+                    style=FULL_WIDTH_CONTAINER
                 ),
             ],
-            style={"width": "100%", "padding": "10px"}
+            style=FULL_WIDTH_WITH_PADDING
         )
     ]
 )
@@ -262,14 +191,14 @@ construction_tab_content = ds.html.Div(
 results_tab_content = ds.html.Div(
     id="results_tab_content",
     children=[
-        ds.html.P("Results content will be displayed here", style={"color": "#6c757d", "line-height": "1.5"}),
+        ds.html.P("Results content will be displayed here", style=PLACEHOLDER_TEXT_STYLE),
     ]
 )
 
 warnings = ds.html.Div(
     id="warnings",
     children=[
-        ds.html.P("No warnings to display.", style={"color": "#6c757d", "line-height": "1.5"}),
+        ds.html.P("No warnings to display.", style=PLACEHOLDER_TEXT_STYLE),
     ]
 )
 
