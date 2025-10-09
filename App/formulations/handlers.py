@@ -418,21 +418,21 @@ def handle_remove_material(
         update_div_visibility(active_div_styles, n_active - 1)
         div_response = active_div_styles + [no_update] * n_binder_div + [no_update] * n_conductive_div
         default_response = list(create_no_update_response(formulation, active_div_styles, binder_div_styles, conductive_div_styles))
-        default_response[2] = div_response
+        default_response[3] = div_response
         return tuple(default_response)
 
     elif material_category == "binder" and n_binder > 0 and (n_binder - 1) >= len(formulation.binders):
         update_div_visibility(binder_div_styles, n_binder - 1)
         div_response = [no_update] * n_active_div + binder_div_styles + [no_update] * n_conductive_div
         default_response = list(create_no_update_response(formulation, active_div_styles, binder_div_styles, conductive_div_styles))
-        default_response[2] = div_response
+        default_response[3] = div_response
         return tuple(default_response)
 
     elif material_category == "conductive_additive" and n_conductive > 0 and (n_conductive - 1) >= len(formulation.conductive_additives):
         update_div_visibility(conductive_div_styles, n_conductive - 1)
         div_response = [no_update] * n_active_div + [no_update] * n_binder_div + conductive_div_styles
         default_response = list(create_no_update_response(formulation, active_div_styles, binder_div_styles, conductive_div_styles))
-        default_response[2] = div_response
+        default_response[3] = div_response
         return tuple(default_response)
 
     # If user trying to remove the last material in a category, return no update
@@ -523,14 +523,17 @@ def handle_remove_material(
             flattened_slider_responses,
         ) = get_formulation_response(formulation, n_active_div, n_binder_div, n_conductive_div)
 
-    return (
+    response = (
         warnings_list,
         {"cache_key": new_key},
+        {"cache_key": cell_key},
         div_response,
         [no_update] * (n_active_div + n_binder_div + n_conductive_div),
         dropdown_values_response,
         weight_fractions_response,
     ) + flattened_slider_responses
+
+    return response
 
 
 def handle_material_button_update(
@@ -558,6 +561,7 @@ def handle_material_button_update(
         )
 
     elif action_category == "remove":
+
         return handle_remove_material(
             existing_warnings=existing_warnings,
             trigger_id=trigger_id,
