@@ -771,5 +771,5 @@ def handle_material_property_update(
     if subtype == SubType.INPUT:
         response[7] = active_input_values + binder_input_values + conductive_input_values
 
-    return response
+    return tuple(response)
 

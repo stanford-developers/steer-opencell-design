@@ -799,6 +799,10 @@ class _Electrode(
         return (0, 200)
 
     @property
+    def coating_thickness_range(self) -> Tuple[float, float]:
+        return (2, 200)
+
+    @property
     def cost_breakdown(self) -> Dict[str, Any]:
         """
         Get the cost breakdown of the electrode.
@@ -1231,10 +1235,6 @@ class Anode(_Electrode):
         self._update_properties = True
 
     @property
-    def coating_thickness_range(self) -> Tuple[float, float]:
-        return (10, 120)
-
-    @property
     def top_overhang(self) -> float:
         """
         Get the top overhang of the anode when in a layup or stack.
@@ -1362,10 +1362,6 @@ class Cathode(_Electrode):
         )
 
         self._update_properties = True
-
-    @property
-    def coating_thickness_range(self) -> Tuple[float, float]:
-        return (10, 60)
 
     @property
     def porosity_range(self) -> Tuple[float, float]:
