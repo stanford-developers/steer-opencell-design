@@ -4,8 +4,10 @@ import time
 
 from App.general.orchestra import (
     create_trigger_store,
+    has_changed,
     orchestrate_callbacks_generic,
     CallbackTriggerConfig, 
+    TriggerCondition,
 )
 
 from App.formulations.configs import FORMULATION_CONFIGS, FormulationType
@@ -56,7 +58,9 @@ FORMULATION_TRIGGER_CONFIGS = {
 
     "update_cathode_formulation_div": CallbackTriggerConfig(
         config=FORMULATION_CONFIGS[FormulationType.CATHODE],
-        conditions=[],
+        conditions=[
+            TriggerCondition(has_changed)
+        ],
         required_visibility=[
             "cathode_formulation_tab",
             "cathode_tab",
@@ -66,7 +70,9 @@ FORMULATION_TRIGGER_CONFIGS = {
 
     "update_anode_formulation_div": CallbackTriggerConfig(
         config=FORMULATION_CONFIGS[FormulationType.ANODE],
-        conditions=[],
+        conditions=[
+            TriggerCondition(has_changed)
+        ],
         required_visibility=[
             "anode_formulation_tab",
             "anode_tab",
