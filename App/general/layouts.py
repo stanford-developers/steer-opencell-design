@@ -56,65 +56,7 @@ RESULTS_TAB_CONFIG = [
 
 # Layout constants
 GOLDEN_RATIO = 1.618
-DROPDOWN_WIDTH = "80%"
 GRID_COLUMNS = 3
-
-#############################
-# Style Constants           #
-#############################
-
-# Cell type panel styles
-CELL_TYPE_PANEL_STYLE = {
-    "display": "flex",
-    "flex-direction": "row",
-    "padding": "100px",
-    "width": "90%",
-}
-
-CELL_TYPE_FORM_STYLE = {
-    "flex": "0 0 35%",
-    "padding": "20px",
-    "justify-content": "center",
-    "align-items": "center",
-    "padding-top": "-400px",
-}
-
-# Cell schematic button styles
-CELL_SCHEMATIC_IMAGE_STYLE = {
-    "width": "50%",
-    "height": "auto",
-    "display": "block",
-    "margin": "20px auto",
-}
-
-CELL_SCHEMATIC_BUTTON_STYLE = {
-    "border": "none",
-    "background": "none",
-    "padding": "20px",
-    "cursor": "pointer",
-    "width": "100%",
-    "height": "auto",
-    "border-radius": "8px",
-    "transition": "transform 0.2s ease, box-shadow 0.2s ease",
-    "text-align": "center",
-}
-
-CELL_SCHEMATIC_GRID_STYLE = {
-    "display": "grid",
-    "gridTemplateColumns": f"repeat({GRID_COLUMNS}, 1fr)",
-    "gap": "10px",
-    "margin-top": "-20px",
-    "margin-left": "100px",
-}
-
-CELL_SCHEMATIC_PANEL_STYLE = {
-    "flex": "1",
-    "padding": "20px",
-    "justify-content": "center",
-    "align-items": "left",
-    "width": "10%",
-    "margin-top": "-100px",
-}
 
 # Main layout styles
 MAIN_LAYOUT_STYLE = {
@@ -178,7 +120,7 @@ thumbnail = ds.html.Div(
         ds.html.Br(),
         ds.html.Img(
             src="assets/header_image.png",
-            style={"width": "20%", "height": "auto", "padding-left": "15px"},
+            style=HEADER_WITH_PADDING_STYLE,
         ),
         ds.html.Br(),
         ds.html.Br(),
@@ -213,7 +155,7 @@ cell_type_button_panel = ds.html.Div(
             )
             for (j, i) in LANDING_PAGE_IMAGE_URLS.items()
         ],
-        style=CELL_SCHEMATIC_GRID_STYLE,
+        style=get_cell_schematic_grid_style(GRID_COLUMNS),
     ),
     style=CELL_SCHEMATIC_PANEL_STYLE,
 )
@@ -343,10 +285,10 @@ main_tabs_content = ds.html.Div(
             ],
             value="cathode",
         ),
-        ds.html.Div(id="cathode_tab", children=[cathode_tabs_div], style={"display": "block", "padding": "20px 0"}),
-        ds.html.Div(id="anode_tab", children=[anode_tabs_div], style={"display": "none", "padding": "20px 0"}),
-        ds.html.Div(id="layup_tab", children=[layup_tabs_div], style={"display": "none", "padding": "20px 0"}),
-        ds.html.Div(id="electrode_assembly_tab",children=[electrode_assembly_layout],style={"display": "none", "padding": "20px 0"},),
+        ds.html.Div(id="cathode_tab", children=[cathode_tabs_div], style=TAB_CONTENT_VISIBLE_STYLE),
+        ds.html.Div(id="anode_tab", children=[anode_tabs_div], style=TAB_CONTENT_HIDDEN_STYLE),
+        ds.html.Div(id="layup_tab", children=[layup_tabs_div], style=TAB_CONTENT_HIDDEN_STYLE),
+        ds.html.Div(id="electrode_assembly_tab",children=[electrode_assembly_layout],style=TAB_CONTENT_HIDDEN_STYLE,),
     ]
 )
 
@@ -356,7 +298,7 @@ main_tabs_content = ds.html.Div(
 results_sidebar = ds.html.Div(
     id="results_sidebar",
     children=[
-        ds.html.H4("Analysis Dashboard", style={"color": "#333", "margin-bottom": "20px"}),
+        ds.html.H4("Analysis Dashboard", style=DASHBOARD_HEADER_STYLE),
         ds.dcc.Tabs(
             id="results-tabs-container",
             children=[
