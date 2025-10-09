@@ -96,7 +96,7 @@ LAYUP_TRIGGER_CONFIGS = {
             TriggerCondition(check_function=is_zfold),
         ],
         required_visibility=[
-            "layup_mechanicals_layout",
+            "layup_overhangs_layout",
             "layup_tab",
             "tabs_panel"
         ]
@@ -107,7 +107,7 @@ LAYUP_TRIGGER_CONFIGS = {
             TriggerCondition(check_function=is_laminate),
         ],
         required_visibility=[
-            "layup_mechanicals_layout",
+            "layup_overhangs_layout",
             "layup_tab",
             "tabs_panel"
         ]
@@ -118,7 +118,7 @@ LAYUP_TRIGGER_CONFIGS = {
             TriggerCondition(check_function=is_monolayer),
         ],
         required_visibility=[
-            "layup_mechanicals_layout",
+            "layup_overhangs_layout",
             "layup_tab",
             "tabs_panel"
         ]
@@ -130,6 +130,7 @@ LAYUP_TRIGGER_CONFIGS = {
             TriggerCondition(check_function=has_changed)
         ],
         required_visibility=[
+            "layup_mechanicals_layout",
             "layup_tab",
             "tabs_panel"
         ]
@@ -212,6 +213,7 @@ LAYUP_TRIGGER_CONFIGS = {
         Input("cell_store", "data"),
         Input("old_cell_store", "data"),
         Input("layup_mechanicals_layout", "style"),
+        Input("layup_overhangs_layout", "style"),
         Input("layup_areal_layout", "style"),
         Input("layup_tab", "style"),
         Input("tabs_panel", "style"),
@@ -225,6 +227,7 @@ def orchestrate_layup_callbacks(
     cell_data: Dict,
     old_cell_data: Optional[Dict],
     layup_mechanicals_layout_style: Dict,
+    layup_overhangs_layout_style: Dict,
     layup_areal_layout_style: Dict,
     layup_tab_style: Dict,
     tabs_panel_style: Dict,
@@ -237,6 +240,7 @@ def orchestrate_layup_callbacks(
     # Create visibility context
     visibility_styles = {
         "layup_mechanicals_layout": layup_mechanicals_layout_style,
+        "layup_overhangs_layout": layup_overhangs_layout_style,
         "layup_areal_layout": layup_areal_layout_style,
         "layup_tab": layup_tab_style,
         "tabs_panel": tabs_panel_style,
