@@ -522,7 +522,6 @@ class _Layup(
             ),
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            title=kwargs.get("title", f"Top-Down View"),
             **kwargs,
         )
 

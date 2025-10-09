@@ -206,3 +206,86 @@ def update_areal_capacity_plot(trigger_data, cell_data):
 
     callback_name = inspect.currentframe().f_code.co_name
     return (callback_name, fig)
+
+
+##############################
+#### Construction Graphs ####
+##############################
+
+@callback(
+    [
+        Output("last_triggered", "data", allow_duplicate=True),
+        Output("layup_design_figure", "figure"),
+    ],
+    [
+        Input({"type": "trigger", "callback": "update_layup_design_figure"}, "data"),
+        Input("layup_design_opacity_slider", "drag_value"),
+    ],
+    [
+        State("cell_store", "data"),
+        State("layup_design_figure", "figure"),
+    ],
+    prevent_initial_call=True,
+)
+def update_layup_design_figure(trigger_data, opacity_value, cell_data, current_figure):
+    """
+    Update layup design figure with opacity control and zoom preservation.
+    """
+    from dash import ctx
+    
+    # Get cell from cache
+    cell_key = cell_data["cache_key"]
+    cell = get_cell_from_cache(cell_key)
+    
+    # Get the layup object
+    layup = get_object_from_cell(cell, LAYUP_CONFIGS[LayupType.GENERIC])
+    
+    # Check if layup object exists
+    if layup is None:
+        callback_name = inspect.currentframe().f_code.co_name
+        # Return empty figure or current figure if layup is not available
+        if current_figure is not None:
+            return (callback_name, current_figure)
+        else:
+            # Return a minimal empty figure
+            from plotly.graph_objects import Figure
+            empty_fig = Figure()
+            empty_fig.update_layout(title="Layup Design - No Data Available")
+            return (callback_name, empty_fig)
+    
+    # Always generate new figure with current opacity value
+    # Pass opacity value directly to the method
+    fig = layup.get_top_down_view(title="Layup Design", opacity=opacity_value)
+    
+    # Preserve zoom settings and legend selections if we have a current figure
+    if current_figure is not None and 'layout' in current_figure:
+        current_layout = current_figure['layout']
+        # Preserve zoom settings
+        if 'xaxis' in current_layout and 'range' in current_layout['xaxis']:
+            fig['layout']['xaxis']['range'] = current_layout['xaxis']['range']
+        if 'yaxis' in current_layout and 'range' in current_layout['yaxis']:
+            fig['layout']['yaxis']['range'] = current_layout['yaxis']['range']
+        
+        # Preserve legend selections (trace visibility)
+        if 'data' in current_figure and 'data' in fig:
+            current_traces = current_figure['data']
+            new_traces = fig['data']
+            
+            # Match traces by name and preserve visibility
+            for i, new_trace in enumerate(new_traces):
+                if i < len(current_traces):
+                    current_trace = current_traces[i]
+                    # Check if the trace names match (if they have names)
+                    if ('name' in new_trace and 'name' in current_trace and 
+                        new_trace['name'] == current_trace['name']):
+                        # Preserve visibility setting
+                        if 'visible' in current_trace:
+                            new_trace['visible'] = current_trace['visible']
+                    elif 'name' not in new_trace and 'name' not in current_trace:
+                        # If no names, match by position and preserve visibility
+                        if 'visible' in current_trace:
+                            new_trace['visible'] = current_trace['visible']
+    
+    callback_name = inspect.currentframe().f_code.co_name
+    return (callback_name, fig)
+    
