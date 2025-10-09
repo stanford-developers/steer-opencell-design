@@ -287,5 +287,6 @@ def update_layup_design_figure(trigger_data, opacity_value, cell_data, current_f
                             new_trace['visible'] = current_trace['visible']
     
     callback_name = inspect.currentframe().f_code.co_name
+    
     return (callback_name, fig)
     
