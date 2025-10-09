@@ -104,6 +104,7 @@ cathode_electrode_layout = ds.html.Div(
     children=[
         cathode_insulation_material_parameters,
         cathode_control_modes,
+        cathode_design_parameters,
         ds.html.Div(style=ELECTRODE_SPACING_DIV),
     ],
     style=ELECTRODE_LAYOUT_CONTAINER,
