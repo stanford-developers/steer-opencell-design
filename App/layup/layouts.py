@@ -57,9 +57,6 @@ overhang_control_modes = ds.html.Div(
     id="overhang_control_modes",
     children=[
         ds.html.Br(),
-        ds.html.H4("Overhangs", style={"font-weight": "bold"}),
-        ds.html.Br(),
-        ds.html.Br(),
         ds.html.H5("Control Mode", style={"font-weight": "bold"}),
         ds.html.Br(),
         ds.html.P(
@@ -298,6 +295,24 @@ np_slider = ds.html.Div(
 )
 
 
+layup_overhangs_layout = ds.html.Div(
+    [
+        ds.html.Br(),
+        ds.html.Br(),
+        ds.html.Br(),
+        overhang_control_modes,
+        zfold_design_parameters,
+        laminate_design_parameters,
+        stacked_design_parameters,
+        ds.html.Div(style={"height": "200px"}),
+    ],
+    style={
+        "padding": "20px",
+        "width": "100%",
+    },
+)
+
+
 layup_mechanicals_layout = ds.html.Div(
     [
         ds.html.Br(),
@@ -308,10 +323,6 @@ layup_mechanicals_layout = ds.html.Div(
         zfold_separator_design_parameters,
         laminate_separator_design_parameters,
         stacked_separator_design_parameters,
-        overhang_control_modes,
-        zfold_design_parameters,
-        laminate_design_parameters,
-        stacked_design_parameters,
         ds.html.Div(style={"height": "200px"}),
     ],
     style={
@@ -334,6 +345,57 @@ layup_areal_layout = ds.html.Div(
         "padding": "20px",
         "width": "100%",
     },
+)
+
+
+#############################
+#       TABS DIV            #
+#############################
+
+layup_tabs_div = ds.html.Div(
+    id="layup_tabs_panel",
+    children=[
+        ds.dcc.Tabs(
+            id="layup-tabs-container",
+            children=[
+                ds.dcc.Tab(
+                    label="Mechanicals",
+                    value="layup_mechanicals_layout",
+                    className="tab-style",
+                    selected_className="tab-selected-style",
+                ),
+                ds.dcc.Tab(
+                    label="Overhangs",
+                    value="layup_overhangs_layout",
+                    className="tab-style",
+                    selected_className="tab-selected-style",
+                ),
+                ds.dcc.Tab(
+                    label="Areal Designer",
+                    value="layup_areal_layout",
+                    className="tab-style",
+                    selected_className="tab-selected-style",
+                ),
+            ],
+            value="layup_mechanicals_layout",
+        ),
+        ds.html.Div(
+            id="layup_mechanicals_layout",
+            children=[layup_mechanicals_layout],
+            style={"display": "block", "padding": "20px 0"},
+        ),
+        ds.html.Div(
+            id="layup_overhangs_layout",
+            children=[layup_overhangs_layout],
+            style={"display": "none", "padding": "20px 0"},
+        ),
+        ds.html.Div(
+            id="layup_areal_layout",
+            children=[layup_areal_layout],
+            style={"display": "none", "padding": "20px 0"},
+        ),
+    ],
+    style={"margin-left": "20px", "margin-right": "20px", "display": "block"},
 )
 
 

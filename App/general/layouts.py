@@ -1,21 +1,6 @@
 import dash as ds
+
 from App.general.styles import *
-
-from App.current_collectors.layouts import cathode_current_collector_layout, anode_current_collector_layout
-from App.formulations.layouts import cathode_formulation_layout, anode_formulation_layout
-from App.electrodes.layouts import cathode_electrode_layout, anode_electrode_layout
-
-from App.current_collectors.orchestra import current_collector_trigger_stores
-from App.electrodes.orchestra import electrode_trigger_stores
-from App.layup.orchestra import layup_trigger_stores
-from App.formulations.orchestra import formulation_trigger_stores
-from App.results.orchestra import results_trigger_stores
-from App.general.orchestra import last_triggered
-
-from App.layup.layouts import layup_mechanicals_layout, layup_areal_layout
-
-from App.electrode_assembly.layouts import electrode_assembly_layout
-
 from App.general.store import (
     cell_store,
     old_cell_store,
@@ -24,6 +9,20 @@ from App.general.store import (
     anode_active_material_store,
     LANDING_PAGE_IMAGE_URLS,
 )
+from App.general.database_service import FORM_FACTOR_OPTIONS
+from App.general.orchestra import last_triggered
+
+from App.current_collectors.layouts import cathode_tabs_div, anode_tabs_div
+from App.current_collectors.orchestra import current_collector_trigger_stores
+
+from App.electrodes.orchestra import electrode_trigger_stores
+
+from App.formulations.orchestra import formulation_trigger_stores
+
+from App.layup.layouts import layup_tabs_div
+from App.layup.orchestra import layup_trigger_stores
+
+from App.electrode_assembly.layouts import electrode_assembly_layout
 
 from App.results.layouts import (
     mechanicals_tab_content,
@@ -32,8 +31,131 @@ from App.results.layouts import (
     results_tab_content,
     warnings_tab_content
 )
+from App.results.orchestra import results_trigger_stores
 
-from App.general.database_service import FORM_FACTOR_OPTIONS
+#############################
+# Configuration Constants   #
+#############################
+
+# Main tab configuration
+MAIN_TAB_CONFIG = [
+    {"label": "Cathode", "value": "cathode"},
+    {"label": "Anode", "value": "anode"},
+    {"label": "Layup", "value": "layup"},
+    {"label": "Electrode Assembly", "value": "electrode_assembly"},
+]
+
+# Results tab configuration
+RESULTS_TAB_CONFIG = [
+    {"label": "Mechanicals", "value": "mechanicals"},
+    {"label": "Load Balancing", "value": "load_balancing"},
+    {"label": "Construction", "value": "construction"},
+    {"label": "Results", "value": "results"},
+    {"label": "Warnings", "value": "warnings"},
+]
+
+# Layout constants
+GOLDEN_RATIO = 1.618
+DROPDOWN_WIDTH = "80%"
+GRID_COLUMNS = 3
+
+#############################
+# Style Constants           #
+#############################
+
+# Cell type panel styles
+CELL_TYPE_PANEL_STYLE = {
+    "display": "flex",
+    "flex-direction": "row",
+    "padding": "100px",
+    "width": "90%",
+}
+
+CELL_TYPE_FORM_STYLE = {
+    "flex": "0 0 35%",
+    "padding": "20px",
+    "justify-content": "center",
+    "align-items": "center",
+    "padding-top": "-400px",
+}
+
+# Cell schematic button styles
+CELL_SCHEMATIC_IMAGE_STYLE = {
+    "width": "50%",
+    "height": "auto",
+    "display": "block",
+    "margin": "20px auto",
+}
+
+CELL_SCHEMATIC_BUTTON_STYLE = {
+    "border": "none",
+    "background": "none",
+    "padding": "20px",
+    "cursor": "pointer",
+    "width": "100%",
+    "height": "auto",
+    "border-radius": "8px",
+    "transition": "transform 0.2s ease, box-shadow 0.2s ease",
+    "text-align": "center",
+}
+
+CELL_SCHEMATIC_GRID_STYLE = {
+    "display": "grid",
+    "gridTemplateColumns": f"repeat({GRID_COLUMNS}, 1fr)",
+    "gap": "10px",
+    "margin-top": "-20px",
+    "margin-left": "100px",
+}
+
+CELL_SCHEMATIC_PANEL_STYLE = {
+    "flex": "1",
+    "padding": "20px",
+    "justify-content": "center",
+    "align-items": "left",
+    "width": "10%",
+    "margin-top": "-100px",
+}
+
+# Main layout styles
+MAIN_LAYOUT_STYLE = {
+    "display": "flex",
+    "flexDirection": "row",
+    "width": "100%",
+    "gap": "0px"
+}
+
+MAIN_CONTENT_STYLE = {
+    "flex": "1",
+    "paddingRight": "15px"
+}
+
+TAB_CONTENT_MAIN_STYLE = {
+    "flex": "1",
+    "paddingRight": "15px"
+}
+
+TAB_CONTENT_RESULTS_STYLE = {
+    "flex": "1.618",
+    "backgroundColor": "#f8f9fa", 
+    "border": "1px solid #dee2e6",
+    "borderRadius": "8px",
+    "padding": "20px",
+    "marginLeft": "10px",
+    "minHeight": "calc(100vh - 300px)"
+}
+
+# Tab content styles
+TAB_CONTENT_VISIBLE_STYLE = {"display": "block", "padding": "20px 0"}
+TAB_CONTENT_HIDDEN_STYLE = {"display": "none", "padding": "20px 0"}
+
+# Results sidebar content style
+RESULTS_SIDEBAR_CONTENT_STYLE = {
+    "height": "100%",
+    "overflowY": "auto"
+}
+
+# Dashboard header style
+DASHBOARD_HEADER_STYLE = {"color": "#333", "margin-bottom": "20px"}
 
 
 stores = ds.html.Div([
@@ -67,7 +189,6 @@ thumbnail = ds.html.Div(
 header = ds.html.Div(
     [
         ds.html.H1("OpenCell Design Tool", style=HEADER_STYLE | {"padding-left": "20px"}),
-        # ds.html.P(["Please reach out to Dr. Nicholas Siemons at nsiemons@stanford.edu for help or feedback."], style={'padding-left': '20px'}),
         ds.html.Br(),
         ds.html.Br(),
     ]
@@ -83,46 +204,18 @@ cell_type_button_panel = ds.html.Div(
                     ds.html.Img(
                         id={"type": "cell_schematic_image", "key": j},
                         src=i,
-                        style={
-                            "width": "50%",
-                            "height": "auto",
-                            "display": "block",
-                            "margin": "20px auto",  # Centers horizontally and adds vertical margin
-                        },
+                        style=CELL_SCHEMATIC_IMAGE_STYLE,
                     )
                 ],
                 id={"type": "cell_schematic_button", "key": j},
-                style={
-                    "border": "none",
-                    "background": "none",
-                    "padding": "20px",
-                    "cursor": "pointer",
-                    "width": "100%",
-                    "height": "auto",
-                    "border-radius": "8px",
-                    "transition": "transform 0.2s ease, box-shadow 0.2s ease",
-                    "text-align": "center",  # Centers inline/block content
-                },
+                style=CELL_SCHEMATIC_BUTTON_STYLE,
                 className="cell-schematic-button",  # For CSS hover effects
             )
             for (j, i) in LANDING_PAGE_IMAGE_URLS.items()
         ],
-        style={
-            "display": "grid",
-            "gridTemplateColumns": "repeat(3, 1fr)",
-            "gap": "10px",
-            "margin-top": "-20px",
-            "margin-left": "100px",
-        },
+        style=CELL_SCHEMATIC_GRID_STYLE,
     ),
-    style={
-        "flex": "1",
-        "padding": "20px",
-        "justify-content": "center",
-        "align-items": "left",
-        "width": "10%",
-        "margin-top": "-100px",
-    },
+    style=CELL_SCHEMATIC_PANEL_STYLE,
 )
 
 
@@ -137,7 +230,7 @@ cell_type = ds.html.Div(
                 ds.dcc.Dropdown(
                     id="form_factor_dropdown",
                     options=[{"label": i.replace("_", " ").title(), "value": i} for i in FORM_FACTOR_OPTIONS],
-                    style={"width": "80%"},
+                    style={"width": DROPDOWN_WIDTH},
                 ),
                 ds.html.Br(),
                 ds.html.Br(),
@@ -145,7 +238,7 @@ cell_type = ds.html.Div(
                 ds.dcc.Dropdown(
                     id="internal_construction_dropdown",
                     options=[],
-                    style={"width": "80%"},
+                    style={"width": DROPDOWN_WIDTH},
                 ),
                 ds.html.Br(),
                 ds.html.Br(),
@@ -153,7 +246,7 @@ cell_type = ds.html.Div(
                 ds.dcc.Dropdown(
                     id="electrochemical_reference_dropdown",
                     options=[],
-                    style={"width": "80%"},
+                    style={"width": DROPDOWN_WIDTH},
                 ),
                 ds.html.Br(),
                 ds.html.Br(),
@@ -161,7 +254,7 @@ cell_type = ds.html.Div(
                 ds.dcc.Dropdown(
                     id="cell_name_dropdown",
                     options=[],
-                    style={"width": "80%"},
+                    style={"width": DROPDOWN_WIDTH},
                 ),
                 ds.html.Br(),
                 ds.html.Br(),
@@ -205,136 +298,6 @@ cell_type = ds.html.Div(
         "padding": "100px",
         "width": "90%",
     },
-)
-
-
-cathode_tabs_div = ds.html.Div(
-    id="cathode_tabs_panel",
-    children=[
-        ds.dcc.Tabs(
-            id="cathode-tabs-container",
-            children=[
-                ds.dcc.Tab(
-                    label="Current Collector",
-                    value="cathode_current_collector",
-                    className="tab-style",
-                    selected_className="tab-selected-style",
-                ),
-                ds.dcc.Tab(
-                    label="Formulation",
-                    value="cathode_formulation",
-                    className="tab-style",
-                    selected_className="tab-selected-style",
-                ),
-                ds.dcc.Tab(
-                    label="Electrode",
-                    value="cathode_electrode",
-                    className="tab-style",
-                    selected_className="tab-selected-style",
-                ),
-            ],
-            value="cathode_current_collector",
-        ),
-        ds.html.Div(
-            id="cathode_current_collector_tab",
-            children=[cathode_current_collector_layout],
-            style={"display": "block", "padding": "20px 0"},
-        ),
-        ds.html.Div(
-            id="cathode_formulation_tab",
-            children=[cathode_formulation_layout],
-            style={"display": "none", "padding": "20px 0"},
-        ),
-        ds.html.Div(
-            id="cathode_electrode_tab",
-            children=[cathode_electrode_layout],
-            style={"display": "none", "padding": "20px 0"},
-        ),
-    ],
-    style={"margin-left": "20px", "margin-right": "20px", "display": "block"},
-)
-
-
-anode_tabs_div = ds.html.Div(
-    id="anode_tabs_panel",
-    children=[
-        ds.dcc.Tabs(
-            id="anode-tabs-container",
-            children=[
-                ds.dcc.Tab(
-                    label="Current Collector",
-                    value="anode_current_collector",
-                    className="tab-style",
-                    selected_className="tab-selected-style",
-                ),
-                ds.dcc.Tab(
-                    label="Formulation",
-                    value="anode_formulation",
-                    className="tab-style",
-                    selected_className="tab-selected-style",
-                ),
-                ds.dcc.Tab(
-                    label="Electrode",
-                    value="anode_electrode",
-                    className="tab-style",
-                    selected_className="tab-selected-style",
-                ),
-            ],
-            value="anode_current_collector",
-        ),
-        ds.html.Div(
-            id="anode_current_collector_tab",
-            children=[anode_current_collector_layout],
-            style={"display": "block", "padding": "20px 0"},
-        ),
-        ds.html.Div(
-            id="anode_formulation_tab",
-            children=[anode_formulation_layout],
-            style={"display": "none", "padding": "20px 0"},
-        ),
-        ds.html.Div(
-            id="anode_electrode_tab",
-            children=[anode_electrode_layout],
-            style={"display": "none", "padding": "20px 0"},
-        ),
-    ],
-    style={"margin-left": "20px", "margin-right": "20px", "display": "block"},
-)
-
-
-layup_tabs_div = ds.html.Div(
-    id="layup_tabs_panel",
-    children=[
-        ds.dcc.Tabs(
-            id="layup-tabs-container",
-            children=[
-                ds.dcc.Tab(
-                    label="Mechanicals",
-                    value="layup_mechanicals_layout",
-                    className="tab-style",
-                    selected_className="tab-selected-style",
-                ),
-                ds.dcc.Tab(
-                    label="Areal Designer",
-                    value="layup_areal_layout",
-                    className="tab-style",
-                    selected_className="tab-selected-style",
-                ),
-            ],
-            value="layup_mechanicals_layout",
-        ),
-        ds.html.Div(
-            id="layup_mechanicals_layout",
-            children=[layup_mechanicals_layout],
-            style={"display": "block", "padding": "20px 0"},
-        ),
-        ds.html.Div(
-            id="layup_areal_layout",
-            children=[layup_areal_layout],
-            style={"display": "none", "padding": "20px 0"},
-        ),
-    ],
-    style={"margin-left": "20px", "margin-right": "20px", "display": "block"},
 )
 
 
@@ -469,33 +432,17 @@ main_tabs = ds.html.Div(
     id="tabs_panel",
     children=[
         ds.html.Div(
-            style={
-                "display": "flex",
-                "flexDirection": "row",
-                "width": "100%",
-                "gap": "0px"
-            },
+            style=MAIN_LAYOUT_STYLE,
             children=[
                 # Main content area (golden ratio smaller portion)
                 ds.html.Div(
                     children=[main_tabs_content],
-                    style={
-                        "flex": "1",
-                        "paddingRight": "15px"
-                    }
+                    style=TAB_CONTENT_MAIN_STYLE
                 ),
                 # Results area (golden ratio larger portion)
                 ds.html.Div(
                     children=[results_sidebar],  # Will be populated by callback
-                    style={
-                        "flex": "1.618",
-                        "backgroundColor": "#f8f9fa",
-                        "border": "1px solid #dee2e6",
-                        "borderRadius": "8px",
-                        "padding": "20px",
-                        "marginLeft": "10px",
-                        "minHeight": "calc(100vh - 300px)"
-                    }
+                    style=TAB_CONTENT_RESULTS_STYLE
                 )
             ]
         )

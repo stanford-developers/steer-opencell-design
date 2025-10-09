@@ -4,6 +4,8 @@ from App.general.styles import *
 from steer_core.Apps.Components.SliderComponents import SliderWithTextInput
 from steer_core.Apps.Components.RangeSliderComponents import RangeSliderWithTextInput
 from App.general.database_service import CURRENT_COLLECTOR_MATERIALS
+from App.formulations.layouts import cathode_formulation_layout, anode_formulation_layout
+from App.electrodes.layouts import cathode_electrode_layout, anode_electrode_layout
 
 CURRENT_COLLECTOR_DESIGNS = ["Punched", "Notched", "Tabless", "Tabbed"]
 
@@ -791,5 +793,103 @@ anode_current_collector_layout = ds.html.Div(
         "padding": "20px",
         "width": "calc(100%)",
     },
+)
+
+
+#############################
+#       TABS DIVS           #
+#############################
+
+cathode_tabs_div = ds.html.Div(
+    id="cathode_tabs_panel",
+    children=[
+        ds.dcc.Tabs(
+            id="cathode-tabs-container",
+            children=[
+                ds.dcc.Tab(
+                    label="Current Collector",
+                    value="cathode_current_collector",
+                    className="tab-style",
+                    selected_className="tab-selected-style",
+                ),
+                ds.dcc.Tab(
+                    label="Formulation",
+                    value="cathode_formulation",
+                    className="tab-style",
+                    selected_className="tab-selected-style",
+                ),
+                ds.dcc.Tab(
+                    label="Electrode",
+                    value="cathode_electrode",
+                    className="tab-style",
+                    selected_className="tab-selected-style",
+                ),
+            ],
+            value="cathode_current_collector",
+        ),
+        ds.html.Div(
+            id="cathode_current_collector_tab",
+            children=[cathode_current_collector_layout],
+            style={"display": "block", "padding": "20px 0"},
+        ),
+        ds.html.Div(
+            id="cathode_formulation_tab",
+            children=[cathode_formulation_layout],
+            style={"display": "none", "padding": "20px 0"},
+        ),
+        ds.html.Div(
+            id="cathode_electrode_tab",
+            children=[cathode_electrode_layout],
+            style={"display": "none", "padding": "20px 0"},
+        ),
+    ],
+    style={"margin-left": "20px", "margin-right": "20px", "display": "block"},
+)
+
+
+anode_tabs_div = ds.html.Div(
+    id="anode_tabs_panel",
+    children=[
+        ds.dcc.Tabs(
+            id="anode-tabs-container",
+            children=[
+                ds.dcc.Tab(
+                    label="Current Collector",
+                    value="anode_current_collector",
+                    className="tab-style",
+                    selected_className="tab-selected-style",
+                ),
+                ds.dcc.Tab(
+                    label="Formulation",
+                    value="anode_formulation",
+                    className="tab-style",
+                    selected_className="tab-selected-style",
+                ),
+                ds.dcc.Tab(
+                    label="Electrode",
+                    value="anode_electrode",
+                    className="tab-style",
+                    selected_className="tab-selected-style",
+                ),
+            ],
+            value="anode_current_collector",
+        ),
+        ds.html.Div(
+            id="anode_current_collector_tab",
+            children=[anode_current_collector_layout],
+            style={"display": "block", "padding": "20px 0"},
+        ),
+        ds.html.Div(
+            id="anode_formulation_tab",
+            children=[anode_formulation_layout],
+            style={"display": "none", "padding": "20px 0"},
+        ),
+        ds.html.Div(
+            id="anode_electrode_tab",
+            children=[anode_electrode_layout],
+            style={"display": "none", "padding": "20px 0"},
+        ),
+    ],
+    style={"margin-left": "20px", "margin-right": "20px", "display": "block"},
 )
 

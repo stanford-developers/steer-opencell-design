@@ -122,11 +122,13 @@ def show_anode_tab_content(
 @callback(
     [
         Output("layup_mechanicals_layout", "style"),
+        Output("layup_overhangs_layout", "style"),
         Output("layup_areal_layout", "style"),
     ],
     Input("layup-tabs-container", "value"),
     [
         State("layup_mechanicals_layout", "style"),
+        State("layup_overhangs_layout", "style"),
         State("layup_areal_layout", "style"),
     ],
     prevent_initial_call=True,
@@ -134,14 +136,15 @@ def show_anode_tab_content(
 def show_layup_tab_content(
     active_tab,
     current_mechanicals_style,
+    current_overhangs_style,
     current_areal_style,
 ):
     """
     Function to show or hide layup sub-tab content based on the active tab.
     Only updates styles when the display property needs to change.
     """
-    tab_names = ["layup_mechanicals_layout", "layup_areal_layout"]
-    current_styles = [current_mechanicals_style, current_areal_style]
+    tab_names = ["layup_mechanicals_layout", "layup_overhangs_layout", "layup_areal_layout"]
+    current_styles = [current_mechanicals_style, current_overhangs_style, current_areal_style]
     return update_tab_styles(active_tab, tab_names, current_styles)
 
 
