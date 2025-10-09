@@ -284,7 +284,7 @@ def update_cathode_current_collector_insulation_material(
         Output("warnings_store", "data", allow_duplicate=True),
         Output("cell_store", "data", allow_duplicate=True),
         Output("old_cell_store", "data", allow_duplicate=True),
-        
+
         Output({"electrode": "anode", "object": "insulation_material", "property": ALL, "subtype": "slider"}, "value"),
         Output({"electrode": "anode", "object": "insulation_material", "property": ALL, "subtype": "slider"}, "min"),
         Output({"electrode": "anode", "object": "insulation_material", "property": ALL, "subtype": "slider"}, "max"),
@@ -332,54 +332,56 @@ def update_anode_current_collector_insulation_material(
     return (callback_name,) + response
 
 
-# @callback(
-#     [
-#         Output("warnings_store", "data", allow_duplicate=True),
-#         Output("cell_store", "data", allow_duplicate=True),
-#         Output({"object": "separator_material", "property": ALL, "subtype": "slider"}, "value"),
-#         Output({"object": "separator_material", "property": ALL, "subtype": "slider"}, "min"),
-#         Output({"object": "separator_material", "property": ALL, "subtype": "slider"}, "max"),
-#         Output({"object": "separator_material", "property": ALL, "subtype": "slider"}, "marks"),
-#         Output({"object": "separator_material", "property": ALL, "subtype": "slider"}, "step"),
-#         Output({"object": "separator_material", "property": ALL, "subtype": "input"}, "step"),
-#         Output("separator_material_selector", "value"),
-#     ],
-#     [
-#         Input("layup_tab", "style"),
-#         Input("tabs_panel", "style"),
-#         Input("cell_store", "data"),
-#         Input("separator_material_selector", "value"),
-#         Input({"object": "separator_material", "property": ALL, "subtype": "input"}, "n_submit"),
-#         Input({"object": "separator_material", "property": ALL, "subtype": "input"}, "n_blur"),
-#         Input({"object": "separator_material", "property": ALL, "subtype": "slider"}, "value"),
-#     ],
-#     [
-#         State({"object": "separator_material", "property": ALL, "subtype": "input"}, "value"),
-#         State("warnings_store", "data"),
-#     ],
-#     prevent_initial_call=True,
-# )
-# def update_separator_material(
-#     tabs_panel_style,
-#     main_tabs_container_style,
-#     cell_data,
-#     material_selector,
-#     input_n_sub,
-#     input_n_blur,
-#     slider_values,
-#     input_values,
-#     existing_warnings,
-# ):
-#     callback_function = create_material_callback(MaterialType.SEPARATOR_MATERIAL)
+@callback(
+    [
+        Output("last_triggered", "data", allow_duplicate=True),
+        Output("warnings_store", "data", allow_duplicate=True),
+        Output("cell_store", "data", allow_duplicate=True),
+        Output("old_cell_store", "data", allow_duplicate=True),
 
-#     response = callback_function(
-#         existing_warnings,
-#         cell_data,
-#         material_selector,
-#         input_values,
-#         slider_values,
-#         viewing_styles=[main_tabs_container_style, tabs_panel_style],
-#     )
+        Output({"object": "separator_material", "property": ALL, "subtype": "slider"}, "value"),
+        Output({"object": "separator_material", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"object": "separator_material", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"object": "separator_material", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"object": "separator_material", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"object": "separator_material", "property": ALL, "subtype": "input"}, "step"),
+        Output("separator_material_selector", "value"),
+    ],
+    [
+        Input({"type": "trigger", "callback": "update_separator_material"}, "data"),
+        Input("separator_material_selector", "value"),
+        Input({"object": "separator_material", "property": ALL, "subtype": "input"}, "n_submit"),
+        Input({"object": "separator_material", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"object": "separator_material", "property": ALL, "subtype": "slider"}, "value"),
+    ],
+    [
+        State("cell_store", "data"),
+        State({"object": "separator_material", "property": ALL, "subtype": "input"}, "value"),
+        State("warnings_store", "data"),
+    ],
+    prevent_initial_call=True,
+)
+def update_separator_material(
+    trigger_data,
+    material_selector,
+    input_n_sub,
+    input_n_blur,
+    slider_values,
+    cell_data,
+    input_values,
+    existing_warnings,
+):
+    callback_name = inspect.currentframe().f_code.co_name
 
-#     return response
+    callback_function = create_material_callback(MaterialType.SEPARATOR_MATERIAL)
+
+    response = callback_function(
+        existing_warnings,
+        cell_data,
+        material_selector,
+        input_values,
+        slider_values,
+    )
+
+    return (callback_name, ) + response
 

@@ -58,22 +58,22 @@ current_collector_trigger_stores = html.Div([
 
 def is_punched(old_cell, new_cell, config: CollectorType) -> bool:
     collector = get_object_from_cell(new_cell, config)
-    return isinstance(collector, PunchedCurrentCollector)
+    return type(collector) == PunchedCurrentCollector
 
 def is_notched(old_cell, new_cell, config: CollectorType) -> bool:
     """Check if collector is notched type."""
     collector = get_object_from_cell(new_cell, config)
-    return isinstance(collector, NotchedCurrentCollector)
+    return type(collector) == NotchedCurrentCollector
 
 def is_tabless(old_cell, new_cell, config: CollectorType) -> bool:
     """Check if collector is tabless type."""
     collector = get_object_from_cell(new_cell, config)
-    return isinstance(collector, TablessCurrentCollector)
+    return type(collector) == TablessCurrentCollector
 
 def is_tabbed(old_cell, new_cell, config: CollectorType) -> bool:
     """Check if collector is tabbed type."""
     collector = get_object_from_cell(new_cell, config)
-    return isinstance(collector, TabWeldedCurrentCollector)
+    return type(collector) == TabWeldedCurrentCollector
 
 ##############################
 ##### Trigger Configs ########

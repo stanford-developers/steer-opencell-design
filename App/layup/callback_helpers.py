@@ -22,7 +22,6 @@ def create_layup_callback(layup_key: LayupType) -> callable:
         input_values: list,
         slider_values: list,
         radioitem_values=None,
-        viewing_styles=[],
         original_values=None,
         original_mins=None,
         original_maxs=None,
@@ -38,11 +37,9 @@ def create_layup_callback(layup_key: LayupType) -> callable:
         # get the propid
         triggered_prop_id = list(ctx.triggered_prop_ids.keys())[0].split(".")[-1]
 
-        # If all display is none for any of the viewing styles, return no update
-        prevent_update_from_styles(viewing_styles)
-
         # Get the cell from cache
-        cell = get_cell_from_cache(cell_data["cache_key"])
+        cell_key = cell_data["cache_key"]
+        cell = get_cell_from_cache(cell_key)
 
         # get the layup from the cell
         layup = get_object_from_cell(cell, config)
@@ -64,6 +61,7 @@ def create_layup_callback(layup_key: LayupType) -> callable:
                 existing_warnings=existing_warnings,
                 triggered_id=triggered_id,
                 cell=cell,
+                cell_key=cell_key,
                 object_instance=layup,
                 config=config,
                 input_values=input_values,
@@ -84,11 +82,10 @@ def create_layup_callback(layup_key: LayupType) -> callable:
     return generic_update_layup
 
 
-def create_layup_separator_callback(separator_key: LayupType, layup_key: LayupType) -> callable:
+def create_layup_separator_callback(separator_key: LayupType) -> callable:
     """Factory function to create layup callbacks."""
 
     separator_config = SEPARATOR_CONFIGS[separator_key]
-    layup_config = LAYUP_CONFIGS[layup_key]
 
     def generic_update_separator(
         existing_warnings: list,
@@ -96,7 +93,6 @@ def create_layup_separator_callback(separator_key: LayupType, layup_key: LayupTy
         input_values: list,
         slider_values: list,
         radioitem_values=None,
-        viewing_styles=[],
         original_values=None,
         original_mins=None,
         original_maxs=None,
@@ -112,19 +108,10 @@ def create_layup_separator_callback(separator_key: LayupType, layup_key: LayupTy
         # get the propid
         triggered_prop_id = list(ctx.triggered_prop_ids.keys())[0].split(".")[-1]
 
-        # If all display is none for any of the viewing styles, return no update
-        prevent_update_from_styles(viewing_styles)
-
         # Get the cell from cache
-        cell = get_cell_from_cache(cell_data["cache_key"])
+        cache_key = cell_data["cache_key"]
+        cell = get_cell_from_cache(cache_key)
 
-        # get the layup to check the type
-        layup = get_object_from_cell(cell, layup_config)
-
-        # If the layup type does not match the config, prevent update
-        if type(layup) != layup_config.layup_type:
-            raise PreventUpdate
-    
         # get the separator from the cell
         separator = get_object_from_cell(cell, separator_config)
 
@@ -141,6 +128,7 @@ def create_layup_separator_callback(separator_key: LayupType, layup_key: LayupTy
                 existing_warnings=existing_warnings,
                 triggered_id=triggered_id,
                 cell=cell,
+                cell_key=cache_key,
                 object_instance=separator,
                 config=separator_config,
                 input_values=input_values,
