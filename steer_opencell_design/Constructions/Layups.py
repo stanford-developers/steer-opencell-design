@@ -422,6 +422,78 @@ class _Layup(
             # Trigger setter
             setattr(self, component, component_obj)
 
+    def _update_anode_ranges(self, cathode: Cathode):
+        """Update anode current collector ranges based on cathode."""
+        self._anode.current_collector.set_ranges_from_reference(cathode.current_collector)
+
+    def _update_separator_sizes(self, cathode: Cathode):
+        """Update separator dimensions to ensure proper coverage."""
+        self._ensure_separator_coverage(self._bottom_separator, cathode, "bottom")
+        if hasattr(self, '_top_separator') and self._top_separator is not None:
+            self._ensure_separator_coverage(self._top_separator, cathode, "top")
+
+    def _ensure_separator_coverage(self, separator: Separator, reference_electrode: Cathode, separator_name: str):
+        """Ensure separator covers the reference electrode with thickness buffer."""
+        thickness_buffer = separator._thickness * M_TO_MM
+        
+        if separator._rotated_xy:
+            # When rotated, width maps to x-direction, length to y-direction
+            required_width = reference_electrode.current_collector.x_body_length + thickness_buffer
+            required_length = reference_electrode.current_collector.y_body_length + thickness_buffer
+            
+            if separator._width < reference_electrode.current_collector._x_body_length:
+                new_separator = deepcopy(separator)
+                new_separator.width = required_width
+                if separator_name == "bottom":
+                    self._bottom_separator = new_separator
+                else:
+                    self._top_separator = new_separator
+                
+            if separator._length < reference_electrode.current_collector._y_body_length:
+                new_separator = deepcopy(separator)
+                new_separator.length = required_length
+                if separator_name == "bottom":
+                    self._bottom_separator = new_separator
+                else:
+                    self._top_separator = new_separator
+        else:
+            # When not rotated, length maps to x-direction, width to y-direction
+            required_length = reference_electrode.current_collector.x_body_length + thickness_buffer
+            required_width = reference_electrode.current_collector.y_body_length + thickness_buffer
+            
+            if separator._length < reference_electrode.current_collector._x_body_length:
+                new_separator = deepcopy(separator)
+                new_separator.length = required_length
+                if separator_name == "bottom":
+                    self._bottom_separator = new_separator
+                else:
+                    self._top_separator = new_separator
+                
+            if separator._width < reference_electrode.current_collector._y_body_length:
+                new_separator = deepcopy(separator)
+                new_separator.width = required_width
+                if separator_name == "bottom":
+                    self._bottom_separator = new_separator
+                else:
+                    self._top_separator = new_separator
+
+    def _update_anode_dimensions(self, cathode: Cathode):
+        """Update anode dimensions to match cathode if smaller."""
+        anode_cc = self.anode.current_collector
+        cathode_cc = cathode.current_collector
+        
+        # Check if x_body_length needs updating
+        if anode_cc._x_body_length < cathode_cc._x_body_length:
+            new_anode_current_collector = deepcopy(anode_cc)
+            new_anode_current_collector.x_body_length = cathode_cc.x_body_length
+            self.anode.current_collector = new_anode_current_collector
+            
+        # Check if y_body_length needs updating
+        if anode_cc._y_body_length < cathode_cc._y_body_length:
+            new_anode_current_collector = deepcopy(anode_cc)
+            new_anode_current_collector.y_body_length = cathode_cc.y_body_length
+            self.anode.current_collector = new_anode_current_collector
+
     def get_top_down_view(self, opacity: float = 0.2, **kwargs) -> go.Figure:
         # Validate opacity using ColorMixin
         self.validate_opacity(opacity)
@@ -723,26 +795,15 @@ class _Layup(
     @cathode.setter
     @calculate_all_properties
     def cathode(self, cathode: Cathode):
+        """Set the cathode and update dependent components."""
         # validate the type
         self.validate_type(cathode, Cathode, "Cathode")
 
         # if there is an anode, update its ranges
         if self._update_properties:
-
-            # update the anode ranges
-            self._anode.current_collector.set_ranges_from_reference(self.cathode.current_collector)
-
-            # if the anode has a shorter length then update it
-            if self.anode.current_collector._x_body_length < self.cathode.current_collector._x_body_length:
-                new_anode_current_collector = deepcopy(self.anode.current_collector)
-                new_anode_current_collector.x_body_length = cathode.current_collector.x_body_length
-                self.anode.current_collector = new_anode_current_collector
-
-            # if the anode has a shorter width then update it
-            if self.anode.current_collector._y_body_length < self.cathode.current_collector._y_body_length:
-                new_anode_current_collector = deepcopy(self.anode.current_collector)
-                new_anode_current_collector.y_body_length = cathode.current_collector.y_body_length
-                self.anode.current_collector = new_anode_current_collector
+            self._update_anode_ranges(cathode)
+            self._update_separator_sizes(cathode)
+            self._update_anode_dimensions(cathode)
 
         # set the cathode to self
         self._cathode = deepcopy(cathode)
