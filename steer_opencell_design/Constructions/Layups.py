@@ -620,6 +620,20 @@ class _Layup(
                 zerolinewidth=1,
             ),
             hovermode="closest",
+            # Add N/P ratio subtitle
+            annotations=[
+                dict(
+                    text=f"N/P Ratio: {self.np_ratio:.2f}",
+                    showarrow=False,
+                    xref="paper",
+                    yref="paper",
+                    x=0.5,
+                    y=1.02,
+                    xanchor="center",
+                    yanchor="bottom",
+                    font=dict(size=14),
+                )
+            ],
         )
 
         return fig

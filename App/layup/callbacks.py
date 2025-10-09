@@ -218,643 +218,615 @@ def update_layup_design(design_value, cell_data):
     return (callback_name, {"cache_key": new_key}, cell_data)
 
 
-# @callback(
-#     [
-#         Output("warnings_store", "data", allow_duplicate=True),
-#         Output("cell_store", "data", allow_duplicate=True),
-#         Output({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"},"value",),
-#         Output({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "min"),
-#         Output({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "max"),
-#         Output({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "marks"),
-#         Output({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "step"),
-#         Output({"object": "zfoldmonolayer", "property": ALL, "subtype": "input"}, "step"),
-#     ],
-#     [
-#         Input("layup_mechanicals_layout", "style"),
-#         Input("layup_tab", "style"),
-#         Input("tabs_panel", "style"),
-#         Input("cell_store", "data"),
-#         Input({"object": "zfoldmonolayer", "property": ALL, "subtype": "input"},"n_submit",),
-#         Input({"object": "zfoldmonolayer", "property": ALL, "subtype": "input"}, "n_blur"),
-#         Input({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "value"),
-#     ],
-#     [
-#         State({"object": "zfoldmonolayer", "property": ALL, "subtype": "input"}, "value"),
-#         State("warnings_store", "data"),
-#         State({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"},"value",),
-#         State({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "min"),
-#         State({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "max"),
-#         State({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "marks"),
-#         State({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "step"),
-#         State({"object": "zfoldmonolayer", "property": ALL, "subtype": "input"}, "step"),
-#     ],
-#     prevent_initial_call=True,
-# )
-# def update_zfold_monolayer(
-#     layup_style,
-#     tabs_panel_style,
-#     main_tabs_container_style,
-#     cell_data,
-#     input_n_sub,
-#     input_n_blur,
-#     slider_values,
-#     input_values,
-#     existing_warnings,
-#     original_values,
-#     original_mins,
-#     original_maxs,
-#     original_slider_marks,
-#     original_slider_steps,
-#     original_input_steps,
-# ):
-#     callback_function = create_layup_callback(LayupType.ZFOLDMONOLAYER)
-
-#     response = callback_function(
-#         existing_warnings,
-#         cell_data,
-#         input_values,
-#         slider_values,
-#         viewing_styles=[tabs_panel_style, main_tabs_container_style, layup_style],
-#         original_values=original_values,
-#         original_mins=original_mins,
-#         original_maxs=original_maxs,
-#         original_slider_marks=original_slider_marks,
-#         original_slider_steps=original_slider_steps,
-#         original_input_steps=original_input_steps,
-#     )
-
-#     return response
-
-
-# @callback(
-#     [
-#         Output("warnings_store", "data", allow_duplicate=True),
-#         Output("cell_store", "data", allow_duplicate=True),
-#         Output({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"},"value",),
-#         Output({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"}, "min"),
-#         Output({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"}, "max"),
-#         Output({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"}, "marks"),
-#         Output({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"}, "step"),
-#         Output({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "input"}, "step"),
-#     ],
-#     [
-#         Input("layup_mechanicals_layout", "style"),
-#         Input("layup_tab", "style"),
-#         Input("tabs_panel", "style"),
-#         Input("cell_store", "data"),
-#         Input({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "input"},"n_submit",),
-#         Input({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "input"}, "n_blur"),
-#         Input({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"}, "value"),
-#     ],
-#     [
-#         State({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "input"}, "value"),
-#         State("warnings_store", "data"),
-#         State({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"},"value",),
-#         State({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"}, "min"),
-#         State({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"}, "max"),
-#         State({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"}, "marks"),
-#         State({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"}, "step"),
-#         State({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "input"}, "step"),
-#     ],
-#     prevent_initial_call=True,
-# )
-# def update_zfold_monolayer_separator(
-#     layup_style,
-#     tabs_panel_style,
-#     main_tabs_container_style,
-#     cell_data,
-#     input_n_sub,
-#     input_n_blur,
-#     slider_values,
-#     input_values,
-#     existing_warnings,
-#     original_values,
-#     original_mins,
-#     original_maxs,
-#     original_slider_marks,
-#     original_slider_steps,
-#     original_input_steps,
-# ):
+@callback(
+    [
+        Output("last_triggered", "data", allow_duplicate=True),
+        Output("warnings_store", "data", allow_duplicate=True),
+        Output("cell_store", "data", allow_duplicate=True),
+        Output("old_cell_store", "data", allow_duplicate=True),
+        Output({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"},"value",),
+        Output({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"object": "zfoldmonolayer", "property": ALL, "subtype": "input"}, "step"),
+    ],
+    [
+        Input({"type": "trigger", "callback": "update_zfold_monolayer"}, "data"),
+        Input({"object": "zfoldmonolayer", "property": ALL, "subtype": "input"},"n_submit",),
+        Input({"object": "zfoldmonolayer", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "value"),
+    ],
+    [
+        State("cell_store", "data"),
+        State({"object": "zfoldmonolayer", "property": ALL, "subtype": "input"}, "value"),
+        State("warnings_store", "data"),
+        State({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"},"value",),
+        State({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "min"),
+        State({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "max"),
+        State({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "marks"),
+        State({"object": "zfoldmonolayer", "property": ALL, "subtype": "slider"}, "step"),
+        State({"object": "zfoldmonolayer", "property": ALL, "subtype": "input"}, "step"),
+    ],
+    prevent_initial_call=True,
+)
+def update_zfold_monolayer(
+    data_trigger,
+    input_n_sub,
+    input_n_blur,
+    slider_values,
+    cell_data,
+    input_values,
+    existing_warnings,
+    original_values,
+    original_mins,
+    original_maxs,
+    original_slider_marks,
+    original_slider_steps,
+    original_input_steps,
+):
+    callback_name = inspect.currentframe().f_code.co_name
     
-#     callback_function = create_layup_separator_callback(
-#         SeparatorType.ZFOLDMONOLAYER,
-#         LayupType.ZFOLDMONOLAYER
-#     )
+    callback_function = create_layup_callback(LayupType.ZFOLDMONOLAYER)
 
-#     response = callback_function(
-#         existing_warnings,
-#         cell_data,
-#         input_values,
-#         slider_values,
-#         viewing_styles=[tabs_panel_style, main_tabs_container_style, layup_style],
-#         original_values=original_values,
-#         original_mins=original_mins,
-#         original_maxs=original_maxs,
-#         original_slider_marks=original_slider_marks,
-#         original_slider_steps=original_slider_steps,
-#         original_input_steps=original_input_steps,
-#     )
+    response = callback_function(
+        existing_warnings,
+        cell_data,
+        input_values,
+        slider_values,
+        original_values=original_values,
+        original_mins=original_mins,
+        original_maxs=original_maxs,
+        original_slider_marks=original_slider_marks,
+        original_slider_steps=original_slider_steps,
+        original_input_steps=original_input_steps,
+    )
 
-#     return response
+    return (callback_name, ) + response
 
 
-# @callback(
-#     [
-#         Output("warnings_store", "data", allow_duplicate=True),
-#         Output("cell_store", "data", allow_duplicate=True),
-#         Output({"object": "laminate", "property": ALL, "subtype": "slider"},"value",),
-#         Output({"object": "laminate", "property": ALL, "subtype": "slider"}, "min"),
-#         Output({"object": "laminate", "property": ALL, "subtype": "slider"}, "max"),
-#         Output({"object": "laminate", "property": ALL, "subtype": "slider"}, "marks"),
-#         Output({"object": "laminate", "property": ALL, "subtype": "slider"}, "step"),
-#         Output({"object": "laminate", "property": ALL, "subtype": "input"}, "step"),
-#     ],
-#     [
-#         Input("layup_mechanicals_layout", "style"),
-#         Input("layup_tab", "style"),
-#         Input("tabs_panel", "style"),
-#         Input("cell_store", "data"),
-#         Input({"object": "laminate", "property": ALL, "subtype": "input"},"n_submit",),
-#         Input({"object": "laminate", "property": ALL, "subtype": "input"}, "n_blur"),
-#         Input({"object": "laminate", "property": ALL, "subtype": "slider"}, "value"),
-#     ],
-#     [
-#         State({"object": "laminate", "property": ALL, "subtype": "input"}, "value"),
-#         State("warnings_store", "data"),
-#         State({"object": "laminate", "property": ALL, "subtype": "slider"},"value",),
-#         State({"object": "laminate", "property": ALL, "subtype": "slider"}, "min"),
-#         State({"object": "laminate", "property": ALL, "subtype": "slider"}, "max"),
-#         State({"object": "laminate", "property": ALL, "subtype": "slider"}, "marks"),
-#         State({"object": "laminate", "property": ALL, "subtype": "slider"}, "step"),
-#         State({"object": "laminate", "property": ALL, "subtype": "input"}, "step"),
-#     ],
-#     prevent_initial_call=True,
-# )
-# def update_laminate(
-#     layup_style,
-#     tabs_panel_style,
-#     main_tabs_container_style,
-#     cell_data,
-#     input_n_sub,
-#     input_n_blur,
-#     slider_values,
-#     input_values,
-#     existing_warnings,
-#     original_values,
-#     original_mins,
-#     original_maxs,
-#     original_slider_marks,
-#     original_slider_steps,
-#     original_input_steps,
-# ):
-#     callback_function = create_layup_callback(LayupType.LAMINATE)
-
-#     response = callback_function(
-#         existing_warnings,
-#         cell_data,
-#         input_values,
-#         slider_values,
-#         viewing_styles=[tabs_panel_style, main_tabs_container_style, layup_style],
-#         original_values=original_values,
-#         original_mins=original_mins,
-#         original_maxs=original_maxs,
-#         original_slider_marks=original_slider_marks,
-#         original_slider_steps=original_slider_steps,
-#         original_input_steps=original_input_steps,
-#     )
-
-#     return response
-
-
-# @callback(
-#     [
-#         Output("warnings_store", "data", allow_duplicate=True),
-#         Output("cell_store", "data", allow_duplicate=True),
-#         Output({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"},"value",),
-#         Output({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"}, "min"),
-#         Output({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"}, "max"),
-#         Output({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"}, "marks"),
-#         Output({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"}, "step"),
-#         Output({"object": "laminate_top_separator", "property": ALL, "subtype": "input"}, "step"),
-#     ],
-#     [
-#         Input("layup_mechanicals_layout", "style"),
-#         Input("layup_tab", "style"),
-#         Input("tabs_panel", "style"),
-#         Input("cell_store", "data"),
-#         Input({"object": "laminate_top_separator", "property": ALL, "subtype": "input"},"n_submit",),
-#         Input({"object": "laminate_top_separator", "property": ALL, "subtype": "input"}, "n_blur"),
-#         Input({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"}, "value"),
-#     ],
-#     [
-#         State({"object": "laminate_top_separator", "property": ALL, "subtype": "input"}, "value"),
-#         State("warnings_store", "data"),
-#         State({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"},"value",),
-#         State({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"}, "min"),
-#         State({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"}, "max"),
-#         State({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"}, "marks"),
-#         State({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"}, "step"),
-#         State({"object": "laminate_top_separator", "property": ALL, "subtype": "input"}, "step"),
-#     ],
-#     prevent_initial_call=True,
-# )
-# def update_laminate_top_separator(
-#     layup_style,
-#     tabs_panel_style,
-#     main_tabs_container_style,
-#     cell_data,
-#     input_n_sub,
-#     input_n_blur,
-#     slider_values,
-#     input_values,
-#     existing_warnings,
-#     original_values,
-#     original_mins,
-#     original_maxs,
-#     original_slider_marks,
-#     original_slider_steps,
-#     original_input_steps,
-# ):
+@callback(
+    [
+        Output("last_triggered", "data", allow_duplicate=True),
+        Output("warnings_store", "data", allow_duplicate=True),
+        Output("cell_store", "data", allow_duplicate=True),
+        Output("old_cell_store", "data", allow_duplicate=True),
+        Output({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"},"value",),
+        Output({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "input"}, "step"),
+    ],
+    [
+        Input({"type": "trigger", "callback": "update_zfold_monolayer_separator"}, "data"),
+        Input({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "input"},"n_submit",),
+        Input({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"}, "value"),
+    ],
+    [
+        State("cell_store", "data"),
+        State({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "input"}, "value"),
+        State("warnings_store", "data"),
+        State({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"},"value",),
+        State({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"}, "min"),
+        State({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"}, "max"),
+        State({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"}, "marks"),
+        State({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "slider"}, "step"),
+        State({"object": "zfoldmonolayer_separator", "property": ALL, "subtype": "input"}, "step"),
+    ],
+    prevent_initial_call=True,
+)
+def update_zfold_monolayer_separator(
+    trigger_data,
+    input_n_sub,
+    input_n_blur,
+    slider_values,
+    cell_data,
+    input_values,
+    existing_warnings,
+    original_values,
+    original_mins,
+    original_maxs,
+    original_slider_marks,
+    original_slider_steps,
+    original_input_steps,
+):
+    callback_name = inspect.currentframe().f_code.co_name
     
-#     callback_function = create_layup_separator_callback(
-#         SeparatorType.TOP_LAMINATE,
-#         LayupType.LAMINATE
-#     )
+    callback_function = create_layup_separator_callback(SeparatorType.ZFOLDMONOLAYER)
 
-#     response = callback_function(
-#         existing_warnings,
-#         cell_data,
-#         input_values,
-#         slider_values,
-#         viewing_styles=[tabs_panel_style, main_tabs_container_style, layup_style],
-#         original_values=original_values,
-#         original_mins=original_mins,
-#         original_maxs=original_maxs,
-#         original_slider_marks=original_slider_marks,
-#         original_slider_steps=original_slider_steps,
-#         original_input_steps=original_input_steps,
-#     )
+    response = callback_function(
+        existing_warnings,
+        cell_data,
+        input_values,
+        slider_values,
+        original_values=original_values,
+        original_mins=original_mins,
+        original_maxs=original_maxs,
+        original_slider_marks=original_slider_marks,
+        original_slider_steps=original_slider_steps,
+        original_input_steps=original_input_steps,
+    )
 
-#     return response
+    return (callback_name, ) + response
 
 
-# @callback(
-#     [
-#         Output("warnings_store", "data", allow_duplicate=True),
-#         Output("cell_store", "data", allow_duplicate=True),
-#         Output({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"},"value",),
-#         Output({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"}, "min"),
-#         Output({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"}, "max"),
-#         Output({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"}, "marks"),
-#         Output({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"}, "step"),
-#         Output({"object": "laminate_bottom_separator", "property": ALL, "subtype": "input"}, "step"),
-#     ],
-#     [
-#         Input("layup_mechanicals_layout", "style"),
-#         Input("layup_tab", "style"),
-#         Input("tabs_panel", "style"),
-#         Input("cell_store", "data"),
-#         Input({"object": "laminate_bottom_separator", "property": ALL, "subtype": "input"},"n_submit",),
-#         Input({"object": "laminate_bottom_separator", "property": ALL, "subtype": "input"}, "n_blur"),
-#         Input({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"}, "value"),
-#     ],
-#     [
-#         State({"object": "laminate_bottom_separator", "property": ALL, "subtype": "input"}, "value"),
-#         State("warnings_store", "data"),
-#         State({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"},"value",),
-#         State({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"}, "min"),
-#         State({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"}, "max"),
-#         State({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"}, "marks"),
-#         State({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"}, "step"),
-#         State({"object": "laminate_bottom_separator", "property": ALL, "subtype": "input"}, "step"),
-#     ],
-#     prevent_initial_call=True,
-# )
-# def update_laminate_bottom_separator(
-#     layup_style,
-#     tabs_panel_style,
-#     main_tabs_container_style,
-#     cell_data,
-#     input_n_sub,
-#     input_n_blur,
-#     slider_values,
-#     input_values,
-#     existing_warnings,
-#     original_values,
-#     original_mins,
-#     original_maxs,
-#     original_slider_marks,
-#     original_slider_steps,
-#     original_input_steps,
-# ):
+@callback(
+    [
+        Output("last_triggered", "data", allow_duplicate=True),
+        Output("warnings_store", "data", allow_duplicate=True),
+        Output("cell_store", "data", allow_duplicate=True),
+        Output("old_cell_store", "data", allow_duplicate=True),
+        Output({"object": "laminate", "property": ALL, "subtype": "slider"},"value",),
+        Output({"object": "laminate", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"object": "laminate", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"object": "laminate", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"object": "laminate", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"object": "laminate", "property": ALL, "subtype": "input"}, "step"),
+    ],
+    [
+        Input({"type": "trigger", "callback": "update_laminate"}, "data"),
+        Input({"object": "laminate", "property": ALL, "subtype": "input"},"n_submit",),
+        Input({"object": "laminate", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"object": "laminate", "property": ALL, "subtype": "slider"}, "value"),
+    ],
+    [
+        State("cell_store", "data"),
+        State({"object": "laminate", "property": ALL, "subtype": "input"}, "value"),
+        State("warnings_store", "data"),
+        State({"object": "laminate", "property": ALL, "subtype": "slider"},"value",),
+        State({"object": "laminate", "property": ALL, "subtype": "slider"}, "min"),
+        State({"object": "laminate", "property": ALL, "subtype": "slider"}, "max"),
+        State({"object": "laminate", "property": ALL, "subtype": "slider"}, "marks"),
+        State({"object": "laminate", "property": ALL, "subtype": "slider"}, "step"),
+        State({"object": "laminate", "property": ALL, "subtype": "input"}, "step"),
+    ],
+    prevent_initial_call=True,
+)
+def update_laminate(
+    data_trigger,
+    input_n_sub,
+    input_n_blur,
+    slider_values,
+    cell_data,
+    input_values,
+    existing_warnings,
+    original_values,
+    original_mins,
+    original_maxs,
+    original_slider_marks,
+    original_slider_steps,
+    original_input_steps,
+):
+    callback_name = inspect.currentframe().f_code.co_name
     
-#     callback_function = create_layup_separator_callback(
-#         SeparatorType.BOTTOM_LAMINATE,
-#         LayupType.LAMINATE
-#     )
+    callback_function = create_layup_callback(LayupType.LAMINATE)
 
-#     response = callback_function(
-#         existing_warnings,
-#         cell_data,
-#         input_values,
-#         slider_values,
-#         viewing_styles=[tabs_panel_style, main_tabs_container_style, layup_style],
-#         original_values=original_values,
-#         original_mins=original_mins,
-#         original_maxs=original_maxs,
-#         original_slider_marks=original_slider_marks,
-#         original_slider_steps=original_slider_steps,
-#         original_input_steps=original_input_steps,
-#     )
+    response = callback_function(
+        existing_warnings,
+        cell_data,
+        input_values,
+        slider_values,
+        original_values=original_values,
+        original_mins=original_mins,
+        original_maxs=original_maxs,
+        original_slider_marks=original_slider_marks,
+        original_slider_steps=original_slider_steps,
+        original_input_steps=original_input_steps,
+    )
 
-#     return response
+    return (callback_name, ) + response
 
 
-# @callback(
-#     [
-#         Output("warnings_store", "data", allow_duplicate=True),
-#         Output("cell_store", "data", allow_duplicate=True),
-#         Output({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"},"value",),
-#         Output({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"}, "min"),
-#         Output({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"}, "max"),
-#         Output({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"}, "marks"),
-#         Output({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"}, "step"),
-#         Output({"object": "stacked_top_separator", "property": ALL, "subtype": "input"}, "step"),
-#     ],
-#     [
-#         Input("layup_mechanicals_layout", "style"),
-#         Input("layup_tab", "style"),
-#         Input("tabs_panel", "style"),
-#         Input("cell_store", "data"),
-#         Input({"object": "stacked_top_separator", "property": ALL, "subtype": "input"},"n_submit",),
-#         Input({"object": "stacked_top_separator", "property": ALL, "subtype": "input"}, "n_blur"),
-#         Input({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"}, "value"),
-#     ],
-#     [
-#         State({"object": "stacked_top_separator", "property": ALL, "subtype": "input"}, "value"),
-#         State("warnings_store", "data"),
-#         State({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"},"value",),
-#         State({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"}, "min"),
-#         State({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"}, "max"),
-#         State({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"}, "marks"),
-#         State({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"}, "step"),
-#         State({"object": "stacked_top_separator", "property": ALL, "subtype": "input"}, "step"),
-#     ],
-#     prevent_initial_call=True,
-# )
-# def update_stacked_top_separator(
-#     layup_style,
-#     tabs_panel_style,
-#     main_tabs_container_style,
-#     cell_data,
-#     input_n_sub,
-#     input_n_blur,
-#     slider_values,
-#     input_values,
-#     existing_warnings,
-#     original_values,
-#     original_mins,
-#     original_maxs,
-#     original_slider_marks,
-#     original_slider_steps,
-#     original_input_steps,
-# ):
+@callback(
+    [
+        Output("last_triggered", "data", allow_duplicate=True),
+        Output("warnings_store", "data", allow_duplicate=True),
+        Output("cell_store", "data", allow_duplicate=True),
+        Output("old_cell_store", "data", allow_duplicate=True),
+        Output({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"},"value",),
+        Output({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"object": "laminate_top_separator", "property": ALL, "subtype": "input"}, "step"),
+    ],
+    [
+        Input({"type": "trigger", "callback": "update_laminate_top_separator"}, "data"),
+        Input({"object": "laminate_top_separator", "property": ALL, "subtype": "input"},"n_submit",),
+        Input({"object": "laminate_top_separator", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"}, "value"),
+    ],
+    [
+        State("cell_store", "data"),
+        State({"object": "laminate_top_separator", "property": ALL, "subtype": "input"}, "value"),
+        State("warnings_store", "data"),
+        State({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"},"value",),
+        State({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"}, "min"),
+        State({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"}, "max"),
+        State({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"}, "marks"),
+        State({"object": "laminate_top_separator", "property": ALL, "subtype": "slider"}, "step"),
+        State({"object": "laminate_top_separator", "property": ALL, "subtype": "input"}, "step"),
+    ],
+    prevent_initial_call=True,
+)
+def update_laminate_top_separator(
+    trigger_data,
+    input_n_sub,
+    input_n_blur,
+    slider_values,
+    cell_data,
+    input_values,
+    existing_warnings,
+    original_values,
+    original_mins,
+    original_maxs,
+    original_slider_marks,
+    original_slider_steps,
+    original_input_steps,
+):
+    callback_name = inspect.currentframe().f_code.co_name
     
-#     callback_function = create_layup_separator_callback(
-#         SeparatorType.TOP_MONOLAYER,
-#         LayupType.MONOLAYER
-#     )
+    callback_function = create_layup_separator_callback(SeparatorType.TOP_LAMINATE)
 
-#     response = callback_function(
-#         existing_warnings,
-#         cell_data,
-#         input_values,
-#         slider_values,
-#         viewing_styles=[tabs_panel_style, main_tabs_container_style, layup_style],
-#         original_values=original_values,
-#         original_mins=original_mins,
-#         original_maxs=original_maxs,
-#         original_slider_marks=original_slider_marks,
-#         original_slider_steps=original_slider_steps,
-#         original_input_steps=original_input_steps,
-#     )
+    response = callback_function(
+        existing_warnings,
+        cell_data,
+        input_values,
+        slider_values,
+        original_values=original_values,
+        original_mins=original_mins,
+        original_maxs=original_maxs,
+        original_slider_marks=original_slider_marks,
+        original_slider_steps=original_slider_steps,
+        original_input_steps=original_input_steps,
+    )
 
-#     return response
+    return (callback_name, ) + response
 
 
-# @callback(
-#     [
-#         Output("warnings_store", "data", allow_duplicate=True),
-#         Output("cell_store", "data", allow_duplicate=True),
-#         Output({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"},"value",),
-#         Output({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"}, "min"),
-#         Output({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"}, "max"),
-#         Output({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"}, "marks"),
-#         Output({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"}, "step"),
-#         Output({"object": "stacked_bottom_separator", "property": ALL, "subtype": "input"}, "step"),
-#     ],
-#     [
-#         Input("layup_mechanicals_layout", "style"),
-#         Input("layup_tab", "style"),
-#         Input("tabs_panel", "style"),
-#         Input("cell_store", "data"),
-#         Input({"object": "stacked_bottom_separator", "property": ALL, "subtype": "input"},"n_submit",),
-#         Input({"object": "stacked_bottom_separator", "property": ALL, "subtype": "input"}, "n_blur"),
-#         Input({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"}, "value"),
-#     ],
-#     [
-#         State({"object": "stacked_bottom_separator", "property": ALL, "subtype": "input"}, "value"),
-#         State("warnings_store", "data"),
-#         State({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"},"value",),
-#         State({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"}, "min"),
-#         State({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"}, "max"),
-#         State({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"}, "marks"),
-#         State({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"}, "step"),
-#         State({"object": "stacked_bottom_separator", "property": ALL, "subtype": "input"}, "step"),
-#     ],
-#     prevent_initial_call=True,
-# )
-# def update_stacked_bottom_separator(
-#     layup_style,
-#     tabs_panel_style,
-#     main_tabs_container_style,
-#     cell_data,
-#     input_n_sub,
-#     input_n_blur,
-#     slider_values,
-#     input_values,
-#     existing_warnings,
-#     original_values,
-#     original_mins,
-#     original_maxs,
-#     original_slider_marks,
-#     original_slider_steps,
-#     original_input_steps,
-# ):
+@callback(
+    [
+        Output("last_triggered", "data", allow_duplicate=True),
+        Output("warnings_store", "data", allow_duplicate=True),
+        Output("cell_store", "data", allow_duplicate=True),
+        Output("old_cell_store", "data", allow_duplicate=True),
+        Output({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"},"value",),
+        Output({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"object": "laminate_bottom_separator", "property": ALL, "subtype": "input"}, "step"),
+    ],
+    [
+        Input({"type": "trigger", "callback": "update_laminate_bottom_separator"}, "data"),
+        Input({"object": "laminate_bottom_separator", "property": ALL, "subtype": "input"},"n_submit",),
+        Input({"object": "laminate_bottom_separator", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"}, "value"),
+    ],
+    [
+        State("cell_store", "data"),
+        State({"object": "laminate_bottom_separator", "property": ALL, "subtype": "input"}, "value"),
+        State("warnings_store", "data"),
+        State({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"},"value",),
+        State({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"}, "min"),
+        State({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"}, "max"),
+        State({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"}, "marks"),
+        State({"object": "laminate_bottom_separator", "property": ALL, "subtype": "slider"}, "step"),
+        State({"object": "laminate_bottom_separator", "property": ALL, "subtype": "input"}, "step"),
+    ],
+    prevent_initial_call=True,
+)
+def update_laminate_bottom_separator(
+    trigger_data,
+    input_n_sub,
+    input_n_blur,
+    slider_values,
+    cell_data,
+    input_values,
+    existing_warnings,
+    original_values,
+    original_mins,
+    original_maxs,
+    original_slider_marks,
+    original_slider_steps,
+    original_input_steps,
+):
+    callback_name = inspect.currentframe().f_code.co_name
     
-#     callback_function = create_layup_separator_callback(
-#         SeparatorType.BOTTOM_MONOLAYER,
-#         LayupType.MONOLAYER
-#     )
+    callback_function = create_layup_separator_callback(SeparatorType.BOTTOM_LAMINATE)
 
-#     response = callback_function(
-#         existing_warnings,
-#         cell_data,
-#         input_values,
-#         slider_values,
-#         viewing_styles=[tabs_panel_style, main_tabs_container_style, layup_style],
-#         original_values=original_values,
-#         original_mins=original_mins,
-#         original_maxs=original_maxs,
-#         original_slider_marks=original_slider_marks,
-#         original_slider_steps=original_slider_steps,
-#         original_input_steps=original_input_steps,
-#     )
+    response = callback_function(
+        existing_warnings,
+        cell_data,
+        input_values,
+        slider_values,
+        original_values=original_values,
+        original_mins=original_mins,
+        original_maxs=original_maxs,
+        original_slider_marks=original_slider_marks,
+        original_slider_steps=original_slider_steps,
+        original_input_steps=original_input_steps,
+    )
 
-#     return response
+    return (callback_name, ) + response
 
 
-# @callback(
-#     [
-#         Output("warnings_store", "data", allow_duplicate=True),
-#         Output("cell_store", "data", allow_duplicate=True),
-#         Output({"object": "stacked", "property": ALL, "subtype": "slider"},"value",),
-#         Output({"object": "stacked", "property": ALL, "subtype": "slider"}, "min"),
-#         Output({"object": "stacked", "property": ALL, "subtype": "slider"}, "max"),
-#         Output({"object": "stacked", "property": ALL, "subtype": "slider"}, "marks"),
-#         Output({"object": "stacked", "property": ALL, "subtype": "slider"}, "step"),
-#         Output({"object": "stacked", "property": ALL, "subtype": "input"}, "step"),
-#     ],
-#     [
-#         Input("layup_mechanicals_layout", "style"),
-#         Input("layup_tab", "style"),
-#         Input("tabs_panel", "style"),
-#         Input("cell_store", "data"),
-#         Input({"object": "stacked", "property": ALL, "subtype": "input"}, "n_submit"),
-#         Input({"object": "stacked", "property": ALL, "subtype": "input"}, "n_blur"),
-#         Input({"object": "stacked", "property": ALL, "subtype": "slider"}, "value"),
-#     ],
-#     [
-#         State({"object": "stacked", "property": ALL, "subtype": "input"}, "value"),
-#         State("warnings_store", "data"),
-#         State({"object": "stacked", "property": ALL, "subtype": "slider"},"value",),
-#         State({"object": "stacked", "property": ALL, "subtype": "slider"}, "min"),
-#         State({"object": "stacked", "property": ALL, "subtype": "slider"}, "max"),
-#         State({"object": "stacked", "property": ALL, "subtype": "slider"}, "marks"),
-#         State({"object": "stacked", "property": ALL, "subtype": "slider"}, "step"),
-#         State({"object": "stacked", "property": ALL, "subtype": "input"}, "step"),
-#     ],
-#     prevent_initial_call=True,
-# )
-# def update_monolayer(
-#     layup_style,
-#     tabs_panel_style,
-#     main_tabs_container_style,
-#     cell_data,
-#     input_n_sub,
-#     input_n_blur,
-#     slider_values,
-#     input_values,
-#     existing_warnings,
-#     original_values,
-#     original_mins,
-#     original_maxs,
-#     original_slider_marks,
-#     original_slider_steps,
-#     original_input_steps,
-# ):
+@callback(
+    [
+        Output("last_triggered", "data", allow_duplicate=True),
+        Output("warnings_store", "data", allow_duplicate=True),
+        Output("cell_store", "data", allow_duplicate=True),
+        Output("old_cell_store", "data", allow_duplicate=True),
+        Output({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"},"value",),
+        Output({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"object": "stacked_top_separator", "property": ALL, "subtype": "input"}, "step"),
+    ],
+    [
+        Input({"type": "trigger", "callback": "update_stacked_top_separator"}, "data"),
+        Input({"object": "stacked_top_separator", "property": ALL, "subtype": "input"},"n_submit",),
+        Input({"object": "stacked_top_separator", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"}, "value"),
+    ],
+    [
+        State("cell_store", "data"),
+        State({"object": "stacked_top_separator", "property": ALL, "subtype": "input"}, "value"),
+        State("warnings_store", "data"),
+        State({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"},"value",),
+        State({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"}, "min"),
+        State({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"}, "max"),
+        State({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"}, "marks"),
+        State({"object": "stacked_top_separator", "property": ALL, "subtype": "slider"}, "step"),
+        State({"object": "stacked_top_separator", "property": ALL, "subtype": "input"}, "step"),
+    ],
+    prevent_initial_call=True,
+)
+def update_stacked_top_separator(
+    trigger_data,
+    input_n_sub,
+    input_n_blur,
+    slider_values,
+    cell_data,
+    input_values,
+    existing_warnings,
+    original_values,
+    original_mins,
+    original_maxs,
+    original_slider_marks,
+    original_slider_steps,
+    original_input_steps,
+):
+    callback_name = inspect.currentframe().f_code.co_name
+    
+    callback_function = create_layup_separator_callback(SeparatorType.TOP_MONOLAYER)
 
-#     callback_function = create_layup_callback(LayupType.MONOLAYER)
+    response = callback_function(
+        existing_warnings,
+        cell_data,
+        input_values,
+        slider_values,
+        original_values=original_values,
+        original_mins=original_mins,
+        original_maxs=original_maxs,
+        original_slider_marks=original_slider_marks,
+        original_slider_steps=original_slider_steps,
+        original_input_steps=original_input_steps,
+    )
 
-#     response = callback_function(
-#         existing_warnings,
-#         cell_data,
-#         input_values,
-#         slider_values,
-#         viewing_styles=[tabs_panel_style, main_tabs_container_style, layup_style],
-#         original_values=original_values,
-#         original_mins=original_mins,
-#         original_maxs=original_maxs,
-#         original_slider_marks=original_slider_marks,
-#         original_slider_steps=original_slider_steps,
-#         original_input_steps=original_input_steps,
-#     )
-
-#     return response
+    return (callback_name, ) + response
 
 
-# @callback(
-#     [
-#         Output("warnings_store", "data", allow_duplicate=True),
-#         Output("cell_store", "data", allow_duplicate=True),
-#         Output({"object": "layup", "property": ALL, "subtype": "slider"},"value",),
-#         Output({"object": "layup", "property": ALL, "subtype": "slider"}, "min"),
-#         Output({"object": "layup", "property": ALL, "subtype": "slider"}, "max"),
-#         Output({"object": "layup", "property": ALL, "subtype": "slider"}, "marks"),
-#         Output({"object": "layup", "property": ALL, "subtype": "slider"}, "step"),
-#         Output({"object": "layup", "property": ALL, "subtype": "input"}, "step"),
-#         Output({"object": "layup", "property": ALL, "subtype": "radioitem"}, "value"),
-#     ],
-#     [   
-#         Input("layup_tab", "style"),
-#         Input("tabs_panel", "style"),
-#         Input("cell_store", "data"),
-#         Input({"object": "layup", "property": ALL, "subtype": "input"}, "n_submit"),
-#         Input({"object": "layup", "property": ALL, "subtype": "input"}, "n_blur"),
-#         Input({"object": "layup", "property": ALL, "subtype": "slider"}, "value"),
-#         Input({"object": "layup", "property": ALL, "subtype": "radioitem"}, "value"),
-#     ],
-#     [
-#         State({"object": "layup", "property": ALL, "subtype": "input"}, "value"),
-#         State("warnings_store", "data"),
-#         State({"object": "layup", "property": ALL, "subtype": "slider"},"value",),
-#         State({"object": "layup", "property": ALL, "subtype": "slider"}, "min"),
-#         State({"object": "layup", "property": ALL, "subtype": "slider"}, "max"),
-#         State({"object": "layup", "property": ALL, "subtype": "slider"}, "marks"),
-#         State({"object": "layup", "property": ALL, "subtype": "slider"}, "step"),
-#         State({"object": "layup", "property": ALL, "subtype": "input"}, "step"),
-#         State({"object": "layup", "property": ALL, "subtype": "radioitem"}, "value"),
-#     ],
-#     prevent_initial_call=True,
-# )
-# def update_generic_layup(
-#     tabs_panel_style,
-#     main_tabs_container_style,
-#     cell_data,
-#     input_n_sub,
-#     input_n_blur,
-#     slider_values,
-#     radioitem_values,
-#     input_values,
-#     existing_warnings,
-#     original_values,
-#     original_mins,
-#     original_maxs,
-#     original_slider_marks,
-#     original_slider_steps,
-#     original_input_steps,
-#     original_radioitem_values,
-# ):
+@callback(
+    [
+        Output("last_triggered", "data", allow_duplicate=True),
+        Output("warnings_store", "data", allow_duplicate=True),
+        Output("cell_store", "data", allow_duplicate=True),
+        Output("old_cell_store", "data", allow_duplicate=True),
+        Output({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"},"value",),
+        Output({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"object": "stacked_bottom_separator", "property": ALL, "subtype": "input"}, "step"),
+    ],
+    [
+        Input({"type": "trigger", "callback": "update_stacked_bottom_separator"}, "data"),
+        Input({"object": "stacked_bottom_separator", "property": ALL, "subtype": "input"},"n_submit",),
+        Input({"object": "stacked_bottom_separator", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"}, "value"),
+    ],
+    [
+        State("cell_store", "data"),
+        State({"object": "stacked_bottom_separator", "property": ALL, "subtype": "input"}, "value"),
+        State("warnings_store", "data"),
+        State({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"},"value",),
+        State({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"}, "min"),
+        State({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"}, "max"),
+        State({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"}, "marks"),
+        State({"object": "stacked_bottom_separator", "property": ALL, "subtype": "slider"}, "step"),
+        State({"object": "stacked_bottom_separator", "property": ALL, "subtype": "input"}, "step"),
+    ],
+    prevent_initial_call=True,
+)
+def update_stacked_bottom_separator(
+    trigger_data,
+    input_n_sub,
+    input_n_blur,
+    slider_values,
+    cell_data,
+    input_values,
+    existing_warnings,
+    original_values,
+    original_mins,
+    original_maxs,
+    original_slider_marks,
+    original_slider_steps,
+    original_input_steps,
+):
+    callback_name = inspect.currentframe().f_code.co_name
+    
+    callback_function = create_layup_separator_callback(SeparatorType.BOTTOM_MONOLAYER)
 
-#     callback_function = create_layup_callback(LayupType.GENERIC)
+    response = callback_function(
+        existing_warnings,
+        cell_data,
+        input_values,
+        slider_values,
+        original_values=original_values,
+        original_mins=original_mins,
+        original_maxs=original_maxs,
+        original_slider_marks=original_slider_marks,
+        original_slider_steps=original_slider_steps,
+        original_input_steps=original_input_steps,
+    )
 
-#     response = callback_function(
-#         existing_warnings,
-#         cell_data,
-#         input_values,
-#         slider_values,
-#         viewing_styles=[tabs_panel_style, main_tabs_container_style],
-#         radioitem_values=radioitem_values,
-#         original_values=original_values,
-#         original_mins=original_mins,
-#         original_maxs=original_maxs,
-#         original_slider_marks=original_slider_marks,
-#         original_slider_steps=original_slider_steps,
-#         original_input_steps=original_input_steps,
-#         original_radioitem_values=original_radioitem_values,
-#     )
+    return (callback_name, ) + response
 
-#     return response
+
+@callback(
+    [
+        Output("last_triggered", "data", allow_duplicate=True),
+        Output("warnings_store", "data", allow_duplicate=True),
+        Output("cell_store", "data", allow_duplicate=True),
+        Output("old_cell_store", "data", allow_duplicate=True),
+        Output({"object": "stacked", "property": ALL, "subtype": "slider"},"value",),
+        Output({"object": "stacked", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"object": "stacked", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"object": "stacked", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"object": "stacked", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"object": "stacked", "property": ALL, "subtype": "input"}, "step"),
+    ],
+    [
+        Input({"type": "trigger", "callback": "update_monolayer"}, "data"),
+        Input({"object": "stacked", "property": ALL, "subtype": "input"}, "n_submit"),
+        Input({"object": "stacked", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"object": "stacked", "property": ALL, "subtype": "slider"}, "value"),
+    ],
+    [
+        State("cell_store", "data"),
+        State({"object": "stacked", "property": ALL, "subtype": "input"}, "value"),
+        State("warnings_store", "data"),
+        State({"object": "stacked", "property": ALL, "subtype": "slider"},"value",),
+        State({"object": "stacked", "property": ALL, "subtype": "slider"}, "min"),
+        State({"object": "stacked", "property": ALL, "subtype": "slider"}, "max"),
+        State({"object": "stacked", "property": ALL, "subtype": "slider"}, "marks"),
+        State({"object": "stacked", "property": ALL, "subtype": "slider"}, "step"),
+        State({"object": "stacked", "property": ALL, "subtype": "input"}, "step"),
+    ],
+    prevent_initial_call=True,
+)
+def update_monolayer(
+    data_trigger,
+    input_n_sub,
+    input_n_blur,
+    slider_values,
+    cell_data,
+    input_values,
+    existing_warnings,
+    original_values,
+    original_mins,
+    original_maxs,
+    original_slider_marks,
+    original_slider_steps,
+    original_input_steps,
+):
+
+    callback_name = inspect.currentframe().f_code.co_name
+    
+    callback_function = create_layup_callback(LayupType.MONOLAYER)
+
+    response = callback_function(
+        existing_warnings,
+        cell_data,
+        input_values,
+        slider_values,
+        original_values=original_values,
+        original_mins=original_mins,
+        original_maxs=original_maxs,
+        original_slider_marks=original_slider_marks,
+        original_slider_steps=original_slider_steps,
+        original_input_steps=original_input_steps,
+    )
+
+    return (callback_name, ) + response
+
+
+@callback(
+    [
+        Output("last_triggered", "data", allow_duplicate=True),
+        Output("warnings_store", "data", allow_duplicate=True),
+        Output("cell_store", "data", allow_duplicate=True),
+        Output("old_cell_store", "data", allow_duplicate=True),
+        Output({"object": "layup", "property": ALL, "subtype": "slider"},"value",),
+        Output({"object": "layup", "property": ALL, "subtype": "slider"}, "min"),
+        Output({"object": "layup", "property": ALL, "subtype": "slider"}, "max"),
+        Output({"object": "layup", "property": ALL, "subtype": "slider"}, "marks"),
+        Output({"object": "layup", "property": ALL, "subtype": "slider"}, "step"),
+        Output({"object": "layup", "property": ALL, "subtype": "input"}, "step"),
+        Output({"object": "layup", "property": ALL, "subtype": "radioitem"}, "value"),
+    ],
+    [   
+        Input({"type": "trigger", "callback": "update_generic_layup"}, "data"),
+        Input({"object": "layup", "property": ALL, "subtype": "input"}, "n_submit"),
+        Input({"object": "layup", "property": ALL, "subtype": "input"}, "n_blur"),
+        Input({"object": "layup", "property": ALL, "subtype": "slider"}, "value"),
+        Input({"object": "layup", "property": ALL, "subtype": "radioitem"}, "value"),
+    ],
+    [
+        State("cell_store", "data"),
+        State({"object": "layup", "property": ALL, "subtype": "input"}, "value"),
+        State("warnings_store", "data"),
+        State({"object": "layup", "property": ALL, "subtype": "slider"},"value",),
+        State({"object": "layup", "property": ALL, "subtype": "slider"}, "min"),
+        State({"object": "layup", "property": ALL, "subtype": "slider"}, "max"),
+        State({"object": "layup", "property": ALL, "subtype": "slider"}, "marks"),
+        State({"object": "layup", "property": ALL, "subtype": "slider"}, "step"),
+        State({"object": "layup", "property": ALL, "subtype": "input"}, "step"),
+        State({"object": "layup", "property": ALL, "subtype": "radioitem"}, "value"),
+    ],
+    prevent_initial_call=True,
+)
+def update_generic_layup(
+    trigger_data,
+    input_n_sub,
+    input_n_blur,
+    slider_values,
+    radioitem_values,
+    cell_data,
+    input_values,
+    existing_warnings,
+    original_values,
+    original_mins,
+    original_maxs,
+    original_slider_marks,
+    original_slider_steps,
+    original_input_steps,
+    original_radioitem_values,
+):
+    callback_name = inspect.currentframe().f_code.co_name
+
+    callback_function = create_layup_callback(LayupType.GENERIC)
+
+    response = callback_function(
+        existing_warnings,
+        cell_data,
+        input_values,
+        slider_values,
+        radioitem_values=radioitem_values,
+        original_values=original_values,
+        original_mins=original_mins,
+        original_maxs=original_maxs,
+        original_slider_marks=original_slider_marks,
+        original_slider_steps=original_slider_steps,
+        original_input_steps=original_input_steps,
+        original_radioitem_values=original_radioitem_values,
+    )
+
+    return (callback_name, ) + response
 
 
 
