@@ -388,7 +388,7 @@ class TestSimpleLaminate(unittest.TestCase):
         """Test that layup properties are properly updated after N/P ratio changes."""
         # Store initial properties
         initial_thickness = self.layup.thickness
-        initial_capacity_curve = self.layup.half_cell_curve.copy()
+        initial_capacity_curve = self.layup.full_cell_curve.copy()
         
         # Change N/P ratio
         self.layup.np_ratio_control_mode = NPRatioControlMode.FIXED_CATHODE
@@ -396,8 +396,8 @@ class TestSimpleLaminate(unittest.TestCase):
         
         # Check that properties were updated
         new_thickness = self.layup.thickness
-        new_capacity_curve = self.layup.half_cell_curve
-        
+        new_capacity_curve = self.layup.full_cell_curve
+
         # Thickness should change if anode mass loading changed
         self.assertNotEqual(initial_thickness, new_thickness)
         
