@@ -8,4 +8,3 @@ data_scripts/
 local_data/
 Archive/
 .vscode/
-.pytest_cache/
