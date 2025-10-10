@@ -257,8 +257,14 @@ def update_layup_design_figure(trigger_data, opacity_value, cell_data, current_f
     # Pass opacity value directly to the method
     fig = layup.get_top_down_view(title="Layup Design", opacity=opacity_value)
     
-    # Preserve zoom settings and legend selections if we have a current figure
-    if current_figure is not None and 'layout' in current_figure:
+    # Check if current figure has data - if empty, return fresh figure with auto-scaled axes
+    current_figure_has_data = (current_figure is not None and 
+                              'data' in current_figure and 
+                              current_figure['data'] and 
+                              len(current_figure['data']) > 0)
+    
+    # Only preserve zoom settings and legend selections if current figure has actual data
+    if current_figure_has_data and 'layout' in current_figure:
         current_layout = current_figure['layout']
         # Preserve zoom settings
         if 'xaxis' in current_layout and 'range' in current_layout['xaxis']:
