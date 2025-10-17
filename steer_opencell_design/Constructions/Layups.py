@@ -1,40 +1,38 @@
-from steer_opencell_design.Components.Electrodes import Anode, Cathode
-from steer_opencell_design.Components.Separators import Separator
+from copy import copy, deepcopy
+from enum import Enum
+from typing import Tuple
+
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+
+from steer_core.Constants.Units import *
+from steer_core.Decorators.Coordinates import calculate_volumes, calculate_coordinates
+from steer_core.Decorators.General import calculate_all_properties
+from steer_core.Mixins.Colors import ColorMixin
+from steer_core.Mixins.Coordinates import CoordinateMixin
+from steer_core.Mixins.Dunder import DunderMixin
+from steer_core.Mixins.Serializer import SerializerMixin
+from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_opencell_design.Components.CurrentCollectors import (
     _TapeCurrentCollector,
     PunchedCurrentCollector,
 )
-
-from steer_core.Mixins.Coordinates import CoordinateMixin
-from steer_core.Mixins.TypeChecker import ValidationMixin
-from steer_core.Mixins.Serializer import SerializerMixin
-from steer_core.Mixins.Colors import ColorMixin
-from steer_core.Mixins.Dunder import DunderMixin
-
-from steer_core.Decorators.General import calculate_all_properties
-from steer_core.Decorators.Coordinates import calculate_volumes
-
-from steer_core.Constants.Units import *
-
-from copy import copy, deepcopy
-import plotly.graph_objects as go
-import pandas as pd
-import numpy as np
-from typing import Tuple
-from enum import Enum
+from steer_opencell_design.Components.Electrodes import Anode, Cathode
+from steer_opencell_design.Components.Separators import Separator
 
 
 class OverhangControlMode(Enum):
     """Control modes for anode overhang adjustments."""
-    FIXED_COMPONENT = "fixed_component"  # Move anode position to achieve overhang
-    FIXED_OVERHANGS = "fixed_overhangs"  # Extend anode body to achieve overhang
+    FIXED_COMPONENT = "fixed_component"
+    FIXED_OVERHANGS = "fixed_overhangs"
 
 
 class NPRatioControlMode(Enum):
     """Control modes for N/P ratio adjustments."""
-    FIXED_ANODE = "fixed_anode"  # Adjust cathode mass loading to achieve N/P ratio
-    FIXED_CATHODE = "fixed_cathode"  # Adjust anode mass loading to achieve N/P ratio
-    FIXED_THICKNESS = "fixed_thickness"  # Adjust both mass loadings to keep the same thickness but the target N/P ratio
+    FIXED_ANODE = "fixed_anode"
+    FIXED_CATHODE = "fixed_cathode"
+    FIXED_THICKNESS = "fixed_thickness"
 
 
 class _Layup(
@@ -85,28 +83,25 @@ class _Layup(
         self.top_separator = top_separator
         self.name = name
 
-        self._calculate_all_properties()
-        self._update_properties = True
-
     def _calculate_all_properties(self):
         self._calculate_coordinates()
         self._calculate_bulk_properties()
         self._calculate_full_cell_curves()
 
     def _calculate_bulk_properties(self):
-        # calculate thickness
         self._thickness = self._cathode.thickness + self._bottom_separator.thickness + self._anode.thickness + self._top_separator.thickness
 
     def _calculate_coordinates(self):
+        self._set_z_positions()
         self._calculate_anode_overhangs()
         self._calculate_bottom_separator_overhangs()
         self._calculate_top_separator_overhangs()
-        self._set_z_positions()
 
     def _set_z_positions(self):
-        _bottom_separator_z = self._cathode._current_collector._datum[2] + (self._cathode._thickness / 2 + self._bottom_separator._thickness / 2) * UM_TO_M
-        _anode_z = _bottom_separator_z + (self._bottom_separator._thickness / 2 + self._anode._thickness / 2) * UM_TO_M
-        _top_separator_z = _anode_z + (self._anode._thickness / 2 + self._top_separator._thickness / 2) * UM_TO_M
+
+        _bottom_separator_z = self._cathode._current_collector._datum[2] + self._cathode._thickness / 2 + self._bottom_separator._thickness / 2
+        _anode_z = _bottom_separator_z + self._bottom_separator._thickness / 2 + self._anode._thickness / 2
+        _top_separator_z = _anode_z + self._anode._thickness / 2 + self._top_separator._thickness / 2
 
         self._bottom_separator.datum = (
             self._bottom_separator.datum[0],
@@ -127,95 +122,82 @@ class _Layup(
         )
 
     def _calculate_anode_overhangs(self):
+        """Calculate anode overhangs relative to cathode.
+
+        Overhang sign convention:
+          left  = cathode_left - anode_left
+          right = anode_right - cathode_right
+          bottom= cathode_bottom - anode_bottom
+          top   = anode_top - cathode_top
+
+        Positive values mean the anode extends beyond the cathode in that direction.
+        Values stored in internal SI units (meters).
         """
-        Calculate the anode overhangs relative to the cathode.
-        """
-        if hasattr(self, "_cathode") and hasattr(self, "_anode") and self._cathode is not None and self._anode is not None:
-            # Cathode edges (using internal SI units - meters)
-            cathode_left = self._cathode._current_collector._datum[0] - self._cathode._current_collector._x_body_length / 2
-            cathode_right = self._cathode._current_collector._datum[0] + self._cathode._current_collector._x_body_length / 2
-            cathode_bottom = self._cathode._current_collector._datum[1] - self._cathode._current_collector._y_body_length / 2
-            cathode_top = self._cathode._current_collector._datum[1] + self._cathode._current_collector._y_body_length / 2
+        left, right, bottom, top = self._compute_electrode_overhangs(self._cathode, self._anode)
 
-            # Anode edges (using internal SI units - meters)
-            anode_left = self._anode._current_collector._datum[0] - self._anode._current_collector._x_body_length / 2
-            anode_right = self._anode._current_collector._datum[0] + self._anode._current_collector._x_body_length / 2
-            anode_bottom = self._anode._current_collector._datum[1] - self._anode._current_collector._y_body_length / 2
-            anode_top = self._anode._current_collector._datum[1] + self._anode._current_collector._y_body_length / 2
-
-            # Calculate overhangs (positive values mean anode extends beyond cathode)
-            self._anode_overhang_left = cathode_left - anode_left
-            self._anode_overhang_right = anode_right - cathode_right
-            self._anode_overhang_bottom = cathode_bottom - anode_bottom
-            self._anode_overhang_top = anode_top - cathode_top
-
-        else:
-            # Set default values if components are not available
-            self._anode_overhang_left = 0.0
-            self._anode_overhang_right = 0.0
-            self._anode_overhang_bottom = 0.0
-            self._anode_overhang_top = 0.0
+        self._anode_overhang_left = left
+        self._anode_overhang_right = right
+        self._anode_overhang_bottom = bottom
+        self._anode_overhang_top = top
 
     def _calculate_bottom_separator_overhangs(self):
+        """Calculate bottom separator overhangs relative to cathode.
+
+        Positive values mean the separator extends beyond the cathode in the given direction.
         """
-        Calculate the bottom separator overhangs relative to the cathode.
-        """
+        left, right, bottom, top = self._compute_separator_overhangs(self._cathode, self._bottom_separator)
 
-        if hasattr(self, "_cathode") and hasattr(self, "_bottom_separator") and self._cathode is not None and self._bottom_separator is not None:
-            # Cathode edges (using internal SI units - meters)
-            cathode_left = self._cathode._current_collector._datum[0] - self._cathode._current_collector._x_body_length / 2
-            cathode_right = self._cathode._current_collector._datum[0] + self._cathode._current_collector._x_body_length / 2
-            cathode_bottom = self._cathode._current_collector._datum[1] - self._cathode._current_collector._y_body_length / 2
-            cathode_top = self._cathode._current_collector._datum[1] + self._cathode._current_collector._y_body_length / 2
-
-            # Bottom separator edges (using internal SI units - meters)
-            separator_left = min(self._bottom_separator._coordinates[:, 0])
-            separator_right = max(self._bottom_separator._coordinates[:, 0])
-            separator_bottom = min(self._bottom_separator._coordinates[:, 1])
-            separator_top = max(self._bottom_separator._coordinates[:, 1])
-
-            # Calculate overhangs (positive values mean separator extends beyond cathode)
-            self._bottom_separator_overhang_left = cathode_left - separator_left
-            self._bottom_separator_overhang_right = separator_right - cathode_right
-            self._bottom_separator_overhang_bottom = cathode_bottom - separator_bottom
-            self._bottom_separator_overhang_top = separator_top - cathode_top
-
-        else:
-            # Set default values if components are not available
-            self._bottom_separator_overhang_left = 0.0
-            self._bottom_separator_overhang_right = 0.0
-            self._bottom_separator_overhang_bottom = 0.0
-            self._bottom_separator_overhang_top = 0.0
+        self._bottom_separator_overhang_left = left
+        self._bottom_separator_overhang_right = right
+        self._bottom_separator_overhang_bottom = bottom
+        self._bottom_separator_overhang_top = top
 
     def _calculate_top_separator_overhangs(self):
+        """Calculate top separator overhangs relative to cathode.
+
+        Positive values mean the separator extends beyond the cathode in the given direction.
         """
-        Calculate the top separator overhangs relative to the cathode.
+        left, right, bottom, top = self._compute_separator_overhangs(self._cathode, self._top_separator)
+        self._top_separator_overhang_left = left
+        self._top_separator_overhang_right = right
+        self._top_separator_overhang_bottom = bottom
+        self._top_separator_overhang_top = top
+
+    def _compute_electrode_overhangs(self, ref_electrode: Cathode, target_electrode: Anode) -> Tuple[float, float, float, float]:
+        """Return (left, right, bottom, top) overhangs for rectangular current collectors.
+
+        A positive component means target extends beyond reference in that direction.
         """
-        if hasattr(self, "_cathode") and hasattr(self, "_top_separator") and self._cathode is not None and self._top_separator is not None:
-            # Cathode edges (using internal SI units - meters)
-            cathode_left = self._cathode._current_collector._datum[0] - self._cathode._current_collector._x_body_length / 2
-            cathode_right = self._cathode._current_collector._datum[0] + self._cathode._current_collector._x_body_length / 2
-            cathode_bottom = self._cathode._current_collector._datum[1] - self._cathode._current_collector._y_body_length / 2
-            cathode_top = self._cathode._current_collector._datum[1] + self._cathode._current_collector._y_body_length / 2
+        # Reference edges
+        ref_left = ref_electrode._current_collector._datum[0] - ref_electrode._current_collector._x_body_length / 2
+        ref_right = ref_electrode._current_collector._datum[0] + ref_electrode._current_collector._x_body_length / 2
+        ref_bottom = ref_electrode._current_collector._datum[1] - ref_electrode._current_collector._y_body_length / 2
+        ref_top = ref_electrode._current_collector._datum[1] + ref_electrode._current_collector._y_body_length / 2
 
-            # Top separator edges (using internal SI units - meters)
-            separator_left = min(self._top_separator._coordinates[:, 0])
-            separator_right = max(self._top_separator._coordinates[:, 0])
-            separator_bottom = min(self._top_separator._coordinates[:, 1])
-            separator_top = max(self._top_separator._coordinates[:, 1])
+        # Target edges
+        tgt_left = target_electrode._current_collector._datum[0] - target_electrode._current_collector._x_body_length / 2
+        tgt_right = target_electrode._current_collector._datum[0] + target_electrode._current_collector._x_body_length / 2
+        tgt_bottom = target_electrode._current_collector._datum[1] - target_electrode._current_collector._y_body_length / 2
+        tgt_top = target_electrode._current_collector._datum[1] + target_electrode._current_collector._y_body_length / 2
 
-            # Calculate overhangs (positive values mean separator extends beyond cathode)
-            self._top_separator_overhang_left = cathode_left - separator_left
-            self._top_separator_overhang_right = separator_right - cathode_right
-            self._top_separator_overhang_bottom = cathode_bottom - separator_bottom
-            self._top_separator_overhang_top = separator_top - cathode_top
+        return ref_left - tgt_left, tgt_right - ref_right, ref_bottom - tgt_bottom, tgt_top - ref_top
 
-        else:
-            # Set default values if components are not available
-            self._top_separator_overhang_left = 0.0
-            self._top_separator_overhang_right = 0.0
-            self._top_separator_overhang_bottom = 0.0
-            self._top_separator_overhang_top = 0.0
+    def _compute_separator_overhangs(self, ref_electrode: Cathode, separator: Separator) -> Tuple[float, float, float, float]:
+        """Return (left, right, bottom, top) overhangs for polygon separator relative to electrode.
+
+        A positive component means separator extends beyond cathode in that direction.
+        """
+        ref_left = ref_electrode._current_collector._datum[0] - ref_electrode._current_collector._x_body_length / 2
+        ref_right = ref_electrode._current_collector._datum[0] + ref_electrode._current_collector._x_body_length / 2
+        ref_bottom = ref_electrode._current_collector._datum[1] - ref_electrode._current_collector._y_body_length / 2
+        ref_top = ref_electrode._current_collector._datum[1] + ref_electrode._current_collector._y_body_length / 2
+
+        sep_left = float(np.min(separator._coordinates[:, 0]))
+        sep_right = float(np.max(separator._coordinates[:, 0]))
+        sep_bottom = float(np.min(separator._coordinates[:, 1]))
+        sep_top = float(np.max(separator._coordinates[:, 1]))
+
+        return ref_left - sep_left, sep_right - ref_right, ref_bottom - sep_bottom, sep_top - ref_top
 
     def _calculate_full_cell_curves(self) -> np.ndarray:
         """
@@ -712,6 +694,31 @@ class _Layup(
     #### COMPONENT PROPERTY/SETTERS ####
 
     @property
+    def datum(self) -> Tuple[float, float, float]:
+        """Layup datum anchored to the cathode datum.
+
+        Returns
+        -------
+        (x, y, z) in mm: The cathode datum coordinates.
+        """
+        return self.cathode.datum
+
+    @property
+    def datum_x(self) -> float:
+        """Get the x-coordinate of the layup datum in mm."""
+        return self.datum[0]
+    
+    @property
+    def datum_y(self) -> float:
+        """Get the y-coordinate of the layup datum in mm."""
+        return self.datum[1]
+
+    @property
+    def datum_z(self) -> float:
+        """Get the z-coordinate of the layup datum in mm."""
+        return self.datum[2]
+
+    @property
     def thickness(self) -> float:
         """
         Get the total thickness of the layup in micrometers (µm).
@@ -769,28 +776,53 @@ class _Layup(
     def top_separator(self):
         return self._top_separator
 
-    @property
-    def separator(self) -> Separator:
+    @datum.setter
+    @calculate_coordinates
+    def datum(self, new_datum: Tuple[float, float, float]):
+        """Shift entire layup so cathode datum becomes ``new_datum``.
+
+        All components (cathode, anode, separators) are translated by the same
+        (dx, dy, dz) so relative overhangs and spacing are preserved.
+
+        Parameters
+        ----------
+        new_datum : tuple[float, float, float]
+            Target cathode datum in mm.
         """
-        Get the Z-fold separator. Returns the bottom separator as the canonical reference.
-        In Z-fold configuration, both separators are constrained to be identical.
-        """
-        return self._bottom_separator
+        self.validate_datum(new_datum)
 
-    @separator.setter
-    @calculate_volumes
-    def separator(self, separator: Separator):
+        old = self.cathode.datum
+        dx = new_datum[0] - old[0]
+        dy = new_datum[1] - old[1]
+        dz = new_datum[2] - old[2]
 
-        # validate the type
-        self.validate_type(separator, Separator, "Separator")
+        # Shift cathode first
+        self.cathode.datum = new_datum
 
-        # move attributes to bottom separator
-        self.bottom_separator.material = separator.material
-        self.bottom_separator.thickness = separator.thickness
+        # Components to shift (if present)
+        for comp_attr in ["anode", "bottom_separator", "top_separator"]:
+            if hasattr(self, comp_attr):
+                comp = getattr(self, comp_attr)
+                cx, cy, cz = comp.datum
+                comp.datum = (cx + dx, cy + dy, cz + dz)
 
-        # set the top separator to be identical
-        self.top_separator.material = separator.material
-        self.top_separator.thickness = separator.thickness
+    @datum_x.setter
+    def datum_x(self, new_x: float):
+        """Set the x-coordinate of the layup datum in mm."""
+        self.validate_coordinate(new_x, "datum_x")
+        self.datum = (new_x, self.datum[1], self.datum[2])
+
+    @datum_y.setter
+    def datum_y(self, new_y: float):
+        """Set the y-coordinate of the layup datum in mm."""
+        self.validate_coordinate(new_y, "datum_y")
+        self.datum = (self.datum[0], new_y, self.datum[2])
+
+    @datum_z.setter
+    def datum_z(self, new_z: float):
+        """Set the z-coordinate of the layup datum in mm."""
+        self.validate_coordinate(new_z, "datum_z")
+        self.datum = (self.datum[0], self.datum[1], new_z)
 
     @cathode.setter
     @calculate_all_properties
@@ -1639,6 +1671,7 @@ class _Layup(
 
 
 class Laminate(_Layup):
+
     def __init__(
         self,
         cathode: Cathode,
@@ -1647,9 +1680,12 @@ class Laminate(_Layup):
         top_separator: Separator,
         name: str = "Layup",
     ):
+        
+        # Ensure anode is flipped in y-direction for correct orientation in laminate
         if not anode._flipped_y:
             anode._flip("y")
 
+        # call the general layup init
         super().__init__(
             cathode=cathode,
             bottom_separator=bottom_separator,
@@ -1658,11 +1694,11 @@ class Laminate(_Layup):
             name=name,
         )
 
+        self._calculate_all_properties()
+        self._update_properties = True
+
     def _calculate_all_properties(self):
-        
-        # First call parent method to calculate all standard properties
-        super()._calculate_all_properties()
-        
+                
         # Then validate that current collectors are of the correct type
         self.validate_type(
             self.anode.current_collector,
@@ -1676,6 +1712,15 @@ class Laminate(_Layup):
             "Cathode Current Collector",
         )
 
+        # Ensure bottom and top separators are not rotated in xy-plane
+        if self._bottom_separator._rotated_xy:
+            self._bottom_separator._rotate_90_xy()
+        if self._top_separator._rotated_xy:
+            self._top_separator._rotate_90_xy()
+
+        # First call parent method to calculate all standard properties
+        super()._calculate_all_properties()
+        
         # set separator width/length ranges based on anode size
         self._top_separator._set_width_range(self._anode, extended_range=0.1)
         self._top_separator._set_length_range(self._anode, extended_range=1)
@@ -1688,13 +1733,11 @@ class MonoLayer(_Layup):
     Class for a MonoLayer, which is a combination of anode, cathode, and separator. This class represents the
     item which will be repeated in space to form a z-fold stack.
     """
-
     def __init__(
         self,
         cathode: Cathode,
-        bottom_separator: Separator,
         anode: Anode,
-        top_separator: Separator,
+        separator: Separator,
         transverse: bool = False,
         name: str = "MonoLayer",
     ):
@@ -1718,12 +1761,19 @@ class MonoLayer(_Layup):
         transverse : bool
             Whether the monolayer is oriented transversely (default: False).
         """
-        # Initialize parent class first
+        # rotate the separator
+        if separator._rotated_xy == False:
+            separator._rotate_90_xy()
+
+        # Store canonical separator for unified API
+        self._canonical_separator = deepcopy(separator)
+
+        # call the general layup init
         super().__init__(
             cathode=cathode,
-            bottom_separator=bottom_separator,
+            bottom_separator=deepcopy(separator),
             anode=anode,
-            top_separator=top_separator,
+            top_separator=deepcopy(separator),
             name=name,
         )
 
@@ -1735,8 +1785,6 @@ class MonoLayer(_Layup):
         self._update_properties = True
 
     def _calculate_all_properties(self):
-
-        super()._calculate_all_properties()
 
         self.validate_type(
             self.anode.current_collector,
@@ -1750,11 +1798,19 @@ class MonoLayer(_Layup):
             "Cathode Current Collector",
         )
 
+        # Ensure bottom and top separators are not rotated in xy-plane
+        if not self._bottom_separator._rotated_xy:
+            self._bottom_separator._rotate_90_xy()
+        if not self._top_separator._rotated_xy:
+            self._top_separator._rotate_90_xy()
+
+        super()._calculate_all_properties()
+
         # set separator width/length ranges based on anode size
         self._top_separator._set_width_range(self._anode, extended_range=0.1)
         self._top_separator._set_length_range(self._anode, extended_range=0.1)
-        self._bottom_separator._set_width_range(self._cathode, extended_range=0.1)
-        self._bottom_separator._set_length_range(self._cathode, extended_range=0.1)
+        self._bottom_separator._set_width_range(self._anode, extended_range=0.1)
+        self._bottom_separator._set_length_range(self._anode, extended_range=0.1)
 
     @classmethod
     def from_zfold_monolayer(cls, zfold_monolayer: "ZFoldMonoLayer") -> "MonoLayer":
@@ -1774,14 +1830,11 @@ class MonoLayer(_Layup):
         bottom_separator = deepcopy(zfold_monolayer._bottom_separator)
         bottom_separator.width = zfold_monolayer.anode.current_collector.x_body_length + 4
         bottom_separator.length = zfold_monolayer.anode.current_collector.y_body_length + 4
-
-        top_separator = deepcopy(bottom_separator)
-
+        
         return cls(
             cathode=deepcopy(zfold_monolayer.cathode),
-            bottom_separator=bottom_separator,
             anode=deepcopy(zfold_monolayer.anode),
-            top_separator=top_separator,
+            separator=bottom_separator,
             transverse=zfold_monolayer.transverse,
         )
 
@@ -1789,13 +1842,81 @@ class MonoLayer(_Layup):
     def transverse(self):
         return self._transverse
 
-    @property
-    def bottom_separator(self) -> Separator:
-        return self._bottom_separator
+    # === Unified separator API ===
 
     @property
-    def top_separator(self) -> Separator:
-        return self._top_separator
+    def separator(self) -> Separator:
+        """Unified separator interface (canonical); setting updates both top and bottom separators.
+
+        Returns the canonical separator (bottom instance for consistency).
+        """
+        return self._canonical_separator
+
+    @separator.setter
+    @calculate_all_properties
+    def separator(self, value: Separator):
+
+        # Validate input type
+        self.validate_type(value, Separator, "Separator")
+
+        # Deep copy into both
+        base = deepcopy(value)
+        top = deepcopy(value)
+
+        # Preserve existing z positions if already initialized
+        base.datum = (self._bottom_separator.datum[0], self._bottom_separator.datum[1], self._bottom_separator.datum[2])
+        top.datum = (self._top_separator.datum[0], self._top_separator.datum[1], self._top_separator.datum[2])
+
+        self._bottom_separator = base
+        self._top_separator = top
+        self._canonical_separator = deepcopy(value)
+
+    # Unified overhangs (mirror bottom/top which are expected identical by design)
+    @property
+    def separator_overhangs(self) -> dict:
+
+        return {
+            "left": self.bottom_separator_overhang_left,
+            "right": self.bottom_separator_overhang_right,
+            "top": self.bottom_separator_overhang_top,
+            "bottom": self.bottom_separator_overhang_bottom,
+        }
+
+    @property
+    def separator_overhang_left(self) -> float:
+        return self.bottom_separator_overhang_left
+
+    @separator_overhang_left.setter
+    def separator_overhang_left(self, overhang: float) -> None:
+        self.bottom_separator_overhang_left = overhang
+        self.top_separator_overhang_left = overhang
+
+    @property
+    def separator_overhang_right(self) -> float:
+        return self.bottom_separator_overhang_right
+
+    @separator_overhang_right.setter
+    def separator_overhang_right(self, overhang: float) -> None:
+        self.bottom_separator_overhang_right = overhang
+        self.top_separator_overhang_right = overhang
+
+    @property
+    def separator_overhang_top(self) -> float: 
+        return self.bottom_separator_overhang_top
+
+    @separator_overhang_top.setter
+    def separator_overhang_top(self, overhang: float) -> None:
+        self.bottom_separator_overhang_top = overhang
+        self.top_separator_overhang_top = overhang
+
+    @property
+    def separator_overhang_bottom(self) -> float:
+        return self.bottom_separator_overhang_bottom
+
+    @separator_overhang_bottom.setter
+    def separator_overhang_bottom(self, overhang: float) -> None:
+        self.bottom_separator_overhang_bottom = overhang
+        self.top_separator_overhang_bottom = overhang
 
     @transverse.setter
     def transverse(self, transverse: bool) -> None:
@@ -1824,486 +1945,137 @@ class MonoLayer(_Layup):
             if self._anode._flipped_y:
                 self._anode._flip("y")
 
-    @bottom_separator.setter
-    @calculate_all_properties
-    def bottom_separator(self, bottom_separator: Separator):
-        # validate the type
-        self.validate_type(bottom_separator, Separator, "Bottom Separator")
-
-        # make deep copy
-        bottom_separator = deepcopy(bottom_separator)
-
-        # if there is an anode, update its ranges
-        if not self._update_properties:
-            bottom_separator.datum = (
-                self.cathode.datum[0],
-                self.cathode.datum[1],
-                bottom_separator.datum[2],
-            )
-        elif self._update_properties:
-            bottom_separator.datum = (
-                self.bottom_separator.datum[0],
-                self.bottom_separator.datum[1],
-                bottom_separator.datum[2],
-            )
-
-        # assign to self
-        self._bottom_separator = bottom_separator
-
-        # Add MonoLayer-specific rotation logic
-        if hasattr(self._bottom_separator, "_rotated_xy") and not self._bottom_separator._rotated_xy:
-            self._bottom_separator._rotate_90_xy()
-
-    @top_separator.setter
-    @calculate_all_properties
-    def top_separator(self, top_separator: Separator):
-        # validate the type
-        self.validate_type(top_separator, Separator, "Top Separator")
-
-        # make deep copy
-        top_separator = deepcopy(top_separator)
-
-        # if there is an anode, update its ranges
-        if not self._update_properties:
-            top_separator.datum = (
-                self.cathode.datum[0],
-                self.cathode.datum[1],
-                top_separator.datum[2],
-            )
-        elif self._update_properties:
-            top_separator.datum = (
-                self.top_separator.datum[0],
-                self.top_separator.datum[1],
-                top_separator.datum[2],
-            )
-
-        # assign to self
-        self._top_separator = top_separator
-
-        # Add MonoLayer-specific rotation logic
-        if hasattr(self._top_separator, "_rotated_xy") and not self._top_separator._rotated_xy:
-            self._top_separator._rotate_90_xy()
-
 
 class ZFoldMonoLayer(MonoLayer):
-    """
-    A specialized MonoLayer for Z-fold battery configurations.
+    """Z-fold variant of `MonoLayer` with constrained separator geometry.
 
-    In Z-fold configuration, the separator is folded in a Z-shape where:
-    - Left and right overhangs are constrained to 0 (Z-fold geometry)
-    - Top and bottom overhangs are synchronized between both separator layers
-    - A unified separator interface manages both top and bottom separators
+    Differences from `MonoLayer`:
+    - Canonical separator is NOT rotated; keep original orientation.
+    - Bottom separator length = cathode current collector width + 2 * canonical thickness.
+    - Top separator length = anode current collector width + 2 * canonical thickness.
+    - Unified separator API identical to `MonoLayer` (use `separator` property).
+    - Overhang setters behave the same; left/right still adjustable if needed.
     """
 
     def __init__(
         self,
         cathode: Cathode,
-        separator: Separator,
         anode: Anode,
+        separator: Separator,
         transverse: bool = False,
-        name: str = "Z-Fold MonoLayer",
+        name: str = "ZFoldMonoLayer",
     ):
-        self._update_properties = False
+        
+        # Store canonical (do NOT rotate for Z-fold)
+        self._canonical_separator = deepcopy(separator)
 
-        # Create copies of the separator with Z-fold length constraints
-        top_separator = deepcopy(separator)
+        # Create specialized separator copies (no rotation enforced)
         bottom_separator = deepcopy(separator)
-        top_separator.length = (anode.current_collector._x_body_length + 2 * top_separator._thickness) * M_TO_MM
-        bottom_separator.length = (cathode.current_collector._x_body_length + 2 * bottom_separator._thickness) * M_TO_MM
+        top_separator = deepcopy(separator)
 
-        # Bypass MonoLayer.__init__ to avoid calling blocked setters
-        # Call _Layup.__init__ directly and set up necessary attributes
-        self._overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
-        self._np_ratio_control_mode = NPRatioControlMode.FIXED_CATHODE
+        # Set lengths using electrode WIDTHs (x_body_length) + 2*thickness
+        bottom_separator.length = (
+            (cathode.current_collector._x_body_length + 2 * self._canonical_separator._thickness) * M_TO_MM
+        )
 
-        self.cathode = cathode
-        self.anode = anode
-        self._top_separator = top_separator
-        self._bottom_separator = bottom_separator
-        self._transverse = transverse
-        self.name = name
+        top_separator.length = (
+            (anode.current_collector._x_body_length + 2 * self._canonical_separator._thickness) * M_TO_MM
+        )
 
-        self._calculate_all_properties()
+        # Call base _Layup initializer directly (skip MonoLayer rotation logic)
+        super(MonoLayer, self).__init__(
+            cathode=cathode,
+            bottom_separator=bottom_separator,
+            anode=anode,
+            top_separator=top_separator,
+            name=name,
+        )
+
+        # Transverse orientation behavior same as MonoLayer
+        self.transverse = transverse
         self._update_properties = True
+        self._calculate_all_properties()
 
     def _calculate_all_properties(self):
 
-        super()._calculate_all_properties()
+        self.validate_type(
+            self.anode.current_collector,
+            PunchedCurrentCollector,
+            "Anode Current Collector",
+        )
+
+        self.validate_type(
+            self.cathode.current_collector,
+            PunchedCurrentCollector,
+            "Cathode Current Collector",
+        )
+
+        # Ensure bottom and top separators are not rotated in xy-plane
+        if self._bottom_separator._rotated_xy:
+            self._bottom_separator._rotate_90_xy()
+        if self._top_separator._rotated_xy:
+            self._top_separator._rotate_90_xy()
+
+        super(MonoLayer, self)._calculate_all_properties()
 
         # set separator width/length ranges based on anode size
+        self._top_separator._set_width_range(self._anode, extended_range=0.1)
         self._bottom_separator._set_width_range(self._anode, extended_range=0.1)
 
-    # ============================================================================
-    # Core Component Properties
-    # ============================================================================
+    def _constrain_separator_geometry(self):
+        """Enforce Z-fold separator geometry constraints."""
+        # Bottom separator length
+        self._bottom_separator.length = (
+            (self.cathode.current_collector._x_body_length + 2 * self._canonical_separator._thickness) * M_TO_MM
+        )
 
-    @classmethod
-    def from_monolayer(cls, monolayer: MonoLayer) -> "ZFoldMonoLayer":
-
-        separator = deepcopy(monolayer.bottom_separator)
-
-        # Ensure separator is rotated to have length along the x axis
-        if separator._rotated_xy:
-            separator._rotate_90_xy()
-
-        # ensure the separator width is wide enough
-        if separator.width < (monolayer.anode.current_collector.y_body_length):
-            separator.width = monolayer.anode.current_collector.y_body_length
-
-        return cls(
-            cathode=deepcopy(monolayer.cathode),
-            separator=separator,
-            anode=deepcopy(monolayer.anode),
-            transverse=monolayer.transverse,
+        # Top separator length
+        self._top_separator.length = (
+            (self.anode.current_collector._x_body_length + 2 * self._canonical_separator._thickness) * M_TO_MM
         )
 
     @property
     def separator(self) -> Separator:
-        """
-        Get the Z-fold separator. Returns the bottom separator as the canonical reference.
-        In Z-fold configuration, both separators are constrained to be identical.
-        """
         return self._bottom_separator
 
     @separator.setter
     @calculate_all_properties
-    def separator(self, separator: Separator):
-        """
-        Set both bottom and top separators for Z-fold configuration.
+    def separator(self, value: Separator):
 
-        Parameters
-        ----------
-        separator : Separator
-            The separator to use for both top and bottom positions.
-            Length will be automatically constrained by Z-fold geometry.
-        """
-        # Validate the type
-        self.validate_type(separator, Separator, "Separator")
+        # Validate input type
+        self.validate_type(value, Separator, "Separator")
+        
+        # Set canonical separator
+        self._canonical_separator = deepcopy(value)
 
-        # Create deep copies for both positions
-        bottom_separator = deepcopy(separator)
-        top_separator = deepcopy(separator)
+        # Deep copy into both top and bottom
+        bottom = deepcopy(value)
+        top = deepcopy(value)
 
-        # Set lengths according to Z-fold constraints
-        bottom_separator.length = (self.cathode.current_collector._x_body_length + 2 * bottom_separator._thickness) * M_TO_MM
-        top_separator.length = (self.anode.current_collector._x_body_length + 2 * top_separator._thickness) * M_TO_MM
+        bottom.datum = (
+            self._bottom_separator.datum[0],
+            self._bottom_separator.datum[1],
+            bottom.datum[2],
+        )
 
-        # make sure it is wide enough for the anode
-        if bottom_separator.width < (self.anode.current_collector.y_body_length):
-            bottom_separator.width = self.anode.current_collector.y_body_length
-            top_separator.width = self.anode.current_collector.y_body_length
+        top.datum = (
+            self._top_separator.datum[0],
+            self._top_separator.datum[1],
+            top.datum[2],
+        )
 
-        # Set positions based on existing datums if updating properties
-        if not self._update_properties:
-            bottom_separator.datum = (
-                self._cathode.datum[0],
-                self._cathode.datum[1],
-                bottom_separator.datum[2],
-            )
-            top_separator.datum = (
-                self._anode.datum[0],
-                self._anode.datum[1],
-                top_separator.datum[2],
-            )
-        elif self._update_properties:
-            bottom_separator.datum = (
-                self._cathode.datum[0],
-                self._bottom_separator.datum[1],
-                bottom_separator.datum[2],
-            )
-            top_separator.datum = (
-                self._anode.datum[0],
-                self._top_separator.datum[1],
-                top_separator.datum[2],
-            )
+        self._bottom_separator = bottom
+        self._top_separator = top
 
-        # Assign to both internal separators
-        self._bottom_separator = bottom_separator
-        self._top_separator = top_separator
+        self._constrain_separator_geometry()
 
-    # ============================================================================
-    # Unified Separator Overhang Properties
-    # ============================================================================
+    @classmethod
+    def from_monolayer(cls, monolayer: MonoLayer) -> "ZFoldMonoLayer":
 
-    @property
-    def separator_overhang_left(self) -> float:
-        """Get the left overhang of the Z-fold separator. Always 0.0 due to Z-fold constraints."""
-        return 0.0
-
-    @property
-    def separator_overhang_right(self) -> float:
-        """Get the right overhang of the Z-fold separator. Always 0.0 due to Z-fold constraints."""
-        return 0.0
-
-    @property
-    def separator_overhang_bottom(self) -> float:
-        """Get the bottom overhang of the Z-fold separator."""
-        return super().bottom_separator_overhang_bottom
-
-    @separator_overhang_bottom.setter
-    @calculate_all_properties
-    def separator_overhang_bottom(self, overhang: float) -> None:
-        """
-        Set the bottom overhang for the Z-fold separator.
-
-        Parameters
-        ----------
-        overhang : float
-            Target bottom overhang in mm. Applied to both separator layers.
-        """
-        self.validate_positive_float(overhang, "separator_overhang_bottom")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_zfold_overhang_fixed_component("bottom_separator", overhang, "bottom")
-            self._adjust_zfold_overhang_fixed_component("top_separator", overhang, "bottom")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_zfold_overhang_fixed_overhangs("bottom_separator", overhang, "bottom")
-            self._adjust_zfold_overhang_fixed_overhangs("top_separator", overhang, "bottom")
-
-    @property
-    def separator_overhang_top(self) -> float:
-        """Get the top overhang of the Z-fold separator."""
-        return super().bottom_separator_overhang_top
-
-    @separator_overhang_top.setter
-    @calculate_all_properties
-    def separator_overhang_top(self, overhang: float) -> None:
-        """
-        Set the top overhang for the Z-fold separator.
-
-        Parameters
-        ----------
-        overhang : float
-            Target top overhang in mm. Applied to both separator layers.
-        """
-        self.validate_positive_float(overhang, "separator_overhang_top")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            # Move both separators to achieve the target overhang
-            self._adjust_zfold_overhang_fixed_component("bottom_separator", overhang, "top")
-            self._adjust_zfold_overhang_fixed_component("top_separator", overhang, "top")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            # Extend both separators to achieve the target overhang
-            self._adjust_zfold_overhang_fixed_overhangs("bottom_separator", overhang, "top")
-            self._adjust_zfold_overhang_fixed_overhangs("top_separator", overhang, "top")
-
-    @property
-    def separator_overhangs(self) -> dict:
-        """
-        Get all separator overhangs as a dictionary.
-        Note: In Z-fold configuration, left/right overhangs are always 0.
-
-        Returns
-        -------
-        dict
-            Dictionary with keys 'left', 'right', 'bottom', 'top' and overhang values in mm.
-            Left and right values are always 0.0 due to Z-fold constraints.
-        """
-        return {
-            "left": 0.0,
-            "right": 0.0,
-            "bottom": self.separator_overhang_bottom,
-            "top": self.separator_overhang_top,
-        }
-
-    # ============================================================================
-    # Range Properties
-    # ============================================================================
-
-    @property
-    def separator_overhang_bottom_range(self) -> tuple:
-        """Get the valid range for bottom separator overhang."""
-        return self.bottom_separator_overhang_bottom_range
-
-    @property
-    def separator_overhang_top_range(self) -> tuple:
-        """Get the valid range for top separator overhang."""
-        return self.bottom_separator_overhang_top_range
-
-    # ============================================================================
-    # Internal/Helper Methods
-    # ============================================================================
-
-    def _calculate_bottom_separator_overhangs(self):
-        """
-        Override: Calculate overhangs for Z-fold separators.
-        Left/right overhangs are constrained by Z-fold geometry.
-        Top/bottom overhangs are shared between top and bottom separators.
-        """
-        if hasattr(self, "_cathode") and hasattr(self, "_bottom_separator") and self._cathode is not None and self._bottom_separator is not None:
-            # Cathode edges (using internal SI units - meters)
-            cathode_bottom = self._cathode._current_collector._datum[1] - self._cathode._current_collector._y_body_length / 2
-            cathode_top = self._cathode._current_collector._datum[1] + self._cathode._current_collector._y_body_length / 2
-
-            # Bottom separator edges (using internal SI units - meters)
-            separator_bottom = min(self._bottom_separator._coordinates[:, 1])
-            separator_top = max(self._bottom_separator._coordinates[:, 1])
-
-            # Calculate only top/bottom overhangs (left/right are constrained)
-            self._bottom_separator_overhang_left = 0.0  # Constrained by Z-fold
-            self._bottom_separator_overhang_right = 0.0  # Constrained by Z-fold
-            self._bottom_separator_overhang_bottom = cathode_bottom - separator_bottom
-            self._bottom_separator_overhang_top = separator_top - cathode_top
-
-            # Ensure top separator has the same overhangs (Z-fold constraint)
-            if hasattr(self, "_top_separator") and self._top_separator is not None:
-                self._top_separator_overhang_left = 0.0  # Constrained by Z-fold
-                self._top_separator_overhang_right = 0.0  # Constrained by Z-fold
-                self._top_separator_overhang_bottom = self._bottom_separator_overhang_bottom
-                self._top_separator_overhang_top = self._bottom_separator_overhang_top
-
-        else:
-            # Set default values if components are not available
-            self._bottom_separator_overhang_left = 0.0
-            self._bottom_separator_overhang_right = 0.0
-            self._bottom_separator_overhang_bottom = 0.0
-            self._bottom_separator_overhang_top = 0.0
-
-    def _calculate_top_separator_overhangs(self):
-        """
-        Override: Top separator overhangs are synchronized with bottom separator.
-        This method does nothing since overhangs are set in _calculate_bottom_separator_overhangs.
-        """
-        # Overhangs are calculated and synchronized in _calculate_bottom_separator_overhangs
-        pass
-
-    def _adjust_zfold_overhang_fixed_component(self, component: str, target_overhang: float, direction: str) -> None:
-        """
-        Adjust separator position to achieve target overhang (Z-fold specific).
-
-        Parameters
-        ----------
-        component : str
-            Component name ('bottom_separator' or 'top_separator')
-        target_overhang : float
-            Target overhang value in mm
-        direction : str
-            Direction of overhang ('left', 'right', 'bottom', 'top')
-        """
-        # Access internal overhang values directly to avoid AttributeError
-        # Use internal property names which return values in meters (not mm)
-        if component == "bottom_separator":
-            current_overhang = getattr(self, f"_bottom_separator_overhang_{direction}") * M_TO_MM
-        elif component == "top_separator":
-            current_overhang = getattr(self, f"_top_separator_overhang_{direction}") * M_TO_MM
-        else:
-            raise ValueError(f"Unknown component: {component}")
-
-        overhang_difference = target_overhang - current_overhang
-
-        # Get the component object
-        component_obj = getattr(self, f"_{component}")
-
-        # get component datum
-        datum = component_obj.datum
-
-        if direction == "left":
-            datum = (datum[0] - overhang_difference, datum[1], datum[2])
-        elif direction == "right":
-            datum = (datum[0] + overhang_difference, datum[1], datum[2])
-        elif direction == "bottom":
-            datum = (datum[0], datum[1] - overhang_difference, datum[2])
-        elif direction == "top":
-            datum = (datum[0], datum[1] + overhang_difference, datum[2])
-
-        # set the datum
-        component_obj.datum = datum
-
-    def _adjust_zfold_overhang_fixed_overhangs(self, component: str, target_overhang: float, direction: str) -> None:
-        """
-        Adjust separator dimensions to achieve target overhang (Z-fold specific).
-
-        Parameters
-        ----------
-        component : str
-            Component name ('bottom_separator' or 'top_separator')
-        target_overhang : float
-            Target overhang value in mm
-        direction : str
-            Direction of overhang ('left', 'right', 'bottom', 'top')
-        """
-        # Access internal overhang values directly to avoid AttributeError
-        # Use internal property names which return values in meters (not mm)
-        if component == "bottom_separator":
-            current_overhang = getattr(self, f"_bottom_separator_overhang_{direction}")
-        elif component == "top_separator":
-            current_overhang = getattr(self, f"_top_separator_overhang_{direction}")
-        else:
-            raise ValueError(f"Unknown component: {component}")
-
-        target_overhang = target_overhang * MM_TO_M
-        overhang_difference = target_overhang - current_overhang
-
-        # Get the component object
-        component_obj = getattr(self, f"_{component}")
-
-        # Use the same logic as the parent class for separators
-        position_adjustment = (overhang_difference / 2) * M_TO_MM
-
-        # Determine which dimension to adjust based on rotation and direction
-        is_horizontal = direction in ["left", "right"]
-        is_rotated = component_obj._rotated_xy
-
-        # Logic: if rotated, horizontal directions affect width, vertical affects length
-        # If not rotated, horizontal directions affect length, vertical affects width
-        if (is_horizontal and not is_rotated) or (not is_horizontal and is_rotated):
-            # Adjust length
-            component_obj.length += overhang_difference * M_TO_MM
-        else:
-            # Adjust width
-            component_obj.width += overhang_difference * M_TO_MM
-
-        # Adjust position
-        if direction == "left":
-            component_obj.datum_x -= position_adjustment
-        elif direction == "right":
-            component_obj.datum_x += position_adjustment
-        elif direction == "bottom":
-            component_obj.datum_y -= position_adjustment
-        else:  # top
-            component_obj.datum_y += position_adjustment
-
-    # ============================================================================
-    # Blocked Properties - Individual Separator APIs Disabled
-    # ============================================================================
-
-    @property
-    def bottom_separator(self) -> None:
-        return None
-
-    @property
-    def top_separator(self) -> None:
-        return None
-
-    @property
-    def bottom_separator_overhang_bottom(self) -> None:
-        return None
-
-    @property
-    def bottom_separator_overhang_top(self) -> None:
-        return None
-
-    @property
-    def bottom_separator_overhang_left(self) -> None:
-        return None
-
-    @property
-    def bottom_separator_overhang_right(self) -> None:
-        return None
-
-    @property
-    def top_separator_overhang_bottom(self) -> None:
-        return None
-
-    @property
-    def top_separator_overhang_top(self) -> None:
-        return None
-
-    @property
-    def top_separator_overhang_left(self) -> None:
-        return None
-
-    @property
-    def top_separator_overhang_right(self) -> None:
-        return None
+        return cls(
+            cathode=deepcopy(monolayer.cathode),
+            anode=deepcopy(monolayer.anode),
+            separator=deepcopy(monolayer.separator),
+            transverse=monolayer.transverse,
+        )
 

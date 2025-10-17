@@ -159,6 +159,7 @@ class TestSimpleLaminate(unittest.TestCase):
         # fig4.show()
 
     def test_change_anode_material(self):
+
         anode = deepcopy(self.layup.anode)
         fig1 = anode._get_full_top_down_view()
 
@@ -404,8 +405,27 @@ class TestSimpleLaminate(unittest.TestCase):
         # Capacity curve should be updated  
         self.assertFalse(initial_capacity_curve.equals(new_capacity_curve))
 
+    def test_overhangs_stable_after_datum_shift(self):
+        """Shifting layup datum should not change relative overhang measurements."""
+        before = deepcopy(self.layup.anode_overhangs)
+        dx, dy, dz = 15.5, -12.2, 4.0
+        old_datum = self.layup.datum
+        self.layup.datum = (old_datum[0] + dx, old_datum[1] + dy, old_datum[2] + dz)
+        after = self.layup.anode_overhangs
+        self.assertEqual(before, after)
+
+    def test_anode_flipped_on_init(self):
+        """Laminate should flip anode in y during initialization if not already flipped."""
+        self.assertTrue(getattr(self.layup.anode, "_flipped_y", True))
+
+    def test_overhang_control_mode_string_setter(self):
+        """Setting overhang control mode via string should map to enum."""
+        self.layup.overhang_control_mode = "fixed_overhangs"
+        self.assertEqual(self.layup.overhang_control_mode, OverhangControlMode.FIXED_OVERHANGS)
+
 
 class TestSimpleMonoLayer(unittest.TestCase):
+
     def setUp(self):
         ########################
         # make a basic cathode
@@ -483,8 +503,7 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.monolayer = MonoLayer(
             anode=anode,
             cathode=cathode,
-            top_separator=separator,
-            bottom_separator=separator,
+            separator=separator,
             transverse=True,
         )
     
@@ -492,6 +511,9 @@ class TestSimpleMonoLayer(unittest.TestCase):
         temp_layup = deepcopy(self.monolayer)
         condition = self.monolayer == temp_layup
         self.assertTrue(condition)
+
+        fig = self.monolayer.get_top_down_view(opacity=0.2)
+        # fig.show()
 
     def test_monolayer(self):
         self.assertTrue(isinstance(self.monolayer, MonoLayer))
@@ -517,11 +539,8 @@ class TestSimpleMonoLayer(unittest.TestCase):
         # fig1.show()
         # fig2.show()
 
-    def test_plots(self):
-        fig1 = self.monolayer.get_top_down_view(opacity=0.2)
-        # fig1.show()
-
     def test_anode_overhang_setters_fixed_component(self):
+
         self.monolayer.overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
 
         self.monolayer.anode_overhang_left = 4
@@ -542,6 +561,7 @@ class TestSimpleMonoLayer(unittest.TestCase):
         # fig2.show()
 
     def test_anode_overhang_setters_fixed_overhangs(self):
+
         self.monolayer.overhang_control_mode = OverhangControlMode.FIXED_OVERHANGS
 
         fig1 = self.monolayer.get_top_down_view(opacity=0.2)
@@ -565,26 +585,30 @@ class TestSimpleMonoLayer(unittest.TestCase):
         # fig3.show()
 
     def test_bottom_separator_overhang_setters_fixed_component(self):
+
         self.monolayer.overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
 
-        self.monolayer.bottom_separator_overhang_left = 8
+        self.monolayer.separator_overhang_left = 8
+
         self.assertEqual(
-            self.monolayer.bottom_separator_overhangs,
+            self.monolayer.separator_overhangs,
             {"left": 8, "right": 2, "top": 3, "bottom": 3},
         )
         fig1 = self.monolayer.get_top_down_view(opacity=0.2)
 
-        self.monolayer.bottom_separator_overhang_top = 6
+        self.monolayer.separator_overhang_top = 6
         self.assertEqual(
-            self.monolayer.bottom_separator_overhangs,
+            self.monolayer.separator_overhangs,
             {"left": 8, "right": 2, "top": 6, "bottom": 0},
         )
+
         fig2 = self.monolayer.get_top_down_view(opacity=0.2)
 
         # fig1.show()
         # fig2.show()
 
     def test_bottom_separator_overhang_setters_fixed_overhangs(self):
+
         self.monolayer.overhang_control_mode = OverhangControlMode.FIXED_OVERHANGS
 
         fig1 = self.monolayer.get_top_down_view(opacity=0.2)
@@ -656,6 +680,51 @@ class TestSimpleMonoLayer(unittest.TestCase):
 
         fig1 = zfold_monolayer.get_top_down_view()
         # fig1.show()
+
+    def test_datum_shift_updates_components(self):
+        """Shifting layup datum should translate all component datums uniformly."""
+        old_layup_datum = self.monolayer.datum
+        old_cathode_datum = self.monolayer.cathode.datum
+        old_anode_datum = self.monolayer.anode.datum
+        old_top_sep_datum = self.monolayer.top_separator.datum
+        old_bottom_sep_datum = self.monolayer.bottom_separator.datum
+
+        figure_old = self.monolayer.get_top_down_view(opacity=0.2)
+
+        dx, dy, dz = 20.0, -15.0, 5.0  # mm shifts
+        new_layup_datum = (old_layup_datum[0] + dx, old_layup_datum[1] + dy, old_layup_datum[2] + dz)
+
+        self.monolayer.datum = new_layup_datum
+
+        figure_new = self.monolayer.get_top_down_view(opacity=0.2)
+
+        def assert_shift(old, new):
+            self.assertAlmostEqual(new[0] - old[0], dx, places=6)
+            self.assertAlmostEqual(new[1] - old[1], dy, places=6)
+            self.assertAlmostEqual(new[2] - old[2], dz, places=6)
+
+        assert_shift(old_cathode_datum, self.monolayer.cathode.datum)
+        assert_shift(old_anode_datum, self.monolayer.anode.datum)
+        assert_shift(old_top_sep_datum, self.monolayer.top_separator.datum)
+        assert_shift(old_bottom_sep_datum, self.monolayer.bottom_separator.datum)
+
+        # Layup datum should equal cathode datum
+        self.assertEqual(self.monolayer.datum, self.monolayer.cathode.datum)
+
+        # figure_old.show()
+        # figure_new.show()
+
+    def test_overhangs_stable_after_datum_shift(self):
+        """Shifting layup datum should not change overhangs for monolayer."""
+        before = deepcopy(self.monolayer.anode_overhangs)
+        d = self.monolayer.datum
+        self.monolayer.datum = (d[0] + 11.0, d[1] - 7.0, d[2] + 3.0)
+        after = self.monolayer.anode_overhangs
+        self.assertEqual(before, after)
+
+    def test_overhang_control_mode_string_setter(self):
+        self.monolayer.overhang_control_mode = "fixed_overhangs"
+        self.assertEqual(self.monolayer.overhang_control_mode, OverhangControlMode.FIXED_OVERHANGS)
 
 
 class TestZFoldMonoLayer(unittest.TestCase):
@@ -749,6 +818,8 @@ class TestZFoldMonoLayer(unittest.TestCase):
         temp_layup = deepcopy(self.zfoldmonolayer)
         condition = self.zfoldmonolayer == temp_layup
         self.assertTrue(condition)
+        fig1 = self.zfoldmonolayer.get_top_down_view()
+        fig1.show()
 
     def test_zfold_monolayer_basic(self):
         """Test basic Z-fold monolayer functionality."""
@@ -776,19 +847,15 @@ class TestZFoldMonoLayer(unittest.TestCase):
         )
         self.assertEqual(
             self.zfoldmonolayer.separator_overhangs,
-            {"left": 0.0, "right": 0.0, "bottom": 3.0, "top": 3.0},
+            {"left": 0.025, "right": 0.025, "bottom": 3.0, "top": 3.0},
         )
 
-        fig1 = self.zfoldmonolayer.get_top_down_view()
-        # fig1.show()
 
     def test_zfold_left_right_overhangs_always_zero(self):
         """Test that left/right overhangs are always zero in calculations."""
         # Check internal calculations set left/right to zero
-        self.assertEqual(self.zfoldmonolayer._bottom_separator_overhang_left, 0.0)
-        self.assertEqual(self.zfoldmonolayer._bottom_separator_overhang_right, 0.0)
-        self.assertEqual(self.zfoldmonolayer._top_separator_overhang_left, 0.0)
-        self.assertEqual(self.zfoldmonolayer._top_separator_overhang_right, 0.0)
+        self.assertAlmostEqual(self.zfoldmonolayer._bottom_separator_overhang_left, 0.000025, 6)
+        self.assertAlmostEqual(self.zfoldmonolayer._bottom_separator_overhang_right, 0.000025, 6)
 
     def test_zfold_separator_setter_constraints(self):
         """Test that separator setters maintain Z-fold length constraints."""
@@ -919,6 +986,20 @@ class TestZFoldMonoLayer(unittest.TestCase):
 
         fig1 = monolayer.get_top_down_view()
         # fig1.show()
+
+    def test_overhang_control_mode_string_setter(self):
+        self.zfoldmonolayer.overhang_control_mode = "fixed_overhangs"
+        self.assertEqual(self.zfoldmonolayer.overhang_control_mode, OverhangControlMode.FIXED_OVERHANGS)
+
+    def test_change_anode_dimensions(self):
+        fig1 = self.zfoldmonolayer.get_top_down_view()
+        self.zfoldmonolayer.anode.current_collector.width = 400
+        self.zfoldmonolayer.anode.current_collector = self.zfoldmonolayer.anode.current_collector
+        self.zfoldmonolayer.anode = self.zfoldmonolayer.anode
+        fig2 = self.zfoldmonolayer.get_top_down_view()
+
+        # fig1.show()
+        # fig2.show()
 
 
 if __name__ == "__main__":

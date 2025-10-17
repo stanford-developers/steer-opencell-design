@@ -63,6 +63,68 @@ class TestAnodeNoInsulation(unittest.TestCase):
     def test_electrodes(self):
         self.assertTrue(isinstance(self.anode, Anode))
 
+    def test_datum_shift_updates_coordinates(self):
+        """Changing the electrode datum should translate top-down coating coordinates by the same delta.
+
+        We shift the x component of the datum and verify all x coordinates of the coating trace
+        shift accordingly (within floating point tolerance)."""
+        # Get initial coordinates
+        coating_trace_before = self.anode.top_down_coating_trace
+        xs_before = list(coating_trace_before.x)
+        old_datum = self.anode.datum
+        shift_x = 100.0  # mm
+
+        fig1 = self.anode._get_full_top_down_view()
+
+        # Apply datum shift
+        self.anode.datum = (old_datum[0] + shift_x, old_datum[1], old_datum[2])
+
+        fig2 = self.anode._get_full_top_down_view()
+
+        # Get new coordinates
+        coating_trace_after = self.anode.top_down_coating_trace
+        xs_after = list(coating_trace_after.x)
+
+        # Sanity checks
+        self.assertEqual(len(xs_before), len(xs_after), "Coordinate length should remain constant after shift")
+        # Compute per-point shifts
+        deltas = [after - before for before, after in zip(xs_before, xs_after)]
+        # Assert all deltas approximately equal shift_x
+        for d in deltas:
+            self.assertAlmostEqual(d, shift_x, places=6, msg=f"Expected x shift {shift_x} mm, got {d} mm")
+
+        # Additionally verify datum updated
+        self.assertAlmostEqual(self.anode.datum[0] - old_datum[0], shift_x, places=6)
+
+        # fig1.show()
+        # fig2.show()
+
+    def test_datum_shift_updates_coordinates_y(self):
+        """Changing the electrode datum y should translate top-down coating coordinates y values by the same delta."""
+        coating_trace_before = self.anode.top_down_coating_trace
+        ys_before = list(coating_trace_before.y)
+        old_datum = self.anode.datum
+        shift_y = 75.0  # mm
+
+        fig1 = self.anode._get_full_top_down_view()
+
+        # Apply datum shift (y only)
+        self.anode.datum = (old_datum[0], old_datum[1] + shift_y, old_datum[2])
+
+        fig2 = self.anode._get_full_top_down_view()
+
+        coating_trace_after = self.anode.top_down_coating_trace
+        ys_after = list(coating_trace_after.y)
+
+        self.assertEqual(len(ys_before), len(ys_after), "Coordinate length should remain constant after y shift")
+        deltas = [after - before for before, after in zip(ys_before, ys_after)]
+        for d in deltas:
+            self.assertAlmostEqual(d, shift_y, places=6, msg=f"Expected y shift {shift_y} mm, got {d} mm")
+        self.assertAlmostEqual(self.anode.datum[1] - old_datum[1], shift_y, places=6)
+
+        # fig1.show()
+        # fig2.show()
+        
 
 class TestCathodePunchedCurrentCollector(unittest.TestCase):
     def setUp(self):
@@ -231,6 +293,73 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         # fig1.show()
         # fig2.show()
         # fig3.show()
+
+    def test_datum_shift_updates_coordinates_x(self):
+        """Changing the cathode datum x should translate top-down coating coordinates x values by the same delta.
+
+        Uses full top-down figure before and after to validate shift visually (data-level)."""
+        fig_before = self.cathode._get_full_top_down_view()
+        # Extract coating trace x values (trace name contains 'Coating')
+        xs_before = None
+        for trace in fig_before.data:
+            if 'Coating' in trace.name:
+                xs_before = list(trace.x)
+                break
+        self.assertIsNotNone(xs_before, "Could not find coating trace in pre-shift figure")
+
+        old_datum = self.cathode.datum
+        shift_x = 42.5  # mm
+        self.cathode.datum = (old_datum[0] + shift_x, old_datum[1], old_datum[2])
+
+        fig_after = self.cathode._get_full_top_down_view()
+        xs_after = None
+        for trace in fig_after.data:
+            if 'Coating' in trace.name:
+                xs_after = list(trace.x)
+                break
+        self.assertIsNotNone(xs_after, "Could not find coating trace in post-shift figure")
+
+        self.assertEqual(len(xs_before), len(xs_after), "Coordinate length should remain constant after x shift")
+        deltas = [after - before for before, after in zip(xs_before, xs_after)]
+        for d in deltas:
+            self.assertAlmostEqual(d, shift_x, places=6, msg=f"Expected x shift {shift_x} mm, got {d} mm")
+        self.assertAlmostEqual(self.cathode.datum[0] - old_datum[0], shift_x, places=6)
+
+        # fig_before.show()
+        # fig_after.show()
+
+    def test_datum_shift_updates_coordinates_y(self):
+        """Changing the cathode datum y should translate top-down coating coordinates y values by the same delta.
+
+        Uses full top-down figure before and after to validate shift visually (data-level)."""
+        fig_before = self.cathode._get_full_top_down_view()
+        ys_before = None
+        for trace in fig_before.data:
+            if 'Coating' in trace.name:
+                ys_before = list(trace.y)
+                break
+        self.assertIsNotNone(ys_before, "Could not find coating trace in pre-shift figure")
+
+        old_datum = self.cathode.datum
+        shift_y = 33.3  # mm
+        self.cathode.datum = (old_datum[0], old_datum[1] + shift_y, old_datum[2])
+
+        fig_after = self.cathode._get_full_top_down_view()
+        ys_after = None
+        for trace in fig_after.data:
+            if 'Coating' in trace.name:
+                ys_after = list(trace.y)
+                break
+        self.assertIsNotNone(ys_after, "Could not find coating trace in post-shift figure")
+
+        self.assertEqual(len(ys_before), len(ys_after), "Coordinate length should remain constant after y shift")
+        deltas = [after - before for before, after in zip(ys_before, ys_after)]
+        for d in deltas:
+            self.assertAlmostEqual(d, shift_y, places=6, msg=f"Expected y shift {shift_y} mm, got {d} mm")
+        self.assertAlmostEqual(self.cathode.datum[1] - old_datum[1], shift_y, places=6)
+
+        # fig_before.show()
+        # fig_after.show()
 
 
 class TestCathodeTwoMaterialNotched(unittest.TestCase):
