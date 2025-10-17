@@ -363,7 +363,7 @@ class _Electrode(
 
         return figure
 
-    def _get_full_right_left_view(self, **kwargs) -> pd.DataFrame:
+    def get_right_left_view(self, **kwargs) -> pd.DataFrame:
 
         figure = self._current_collector.get_right_left_view(**kwargs)
         figure.data = [trace for trace in figure.data if trace.name == "Body" or trace.name == "Tab"]
@@ -374,6 +374,14 @@ class _Electrode(
             figure.add_trace(self.right_left_a_side_insulation_trace)
         if hasattr(self, "_insulation_material") and self._insulation_material is not None:
             figure.add_trace(self.right_left_b_side_insulation_trace)
+
+        figure.update_layout(
+            xaxis=dict(showgrid=False, zeroline=False, title="X (mm)", scaleanchor="y"),
+            yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)"),
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            **kwargs,
+        )
 
         return figure
 
@@ -496,13 +504,12 @@ class _Electrode(
             Custom y-axis range as [min, max]. If not provided, automatically calculated 
             based on electrode thickness and datum position.
         """
-        # Get base figure with current collector and coating traces
-        figure = self._current_collector.get_right_left_view(**kwargs)
-        figure.data = [trace for trace in figure.data if trace.name == "Body" or trace.name == "Tab"]
-        figure.add_trace(self.right_left_a_side_coating_trace)
-        figure.add_trace(self.right_left_b_side_coating_trace)
+        # Get base figure using get_right_left_view (includes current collector and coating traces)
+        figure = self.get_right_left_view(**kwargs)
         
-        # Note: Insulation traces are intentionally excluded
+        # Note: Insulation traces are intentionally excluded from cross-section view
+        # Remove insulation traces if they exist
+        figure.data = [trace for trace in figure.data if "Insulation" not in trace.name]
 
         # Get datum coordinates in mm (for plotting)
         datum_y = self.datum[1]  # y-coordinate of datum

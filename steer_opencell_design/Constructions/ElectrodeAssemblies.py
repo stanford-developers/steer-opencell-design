@@ -22,6 +22,7 @@ from shapely.geometry import Polygon
 from shapely import minimum_bounding_circle
 import warnings
 import plotly.graph_objects as go
+from typing import Dict
 
 
 class _ElectrodeAssembly(
@@ -204,11 +205,20 @@ class PunchedStack(_Stack):
 
     def _calculate_stack(self):
         
+        def add_layer(stack: Dict, component, z_datum):
+            new_component = deepcopy(component)
+            new_component.datum = (new_component.datum_x, new_component.datum_y, z_datum)
+            new_z_datum = z_datum + new_component._thickness * M_TO_MM
+            return new_component, new_z_datum
+
         # Initialize dictionaries for components
         stack = {}
 
+        # set the starting z datum
+        z_datum = 0
+
         # get bottom separator for initial half-layer
-        bottom_separator = deepcopy(self.layup.bottom_separator)
+        bottom_separator = deepcopy(self.layup._canonical_separator)
         
         # set its datum
         bottom_separator.datum = (
@@ -239,8 +249,6 @@ class PunchedStack(_Stack):
             # Create a deep copy of the monolayer
             monolayer = deepcopy(self.layup)
 
-            # get the mono
-
             # Set the monolayer's datum
             monolayer.datum = (
                 monolayer.datum_x, 
@@ -257,6 +265,25 @@ class PunchedStack(_Stack):
         self._stack = stack
 
         return self._stack
+    
+    def get_side_view(self, **kwargs):
+
+        figure = go.Figure()
+
+        for _, component in self.stack.items():
+            layer_figure = component.get_right_left_view()
+            for trace in layer_figure.data:
+                figure.add_trace(trace)
+
+        figure.update_layout(
+            xaxis=dict(showgrid=False, zeroline=False, title="X (mm)", scaleanchor="y"),
+            yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)"),
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            **kwargs,
+        )
+
+        return figure
 
     @property
     def layup(self) -> MonoLayer:

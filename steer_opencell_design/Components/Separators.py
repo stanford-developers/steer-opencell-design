@@ -151,6 +151,7 @@ class Separator(
             self._length_range = (electrode._current_collector._y_body_length, electrode._current_collector._y_body_length + extended_range)
 
     def get_top_down_view(self, **kwargs) -> go.Figure:
+        
         if self._coordinates is None:
             raise ValueError("Cannot generate top-down view: length not set")
 
@@ -160,6 +161,25 @@ class Separator(
         fig.update_layout(
             xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title="X (mm)"),
             yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)"),
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            **kwargs,
+        )
+
+        return fig
+    
+    def get_right_left_view(self, **kwargs):
+
+        if self._coordinates is None:
+            raise ValueError("Cannot generate right-left view: length not set")
+
+        fig = go.Figure()
+
+        fig.add_trace(self.right_left_trace)
+
+        fig.update_layout(
+            xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title="Y (mm)"),
+            yaxis=dict(showgrid=False, zeroline=False, title="Z (mm)"),
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
@@ -203,6 +223,7 @@ class Separator(
 
     @property
     def right_left_trace(self) -> go.Scatter:
+
         if self._coordinates is None:
             return None
 
@@ -210,19 +231,19 @@ class Separator(
         coordinates = self.order_coordinates_clockwise(self.coordinates, plane="yz")
 
         # make the trace
-        a_side_insulation_trace = go.Scatter(
+        trace = go.Scatter(
             x=coordinates["y"],
             y=coordinates["z"],
             mode="lines",
             name=self.name,
             line=dict(width=1, color="black"),
             fill="toself",
-            fillcolor=self._insulation_material._color,
+            fillcolor=self.material._color,
             legendgroup=self.name,
             showlegend=True,
         )
 
-        return a_side_insulation_trace
+        return trace
 
     @property
     def cost(self) -> float:

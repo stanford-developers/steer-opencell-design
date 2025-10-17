@@ -27,6 +27,13 @@ class TestSeparator(unittest.TestCase):
         condition = self.separator == temp_separator
         self.assertTrue(condition)
 
+    def test_right_left_view(self):
+        """
+        Test right and left side views
+        """
+        fig_right = self.separator.get_right_left_view()
+        # fig_right.show()
+        
     def test_separator_properties(self):
         """
         Test the properties of the separator

@@ -107,15 +107,14 @@ class TestPunchedStack(unittest.TestCase):
             n_layers=20
         )
 
-    # def test_punched_stack_basic_structure(self):
-    #     self.assertIsInstance(self.stack, PunchedStack)
-    #     # Validate expected keys present
-    #     self.assertIn("anodes", self.stack.stack)
-    #     self.assertIn("cathodes", self.stack.stack)
-    #     self.assertIn("separators", self.stack.stack)
-    #     # Basic sanity: non-empty collections
-    #     self.assertGreater(len(self.stack.stack["anodes"]), 0)
-    #     self.assertEqual(len(self.stack.stack["cathodes"]), self.stack.n_layers)
+    def test_punched_stack_basic_structure(self):
+        self.assertIsInstance(self.stack, PunchedStack)
+        self.assertEqual(len(self.stack.stack), 82)
+
+    def test_right_left_view(self):
+        """Test right and left side views of the punched stack."""
+        fig_right = self.stack.get_side_view()
+        fig_right.show()
 
     # def test_punched_stack_layer_datums_increasing(self):
     #     """Check that layer component z datums increase monotonically with layer index."""
