@@ -1,4 +1,4 @@
-from steer_opencell_design.Constants import *
+from steer_core.Constants.Units import *
 
 
 class Laminate:
