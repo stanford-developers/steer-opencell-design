@@ -206,10 +206,23 @@ class PunchedStack(_Stack):
     def _calculate_stack(self):
         
         def add_layer(stack: Dict, component, z_datum):
+
+            stack_size = len(stack)
+
             new_component = deepcopy(component)
-            new_component.datum = (new_component.datum_x, new_component.datum_y, z_datum)
-            new_z_datum = z_datum + new_component._thickness * M_TO_MM
-            return new_component, new_z_datum
+
+            if stack_size == 0:
+                new_z_datum = z_datum + new_component._thickness * M_TO_MM / 2
+            else:
+                new_z_datum = z_datum + new_component._thickness * M_TO_MM / 2 + stack[stack_size - 1]._thickness * M_TO_MM / 2
+
+            new_component.datum = (new_component._datum[0] * M_TO_MM, new_component._datum[1] * M_TO_MM, new_z_datum)
+
+            stack_size = len(stack)
+
+            stack[stack_size] = new_component
+
+            return new_z_datum, stack
 
         # Initialize dictionaries for components
         stack = {}
@@ -217,50 +230,21 @@ class PunchedStack(_Stack):
         # set the starting z datum
         z_datum = 0
 
-        # get bottom separator for initial half-layer
-        bottom_separator = deepcopy(self.layup._canonical_separator)
-        
-        # set its datum
-        bottom_separator.datum = (
-            bottom_separator.datum_x, 
-            bottom_separator.datum_y,
-            bottom_separator.thickness * UM_TO_MM, 
-        )
+        # add bottom separator to stack
+        z_datum, stack = add_layer(stack, self.layup._bottom_separator, z_datum)
 
-        # add it to separators dict
-        stack[0] = bottom_separator
+        # add anode to stack
+        z_datum, stack = add_layer(stack, self.layup._anode, z_datum)
 
-        # get the anode for the initial half-layer
-        anode = deepcopy(self.layup.anode)
+        # add layups to stack
+        for _ in range(self.n_layers):
+            z_datum, stack = add_layer(stack, self.layup._bottom_separator, z_datum)
+            z_datum, stack = add_layer(stack, self.layup._cathode, z_datum)
+            z_datum, stack = add_layer(stack, self.layup._bottom_separator, z_datum)
+            z_datum, stack = add_layer(stack, self.layup._anode, z_datum)
 
-        # set the anodes datum
-        anode.datum = (
-            anode.datum_x, 
-            anode.datum_y,
-            bottom_separator.datum[2] + (anode.thickness * UM_TO_MM) / 2, 
-        )
-
-        # add it to anodes dict
-        stack[1] = anode
-
-        # Create deep copies of components for each layer
-        for n in range(1, self.n_layers + 1):
-
-            # Create a deep copy of the monolayer
-            monolayer = deepcopy(self.layup)
-
-            # Set the monolayer's datum
-            monolayer.datum = (
-                monolayer.datum_x, 
-                monolayer.datum_y,
-                (bottom_separator.thickness + anode.thickness + monolayer.cathode.thickness + (n-1) * monolayer.thickness) * UM_TO_MM
-            )
-
-            # Add components to their respective dictionaries
-            stack[4*n - 2] = monolayer.top_separator
-            stack[4*n - 1] = monolayer.cathode
-            stack[4*n + 0] = monolayer.bottom_separator
-            stack[4*n + 1] = monolayer.anode
+        # add top separator to stack
+        z_datum, stack = add_layer(stack, self.layup._top_separator, z_datum)
 
         self._stack = stack
 

@@ -134,6 +134,50 @@ class TestSimpleLaminate(unittest.TestCase):
         condition = self.layup == temp_layup
         self.assertTrue(condition)
 
+    def test_length_width_setter(self):
+
+        self.assertEqual(self.layup.length, 4500)
+        self.assertEqual(self.layup.width, 306)
+        self.assertEqual(self.layup.anode.current_collector.length, 4500)
+        self.assertEqual(self.layup.anode.current_collector.width, 306)
+        self.assertEqual(self.layup.cathode.current_collector.length, 4500)
+        self.assertEqual(self.layup.cathode.current_collector.width, 300)
+        self.assertEqual(self.layup.top_separator.length, 4800)
+        self.assertEqual(self.layup.top_separator.width, 310)
+        self.assertEqual(self.layup.bottom_separator.length, 4800)
+        self.assertEqual(self.layup.bottom_separator.width, 310)
+        fig1 = self.layup.get_top_down_view(opacity=0.2)
+
+        self.layup.length = 6000
+        self.assertEqual(self.layup.length, 6000)
+        self.assertEqual(self.layup.width, 306)
+        self.assertEqual(self.layup.anode.current_collector.length, 6000)
+        self.assertEqual(self.layup.anode.current_collector.width, 306)
+        self.assertEqual(self.layup.cathode.current_collector.length, 6000)
+        self.assertEqual(self.layup.cathode.current_collector.width, 300)
+        self.assertEqual(self.layup.top_separator.length, 6300)
+        self.assertEqual(self.layup.top_separator.width, 310)
+        self.assertEqual(self.layup.bottom_separator.length, 6300)
+        self.assertEqual(self.layup.bottom_separator.width, 310)
+        fig2 = self.layup.get_top_down_view(opacity=0.2)
+
+        self.layup.width = 400
+        self.assertEqual(self.layup.length, 6000)
+        self.assertEqual(self.layup.width, 400)
+        self.assertEqual(self.layup.anode.current_collector.length, 6000)
+        self.assertEqual(self.layup.anode.current_collector.width, 400)
+        self.assertEqual(self.layup.cathode.current_collector.length, 6000)
+        self.assertEqual(self.layup.cathode.current_collector.width, 394)
+        self.assertEqual(self.layup.top_separator.length, 6300)
+        self.assertEqual(self.layup.top_separator.width, 404)
+        self.assertEqual(self.layup.bottom_separator.length, 6300)
+        self.assertEqual(self.layup.bottom_separator.width, 404)
+        fig3 = self.layup.get_top_down_view(opacity=0.2)
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+
     def test_laminate(self):
         # This is a placeholder for an actual test
         self.assertTrue(isinstance(self.layup, Laminate))
@@ -388,7 +432,7 @@ class TestSimpleLaminate(unittest.TestCase):
     def test_layup_properties_update_after_np_ratio_change(self):
         """Test that layup properties are properly updated after N/P ratio changes."""
         # Store initial properties
-        initial_thickness = self.layup.thickness
+        initial_thickness = self.layup.anode.thickness + self.layup.cathode.thickness
         initial_capacity_curve = self.layup.full_cell_curve.copy()
         
         # Change N/P ratio
@@ -396,7 +440,7 @@ class TestSimpleLaminate(unittest.TestCase):
         self.layup.np_ratio = 1.8
         
         # Check that properties were updated
-        new_thickness = self.layup.thickness
+        new_thickness = self.layup.anode.thickness + self.layup.cathode.thickness
         new_capacity_curve = self.layup.full_cell_curve
 
         # Thickness should change if anode mass loading changed
@@ -513,6 +557,13 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.assertTrue(condition)
 
         fig = self.monolayer.get_top_down_view(opacity=0.2)
+        fig.show()
+
+    def test_separator_width_setter(self):
+        temp_separator = deepcopy(self.monolayer.separator)
+        temp_separator.width = 400
+        self.monolayer.separator = temp_separator
+        # fig = self.monolayer.get_top_down_view(opacity=0.2)
         # fig.show()
 
     def test_monolayer(self):
@@ -1004,3 +1055,4 @@ class TestZFoldMonoLayer(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

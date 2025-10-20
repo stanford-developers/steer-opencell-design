@@ -734,6 +734,10 @@ class _Electrode(
     # === PROPERTIES ===
 
     @property
+    def _datum(self) -> Tuple[float, float, float]:
+        return self.current_collector._datum
+
+    @property
     def datum(self) -> Tuple[float, float, float]:
         """
         Get the datum of the electrode.

@@ -31,7 +31,7 @@ class Separator(
         self,
         material: SeparatorMaterial,
         thickness: float,
-        width: float,
+        width: float = None,
         length: float = None,
         name: str = "Separator",
         datum: Tuple[float, float, float] = (0, 0, 0),
@@ -46,7 +46,7 @@ class Separator(
         thickness : float
             Thickness of the separator in um.
         width : float, optional
-            Width of the separator in mm. Does not need to be provided as it can be calculated from the layup and stack.
+            Width of the separator in mm. If None, bulk properties won't be calculated until set.
         length : float, optional
             Length of the separator in mm. If None, bulk properties won't be calculated until set.
         name : str, optional
@@ -59,12 +59,16 @@ class Separator(
         self._update_properties = False
 
         self.datum = datum
-        self.width = width
         self.thickness = thickness
         self.material = material
         self.name = name
 
-        # Set length after other properties
+        # Set width and length after other properties
+        if width is not None:
+            self.width = width
+        else:
+            self._width = None
+
         if length is not None:
             self.length = length
         else:
@@ -89,9 +93,9 @@ class Separator(
     def _calculate_bulk_properties(self):
         """
         Calculate bulk properties of the separator.
-        Only calculates if length is available.
+        Only calculates if both length and width are available.
         """
-        if self._length is None:
+        if self._length is None or self._width is None:
             self._area = None
             self._mass = None
             self._cost = None
@@ -316,6 +320,8 @@ class Separator(
 
     @property
     def width(self) -> float:
+        if self._width is None:
+            return None
         return round(self._width * M_TO_MM, 2)
 
     @property

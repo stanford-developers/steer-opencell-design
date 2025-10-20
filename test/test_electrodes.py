@@ -241,7 +241,7 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         figure1 = self.cathode.get_top_down_view()
         figure2 = self.cathode.get_a_side_view()
         figure3 = self.cathode.get_b_side_view()
-        figure4 = self.cathode._get_full_right_left_view()
+        figure4 = self.cathode.get_right_left_view()
         figure5 = self.cathode.get_cross_section()
 
         # figure0.show()
