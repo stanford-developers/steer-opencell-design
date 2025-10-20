@@ -38,9 +38,10 @@ class TestPunchedStack(unittest.TestCase):
             conductive_additives={conductive_additive: 3},
         )
 
-        cc_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
+        cathode_cc_material = CurrentCollectorMaterial(name="Copper", specific_cost=5, density=2.7, color="#FFAE00")
+
         cathode_cc = PunchedCurrentCollector(
-            material=cc_material,
+            material=cathode_cc_material,
             width=300,
             height=320,
             thickness=8,
@@ -51,7 +52,7 @@ class TestPunchedStack(unittest.TestCase):
 
         cathode = Cathode(
             formulation=cathode_formulation,
-            mass_loading=6.2,
+            mass_loading=14.2,
             current_collector=cathode_cc,
             calender_density=2.60,
         )
@@ -65,6 +66,8 @@ class TestPunchedStack(unittest.TestCase):
             binders={binder: 5},
             conductive_additives={conductive_additive: 5},
         )
+
+        cc_material = CurrentCollectorMaterial(name="Aluminium", specific_cost=5, density=2.7, color="#717171")
 
         anode_cc = PunchedCurrentCollector(
             material=cc_material,
@@ -109,7 +112,7 @@ class TestPunchedStack(unittest.TestCase):
 
     def test_punched_stack_basic_structure(self):
         self.assertIsInstance(self.stack, PunchedStack)
-        self.assertEqual(len(self.stack.stack), 82)
+        self.assertEqual(len(self.stack.stack), 83)
 
     def test_right_left_view(self):
         """Test right and left side views of the punched stack."""

@@ -89,7 +89,7 @@ class _Layup(
         self._calculate_full_cell_curves()
 
     def _calculate_bulk_properties(self):
-        self._thickness = self._cathode.thickness + self._bottom_separator.thickness + self._anode.thickness + self._top_separator.thickness
+        pass
 
     def _calculate_coordinates(self):
         self._set_z_positions()
@@ -560,18 +560,18 @@ class _Layup(
         # Final layout with fixed axis ranges
         fig.update_layout(
             xaxis=dict(
-                showgrid=False,
+                # showgrid=False,
                 zeroline=False,
                 scaleanchor="y",
                 title="",
-                showticklabels=False,
+                # showticklabels=False,
                 range=x_bounds,
             ),
             yaxis=dict(
-                showgrid=False,
+                # showgrid=False,
                 zeroline=False,
                 title="",
-                showticklabels=False,
+                # showticklabels=False,
                 range=y_bounds,
             ),
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
@@ -719,13 +719,6 @@ class _Layup(
         return self.datum[2]
 
     @property
-    def thickness(self) -> float:
-        """
-        Get the total thickness of the layup in micrometers (µm).
-        """
-        return round(self._thickness * M_TO_UM, 3)
-
-    @property
     def np_ratio(self) -> float:
         """
         Get the n/p ratio of the layup (anode to cathode capacity ratio).
@@ -870,6 +863,7 @@ class _Layup(
     @anode.setter
     @calculate_all_properties
     def anode(self, anode: Anode):
+
         # validate type
         self.validate_type(anode, Anode, "Anode")
 
@@ -885,19 +879,13 @@ class _Layup(
         elif self._update_properties:
             anode.datum = (anode.datum[0], anode.datum[1], anode.datum[2])
 
-        # reset the separator to ensure it has the right propertions
-        if self._update_properties:
-            self._update_properties = False
-            separator = self._bottom_separator
-            self.separator = separator
-            self._update_properties = True
-
         # assign to self
         self._anode = anode
 
     @top_separator.setter
     @calculate_all_properties
     def top_separator(self, top_separator: Separator):
+
         # validate the type
         self.validate_type(top_separator, Separator, "Top Separator")
 
@@ -1694,6 +1682,12 @@ class Laminate(_Layup):
             name=name,
         )
 
+        # Store canonical separator for unified API
+        self._canonical_separator = Separator(
+            material=bottom_separator.material,
+            thickness=bottom_separator.thickness,
+        )
+
         self._calculate_all_properties()
         self._update_properties = True
 
@@ -1726,6 +1720,170 @@ class Laminate(_Layup):
         self._top_separator._set_length_range(self._anode, extended_range=1)
         self._bottom_separator._set_width_range(self._cathode, extended_range=0.1)
         self._bottom_separator._set_length_range(self._cathode, extended_range=1)
+
+        self._calculate_bulk_properties()
+
+    def _calculate_bulk_properties(self):
+        self._calculate_length()
+        self._calculate_width()
+
+    def _calculate_length(self) -> float:
+        """
+        Calculate the length of the laminate based on the anode and cathode lengths.
+
+        Returns
+        -------
+        float
+            The length of the laminate in meters.
+        """
+        anode_length = self._anode._current_collector._x_body_length
+        cathode_length = self._cathode._current_collector._x_body_length
+
+        # The laminate length is determined by the longer of the two electrodes
+        laminate_length = max(anode_length, cathode_length)
+
+        self._length = laminate_length
+
+        return self._length
+
+    def _calculate_width(self) -> float:
+        """
+        Calculate the width of the laminate based on the anode and cathode widths.
+
+        Returns
+        -------
+        float
+            The width of the laminate in meters.
+        """
+        anode_width = self._anode._current_collector._y_body_length
+        cathode_width = self._cathode._current_collector._y_body_length
+
+        # The laminate width is determined by the wider of the two electrodes
+        laminate_width = max(anode_width, cathode_width)
+
+        self._width = laminate_width
+
+        return self._width
+    
+    @property
+    def separator(self) -> Separator:
+        """
+        Get the canonical separator used in the laminate.
+
+        Returns
+        -------
+        Separator
+            The canonical separator instance.
+        """
+        return self._canonical_separator
+
+    @property
+    def length(self) -> float:
+        return round(self._length * M_TO_MM, 2)
+    
+    @property
+    def length_range(self) -> tuple:
+        return self.cathode.current_collector.length_range
+    
+    @property
+    def length_hard_range(self) -> tuple:
+        return self.cathode.current_collector.length_hard_range
+    
+    @property
+    def width(self) -> float:
+        return round(self._width * M_TO_MM, 2)
+
+    @property
+    def width_range(self) -> tuple:
+        return self.cathode.current_collector.width_range
+    
+    @property
+    def width_hard_range(self) -> tuple:
+        return self.cathode.current_collector.width_hard_range
+
+    @separator.setter
+    @calculate_all_properties
+    def separator(self, value: Separator):
+
+        # Validate input type
+        self.validate_type(value, Separator, "Laminate Separator")
+
+        # transfer properties to bottom separator
+        self.bottom_separator.material = value.material
+        self.bottom_separator.thickness = value.thickness
+        self.bottom_separator = self.bottom_separator
+
+        # transfer properties to top separator
+        self.top_separator.material = value.material
+        self.top_separator.thickness = value.thickness
+        self.top_separator = self.top_separator
+
+        # Store canonical separator for unified API
+        self._canonical_separator.material = value.material
+        self._canonical_separator.thickness = value.thickness
+
+    @length.setter
+    @calculate_all_properties
+    def length(self, value: float):
+
+        # Validate input
+        self.validate_positive_float(value, "Laminate Length")
+        
+        # get the current length
+        current_length = self.length
+
+        # get the difference in the lengths
+        length_diff = value - current_length
+
+        # Update the length property of the bottom separator
+        self.bottom_separator.length = self.bottom_separator.length + length_diff
+        self.bottom_separator = self.bottom_separator
+
+        # Update the length property of the top separator
+        self.top_separator.length = self.top_separator.length + length_diff 
+        self.top_separator = self.top_separator
+
+        # Update the length property of the anode
+        self.anode.current_collector.length = self.anode.current_collector.length + length_diff
+        self.anode.current_collector = self.anode.current_collector
+        self.anode = self.anode
+
+        # Update the length property of the cathode
+        self.cathode.current_collector.length = self.cathode.current_collector.length + length_diff
+        self.cathode.current_collector = self.cathode.current_collector
+        self.cathode = self.cathode
+
+
+    @width.setter
+    @calculate_all_properties
+    def width(self, value: float):
+
+        # Validate input
+        self.validate_positive_float(value, "Laminate Width")
+        
+        # get the current width
+        current_width = self.width
+
+        # get the difference in the widths
+        width_diff = value - current_width
+
+        # Update the width property of the bottom separator
+        self.bottom_separator.width = self.bottom_separator.width + width_diff
+        self.bottom_separator = self.bottom_separator
+
+        # Update the width property of the top separator
+        self.top_separator.width = self.top_separator.width + width_diff 
+        self.top_separator = self.top_separator
+
+        # Update the width property of the anode
+        self.anode.current_collector.width = self.anode.current_collector.width + width_diff
+        self.anode.current_collector = self.anode.current_collector
+        self.anode = self.anode
+
+        # Update the width property of the cathode
+        self.cathode.current_collector.width = self.cathode.current_collector.width + width_diff
+        self.cathode.current_collector = self.cathode.current_collector
+        self.cathode = self.cathode
 
 
 class MonoLayer(_Layup):
@@ -1904,6 +2062,10 @@ class MonoLayer(_Layup):
     def separator_overhang_top(self) -> float: 
         return self.bottom_separator_overhang_top
 
+    @property
+    def separator_overhang_top_range(self) -> tuple:
+        return self.bottom_separator_overhang_top_range
+
     @separator_overhang_top.setter
     def separator_overhang_top(self, overhang: float) -> None:
         self.bottom_separator_overhang_top = overhang
@@ -1912,6 +2074,10 @@ class MonoLayer(_Layup):
     @property
     def separator_overhang_bottom(self) -> float:
         return self.bottom_separator_overhang_bottom
+
+    @property
+    def separator_overhang_bottom_range(self) -> tuple:
+        return self.bottom_separator_overhang_bottom_range
 
     @separator_overhang_bottom.setter
     def separator_overhang_bottom(self, overhang: float) -> None:

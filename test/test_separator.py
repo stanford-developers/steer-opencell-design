@@ -10,6 +10,20 @@ import pandas as pd
 pio.renderers.default = "browser"
 
 
+class TestSimpleSeparator(unittest.TestCase):
+
+    def setUp(self):
+        
+        separator_material = SeparatorMaterial.from_database(name="Nafion")
+
+        self.separator = Separator(material=separator_material, thickness=25)
+
+    def test_equality(self):
+        temp_separator = deepcopy(self.separator)
+        condition = self.separator == temp_separator
+        self.assertTrue(condition)
+
+
 class TestSeparator(unittest.TestCase):
     def setUp(self):
         """
