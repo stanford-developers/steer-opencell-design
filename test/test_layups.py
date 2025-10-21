@@ -557,7 +557,51 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.assertTrue(condition)
 
         fig = self.monolayer.get_top_down_view(opacity=0.2)
-        fig.show()
+        # fig.show()
+
+    def test_width_and_height_setter(self):
+
+        self.assertEqual(self.monolayer.height, 324)
+        self.assertEqual(self.monolayer.width, 304)
+        self.assertEqual(self.monolayer.anode.current_collector.height, 324)
+        self.assertEqual(self.monolayer.anode.current_collector.width, 304)
+        self.assertEqual(self.monolayer.cathode.current_collector.height, 320)
+        self.assertEqual(self.monolayer.cathode.current_collector.width, 300)
+        self.assertEqual(self.monolayer.top_separator.length, 326)
+        self.assertEqual(self.monolayer.top_separator.width, 310)
+        self.assertEqual(self.monolayer.bottom_separator.length, 326)
+        self.assertEqual(self.monolayer.bottom_separator.width, 310)
+        fig1 = self.monolayer.get_top_down_view(opacity=0.2)
+
+        self.monolayer.height = 500
+        self.assertEqual(self.monolayer.height, 500)
+        self.assertEqual(self.monolayer.width, 304)
+        self.assertEqual(self.monolayer.anode.current_collector.height, 500)
+        self.assertEqual(self.monolayer.anode.current_collector.width, 304)
+        self.assertEqual(self.monolayer.cathode.current_collector.height, 496)
+        self.assertEqual(self.monolayer.cathode.current_collector.width, 300)
+        self.assertEqual(self.monolayer.top_separator.length, 502)
+        self.assertEqual(self.monolayer.top_separator.width, 310)
+        self.assertEqual(self.monolayer.bottom_separator.length, 502)
+        self.assertEqual(self.monolayer.bottom_separator.width, 310)
+        fig2 = self.monolayer.get_top_down_view(opacity=0.2)
+
+        self.monolayer.width = 400
+        self.assertEqual(self.monolayer.height, 500)
+        self.assertEqual(self.monolayer.width, 400)
+        self.assertEqual(self.monolayer.anode.current_collector.height, 500)
+        self.assertEqual(self.monolayer.anode.current_collector.width, 400)
+        self.assertEqual(self.monolayer.cathode.current_collector.height, 496)
+        self.assertEqual(self.monolayer.cathode.current_collector.width, 396)
+        self.assertEqual(self.monolayer.top_separator.length, 502)
+        self.assertEqual(self.monolayer.top_separator.width, 406)
+        self.assertEqual(self.monolayer.bottom_separator.length, 502)
+        self.assertEqual(self.monolayer.bottom_separator.width, 406)
+        fig3 = self.monolayer.get_top_down_view(opacity=0.2)
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
 
     def test_separator_width_setter(self):
         temp_separator = deepcopy(self.monolayer.separator)
@@ -870,7 +914,7 @@ class TestZFoldMonoLayer(unittest.TestCase):
         condition = self.zfoldmonolayer == temp_layup
         self.assertTrue(condition)
         fig1 = self.zfoldmonolayer.get_top_down_view()
-        fig1.show()
+        # fig1.show()
 
     def test_zfold_monolayer_basic(self):
         """Test basic Z-fold monolayer functionality."""

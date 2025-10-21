@@ -144,6 +144,7 @@ class Separator(
 
         if not self._rotated_xy:
             self._width_range = (electrode._current_collector._y_body_length, electrode._current_collector._y_body_length + extended_range)
+            
         elif self._rotated_xy:
             self._width_range = (electrode._current_collector._x_body_length, electrode._current_collector._x_body_length + extended_range)
 

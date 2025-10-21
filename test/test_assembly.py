@@ -117,7 +117,7 @@ class TestPunchedStack(unittest.TestCase):
     def test_right_left_view(self):
         """Test right and left side views of the punched stack."""
         fig_right = self.stack.get_side_view()
-        fig_right.show()
+        # fig_right.show()
 
     # def test_punched_stack_layer_datums_increasing(self):
     #     """Check that layer component z datums increase monotonically with layer index."""
