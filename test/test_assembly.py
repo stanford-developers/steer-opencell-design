@@ -9,7 +9,7 @@ from steer_opencell_design.Components.Electrodes import Cathode, Anode
 from steer_opencell_design.Components.CurrentCollectors import PunchedCurrentCollector
 from steer_opencell_design.Components.Separators import Separator
 from steer_opencell_design.Constructions.ElectrodeAssemblies import PunchedStack
-from steer_opencell_design.Constructions.Layups import MonoLayer
+from steer_opencell_design.Constructions.Layups import MonoLayer, ElectrodeOrientation
 
 from steer_materials.CellMaterials.Base import CurrentCollectorMaterial, SeparatorMaterial
 from steer_materials.CellMaterials.Electrode import (
@@ -101,7 +101,6 @@ class TestPunchedStack(unittest.TestCase):
             anode=anode,
             cathode=cathode,
             separator=separator,
-            transverse=True,
         )
 
         # default stack for reuse in tests
@@ -118,6 +117,11 @@ class TestPunchedStack(unittest.TestCase):
         """Test right and left side views of the punched stack."""
         fig_right = self.stack.get_side_view()
         # fig_right.show()
+
+    def test_get_capacity_curve(self):
+        """Test getting the full-cell capacity curve of the punched stack."""
+        curve = self.stack.get_capacity_plot()
+        curve.show()
 
     # def test_punched_stack_layer_datums_increasing(self):
     #     """Check that layer component z datums increase monotonically with layer index."""

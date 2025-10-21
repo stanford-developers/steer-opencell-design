@@ -455,6 +455,7 @@ class _Cell:
         )
         figure.update_traces(textinfo="percent parent+label")
         figure.for_each_annotation(lambda a: a.update(text=a.text.split("=")[1]))
+        
         figure.update_layout(
             plot_bgcolor=background_color,
             paper_bgcolor=background_color,

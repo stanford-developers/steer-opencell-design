@@ -3,6 +3,7 @@ from steer_core.Constants.Units import *
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
+from steer_core.Mixins.Plotter import PlotterMixin
 
 from steer_core.Decorators.Coordinates import calculate_coordinates
 from steer_core.Decorators.General import (
@@ -25,7 +26,8 @@ import plotly.graph_objects as go
 class Separator(
     CoordinateMixin, 
     ValidationMixin,
-    DunderMixin
+    DunderMixin,
+    PlotterMixin,
     ):
     def __init__(
         self,
@@ -164,8 +166,8 @@ class Separator(
         fig.add_trace(self.top_down_trace)
 
         fig.update_layout(
-            xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title="X (mm)"),
-            yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)"),
+            xaxis=self.SCHEMATIC_X_AXIS,
+            yaxis=self.SCHEMATIC_Y_AXIS,
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
@@ -183,8 +185,8 @@ class Separator(
         fig.add_trace(self.right_left_trace)
 
         fig.update_layout(
-            xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title="Y (mm)"),
-            yaxis=dict(showgrid=False, zeroline=False, title="Z (mm)"),
+            xaxis=self.SCHEMATIC_X_AXIS,
+            yaxis=self.SCHEMATIC_Y_AXIS,
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,

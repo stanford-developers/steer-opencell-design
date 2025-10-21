@@ -8,12 +8,15 @@ import plotly.graph_objects as go
 
 from steer_core.Constants.Units import *
 from steer_core.Decorators.Coordinates import calculate_volumes, calculate_coordinates
-from steer_core.Decorators.General import calculate_all_properties
+from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
+
 from steer_core.Mixins.Colors import ColorMixin
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
+from steer_core.Mixins.Plotter import PlotterMixin
+
 from steer_opencell_design.Components.CurrentCollectors import (
     _TapeCurrentCollector,
     PunchedCurrentCollector,
@@ -35,12 +38,19 @@ class NPRatioControlMode(Enum):
     FIXED_THICKNESS = "fixed_thickness"
 
 
+class ElectrodeOrientation(Enum):
+    """Orientation options for electrode layups."""
+    TRANSVERSE = "transverse"
+    LONGITUDINAL = "longitudinal"
+
+
 class _Layup(
     CoordinateMixin, 
     ValidationMixin, 
     SerializerMixin, 
     ColorMixin, 
-    DunderMixin
+    DunderMixin,
+    PlotterMixin
 ):
     """
     Base class for layup structures containing common functionality for overhang calculations
@@ -559,21 +569,8 @@ class _Layup(
 
         # Final layout with fixed axis ranges
         fig.update_layout(
-            xaxis=dict(
-                # showgrid=False,
-                zeroline=False,
-                scaleanchor="y",
-                title="",
-                # showticklabels=False,
-                range=x_bounds,
-            ),
-            yaxis=dict(
-                # showgrid=False,
-                zeroline=False,
-                title="",
-                # showticklabels=False,
-                range=y_bounds,
-            ),
+            xaxis={**self.SCHEMATIC_X_AXIS, "range": x_bounds},
+            yaxis={**self.SCHEMATIC_Y_AXIS, "range": y_bounds},
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
@@ -601,92 +598,34 @@ class _Layup(
             If half-cell data is missing or invalid
         """
         # Validate that half-cell data exists
-        anode_half_cell = self.anode.half_cell_curve
-        cathode_half_cell = self.cathode.half_cell_curve
-
         fig = go.Figure()
 
-        # Thicker lines for better visibility
-        line_width = kwargs.get("line_width", 2.5)
-        
-        fig.add_trace(
-            go.Scatter(
-                x=cathode_half_cell["Areal Capacity (mAh/cm²)"],
-                y=cathode_half_cell["Voltage (V)"],
-                mode="lines",
-                name=f"{self.cathode.name} Half-Cell",
-                line=dict(color=self.cathode.formulation.color, width=line_width),
-                customdata=cathode_half_cell["Direction"],
-                hovertemplate="<b>Cathode</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
-            )
-        )
-
-        fig.add_trace(
-            go.Scatter(
-                x=anode_half_cell["Areal Capacity (mAh/cm²)"],
-                y=anode_half_cell["Voltage (V)"],
-                mode="lines",
-                name=f"{self.anode.name} Half-Cell",
-                line=dict(color=self.anode.formulation.color, width=line_width),
-                customdata=anode_half_cell["Direction"],
-                hovertemplate="<b>Anode</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
-            )
-        )
-
-        # Add full-cell curve
-        full_cell_curve = self.full_cell_curve
-        full_cell_color = kwargs.get("full_cell_color", "#ff8c00")  # Default orange
-
-        fig.add_trace(
-            go.Scatter(
-                x=full_cell_curve["Areal Capacity (mAh/cm²)"],
-                y=full_cell_curve["Voltage (V)"],
-                mode="lines",
-                name=f"{self.name} Full-Cell",
-                line=dict(color=full_cell_color, width=line_width + 0.5),  # Slightly thicker for emphasis
-                customdata=full_cell_curve["Direction"],
-                hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
-            )
-        )
+        # add the traces
+        fig.add_trace(self.cathode.half_cell_curve_trace)
+        fig.add_trace(self.anode.half_cell_curve_trace)       
+        fig.add_trace(self.full_cell_curve_trace)
 
         # Enhanced layout with zero lines and faint grid
         fig.update_layout(
             title=kwargs.get("title", f"Areal Capacity Curves"),
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            xaxis=dict(
-                title="Areal Capacity (mAh/cm²)",
-                showgrid=True,
-                gridcolor="rgba(128, 128, 128, 0.2)",  # Faint gray grid lines
-                gridwidth=1,
-                zeroline=True,
-                zerolinecolor="rgba(0, 0, 0, 0.5)",  # Semi-transparent black zero line
-                zerolinewidth=1,
-            ),
-            yaxis=dict(
-                title="Voltage (V)",
-                showgrid=True,
-                gridcolor="rgba(128, 128, 128, 0.2)",  # Faint gray grid lines
-                gridwidth=1,
-                zeroline=True,
-                zerolinecolor="rgba(0, 0, 0, 0.5)",  # Semi-transparent black zero line
-                zerolinewidth=1,
-            ),
+            xaxis={**self.SCATTER_X_AXIS, "title": "Areal Capacity (mAh/cm²)"},
+            yaxis={**self.SCATTER_Y_AXIS, "title": "Voltage (V)"},
             hovermode="closest",
-            # Add N/P ratio subtitle
-            annotations=[
-                dict(
-                    text=f"N/P Ratio: {self.np_ratio:.2f}",
-                    showarrow=False,
-                    xref="paper",
-                    yref="paper",
-                    x=0.5,
-                    y=1.02,
-                    xanchor="center",
-                    yanchor="bottom",
-                    font=dict(size=14),
-                )
-            ],
+            # annotations=[
+            #     dict(
+            #         text=f"N/P Ratio: {self.np_ratio:.2f}",
+            #         showarrow=False,
+            #         xref="paper",
+            #         yref="paper",
+            #         x=0.5,
+            #         y=1.02,
+            #         xanchor="center",
+            #         yanchor="bottom",
+            #         font=dict(size=14),
+            #     )
+            # ],
         )
 
         return fig
@@ -751,6 +690,19 @@ class _Layup(
                 }
             )
             .round(4)
+        )
+    
+    @property
+    def full_cell_curve_trace(self) -> go.Scatter:
+
+        return go.Scatter(
+            x=self.full_cell_curve["Areal Capacity (mAh/cm²)"],
+            y=self.full_cell_curve["Voltage (V)"],
+            mode="lines",
+            name=f"{self.name} Full-Cell",
+            line=dict(color= "#ff8c00", width=3),  # Slightly thicker for emphasis
+            customdata=self.full_cell_curve["Direction"],
+            hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
 
     @property
@@ -887,7 +839,8 @@ class _Layup(
         self._anode = anode
 
     @top_separator.setter
-    @calculate_all_properties
+    @calculate_bulk_properties
+    @calculate_coordinates
     def top_separator(self, top_separator: Separator):
 
         # validate the type
@@ -1030,7 +983,8 @@ class _Layup(
         }
 
     @anode_overhang_left.setter
-    @calculate_all_properties
+    @calculate_coordinates
+    @calculate_bulk_properties
     def anode_overhang_left(self, overhang: float) -> None:
         """
         Set the left overhang of the anode relative to the cathode.
@@ -1048,7 +1002,8 @@ class _Layup(
             self._adjust_overhang_fixed_overhangs("anode", overhang, "left")
 
     @anode_overhang_right.setter
-    @calculate_all_properties
+    @calculate_coordinates
+    @calculate_bulk_properties
     def anode_overhang_right(self, overhang: float) -> None:
         """
         Set the right overhang of the anode relative to the cathode.
@@ -1066,7 +1021,8 @@ class _Layup(
             self._adjust_overhang_fixed_overhangs("anode", overhang, "right")
 
     @anode_overhang_bottom.setter
-    @calculate_all_properties
+    @calculate_coordinates
+    @calculate_bulk_properties
     def anode_overhang_bottom(self, overhang: float) -> None:
         """
         Set the bottom overhang of the anode relative to the cathode.
@@ -1084,7 +1040,8 @@ class _Layup(
             self._adjust_overhang_fixed_overhangs("anode", overhang, "bottom")
 
     @anode_overhang_top.setter
-    @calculate_all_properties
+    @calculate_coordinates
+    @calculate_bulk_properties
     def anode_overhang_top(self, overhang: float) -> None:
         """
         Set the top overhang of the anode relative to the cathode.
@@ -1239,7 +1196,8 @@ class _Layup(
         }
 
     @bottom_separator_overhang_left.setter
-    @calculate_all_properties
+    @calculate_coordinates
+    @calculate_bulk_properties
     def bottom_separator_overhang_left(self, overhang: float) -> None:
         """
         Set the left overhang of the bottom separator relative to the cathode.
@@ -1257,7 +1215,8 @@ class _Layup(
             self._adjust_overhang_fixed_overhangs("bottom_separator", overhang, "left")
 
     @bottom_separator_overhang_right.setter
-    @calculate_all_properties
+    @calculate_coordinates
+    @calculate_bulk_properties
     def bottom_separator_overhang_right(self, overhang: float) -> None:
         """
         Set the right overhang of the bottom separator relative to the cathode.
@@ -1275,7 +1234,8 @@ class _Layup(
             self._adjust_overhang_fixed_overhangs("bottom_separator", overhang, "right")
 
     @bottom_separator_overhang_bottom.setter
-    @calculate_all_properties
+    @calculate_coordinates
+    @calculate_bulk_properties
     def bottom_separator_overhang_bottom(self, overhang: float) -> None:
         """
         Set the bottom overhang of the bottom separator relative to the cathode.
@@ -1293,7 +1253,8 @@ class _Layup(
             self._adjust_overhang_fixed_overhangs("bottom_separator", overhang, "bottom")
 
     @bottom_separator_overhang_top.setter
-    @calculate_all_properties
+    @calculate_coordinates
+    @calculate_bulk_properties
     def bottom_separator_overhang_top(self, overhang: float) -> None:
         """
         Set the top overhang of the bottom separator relative to the cathode.
@@ -1462,7 +1423,8 @@ class _Layup(
         }
 
     @top_separator_overhang_left.setter
-    @calculate_all_properties
+    @calculate_coordinates
+    @calculate_bulk_properties
     def top_separator_overhang_left(self, overhang: float) -> None:
         """
         Set the left overhang of the top separator relative to the cathode.
@@ -1480,7 +1442,8 @@ class _Layup(
             self._adjust_overhang_fixed_overhangs("top_separator", overhang, "left")
 
     @top_separator_overhang_right.setter
-    @calculate_all_properties
+    @calculate_coordinates
+    @calculate_bulk_properties
     def top_separator_overhang_right(self, overhang: float) -> None:
         """
         Set the right overhang of the top separator relative to the cathode.
@@ -1498,7 +1461,8 @@ class _Layup(
             self._adjust_overhang_fixed_overhangs("top_separator", overhang, "right")
 
     @top_separator_overhang_bottom.setter
-    @calculate_all_properties
+    @calculate_coordinates
+    @calculate_bulk_properties
     def top_separator_overhang_bottom(self, overhang: float) -> None:
         """
         Set the bottom overhang of the top separator relative to the cathode.
@@ -1516,7 +1480,8 @@ class _Layup(
             self._adjust_overhang_fixed_overhangs("top_separator", overhang, "bottom")
 
     @top_separator_overhang_top.setter
-    @calculate_all_properties
+    @calculate_coordinates
+    @calculate_bulk_properties
     def top_separator_overhang_top(self, overhang: float) -> None:
         """
         Set the top overhang of the top separator relative to the cathode.
@@ -1804,7 +1769,8 @@ class Laminate(_Layup):
         return self.cathode.current_collector.width_hard_range
 
     @separator.setter
-    @calculate_all_properties
+    @calculate_coordinates
+    @calculate_bulk_properties
     def separator(self, value: Separator):
 
         # Validate input type
@@ -1825,7 +1791,8 @@ class Laminate(_Layup):
         self._canonical_separator.thickness = value.thickness
 
     @length.setter
-    @calculate_all_properties
+    @calculate_coordinates
+    @calculate_bulk_properties
     def length(self, value: float):
 
         # Validate input
@@ -1856,7 +1823,8 @@ class Laminate(_Layup):
         self.cathode = self.cathode
 
     @width.setter
-    @calculate_all_properties
+    @calculate_coordinates
+    @calculate_bulk_properties
     def width(self, value: float):
 
         # Validate input
@@ -1897,7 +1865,7 @@ class MonoLayer(_Layup):
         cathode: Cathode,
         anode: Anode,
         separator: Separator,
-        transverse: bool = False,
+        electrode_orientation: ElectrodeOrientation = ElectrodeOrientation.LONGITUDINAL,
         name: str = "MonoLayer",
     ):
         """
@@ -1917,8 +1885,8 @@ class MonoLayer(_Layup):
             The (x, y) offset for the bottom separator in mm.
         top_separator_offset : float
             The (x, y) offset for the top separator in mm.
-        transverse : bool
-            Whether the monolayer is oriented transversely (default: False).
+        electrode_orientation : ElectrodeOrientation
+            The orientation of the electrode (default: ElectrodeOrientation.LONGITUDINAL).
         """
         # rotate the separator
         if separator._rotated_xy == False:
@@ -1937,7 +1905,7 @@ class MonoLayer(_Layup):
         )
 
         # Add MonoLayer-specific components and properties
-        self.transverse = transverse
+        self.electrode_orientation = electrode_orientation
 
         # Recalculate properties now that separator is set
         self._calculate_all_properties()
@@ -1994,7 +1962,7 @@ class MonoLayer(_Layup):
             cathode=deepcopy(zfold_monolayer.cathode),
             anode=deepcopy(zfold_monolayer.anode),
             separator=bottom_separator,
-            transverse=zfold_monolayer.transverse,
+            electrode_orientation=deepcopy(zfold_monolayer.electrode_orientation)
         )
 
     def _calculate_bulk_properties(self):
@@ -2064,9 +2032,10 @@ class MonoLayer(_Layup):
         return self.cathode.current_collector.height_hard_range
 
     @property
-    def transverse(self):
-        return self._transverse
-
+    def electrode_orientation(self) -> ElectrodeOrientation:
+        """Get the electrode orientation of the monolayer."""
+        return self._electrode_orientation
+    
     # === Unified separator API ===
 
     @property
@@ -2078,7 +2047,8 @@ class MonoLayer(_Layup):
         return self._canonical_separator
 
     @separator.setter
-    @calculate_all_properties
+    @calculate_coordinates
+    @calculate_bulk_properties
     def separator(self, value: Separator):
 
         # Validate input type
@@ -2096,7 +2066,6 @@ class MonoLayer(_Layup):
         self._top_separator = top
         self._canonical_separator = deepcopy(value)
 
-    # Unified overhangs (mirror bottom/top which are expected identical by design)
     @property
     def separator_overhangs(self) -> dict:
 
@@ -2111,6 +2080,10 @@ class MonoLayer(_Layup):
     def separator_overhang_left(self) -> float:
         return self.bottom_separator_overhang_left
 
+    @property
+    def separator_overhang_left_range(self) -> tuple:
+        return self.bottom_separator_overhang_left_range
+
     @separator_overhang_left.setter
     def separator_overhang_left(self, overhang: float) -> None:
         self.bottom_separator_overhang_left = overhang
@@ -2119,6 +2092,10 @@ class MonoLayer(_Layup):
     @property
     def separator_overhang_right(self) -> float:
         return self.bottom_separator_overhang_right
+
+    @property
+    def separator_overhang_right_range(self) -> tuple:
+        return self.bottom_separator_overhang_right_range
 
     @separator_overhang_right.setter
     def separator_overhang_right(self, overhang: float) -> None:
@@ -2151,35 +2128,42 @@ class MonoLayer(_Layup):
         self.bottom_separator_overhang_bottom = overhang
         self.top_separator_overhang_bottom = overhang
 
-    @transverse.setter
-    def transverse(self, transverse: bool) -> None:
+    @electrode_orientation.setter
+    def electrode_orientation(self, electrode_orientation: ElectrodeOrientation) -> None:
         """
-        Set the transverse orientation of the monolayer.
+        Set the electrode orientation of the monolayer.
 
-        When transverse is True, ensures the anode tab comes out the bottom
+        When electrode_orientation is ElectrodeOrientation.TRANSVERSE, ensures the anode tab comes out the bottom
         by flipping the anode if it's not already flipped in the y direction.
 
         Parameters
         ----------
-        transverse : bool
-            Whether the monolayer is oriented transversely.
+        electrode_orientation : ElectrodeOrientation
+            The orientation of the electrode.
         """
-        # validate the type
-        self.validate_type(transverse, bool, "transverse")
+        if isinstance(electrode_orientation, ElectrodeOrientation):
+            self._electrode_orientation = electrode_orientation
 
-        # set the transverse orientation
-        self._transverse = transverse
+        elif isinstance(electrode_orientation, str):
+            for enum_member in ElectrodeOrientation:
+                if electrode_orientation.lower().replace(" ", "_") == enum_member.value:
+                    self._electrode_orientation = enum_member
 
-        # if transverse is True, check and adjust anode orientation
-        if transverse and hasattr(self, "_anode") and self._anode is not None:
+        else:
+            # validate the type
+            self.validate_type(electrode_orientation, ElectrodeOrientation, "electrode_orientation")
+
+        # if electrode_orientation is ElectrodeOrientation.TRANSVERSE, check and adjust anode orientation
+        if self._electrode_orientation == ElectrodeOrientation.TRANSVERSE:
             if not self._anode._flipped_y:
                 self._anode._flip("y")
-        elif not transverse and hasattr(self, "_anode") and self._anode is not None:
+        elif self._electrode_orientation == ElectrodeOrientation.LONGITUDINAL:
             if self._anode._flipped_y:
                 self._anode._flip("y")
 
-    @width.setter
-    @calculate_all_properties
+    @width.setter 
+    @calculate_coordinates
+    @calculate_bulk_properties
     def width(self, value: float):
 
         # Validate input
@@ -2211,7 +2195,8 @@ class MonoLayer(_Layup):
         self.cathode = self.cathode
 
     @height.setter
-    @calculate_all_properties
+    @calculate_coordinates
+    @calculate_bulk_properties
     def height(self, value: float):
 
         # Validate input
@@ -2258,7 +2243,7 @@ class ZFoldMonoLayer(MonoLayer):
         cathode: Cathode,
         anode: Anode,
         separator: Separator,
-        transverse: bool = False,
+        electrode_orientation: ElectrodeOrientation = ElectrodeOrientation.LONGITUDINAL,
         name: str = "ZFoldMonoLayer",
     ):
         
@@ -2287,8 +2272,8 @@ class ZFoldMonoLayer(MonoLayer):
             name=name,
         )
 
-        # Transverse orientation behavior same as MonoLayer
-        self.transverse = transverse
+        # Electrode orientation behavior same as MonoLayer
+        self.electrode_orientation = electrode_orientation
         self._update_properties = True
         self._calculate_all_properties()
 
@@ -2319,6 +2304,7 @@ class ZFoldMonoLayer(MonoLayer):
         self._bottom_separator._set_width_range(self._anode, extended_range=0.1)
 
         self._calculate_bulk_properties()
+        self._constrain_separator_geometry()
 
     def _constrain_separator_geometry(self):
         """Enforce Z-fold separator geometry constraints."""
@@ -2345,7 +2331,8 @@ class ZFoldMonoLayer(MonoLayer):
         return self._bottom_separator
 
     @separator.setter
-    @calculate_all_properties
+    @calculate_coordinates
+    @calculate_bulk_properties
     def separator(self, value: Separator):
 
         # Validate input type
@@ -2382,11 +2369,12 @@ class ZFoldMonoLayer(MonoLayer):
             cathode=deepcopy(monolayer.cathode),
             anode=deepcopy(monolayer.anode),
             separator=deepcopy(monolayer.separator),
-            transverse=monolayer.transverse,
+            electrode_orientation=monolayer.electrode_orientation,
         )
 
     @width.setter
-    @calculate_all_properties
+    @calculate_coordinates
+    @calculate_bulk_properties
     def width(self, value: float):
 
         # Validate input
@@ -2410,7 +2398,8 @@ class ZFoldMonoLayer(MonoLayer):
         self.cathode = self.cathode
 
     @height.setter
-    @calculate_all_properties
+    @calculate_coordinates
+    @calculate_bulk_properties
     def height(self, value: float):
 
         # Validate input
@@ -2439,3 +2428,5 @@ class ZFoldMonoLayer(MonoLayer):
         self.cathode.current_collector.height = self.cathode.current_collector.height + height_diff
         self.cathode.current_collector = self.cathode.current_collector
         self.cathode = self.cathode
+
+
