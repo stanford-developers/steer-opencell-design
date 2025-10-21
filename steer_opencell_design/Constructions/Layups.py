@@ -879,6 +879,10 @@ class _Layup(
         elif self._update_properties:
             anode.datum = (anode.datum[0], anode.datum[1], anode.datum[2])
 
+        # if there is an anode, update its ranges
+        if self._update_properties:
+            self._update_separator_sizes(anode)
+
         # assign to self
         self._anode = anode
 
@@ -1721,8 +1725,6 @@ class Laminate(_Layup):
         self._bottom_separator._set_width_range(self._cathode, extended_range=0.1)
         self._bottom_separator._set_length_range(self._cathode, extended_range=1)
 
-        self._calculate_bulk_properties()
-
     def _calculate_bulk_properties(self):
         self._calculate_length()
         self._calculate_width()
@@ -1788,7 +1790,7 @@ class Laminate(_Layup):
     @property
     def length_hard_range(self) -> tuple:
         return self.cathode.current_collector.length_hard_range
-    
+
     @property
     def width(self) -> float:
         return round(self._width * M_TO_MM, 2)
@@ -1852,7 +1854,6 @@ class Laminate(_Layup):
         self.cathode.current_collector.length = self.cathode.current_collector.length + length_diff
         self.cathode.current_collector = self.cathode.current_collector
         self.cathode = self.cathode
-
 
     @width.setter
     @calculate_all_properties
@@ -1996,6 +1997,72 @@ class MonoLayer(_Layup):
             transverse=zfold_monolayer.transverse,
         )
 
+    def _calculate_bulk_properties(self):
+        self._calculate_height()
+        self._calculate_width()
+
+    def _calculate_height(self) -> float:
+        """
+        Calculate the height of the laminate based on the anode and cathode heights.
+
+        Returns
+        -------
+        float
+            The height of the laminate in meters.
+        """
+        anode_height = self._anode._current_collector._y_body_length
+        cathode_height = self._cathode._current_collector._y_body_length
+
+        # The laminate height is determined by the longer of the two electrodes
+        monolayer_height = max(anode_height, cathode_height)
+
+        self._height = monolayer_height
+
+        return self._height
+
+    def _calculate_width(self) -> float:
+        """
+        Calculate the width of the laminate based on the anode and cathode widths.
+
+        Returns
+        -------
+        float
+            The width of the laminate in meters.
+        """
+        anode_width = self._anode._current_collector._x_body_length
+        cathode_width = self._cathode._current_collector._x_body_length
+
+        # The laminate width is determined by the wider of the two electrodes
+        monolayer_width = max(anode_width, cathode_width)
+
+        self._width = monolayer_width
+
+        return self._width
+    
+    @property
+    def width(self) -> float:
+        return round(self._width * M_TO_MM, 2)
+
+    @property
+    def width_range(self) -> tuple:
+        return self.cathode.current_collector.width_range
+    
+    @property
+    def width_hard_range(self) -> tuple:
+        return self.cathode.current_collector.width_hard_range
+
+    @property
+    def height(self) -> float:
+        return round(self._height * M_TO_MM, 2)
+
+    @property
+    def height_range(self) -> tuple:
+        return self.cathode.current_collector.height_range
+
+    @property
+    def height_hard_range(self) -> tuple:
+        return self.cathode.current_collector.height_hard_range
+
     @property
     def transverse(self):
         return self._transverse
@@ -2111,6 +2178,69 @@ class MonoLayer(_Layup):
             if self._anode._flipped_y:
                 self._anode._flip("y")
 
+    @width.setter
+    @calculate_all_properties
+    def width(self, value: float):
+
+        # Validate input
+        self.validate_positive_float(value, "Laminate Width")
+        
+        # get the current width
+        current_width = self.width
+
+        # get the difference in the widths
+        width_diff = value - current_width
+
+        # Update the width property of the bottom separator
+        self.bottom_separator.width = self.bottom_separator.width + width_diff
+        self.bottom_separator = self.bottom_separator
+
+        # Update the width property of the top separator
+        self.top_separator.width = self.top_separator.width + width_diff 
+        self.top_separator = self.top_separator
+
+        # Update the width property of the anode
+        self.anode.current_collector.width = self.anode.current_collector.width + width_diff
+        self.anode.current_collector.tab_position = self.anode.current_collector.tab_position + width_diff
+        self.anode.current_collector = self.anode.current_collector
+        self.anode = self.anode
+
+        # Update the width property of the cathode
+        self.cathode.current_collector.width = self.cathode.current_collector.width + width_diff
+        self.cathode.current_collector = self.cathode.current_collector
+        self.cathode = self.cathode
+
+    @height.setter
+    @calculate_all_properties
+    def height(self, value: float):
+
+        # Validate input
+        self.validate_positive_float(value, "Laminate Height")
+        
+        # get the current height
+        current_height = self.height
+
+        # get the difference in the heights
+        height_diff = value - current_height
+
+        # Update the height property of the bottom separator
+        self.bottom_separator.length = self.bottom_separator.length + height_diff
+        self.bottom_separator = self.bottom_separator
+
+        # Update the height property of the top separator
+        self.top_separator.length = self.top_separator.length + height_diff
+        self.top_separator = self.top_separator
+
+        # Update the height property of the anode
+        self.anode.current_collector.height = self.anode.current_collector.height + height_diff
+        self.anode.current_collector = self.anode.current_collector
+        self.anode = self.anode
+
+        # Update the height property of the cathode
+        self.cathode.current_collector.height = self.cathode.current_collector.height + height_diff
+        self.cathode.current_collector = self.cathode.current_collector
+        self.cathode = self.cathode
+
 
 class ZFoldMonoLayer(MonoLayer):
     """Z-fold variant of `MonoLayer` with constrained separator geometry.
@@ -2188,6 +2318,8 @@ class ZFoldMonoLayer(MonoLayer):
         self._top_separator._set_width_range(self._anode, extended_range=0.1)
         self._bottom_separator._set_width_range(self._anode, extended_range=0.1)
 
+        self._calculate_bulk_properties()
+
     def _constrain_separator_geometry(self):
         """Enforce Z-fold separator geometry constraints."""
         # Bottom separator length
@@ -2199,6 +2331,14 @@ class ZFoldMonoLayer(MonoLayer):
         self._top_separator.length = (
             (self.anode.current_collector._x_body_length + 2 * self._canonical_separator._thickness) * M_TO_MM
         )
+
+    @property
+    def width(self) -> float:
+        return round(self._width * M_TO_MM, 2)
+
+    @property
+    def height(self) -> float:
+        return round(self._height * M_TO_MM, 2)
 
     @property
     def separator(self) -> Separator:
@@ -2245,3 +2385,57 @@ class ZFoldMonoLayer(MonoLayer):
             transverse=monolayer.transverse,
         )
 
+    @width.setter
+    @calculate_all_properties
+    def width(self, value: float):
+
+        # Validate input
+        self.validate_positive_float(value, "Laminate Width")
+        
+        # get the current width
+        current_width = self.width
+
+        # get the difference in the widths
+        width_diff = value - current_width
+
+        # Update the width property of the anode
+        self.anode.current_collector.width = self.anode.current_collector.width + width_diff
+        self.anode.current_collector.tab_position = self.anode.current_collector.tab_position + width_diff
+        self.anode.current_collector = self.anode.current_collector
+        self.anode = self.anode
+
+        # Update the width property of the cathode
+        self.cathode.current_collector.width = self.cathode.current_collector.width + width_diff
+        self.cathode.current_collector = self.cathode.current_collector
+        self.cathode = self.cathode
+
+    @height.setter
+    @calculate_all_properties
+    def height(self, value: float):
+
+        # Validate input
+        self.validate_positive_float(value, "Laminate Height")
+        
+        # get the current height
+        current_height = self.height
+
+        # get the difference in the heights
+        height_diff = value - current_height
+
+        # Update the height property of the bottom separator
+        self.bottom_separator.width = self.bottom_separator.width + height_diff
+        self.bottom_separator = self.bottom_separator
+
+        # Update the height property of the top separator
+        self.top_separator.width = self.top_separator.width + height_diff
+        self.top_separator = self.top_separator
+
+        # Update the height property of the anode
+        self.anode.current_collector.height = self.anode.current_collector.height + height_diff
+        self.anode.current_collector = self.anode.current_collector
+        self.anode = self.anode
+
+        # Update the height property of the cathode
+        self.cathode.current_collector.height = self.cathode.current_collector.height + height_diff
+        self.cathode.current_collector = self.cathode.current_collector
+        self.cathode = self.cathode
