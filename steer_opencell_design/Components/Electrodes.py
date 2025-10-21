@@ -365,19 +365,25 @@ class _Electrode(
 
     def get_right_left_view(self, **kwargs) -> pd.DataFrame:
 
-        figure = self._current_collector.get_right_left_view(**kwargs)
-        figure.data = [trace for trace in figure.data if trace.name == "Body" or trace.name == "Tab"]
-        figure.add_trace(self.right_left_a_side_coating_trace)
-        figure.add_trace(self.right_left_b_side_coating_trace)
+        if self.datum_z == 0.0:
+            electrode = self
+        else: 
+            electrode = deepcopy(self)
+            electrode.datum = (self.datum_x, self.datum_y, 0.0)
 
-        if hasattr(self, "_insulation_material") and self._insulation_material is not None:
-            figure.add_trace(self.right_left_a_side_insulation_trace)
-        if hasattr(self, "_insulation_material") and self._insulation_material is not None:
-            figure.add_trace(self.right_left_b_side_insulation_trace)
+        figure = electrode._current_collector.get_right_left_view(**kwargs)
+        figure.data = [trace for trace in figure.data if trace.name == "Body" or trace.name == "Tab"]
+        figure.add_trace(electrode.right_left_a_side_coating_trace)
+        figure.add_trace(electrode.right_left_b_side_coating_trace)
+
+        if hasattr(electrode, "_insulation_material") and electrode._insulation_material is not None:
+            figure.add_trace(electrode.right_left_a_side_insulation_trace)
+        if hasattr(electrode, "_insulation_material") and electrode._insulation_material is not None:
+            figure.add_trace(electrode.right_left_b_side_insulation_trace)
 
         figure.update_layout(
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Y_AXIS,
+            xaxis=electrode.SCHEMATIC_X_AXIS,
+            yaxis=electrode.SCHEMATIC_Y_AXIS,
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
@@ -494,7 +500,7 @@ class _Electrode(
             self._flip("y")
             return figure
 
-    def get_cross_section(self, y_axis_range=None, **kwargs) -> go.Figure:
+    def get_cross_section(self, **kwargs) -> go.Figure:
         """
         Get a cross-section view of the electrode, zoomed in around the datum.
         
@@ -502,7 +508,7 @@ class _Electrode(
         ----------
         y_axis_range : list or tuple, optional
             Custom y-axis range as [min, max]. If not provided, automatically calculated 
-            based on electrode thickness and datum position.
+            based on electrode thickness and datum position with locked scaling for thin electrodes.
         """
         # Get base figure using get_right_left_view (includes current collector and coating traces)
         figure = self.get_right_left_view(**kwargs)
@@ -513,26 +519,30 @@ class _Electrode(
 
         # Get datum coordinates in mm (for plotting)
         datum_y = self.datum[1]  # y-coordinate of datum
-        datum_z = self.datum[2]  # z-coordinate of datum
 
-        # Use custom y_axis_range if provided, otherwise calculate default range
-        if y_axis_range is not None:
-            y_range = list(y_axis_range)  # Convert to list to ensure it's mutable
+        # Get total thickness in mm (electrode thickness includes coating on both sides + current collector)
+        total_thickness_mm = self.thickness * UM_TO_MM
+        
+        # Apply locked scaling based on thickness ranges
+        if total_thickness_mm <= 0.4:
+            # Lock from -0.2 to +0.2
+            y_range = [datum_y - 0.2, datum_y + 0.2]
+        elif total_thickness_mm <= 0.8:
+            # Lock from -0.4 to +0.4
+            y_range = [datum_y - 0.4, datum_y + 0.4]
+        elif total_thickness_mm <= 1.2:
+            # Lock from -0.6 to +0.6
+            y_range = [datum_y - 0.6, datum_y + 0.6]
         else:
-            # Get total thickness in mm (electrode thickness includes coating on both sides + current collector)
-            total_thickness_mm = self.thickness * UM_TO_MM
-
-            # Calculate zoom range (1.5x the thickness)
+            # Free scaling - calculate zoom range (1.5x the thickness)
             zoom_range = total_thickness_mm * 1.5
             half_range = zoom_range / 2
-
-            # Set axis ranges centered on datum
             y_range = [datum_y - half_range, datum_y + half_range]
 
         # Update layout to zoom in and lock aspect ratio
         figure.update_layout(
             xaxis={**self.SCHEMATIC_X_AXIS, "range": y_range},
-            yaxis=self.SCHEMATIC_Y_AXIS,
+            yaxis={**self.SCHEMATIC_Y_AXIS, "range": y_range},
             legend=self.BOTTOM_LEGEND
         )
 

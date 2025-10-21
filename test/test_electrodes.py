@@ -237,6 +237,7 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         # figure.show()
 
     def test_views(self):
+
         figure0 = self.cathode._get_full_top_down_view()
         figure1 = self.cathode.get_top_down_view()
         figure2 = self.cathode.get_a_side_view()
@@ -263,7 +264,7 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         # figure3.show()
 
     def test_datum_setter(self):
-        
+
         figure1 = self.cathode._get_full_top_down_view()
 
         new_datum = (
