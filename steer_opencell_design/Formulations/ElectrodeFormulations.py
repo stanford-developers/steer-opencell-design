@@ -4,6 +4,7 @@ from steer_core.Constants.Units import *
 
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
+from steer_core.Mixins.Plotter import PlotterMixin
 
 from steer_materials.CellMaterials.Electrode import (
     _ActiveMaterial,
@@ -20,7 +21,8 @@ import warnings
 
 class _ElectrodeFormulation(
     ValidationMixin, 
-    DunderMixin
+    DunderMixin,
+    PlotterMixin
     ):
 
     def __init__(
@@ -476,137 +478,39 @@ class _ElectrodeFormulation(
         """
         figure = go.Figure()
 
-        # Check if we have half-cell curve data
-        try:
-            main_curve_data = self.half_cell_curve
-            if main_curve_data.empty:
-                raise ValueError("No half-cell curve data available")
-        except (AttributeError, ValueError):
-            # Return empty figure with message
-            figure.add_annotation(
-                text="No half-cell curve data available",
-                xref="paper",
-                yref="paper",
-                x=0.5,
-                y=0.5,
-                xanchor="center",
-                yanchor="middle",
-                showarrow=False,
-                font_size=16,
-            )
-            figure.update_layout(
-                paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-                plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-                **kwargs,
-            )
-            return figure
-
         # Add main formulation curve as a single continuous line
-        figure.add_trace(
-            go.Scatter(
-                x=main_curve_data["Specific Capacity (mAh/g)"],
-                y=main_curve_data["Voltage (V)"],
-                name=self.name,
-                line=dict(color=self._color, width=kwargs.get("line_width", 3), shape="spline"),
-                mode="lines",
-                hovertemplate="<b>%{fullData.name}</b><br>" + "Capacity: %{x:.2f} mAh/g<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
-                customdata=main_curve_data["Direction"],
-                showlegend=True,
-            )
-        )
+        figure.add_trace(self.half_cell_curve_trace)
 
         # Add individual material curves if requested
-        if add_materials and hasattr(self, "_active_materials"):
-            for i, material in enumerate(self._active_materials.keys()):
-                try:
-                    material_curve = material.half_cell_curve
-                    if not material_curve.empty:
-                        # Use different line styles for materials
-                        dash_styles = ["dash", "dashdot", "longdash", "longdashdot"]
-                        dash_style = dash_styles[i % len(dash_styles)]
-
-                        figure.add_trace(
-                            go.Scatter(
-                                x=material_curve["Specific Capacity (mAh/g)"],
-                                y=material_curve["Voltage (V)"],
-                                name=material.name,
-                                line=dict(
-                                    color=material._color,
-                                    width=kwargs.get("material_line_width", 2),
-                                    dash=dash_style,
-                                ),
-                                mode="lines",
-                                hovertemplate="<b>%{fullData.name}</b><br>" + "Capacity: %{x:.2f} mAh/g<br>" + "Voltage: %{y:.3f} V<br>" + "<i>Individual Material</i><extra></extra>",
-                                opacity=kwargs.get("material_opacity", 0.7),
-                            )
-                        )
-                except (AttributeError, ValueError):
-                    # Skip materials without valid curve data
-                    continue
+        if add_materials:
+            for material in self._active_materials.keys():
+                figure.add_trace(material.half_cell_curve_trace)
 
         # Enhanced layout with better defaults
         figure.update_layout(
             title=kwargs.get("title", ""),
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            xaxis=dict(
-                title="Specific Capacity (mAh/g)",
-                showgrid=kwargs.get("show_grid", True),
-                gridcolor=kwargs.get("grid_color", "lightgray"),
-                zeroline=kwargs.get("show_zeroline", True),
-                zerolinecolor=kwargs.get("zeroline_color", "black"),
-                zerolinewidth=kwargs.get("zeroline_width", 1),
-            ),
-            yaxis=dict(
-                title="Voltage (V)",
-                showgrid=kwargs.get("show_grid", True),
-                gridcolor=kwargs.get("grid_color", "lightgray"),
-                zeroline=kwargs.get("show_zeroline", True),
-                zerolinecolor=kwargs.get("zeroline_color", "black"),
-                zerolinewidth=kwargs.get("zeroline_width", 1),
-            ),
-            legend=dict(
-                orientation=kwargs.get("legend_orientation", "v"),
-                yanchor=kwargs.get("legend_yanchor", "top"),
-                y=kwargs.get("legend_y", 1),
-                xanchor=kwargs.get("legend_xanchor", "left"),
-                x=kwargs.get("legend_x", 1.02),
-            ),
-            margin=dict(
-                l=kwargs.get("margin_l", 50),
-                r=kwargs.get("margin_r", 50),
-                t=kwargs.get("margin_t", 50),
-                b=kwargs.get("margin_b", 50),
-            ),
+            xaxis={**self.SCATTER_X_AXIS, "title": "Specific Capacity (mAh/g)"},
+            yaxis={**self.SCATTER_Y_AXIS, "title": "Voltage (V)"},
             hovermode="closest",
-            **{
-                k: v
-                for k, v in kwargs.items()
-                if k
-                not in [
-                    "line_width",
-                    "material_line_width",
-                    "material_opacity",
-                    "show_grid",
-                    "grid_color",
-                    "show_zeroline",
-                    "zeroline_color",
-                    "zeroline_width",
-                    "legend_orientation",
-                    "legend_yanchor",
-                    "legend_y",
-                    "legend_xanchor",
-                    "legend_x",
-                    "margin_l",
-                    "margin_r",
-                    "margin_t",
-                    "margin_b",
-                    "title",
-                ]
-            },
         )
-
+    
         return figure
+
+    @property
+    def half_cell_curve_trace(self) -> go.Scatter:
+
+        return go.Scatter(
+            x=self.half_cell_curve["Specific Capacity (mAh/g)"],
+            y=self.half_cell_curve["Voltage (V)"],
+            name=self.name,
+            line=dict(color=self._color, width=3, shape="spline"),
+            mode="lines",
+            hovertemplate="<b>%{fullData.name}</b><br>" + "Capacity: %{x:.2f} mAh/g<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
+            customdata=self.half_cell_curve["Direction"],
+            showlegend=True,
+        )
 
     @property
     def name(self) -> Optional[str]:

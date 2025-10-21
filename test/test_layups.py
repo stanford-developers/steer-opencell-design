@@ -18,6 +18,7 @@ from steer_opencell_design.Constructions.Layups import (
     ZFoldMonoLayer,
     OverhangControlMode,
     NPRatioControlMode,
+    ElectrodeOrientation
 )
 
 from steer_materials.CellMaterials.Base import (
@@ -192,6 +193,7 @@ class TestSimpleLaminate(unittest.TestCase):
         )
 
     def test_plots(self):
+
         fig1 = self.layup.anode._get_full_top_down_view()
         fig2 = self.layup.cathode._get_full_top_down_view()
         fig3 = self.layup.get_top_down_view(opacity=0.2)
@@ -548,7 +550,7 @@ class TestSimpleMonoLayer(unittest.TestCase):
             anode=anode,
             cathode=cathode,
             separator=separator,
-            transverse=True,
+            electrode_orientation=ElectrodeOrientation.TRANSVERSE,
         )
     
     def test_equality(self):
@@ -599,9 +601,23 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.assertEqual(self.monolayer.bottom_separator.width, 406)
         fig3 = self.monolayer.get_top_down_view(opacity=0.2)
 
+        self.monolayer.width = 350
+        self.assertEqual(self.monolayer.height, 500)
+        self.assertEqual(self.monolayer.width, 350)
+        self.assertEqual(self.monolayer.anode.current_collector.height, 500)
+        self.assertEqual(self.monolayer.anode.current_collector.width, 350)
+        self.assertEqual(self.monolayer.cathode.current_collector.height, 496)
+        self.assertEqual(self.monolayer.cathode.current_collector.width, 346)
+        self.assertEqual(self.monolayer.top_separator.length, 502)
+        self.assertEqual(self.monolayer.top_separator.width, 356)
+        self.assertEqual(self.monolayer.bottom_separator.length, 502)
+        self.assertEqual(self.monolayer.bottom_separator.width, 356)
+        fig4 = self.monolayer.get_top_down_view(opacity=0.2)
+
         # fig1.show()
         # fig2.show()
         # fig3.show()
+        # fig4.show()
 
     def test_separator_width_setter(self):
         temp_separator = deepcopy(self.monolayer.separator)
@@ -772,7 +788,6 @@ class TestSimpleMonoLayer(unittest.TestCase):
     def test_make_zfold_monolayer(self):
         zfold_monolayer = ZFoldMonoLayer.from_monolayer(self.monolayer)
         self.assertTrue(isinstance(zfold_monolayer, ZFoldMonoLayer))
-
         fig1 = zfold_monolayer.get_top_down_view()
         # fig1.show()
 
@@ -906,7 +921,7 @@ class TestZFoldMonoLayer(unittest.TestCase):
             anode=anode,
             cathode=cathode,
             separator=separator,
-            transverse=True,
+            electrode_orientation=ElectrodeOrientation.TRANSVERSE,
         )
 
     def test_equality(self):
@@ -915,6 +930,64 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.assertTrue(condition)
         fig1 = self.zfoldmonolayer.get_top_down_view()
         # fig1.show()
+
+    def test_width_and_height_setter(self):
+
+        self.assertEqual(self.zfoldmonolayer.height, 324)
+        self.assertEqual(self.zfoldmonolayer.width, 304)
+        self.assertEqual(self.zfoldmonolayer.anode.current_collector.height, 324)
+        self.assertEqual(self.zfoldmonolayer.anode.current_collector.width, 304)
+        self.assertEqual(self.zfoldmonolayer.cathode.current_collector.height, 320)
+        self.assertEqual(self.zfoldmonolayer.cathode.current_collector.width, 300)
+        self.assertEqual(self.zfoldmonolayer.top_separator.length, 304.05)
+        self.assertEqual(self.zfoldmonolayer.top_separator.width, 326.0)
+        self.assertEqual(self.zfoldmonolayer.bottom_separator.length, 300.05)
+        self.assertEqual(self.zfoldmonolayer.bottom_separator.width, 326)
+        fig1 = self.zfoldmonolayer.get_top_down_view(opacity=0.2)
+
+        self.zfoldmonolayer.height = 500
+        self.assertEqual(self.zfoldmonolayer.height, 500)
+        self.assertEqual(self.zfoldmonolayer.width, 304)
+        self.assertEqual(self.zfoldmonolayer.anode.current_collector.height, 500)
+        self.assertEqual(self.zfoldmonolayer.anode.current_collector.width, 304)
+        self.assertEqual(self.zfoldmonolayer.cathode.current_collector.height, 496)
+        self.assertEqual(self.zfoldmonolayer.cathode.current_collector.width, 300)
+        self.assertEqual(self.zfoldmonolayer.top_separator.length, 304.05)
+        self.assertEqual(self.zfoldmonolayer.top_separator.width, 502)
+        self.assertEqual(self.zfoldmonolayer.bottom_separator.length, 300.05)
+        self.assertEqual(self.zfoldmonolayer.bottom_separator.width, 502)
+        fig2 = self.zfoldmonolayer.get_top_down_view(opacity=0.2)
+
+        self.zfoldmonolayer.width = 400
+        self.assertEqual(self.zfoldmonolayer.height, 500)
+        self.assertEqual(self.zfoldmonolayer.width, 400)
+        self.assertEqual(self.zfoldmonolayer.anode.current_collector.height, 500)
+        self.assertEqual(self.zfoldmonolayer.anode.current_collector.width, 400)
+        self.assertEqual(self.zfoldmonolayer.cathode.current_collector.height, 496)
+        self.assertEqual(self.zfoldmonolayer.cathode.current_collector.width, 396)
+        self.assertEqual(self.zfoldmonolayer.top_separator.length, 400.05)
+        self.assertEqual(self.zfoldmonolayer.top_separator.width, 502)
+        self.assertEqual(self.zfoldmonolayer.bottom_separator.length, 396.05)
+        self.assertEqual(self.zfoldmonolayer.bottom_separator.width, 502)
+        fig3 = self.zfoldmonolayer.get_top_down_view(opacity=0.2)
+
+        self.zfoldmonolayer.width = 350
+        self.assertEqual(self.zfoldmonolayer.height, 500)
+        self.assertEqual(self.zfoldmonolayer.width, 350)
+        self.assertEqual(self.zfoldmonolayer.anode.current_collector.height, 500)
+        self.assertEqual(self.zfoldmonolayer.anode.current_collector.width, 350)
+        self.assertEqual(self.zfoldmonolayer.cathode.current_collector.height, 496)
+        self.assertEqual(self.zfoldmonolayer.cathode.current_collector.width, 346)
+        self.assertEqual(self.zfoldmonolayer.top_separator.length, 350.05)
+        self.assertEqual(self.zfoldmonolayer.top_separator.width, 502.0)
+        self.assertEqual(self.zfoldmonolayer.bottom_separator.length, 346.05)
+        self.assertEqual(self.zfoldmonolayer.bottom_separator.width, 502)
+        fig4 = self.zfoldmonolayer.get_top_down_view(opacity=0.2)
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+        # fig4.show()
 
     def test_zfold_monolayer_basic(self):
         """Test basic Z-fold monolayer functionality."""
@@ -944,7 +1017,6 @@ class TestZFoldMonoLayer(unittest.TestCase):
             self.zfoldmonolayer.separator_overhangs,
             {"left": 0.025, "right": 0.025, "bottom": 3.0, "top": 3.0},
         )
-
 
     def test_zfold_left_right_overhangs_always_zero(self):
         """Test that left/right overhangs are always zero in calculations."""
@@ -1095,6 +1167,18 @@ class TestZFoldMonoLayer(unittest.TestCase):
 
         # fig1.show()
         # fig2.show()
+
+    def test_change_electrode_orientation(self):
+
+        fig1 = self.zfoldmonolayer.get_top_down_view()
+        self.zfoldmonolayer.electrode_orientation = ElectrodeOrientation.LONGITUDINAL
+        fig2 = self.zfoldmonolayer.get_top_down_view()
+        self.zfoldmonolayer.electrode_orientation = 'transverse'
+        fig3 = self.zfoldmonolayer.get_top_down_view()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
 
 
 if __name__ == "__main__":

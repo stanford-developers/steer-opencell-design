@@ -2,6 +2,7 @@
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
+from steer_core.Mixins.Plotter import PlotterMixin
 
 # import core decorators
 from steer_core.Decorators.General import (
@@ -33,7 +34,8 @@ class _CurrentCollector(
     ABC, 
     CoordinateMixin, 
     ValidationMixin,
-    DunderMixin
+    DunderMixin,
+    PlotterMixin
     ):
     """
     Abstract base class for all current collector implementations.
@@ -278,8 +280,8 @@ class _CurrentCollector(
                 fig.add_trace(trace)
 
         fig.update_layout(
-            xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title="X (mm)"),
-            yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)"),
+            xaxis=self.SCHEMATIC_X_AXIS,
+            yaxis=self.SCHEMATIC_Y_AXIS,
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
@@ -457,8 +459,8 @@ class _CurrentCollector(
             figure.add_trace(self.right_left_b_side_insulation_trace)
 
         figure.update_layout(
-            xaxis=dict(showgrid=False, zeroline=False, title="X (mm)", scaleanchor="y"),
-            yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)"),
+            xaxis=self.SCHEMATIC_X_AXIS,
+            yaxis=self.SCHEMATIC_Y_AXIS,
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
@@ -1561,8 +1563,8 @@ class _TapeCurrentCollector(_CurrentCollector):
             figure = figure_subplot
 
         figure.update_layout(
-            xaxis=dict(showgrid=False, zeroline=False, scaleanchor="y", title="X (mm)"),
-            yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)"),
+            xaxis=self.SCHEMATIC_X_AXIS,
+            yaxis=self.SCHEMATIC_Y_AXIS,
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
@@ -2918,7 +2920,7 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         self._tab_height = float(tab_height) * MM_TO_M
 
 
-class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin):
+class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin):
     """
     Specification and modeling class for separately manufactured welded tabs.
 
@@ -3084,14 +3086,8 @@ class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin):
         figure.add_trace(self.top_down_body_trace)
 
         figure.update_layout(
-            xaxis=dict(
-                scaleanchor="y",
-                title="",
-                showgrid=False,
-                zeroline=False,
-                showticklabels=False,
-            ),
-            yaxis=dict(title="", showgrid=False, zeroline=False, showticklabels=False),
+            xaxis=self.SCHEMATIC_X_AXIS,
+            yaxis=self.SCHEMATIC_Y_AXIS,
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
@@ -3107,14 +3103,8 @@ class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin):
         figure.add_trace(self.right_left_body_trace)
 
         figure.update_layout(
-            xaxis=dict(
-                scaleanchor="y",
-                title="",
-                showgrid=False,
-                zeroline=False,
-                showticklabels=False,
-            ),
-            yaxis=dict(title="", showgrid=False, zeroline=False, showticklabels=False),
+            xaxis=self.SCHEMATIC_X_AXIS,
+            yaxis=self.SCHEMATIC_Y_AXIS,
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,

@@ -376,8 +376,8 @@ class _Electrode(
             figure.add_trace(self.right_left_b_side_insulation_trace)
 
         figure.update_layout(
-            xaxis=dict(showgrid=False, zeroline=False, title="X (mm)", scaleanchor="y"),
-            yaxis=dict(showgrid=False, zeroline=False, title="Y (mm)"),
+            xaxis=self.SCHEMATIC_X_AXIS,
+            yaxis=self.SCHEMATIC_Y_AXIS,
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
@@ -531,30 +531,9 @@ class _Electrode(
 
         # Update layout to zoom in and lock aspect ratio
         figure.update_layout(
-            xaxis=dict(
-                range=y_range,
-                scaleanchor="y",  # Lock aspect ratio
-                scaleratio=1,
-                # Hide x-axis line, ticks, and marks
-                showline=False,
-                showticklabels=False,
-                showgrid=False,
-                ticks="",
-            ),
-            yaxis=dict(
-                scaleratio=1,
-            ),
-            # Place legend at the bottom
-            legend=dict(
-                orientation="h",  # Horizontal orientation
-                yanchor="top",
-                y=-0.1,  # Position below the plot
-                xanchor="center",
-                x=0.5,  # Center horizontally
-            ),
-            # Add some bottom margin for the legend
-            margin=dict(b=80) if "margin" not in kwargs else dict(**kwargs.get("margin", {}), b=80),
-            **{k: v for k, v in kwargs.items() if k != "margin"},
+            xaxis={**self.SCHEMATIC_X_AXIS, "range": y_range},
+            yaxis=self.SCHEMATIC_Y_AXIS,
+            legend=self.BOTTOM_LEGEND
         )
 
         return figure
@@ -874,6 +853,19 @@ class _Electrode(
                 }
             )
             .round(4)
+        )
+    
+    @property
+    def half_cell_curve_trace(self) -> go.Scatter:
+                
+        return go.Scatter(
+            x=self.half_cell_curve["Areal Capacity (mAh/cm²)"],
+            y=self.half_cell_curve["Voltage (V)"],
+            mode="lines",
+            name=f"{self.name} Half-Cell",
+            line=dict(color=self.formulation.color, width=2.5),
+            customdata=self.half_cell_curve["Direction"],
+            hovertemplate="<b>{self.name}</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
 
     @property
