@@ -1,31 +1,35 @@
 from steer_opencell_design.Constructions.Layups import _Layup
 from steer_opencell_design.Constructions.Layups import Laminate, MonoLayer, ZFoldMonoLayer
 
-# Mixins from steer_core
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Mixins.Colors import ColorMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
+from steer_core.Mixins.Data import DataMixin
 
-# Decorators from steer_core
-from steer_core.Decorators.General import calculate_all_properties
+from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
+from steer_core.Decorators.Coordinates import calculate_coordinates
 
 from steer_core.Constants.Units import *
 from steer_core.Constants.Universal import PI
 
-from steer_opencell_design.Components.Electrodes import Cathode
+from steer_opencell_design.Components.Electrodes import Cathode, Anode
+from steer_opencell_design.Components.Separators import Separator
+from steer_opencell_design.AuxillaryComponents.WindingEquipment import RoundMandrel, FlatMandrel
+
+from steer_materials.CellMaterials.Base import CurrentCollectorMaterial
 
 from copy import deepcopy
-from copy import copy
 import pandas as pd
 import numpy as np
 from shapely.geometry import Polygon
 from shapely import minimum_bounding_circle
 import warnings
 import plotly.graph_objects as go
-from typing import Dict
+from typing import Any, Dict, Tuple
+
 
 
 class _ElectrodeAssembly(
@@ -34,7 +38,8 @@ class _ElectrodeAssembly(
     SerializerMixin, 
     ColorMixin, 
     DunderMixin,
-    PlotterMixin
+    PlotterMixin,
+    DataMixin
 ):
     
     def __init__(
@@ -54,7 +59,13 @@ class _ElectrodeAssembly(
         self._calcualate_full_cell_curve()
 
     def _calculate_bulk_properties(self):
-        """Calculate bulk properties of the electrode assembly."""
+        self._calculate_mass_properties()
+        self._calculate_cost_properties()
+
+    def _calculate_mass_properties(self):
+        pass
+
+    def _calculate_cost_properties(self):
         pass
 
     def _calculate_interfacial_area(self):
@@ -82,6 +93,28 @@ class _ElectrodeAssembly(
         self._cathode_half_cell = _cathode_half_cell
         return self._cathode_half_cell
     
+    def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:
+
+        fig = self.plot_breakdown_sunburst(
+            self.mass_breakdown,
+            title=title or f"{self.name} Mass Breakdown",
+            unit="g",
+            **kwargs,
+        )
+
+        return fig
+
+    def plot_cost_breakdown(self, title: str = None, **kwargs) -> go.Figure:
+        
+        fig = self.plot_breakdown_sunburst(
+            self.cost_breakdown,
+            title=title or f"{self.name} Cost Breakdown",
+            unit="$",
+            **kwargs,
+        )
+
+        return fig
+
     def get_capacity_plot(self, **kwargs) -> go.Figure:
         """
         Generate capacity plot for the assembly.
@@ -225,16 +258,51 @@ class _ElectrodeAssembly(
             hovertemplate="<b>Cathode</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
 
+    @property
+    def cost(self) -> float:
+        """Return the cost of the electrode assembly in $."""
+        return round(self._cost, 2)
+
+    @property
+    def cost_breakdown(self) -> Dict[str, Any]:
+        """
+        Get the cost breakdown of the electrode.
+
+        :return: Dictionary containing the cost breakdown.
+        """
+
+        def _round_recursive(obj):
+            if isinstance(obj, dict):
+                return {k: _round_recursive(v) for k, v in obj.items()}
+            else:
+                return round(obj, 2)
+
+        return _round_recursive(self._cost_breakdown)
+
+    @property
+    def mass(self) -> float:
+        """Return the mass of the electrode assembly in g."""
+        return round(self._mass * KG_TO_G, 2)
+
+    @property
+    def mass_breakdown(self) -> Dict[str, Any]:
+        """
+        Get the mass breakdown of the electrode.
+
+        :return: Dictionary containing the mass breakdown.
+        """
+        def _convert_and_round_recursive(obj):
+            if isinstance(obj, dict):
+                return {k: _convert_and_round_recursive(v) for k, v in obj.items()}
+            else:
+                return round(obj * KG_TO_G, 2)
+
+        return _convert_and_round_recursive(self._mass_breakdown)
+
     @name.setter
     def name(self, value: str):
         self.validate_string(value, "name")
         self._name = value
-
-    @layup.setter
-    @calculate_all_properties
-    def layup(self, value: _Layup):
-        self.validate_type(value, _Layup, "layup")
-        self._layup = value
 
 
 class _JellyRoll(_ElectrodeAssembly):
@@ -244,15 +312,61 @@ class _JellyRoll(_ElectrodeAssembly):
     """
     def __init__(
             self, 
-            laminate: Laminate
+            laminate: Laminate,
+            mandrel: FlatMandrel | RoundMandrel
         ):
 
         super().__init__(laminate)
+
+        self.mandrel = mandrel
+
+    def _calculate_all_properties(self):
+        self._calculate_roll()
+        super()._calculate_all_properties()
+
+    def _calculate_mass_properties(self):
+
+        separators = [self.layup._bottom_separator, self.layup._top_separator]
+
+        self._mass = self.layup.anode._mass + self.layup.cathode._mass + sum([s._mass for s in separators])
+
+        self._mass_breakdown = {
+            "Anode": self.layup.anode._mass_breakdown,
+            "Cathode": self.layup.cathode._mass_breakdown,
+            "Separators": self.sum_breakdowns(separators, "mass"),
+        }
+
+        return self._mass
+
+    def _calculate_cost_properties(self):
+
+        separators = [self.layup._bottom_separator, self.layup._top_separator]
+
+        self._cost = self.layup.anode._cost + self.layup.cathode._cost + sum([s._cost for s in separators])
+
+        self._cost_breakdown = {
+            "Anode": self.layup.anode._cost_breakdown,
+            "Cathode": self.layup.cathode._cost_breakdown,
+            "Separators": self.sum_breakdowns(separators, "cost"),
+        }
+
+        return self._cost
+
+    @property
+    def mandrel(self) -> RoundMandrel | FlatMandrel:
+        """Return the mandrel instance."""
+        return self._mandrel
 
     @property
     def layup(self) -> Laminate:
         """Return the underlying `Laminate` instance."""
         return self._layup
+
+    @mandrel.setter
+    @calculate_all_properties
+    def mandrel(self, value: RoundMandrel | FlatMandrel):
+        self.validate_type(value, (RoundMandrel, FlatMandrel), "mandrel")
+        self._mandrel = value
 
     @layup.setter
     @calculate_all_properties
@@ -268,13 +382,20 @@ class WoundJellyRoll(_JellyRoll):
     """
     def __init__(
             self, 
-            laminate: Laminate
+            laminate: Laminate,
+            mandrel: RoundMandrel
         ):
 
-        super().__init__(laminate)
+        super().__init__(
+            laminate=laminate,
+            mandrel=mandrel,
+        )
 
         self._calculate_all_properties()
         self._update_properties = True
+
+    def _calculate_roll(self):
+        pass
 
 
 class FlatWoundJellyRoll(_JellyRoll):
@@ -284,13 +405,34 @@ class FlatWoundJellyRoll(_JellyRoll):
     """
     def __init__(
             self, 
-            laminate: Laminate
+            laminate: Laminate,
+            mandrel: FlatMandrel,
+            mandrel_gap: float = 0.0
         ):
 
-        super().__init__(laminate)
+        super().__init__(
+            laminate=laminate,
+            mandrel=mandrel
+        )
+
+        self.mandrel_gap = mandrel_gap
 
         self._calculate_all_properties()
         self._update_properties = True
+
+    def _calculate_roll(self):
+        pass
+
+    @property
+    def mandrel_gap(self) -> float:
+        """Return the mandrel gap in mm."""
+        return round(self._mandrel_gap * M_TO_MM, 2)
+    
+    @mandrel_gap.setter
+    @calculate_all_properties
+    def mandrel_gap(self, value: float):
+        self.validate_type(value, float, "mandrel_gap")
+        self._mandrel_gap = value
 
 
 class _Stack(_ElectrodeAssembly):
@@ -312,7 +454,32 @@ class _Stack(_ElectrodeAssembly):
         super()._calculate_all_properties()
 
     def _calculate_stack(self):
-        pass
+        
+        # Initialize dictionaries for components
+        stack = {}
+
+        # set the starting z datum
+        z_datum = 0
+
+        # add bottom separator to stack
+        z_datum, stack = self.add_layer(stack, self.layup._bottom_separator, z_datum)
+
+        # add anode to stack
+        z_datum, stack = self.add_layer(stack, self.layup._anode, z_datum)
+
+        # add layups to stack
+        for _ in range(self.n_layers):
+            z_datum, stack = self.add_layer(stack, self.layup._bottom_separator, z_datum)
+            z_datum, stack = self.add_layer(stack, self.layup._cathode, z_datum)
+            z_datum, stack = self.add_layer(stack, self.layup._bottom_separator, z_datum)
+            z_datum, stack = self.add_layer(stack, self.layup._anode, z_datum)
+
+        # add top separator to stack
+        z_datum, stack = self.add_layer(stack, self.layup._top_separator, z_datum)
+
+        self._stack = stack
+
+        return self._stack
 
     def _calculate_interfacial_area(self):
         
@@ -346,6 +513,82 @@ class _Stack(_ElectrodeAssembly):
 
         return self._interfacial_area
 
+    def _calculate_mass_properties(self):
+
+        anodes = [a for a in self._stack.values() if type(a) == Anode]
+        cathodes = [c for c in self._stack.values() if type(c) == Cathode]
+        separators = [s for s in self._stack.values() if type(s) == Separator]
+
+        self._mass = sum([a._mass for a in anodes]) + sum([c._mass for c in cathodes]) + sum([s._mass for s in separators])
+
+        self._mass_breakdown = {
+            "Anodes": self.sum_breakdowns(anodes, "mass"),
+            "Cathodes": self.sum_breakdowns(cathodes, "mass"),
+            "Separators": self.sum_breakdowns(separators, "mass"),
+        }
+
+        return self._mass
+
+    def _calculate_cost_properties(self):
+
+        anodes = [a for a in self._stack.values() if type(a) == Anode]
+        cathodes = [c for c in self._stack.values() if type(c) == Cathode]
+        separators = [s for s in self._stack.values() if type(s) == Separator]
+
+        self._cost = sum([a._cost for a in anodes]) + sum([c._cost for c in cathodes]) + sum([s._cost for s in separators])
+
+        self._cost_breakdown = {
+            "Anodes": self.sum_breakdowns(anodes, "cost"),
+            "Cathodes": self.sum_breakdowns(cathodes, "cost"),
+            "Separators": self.sum_breakdowns(separators, "cost"),
+        }
+
+        return self._cost
+
+    def get_side_view(self, **kwargs):
+
+        figure = go.Figure()
+
+        for _, component in self.stack.items():
+            layer_figure = component.get_right_left_view()
+            legend_group = component.__class__.__name__
+            for trace in layer_figure.data:
+                trace.legendgroup = legend_group
+                trace.name = legend_group
+                trace.showlegend = True if legend_group not in [t.legendgroup for t in figure.data] else False
+                # Set line width to 0.5
+                if hasattr(trace, 'line') and trace.line is not None:
+                    trace.line.width = 0.5
+                figure.add_trace(trace)
+
+        figure.update_layout(
+            xaxis=self.SCHEMATIC_X_AXIS,
+            yaxis=self.SCHEMATIC_Y_AXIS,
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            **kwargs,
+        )
+
+        return figure
+
+    @staticmethod
+    def add_layer(stack: Dict, component, z_datum):
+
+        stack_size = len(stack)
+
+        new_component = deepcopy(component)
+
+        if stack_size == 0:
+            new_z_datum = z_datum + new_component._thickness * M_TO_MM / 2
+        else:
+            new_z_datum = z_datum + new_component._thickness * M_TO_MM / 2 + stack[stack_size - 1]._thickness * M_TO_MM / 2
+
+        new_component.datum = (new_component._datum[0] * M_TO_MM, new_component._datum[1] * M_TO_MM, new_z_datum)
+        stack_size = len(stack)
+        stack[stack_size] = new_component
+
+        return new_z_datum, stack
+
     @property
     def stack(self) -> dict:
         """Return the stack of components."""
@@ -371,7 +614,8 @@ class ZFoldStack(_Stack):
     def __init__(
             self, 
             layup: ZFoldMonoLayer,
-            n_layers: int
+            n_layers: int,
+            additional_separator_wraps: float = 1
         ):
 
         super().__init__(
@@ -379,15 +623,112 @@ class ZFoldStack(_Stack):
             n_layers
         )
 
+        self.additional_separator_wraps = additional_separator_wraps
+
         self._calculate_all_properties()
         self._update_properties = True
+
+    def _calculate_stack(self):
+
+        # get bottom and top separator layers
+        bottom_separator = deepcopy(self.layup._bottom_separator)
+        top_separator = deepcopy(self.layup._top_separator)
+
+        # estimate thickness of stack
+        thickness = (
+            self.n_layers * self.layup.cathode._thickness + \
+            (self.n_layers + 1) * self.layup.anode._thickness + \
+            ((self.n_layers * 2 + 1) + 2 * self.additional_separator_wraps) * self.layup._bottom_separator._thickness
+        ) * M_TO_MM
+
+        # Initialize dictionaries for components
+        stack = {}
+
+        # set the starting z datum
+        z_datum = 0
+
+        # for each additional separator wrap, add a separator to bottom
+        for _ in range(self._additional_separator_wraps):
+            bottom_separator_copy = deepcopy(bottom_separator)
+            bottom_separator.length = bottom_separator.length + thickness
+            z_datum, stack = self.add_layer(stack, bottom_separator_copy, z_datum)
+
+        # add bottom separator to stack
+        z_datum, stack = self.add_layer(stack, self.layup._bottom_separator, z_datum)
+
+        # add anode to stack
+        z_datum, stack = self.add_layer(stack, self.layup._anode, z_datum)
+
+        # add layups to stack
+        for _ in range(self.n_layers):
+            z_datum, stack = self.add_layer(stack, bottom_separator, z_datum)
+            z_datum, stack = self.add_layer(stack, self.layup._cathode, z_datum)
+            z_datum, stack = self.add_layer(stack, top_separator, z_datum)
+            z_datum, stack = self.add_layer(stack, self.layup._anode, z_datum)
+
+        # add top separator to stack
+        z_datum, stack = self.add_layer(stack, top_separator, z_datum)
+
+        # for each additional separator wrap, add a separator to top
+        for _ in range(self._additional_separator_wraps):
+            top_separator_copy = deepcopy(top_separator)
+            top_separator.length = top_separator.length + thickness
+            z_datum, stack = self.add_layer(stack, top_separator_copy, z_datum)
+
+        self._stack = stack
+
+        return self._stack
+
+    def _calculate_mass_properties(self):
+
+        anodes = [a for a in self._stack.values() if type(a) == Anode]
+        cathodes = [c for c in self._stack.values() if type(c) == Cathode]
+        separators = [s for s in self._stack.values() if type(s) == Separator]
+
+        self._mass = sum([a._mass for a in anodes]) + sum([c._mass for c in cathodes]) + sum([s._mass for s in separators])
+
+        self._mass_breakdown = {
+            "Anodes": self.sum_breakdowns(anodes, "mass"),
+            "Cathodes": self.sum_breakdowns(cathodes, "mass"),
+            "Separator": self.sum_breakdowns(separators, "mass"),
+        }
+
+        return self._mass
+
+    def _calculate_cost_properties(self):
+
+        anodes = [a for a in self._stack.values() if type(a) == Anode]
+        cathodes = [c for c in self._stack.values() if type(c) == Cathode]
+        separators = [s for s in self._stack.values() if type(s) == Separator]
+
+        self._cost = sum([a._cost for a in anodes]) + sum([c._cost for c in cathodes]) + sum([s._cost for s in separators])
+
+        self._cost_breakdown = {
+            "Anodes": self.sum_breakdowns(anodes, "cost"),
+            "Cathodes": self.sum_breakdowns(cathodes, "cost"),
+            "Separator": self.sum_breakdowns(separators, "cost"),
+        }
+
+        return self._cost
+
+    @property
+    def additional_separator_wraps(self) -> int:
+        """Return the number of additional separator wraps."""
+        return self._additional_separator_wraps
 
     @property
     def layup(self) -> ZFoldMonoLayer:
         """Return the underlying `ZFoldMonoLayer` instance."""
         return self._layup
 
+    @additional_separator_wraps.setter
+    @calculate_bulk_properties
+    def additional_separator_wraps(self, value: float):
+        self.validate_positive_float(value, "additional_separator_wraps")
+        self._additional_separator_wraps = value
+
     @layup.setter
+    @calculate_all_properties
     def layup(self, value: ZFoldMonoLayer):
         self.validate_type(value, ZFoldMonoLayer, "layup")
         self._layup = value
@@ -411,79 +752,14 @@ class PunchedStack(_Stack):
 
         self._calculate_all_properties()
         self._update_properties = True
-
-    def _calculate_stack(self):
-        
-        def add_layer(stack: Dict, component, z_datum):
-
-            stack_size = len(stack)
-
-            new_component = deepcopy(component)
-
-            if stack_size == 0:
-                new_z_datum = z_datum + new_component._thickness * M_TO_MM / 2
-            else:
-                new_z_datum = z_datum + new_component._thickness * M_TO_MM / 2 + stack[stack_size - 1]._thickness * M_TO_MM / 2
-
-            new_component.datum = (new_component._datum[0] * M_TO_MM, new_component._datum[1] * M_TO_MM, new_z_datum)
-
-            stack_size = len(stack)
-
-            stack[stack_size] = new_component
-
-            return new_z_datum, stack
-
-        # Initialize dictionaries for components
-        stack = {}
-
-        # set the starting z datum
-        z_datum = 0
-
-        # add bottom separator to stack
-        z_datum, stack = add_layer(stack, self.layup._bottom_separator, z_datum)
-
-        # add anode to stack
-        z_datum, stack = add_layer(stack, self.layup._anode, z_datum)
-
-        # add layups to stack
-        for _ in range(self.n_layers):
-            z_datum, stack = add_layer(stack, self.layup._bottom_separator, z_datum)
-            z_datum, stack = add_layer(stack, self.layup._cathode, z_datum)
-            z_datum, stack = add_layer(stack, self.layup._bottom_separator, z_datum)
-            z_datum, stack = add_layer(stack, self.layup._anode, z_datum)
-
-        # add top separator to stack
-        z_datum, stack = add_layer(stack, self.layup._top_separator, z_datum)
-
-        self._stack = stack
-
-        return self._stack
     
-    def get_side_view(self, **kwargs):
-
-        figure = go.Figure()
-
-        for _, component in self.stack.items():
-            layer_figure = component.get_right_left_view()
-            for trace in layer_figure.data:
-                figure.add_trace(trace)
-
-        figure.update_layout(
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            **kwargs,
-        )
-
-        return figure
-
     @property
     def layup(self) -> MonoLayer:
         """Return the underlying `MonoLayer` instance."""
         return self._layup
 
     @layup.setter
+    @calculate_all_properties
     def layup(self, value: MonoLayer):
         self.validate_type(value, MonoLayer, "layup")
         self._layup = value

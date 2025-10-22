@@ -253,6 +253,7 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         # figure5.show()
 
     def test_flip(self):
+
         figure1 = self.cathode._get_full_top_down_view()
         self.cathode._flip("x")
         figure2 = self.cathode._get_full_top_down_view()
@@ -407,6 +408,7 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
         self.cathode.voltage_cutoff = 4.1
 
     def test_electrodes(self):
+        
         self.assertTrue(isinstance(self.cathode, Cathode))
 
         self.assertTrue(

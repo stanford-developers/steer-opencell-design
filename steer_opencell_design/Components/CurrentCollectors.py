@@ -368,6 +368,7 @@ class _CurrentCollector(
         return self
 
     def _translate(self, vector: Iterable[float]) -> None:
+
         # convert to numpy array
         vector = np.array(vector)
 
@@ -650,6 +651,7 @@ class _CurrentCollector(
 
     @property
     def top_down_coated_area_trace(self) -> go.Scatter:
+        
         side = self.top_side
         coated_area_coordinates = self.a_side_coated_coordinates if side == "a" else self.b_side_coated_coordinates
 
@@ -918,6 +920,7 @@ class _CurrentCollector(
 
     @datum.setter
     def datum(self, datum: Tuple[float, float, float]) -> None:
+
         # validate the datum
         self.validate_datum(datum)
 
