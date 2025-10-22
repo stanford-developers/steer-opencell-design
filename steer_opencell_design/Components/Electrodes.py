@@ -363,13 +363,16 @@ class _Electrode(
 
         return figure
 
-    def get_right_left_view(self, **kwargs) -> pd.DataFrame:
-
-        if self.datum_z == 0.0:
+    def get_right_left_view(self, set_z_zero: bool = False, **kwargs) -> pd.DataFrame:
+    
+        if set_z_zero:
+            if self.datum_z == 0.0:
+                electrode = self
+            else: 
+                electrode = deepcopy(self)
+                electrode.datum = (self.datum_x, self.datum_y, 0.0)
+        else:
             electrode = self
-        else: 
-            electrode = deepcopy(self)
-            electrode.datum = (self.datum_x, self.datum_y, 0.0)
 
         figure = electrode._current_collector.get_right_left_view(**kwargs)
         figure.data = [trace for trace in figure.data if trace.name == "Body" or trace.name == "Tab"]
@@ -418,6 +421,7 @@ class _Electrode(
         return fig
 
     def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:
+
         fig = self.plot_breakdown_sunburst(
             self.mass_breakdown,
             title=title or f"{self.name} Mass Breakdown",
@@ -428,6 +432,7 @@ class _Electrode(
         return fig
 
     def plot_cost_breakdown(self, title: str = None, **kwargs) -> go.Figure:
+        
         fig = self.plot_breakdown_sunburst(
             self.cost_breakdown,
             title=title or f"{self.name} Cost Breakdown",

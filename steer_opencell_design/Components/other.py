@@ -2,6 +2,7 @@ from steer_core.Constants.Units import *
 
 
 class Laminate:
+
     def __init__(self, thickness: float = 113, areal_mass: float = 18, areal_cost: float = 4.64):
         """
         Laminate object for encapsulation of the cell
@@ -34,6 +35,7 @@ class Laminate:
 
 
 class Terminal:
+
     def __init__(
         self,
         mass: float,
@@ -132,6 +134,7 @@ class Terminal:
 
 
 class Tape:
+    
     def __init__(self, mass: float, name: str = None):
         """
         Tape object for a cell

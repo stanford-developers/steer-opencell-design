@@ -613,19 +613,6 @@ class _Layup(
             xaxis={**self.SCATTER_X_AXIS, "title": "Areal Capacity (mAh/cm²)"},
             yaxis={**self.SCATTER_Y_AXIS, "title": "Voltage (V)"},
             hovermode="closest",
-            # annotations=[
-            #     dict(
-            #         text=f"N/P Ratio: {self.np_ratio:.2f}",
-            #         showarrow=False,
-            #         xref="paper",
-            #         yref="paper",
-            #         x=0.5,
-            #         y=1.02,
-            #         xanchor="center",
-            #         yanchor="bottom",
-            #         font=dict(size=14),
-            #     )
-            # ],
         )
 
         return fig
