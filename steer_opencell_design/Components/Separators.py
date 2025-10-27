@@ -194,6 +194,28 @@ class Separator(
 
         return fig
 
+    def get_bottom_up_view(self, **kwargs):
+
+        if self._coordinates is None:
+            raise ValueError("Cannot generate bottom-up view: length not set")
+
+        fig = go.Figure()
+
+        fig.add_trace(self.bottom_up_trace)
+
+        fig.update_layout(
+            xaxis=self.SCHEMATIC_X_AXIS,
+            yaxis=self.SCHEMATIC_Z_AXIS,
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            **kwargs,
+        )
+
+        return fig
+
+    def get_center_line(self, line_spacing: float = 10) -> np.ndarray:
+        return self.get_xz_center_line(self._coordinates, line_spacing=line_spacing)
+
     @property
     def coordinates(self) -> pd.DataFrame:
         if self._coordinates is None:
@@ -240,6 +262,33 @@ class Separator(
         # make the trace
         trace = go.Scatter(
             x=coordinates["y"],
+            y=coordinates["z"],
+            mode="lines",
+            name=self.name,
+            line=dict(width=1, color="black"),
+            fill="toself",
+            fillcolor=self.material._color,
+            legendgroup=self.name,
+            showlegend=True,
+        )
+
+        return trace
+
+    @property
+    def bottom_up_trace(self) -> go.Scatter:
+
+        if self._coordinates is None:
+            return None
+
+        # get the coordinates
+        coordinates = self.order_coordinates_clockwise(self.coordinates, plane="xz")
+
+        # add first row to end to close the shape
+        coordinates = pd.concat([coordinates, coordinates.iloc[[0]]], ignore_index=True)
+
+        # make the trace
+        trace = go.Scatter(
+            x=coordinates["x"],
             y=coordinates["z"],
             mode="lines",
             name=self.name,

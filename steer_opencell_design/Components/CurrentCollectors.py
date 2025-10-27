@@ -412,6 +412,9 @@ class _CurrentCollector(
 
         return self
 
+    def get_center_line(self, line_spacing: float = 10) -> np.ndarray:
+        return self.get_xz_center_line(self._body_coordinates, line_spacing=line_spacing)
+
     def get_a_side_view(self, **kwargs) -> go.Figure:
         z_coords = self._body_coordinates[:, 2]
         z_a = z_coords[self._body_coordinates_side == "a"].mean()
@@ -611,6 +614,7 @@ class _CurrentCollector(
 
     @property
     def right_left_body_trace(self) -> go.Scatter:
+
         # get the coordinates of the body, ordered clockwise
         body_coordinates = self.order_coordinates_clockwise(self.body_coordinates, plane="yz")
 
@@ -638,6 +642,30 @@ class _CurrentCollector(
         body_trace = go.Scatter(
             x=body_coordinates["x"],
             y=body_coordinates["y"],
+            mode="lines",
+            name="Body",
+            line=dict(color="black", width=1),
+            fill="toself",
+            fillcolor=self._material.color,
+            legendgroup="Body",
+            showlegend=True,
+        )
+
+        return body_trace
+
+    @property
+    def bottom_up_body_trace(self) -> go.Scatter:
+
+        # get the coordinates of the body, ordered clockwise
+        body_coordinates = self.order_coordinates_clockwise(self.body_coordinates, plane="xz")
+
+        # add first row to end to close the shape
+        body_coordinates = pd.concat([body_coordinates, body_coordinates.iloc[[0]]], ignore_index=True)
+
+        # make the body trace
+        body_trace = go.Scatter(
+            x=body_coordinates["x"],
+            y=body_coordinates["z"],
             mode="lines",
             name="Body",
             line=dict(color="black", width=1),

@@ -135,6 +135,13 @@ class TestSimpleLaminate(unittest.TestCase):
         condition = self.layup == temp_layup
         self.assertTrue(condition)
 
+    def test_get_thickness_at_x(self):
+        self.assertAlmostEqual(self.layup.get_thickness_at_x(10), 50, places=2)
+        self.assertAlmostEqual(self.layup.get_thickness_at_x(100), 50, places=2)
+        self.assertAlmostEqual(self.layup.get_thickness_at_x(500), 142, places=2)
+        self.assertAlmostEqual(self.layup.get_thickness_at_x(1000), 142, places=2)
+        self.assertAlmostEqual(self.layup.get_thickness_at_x(4700), 50, places=2)
+
     def test_length_width_setter(self):
 
         self.assertEqual(self.layup.length, 4500)
@@ -198,11 +205,18 @@ class TestSimpleLaminate(unittest.TestCase):
         fig2 = self.layup.cathode._get_full_top_down_view()
         fig3 = self.layup.get_top_down_view(opacity=0.2)
         fig4 = self.layup.get_areal_capacity_plot()
+        fig5 = self.layup.get_bottom_up_view()
+
+        self.layup.datum = (self.layup.total_length/2, 0, self.layup.cathode.thickness/2 * UM_TO_MM)
+
+        fig6 = self.layup.get_bottom_up_view()
 
         # fig1.show()
         # fig2.show()
         # fig3.show()
         # fig4.show()
+        fig5.show()
+        # fig6.show()
 
     def test_change_anode_material(self):
 

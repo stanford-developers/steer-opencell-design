@@ -432,7 +432,7 @@ class _Electrode(
         return fig
 
     def plot_cost_breakdown(self, title: str = None, **kwargs) -> go.Figure:
-        
+
         fig = self.plot_breakdown_sunburst(
             self.cost_breakdown,
             title=title or f"{self.name} Cost Breakdown",
@@ -553,6 +553,12 @@ class _Electrode(
 
         return figure
 
+    def get_a_side_center_line(self, line_spacing: float = 10) -> np.ndarray:
+        return self.get_xz_center_line(self._a_side_coating_coordinates, line_spacing=line_spacing)
+    
+    def get_b_side_center_line(self, line_spacing: float = 10) -> np.ndarray:
+        return self.get_xz_center_line(self._b_side_coating_coordinates, line_spacing=line_spacing)
+
     @property
     def right_left_a_side_insulation_trace(self) -> pd.DataFrame:
         """
@@ -631,6 +637,32 @@ class _Electrode(
         return a_side_coating_trace
 
     @property
+    def bottom_up_a_side_coating_trace(self) -> pd.DataFrame:
+        """
+        Get the coordinates of the a side coated area.
+        """
+        # get the coordinates
+        a_side_coating_coordinates = self.order_coordinates_clockwise(self.a_side_coating_coordinates, plane="xz")
+
+        # add first row to end to close the shape
+        a_side_coating_coordinates = pd.concat([a_side_coating_coordinates, a_side_coating_coordinates.iloc[[0]]], ignore_index=True)
+
+        # make the trace
+        a_side_coating_trace = go.Scatter(
+            x=a_side_coating_coordinates["x"],
+            y=a_side_coating_coordinates["z"],
+            mode="lines",
+            name="A Side Coated Area",
+            line=dict(width=1, color="black"),
+            fill="toself",
+            fillcolor=self._formulation._color,
+            legendgroup="A Side Coated Area",
+            showlegend=True,
+        )
+
+        return a_side_coating_trace
+
+    @property
     def right_left_b_side_coating_trace(self) -> pd.DataFrame:
         """
         Get the coordinates of the b side coated area.
@@ -641,6 +673,32 @@ class _Electrode(
         # make the trace
         b_side_coating_trace = go.Scatter(
             x=b_side_coating_coordinates["y"],
+            y=b_side_coating_coordinates["z"],
+            mode="lines",
+            name="B Side Coated Area",
+            line=dict(width=1, color="black"),
+            fill="toself",
+            fillcolor=self._formulation._color,
+            legendgroup="B Side Coated Area",
+            showlegend=True,
+        )
+
+        return b_side_coating_trace
+    
+    @property
+    def bottom_up_b_side_coating_trace(self) -> pd.DataFrame:
+        """
+        Get the coordinates of the b side coated area.
+        """
+        # get the coordinates
+        b_side_coating_coordinates = self.order_coordinates_clockwise(self.b_side_coating_coordinates, plane="xz")
+
+        # add first row to end to close the shape
+        b_side_coating_coordinates = pd.concat([b_side_coating_coordinates, b_side_coating_coordinates.iloc[[0]]], ignore_index=True)
+
+        # make the trace
+        b_side_coating_trace = go.Scatter(
+            x=b_side_coating_coordinates["x"],
             y=b_side_coating_coordinates["z"],
             mode="lines",
             name="B Side Coated Area",

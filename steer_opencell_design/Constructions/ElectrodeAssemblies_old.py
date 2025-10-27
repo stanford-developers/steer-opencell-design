@@ -502,7 +502,15 @@ class CylindricalJellyRoll(_JellyRoll):
             theta += dtheta
             theta_list.append(theta)
 
-        self._spiral = pd.DataFrame({"theta": theta_list, "r": r_list}).assign(r_outer=lambda x: x["r"] + self._electrode_thickness).assign(x=lambda x: x["r"] * np.cos(x["theta"])).assign(y=lambda x: x["r"] * np.sin(x["theta"])).assign(x_outer=lambda x: x["r_outer"] * np.cos(x["theta"])).assign(y_outer=lambda x: x["r_outer"] * np.sin(x["theta"]))
+        self._spiral = (
+            pd
+            .DataFrame({"theta": theta_list, "r": r_list})
+            .assign(r_outer=lambda x: x["r"] + self._electrode_thickness)
+            .assign(x=lambda x: x["r"] * np.cos(x["theta"]))
+            .assign(y=lambda x: x["r"] * np.sin(x["theta"]))
+            .assign(x_outer=lambda x: x["r_outer"] * np.cos(x["theta"]))
+            .assign(y_outer=lambda x: x["r_outer"] * np.sin(x["theta"]))
+        )
 
     def _center_and_calculate_radius(self):
         """

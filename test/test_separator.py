@@ -25,6 +25,7 @@ class TestSimpleSeparator(unittest.TestCase):
 
 
 class TestSeparator(unittest.TestCase):
+
     def setUp(self):
         """
         Set up test fixtures
@@ -46,13 +47,19 @@ class TestSeparator(unittest.TestCase):
         Test right and left side views
         """
         fig_right = self.separator.get_right_left_view()
+        fig_bottom = self.separator.get_bottom_up_view()
         # fig_right.show()
+        # fig_bottom.show()
         
     def test_separator_properties(self):
         """
         Test the properties of the separator
         """
         self.assertTrue(isinstance(self.separator, Separator))
+
+    def test_xz_center_line(self):
+        center_line = self.separator.get_xz_center_line()
+        self.assertTrue(type(center_line) == np.ndarray)
 
     def test_separator_initial_properties(self):
         """
