@@ -617,6 +617,72 @@ class _Layup(
 
         return fig
 
+    def get_bottom_up_view(self, **kwargs) -> go.Figure:
+
+        figure = go.Figure()
+
+        # Add bottom separator trace
+        trace = self.bottom_separator.bottom_up_trace
+        trace.legendgroup = f"{self.bottom_separator.name} (Bottom)"
+        trace.name = f"{self.bottom_separator.name} (Bottom)"
+        figure.add_trace(trace)
+
+        # Add top separator trace
+        trace = self.top_separator.bottom_up_trace
+        trace.legendgroup = f"{self.top_separator.name} (Top)"
+        trace.name = f"{self.top_separator.name} (Top)"
+        figure.add_trace(trace)
+
+        # Add anode current collector trace
+        trace = self.anode.current_collector.bottom_up_body_trace
+        trace.legendgroup = f"{self.anode.name}"
+        trace.name = f"{self.anode.name}"
+        figure.add_trace(trace)
+
+        # Add anode a side coating trace
+        trace = self.anode.bottom_up_a_side_coating_trace
+        trace.legendgroup = f"{self.anode.name}"
+        trace.name = f"{self.anode.name}"
+        trace.showlegend = False
+        figure.add_trace(trace)
+
+        # Add anode b side coating trace
+        trace = self.anode.bottom_up_b_side_coating_trace
+        trace.legendgroup = f"{self.anode.name}"
+        trace.name = f"{self.anode.name}"
+        trace.showlegend = False
+        figure.add_trace(trace)
+
+        # Add cathode current collector trace
+        trace = self.cathode.current_collector.bottom_up_body_trace
+        trace.legendgroup = f"{self.cathode.name}"
+        trace.name = f"{self.cathode.name}"
+        figure.add_trace(trace)
+
+        # Add cathode a side coating trace
+        trace = self.cathode.bottom_up_a_side_coating_trace
+        trace.legendgroup = f"{self.cathode.name}"
+        trace.name = f"{self.cathode.name}"
+        trace.showlegend = False
+        figure.add_trace(trace)
+
+        # Add cathode b side coating trace
+        trace = self.cathode.bottom_up_b_side_coating_trace
+        trace.legendgroup = f"{self.cathode.name}"
+        trace.name = f"{self.cathode.name}"
+        trace.showlegend = False
+        figure.add_trace(trace)
+
+        figure.update_layout(
+            xaxis=self.SCHEMATIC_X_AXIS,
+            yaxis=self.SCHEMATIC_Z_AXIS,
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            **kwargs,
+        )
+
+        return figure
+
     #### COMPONENT PROPERTY/SETTERS ####
 
     @property
@@ -724,6 +790,7 @@ class _Layup(
         self.validate_datum(new_datum)
 
         old = self.cathode.datum
+
         dx = new_datum[0] - old[0]
         dy = new_datum[1] - old[1]
         dz = new_datum[2] - old[2]
@@ -733,10 +800,9 @@ class _Layup(
 
         # Components to shift (if present)
         for comp_attr in ["anode", "bottom_separator", "top_separator"]:
-            if hasattr(self, comp_attr):
-                comp = getattr(self, comp_attr)
-                cx, cy, cz = comp.datum
-                comp.datum = (cx + dx, cy + dy, cz + dz)
+            comp = getattr(self, comp_attr)
+            cx, cy, cz = comp.datum
+            comp.datum = (cx + dx, cy + dy, cz + dz)
 
     @datum_x.setter
     def datum_x(self, new_x: float):
@@ -1680,6 +1746,8 @@ class Laminate(_Layup):
     def _calculate_bulk_properties(self):
         self._calculate_length()
         self._calculate_width()
+        self._calculate_total_geometries()
+        self._calculate_thickness()
 
     def _calculate_length(self) -> float:
         """
@@ -1719,6 +1787,271 @@ class Laminate(_Layup):
 
         return self._width
     
+    def _calculate_total_geometries(self):
+        """Calculate the total length of the layup by finding the maximum end-to-end distance.
+        
+        Returns
+        -------
+        tuple
+            (total_length, x_start_position) both in meters
+        """
+        # Collect all coordinate arrays
+        coordinate_arrays = [
+            self._bottom_separator._coordinates,
+            self._anode._current_collector._body_coordinates,
+            self._anode._a_side_coating_coordinates,
+            self._anode._b_side_coating_coordinates,
+            self._cathode._current_collector._body_coordinates,
+            self._cathode._a_side_coating_coordinates,
+            self._cathode._b_side_coating_coordinates,
+            self._top_separator._coordinates
+        ]
+        
+        # Stack all coordinates and find global bounds
+        all_coords = np.vstack(coordinate_arrays)
+        min_coords = np.min(all_coords, axis=0)
+        max_coords = np.max(all_coords, axis=0)
+        
+        # Calculate dimensions and store results
+        self._total_length = max_coords[0] - min_coords[0]
+        self._total_width = max_coords[1] - min_coords[1]
+        self._total_height = max_coords[2] - min_coords[2]
+        self._start_position = tuple(min_coords)
+
+        return self._total_length, self._start_position
+    
+    def _smooth_center_line(self, center_line: np.ndarray) -> np.ndarray:
+        """
+        Smooth center line by removing points around z-value jumps.
+        
+        Parameters
+        ----------
+        center_line : np.ndarray
+            Array with x values in column 0 and z values in column 1
+            
+        Returns
+        -------
+        np.ndarray
+            Smoothed center line with points removed around jumps
+        """
+        if len(center_line) < 2:
+            return center_line
+        
+        x_coords = center_line[:, 0]
+        z_coords = center_line[:, 1]
+        
+        # Calculate z differences between consecutive points
+        z_diffs = np.diff(z_coords)
+        
+        # Find significant jumps (use a small threshold to detect actual jumps)
+        jump_threshold = 1e-6  # Small threshold to detect meaningful jumps
+        jump_indices = np.where(np.abs(z_diffs) > jump_threshold)[0]
+        
+        if len(jump_indices) == 0:
+            return center_line
+        
+        # Create mask for points to keep
+        keep_mask = np.ones(len(center_line), dtype=bool)
+        
+        for jump_idx in jump_indices:
+            z_diff = z_diffs[jump_idx]  # Signed z difference
+            z_jump = np.abs(z_diff)     # Size of the z jump
+            removal_distance = 5 * z_jump  # Remove 5 times the jump size
+            x_jump = x_coords[jump_idx]
+            
+            if z_diff > 0:  # Z jumps up - remove x values before the jump
+                removal_mask = (x_coords >= (x_jump - removal_distance)) & (x_coords <= x_jump)
+            else:  # Z jumps down - remove x values after the jump
+                x_after_jump = x_coords[jump_idx + 1] if jump_idx + 1 < len(x_coords) else x_jump
+                removal_mask = (x_coords >= x_after_jump) & (x_coords <= (x_after_jump + removal_distance))
+            
+            keep_mask = keep_mask & ~removal_mask
+        
+        return center_line[keep_mask]
+    
+    def _check_coordinate_intersection(self, coordinates, x_position: float) -> bool:
+        """Helper function to check if x_position intersects with given coordinates.
+        
+        Parameters
+        ----------
+        coordinates : np.ndarray or None
+            Coordinate array to check intersection with
+        x_position : float
+            The x position to check in meters
+            
+        Returns
+        -------
+        bool
+            True if x_position intersects with the coordinates, False otherwise
+        """
+        if coordinates is None or len(coordinates) == 0:
+            return False
+        
+        x_min = np.min(coordinates[:, 0])
+        x_max = np.max(coordinates[:, 0])
+        return x_min <= x_position <= x_max
+
+    def _calculate_thickness(self):
+
+        self._thickness = (
+            self._bottom_separator._thickness +
+            self._cathode._thickness + 
+            self._anode._thickness +
+            self._top_separator._thickness
+        )
+
+        return self._thickness
+
+    def _get_thickness_at_x(self, x_position: float) -> float:
+        """Calculate the total thickness of the laminate at a given x position.
+        
+        Parameters
+        ----------
+        x_position : float
+            The x position in meters where thickness should be calculated
+            
+        Returns
+        -------
+        float
+            The total thickness at the given x position in meters
+        """
+        # Define components with their coordinates, thickness, and labels
+        components = {
+            'ts': (self._top_separator._coordinates, self._top_separator._thickness),
+            'aasc': (self._anode._a_side_coating_coordinates, self._anode._coating_thickness),
+            'acc': (self._anode.current_collector._body_coordinates, self._anode.current_collector._thickness),
+            'absc': (self._anode._b_side_coating_coordinates, self._anode._coating_thickness),
+            'bs': (self._bottom_separator._coordinates, self._bottom_separator._thickness),
+            'casc': (self._cathode._a_side_coating_coordinates, self._cathode._coating_thickness),
+            'ccc': (self._cathode.current_collector._body_coordinates, self._cathode.current_collector._thickness),
+            'cbsc': (self._cathode._b_side_coating_coordinates, self._cathode._coating_thickness),
+        }
+        
+        _total_thickness = 0.0
+        _underneath_components = []
+        
+        for label, (coordinates, thickness) in components.items():
+            if self._check_coordinate_intersection(coordinates, x_position):
+                _total_thickness += thickness
+                _underneath_components.append(label)
+        
+        return _total_thickness, _underneath_components
+
+    def get_bottom_separator_flattened_center_line(self, line_spacing: float = 0.1):
+
+        center_line = self.bottom_separator.get_center_line(line_spacing=line_spacing)
+        
+        # Extract x coordinates from all points at once
+        x_coords = center_line[:, 0]
+        z_coords = center_line[:, 1]
+        
+        # Vectorized check for cathode current collector intersection
+        ccc_coords = self._cathode.current_collector._body_coordinates
+        ccc_x_min = np.min(ccc_coords[:, 0])
+        ccc_x_max = np.max(ccc_coords[:, 0])
+        has_ccc = (x_coords >= ccc_x_min) & (x_coords <= ccc_x_max)
+        
+        # Vectorized check for cathode A-side coating intersection
+        casc_coords = self._cathode._a_side_coating_coordinates
+        casc_x_min = np.min(casc_coords[:, 0])
+        casc_x_max = np.max(casc_coords[:, 0])
+        has_casc = (x_coords >= casc_x_min) & (x_coords <= casc_x_max)
+        
+        # Apply conditions vectorized using np.select
+        conditions = [
+            ~has_ccc & ~has_casc,  # Nothing underneath
+            has_ccc & ~has_casc,   # Only cathode current collector underneath
+            has_casc              # Cathode A-side coating underneath
+        ]
+        
+        choices = [
+            z_coords - self.cathode._thickness,        # Subtract full cathode thickness
+            z_coords - self.cathode._coating_thickness, # Subtract only coating thickness  
+            z_coords                                   # Keep original z
+        ]
+        
+        # Apply all conditions at once
+        flattened_z = np.select(conditions, choices, default=z_coords)
+        
+        # Update the center line z coordinates
+        center_line[:, 1] = flattened_z
+        
+        # Smooth the center line by removing points around jumps
+        center_line = self._smooth_center_line(center_line)
+        
+        return center_line
+
+    def get_top_separator_flattened_center_line(self, line_spacing: float = 0.1):
+    
+        center_line = self.top_separator.get_center_line(line_spacing=line_spacing)
+        
+        # Extract x coordinates from all points at once
+        x_coords = center_line[:, 0]
+        z_coords = center_line[:, 1]
+        
+        # Vectorized checks for all component intersections
+        
+        # Anode A-side coating coordinates
+        aasc_coords = self._anode._a_side_coating_coordinates
+        aasc_x_min = np.min(aasc_coords[:, 0])
+        aasc_x_max = np.max(aasc_coords[:, 0])
+        has_aasc = (x_coords >= aasc_x_min) & (x_coords <= aasc_x_max)
+        
+        # Anode current collector coordinates
+        acc_coords = self._anode.current_collector._body_coordinates
+        acc_x_min = np.min(acc_coords[:, 0])
+        acc_x_max = np.max(acc_coords[:, 0])
+        has_acc = (x_coords >= acc_x_min) & (x_coords <= acc_x_max)
+        
+        # Cathode A-side coating coordinates
+        casc_coords = self._cathode._a_side_coating_coordinates
+        casc_x_min = np.min(casc_coords[:, 0])
+        casc_x_max = np.max(casc_coords[:, 0])
+        has_casc = (x_coords >= casc_x_min) & (x_coords <= casc_x_max)
+        
+        # Cathode current collector coordinates
+        ccc_coords = self._cathode.current_collector._body_coordinates
+        ccc_x_min = np.min(ccc_coords[:, 0])
+        ccc_x_max = np.max(ccc_coords[:, 0])
+        has_ccc = (x_coords >= ccc_x_min) & (x_coords <= ccc_x_max)
+        
+        # Bottom separator coordinates
+        bs_coords = self._bottom_separator._coordinates
+        bs_x_min = np.min(bs_coords[:, 0])
+        bs_x_max = np.max(bs_coords[:, 0])
+        has_bs = (x_coords >= bs_x_min) & (x_coords <= bs_x_max)
+        
+        # Apply conditions using np.select for cleaner logic
+        conditions = [
+            has_aasc,                                      # has aasc, do nothing
+            ~has_aasc & has_acc,                          # doesn't have aasc and does have acc
+            ~has_acc & has_casc,                          # doesn't have acc and does have casc
+            ~has_acc & ~has_casc & has_ccc,               # doesn't have acc and doesn't have casc but has ccc
+            ~has_acc & ~has_ccc,                          # doesn't have acc and doesn't have ccc
+        ]
+        
+        choices = [
+            z_coords,                                                           # do nothing
+            z_coords - self.anode._coating_thickness,                         # subtract anode coating
+            z_coords - self.anode._thickness,                                 # subtract anode thickness
+            z_coords - self.anode._thickness - self.cathode._coating_thickness,  # subtract anode + cathode coating
+            z_coords - self.anode._thickness - self.cathode._thickness,       # subtract anode + cathode thickness
+        ]
+        
+        # Apply electrode conditions
+        flattened_z = np.select(conditions, choices, default=z_coords)
+        
+        # Apply bottom separator condition separately
+        flattened_z = np.where(~has_bs, flattened_z - self.bottom_separator._thickness, flattened_z)
+        
+        # Update the center line z coordinates
+        center_line[:, 1] = flattened_z
+        
+        # Smooth the center line by removing points around jumps
+        center_line = self._smooth_center_line(center_line)
+        
+        return center_line
+
     @property
     def separator(self) -> Separator:
         """
@@ -1754,6 +2087,21 @@ class Laminate(_Layup):
     @property
     def width_hard_range(self) -> tuple:
         return self.cathode.current_collector.width_hard_range
+
+    @property
+    def total_length(self) -> float:
+        """Return the total length of the layup in mm."""
+        return round(self._total_length * M_TO_MM, 2)
+
+    @property
+    def x_start_position(self) -> float:
+        """Return the x start position of the layup in mm."""
+        return round(self._x_start_position * M_TO_MM, 2)
+
+    @property
+    def thickness(self) -> float:
+        """Return the total thickness of the laminate in micrometers."""
+        return round(self._thickness * M_TO_UM, 2)
 
     @separator.setter
     @calculate_coordinates

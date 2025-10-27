@@ -352,6 +352,52 @@ class _JellyRoll(_ElectrodeAssembly):
 
         return self._cost
 
+    def _center_laminate(self):
+        # Determine mandrel radius based on mandrel type (round vs flat) to avoid forward class reference issues
+        if isinstance(self.mandrel, RoundMandrel):
+            _mandrel_radius = self.mandrel._radius
+        else:  # FlatMandrel
+            _mandrel_radius = self.mandrel._short_radius
+
+        _current_x = self.layup._cathode._current_collector._datum[0]
+        _current_y = self.layup._cathode._current_collector._datum[1]
+        _current_z = self.layup._cathode._current_collector._datum[2]
+
+        new_x = (_current_x - self.layup._start_position[0]) * M_TO_MM
+        new_y = (_current_y - self.layup._start_position[1]) * M_TO_MM
+        new_z = (_current_z - self.layup._start_position[2] + _mandrel_radius) * M_TO_MM
+
+        self.layup.datum = (new_x, new_y, new_z)
+
+        return self.layup
+
+    def get_spiral_plot(self, layered: bool = True ,**kwargs) -> go.Figure:
+
+        fig = go.Figure()
+
+        if layered:
+            fig.add_trace(self.top_separator_spiral_trace)
+            fig.add_trace(self.bottom_separator_spiral_trace)
+            fig.add_trace(self.anode_a_side_coating_spiral_trace)
+            fig.add_trace(self.anode_current_collector_spiral_trace)
+            fig.add_trace(self.anode_b_side_coating_spiral_trace)
+            fig.add_trace(self.cathode_a_side_coating_spiral_trace)
+            fig.add_trace(self.cathode_current_collector_spiral_trace)
+            fig.add_trace(self.cathode_b_side_coating_spiral_trace)
+
+        else:
+            fig.add_trace(self.spiral_trace)
+
+        fig.update_layout(
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            xaxis=self.SCHEMATIC_X_AXIS,
+            yaxis=self.SCHEMATIC_Z_AXIS,
+            hovermode="closest",
+        )
+
+        return fig
+
     @property
     def mandrel(self) -> RoundMandrel | FlatMandrel:
         """Return the mandrel instance."""
@@ -361,6 +407,11 @@ class _JellyRoll(_ElectrodeAssembly):
     def layup(self) -> Laminate:
         """Return the underlying `Laminate` instance."""
         return self._layup
+
+    @property
+    def total_layup_length(self) -> float:
+        """Return the total length of the layup in mm."""
+        return self.layup.total_length
 
     @mandrel.setter
     @calculate_all_properties
@@ -395,7 +446,434 @@ class WoundJellyRoll(_JellyRoll):
         self._update_properties = True
 
     def _calculate_roll(self):
-        pass
+        """Public entry to generate variable-thickness winding spiral."""
+        self._center_laminate()
+        self._calculate_variable_thickness_spiral()
+        self._build_layered_spiral()
+
+    def _calculate_interfacial_area(self):
+        self._interfacial_area = 1
+        return 1
+
+    def _calculate_variable_thickness_spiral(self, dtheta: float = 0.2) -> pd.DataFrame:
+        """Numerically integrate an Archimedean-style spiral using a fixed one-full-turn thickness lookahead.
+
+        Model:
+            dr/dθ = t(x_future)/(2π)
+            ds/dθ = √(r^2 + (dr/dθ)^2)
+            x_unwrapped = ∫ ds
+
+        Fixed lookahead:
+            At each step we sample thickness at a future unwrapped length corresponding to one
+            complete turn ahead: future_x = x_current + 2π r_current, clamped to total laminate length.
+            This anticipatory thickness stabilizes early growth while remaining simple.
+
+        Parameters
+        ----------
+        dtheta : float
+            Angular increment (radians) for numerical integration.
+
+        Returns
+        -------
+        np.ndarray
+            Array with columns matching DataFrame order:
+            [theta, x_unwrapped, r, x, z]
+        """
+        # total unwrapped length of laminate (meters)
+        total_length = self.layup._total_length
+
+        # Precompute a coarse grid of thickness vs x for interpolation
+        dl = max(dtheta * self.mandrel._radius / 10, 0.001)  # spatial resolution heuristic
+        num_points = int(total_length / dl) + 2
+        x_grid = np.linspace(0.0, total_length, num_points)
+        t_grid = np.array([self.layup._get_thickness_at_x(x)[0] for x in x_grid])
+
+        # Interpolator for thickness (allow extrapolation clamp)
+        def thickness_at(x: float) -> float:
+            if x <= 0:
+                return t_grid[0]
+            if x >= total_length:
+                return t_grid[-1]
+            return float(np.interp(x, x_grid, t_grid))
+
+        # Fixed one-turn lookahead thickness
+        def thickness_full_turn_ahead(current_x: float, current_r: float) -> float:
+            future_x = min(current_x + current_r * (2.0 * np.pi), total_length)
+            return thickness_at(future_x)
+
+        # Initialize integration variables
+        theta = 0.0
+        x_unwrapped = 0.0
+        # initial radius uses one full-turn lookahead
+        initial_thickness = thickness_full_turn_ahead(0.0, self.mandrel._radius + thickness_at(0.0))
+        r = self.mandrel._radius + initial_thickness
+
+        theta_list = [theta]
+        x_list = [x_unwrapped]
+        r_list = [r]
+        # store the lookahead thickness used for this layer
+        t_list = [initial_thickness]
+
+        # Integrate until we reach or exceed total unwrapped length
+        while x_unwrapped < total_length:
+            # constant one-turn lookahead thickness
+            t_local = thickness_full_turn_ahead(x_unwrapped, r)
+            dr_dtheta = t_local / (2 * np.pi)
+            # Advance radius using explicit Euler (small dθ keeps error low)
+            r_next = r + dr_dtheta * dtheta
+            # Use average radius for arc-length increment for better accuracy
+            r_avg = 0.5 * (r + r_next)
+            ds = np.sqrt(r_avg**2 + dr_dtheta**2) * dtheta
+            x_next = x_unwrapped + ds
+            theta_next = theta + dtheta
+
+            # Append
+            theta_list.append(theta_next)
+            x_list.append(x_next)
+            r_list.append(r_next)
+            t_list.append(t_local)
+
+            # Update state
+            theta = theta_next
+            x_unwrapped = x_next
+            r = r_next
+
+        # If we overshot x_unwrapped beyond total_length, trim / interpolate final point
+        if x_list[-1] > total_length:
+            x_prev = x_list[-2]
+            overshoot = x_list[-1] - total_length
+            segment_len = x_list[-1] - x_prev
+            frac = (segment_len - overshoot) / segment_len
+            x_list[-1] = total_length
+            theta_list[-1] = theta_list[-2] + frac * dtheta
+            r_list[-1] = r_list[-2] + frac * (r_list[-1] - r_list[-2])
+        # Recompute final thickness using one-turn lookahead at trimmed position
+        t_list[-1] = thickness_full_turn_ahead(x_list[-1], r_list[-1])
+
+        # Convert lists to numpy arrays
+        theta_arr = np.asarray(theta_list)
+        x_unwrapped_arr = np.asarray(x_list)
+        r_arr = np.asarray(r_list)
+        x_arr = r_arr * np.cos(theta_arr)
+        z_arr = r_arr * np.sin(theta_arr)
+
+        # Stack into single array (n,9)
+        self._spiral = np.column_stack([
+            theta_arr,
+            x_unwrapped_arr,
+            r_arr,
+            x_arr,
+            z_arr,
+        ])
+
+        return self._spiral
+
+    def _build_layered_spiral(self):
+
+        """Build layered spirals for separator components."""
+
+        component_thicknesses = {
+            'ts': self.layup.top_separator._thickness,
+            'aasc': self.layup.anode._coating_thickness,
+            'acc': self.layup.anode.current_collector._thickness,
+            'absc': self.layup.anode._coating_thickness,
+            'bs': self.layup.bottom_separator._thickness,
+            'casc': self.layup.cathode._coating_thickness,
+            'ccc': self.layup.cathode.current_collector._thickness,
+            'cbsc': self.layup.cathode._coating_thickness,
+        }
+
+        components_at_each_length = [
+            self.layup._get_thickness_at_x(l)[1] for l in self._spiral[:, 1]
+        ]
+
+        def _component_spiral(comp_key: str) -> np.ndarray:
+            """Return stacked (outer+inner+closure) spiral for a component key or empty array."""
+            thickness_map = component_thicknesses.get
+            rows = []
+            above_list = []
+            below_list = []
+            for i, comps in enumerate(components_at_each_length):
+                if comp_key not in comps:
+                    continue
+                idx = comps.index(comp_key)
+                below_sum = 0.0
+                for c in comps[:idx]:
+                    below_sum += thickness_map(c, 0.0)
+                rows.append(i)
+                above_list.append(below_sum)
+                below_list.append(below_sum + thickness_map(comp_key, 0.0))
+
+            if not rows:
+                return np.empty((0, self._spiral.shape[1]))
+
+            rows_arr = np.asarray(rows, dtype=int)
+            outer = self._spiral[rows_arr].copy()
+            inner = outer.copy()
+
+            above_arr = np.asarray(above_list, dtype=float)
+            below_arr = np.asarray(below_list, dtype=float)
+
+            # radius column index 2
+            outer[:, 2] -= above_arr
+            inner[:, 2] -= below_arr
+
+            # recompute x,z columns 3,4
+            theta_outer = outer[:, 0]
+            r_outer = outer[:, 2]
+            outer[:, 3] = r_outer * np.cos(theta_outer)
+            outer[:, 4] = r_outer * np.sin(theta_outer)
+
+            theta_inner = inner[:, 0]
+            r_inner = inner[:, 2]
+            inner[:, 3] = r_inner * np.cos(theta_inner)
+            inner[:, 4] = r_inner * np.sin(theta_inner)
+
+            # sort inner descending theta (optional symmetry)
+            inner = inner[np.argsort(inner[:, 0])[::-1]]
+
+            # --- Endpoint padding to damp spline overshoot ---
+            # Duplicate first and last points several times to reduce Catmull-Rom bulging.
+            pad_points = 5  # number of duplicate points at each end
+
+            def _pad_endpoints(arr: np.ndarray, n: int) -> np.ndarray:
+                if arr.shape[0] == 0 or n <= 0:
+                    return arr
+                first_block = np.repeat(arr[0:1, :], n, axis=0)
+                last_block = np.repeat(arr[-1:, :], n, axis=0)
+                return np.vstack([first_block, arr, last_block])
+
+            outer_padded = _pad_endpoints(outer, pad_points)
+            inner_padded = _pad_endpoints(inner, pad_points)
+
+            stacked = np.vstack([outer_padded, inner_padded])
+
+            # close shape
+            closing_point = stacked[0].copy()
+            stacked = np.vstack([stacked, closing_point])
+            return stacked
+
+        ts_spiral = _component_spiral('ts')
+        bs_spiral = _component_spiral('bs')
+        aasc_spiral = _component_spiral('aasc')
+        acc_spiral = _component_spiral('acc')
+        absc_spiral = _component_spiral('absc')
+        casc_spiral = _component_spiral('casc')
+        ccc_spiral = _component_spiral('ccc')
+        cbsc_spiral = _component_spiral('cbsc')
+
+        self._component_spirals = {
+            "top_separator": ts_spiral,
+            "bottom_separator": bs_spiral,
+            "anode_a_side_coating": aasc_spiral,
+            "anode_current_collector": acc_spiral,
+            "anode_b_side_coating": absc_spiral,
+            "cathode_a_side_coating": casc_spiral,
+            "cathode_current_collector": ccc_spiral,
+            "cathode_b_side_coating": cbsc_spiral,
+        }
+
+        return self._component_spirals
+
+    @staticmethod
+    def _format_np_spiral_for_df(np_array: np.ndarray) -> pd.DataFrame:
+        """Format numpy spiral array into pandas DataFrame with proper units and column names.
+
+        Columns: theta (degrees), x_unwrapped (mm), thickness (mm), r (mm), x (mm), y (mm)
+        """
+        return (
+            pd
+            .DataFrame(np_array, columns=["theta","length","r","x","z"])
+            .assign(
+                theta = lambda df: df["theta"] * (180.0 / PI),
+                length = lambda df: df["length"] * M_TO_MM,
+                r = lambda df: df["r"] * M_TO_MM,
+                x = lambda df: df["x"] * M_TO_MM,
+                z = lambda df: df["z"] * M_TO_MM,
+            )
+            .rename(
+                columns={
+                    "x": "X (mm)",
+                    "z": "Z (mm)",
+                    "r": "Radius (mm)",
+                    "length": "Unwrapped Length (mm)",
+                    "theta": "Theta (degrees)",
+                }
+            )
+        )
+    
+    def _format_trace_property(self, property_name: str, fill_color: str, name: str) -> go.Scatter:
+        
+        df = getattr(self, property_name)
+
+        return go.Scatter(
+            x=df['X (mm)'],
+            y=df['Z (mm)'],
+            fillcolor=fill_color,
+            fill='toself',
+            mode='lines',
+            line=dict(color='black', width=0.1),
+            line_shape='spline',
+            name=name
+        )
+
+    @property
+    def spiral(self) -> pd.DataFrame:
+        """Return the spiral as a pandas DataFrame.
+
+        Columns: theta, x_unwrapped, thickness, r, x, y
+        """
+        spiral = self._spiral
+        return self._format_np_spiral_for_df(spiral)
+
+    @property
+    def spiral_trace(self) -> go.Scatter:
+
+        return go.Scatter(
+            x=self.spiral['X (mm)'],
+            y=self.spiral['Z (mm)'],
+            mode='lines',
+            line=dict(color='black', width=1),
+            line_shape='spline',
+            name="Spiral"
+        )
+
+    @property
+    def top_separator_spiral(self) -> pd.DataFrame:
+        """Return the top separator spiral as a pandas DataFrame.
+        Columns: theta, x_unwrapped, thickness, r, x, y
+        """
+        ts_spiral = self._component_spirals.get("top_separator")
+        return self._format_np_spiral_for_df(ts_spiral)
+
+    @property
+    def bottom_separator_spiral(self) -> pd.DataFrame:
+        """Return the bottom separator spiral as a pandas DataFrame.
+        Columns: theta, x_unwrapped, thickness, r, x, y
+        """
+        bs_spiral = self._component_spirals.get("bottom_separator")
+        return self._format_np_spiral_for_df(bs_spiral)
+
+    @property
+    def anode_a_side_coating_spiral(self) -> pd.DataFrame:
+        """Return the anode a-side coating spiral as a pandas DataFrame.
+        Columns: theta, x_unwrapped, thickness, r, x, y
+        """
+        aasc_spiral = self._component_spirals.get("anode_a_side_coating")
+        return self._format_np_spiral_for_df(aasc_spiral)
+
+    @property
+    def anode_current_collector_spiral(self) -> pd.DataFrame:
+        """Return the anode current collector spiral as a pandas DataFrame.
+        Columns: theta, x_unwrapped, thickness, r, x, y
+        """
+        acc_spiral = self._component_spirals.get("anode_current_collector")
+        return self._format_np_spiral_for_df(acc_spiral)
+    
+    @property
+    def anode_b_side_coating_spiral(self) -> pd.DataFrame:
+        """Return the anode b-side coating spiral as a pandas DataFrame.
+        Columns: theta, x_unwrapped, thickness, r, x, y
+        """
+        absc_spiral = self._component_spirals.get("anode_b_side_coating")
+        return self._format_np_spiral_for_df(absc_spiral)
+    
+    @property
+    def cathode_a_side_coating_spiral(self) -> pd.DataFrame:
+        """Return the cathode a-side coating spiral as a pandas DataFrame.
+        Columns: theta, x_unwrapped, thickness, r, x, y
+        """
+        casc_spiral = self._component_spirals.get("cathode_a_side_coating")
+        return self._format_np_spiral_for_df(casc_spiral)
+
+    @property
+    def cathode_current_collector_spiral(self) -> pd.DataFrame:
+        """Return the cathode current collector spiral as a pandas DataFrame.
+        Columns: theta, x_unwrapped, thickness, r, x, y
+        """
+        ccc_spiral = self._component_spirals.get("cathode_current_collector")
+        return self._format_np_spiral_for_df(ccc_spiral)
+    
+    @property
+    def cathode_b_side_coating_spiral(self) -> pd.DataFrame:
+        """Return the cathode b-side coating spiral as a pandas DataFrame.
+        Columns: theta, x_unwrapped, thickness, r, x, y
+        """
+        cbsc_spiral = self._component_spirals.get("cathode_b_side_coating")
+        return self._format_np_spiral_for_df(cbsc_spiral)
+
+    @property
+    def top_separator_spiral_trace(self) -> go.Scatter:
+
+        return self._format_trace_property(
+            property_name="top_separator_spiral",
+            fill_color=self.layup.top_separator.material._color,
+            name=f"{self.layup.top_separator.name} (Top)"
+        )
+    
+    @property
+    def bottom_separator_spiral_trace(self) -> go.Scatter:
+
+        return self._format_trace_property(
+            property_name="bottom_separator_spiral",
+            fill_color=self.layup.bottom_separator.material._color,
+            name=f"{self.layup.bottom_separator.name} (Bottom)"
+        )
+    
+    @property
+    def anode_a_side_coating_spiral_trace(self) -> go.Scatter:
+
+        return self._format_trace_property(
+            property_name="anode_a_side_coating_spiral",
+            fill_color=self.layup.anode.formulation._color,
+            name=f"{self.layup.anode.name} (Anode Coating)"
+        )
+    
+    @property
+    def anode_current_collector_spiral_trace(self) -> go.Scatter:
+
+        return self._format_trace_property(
+            property_name="anode_current_collector_spiral",
+            fill_color=self.layup.anode.current_collector.material._color,
+            name=f"{self.layup.anode.current_collector.name} (Anode CC)"
+        )
+    
+    @property
+    def anode_b_side_coating_spiral_trace(self) -> go.Scatter:
+
+        return self._format_trace_property(
+            property_name="anode_b_side_coating_spiral",
+            fill_color=self.layup.anode.formulation._color,
+            name=f"{self.layup.anode.name} (Anode Coating)"
+        )
+    
+    @property
+    def cathode_a_side_coating_spiral_trace(self) -> go.Scatter:
+
+        return self._format_trace_property(
+            property_name="cathode_a_side_coating_spiral",
+            fill_color=self.layup.cathode.formulation._color,
+            name=f"{self.layup.cathode.name} (Cathode Coating)"
+        )
+
+    @property
+    def cathode_current_collector_spiral_trace(self) -> go.Scatter:
+
+        return self._format_trace_property(
+            property_name="cathode_current_collector_spiral",
+            fill_color=self.layup.cathode.current_collector.material._color,
+            name=f"{self.layup.cathode.current_collector.name} (Cathode CC)"
+        )
+    
+    @property
+    def cathode_b_side_coating_spiral_trace(self) -> go.Scatter:
+
+        return self._format_trace_property(
+            property_name="cathode_b_side_coating_spiral",
+            fill_color=self.layup.cathode.formulation._color,
+            name=f"{self.layup.cathode.name} (Cathode Coating)"
+        )
+    
 
 
 class FlatWoundJellyRoll(_JellyRoll):

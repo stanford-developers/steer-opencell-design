@@ -28,7 +28,7 @@ class _Mandrel(
     def __init__(
             self, 
             length: float,
-            datum: Tuple[float, float, float],
+            datum: Tuple[float, float, float] = (0, 0, 0),
             material: CurrentCollectorMaterial = None,
             name: str = "Mandrel"
         ):
@@ -42,6 +42,10 @@ class _Mandrel(
 
     def _calculate_all_properties(self):
         self._calculate_coordinates()
+        self._calculate_bulk_properties()
+
+    def _calculate_bulk_properties(self):
+        pass
 
     def _calculate_coordinates(self):
         pass
@@ -201,7 +205,7 @@ class RoundMandrel(_Mandrel):
             self, 
             diameter: float, 
             length: float, 
-            datum: Tuple[float, float, float],
+            datum: Tuple[float, float, float] = (0, 0, 0),
             material = None, 
             name = "Mandrel"
         ):
@@ -214,6 +218,9 @@ class RoundMandrel(_Mandrel):
 
         self._calculate_all_properties()
         self._update_properties = True
+
+    def _calculate_bulk_properties(self):
+        self._radius = self._diameter / 2
 
     def _calculate_coordinates(self):
         """
@@ -259,9 +266,19 @@ class RoundMandrel(_Mandrel):
         return self._coordinates
 
     @property
+    def radius(self) -> float:
+        """Return the mandrel radius in mm."""
+        return round(self._radius * M_TO_MM, 2)
+
+    @property
     def diameter(self) -> float:
         """Return the mandrel diameter in mm."""
         return round(self._diameter * M_TO_MM, 2)
+
+    @radius.setter
+    @calculate_coordinates
+    def radius(self, value: float):
+        self._diameter = value * MM_TO_M * 2
 
     @diameter.setter
     @calculate_coordinates
@@ -276,7 +293,7 @@ class FlatMandrel(_Mandrel):
             length: float,
             long_diameter: float,
             short_diameter: float,
-            datum: Tuple[float, float, float],
+            datum: Tuple[float, float, float] = (0, 0, 0),
             material: CurrentCollectorMaterial = None,
             name: str = "Flat Mandrel"
         ):
@@ -290,6 +307,10 @@ class FlatMandrel(_Mandrel):
 
         self._calculate_all_properties()
         self._update_properties = True
+
+    def _calculate_bulk_properties(self):
+        self._long_radius = self._long_diameter / 2
+        self._short_radius = self._short_diameter / 2
 
     def _calculate_coordinates(self):
         """
@@ -339,6 +360,16 @@ class FlatMandrel(_Mandrel):
         return self._coordinates
 
     @property
+    def long_radius(self) -> float:
+        """Return the mandrel long radius in mm."""
+        return round(self._long_radius * M_TO_MM, 2)
+
+    @property
+    def short_radius(self) -> float:
+        """Return the mandrel short radius in mm."""
+        return round(self._short_radius * M_TO_MM, 2)
+
+    @property
     def long_diameter(self) -> float:
         """Return the mandrel long diameter in mm."""
         return round(self._long_diameter * M_TO_MM, 2)
@@ -358,3 +389,14 @@ class FlatMandrel(_Mandrel):
     def short_diameter(self, value: float):
         self._short_diameter = round(value * MM_TO_M, 6)
 
+    @long_radius.setter
+    @calculate_coordinates
+    def long_radius(self, value: float):
+        self._long_diameter = value * MM_TO_M * 2
+
+    @short_radius.setter
+    @calculate_coordinates
+    def short_radius(self, value: float):
+        self._short_diameter = value * MM_TO_M, 6
+
+        
