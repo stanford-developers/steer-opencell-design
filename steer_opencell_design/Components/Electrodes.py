@@ -553,11 +553,11 @@ class _Electrode(
 
         return figure
 
-    def get_a_side_center_line(self, line_spacing: float = 10) -> np.ndarray:
-        return self.get_xz_center_line(self._a_side_coating_coordinates, line_spacing=line_spacing)
+    def get_a_side_center_line(self) -> np.ndarray:
+        return self.get_xz_center_line(self._a_side_coating_coordinates)
     
-    def get_b_side_center_line(self, line_spacing: float = 10) -> np.ndarray:
-        return self.get_xz_center_line(self._b_side_coating_coordinates, line_spacing=line_spacing)
+    def get_b_side_center_line(self) -> np.ndarray:
+        return self.get_xz_center_line(self._b_side_coating_coordinates)
 
     @property
     def right_left_a_side_insulation_trace(self) -> pd.DataFrame:
