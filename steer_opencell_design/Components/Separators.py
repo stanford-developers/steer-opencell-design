@@ -213,8 +213,8 @@ class Separator(
 
         return fig
 
-    def get_center_line(self, line_spacing: float = 10) -> np.ndarray:
-        return self.get_xz_center_line(self._coordinates, line_spacing=line_spacing)
+    def get_center_line(self) -> np.ndarray:
+        return self.get_xz_center_line(self._coordinates)
 
     @property
     def coordinates(self) -> pd.DataFrame:

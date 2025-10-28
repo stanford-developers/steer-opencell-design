@@ -131,16 +131,23 @@ class TestSimpleLaminate(unittest.TestCase):
             mandrel=mandrel,
         )
 
+    def test_layup_thickness(self):
+        self.assertTrue(type(self.my_jellyroll), WoundJellyRoll)
+        self.assertAlmostEqual(self.my_jellyroll.radius, 18.01, 2)
+        self.assertAlmostEqual(self.my_jellyroll.diameter, 36.02, 2)
+        self.assertAlmostEqual(self.my_jellyroll.energy, 41.34)
+
     def test_laminate_basic_structure(self):
-        self.my_jellyroll.layup.length = 2000
-        self.my_jellyroll.layup = self.my_jellyroll.layup
+
         self.assertIsInstance(self.my_jellyroll, WoundJellyRoll)
         self.assertTrue(type(self.my_jellyroll.spiral) == pd.DataFrame)
 
         fig1 = self.my_jellyroll.get_spiral_plot()
         fig2 = self.my_jellyroll.get_spiral_plot(layered=False)
-        fig1.show()
-        fig2.show()
+        fig3 = self.my_jellyroll.get_capacity_plot()
+        # fig1.show()
+        # fig2.show()
+        fig3.show()
 
 
 class TestPunchedStack(unittest.TestCase):

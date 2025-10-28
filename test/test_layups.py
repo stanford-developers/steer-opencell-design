@@ -67,6 +67,8 @@ class TestSimpleLaminate(unittest.TestCase):
             tab_height=18,
             insulation_width=6,
             coated_tab_height=2,
+            bare_lengths_a_side=(1000, 2000),
+            bare_lengths_b_side=(500, 1500),
         )
 
         insulation = InsulationMaterial.from_database("Aluminium Oxide, 99.5%")
@@ -92,7 +94,7 @@ class TestSimpleLaminate(unittest.TestCase):
 
         current_collector = NotchedCurrentCollector(
             material=current_collector_material,
-            length=4500,
+            length=5000,
             width=306,
             thickness=8,
             tab_width=60,
@@ -100,6 +102,8 @@ class TestSimpleLaminate(unittest.TestCase):
             tab_height=18,
             insulation_width=6,
             coated_tab_height=2,
+            bare_lengths_a_side=(1500, 2500),
+            bare_lengths_b_side=(800, 1800),
         )
 
         anode = Anode(
@@ -119,9 +123,9 @@ class TestSimpleLaminate(unittest.TestCase):
             porosity=45,
         )
 
-        top_separator = Separator(material=separator_material, thickness=25, width=310, length=4800)
+        top_separator = Separator(material=separator_material, thickness=25, width=310, length=8000)
 
-        bottom_separator = Separator(material=separator_material, thickness=25, width=310, length=4800)
+        bottom_separator = Separator(material=separator_material, thickness=25, width=310, length=6000)
 
         self.layup = Laminate(
             anode=anode,
@@ -136,23 +140,23 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertTrue(condition)
 
     def test_get_thickness_at_x(self):
-        self.assertAlmostEqual(self.layup.get_thickness_at_x(10), 50, places=2)
-        self.assertAlmostEqual(self.layup.get_thickness_at_x(100), 50, places=2)
-        self.assertAlmostEqual(self.layup.get_thickness_at_x(500), 142, places=2)
-        self.assertAlmostEqual(self.layup.get_thickness_at_x(1000), 142, places=2)
-        self.assertAlmostEqual(self.layup.get_thickness_at_x(4700), 50, places=2)
+        self.assertAlmostEqual(self.layup.get_thickness_at_x(0), 0.000135, places=6)
+        self.assertAlmostEqual(self.layup.get_thickness_at_x(0.1), 0.0001278, places=6)
+        self.assertAlmostEqual(self.layup.get_thickness_at_x(2), 0.000066, places=6)
+        self.assertAlmostEqual(self.layup.get_thickness_at_x(3), 0.0000469, places=6)
+        self.assertAlmostEqual(self.layup.get_thickness_at_x(15), 0, places=6)
 
     def test_length_width_setter(self):
 
-        self.assertEqual(self.layup.length, 4500)
+        self.assertEqual(self.layup.length, 5000)
         self.assertEqual(self.layup.width, 306)
-        self.assertEqual(self.layup.anode.current_collector.length, 4500)
+        self.assertEqual(self.layup.anode.current_collector.length, 5000)
         self.assertEqual(self.layup.anode.current_collector.width, 306)
         self.assertEqual(self.layup.cathode.current_collector.length, 4500)
         self.assertEqual(self.layup.cathode.current_collector.width, 300)
-        self.assertEqual(self.layup.top_separator.length, 4800)
+        self.assertEqual(self.layup.top_separator.length, 8000)
         self.assertEqual(self.layup.top_separator.width, 310)
-        self.assertEqual(self.layup.bottom_separator.length, 4800)
+        self.assertEqual(self.layup.bottom_separator.length, 6000)
         self.assertEqual(self.layup.bottom_separator.width, 310)
         fig1 = self.layup.get_top_down_view(opacity=0.2)
 
@@ -161,11 +165,11 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertEqual(self.layup.width, 306)
         self.assertEqual(self.layup.anode.current_collector.length, 6000)
         self.assertEqual(self.layup.anode.current_collector.width, 306)
-        self.assertEqual(self.layup.cathode.current_collector.length, 6000)
+        self.assertEqual(self.layup.cathode.current_collector.length, 5500)
         self.assertEqual(self.layup.cathode.current_collector.width, 300)
-        self.assertEqual(self.layup.top_separator.length, 6300)
+        self.assertEqual(self.layup.top_separator.length, 9000)
         self.assertEqual(self.layup.top_separator.width, 310)
-        self.assertEqual(self.layup.bottom_separator.length, 6300)
+        self.assertEqual(self.layup.bottom_separator.length, 7000)
         self.assertEqual(self.layup.bottom_separator.width, 310)
         fig2 = self.layup.get_top_down_view(opacity=0.2)
 
@@ -174,11 +178,11 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertEqual(self.layup.width, 400)
         self.assertEqual(self.layup.anode.current_collector.length, 6000)
         self.assertEqual(self.layup.anode.current_collector.width, 400)
-        self.assertEqual(self.layup.cathode.current_collector.length, 6000)
+        self.assertEqual(self.layup.cathode.current_collector.length, 5500)
         self.assertEqual(self.layup.cathode.current_collector.width, 394)
-        self.assertEqual(self.layup.top_separator.length, 6300)
+        self.assertEqual(self.layup.top_separator.length, 9000)
         self.assertEqual(self.layup.top_separator.width, 404)
-        self.assertEqual(self.layup.bottom_separator.length, 6300)
+        self.assertEqual(self.layup.bottom_separator.length, 7000)
         self.assertEqual(self.layup.bottom_separator.width, 404)
         fig3 = self.layup.get_top_down_view(opacity=0.2)
 
@@ -189,14 +193,14 @@ class TestSimpleLaminate(unittest.TestCase):
     def test_laminate(self):
         # This is a placeholder for an actual test
         self.assertTrue(isinstance(self.layup, Laminate))
-        self.assertEqual(self.layup.anode_overhangs, {"left": 0, "right": 0, "top": 3, "bottom": 3})
+        self.assertEqual(self.layup.anode_overhangs, {"left": 250, "right": 250, "top": 3, "bottom": 3})
         self.assertEqual(
             self.layup.bottom_separator_overhangs,
-            {"left": 150, "right": 150, "top": 5, "bottom": 5},
+            {"left": 750, "right": 750, "top": 5, "bottom": 5},
         )
         self.assertEqual(
             self.layup.top_separator_overhangs,
-            {"left": 150, "right": 150, "top": 5, "bottom": 5},
+            {"left": 1750, "right": 1750, "top": 5, "bottom": 5},
         )
 
     def test_plots(self):
@@ -215,7 +219,7 @@ class TestSimpleLaminate(unittest.TestCase):
         # fig2.show()
         # fig3.show()
         # fig4.show()
-        fig5.show()
+        # fig5.show()
         # fig6.show()
 
     def test_change_anode_material(self):
@@ -278,10 +282,11 @@ class TestSimpleLaminate(unittest.TestCase):
         # fig2.show()
 
     def test_anode_overhang_setters_fixed_component(self):
+
         self.layup.overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
 
         self.layup.anode_overhang_top = 6
-        self.assertEqual(self.layup.anode_overhangs, {"left": 0, "right": 0, "top": 6, "bottom": 0})
+        self.assertEqual(self.layup.anode_overhangs, {"left": 250, "right": 250, "top": 6, "bottom": 0})
         fig1 = self.layup.get_top_down_view()
 
         # fig1.show()
@@ -294,7 +299,7 @@ class TestSimpleLaminate(unittest.TestCase):
         self.layup.bottom_separator_overhang_left = 10
         self.assertEqual(
             self.layup.bottom_separator_overhangs,
-            {"left": 10, "right": 150, "top": 5, "bottom": 5},
+            {"left": 10, "right": 750, "top": 5, "bottom": 5},
         )
         fig2 = self.layup.get_top_down_view()
 

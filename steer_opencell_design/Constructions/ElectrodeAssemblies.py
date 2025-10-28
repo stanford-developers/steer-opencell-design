@@ -24,7 +24,7 @@ from steer_materials.CellMaterials.Base import CurrentCollectorMaterial
 from copy import deepcopy
 import pandas as pd
 import numpy as np
-from shapely.geometry import Polygon
+from shapely.geometry import Polygon, Point
 from shapely import minimum_bounding_circle
 import warnings
 import plotly.graph_objects as go
@@ -57,10 +57,20 @@ class _ElectrodeAssembly(
         self._calculate_bulk_properties()
         self._calculate_interfacial_area()
         self._calcualate_full_cell_curve()
+        self._calculate_energy()
 
     def _calculate_bulk_properties(self):
         self._calculate_mass_properties()
         self._calculate_cost_properties()
+
+    def _calculate_energy(self):
+        discharge_curve = self._full_cell_curve[self._full_cell_curve[:,2] == -1]
+        discharge_curve = discharge_curve[np.argsort(discharge_curve[:,0])]
+        capacity = discharge_curve[:,0]
+        voltage = discharge_curve[:,1]
+        energy = np.trapz(capacity, voltage)
+        self._energy = energy
+        return self._energy
 
     def _calculate_mass_properties(self):
         pass
@@ -73,11 +83,23 @@ class _ElectrodeAssembly(
         pass
 
     def _calcualate_full_cell_curve(self):
+
         """Calculate full cell voltage curve of the electrode assembly."""
         _full_cell_curve = deepcopy(self._layup._full_cell_curve)
         _full_cell_curve[:, 0] = _full_cell_curve[:, 0] * self._interfacial_area
         self._full_cell_curve = _full_cell_curve
-        return self._full_cell_curve
+
+        # also calculate half-cell curve for cathode
+        _cathode_half_cell_curve = deepcopy(self._layup._cathode._half_cell_curve)
+        _cathode_half_cell_curve[:, 4] = _cathode_half_cell_curve[:, 4] * self._interfacial_area
+        self._cathode_half_cell_curve = np.column_stack([_cathode_half_cell_curve[:,4], _cathode_half_cell_curve[:,1], _cathode_half_cell_curve[:,2]])
+
+        # also calculate half-cell curve for anode
+        _anode_half_cell_curve = deepcopy(self._layup._anode._half_cell_curve)
+        _anode_half_cell_curve[:, 4] = _anode_half_cell_curve[:, 4] * self._interfacial_area
+        self._anode_half_cell_curve = np.column_stack([_anode_half_cell_curve[:,4], _anode_half_cell_curve[:,1], _anode_half_cell_curve[:,2]])
+
+        return self._full_cell_curve, self._cathode_half_cell_curve, self._anode_half_cell_curve
     
     def _calculate_anode_half_cell_curve(self):
         """Calculate anode half-cell voltage curve of the electrode assembly."""
@@ -142,15 +164,20 @@ class _ElectrodeAssembly(
 
         # Enhanced layout with zero lines and faint grid
         fig.update_layout(
-            title=kwargs.get("title", f"Areal Capacity Curves"),
+            title=kwargs.get("title", f"Capacity Curves"),
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            xaxis={**self.SCATTER_X_AXIS, "title": "Areal Capacity (mAh/cm²)"},
+            xaxis={**self.SCATTER_X_AXIS, "title": "Capacity (Ah)"},
             yaxis={**self.SCATTER_Y_AXIS, "title": "Voltage (V)"},
             hovermode="closest",
         )
 
         return fig
+
+    @property
+    def energy(self) -> float:
+        """Return the energy of the electrode assembly in Wh."""
+        return round(self._energy * J_TO_WH, 2)
 
     @property
     def name(self) -> str:
@@ -177,13 +204,13 @@ class _ElectrodeAssembly(
             )
             .assign(
                 direction=lambda x: np.where(x["direction"] == 1, "charge", "discharge"),
-                capacity=lambda x: x["capacity"] * (S_TO_H * A_TO_mA),
+                capacity=lambda x: x["capacity"] * (S_TO_H),
             )
             .rename(
                 columns={
                     "voltage": "Voltage (V)",
                     "direction": "Direction",
-                    "capacity": "Capacity (mAh)",
+                    "capacity": "Capacity (Ah)",
                 }
             )
             .round(4)
@@ -195,7 +222,7 @@ class _ElectrodeAssembly(
         full_cell_color = "#ff8c00"
 
         return go.Scatter(
-            x=self.full_cell_curve["Capacity (mAh)"],
+            x=self.full_cell_curve["Capacity (Ah)"],
             y=self.full_cell_curve["Voltage (V)"],
             mode="lines",
             name=f"{self.name} Full-Cell",
@@ -208,21 +235,29 @@ class _ElectrodeAssembly(
     def anode_half_cell_curve(self) -> pd.DataFrame:
 
         return (
-            self
-            .layup
-            .anode
-            .half_cell_curve
-            .copy()
-            .assign(capacity = lambda x: x["Areal Capacity (mAh/cm²)"] * self.interfacial_area,)
-            .drop(columns=["Areal Capacity (mAh/cm²)"])
-            .rename(columns={"capacity": "Capacity (mAh)"})
+            pd
+            .DataFrame(
+                self._anode_half_cell_curve,
+                columns=["capacity", "voltage", "direction"],
+            )
+            .assign(
+                direction=lambda x: np.where(x["direction"] == 1, "charge", "discharge"),
+                capacity=lambda x: x["capacity"] * (S_TO_H),
+            )
+            .rename(
+                columns={
+                    "capacity": "Capacity (Ah)",
+                    "voltage": "Voltage (V)",
+                    "direction": "Direction",
+                }
+            )
         )
     
     @property
     def anode_half_cell_curve_trace(self) -> go.Scatter:
 
         return go.Scatter(
-            x=self.anode_half_cell_curve["Capacity (mAh)"],
+            x=self.anode_half_cell_curve["Capacity (Ah)"],
             y=self.anode_half_cell_curve["Voltage (V)"],
             mode="lines",
             name=f"{self.layup.anode.name} Half-Cell",
@@ -235,21 +270,29 @@ class _ElectrodeAssembly(
     def cathode_half_cell_curve(self) -> pd.DataFrame:
         
         return (
-            self
-            .layup
-            .cathode
-            .half_cell_curve
-            .copy()
-            .assign(capacity = lambda x: x["Areal Capacity (mAh/cm²)"] * self.interfacial_area,)
-            .drop(columns=["Areal Capacity (mAh/cm²)"])
-            .rename(columns={"capacity": "Capacity (mAh)"})
+            pd
+            .DataFrame(
+                self._cathode_half_cell_curve,
+                columns=["capacity", "voltage", "direction"],
+            )
+            .assign(
+                direction=lambda x: np.where(x["direction"] == 1, "charge", "discharge"),
+                capacity=lambda x: x["capacity"] * (S_TO_H),
+            )
+            .rename(
+                columns={
+                    "capacity": "Capacity (Ah)",
+                    "voltage": "Voltage (V)",
+                    "direction": "Direction",
+                }
+            )
         )
     
     @property
     def cathode_half_cell_curve_trace(self) -> go.Scatter:
 
         return go.Scatter(
-            x=self.cathode_half_cell_curve["Capacity (mAh)"],
+            x=self.cathode_half_cell_curve["Capacity (Ah)"],
             y=self.cathode_half_cell_curve["Voltage (V)"],
             mode="lines",
             name=f"{self.layup.cathode.name} Half-Cell",
@@ -316,9 +359,8 @@ class _JellyRoll(_ElectrodeAssembly):
             mandrel: FlatMandrel | RoundMandrel
         ):
 
-        super().__init__(laminate)
-
         self.mandrel = mandrel
+        super().__init__(laminate)
 
     def _calculate_all_properties(self):
         self._calculate_roll()
@@ -352,35 +394,16 @@ class _JellyRoll(_ElectrodeAssembly):
 
         return self._cost
 
-    def _center_laminate(self):
-        # Determine mandrel radius based on mandrel type (round vs flat) to avoid forward class reference issues
-        if isinstance(self.mandrel, RoundMandrel):
-            _mandrel_radius = self.mandrel._radius
-        else:  # FlatMandrel
-            _mandrel_radius = self.mandrel._short_radius
-
-        _current_x = self.layup._cathode._current_collector._datum[0]
-        _current_y = self.layup._cathode._current_collector._datum[1]
-        _current_z = self.layup._cathode._current_collector._datum[2]
-
-        new_x = (_current_x - self.layup._start_position[0]) * M_TO_MM
-        new_y = (_current_y - self.layup._start_position[1]) * M_TO_MM
-        new_z = (_current_z - self.layup._start_position[2] + _mandrel_radius) * M_TO_MM
-
-        self.layup.datum = (new_x, new_y, new_z)
-
-        return self.layup
-
     def get_spiral_plot(self, layered: bool = True ,**kwargs) -> go.Figure:
 
         fig = go.Figure()
 
         if layered:
             fig.add_trace(self.top_separator_spiral_trace)
-            fig.add_trace(self.bottom_separator_spiral_trace)
             fig.add_trace(self.anode_a_side_coating_spiral_trace)
             fig.add_trace(self.anode_current_collector_spiral_trace)
             fig.add_trace(self.anode_b_side_coating_spiral_trace)
+            fig.add_trace(self.bottom_separator_spiral_trace)
             fig.add_trace(self.cathode_a_side_coating_spiral_trace)
             fig.add_trace(self.cathode_current_collector_spiral_trace)
             fig.add_trace(self.cathode_b_side_coating_spiral_trace)
@@ -422,7 +445,30 @@ class _JellyRoll(_ElectrodeAssembly):
     @layup.setter
     @calculate_all_properties
     def layup(self, value: Laminate):
+
+        # validate type
         self.validate_type(value, Laminate, "layup")
+    
+        # get the min x in the flattened center lines
+        x_list = [c[:, 0] for c in value._flattened_center_lines.values()]
+        min_x = min([np.min(mx) for mx in x_list])
+
+        # get the most negative z value
+        z_min = np.min(value._flattened_center_lines['cathode_b_side_coating'][:, 1]) # - value.cathode._coating_thickness
+
+        # set the new x value
+        new_x = (value.datum[0] * MM_TO_M) - min_x
+
+        # set the new y value
+        new_y = (value.datum[1] * MM_TO_M)
+
+        # set the new z value
+        new_z = (value.datum[2] * MM_TO_M) - z_min + value.cathode._coating_thickness / 2 + self.mandrel._radius
+
+        # Convert back to mm and set the new datum
+        value.datum = (new_x * M_TO_MM, new_y * M_TO_MM, new_z * M_TO_MM)
+
+        # set to self
         self._layup = value
 
 
@@ -447,31 +493,95 @@ class WoundJellyRoll(_JellyRoll):
 
     def _calculate_roll(self):
         """Public entry to generate variable-thickness winding spiral."""
-        self._center_laminate()
         self._calculate_variable_thickness_spiral()
         self._build_layered_spiral()
+        self._calculate_spiral_properties()
+
+    def _calculate_spiral_properties(self):
+        self._calculate_interfacial_area()
+        self._calculate_radius()
 
     def _calculate_interfacial_area(self):
-        self._interfacial_area = 1
-        return 1
 
-    def _calculate_variable_thickness_spiral(self, dtheta: float = 0.2) -> pd.DataFrame:
-        """Numerically integrate an Archimedean-style spiral using a fixed one-full-turn thickness lookahead.
+        # calculate the inner surface, cathode-a-side to anode-b-side
+        # cathode-a-side
+        cathode_b_side_coordinates = self._layup._cathode._current_collector._b_side_coated_coordinates[:, :2]
+        cathode_b_side_polygon = Polygon(cathode_b_side_coordinates)
+
+        # anode-b-side
+        anode_a_side_coordinates = self._layup._anode._current_collector._a_side_coated_coordinates[:, :2]
+        anode_a_side_polygon = Polygon(anode_a_side_coordinates)
+
+        # intersection area
+        inner_area = cathode_b_side_polygon.intersection(anode_a_side_polygon).area
+
+
+        # calculate the outer surface, cathode-b-side to anode-a-side
+        # cathode-b-side
+        cathode_a_side_coordinates = self._layup._cathode._current_collector._a_side_coated_coordinates[:, :2]
+
+        # get the x_unfolded at which the cathode has done one full rotation
+        cathode_a_side_spiral = self._component_spirals['cathode_a_side_coating']
+        cathode_start_angle = cathode_a_side_spiral[0, 0]
+        cathode_start_x = cathode_a_side_spiral[0, 1]
+        cathode_full_rotation_index = np.where(cathode_a_side_spiral[:, 0] <= cathode_start_angle - 2 * np.pi)[0]
+        cathode_full_rotation_x = cathode_a_side_spiral[cathode_full_rotation_index[0], 1]
+        cathode_shift = cathode_full_rotation_x - cathode_start_x
+
+        # shift cathode a side polygon in +x direction by cathode_shift
+        shifted_cathode_a_side_coordinates = cathode_a_side_coordinates + np.array([cathode_shift, 0])
+        shifted_cathode_a_side_polygon = Polygon(shifted_cathode_a_side_coordinates)
+
+        # anode-a-side
+        anode_b_side_coordinates = self._layup._anode._current_collector._b_side_coated_coordinates[:, :2]
+        anode_b_side_polygon = Polygon(anode_b_side_coordinates)
+
+        # get the overlap
+        outer_area = shifted_cathode_a_side_polygon.intersection(anode_b_side_polygon).area
+
+        self._interfacial_area = inner_area + outer_area
+        
+        return self._interfacial_area
+    
+    def _calculate_radius(self):
+        
+        radius_list = []
+
+        # create the boundings surface
+        for component_name, spiral_data in self._component_spirals.items():
+            x_coords = spiral_data[:, 3]
+            z_coords = spiral_data[:, 4]
+            coords_2d = np.column_stack((x_coords, z_coords))
+            polygon = Polygon(coords_2d)
+            circle = minimum_bounding_circle(polygon)
+            center = circle.centroid
+            first_point = list(circle.exterior.coords)[0]
+            radius = Point(center).distance(Point(first_point))
+            radius_list.append(radius)
+
+        self._radiues = max(radius_list)
+        self._diameter = self._radiues * 2
+
+        return self._radiues, self._diameter
+
+    def _calculate_variable_thickness_spiral(self, dtheta: float = 0.1) -> pd.DataFrame:
+        """Numerically integrate an Archimedean-style spiral (clockwise) using local thickness.
 
         Model:
-            dr/dθ = t(x_future)/(2π)
+            dr/dθ = t(x_current)/(2π)
             ds/dθ = √(r^2 + (dr/dθ)^2)
             x_unwrapped = ∫ ds
 
-        Fixed lookahead:
-            At each step we sample thickness at a future unwrapped length corresponding to one
-            complete turn ahead: future_x = x_current + 2π r_current, clamped to total laminate length.
-            This anticipatory thickness stabilizes early growth while remaining simple.
+        Clockwise rotation:
+            The spiral starts at θ = π/2 (12 o'clock position) and rotates clockwise by using negative angular increments.
+
+        Local thickness:
+            At each step we sample thickness at the current unwrapped length position.
 
         Parameters
         ----------
         dtheta : float
-            Angular increment (radians) for numerical integration.
+            Angular increment magnitude (radians) for numerical integration. Actual step is -dtheta (clockwise).
 
         Returns
         -------
@@ -483,195 +593,218 @@ class WoundJellyRoll(_JellyRoll):
         total_length = self.layup._total_length
 
         # Precompute a coarse grid of thickness vs x for interpolation
-        dl = max(dtheta * self.mandrel._radius / 10, 0.001)  # spatial resolution heuristic
+        # spatial resolution heuristic (restore original logic)
+        dl = max(dtheta * self.mandrel._radius / 10, 0.001)
         num_points = int(total_length / dl) + 2
         x_grid = np.linspace(0.0, total_length, num_points)
-        t_grid = np.array([self.layup._get_thickness_at_x(x)[0] for x in x_grid])
+        t_grid = np.array([self.layup.get_thickness_at_x(x) for x in x_grid])
 
-        # Interpolator for thickness (allow extrapolation clamp)
-        def thickness_at(x: float) -> float:
-            if x <= 0:
-                return t_grid[0]
-            if x >= total_length:
-                return t_grid[-1]
-            return float(np.interp(x, x_grid, t_grid))
-
-        # Fixed one-turn lookahead thickness
-        def thickness_full_turn_ahead(current_x: float, current_r: float) -> float:
-            future_x = min(current_x + current_r * (2.0 * np.pi), total_length)
-            return thickness_at(future_x)
-
+        # Estimate max iterations needed
+        estimated_steps = int(2 * total_length / (dtheta * self.mandrel._radius)) + 100
+        max_iterations = max(estimated_steps * 2, 1000)  # Safety factor
+        
+        # Pre-allocate arrays with estimated size (avoid list appending)
+        theta_arr = np.zeros(max_iterations)
+        x_unwrapped_arr = np.zeros(max_iterations)
+        r_arr = np.zeros(max_iterations)
+        
         # Initialize integration variables
-        theta = 0.0
+        theta = np.pi / 2.0  # Start at 12 o'clock position (top)
         x_unwrapped = 0.0
-        # initial radius uses one full-turn lookahead
-        initial_thickness = thickness_full_turn_ahead(0.0, self.mandrel._radius + thickness_at(0.0))
-        r = self.mandrel._radius + initial_thickness
-
-        theta_list = [theta]
-        x_list = [x_unwrapped]
-        r_list = [r]
-        # store the lookahead thickness used for this layer
-        t_list = [initial_thickness]
-
+        r = self.mandrel._radius
+        dtheta_clockwise = -abs(dtheta)
+        
+        # Cache constants
+        two_pi = 2 * np.pi
+        pi_neg = -np.pi
+        abs_dtheta = abs(dtheta_clockwise)
+        
+        # Set initial values
+        theta_arr[0] = theta
+        x_unwrapped_arr[0] = x_unwrapped
+        r_arr[0] = r
+        
+        i = 0
         # Integrate until we reach or exceed total unwrapped length
-        while x_unwrapped < total_length:
-            # constant one-turn lookahead thickness
-            t_local = thickness_full_turn_ahead(x_unwrapped, r)
-            dr_dtheta = t_local / (2 * np.pi)
+        while x_unwrapped < total_length and i < max_iterations - 1:
+            # Calculate look-ahead thickness (one half turn = π radians ahead)
+            # Estimate the x-position after a half turn using current radius
+            arc_look_ahead = pi_neg * r  
+            x_lookahead = x_unwrapped + arc_look_ahead
+            
+            # Fast thickness lookup using numpy interpolation
+            if x_lookahead <= 0:
+                t_local = t_grid[0]
+            elif x_lookahead >= total_length:
+                t_local = t_grid[-1]
+            else:
+                t_local = np.interp(x_lookahead, x_grid, t_grid)
+            
+            dr_dtheta = t_local / two_pi
             # Advance radius using explicit Euler (small dθ keeps error low)
-            r_next = r + dr_dtheta * dtheta
+            r_next = r + dr_dtheta * abs_dtheta
             # Use average radius for arc-length increment for better accuracy
             r_avg = 0.5 * (r + r_next)
-            ds = np.sqrt(r_avg**2 + dr_dtheta**2) * dtheta
+            ds = np.sqrt(r_avg**2 + dr_dtheta**2) * abs_dtheta
             x_next = x_unwrapped + ds
-            theta_next = theta + dtheta
+            theta_next = theta + dtheta_clockwise
 
-            # Append
-            theta_list.append(theta_next)
-            x_list.append(x_next)
-            r_list.append(r_next)
-            t_list.append(t_local)
+            # Store values
+            i += 1
+            theta_arr[i] = theta_next
+            x_unwrapped_arr[i] = x_next
+            r_arr[i] = r_next
 
             # Update state
             theta = theta_next
             x_unwrapped = x_next
             r = r_next
 
+        # Trim arrays to actual size
+        actual_size = i + 1
+        theta_arr = theta_arr[:actual_size]
+        x_unwrapped_arr = x_unwrapped_arr[:actual_size]
+        r_arr = r_arr[:actual_size]
+
         # If we overshot x_unwrapped beyond total_length, trim / interpolate final point
-        if x_list[-1] > total_length:
-            x_prev = x_list[-2]
-            overshoot = x_list[-1] - total_length
-            segment_len = x_list[-1] - x_prev
+        if x_unwrapped_arr[-1] > total_length:
+            x_prev = x_unwrapped_arr[-2]
+            overshoot = x_unwrapped_arr[-1] - total_length
+            segment_len = x_unwrapped_arr[-1] - x_prev
             frac = (segment_len - overshoot) / segment_len
-            x_list[-1] = total_length
-            theta_list[-1] = theta_list[-2] + frac * dtheta
-            r_list[-1] = r_list[-2] + frac * (r_list[-1] - r_list[-2])
-        # Recompute final thickness using one-turn lookahead at trimmed position
-        t_list[-1] = thickness_full_turn_ahead(x_list[-1], r_list[-1])
+            x_unwrapped_arr[-1] = total_length
+            theta_arr[-1] = theta_arr[-2] + frac * dtheta_clockwise
+            r_arr[-1] = r_arr[-2] + frac * (r_arr[-1] - r_arr[-2])
 
-        # Convert lists to numpy arrays
-        theta_arr = np.asarray(theta_list)
-        x_unwrapped_arr = np.asarray(x_list)
-        r_arr = np.asarray(r_list)
-        x_arr = r_arr * np.cos(theta_arr)
-        z_arr = r_arr * np.sin(theta_arr)
+        # Vectorized coordinate calculations
+        x_coords = r_arr * np.cos(theta_arr)
+        z_coords = r_arr * np.sin(theta_arr)
 
-        # Stack into single array (n,9)
+        # Stack into single array (n,5)
         self._spiral = np.column_stack([
             theta_arr,
             x_unwrapped_arr,
             r_arr,
-            x_arr,
-            z_arr,
+            x_coords,
+            z_coords,
         ])
 
         return self._spiral
 
     def _build_layered_spiral(self):
 
-        """Build layered spirals for separator components."""
+        """Build layered spirals for components.
+
+        Existing behavior:
+            - Creates filled shapes (outer + inner + closure) for each component based on stacked thickness.
+
+        Extension:
+            - Also maps each component's flat center line (mid-thickness path along unwrapped length)
+              onto the wound spiral. Center line radius at a given unwrapped length is:
+                  r_center = r_spiral - (sum_thickness_below + component_thickness/2)
+              where r_spiral is the spiral radius at that unwrapped length.
+
+        Results stored in:
+            self._component_spirals      (filled shapes: outer/inner)
+            self._component_centerlines  (center line only)
+        """
+        self._component_spirals = {}
 
         component_thicknesses = {
-            'ts': self.layup.top_separator._thickness,
-            'aasc': self.layup.anode._coating_thickness,
-            'acc': self.layup.anode.current_collector._thickness,
-            'absc': self.layup.anode._coating_thickness,
-            'bs': self.layup.bottom_separator._thickness,
-            'casc': self.layup.cathode._coating_thickness,
-            'ccc': self.layup.cathode.current_collector._thickness,
-            'cbsc': self.layup.cathode._coating_thickness,
+            'top_separator': self.layup.top_separator._thickness,
+            'anode_a_side_coating': self.layup.anode._coating_thickness,
+            'anode_current_collector': self.layup.anode.current_collector._thickness,
+            'anode_b_side_coating': self.layup.anode._coating_thickness,
+            'bottom_separator': self.layup.bottom_separator._thickness,
+            'cathode_a_side_coating': self.layup.cathode._coating_thickness,
+            'cathode_current_collector': self.layup.cathode.current_collector._thickness,
+            'cathode_b_side_coating': self.layup.cathode._coating_thickness,
         }
 
-        components_at_each_length = [
-            self.layup._get_thickness_at_x(l)[1] for l in self._spiral[:, 1]
-        ]
+        def get_height_of_center_line(component_string: str, x_unwrapped: float) -> Tuple[float, float]:
+            center_line = self.layup._flattened_center_lines[component_string]
+            z_unwrapped = np.interp(x_unwrapped, center_line[:, 0], center_line[:, 1])
+            height = z_unwrapped - self._mandrel._radius
+            return height
+        
+        def get_range_of_center_line(component_string: str) -> Tuple[float, float]:
+            center_line = self.layup._flattened_center_lines[component_string]
+            min_x = np.min(center_line[:, 0])
+            max_x = np.max(center_line[:, 0])
+            return (min_x, max_x)
+        
+        def build_component_spiral(original_spiral: np.array, component_string: str):
 
-        def _component_spiral(comp_key: str) -> np.ndarray:
-            """Return stacked (outer+inner+closure) spiral for a component key or empty array."""
-            thickness_map = component_thicknesses.get
-            rows = []
-            above_list = []
-            below_list = []
-            for i, comps in enumerate(components_at_each_length):
-                if comp_key not in comps:
-                    continue
-                idx = comps.index(comp_key)
-                below_sum = 0.0
-                for c in comps[:idx]:
-                    below_sum += thickness_map(c, 0.0)
-                rows.append(i)
-                above_list.append(below_sum)
-                below_list.append(below_sum + thickness_map(comp_key, 0.0))
+            new_height_list = []
 
-            if not rows:
-                return np.empty((0, self._spiral.shape[1]))
+            # clip spiral to component length range
+            min_x, max_x = get_range_of_center_line(component_string)
+            mask = (original_spiral[:, 1] >= min_x) & (original_spiral[:, 1] <= max_x)
+            original_spiral = original_spiral[mask]
 
-            rows_arr = np.asarray(rows, dtype=int)
-            outer = self._spiral[rows_arr].copy()
-            inner = outer.copy()
+            # get new heights along spiral
+            for l in original_spiral[:, 1]:
+                height = get_height_of_center_line(component_string, l)
+                new_height_list.append(height)
 
-            above_arr = np.asarray(above_list, dtype=float)
-            below_arr = np.asarray(below_list, dtype=float)
+            new_height_array = np.array(new_height_list)
 
-            # radius column index 2
-            outer[:, 2] -= above_arr
-            inner[:, 2] -= below_arr
+            # adjust spiral radius to match component center line height
+            original_spiral[:, 2] = original_spiral[:, 2] + new_height_array
+            original_spiral[:, 3] = original_spiral[:, 2] * np.cos(original_spiral[:, 0])
+            original_spiral[:, 4] = original_spiral[:, 2] * np.sin(original_spiral[:, 0])
 
-            # recompute x,z columns 3,4
-            theta_outer = outer[:, 0]
-            r_outer = outer[:, 2]
-            outer[:, 3] = r_outer * np.cos(theta_outer)
-            outer[:, 4] = r_outer * np.sin(theta_outer)
+            return original_spiral
+        
+        def build_and_extrude_component_spiral(component_string: str):
 
-            theta_inner = inner[:, 0]
-            r_inner = inner[:, 2]
-            inner[:, 3] = r_inner * np.cos(theta_inner)
-            inner[:, 4] = r_inner * np.sin(theta_inner)
+            component_spiral = build_component_spiral(self._spiral.copy(), component_string)
+            
+            # Handle empty spiral case
+            if len(component_spiral) == 0:
+                return np.empty((0, 5))  # Return empty array with correct shape
+                
+            thickness = component_thicknesses[component_string]
 
-            # sort inner descending theta (optional symmetry)
-            inner = inner[np.argsort(inner[:, 0])[::-1]]
+            # outer spiral
+            outer_spiral = component_spiral.copy()
+            outer_spiral[:, 2] = outer_spiral[:, 2] + thickness / 2
+            outer_spiral[:, 3] = outer_spiral[:, 2] * np.cos(outer_spiral[:, 0])
+            outer_spiral[:, 4] = outer_spiral[:, 2] * np.sin(outer_spiral[:, 0])
 
-            # --- Endpoint padding to damp spline overshoot ---
-            # Duplicate first and last points several times to reduce Catmull-Rom bulging.
-            pad_points = 5  # number of duplicate points at each end
+            # inner spiral
+            inner_spiral = component_spiral.copy()
+            inner_spiral[:, 2] = inner_spiral[:, 2] - thickness / 2
+            inner_spiral[:, 3] = inner_spiral[:, 2] * np.cos(inner_spiral[:, 0])
+            inner_spiral[:, 4] = inner_spiral[:, 2] * np.sin(inner_spiral[:, 0])
 
-            def _pad_endpoints(arr: np.ndarray, n: int) -> np.ndarray:
-                if arr.shape[0] == 0 or n <= 0:
-                    return arr
-                first_block = np.repeat(arr[0:1, :], n, axis=0)
-                last_block = np.repeat(arr[-1:, :], n, axis=0)
-                return np.vstack([first_block, arr, last_block])
+            # add padding points at transition to dampen spline interpolation
+            # Only add padding if we have points to work with
+            if len(outer_spiral) > 0:
+                outer_end_padding = np.tile(outer_spiral[-1, :], (2, 1))  # duplicate last outer point
+                inner_start_padding = np.tile(inner_spiral[-1, :], (2, 1))  # duplicate first inner point (after reverse)
+                
+                # combine outer and inner for filled shape with padding
+                combined_spiral = np.vstack([
+                    outer_spiral, 
+                    outer_end_padding,
+                    inner_start_padding,
+                    inner_spiral[::-1, :]
+                ])
+            else:
+                # Fallback for empty spirals
+                combined_spiral = np.empty((0, 5))
+                
+            return combined_spiral
 
-            outer_padded = _pad_endpoints(outer, pad_points)
-            inner_padded = _pad_endpoints(inner, pad_points)
-
-            stacked = np.vstack([outer_padded, inner_padded])
-
-            # close shape
-            closing_point = stacked[0].copy()
-            stacked = np.vstack([stacked, closing_point])
-            return stacked
-
-        ts_spiral = _component_spiral('ts')
-        bs_spiral = _component_spiral('bs')
-        aasc_spiral = _component_spiral('aasc')
-        acc_spiral = _component_spiral('acc')
-        absc_spiral = _component_spiral('absc')
-        casc_spiral = _component_spiral('casc')
-        ccc_spiral = _component_spiral('ccc')
-        cbsc_spiral = _component_spiral('cbsc')
-
-        self._component_spirals = {
-            "top_separator": ts_spiral,
-            "bottom_separator": bs_spiral,
-            "anode_a_side_coating": aasc_spiral,
-            "anode_current_collector": acc_spiral,
-            "anode_b_side_coating": absc_spiral,
-            "cathode_a_side_coating": casc_spiral,
-            "cathode_current_collector": ccc_spiral,
-            "cathode_b_side_coating": cbsc_spiral,
-        }
+        self._component_spirals['bottom_separator'] = build_and_extrude_component_spiral('bottom_separator')
+        self._component_spirals['top_separator'] = build_and_extrude_component_spiral('top_separator')
+        self._component_spirals['anode_a_side_coating'] = build_and_extrude_component_spiral('anode_a_side_coating')
+        self._component_spirals['anode_current_collector'] = build_and_extrude_component_spiral('anode_current_collector')
+        self._component_spirals['anode_b_side_coating'] = build_and_extrude_component_spiral('anode_b_side_coating')
+        self._component_spirals['cathode_a_side_coating'] = build_and_extrude_component_spiral('cathode_a_side_coating')
+        self._component_spirals['cathode_current_collector'] = build_and_extrude_component_spiral('cathode_current_collector')
+        self._component_spirals['cathode_b_side_coating'] = build_and_extrude_component_spiral('cathode_b_side_coating')
 
         return self._component_spirals
 
@@ -716,6 +849,16 @@ class WoundJellyRoll(_JellyRoll):
             line_shape='spline',
             name=name
         )
+
+    @property
+    def radius(self) -> float:
+        """Return the outer radius of the wound jelly roll in mm."""
+        return round(self._radiues * M_TO_MM, 2)
+
+    @property
+    def diameter(self) -> float:
+        """Return the outer diameter of the wound jelly roll in mm."""
+        return round(self._diameter * M_TO_MM, 2)
 
     @property
     def spiral(self) -> pd.DataFrame:
@@ -808,7 +951,7 @@ class WoundJellyRoll(_JellyRoll):
         return self._format_trace_property(
             property_name="top_separator_spiral",
             fill_color=self.layup.top_separator.material._color,
-            name=f"{self.layup.top_separator.name} (Top)"
+            name=f"Top Separator"
         )
     
     @property
@@ -817,7 +960,7 @@ class WoundJellyRoll(_JellyRoll):
         return self._format_trace_property(
             property_name="bottom_separator_spiral",
             fill_color=self.layup.bottom_separator.material._color,
-            name=f"{self.layup.bottom_separator.name} (Bottom)"
+            name=f"Bottom Separator"
         )
     
     @property
@@ -826,7 +969,7 @@ class WoundJellyRoll(_JellyRoll):
         return self._format_trace_property(
             property_name="anode_a_side_coating_spiral",
             fill_color=self.layup.anode.formulation._color,
-            name=f"{self.layup.anode.name} (Anode Coating)"
+            name=f"Anode a-side Coating"
         )
     
     @property
@@ -835,7 +978,7 @@ class WoundJellyRoll(_JellyRoll):
         return self._format_trace_property(
             property_name="anode_current_collector_spiral",
             fill_color=self.layup.anode.current_collector.material._color,
-            name=f"{self.layup.anode.current_collector.name} (Anode CC)"
+            name=f"Anode Current Collector"
         )
     
     @property
@@ -844,7 +987,7 @@ class WoundJellyRoll(_JellyRoll):
         return self._format_trace_property(
             property_name="anode_b_side_coating_spiral",
             fill_color=self.layup.anode.formulation._color,
-            name=f"{self.layup.anode.name} (Anode Coating)"
+            name=f"Anode b-side Coating"
         )
     
     @property
@@ -853,7 +996,7 @@ class WoundJellyRoll(_JellyRoll):
         return self._format_trace_property(
             property_name="cathode_a_side_coating_spiral",
             fill_color=self.layup.cathode.formulation._color,
-            name=f"{self.layup.cathode.name} (Cathode Coating)"
+            name=f"Cathode a-side Coating"
         )
 
     @property
@@ -862,7 +1005,7 @@ class WoundJellyRoll(_JellyRoll):
         return self._format_trace_property(
             property_name="cathode_current_collector_spiral",
             fill_color=self.layup.cathode.current_collector.material._color,
-            name=f"{self.layup.cathode.current_collector.name} (Cathode CC)"
+            name=f"Cathode Current Collector"
         )
     
     @property
@@ -871,10 +1014,9 @@ class WoundJellyRoll(_JellyRoll):
         return self._format_trace_property(
             property_name="cathode_b_side_coating_spiral",
             fill_color=self.layup.cathode.formulation._color,
-            name=f"{self.layup.cathode.name} (Cathode Coating)"
+            name=f"Cathode b-side Coating"
         )
     
-
 
 class FlatWoundJellyRoll(_JellyRoll):
     """Flat wound jelly roll electrode assembly.

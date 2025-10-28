@@ -94,8 +94,8 @@ class _Layup(
         self.name = name
 
     def _calculate_all_properties(self):
-        self._calculate_coordinates()
         self._calculate_bulk_properties()
+        self._calculate_coordinates()
         self._calculate_full_cell_curves()
 
     def _calculate_bulk_properties(self):
@@ -283,12 +283,12 @@ class _Layup(
             ]
         )
 
-        # Discharge curve: descending x order (direction = 0)
+        # Discharge curve: descending x order (direction = -1)
         discharge_curve = np.column_stack(
             [
                 discharge_x_common[::-1],  # Column 0: areal capacity (descending)
                 discharge_voltage_full[::-1],  # Column 1: voltage
-                np.zeros(len(discharge_x_common)),  # Column 2: direction (0 = discharge)
+                -np.ones(len(discharge_x_common)),  # Column 2: direction (-1 = discharge)
             ]
         )
 
@@ -1743,6 +1743,66 @@ class Laminate(_Layup):
         self._bottom_separator._set_width_range(self._cathode, extended_range=0.1)
         self._bottom_separator._set_length_range(self._cathode, extended_range=1)
 
+    def _calculate_coordinates(self):
+        super()._calculate_coordinates()
+        self._calculate_flattened_center_lines()
+
+    def _calculate_flattened_center_lines(self):
+
+        # get the straight center lines
+        straight_center_lines = {
+            "top_separator": self._top_separator.get_center_line(),
+            "anode_a_side_coating": self._anode.get_a_side_center_line(),
+            "anode_current_collector": self._anode._current_collector.get_center_line(),
+            "anode_b_side_coating": self._anode.get_b_side_center_line(),
+            "bottom_separator": self._bottom_separator.get_center_line(),
+            "cathode_a_side_coating": self._cathode.get_a_side_center_line(),
+            "cathode_current_collector": self._cathode._current_collector.get_center_line(),
+            "cathode_b_side_coating": self._cathode.get_b_side_center_line(),
+        }
+
+        # set the thicknesses of each line
+        thicknesses = {
+            "top_separator": self._top_separator._thickness,
+            "anode_a_side_coating": self._anode._coating_thickness,
+            "anode_current_collector": self._anode._current_collector._thickness,
+            "anode_b_side_coating": self._anode._coating_thickness,
+            "bottom_separator": self._bottom_separator._thickness,
+            "cathode_a_side_coating": self._cathode._coating_thickness,
+            "cathode_current_collector": self._cathode._current_collector._thickness,
+            "cathode_b_side_coating": self._cathode._coating_thickness,
+        }
+
+        # add the baseline
+        z_val = np.min(straight_center_lines["cathode_b_side_coating"][:, 1]) - self.cathode._coating_thickness / 2
+        xmin = self._start_position[0]
+        xmax = xmin + self._total_length
+        baseline = np.array([[xmin, z_val], [xmax, z_val]])
+        straight_center_lines["baseline"] = baseline
+        thicknesses["baseline"] = 0.0
+
+        # initialize the flattened center lines dictionary
+        flattened_center_lines = straight_center_lines
+
+        # flatten the cathode
+        flattened_center_lines["cathode_current_collector"] = self._flatten_center_line(straight_center_lines, thicknesses, "cathode_current_collector")
+        flattened_center_lines["cathode_a_side_coating"] = self._flatten_center_line(straight_center_lines, thicknesses, "cathode_a_side_coating")
+        
+        # flatten the bottom separator center line
+        flattened_center_lines["bottom_separator"] = self._flatten_center_line(straight_center_lines, thicknesses, "bottom_separator")
+
+        # flatten the anode
+        flattened_center_lines["anode_b_side_coating"] = self._flatten_center_line(straight_center_lines, thicknesses, "anode_b_side_coating")
+        flattened_center_lines["anode_current_collector"] = self._flatten_center_line(straight_center_lines, thicknesses, "anode_current_collector")
+        flattened_center_lines["anode_a_side_coating"] = self._flatten_center_line(straight_center_lines, thicknesses, "anode_a_side_coating")
+
+        # flatten the top separator center line
+        flattened_center_lines["top_separator"] = self._flatten_center_line(straight_center_lines, thicknesses, "top_separator")
+
+        self._flattened_center_lines = flattened_center_lines
+
+        return self._flattened_center_lines
+
     def _calculate_bulk_properties(self):
         self._calculate_length()
         self._calculate_width()
@@ -1856,7 +1916,7 @@ class Laminate(_Layup):
         for jump_idx in jump_indices:
             z_diff = z_diffs[jump_idx]  # Signed z difference
             z_jump = np.abs(z_diff)     # Size of the z jump
-            removal_distance = 5 * z_jump  # Remove 5 times the jump size
+            removal_distance = 0 * z_jump  # Remove 5 times the jump size
             x_jump = x_coords[jump_idx]
             
             if z_diff > 0:  # Z jumps up - remove x values before the jump
@@ -1902,155 +1962,158 @@ class Laminate(_Layup):
 
         return self._thickness
 
-    def _get_thickness_at_x(self, x_position: float) -> float:
-        """Calculate the total thickness of the laminate at a given x position.
+    def _flatten_center_line(self, center_lines: dict, thicknesses: dict, component_name: str, n: int = 1000) -> np.ndarray:
+        """
+        Flatten center line based on what components are directly beneath it.
         
         Parameters
         ----------
-        x_position : float
-            The x position in meters where thickness should be calculated
+        center_lines : dict
+            Dictionary of all center lines
+        thicknesses : dict
+            Dictionary of component thicknesses
+        component_name : str
+            Name of the component to flatten
+        n : int
+            Number of points for interpolation
             
         Returns
         -------
-        float
-            The total thickness at the given x position in meters
+        np.ndarray
+            Flattened center line with proper spacing from components below
         """
-        # Define components with their coordinates, thickness, and labels
-        components = {
-            'ts': (self._top_separator._coordinates, self._top_separator._thickness),
-            'aasc': (self._anode._a_side_coating_coordinates, self._anode._coating_thickness),
-            'acc': (self._anode.current_collector._body_coordinates, self._anode.current_collector._thickness),
-            'absc': (self._anode._b_side_coating_coordinates, self._anode._coating_thickness),
-            'bs': (self._bottom_separator._coordinates, self._bottom_separator._thickness),
-            'casc': (self._cathode._a_side_coating_coordinates, self._cathode._coating_thickness),
-            'ccc': (self._cathode.current_collector._body_coordinates, self._cathode.current_collector._thickness),
-            'cbsc': (self._cathode._b_side_coating_coordinates, self._cathode._coating_thickness),
+        # Get the straight center line and thickness
+        straight_center_line = center_lines[component_name]
+        component_thickness = thicknesses[component_name]
+
+        # Create high resolution x coordinates
+        x_min, x_max = straight_center_line[0, 0], straight_center_line[-1, 0]
+        center_line_x = np.linspace(x_min, x_max, num=n)
+        
+        # Get component order (only components below current one)
+        component_order = list(center_lines.keys())
+        current_idx = component_order.index(component_name)
+        components_below = component_order[current_idx + 1:]
+        
+        # Pre-calculate component bounds for efficient lookup
+        component_bounds = {}
+        for component in components_below:
+            coords = center_lines[component]
+            if len(coords) > 0:
+                component_bounds[component] = (np.min(coords[:, 0]), np.max(coords[:, 0]))
+            else:
+                component_bounds[component] = (float('inf'), float('-inf'))
+        
+        # Vectorized approach to find supporting component for all x positions
+        supporting_components = np.full(len(center_line_x), "baseline", dtype=object)
+        
+        # Check each component below in order (first match wins)
+        for component in components_below:
+            x_min_comp, x_max_comp = component_bounds[component]
+            if x_min_comp <= x_max_comp:  # Valid bounds
+                mask = (center_line_x >= x_min_comp) & (center_line_x <= x_max_comp) & (supporting_components == "baseline")
+                supporting_components[mask] = component
+        
+        # Vectorized z calculation
+        center_line_z = np.zeros_like(center_line_x)
+        
+        # Group by supporting component for efficient batch processing
+        unique_components = np.unique(supporting_components)
+        
+        for component in unique_components:
+            mask = supporting_components == component
+            if not np.any(mask):
+                continue
+                
+            x_subset = center_line_x[mask]
+            below_line = center_lines[component]
+            below_thickness = thicknesses[component]
+            
+            # Vectorized interpolation
+            below_z = np.interp(x_subset, below_line[:, 0], below_line[:, 1])
+            new_z = below_z + (component_thickness / 2) + (below_thickness / 2)
+            center_line_z[mask] = new_z
+        
+        # Combine x and z coordinates
+        return np.column_stack((center_line_x, center_line_z))
+
+    def get_thickness_at_x(self, x_position: float) -> float:
+        """Return local laminate thickness at a given unwrapped x-position (meters).
+
+        Specification:
+        1. For each component center line in `self._flattened_center_lines`, if `x_position` lies
+           within that component's x-span, interpolate its center-line z-value.
+        2. Identify the raw center-line z with the highest value (do NOT add thickness yet).
+        3. Identify the minimum raw center-line z among all intersecting components (reference_z).
+        4. Add half the thickness of the highest component (from the thickness mapping) to its raw z.
+        5. Subtract reference_z.
+        6. If no components intersect at x_position, return 0.0.
+
+        Result = (highest_raw_centerline_z + thickness(highest_component)/2) - min_raw_centerline_z
+        (Units preserved in meters.)
+        """
+        # map the components to their thicknesses
+        component_thicknesses = {
+            "top_separator": self._top_separator._thickness,
+            "anode_a_side_coating": self.anode._coating_thickness,
+            "anode_current_collector": self.anode._current_collector._thickness,
+            "anode_b_side_coating": self.anode._coating_thickness,
+            "bottom_separator": self._bottom_separator._thickness,
+            "cathode_a_side_coating": self.cathode._coating_thickness,
+            "cathode_current_collector": self.cathode._current_collector._thickness,
+            "cathode_b_side_coating": self.cathode._coating_thickness,
         }
-        
-        _total_thickness = 0.0
-        _underneath_components = []
-        
-        for label, (coordinates, thickness) in components.items():
-            if self._check_coordinate_intersection(coordinates, x_position):
-                _total_thickness += thickness
-                _underneath_components.append(label)
-        
-        return _total_thickness, _underneath_components
 
-    def get_bottom_separator_flattened_center_line(self, line_spacing: float = 0.1):
+        # get the layup baseline z (below which thickness is 0)
+        base_line_z = np.min(self._flattened_center_lines["baseline"][:, 1])
 
-        center_line = self.bottom_separator.get_center_line(line_spacing=line_spacing)
-        
-        # Extract x coordinates from all points at once
-        x_coords = center_line[:, 0]
-        z_coords = center_line[:, 1]
-        
-        # Vectorized check for cathode current collector intersection
-        ccc_coords = self._cathode.current_collector._body_coordinates
-        ccc_x_min = np.min(ccc_coords[:, 0])
-        ccc_x_max = np.max(ccc_coords[:, 0])
-        has_ccc = (x_coords >= ccc_x_min) & (x_coords <= ccc_x_max)
-        
-        # Vectorized check for cathode A-side coating intersection
-        casc_coords = self._cathode._a_side_coating_coordinates
-        casc_x_min = np.min(casc_coords[:, 0])
-        casc_x_max = np.max(casc_coords[:, 0])
-        has_casc = (x_coords >= casc_x_min) & (x_coords <= casc_x_max)
-        
-        # Apply conditions vectorized using np.select
-        conditions = [
-            ~has_ccc & ~has_casc,  # Nothing underneath
-            has_ccc & ~has_casc,   # Only cathode current collector underneath
-            has_casc              # Cathode A-side coating underneath
-        ]
-        
-        choices = [
-            z_coords - self.cathode._thickness,        # Subtract full cathode thickness
-            z_coords - self.cathode._coating_thickness, # Subtract only coating thickness  
-            z_coords                                   # Keep original z
-        ]
-        
-        # Apply all conditions at once
-        flattened_z = np.select(conditions, choices, default=z_coords)
-        
-        # Update the center line z coordinates
-        center_line[:, 1] = flattened_z
-        
-        # Smooth the center line by removing points around jumps
-        center_line = self._smooth_center_line(center_line)
-        
-        return center_line
+        # go through the components and get their z values at the x position
+        z_values = {}
+        for name, coords in self._flattened_center_lines.items():
 
-    def get_top_separator_flattened_center_line(self, line_spacing: float = 0.1):
-    
-        center_line = self.top_separator.get_center_line(line_spacing=line_spacing)
+            if not self._check_coordinate_intersection(coords, x_position):
+                continue
+
+            z_values[name] = np.interp(
+                x_position,
+                coords[:, 0],
+                coords[:, 1],
+                left=base_line_z,
+                right=base_line_z
+            )
+
+        if len(z_values) == 0:
+            return 0.0
+
+        # get the component with highest z value
+        highest_component = max(z_values, key=z_values.get)
+
+        # get the z value of the highest component and add half the thickness and subtract the base line
+        highest_z = z_values[highest_component] + component_thicknesses[highest_component]/2 - base_line_z
         
-        # Extract x coordinates from all points at once
-        x_coords = center_line[:, 0]
-        z_coords = center_line[:, 1]
-        
-        # Vectorized checks for all component intersections
-        
-        # Anode A-side coating coordinates
-        aasc_coords = self._anode._a_side_coating_coordinates
-        aasc_x_min = np.min(aasc_coords[:, 0])
-        aasc_x_max = np.max(aasc_coords[:, 0])
-        has_aasc = (x_coords >= aasc_x_min) & (x_coords <= aasc_x_max)
-        
-        # Anode current collector coordinates
-        acc_coords = self._anode.current_collector._body_coordinates
-        acc_x_min = np.min(acc_coords[:, 0])
-        acc_x_max = np.max(acc_coords[:, 0])
-        has_acc = (x_coords >= acc_x_min) & (x_coords <= acc_x_max)
-        
-        # Cathode A-side coating coordinates
-        casc_coords = self._cathode._a_side_coating_coordinates
-        casc_x_min = np.min(casc_coords[:, 0])
-        casc_x_max = np.max(casc_coords[:, 0])
-        has_casc = (x_coords >= casc_x_min) & (x_coords <= casc_x_max)
-        
-        # Cathode current collector coordinates
-        ccc_coords = self._cathode.current_collector._body_coordinates
-        ccc_x_min = np.min(ccc_coords[:, 0])
-        ccc_x_max = np.max(ccc_coords[:, 0])
-        has_ccc = (x_coords >= ccc_x_min) & (x_coords <= ccc_x_max)
-        
-        # Bottom separator coordinates
-        bs_coords = self._bottom_separator._coordinates
-        bs_x_min = np.min(bs_coords[:, 0])
-        bs_x_max = np.max(bs_coords[:, 0])
-        has_bs = (x_coords >= bs_x_min) & (x_coords <= bs_x_max)
-        
-        # Apply conditions using np.select for cleaner logic
-        conditions = [
-            has_aasc,                                      # has aasc, do nothing
-            ~has_aasc & has_acc,                          # doesn't have aasc and does have acc
-            ~has_acc & has_casc,                          # doesn't have acc and does have casc
-            ~has_acc & ~has_casc & has_ccc,               # doesn't have acc and doesn't have casc but has ccc
-            ~has_acc & ~has_ccc,                          # doesn't have acc and doesn't have ccc
-        ]
-        
-        choices = [
-            z_coords,                                                           # do nothing
-            z_coords - self.anode._coating_thickness,                         # subtract anode coating
-            z_coords - self.anode._thickness,                                 # subtract anode thickness
-            z_coords - self.anode._thickness - self.cathode._coating_thickness,  # subtract anode + cathode coating
-            z_coords - self.anode._thickness - self.cathode._thickness,       # subtract anode + cathode thickness
-        ]
-        
-        # Apply electrode conditions
-        flattened_z = np.select(conditions, choices, default=z_coords)
-        
-        # Apply bottom separator condition separately
-        flattened_z = np.where(~has_bs, flattened_z - self.bottom_separator._thickness, flattened_z)
-        
-        # Update the center line z coordinates
-        center_line[:, 1] = flattened_z
-        
-        # Smooth the center line by removing points around jumps
-        center_line = self._smooth_center_line(center_line)
-        
-        return center_line
+        return highest_z
+
+    @property
+    def flattened_center_lines(self) -> dict:
+
+        coordinates = []
+
+        for key, value in self._flattened_center_lines.items():
+
+            coordinate_df = (
+                pd
+                .DataFrame(value, columns=["x", "z"])
+                .assign(Component=key)
+            )
+
+            coordinates.append(coordinate_df)
+
+        return (
+            pd
+            .concat(coordinates, ignore_index=True)
+            .assign(x=lambda df: df["x"] * M_TO_MM, z=lambda df: df["z"] * M_TO_MM)
+            .rename(columns={"x": "X (mm)", "z": "Z (mm)"})
+        )
 
     @property
     def separator(self) -> Separator:
@@ -2092,11 +2155,6 @@ class Laminate(_Layup):
     def total_length(self) -> float:
         """Return the total length of the layup in mm."""
         return round(self._total_length * M_TO_MM, 2)
-
-    @property
-    def x_start_position(self) -> float:
-        """Return the x start position of the layup in mm."""
-        return round(self._x_start_position * M_TO_MM, 2)
 
     @property
     def thickness(self) -> float:

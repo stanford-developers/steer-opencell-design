@@ -412,8 +412,8 @@ class _CurrentCollector(
 
         return self
 
-    def get_center_line(self, line_spacing: float = 10) -> np.ndarray:
-        return self.get_xz_center_line(self._body_coordinates, line_spacing=line_spacing)
+    def get_center_line(self) -> np.ndarray:
+        return self.get_xz_center_line(self._body_coordinates)
 
     def get_a_side_view(self, **kwargs) -> go.Figure:
         z_coords = self._body_coordinates[:, 2]

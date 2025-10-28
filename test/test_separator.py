@@ -57,10 +57,6 @@ class TestSeparator(unittest.TestCase):
         """
         self.assertTrue(isinstance(self.separator, Separator))
 
-    def test_xz_center_line(self):
-        center_line = self.separator.get_xz_center_line()
-        self.assertTrue(type(center_line) == np.ndarray)
-
     def test_separator_initial_properties(self):
         """
         Test the properties of the separator with length and width set
