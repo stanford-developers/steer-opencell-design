@@ -313,9 +313,65 @@ class FlatMandrel(_Mandrel):
         self._straight_length = self._width - self._height
 
     def _calculate_coordinates(self):
+        """
+        Calculate the 3D coordinates of the flat mandrel with a racetrack profile.
+        Top view (x,y): rectangular (width x length)
+        Cross-section (x,z): racetrack with flat middle and rounded ends
+        """
+        # Parameters for coordinate generation
+        n_circumferential = 16  # Points per semicircle
+        n_straight = 8  # Points along straight sections
         
+        # Calculate geometry
+        radius = self._height / 2
+        straight_length = self._width - self._height  # Flat section length
         
-
+        coordinates = []
+        
+        # Generate y positions (length direction) - two cross-sections
+        y_positions = [-self._length / 2, self._length / 2]
+        
+        for y_pos in y_positions:
+            # Generate racetrack profile in x-z plane
+            profile_coords = []
+            
+            # Right semicircle (positive x side)
+            center_x_right = straight_length / 2
+            theta_right = np.linspace(-np.pi/2, np.pi/2, n_circumferential + 1)
+            for t in theta_right:
+                x = center_x_right + radius * np.cos(t)
+                z = radius * np.sin(t)
+                profile_coords.append([x, z])
+            
+            # Top straight section
+            x_straight_top = np.linspace(straight_length / 2, -straight_length / 2, n_straight + 1)[1:-1]  # Exclude endpoints
+            for x in x_straight_top:
+                profile_coords.append([x, radius])
+            
+            # Left semicircle (negative x side)
+            center_x_left = -straight_length / 2
+            theta_left = np.linspace(np.pi/2, 3*np.pi/2, n_circumferential + 1)
+            for t in theta_left:
+                x = center_x_left + radius * np.cos(t)
+                z = radius * np.sin(t)
+                profile_coords.append([x, z])
+            
+            # Bottom straight section
+            x_straight_bottom = np.linspace(-straight_length / 2, straight_length / 2, n_straight + 1)[1:-1]  # Exclude endpoints
+            for x in x_straight_bottom:
+                profile_coords.append([x, -radius])
+            
+            # Add all profile coordinates with current y position and datum offset
+            for x, z in profile_coords:
+                coordinates.append([
+                    x + self._datum[0],        # X position + datum offset
+                    y_pos + self._datum[1],    # Y position + datum offset
+                    z + self._datum[2]         # Z position + datum offset
+                ])
+        
+        # Convert to numpy array
+        self._coordinates = np.array(coordinates)
+        
         return self._coordinates
 
     @property
