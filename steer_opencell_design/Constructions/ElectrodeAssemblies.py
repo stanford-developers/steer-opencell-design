@@ -815,131 +815,210 @@ class WoundJellyRoll(_JellyRoll):
 
         return self._radiues, self._diameter
 
-    def _calculate_variable_thickness_spiral(self, dtheta: float = 0.05) -> pd.DataFrame:
-        """Numerically integrate an Archimedean-style spiral (clockwise) using local thickness.
+    def _calculate_variable_thickness_spiral(self, dtheta: float = 0.1) -> pd.DataFrame:
+        """Integrate a variable-thickness Archimedean-like spiral (clockwise) with adaptive RK4.
 
-        Model:
-            dr/dθ = t(x_current)/(2π)
-            ds/dθ = √(r^2 + (dr/dθ)^2)
-            x_unwrapped = ∫ ds
+        Governing relations (parametrized by θ, clockwise so θ decreases from π/2):
+            dr/dθ = t(x) / (2π)
+            ds/dθ = sqrt(r² + (dr/dθ)²)         (local arc length rate)
+            dx_unwrapped/dθ = ds/dθ              (treat unwrapped length x as accumulated arc length)
 
-        Clockwise rotation:
-            The spiral starts at θ = π/2 (12 o'clock position) and rotates clockwise by using negative angular increments.
+        With spatially varying thickness t(x) provided by layup.get_thickness_at_x(x).
 
-        Local thickness:
-            At each step we sample thickness at the current unwrapped length position.
+        Improvements over prior implementation:
+            - 4th order Runge–Kutta integration for coupled (r, x) system.
+            - Adaptive step sizing via local Richardson error estimate (1 step h vs 2 half-steps).
+            - Automatic fallback to analytic uniform-thickness solution when thickness variation is negligible.
+            - Gradient-aware minimum step to avoid under-resolving rapid thickness changes.
+            - Early termination and endpoint interpolation to land exactly on total unwrapped length.
+            - Conservative iteration / memory limits to avoid runaway loops.
 
         Parameters
         ----------
         dtheta : float
-            Angular increment magnitude (radians) for numerical integration. Actual step is -dtheta (clockwise).
+            Nominal (maximum) angular step magnitude (radians). Smaller steps are chosen adaptively as needed.
 
         Returns
         -------
         np.ndarray
-            Array with columns matching DataFrame order:
-            [theta, x_unwrapped, r, x, z]
+            Columns: [theta, x_unwrapped, r, x, z]
         """
-        # total unwrapped length of laminate (meters)
-        total_length = self.layup._total_length
+        total_length = self.layup._total_length  # meters
+        r0 = self.mandrel._radius
+        if total_length <= 0:
+            self._spiral = np.array([[np.pi/2, 0.0, r0, r0 * 0.0, r0]])
+            return self._spiral
 
-        # Precompute a coarse grid of thickness vs x for interpolation
-        # spatial resolution heuristic (restore original logic)
-        dl = max(dtheta * self.mandrel._radius / 10, 0.001)
-        num_points = int(total_length / dl) + 2
-        x_grid = np.linspace(0.0, total_length, num_points)
-        t_grid = np.array([self.layup.get_thickness_at_x(x) for x in x_grid])
+        # Build interpolation grid for thickness
+        # Heuristic: finer where dtheta small or mandrel small
+        base_dl = max(dtheta * r0 / 8.0, 0.00025)
+        n_grid = min(6000, max(400, int(total_length / base_dl) + 2))
+        x_grid = np.linspace(0.0, total_length, n_grid)
+        t_grid = np.array([self.layup.get_thickness_at_x(x) for x in x_grid], dtype=float)
+        t_min, t_max = float(t_grid.min()), float(t_grid.max())
+        near_uniform = (t_max - t_min) < 1e-6 * max(1e-9, t_max)
+        two_pi = 2.0 * np.pi
 
-        # Estimate max iterations needed
-        estimated_steps = int(2 * total_length / (dtheta * self.mandrel._radius)) + 100
-        max_iterations = max(estimated_steps * 2, 1000)  # Safety factor
-        
-        # Pre-allocate arrays with estimated size (avoid list appending)
-        theta_arr = np.zeros(max_iterations)
-        x_unwrapped_arr = np.zeros(max_iterations)
-        r_arr = np.zeros(max_iterations)
-        
-        # Initialize integration variables
-        theta = np.pi / 2.0  # Start at 12 o'clock position (top)
-        x_unwrapped = 0.0
-        r = self.mandrel._radius
-        dtheta_clockwise = -abs(dtheta)
-        
-        # Cache constants
-        two_pi = 2 * np.pi
-        pi_neg = -np.pi
-        abs_dtheta = abs(dtheta_clockwise)
-        
-        # Set initial values
-        theta_arr[0] = theta
-        x_unwrapped_arr[0] = x_unwrapped
-        r_arr[0] = r
-        
-        i = 0
-        # Integrate until we reach or exceed total unwrapped length
-        while x_unwrapped < total_length and i < max_iterations - 1:
-            # Calculate look-ahead thickness (one half turn = π radians ahead)
-            # Estimate the x-position after a half turn using current radius
-            arc_look_ahead = 1.5 * pi_neg * r  
-            x_lookahead = x_unwrapped + arc_look_ahead
-            
-            # Fast thickness lookup using numpy interpolation
-            if x_lookahead <= 0:
-                t_local = t_grid[0]
-            elif x_lookahead >= total_length:
-                t_local = t_grid[-1]
+        def thickness_at(x):
+            if x <= 0: return t_grid[0]
+            if x >= total_length: return t_grid[-1]
+            return float(np.interp(x, x_grid, t_grid))
+
+        # Analytic fast path (uniform thickness)
+        if near_uniform:
+            t = (t_min + t_max) / 2.0
+            k = t / two_pi  # dr/dθ
+            # Solve s(θ) ≈ ((r0 + kθ)^2 - r0^2)/(2k) for θ_end where s = total_length
+            if k > 0:
+                theta_span = (np.sqrt(r0*r0 + 2*k*total_length) - r0) / k
             else:
-                t_local = np.interp(x_lookahead, x_grid, t_grid)
-            
-            dr_dtheta = t_local / two_pi
-            # Advance radius using explicit Euler (small dθ keeps error low)
-            r_next = r + dr_dtheta * abs_dtheta
-            # Use average radius for arc-length increment for better accuracy
-            r_avg = 0.5 * (r + r_next)
-            ds = np.sqrt(r_avg**2 + dr_dtheta**2) * abs_dtheta
-            x_next = x_unwrapped + ds
-            theta_next = theta + dtheta_clockwise
+                theta_span = 0.0
+            # Choose number of steps so arc increment ~ dtheta*r scale
+            n_steps = max(3, int(theta_span / dtheta) + 2)
+            theta_arr = np.linspace(np.pi/2, np.pi/2 - theta_span, n_steps)
+            dtheta_arr = -(theta_arr - theta_arr[0])  # not used directly, just for clarity
+            # r(θ) = r0 + k(θ - θ_start) with θ_start=π/2
+            delta = theta_arr - theta_arr[0]
+            r_arr = r0 + k * delta
+            # s(θ) relative to start: ((r)^2 - r0^2)/(2k)
+            if k > 0:
+                x_unwrapped_arr = ((r_arr**2 - r0**2) / (2*k))
+            else:
+                x_unwrapped_arr = np.zeros_like(r_arr)
+            # Adjust sign (θ decreases for clockwise). Ensure monotonic x.
+            # Trim / interpolate final
+            if x_unwrapped_arr[-1] > total_length and len(x_unwrapped_arr) > 1:
+                idx = np.searchsorted(x_unwrapped_arr, total_length)
+                idx = min(max(idx, 1), len(x_unwrapped_arr)-1)
+                x0, x1 = x_unwrapped_arr[idx-1], x_unwrapped_arr[idx]
+                f = (total_length - x0)/(x1 - x0)
+                theta_trim = theta_arr[idx-1] + f*(theta_arr[idx]-theta_arr[idx-1])
+                r_trim = r_arr[idx-1] + f*(r_arr[idx]-r_arr[idx-1])
+                theta_arr = np.concatenate([theta_arr[:idx], [theta_trim]])
+                r_arr = np.concatenate([r_arr[:idx], [r_trim]])
+                x_unwrapped_arr = np.concatenate([x_unwrapped_arr[:idx], [total_length]])
+            x_coords = r_arr * np.cos(theta_arr)
+            z_coords = r_arr * np.sin(theta_arr)
+            self._spiral = np.column_stack([theta_arr, x_unwrapped_arr, r_arr, x_coords, z_coords])
+            return self._spiral
 
-            # Store values
-            i += 1
-            theta_arr[i] = theta_next
-            x_unwrapped_arr[i] = x_next
-            r_arr[i] = r_next
+        # Adaptive RK4 integration (θ decreases)
+        # State: (r, x); derivatives w.r.t θ
+        def deriv(r, x):
+            tloc = thickness_at(x)
+            dr_dth = tloc / two_pi
+            ds_dth = np.sqrt(r*r + dr_dth*dr_dth)
+            return dr_dth, ds_dth
 
-            # Update state
-            theta = theta_next
-            x_unwrapped = x_next
-            r = r_next
+        theta = np.pi/2  # start top
+        r = r0
+        x_unwrapped = 0.0
+        h_max = abs(dtheta)
+        h_min = h_max / 64.0
+        target_err = 5e-5  # relative error target for x & r
+        max_points = 120000
+        max_iterations = 500000
+        growth = 1.5
+        shrink = 0.5
 
-        # Trim arrays to actual size
-        actual_size = i + 1
-        theta_arr = theta_arr[:actual_size]
-        x_unwrapped_arr = x_unwrapped_arr[:actual_size]
-        r_arr = r_arr[:actual_size]
+        theta_list = [theta]
+        r_list = [r]
+        x_list = [x_unwrapped]
 
-        # If we overshot x_unwrapped beyond total_length, trim / interpolate final point
-        if x_unwrapped_arr[-1] > total_length:
-            x_prev = x_unwrapped_arr[-2]
-            overshoot = x_unwrapped_arr[-1] - total_length
-            segment_len = x_unwrapped_arr[-1] - x_prev
-            frac = (segment_len - overshoot) / segment_len
-            x_unwrapped_arr[-1] = total_length
-            theta_arr[-1] = theta_arr[-2] + frac * dtheta_clockwise
-            r_arr[-1] = r_arr[-2] + frac * (r_arr[-1] - r_arr[-2])
+        iterations = 0
+        h = h_max
+        # Pre-compute rough gradient to modulate minimal step
+        dt_dx = np.gradient(t_grid, x_grid)
+        max_grad = np.max(np.abs(dt_dx)) + 1e-12
 
-        # Vectorized coordinate calculations
+        while x_unwrapped < total_length and iterations < max_iterations and len(theta_list) < max_points:
+            iterations += 1
+            # Clamp step not to overshoot total_length (rough estimate)
+            # Predict ds ≈ r * h; adjust if would exceed remaining length by large margin
+            remaining = total_length - x_unwrapped
+            if r * h > 1.5 * remaining:
+                h = max(remaining / (r + 1e-12), h_min)
+
+            # Single RK4 full step size h
+            dr1, dx1 = deriv(r, x_unwrapped)
+            r2 = r + 0.5*h*dr1; x2 = x_unwrapped + 0.5*h*dx1
+            dr2, dx2 = deriv(r2, x2)
+            r3 = r + 0.5*h*dr2; x3 = x_unwrapped + 0.5*h*dx2
+            dr3, dx3 = deriv(r3, x3)
+            r4 = r + h*dr3; x4 = x_unwrapped + h*dx3
+            dr4, dx4 = deriv(r4, x4)
+            r_full = r + (h/6.0)*(dr1 + 2*dr2 + 2*dr3 + dr4)
+            x_full = x_unwrapped + (h/6.0)*(dx1 + 2*dx2 + 2*dx3 + dx4)
+
+            # Two half steps (h/2 + h/2)
+            h2 = 0.5 * h
+            # First half
+            dr1h, dx1h = dr1, dx1  # same as above first evaluation
+            r2h = r + 0.5*h2*dr1h; x2h = x_unwrapped + 0.5*h2*dx1h
+            dr2h, dx2h = deriv(r2h, x2h)
+            r3h = r + 0.5*h2*dr2h; x3h = x_unwrapped + 0.5*h2*dx2h
+            dr3h, dx3h = deriv(r3h, x3h)
+            r4h = r + h2*dr3h; x4h = x_unwrapped + h2*dx3h
+            dr4h, dx4h = deriv(r4h, x4h)
+            r_half = r + (h2/6.0)*(dr1h + 2*dr2h + 2*dr3h + dr4h)
+            x_half = x_unwrapped + (h2/6.0)*(dx1h + 2*dx2h + 2*dx3h + dx4h)
+            # Second half from (r_half, x_half)
+            dr1s, dx1s = deriv(r_half, x_half)
+            r2s = r_half + 0.5*h2*dr1s; x2s = x_half + 0.5*h2*dx1s
+            dr2s, dx2s = deriv(r2s, x2s)
+            r3s = r_half + 0.5*h2*dr2s; x3s = x_half + 0.5*h2*dx2s
+            dr3s, dx3s = deriv(r3s, x3s)
+            r4s = r_half + h2*dr3s; x4s = x_half + h2*dx3s
+            dr4s, dx4s = deriv(r4s, x4s)
+            r_two_half = r_half + (h2/6.0)*(dr1s + 2*dr2s + 2*dr3s + dr4s)
+            x_two_half = x_half + (h2/6.0)*(dx1s + 2*dx2s + 2*dx3s + dx4s)
+
+            # Error estimate (local): difference between full and two half steps (O(h^5))
+            err_r = abs(r_full - r_two_half)
+            err_x = abs(x_full - x_two_half)
+            scale_r = max(abs(r), abs(r_two_half), 1e-9)
+            scale_x = max(abs(x_unwrapped), abs(x_two_half), 1e-9)
+            rel_err = max(err_r/scale_r, err_x/scale_x)
+
+            if rel_err > target_err and h > h_min * 1.01:
+                # Reject step, shrink and retry
+                h = max(h * shrink * max(0.2, (target_err / (rel_err + 1e-14))**0.25), h_min)
+                continue
+
+            # Accept step -> use higher accuracy two half-steps solution
+            r = r_two_half
+            x_unwrapped = x_two_half
+            theta -= h  # clockwise (θ decreasing)
+
+            theta_list.append(theta)
+            r_list.append(r)
+            x_list.append(x_unwrapped)
+
+            if rel_err < target_err / 8.0 and h < h_max / 0.6:
+                h = min(h * growth * min(2.0, (target_err / (rel_err + 1e-14))**0.20), h_max)
+
+            # Enforce minimal step if local thickness gradient high
+            local_grad = abs(interp_grad := (np.interp(x_unwrapped, x_grid, dt_dx) if 0 < x_unwrapped < total_length else 0.0))
+            grad_factor = 1.0 + 5.0 * (local_grad / max_grad)
+            h = max(h / grad_factor, h_min)
+
+        # Interpolate final point if overshoot
+        if x_list[-1] > total_length and len(x_list) > 1:
+            x_prev, x_curr = x_list[-2], x_list[-1]
+            f = (total_length - x_prev)/(x_curr - x_prev + 1e-14)
+            r_prev, r_curr = r_list[-2], r_list[-1]
+            th_prev, th_curr = theta_list[-2], theta_list[-1]
+            x_list[-1] = total_length
+            r_list[-1] = r_prev + f*(r_curr - r_prev)
+            theta_list[-1] = th_prev + f*(th_curr - th_prev)
+
+        theta_arr = np.array(theta_list)
+        x_unwrapped_arr = np.array(x_list)
+        r_arr = np.array(r_list)
+
         x_coords = r_arr * np.cos(theta_arr)
         z_coords = r_arr * np.sin(theta_arr)
-
-        # Stack into single array (n,5)
-        self._spiral = np.column_stack([
-            theta_arr,
-            x_unwrapped_arr,
-            r_arr,
-            x_coords,
-            z_coords,
-        ])
-
+        self._spiral = np.column_stack([theta_arr, x_unwrapped_arr, r_arr, x_coords, z_coords])
         return self._spiral
 
     def _build_component_spirals(self):

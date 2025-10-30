@@ -1748,60 +1748,101 @@ class Laminate(_Layup):
         self._calculate_flattened_center_lines()
 
     def _calculate_flattened_center_lines(self):
+        """Vectorized construction of flattened center lines for laminate layers.
 
-        # get the straight center lines
-        straight_center_lines = {
-            "top_separator": self._top_separator.get_center_line(),
-            "anode_a_side_coating": self._anode.get_a_side_center_line(),
-            "anode_current_collector": self._anode._current_collector.get_center_line(),
-            "anode_b_side_coating": self._anode.get_b_side_center_line(),
-            "bottom_separator": self._bottom_separator.get_center_line(),
-            "cathode_a_side_coating": self._cathode.get_a_side_center_line(),
-            "cathode_current_collector": self._cathode._current_collector.get_center_line(),
-            "cathode_b_side_coating": self._cathode.get_b_side_center_line(),
-        }
+        Builds an explicit bottom->top ordered stack and computes center line
+        elevations using cumulative thickness. This replaces the prior per-layer
+        search for a single "supporting" component and removes duplication.
 
-        # set the thicknesses of each line
-        thicknesses = {
-            "top_separator": self._top_separator._thickness,
-            "anode_a_side_coating": self._anode._coating_thickness,
-            "anode_current_collector": self._anode._current_collector._thickness,
-            "anode_b_side_coating": self._anode._coating_thickness,
-            "bottom_separator": self._bottom_separator._thickness,
-            "cathode_a_side_coating": self._cathode._coating_thickness,
-            "cathode_current_collector": self._cathode._current_collector._thickness,
-            "cathode_b_side_coating": self._cathode._coating_thickness,
-        }
+        Notes
+        -----
+        - Currently no smoothing is applied (keeps geometric fidelity). A future
+          enhancement could expose smoothing parameters.
+        - Stores auxiliary arrays for rapid thickness interpolation.
+        """
 
-        # add the baseline
-        z_val = np.min(straight_center_lines["cathode_b_side_coating"][:, 1]) - self.cathode._coating_thickness / 2
-        xmin = self._start_position[0]
-        xmax = xmin + self._total_length
-        baseline = np.array([[xmin, z_val], [xmax, z_val]])
-        straight_center_lines["baseline"] = baseline
-        thicknesses["baseline"] = 0.0
+        # Ordered bottom->top layers (excluding baseline) using canonical names
+        layer_specs = [
+            ("cathode_b_side_coating", self._cathode.get_b_side_center_line(), self._cathode._coating_thickness),
+            ("cathode_current_collector", self._cathode._current_collector.get_center_line(), self._cathode._current_collector._thickness),
+            ("cathode_a_side_coating", self._cathode.get_a_side_center_line(), self._cathode._coating_thickness),
+            ("bottom_separator", self._bottom_separator.get_center_line(), self._bottom_separator._thickness),
+            ("anode_b_side_coating", self._anode.get_b_side_center_line(), self._anode._coating_thickness),
+            ("anode_current_collector", self._anode._current_collector.get_center_line(), self._anode._current_collector._thickness),
+            ("anode_a_side_coating", self._anode.get_a_side_center_line(), self._anode._coating_thickness),
+            ("top_separator", self._top_separator.get_center_line(), self._top_separator._thickness),
+        ]
 
-        # initialize the flattened center lines dictionary
-        flattened_center_lines = straight_center_lines
+        # Gather all x breakpoints
+        x_breaks = []
+        for _, coords, _ in layer_specs:
+            if len(coords) == 0:
+                continue
+            x_breaks.append(coords[0, 0])
+            x_breaks.append(coords[-1, 0])
 
-        # flatten the cathode
-        flattened_center_lines["cathode_current_collector"] = self._flatten_center_line(straight_center_lines, thicknesses, "cathode_current_collector")
-        flattened_center_lines["cathode_a_side_coating"] = self._flatten_center_line(straight_center_lines, thicknesses, "cathode_a_side_coating")
-        
-        # flatten the bottom separator center line
-        flattened_center_lines["bottom_separator"] = self._flatten_center_line(straight_center_lines, thicknesses, "bottom_separator")
+        if not x_breaks:
+            self._flattened_center_lines = {}
+            self._layer_thickness_map = {}
+            self._top_surface = None
+            return {}
 
-        # flatten the anode
-        flattened_center_lines["anode_b_side_coating"] = self._flatten_center_line(straight_center_lines, thicknesses, "anode_b_side_coating")
-        flattened_center_lines["anode_current_collector"] = self._flatten_center_line(straight_center_lines, thicknesses, "anode_current_collector")
-        flattened_center_lines["anode_a_side_coating"] = self._flatten_center_line(straight_center_lines, thicknesses, "anode_a_side_coating")
+        x_min, x_max = min(x_breaks), max(x_breaks)
+        # Resolution: sample ~1000 points across full span (consistent w/ prior n=1000)
+        n_samples = 1000
+        x = np.linspace(x_min, x_max, n_samples)
 
-        # flatten the top separator center line
-        flattened_center_lines["top_separator"] = self._flatten_center_line(straight_center_lines, thicknesses, "top_separator")
+        # Baseline directly below lowest layer (use cathode b-side lower surface)
+        baseline_z = (
+            np.min(self._cathode.get_b_side_center_line()[:, 1])
+            - self._cathode._coating_thickness / 2
+        )
+        baseline = np.column_stack((x, np.full_like(x, baseline_z)))
 
-        self._flattened_center_lines = flattened_center_lines
+        # Coverage masks & thickness arrays
+        layer_masks = []
+        layer_thicknesses = []
+        for _, coords, thickness in layer_specs:
+            if len(coords) == 0:
+                layer_masks.append(np.zeros_like(x, dtype=bool))
+            else:
+                x0, x1 = coords[0, 0], coords[-1, 0]
+                layer_masks.append((x >= x0) & (x <= x1))
+            layer_thicknesses.append(thickness)
 
-        return self._flattened_center_lines
+        layer_masks = np.array(layer_masks)  # shape (L, N)
+        layer_thicknesses = np.array(layer_thicknesses)  # shape (L,)
+
+        # Cumulative thickness below each layer (exclude that layer's own thickness)
+        cumulative_below = (
+            np.cumsum(layer_thicknesses[:, None] * layer_masks, axis=0)
+            - (layer_thicknesses[:, None] * layer_masks)
+        )
+
+        # Raw total thickness profile (top surface w/out baseline offset)
+        raw_total_thickness = np.sum(layer_thicknesses[:, None] * layer_masks, axis=0)
+        top_surface = baseline_z + raw_total_thickness
+
+        # Build flattened center lines
+        flattened = {"baseline": baseline}
+        layer_thickness_map = {}
+        for i, (name, _coords, thickness) in enumerate(layer_specs):
+            mask = layer_masks[i]
+            if not np.any(mask):
+                flattened[name] = np.empty((0, 2))
+                layer_thickness_map[name] = thickness
+                continue
+            center_z = baseline_z + cumulative_below[i, mask] + thickness / 2
+            flattened[name] = np.column_stack((x[mask], center_z))
+            layer_thickness_map[name] = thickness
+
+        # Persist for downstream usage
+        self._flattened_center_lines = flattened
+        self._layer_thickness_map = layer_thickness_map
+        self._top_surface = np.column_stack((x, top_surface))
+        self._baseline_z = baseline_z
+
+        return flattened
 
     def _calculate_bulk_properties(self):
         self._calculate_length()
@@ -1962,136 +2003,36 @@ class Laminate(_Layup):
 
         return self._thickness
 
-    def _flatten_center_line(self, center_lines: dict, thicknesses: dict, component_name: str, n: int = 1000) -> np.ndarray:
-        """
-        Flatten center line based on what components are directly beneath it.
-        
-        Parameters
-        ----------
-        center_lines : dict
-            Dictionary of all center lines
-        thicknesses : dict
-            Dictionary of component thicknesses
-        component_name : str
-            Name of the component to flatten
-        n : int
-            Number of points for interpolation
-            
-        Returns
-        -------
-        np.ndarray
-            Flattened center line with proper spacing from components below
-        """
-        # Get the straight center line and thickness
-        straight_center_line = center_lines[component_name]
-        component_thickness = thicknesses[component_name]
-
-        # Create high resolution x coordinates
-        x_min, x_max = straight_center_line[0, 0], straight_center_line[-1, 0]
-        center_line_x = np.linspace(x_min, x_max, num=n)
-        
-        # Get component order (only components below current one)
-        component_order = list(center_lines.keys())
-        current_idx = component_order.index(component_name)
-        components_below = component_order[current_idx + 1:]
-        
-        # Pre-calculate component bounds for efficient lookup
-        component_bounds = {}
-        for component in components_below:
-            coords = center_lines[component]
-            if len(coords) > 0:
-                component_bounds[component] = (np.min(coords[:, 0]), np.max(coords[:, 0]))
-            else:
-                component_bounds[component] = (float('inf'), float('-inf'))
-        
-        # Vectorized approach to find supporting component for all x positions
-        supporting_components = np.full(len(center_line_x), "baseline", dtype=object)
-        
-        # Check each component below in order (first match wins)
-        for component in components_below:
-            x_min_comp, x_max_comp = component_bounds[component]
-            if x_min_comp <= x_max_comp:  # Valid bounds
-                mask = (center_line_x >= x_min_comp) & (center_line_x <= x_max_comp) & (supporting_components == "baseline")
-                supporting_components[mask] = component
-        
-        # Vectorized z calculation
-        center_line_z = np.zeros_like(center_line_x)
-        
-        # Group by supporting component for efficient batch processing
-        unique_components = np.unique(supporting_components)
-        
-        for component in unique_components:
-            mask = supporting_components == component
-            if not np.any(mask):
-                continue
-                
-            x_subset = center_line_x[mask]
-            below_line = center_lines[component]
-            below_thickness = thicknesses[component]
-            
-            # Vectorized interpolation
-            below_z = np.interp(x_subset, below_line[:, 0], below_line[:, 1])
-            new_z = below_z + (component_thickness / 2) + (below_thickness / 2)
-            center_line_z[mask] = new_z
-        
-        # Combine x and z coordinates
-        return np.column_stack((center_line_x, center_line_z))
+    # Duplicate _flatten_center_line removed; logic consolidated into _calculate_flattened_center_lines
 
     def get_thickness_at_x(self, x_position: float) -> float:
         """Return local laminate thickness at a given unwrapped x-position (meters).
 
-        Specification:
-        1. For each component center line in `self._flattened_center_lines`, if `x_position` lies
-           within that component's x-span, interpolate its center-line z-value.
-        2. Identify the raw center-line z with the highest value (do NOT add thickness yet).
-        3. Identify the minimum raw center-line z among all intersecting components (reference_z).
-        4. Add half the thickness of the highest component (from the thickness mapping) to its raw z.
-        5. Subtract reference_z.
-        6. If no components intersect at x_position, return 0.0.
-
-        Result = (highest_raw_centerline_z + thickness(highest_component)/2) - min_raw_centerline_z
-        (Units preserved in meters.)
+        Uses precomputed top surface (baseline + cumulative layer thickness)
+        for O(log N) interpolation instead of scanning individual layers.
+        Returns 0.0 if x is outside the sampled domain or no layers present.
         """
-        # map the components to their thicknesses
-        component_thicknesses = {
-            "top_separator": self._top_separator._thickness,
-            "anode_a_side_coating": self.anode._coating_thickness,
-            "anode_current_collector": self.anode._current_collector._thickness,
-            "anode_b_side_coating": self.anode._coating_thickness,
-            "bottom_separator": self._bottom_separator._thickness,
-            "cathode_a_side_coating": self.cathode._coating_thickness,
-            "cathode_current_collector": self.cathode._current_collector._thickness,
-            "cathode_b_side_coating": self.cathode._coating_thickness,
-        }
-
-        # get the layup baseline z (below which thickness is 0)
-        base_line_z = np.min(self._flattened_center_lines["baseline"][:, 1])
-
-        # go through the components and get their z values at the x position
-        z_values = {}
-        for name, coords in self._flattened_center_lines.items():
-
-            if not self._check_coordinate_intersection(coords, x_position):
-                continue
-
-            z_values[name] = np.interp(
-                x_position,
-                coords[:, 0],
-                coords[:, 1],
-                left=base_line_z,
-                right=base_line_z
-            )
-
-        if len(z_values) == 0:
+        if getattr(self, "_top_surface", None) is None or len(self._top_surface) == 0:
             return 0.0
 
-        # get the component with highest z value
-        highest_component = max(z_values, key=z_values.get)
+        xs = self._top_surface[:, 0]
+        if x_position < xs[0] or x_position > xs[-1]:
+            return 0.0
 
-        # get the z value of the highest component and add half the thickness and subtract the base line
-        highest_z = z_values[highest_component] + component_thicknesses[highest_component]/2 - base_line_z
-        
-        return highest_z
+        top_z = np.interp(x_position, xs, self._top_surface[:, 1])
+        baseline_z = getattr(self, "_baseline_z", None)
+        if baseline_z is None:
+            # fallback: derive from baseline if available
+            if (
+                hasattr(self, "_flattened_center_lines")
+                and "baseline" in self._flattened_center_lines
+                and len(self._flattened_center_lines["baseline"]) > 0
+            ):
+                baseline_z = self._flattened_center_lines["baseline"][0, 1]
+            else:
+                return 0.0
+
+        return max(0.0, top_z - baseline_z)
 
     @property
     def flattened_center_lines(self) -> dict:
