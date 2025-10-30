@@ -123,17 +123,19 @@ class TestFlatMandrel(unittest.TestCase):
     def setUp(self):
         """Set up a basic flat mandrel for testing."""
         self.flat_mandrel = FlatMandrel(
-            long_diameter=20.0,   # 20mm long diameter
-            short_diameter=1.0,  # 10mm short diameter
-            length=100.0,         # 100mm length
+            width=20.0,   # 20mm width
+            height=10.0,  # 10mm height (radius = 5mm)
+            length=100.0, # 100mm length
             datum=(0.0, 0.0, 0.0) # centered at origin
         )
 
     def test_flat_mandrel_instantiation(self):
         """Test basic flat mandrel instantiation and properties."""
         self.assertIsInstance(self.flat_mandrel, FlatMandrel)
-        self.assertEqual(self.flat_mandrel.long_diameter, 20.0)
-        self.assertEqual(self.flat_mandrel.short_diameter, 1.0)
+        self.assertEqual(self.flat_mandrel.width, 20.0)
+        self.assertEqual(self.flat_mandrel.height, 10.0)
+        self.assertEqual(self.flat_mandrel.radius, 5.0)  # radius = height/2
+        self.assertEqual(self.flat_mandrel.straight_length, 10.0)  # width - height = 20 - 10 = 10
         self.assertEqual(self.flat_mandrel.length, 100.0)
         self.assertEqual(self.flat_mandrel.datum, (0.0, 0.0, 0.0))
 
@@ -146,8 +148,8 @@ class TestFlatMandrel(unittest.TestCase):
         self.assertIsNotNone(fig1)
         self.assertIsNotNone(fig2)
 
-        # fig1.show()
-        # fig2.show()
+        fig1.show()
+        fig2.show()
 
     def test_flat_mandrel_coordinates_generation(self):
         """Test that coordinates are properly generated for elliptical shape."""
@@ -160,8 +162,8 @@ class TestFlatMandrel(unittest.TestCase):
         self.assertEqual(coords.shape[1], 3)  # 3 columns (x, y, z)
         self.assertGreater(coords.shape[0], 0)  # At least some points
 
-    def test_flat_mandrel_elliptical_coordinates(self):
-        """Test that coordinates form proper elliptical shape."""
+    def test_flat_mandrel_racetrack_coordinates(self):
+        """Test that coordinates form proper racetrack shape."""
         coords = self.flat_mandrel._coordinates
         
         # Y coordinates should span the length of the mandrel (±50mm from center)
@@ -169,11 +171,11 @@ class TestFlatMandrel(unittest.TestCase):
         self.assertGreaterEqual(y_coords.min(), -0.05)  # -50mm in meters
         self.assertLessEqual(y_coords.max(), 0.05)      # +50mm in meters
         
-        # X coordinates should be bounded by semi-major axis (10mm)
+        # X coordinates should be bounded by width/2 (10mm)
         x_coords = coords[:, 0]
         self.assertLessEqual(np.abs(x_coords).max(), 0.0101)  # 10mm + tolerance in meters
         
-        # Z coordinates should be bounded by semi-minor axis (5mm)
+        # Z coordinates should be bounded by radius (5mm)
         z_coords = coords[:, 2]
         self.assertLessEqual(np.abs(z_coords).max(), 0.0051)  # 5mm + tolerance in meters
 
@@ -182,16 +184,19 @@ class TestFlatMandrel(unittest.TestCase):
         # Get initial coordinates
         initial_coords = self.flat_mandrel._coordinates.copy()
         
-        # Change long diameter
-        self.flat_mandrel.long_diameter = 30.0
+        # Change width
+        self.flat_mandrel.width = 30.0
         new_coords = self.flat_mandrel._coordinates
         
         # Coordinates should have changed
         self.assertFalse(np.array_equal(initial_coords, new_coords))
         
-        # New coordinates should reflect updated long diameter
+        # New coordinates should reflect updated width
         x_coords = new_coords[:, 0]
         self.assertLessEqual(np.abs(x_coords).max(), 0.0151)  # 15mm + tolerance in meters
+        
+        # Straight length should have updated
+        self.assertEqual(self.flat_mandrel.straight_length, 20.0)  # 30 - 10 = 20
 
     def test_flat_mandrel_coordinates_property(self):
         """Test the coordinates property returns proper DataFrame."""
@@ -216,18 +221,26 @@ class TestFlatMandrel(unittest.TestCase):
         y_range = coords_df['y'].max() - coords_df['y'].min()
         self.assertAlmostEqual(y_range, 100.0, delta=1.0)  # 100mm length
         
-        # Should have exactly 66 points total (33 per ellipse)
-        self.assertEqual(len(coords_df), 258)
+        # Should have points for racetrack shape (2 straight segments + 2 arcs per track, 2 tracks total)
+        # Exact count depends on n_straight and n_arc parameters
+        self.assertGreater(len(coords_df), 100)  # Should have a reasonable number of points
 
     def test_flat_mandrel_setters(self):
         """Test property setters work correctly."""
-        # Test long_diameter setter
-        self.flat_mandrel.long_diameter = 25.0
-        self.assertEqual(self.flat_mandrel.long_diameter, 25.0)
+        # Test width setter
+        self.flat_mandrel.width = 25.0
+        self.assertEqual(self.flat_mandrel.width, 25.0)
+        self.assertEqual(self.flat_mandrel.straight_length, 15.0)  # 25 - 10 = 15
         
-        # Test short_diameter setter
-        self.flat_mandrel.short_diameter = 12.0
-        self.assertEqual(self.flat_mandrel.short_diameter, 12.0)
+        # Test height setter
+        self.flat_mandrel.height = 12.0
+        self.assertEqual(self.flat_mandrel.height, 12.0)
+        self.assertEqual(self.flat_mandrel.radius, 6.0)  # 12/2 = 6
+        
+        # Test radius setter
+        self.flat_mandrel.radius = 8.0
+        self.assertEqual(self.flat_mandrel.radius, 8.0)
+        self.assertEqual(self.flat_mandrel.height, 16.0)  # 8*2 = 16
         
         # Test length setter
         self.flat_mandrel.length = 150.0
@@ -237,6 +250,23 @@ class TestFlatMandrel(unittest.TestCase):
         new_datum = (5.0, 10.0, 15.0)
         self.flat_mandrel.datum = new_datum
         self.assertEqual(self.flat_mandrel.datum, new_datum)
+
+    def test_flat_mandrel_circular_case(self):
+        """Test the case where height >= width (pure circle)."""
+        # Create a mandrel where height >= width
+        circular_mandrel = FlatMandrel(
+            width=10.0,
+            height=15.0,  # height > width
+            length=100.0
+        )
+        
+        # Should handle this gracefully
+        self.assertEqual(circular_mandrel.radius, 7.5)  # height/2
+        self.assertEqual(circular_mandrel.straight_length, 0.0)  # no straight segments
+        
+        # Should still generate coordinates
+        coords = circular_mandrel._coordinates
+        self.assertGreater(coords.shape[0], 0)
 
 
 if __name__ == "__main__":

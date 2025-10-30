@@ -90,6 +90,8 @@ class TestRoundJellyRoll(unittest.TestCase):
             tab_height=18,
             insulation_width=6,
             coated_tab_height=2,
+            bare_lengths_a_side=(200, 300),
+            bare_lengths_b_side=(150, 250),
         )
 
         anode = Anode(
@@ -111,7 +113,7 @@ class TestRoundJellyRoll(unittest.TestCase):
 
         top_separator = Separator(material=separator_material, thickness=25, width=310, length=5000)
 
-        bottom_separator = Separator(material=separator_material, thickness=25, width=310, length=5000)
+        bottom_separator = Separator(material=separator_material, thickness=25, width=310, length=7000)
 
         layup = Laminate(
             anode=anode,
@@ -144,7 +146,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         fig1 = self.my_jellyroll.get_spiral_plot()
         fig2 = self.my_jellyroll.get_spiral_plot(layered=False)
         fig3 = self.my_jellyroll.get_capacity_plot()
-        # fig1.show()
+        fig1.show()
         # fig2.show()
         # fig3.show()
 

@@ -41,8 +41,8 @@ class _Mandrel(
         self.name = name
 
     def _calculate_all_properties(self):
-        self._calculate_coordinates()
         self._calculate_bulk_properties()
+        self._calculate_coordinates()
 
     def _calculate_bulk_properties(self):
         pass
@@ -291,8 +291,8 @@ class FlatMandrel(_Mandrel):
     def __init__(
             self, 
             length: float,
-            long_diameter: float,
-            short_diameter: float,
+            width: float,
+            height: float,
             datum: Tuple[float, float, float] = (0, 0, 0),
             material: CurrentCollectorMaterial = None,
             name: str = "Flat Mandrel"
@@ -302,101 +302,58 @@ class FlatMandrel(_Mandrel):
             length, datum, material, name
         )
 
-        self.long_diameter = long_diameter
-        self.short_diameter = short_diameter
+        self.width = width
+        self.height = height
 
         self._calculate_all_properties()
         self._update_properties = True
 
     def _calculate_bulk_properties(self):
-        self._long_radius = self._long_diameter / 2
-        self._short_radius = self._short_diameter / 2
+        self._radius = self._height / 2
+        self._straight_length = self._width - self._height
 
     def _calculate_coordinates(self):
-        """
-        Calculate the 3D coordinates of the flat mandrel as two ellipses in the xz-plane.
-        The ellipses are separated by the mandrel length along the y-axis.
-        """
-        # Parameters for coordinate generation
-        n_circumferential = 128  # Number of points around circumference
         
-        # Generate angular positions around circumference (include endpoint to close ellipse)
-        theta = np.linspace(0, 2 * PI, n_circumferential + 1, endpoint=True)
         
-        # Define the two y positions for the ellipses (start and end of mandrel)
-        y_start = -self._length / 2
-        y_end = self._length / 2
-        
-        # Semi-major and semi-minor axes
-        a = self._long_diameter / 2   # Semi-major axis (x-direction)
-        b = self._short_diameter / 2  # Semi-minor axis (z-direction)
-        
-        # Create coordinate arrays
-        coordinates = []
-        
-        # Generate coordinates for the first ellipse (at y_start)
-        for t in theta:
-            x = a * np.cos(t)
-            z = b * np.sin(t)
-            coordinates.append([
-                x + self._datum[0],       # X position + datum offset
-                y_start + self._datum[1], # Y position + datum offset  
-                z + self._datum[2]        # Z position + datum offset
-            ])
-        
-        # Generate coordinates for the second ellipse (at y_end)
-        for t in theta:
-            x = a * np.cos(t)
-            z = b * np.sin(t)
-            coordinates.append([
-                x + self._datum[0],     # X position + datum offset
-                y_end + self._datum[1], # Y position + datum offset  
-                z + self._datum[2]      # Z position + datum offset
-            ])
-        
-        # Convert to numpy array
-        self._coordinates = np.array(coordinates)
-        
+
         return self._coordinates
 
     @property
-    def long_radius(self) -> float:
-        """Return the mandrel long radius in mm."""
-        return round(self._long_radius * M_TO_MM, 2)
+    def radius(self) -> float:
+        """Return the mandrel radius (half of height) in mm."""
+        return round(self._radius * M_TO_MM, 2)
 
     @property
-    def short_radius(self) -> float:
-        """Return the mandrel short radius in mm."""
-        return round(self._short_radius * M_TO_MM, 2)
+    def straight_length(self) -> float:
+        """Return the straight segment length in mm."""
+        return round(self._straight_length * M_TO_MM, 2)
 
     @property
-    def long_diameter(self) -> float:
-        """Return the mandrel long diameter in mm."""
-        return round(self._long_diameter * M_TO_MM, 2)
+    def width(self) -> float:
+        """Return the mandrel width in mm."""
+        return round(self._width * M_TO_MM, 2)
 
     @property
-    def short_diameter(self) -> float:
-        """Return the mandrel short diameter in mm."""
-        return round(self._short_diameter * M_TO_MM, 2)
+    def height(self) -> float:
+        """Return the mandrel height in mm."""
+        return round(self._height * M_TO_MM, 2)
 
-    @long_diameter.setter
+    @width.setter
     @calculate_coordinates
-    def long_diameter(self, value: float):
-        self._long_diameter = round(value * MM_TO_M, 6)
+    def width(self, value: float):
+        self.validate_positive_float(value, "width")
+        self._width = round(value * MM_TO_M, 6)
 
-    @short_diameter.setter
+    @height.setter
     @calculate_coordinates
-    def short_diameter(self, value: float):
-        self._short_diameter = round(value * MM_TO_M, 6)
+    def height(self, value: float):
+        self.validate_positive_float(value, "height")
+        self._height = round(value * MM_TO_M, 6)
 
-    @long_radius.setter
+    @radius.setter
     @calculate_coordinates
-    def long_radius(self, value: float):
-        self._long_diameter = value * MM_TO_M * 2
-
-    @short_radius.setter
-    @calculate_coordinates
-    def short_radius(self, value: float):
-        self._short_diameter = value * MM_TO_M, 6
+    def radius(self, value: float):
+        self.validate_positive_float(value, "radius")
+        self._height = value * MM_TO_M * 2
 
         
