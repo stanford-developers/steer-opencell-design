@@ -2003,8 +2003,6 @@ class Laminate(_Layup):
 
         return self._thickness
 
-    # Duplicate _flatten_center_line removed; logic consolidated into _calculate_flattened_center_lines
-
     def get_thickness_at_x(self, x_position: float) -> float:
         """Return local laminate thickness at a given unwrapped x-position (meters).
 

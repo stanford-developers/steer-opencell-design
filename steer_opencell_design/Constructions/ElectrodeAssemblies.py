@@ -364,7 +364,52 @@ class _JellyRoll(_ElectrodeAssembly):
 
     def _calculate_all_properties(self):
         self._calculate_roll()
+        self._calculate_roll_properties()
         super()._calculate_all_properties()
+
+    def _calculate_roll(self):
+        pass
+
+    def _calculate_roll_properties(self):
+
+        roll_properties = {}
+        
+        # calculate number of turns for each component
+        roll_properties["anode_a_side_coating_turns"] = np.max(self._component_spirals.get("anode_a_side_coating")[:,5])
+        roll_properties["anode_b_side_coating_turns"] = np.max(self._component_spirals.get("anode_b_side_coating")[:,5])
+        roll_properties["anode_current_collector_turns"] = np.max(self._component_spirals.get("anode_current_collector")[:,5])
+        roll_properties["cathode_a_side_coating_turns"] = np.max(self._component_spirals.get("cathode_a_side_coating")[:,5])
+        roll_properties["cathode_b_side_coating_turns"] = np.max(self._component_spirals.get("cathode_b_side_coating")[:,5])
+        roll_properties["cathode_current_collector_turns"] = np.max(self._component_spirals.get("cathode_current_collector")[:,5])
+        roll_properties["bottom_separator_turns"] = np.max(self._component_spirals.get("bottom_separator")[:,5])
+        roll_properties["top_separator_turns"] = np.max(self._component_spirals.get("top_separator")[:,5])
+
+        # calculate number of inner turns for the separators
+        # get the theta at which the anode starts
+        anode_start_theta = self._component_spirals.get("anode_a_side_coating")[0,0]
+        # get the bottom separator spiral and remove values above that theta
+        bottom_separator_spiral = self._component_spirals.get("bottom_separator")
+        bottom_separator_spiral = bottom_separator_spiral[bottom_separator_spiral[:,0] > anode_start_theta]
+        roll_properties["bottom_separator_inner_turns"] = np.max(bottom_separator_spiral[:,5])
+
+        # do the same for the top separator
+        top_separator_spiral = self._component_spirals.get("top_separator")
+        top_separator_spiral = top_separator_spiral[top_separator_spiral[:,0] > anode_start_theta]
+        roll_properties["top_separator_inner_turns"] = np.max(top_separator_spiral[:,5])
+
+        # calcualate the number of outer turns for the separators
+        anode_end_theta = self._component_spirals.get("anode_b_side_coating")[-1,0]
+        bottom_separator_spiral = self._component_spirals.get("bottom_separator")
+        bottom_separator_spiral = bottom_separator_spiral[bottom_separator_spiral[:,0] < anode_end_theta]
+        roll_properties["bottom_separator_outer_turns"] = np.max(bottom_separator_spiral[:,5]) - np.min(bottom_separator_spiral[:,5])
+
+        top_separator_spiral = self._component_spirals.get("top_separator")
+        top_separator_spiral = top_separator_spiral[top_separator_spiral[:,0] < anode_end_theta]
+        roll_properties["top_separator_outer_turns"] = np.max(top_separator_spiral[:,5]) - np.min(top_separator_spiral[:,5])
+
+        self._roll_properties = roll_properties
+
+        return self._roll_properties
 
     def _calculate_mass_properties(self):
 
@@ -422,6 +467,15 @@ class _JellyRoll(_ElectrodeAssembly):
             fig.add_trace(self.cathode_current_collector_extruded_spiral_trace)
             fig.add_trace(self.cathode_b_side_coating_extruded_spiral_trace)
 
+            fig.add_trace(self.top_separator_spiral_trace)
+            fig.add_trace(self.anode_a_side_coating_spiral_trace)
+            fig.add_trace(self.anode_current_collector_spiral_trace)
+            fig.add_trace(self.anode_b_side_coating_spiral_trace)
+            fig.add_trace(self.bottom_separator_spiral_trace)
+            fig.add_trace(self.cathode_a_side_coating_spiral_trace)
+            fig.add_trace(self.cathode_current_collector_spiral_trace)
+            fig.add_trace(self.cathode_b_side_coating_spiral_trace)
+
         elif not layered:
             fig.add_trace(self.spiral_trace)
 
@@ -439,45 +493,86 @@ class _JellyRoll(_ElectrodeAssembly):
     def _format_np_spiral_for_df(np_array: np.ndarray) -> pd.DataFrame:
         """Format numpy spiral array into pandas DataFrame with proper units and column names.
 
-        Columns: theta (degrees), x_unwrapped (mm), thickness (mm), r (mm), x (mm), y (mm)
+        Columns: theta (degrees), x_unwrapped (mm), r (mm), x (mm), z (mm), turns
         """
-        return (
-            pd
-            .DataFrame(np_array, columns=["theta","length","r","x","z"])
-            .assign(
-                theta = lambda df: df["theta"] * (180.0 / PI),
-                length = lambda df: df["length"] * M_TO_MM,
-                r = lambda df: df["r"] * M_TO_MM,
-                x = lambda df: df["x"] * M_TO_MM,
-                z = lambda df: df["z"] * M_TO_MM,
-            )
-            .rename(
-                columns={
-                    "x": "X (mm)",
-                    "z": "Z (mm)",
-                    "r": "Radius (mm)",
-                    "length": "Unwrapped Length (mm)",
-                    "theta": "Theta (degrees)",
-                }
-            )
-        )
+        # Pre-compute all conversions in numpy (much faster than pandas operations)
+        theta_deg = np.abs(np_array[:, 0] * (180.0 / PI) - 90)
+        length_mm = np_array[:, 1] * M_TO_MM
+        r_mm = np_array[:, 2] * M_TO_MM
+        x_mm = np_array[:, 3] * M_TO_MM
+        z_mm = np_array[:, 4] * M_TO_MM
+        turns = np_array[:, 5]  # Number of turns (dimensionless)
+        
+        # Create DataFrame directly with final column names and converted values
+        return pd.DataFrame({
+            "Theta (degrees)": theta_deg,
+            "Unwrapped Length (mm)": length_mm,
+            "Radius (mm)": r_mm,
+            "X (mm)": x_mm,
+            "Z (mm)": z_mm,
+            "Turns": turns,
+        })
     
     def _format_spiral_trace(self, property_name: str, color: str, name: str) -> go.Scatter:
         
         df = getattr(self, property_name)
+        # Build customdata array for rich hover (theta, length, radius, x, z, turns)
+        customdata = np.stack([
+            df['Theta (degrees)'],
+            df['Unwrapped Length (mm)'],
+            df['Radius (mm)'],
+            df['X (mm)'],
+            df['Z (mm)'],
+            df['Turns']
+        ], axis=-1)
 
-        return go.Scatter(
+        hovertemplate = (
+            '<b>'+name+'</b><br>'
+            'Theta: %{customdata[0]:.2f}°<br>'
+            'Unwrapped Length: %{customdata[1]:.2f} mm<br>'
+            'Radius: %{customdata[2]:.2f} mm<br>'
+            'X: %{customdata[3]:.2f} mm<br>'
+            'Z: %{customdata[4]:.2f} mm<br>'
+            'Turns: %{customdata[5]:.2f}<extra></extra>'
+        )
+
+        trace = go.Scatter(
             x=df['X (mm)'],
             y=df['Z (mm)'],
             mode='lines',
-            line=dict(color=color, width=3),
+            line=dict(color=color, width=0),
             line_shape='spline',
-            name=name
+            name=name,
+            customdata=customdata,
+            hovertemplate=hovertemplate,
         )
+
+        trace.showlegend = False
+
+        return trace
     
     def _format_extruded_spiral_trace(self, property_name: str, color: str, name: str) -> go.Scatter:
         
         df = getattr(self, property_name)
+        # Use same hover data schema as line spirals
+        customdata = np.stack([
+            df['Theta (degrees)'],
+            df['Unwrapped Length (mm)'],
+            df['Radius (mm)'],
+            df['X (mm)'],
+            df['Z (mm)'],
+            df['Turns']
+        ], axis=-1)
+
+        hovertemplate = (
+            '<b>'+name+' (Extruded)</b><br>'
+            'Theta: %{customdata[0]:.2f}°<br>'
+            'Unwrapped Length: %{customdata[1]:.2f} mm<br>'
+            'Radius: %{customdata[2]:.2f} mm<br>'
+            'X: %{customdata[3]:.2f} mm<br>'
+            'Z: %{customdata[4]:.2f} mm<br>'
+            'Turns: %{customdata[5]:.2f}<extra></extra>'
+        )
 
         return go.Scatter(
             x=df['X (mm)'],
@@ -487,8 +582,49 @@ class _JellyRoll(_ElectrodeAssembly):
             fillcolor=color,
             line=dict(color="black", width=0.1),
             line_shape='spline',
-            name=name
+            name=name,
+            customdata=customdata,
+            hovertemplate=hovertemplate,
         )
+
+    @property
+    def roll_properties(self) -> pd.DataFrame:
+        """Return the roll properties as a pandas DataFrame with values rounded to 2 decimal places.
+        
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing roll properties with component names as index and turn counts as values.
+        """
+        # Create a formatted dictionary with rounded values
+        formatted_props = {key: round(value, 2) for key, value in self._roll_properties.items()}
+        
+        # Convert to DataFrame with descriptive names
+        df = pd.DataFrame.from_dict(formatted_props, orient='index', columns=['Turns'])
+        df.index.name = 'Component'
+        
+        # Sort by component type for better readability
+        component_order = [
+            'anode_a_side_coating_turns',
+            'anode_current_collector_turns', 
+            'anode_b_side_coating_turns',
+            'cathode_a_side_coating_turns',
+            'cathode_current_collector_turns',
+            'cathode_b_side_coating_turns',
+            'bottom_separator_turns',
+            'bottom_separator_inner_turns',
+            'bottom_separator_outer_turns',
+            'top_separator_turns',
+            'top_separator_inner_turns',
+            'top_separator_outer_turns'
+        ]
+        
+        # Reorder DataFrame according to component_order, keeping any additional components at the end
+        existing_components = [comp for comp in component_order if comp in df.index]
+        additional_components = [comp for comp in df.index if comp not in component_order]
+        ordered_index = existing_components + additional_components
+        
+        return df.reindex(ordered_index)
 
     @property
     def spiral(self) -> pd.DataFrame:
@@ -846,7 +982,7 @@ class WoundJellyRoll(_JellyRoll):
         total_length = self.layup._total_length  # meters
         r0 = self.mandrel._radius
         if total_length <= 0:
-            self._spiral = np.array([[np.pi/2, 0.0, r0, r0 * 0.0, r0]])
+            self._spiral = np.array([[np.pi/2, 0.0, r0, r0 * 0.0, r0, 0.0]])  # Added turns column (0.0)
             return self._spiral
 
         # Build interpolation grid for thickness
@@ -897,9 +1033,15 @@ class WoundJellyRoll(_JellyRoll):
                 theta_arr = np.concatenate([theta_arr[:idx], [theta_trim]])
                 r_arr = np.concatenate([r_arr[:idx], [r_trim]])
                 x_unwrapped_arr = np.concatenate([x_unwrapped_arr[:idx], [total_length]])
+            
+            # Calculate number of turns: cumulative rotations from start (theta decreases from π/2)
+            theta_start = np.pi/2
+            theta_traveled = theta_start - theta_arr  # Total angle traveled (positive)
+            turns_arr = theta_traveled / (2 * np.pi)  # Number of complete turns
+            
             x_coords = r_arr * np.cos(theta_arr)
             z_coords = r_arr * np.sin(theta_arr)
-            self._spiral = np.column_stack([theta_arr, x_unwrapped_arr, r_arr, x_coords, z_coords])
+            self._spiral = np.column_stack([theta_arr, x_unwrapped_arr, r_arr, x_coords, z_coords, turns_arr])
             return self._spiral
 
         # Adaptive RK4 integration (θ decreases)
@@ -1016,9 +1158,15 @@ class WoundJellyRoll(_JellyRoll):
         x_unwrapped_arr = np.array(x_list)
         r_arr = np.array(r_list)
 
+        # Calculate number of turns: cumulative rotations from start (theta decreases from π/2)
+        theta_start = np.pi/2
+        theta_traveled = theta_start - theta_arr  # Total angle traveled (positive)
+        turns_arr = theta_traveled / (2 * np.pi)  # Number of complete turns
+
         x_coords = r_arr * np.cos(theta_arr)
         z_coords = r_arr * np.sin(theta_arr)
-        self._spiral = np.column_stack([theta_arr, x_unwrapped_arr, r_arr, x_coords, z_coords])
+        self._spiral = np.column_stack([theta_arr, x_unwrapped_arr, r_arr, x_coords, z_coords, turns_arr])
+
         return self._spiral
 
     def _build_component_spirals(self):
@@ -1059,7 +1207,7 @@ class WoundJellyRoll(_JellyRoll):
         for component_name in component_names:
             if component_name not in center_line_data:
                 # Skip missing components with empty array
-                self._component_spirals[component_name] = np.empty((0, 5))
+                self._component_spirals[component_name] = np.empty((0, 6))  # Updated to 6 columns
                 continue
                 
             cl_data = center_line_data[component_name]
@@ -1070,7 +1218,7 @@ class WoundJellyRoll(_JellyRoll):
             
             if not np.any(mask):
                 # No spiral points in component range
-                self._component_spirals[component_name] = np.empty((0, 5))
+                self._component_spirals[component_name] = np.empty((0, 6))  # Updated to 6 columns
                 continue
             
             # Apply mask to get component spiral slice
@@ -1090,6 +1238,11 @@ class WoundJellyRoll(_JellyRoll):
             new_radii = component_spiral[:, 2]
             component_spiral[:, 3] = new_radii * np.cos(theta_vals)  # x coordinates
             component_spiral[:, 4] = new_radii * np.sin(theta_vals)  # z coordinates
+            
+            # Recalculate turns starting from 0 for this component
+            theta_start_component = component_spiral[0, 0]  # Starting theta for this component
+            theta_traveled_component = theta_start_component - component_spiral[:, 0]  # Angle traveled from component start
+            component_spiral[:, 5] = theta_traveled_component / (2 * np.pi)  # Turns relative to component start
             
             self._component_spirals[component_name] = component_spiral
 
