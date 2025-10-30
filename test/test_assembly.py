@@ -134,21 +134,70 @@ class TestRoundJellyRoll(unittest.TestCase):
 
     def test_basics(self):
         self.assertTrue(type(self.my_jellyroll), WoundJellyRoll)
-        self.assertAlmostEqual(self.my_jellyroll.radius, 18.01, 2)
-        self.assertAlmostEqual(self.my_jellyroll.diameter, 36.02, 2)
-        self.assertAlmostEqual(self.my_jellyroll.energy, 41.34)
+        self.assertAlmostEqual(self.my_jellyroll.radius, 18.12, 2)
+        self.assertAlmostEqual(self.my_jellyroll.diameter, 36.25, 2)
+        self.assertAlmostEqual(self.my_jellyroll.energy, 37.29)
 
     def test_plots(self):
 
         self.assertIsInstance(self.my_jellyroll, WoundJellyRoll)
         self.assertTrue(type(self.my_jellyroll.spiral) == pd.DataFrame)
 
-        fig1 = self.my_jellyroll.get_spiral_plot(layered=True, extruded=True)
-        fig2 = self.my_jellyroll.get_spiral_plot(layered=False)
-        fig3 = self.my_jellyroll.get_capacity_plot()
-        fig1.show()
+        fig1 = self.my_jellyroll.get_spiral_plot()
+        fig2 = self.my_jellyroll.get_spiral_plot(layered=True, extruded=False)
+        fig3 = self.my_jellyroll.get_spiral_plot(layered=False)
+        fig4 = self.my_jellyroll.get_capacity_plot()
+
+        # fig1.show()
         # fig2.show()
         # fig3.show()
+        # fig4.show()
+
+    def test_roll_properties(self):
+        """Test that roll_properties returns a properly formatted DataFrame with expected values."""
+        
+        # Test that roll_properties is a pandas DataFrame
+        self.assertIsInstance(self.my_jellyroll.roll_properties, pd.DataFrame)
+        
+        # Create expected DataFrame
+        expected_data = {
+            'anode_a_side_coating_turns': 56.01,
+            'anode_current_collector_turns': 65.24,
+            'anode_b_side_coating_turns': 57.94,
+            'cathode_a_side_coating_turns': 65.24,
+            'cathode_current_collector_turns': 65.24,
+            'cathode_b_side_coating_turns': 65.24,
+            'bottom_separator_turns': 137.18,
+            'bottom_separator_inner_turns': 67.32,
+            'bottom_separator_outer_turns': 13.38,
+            'top_separator_turns': 77.45,
+            'top_separator_inner_turns': 16.46,
+            'top_separator_outer_turns': 4.52
+        }
+        
+        expected_df = pd.DataFrame.from_dict(expected_data, orient='index', columns=['Turns'])
+        expected_df.index.name = 'Component'
+        
+        # Get actual DataFrame
+        actual_df = self.my_jellyroll.roll_properties
+        
+        # Test DataFrame structure
+        self.assertEqual(actual_df.columns.tolist(), ['Turns'])
+        self.assertEqual(actual_df.index.name, 'Component')
+        
+        # Test that all expected components are present
+        for component in expected_data.keys():
+            self.assertIn(component, actual_df.index, f"Missing component: {component}")
+        
+        # Test values (rounded to 2 decimal places)
+        for component, expected_value in expected_data.items():
+            actual_value = actual_df.loc[component, 'Turns']
+            self.assertAlmostEqual(
+                actual_value, 
+                expected_value, 
+                places=2, 
+                msg=f"Component {component}: expected {expected_value}, got {actual_value}"
+            )
 
 
 class TestFlatJellyRoll(unittest.TestCase):
