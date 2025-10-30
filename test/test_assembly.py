@@ -27,7 +27,7 @@ from steer_materials.CellMaterials.Electrode import (
 
 
 
-class TestSimpleLaminate(unittest.TestCase):
+class TestRoundJellyRoll(unittest.TestCase):
     
     def setUp(self):
         ########################
@@ -131,13 +131,13 @@ class TestSimpleLaminate(unittest.TestCase):
             mandrel=mandrel,
         )
 
-    def test_layup_thickness(self):
+    def test_basics(self):
         self.assertTrue(type(self.my_jellyroll), WoundJellyRoll)
         self.assertAlmostEqual(self.my_jellyroll.radius, 18.01, 2)
         self.assertAlmostEqual(self.my_jellyroll.diameter, 36.02, 2)
         self.assertAlmostEqual(self.my_jellyroll.energy, 41.34)
 
-    def test_laminate_basic_structure(self):
+    def test_plots(self):
 
         self.assertIsInstance(self.my_jellyroll, WoundJellyRoll)
         self.assertTrue(type(self.my_jellyroll.spiral) == pd.DataFrame)
@@ -147,7 +147,10 @@ class TestSimpleLaminate(unittest.TestCase):
         fig3 = self.my_jellyroll.get_capacity_plot()
         # fig1.show()
         # fig2.show()
-        fig3.show()
+        # fig3.show()
+
+
+
 
 
 class TestPunchedStack(unittest.TestCase):
