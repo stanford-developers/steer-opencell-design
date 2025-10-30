@@ -394,11 +394,15 @@ class _JellyRoll(_ElectrodeAssembly):
 
         return self._cost
 
-    def get_spiral_plot(self, layered: bool = True ,**kwargs) -> go.Figure:
+    def get_spiral_plot(
+            self, 
+            layered: bool = True,
+            extruded: bool = True,
+            **kwargs) -> go.Figure:
 
         fig = go.Figure()
 
-        if layered:
+        if layered and not extruded:
             fig.add_trace(self.top_separator_spiral_trace)
             fig.add_trace(self.anode_a_side_coating_spiral_trace)
             fig.add_trace(self.anode_current_collector_spiral_trace)
@@ -408,7 +412,17 @@ class _JellyRoll(_ElectrodeAssembly):
             fig.add_trace(self.cathode_current_collector_spiral_trace)
             fig.add_trace(self.cathode_b_side_coating_spiral_trace)
 
-        else:
+        elif layered and extruded:
+            fig.add_trace(self.top_separator_extruded_spiral_trace)
+            fig.add_trace(self.anode_a_side_coating_extruded_spiral_trace)
+            fig.add_trace(self.anode_current_collector_extruded_spiral_trace)
+            fig.add_trace(self.anode_b_side_coating_extruded_spiral_trace)
+            fig.add_trace(self.bottom_separator_extruded_spiral_trace)
+            fig.add_trace(self.cathode_a_side_coating_extruded_spiral_trace)
+            fig.add_trace(self.cathode_current_collector_extruded_spiral_trace)
+            fig.add_trace(self.cathode_b_side_coating_extruded_spiral_trace)
+
+        elif not layered:
             fig.add_trace(self.spiral_trace)
 
         fig.update_layout(
@@ -457,6 +471,21 @@ class _JellyRoll(_ElectrodeAssembly):
             y=df['Z (mm)'],
             mode='lines',
             line=dict(color=color, width=3),
+            line_shape='spline',
+            name=name
+        )
+    
+    def _format_extruded_spiral_trace(self, property_name: str, color: str, name: str) -> go.Scatter:
+        
+        df = getattr(self, property_name)
+
+        return go.Scatter(
+            x=df['X (mm)'],
+            y=df['Z (mm)'],
+            mode='lines',
+            fill='toself',
+            fillcolor=color,
+            line=dict(color="black", width=0.1),
             line_shape='spline',
             name=name
         )
@@ -539,6 +568,46 @@ class _JellyRoll(_ElectrodeAssembly):
         return self._format_np_spiral_for_df(cbsc_spiral)
 
     @property
+    def top_separator_extruded_spiral(self) -> pd.DataFrame:
+        ts_extruded_spiral = self._extruded_spirals.get("top_separator")
+        return self._format_np_spiral_for_df(ts_extruded_spiral)
+
+    @property
+    def bottom_separator_extruded_spiral(self) -> pd.DataFrame:
+        bs_extruded_spiral = self._extruded_spirals.get("bottom_separator")
+        return self._format_np_spiral_for_df(bs_extruded_spiral)
+
+    @property
+    def anode_a_side_coating_extruded_spiral(self) -> pd.DataFrame:
+        aasc_extruded_spiral = self._extruded_spirals.get("anode_a_side_coating")
+        return self._format_np_spiral_for_df(aasc_extruded_spiral)
+    
+    @property
+    def anode_current_collector_extruded_spiral(self) -> pd.DataFrame:
+        acc_extruded_spiral = self._extruded_spirals.get("anode_current_collector")
+        return self._format_np_spiral_for_df(acc_extruded_spiral)
+    
+    @property
+    def anode_b_side_coating_extruded_spiral(self) -> pd.DataFrame:
+        absc_extruded_spiral = self._extruded_spirals.get("anode_b_side_coating")
+        return self._format_np_spiral_for_df(absc_extruded_spiral)
+
+    @property
+    def cathode_a_side_coating_extruded_spiral(self) -> pd.DataFrame:
+        casc_extruded_spiral = self._extruded_spirals.get("cathode_a_side_coating")
+        return self._format_np_spiral_for_df(casc_extruded_spiral)
+    
+    @property
+    def cathode_current_collector_extruded_spiral(self) -> pd.DataFrame:
+        ccc_extruded_spiral = self._extruded_spirals.get("cathode_current_collector")
+        return self._format_np_spiral_for_df(ccc_extruded_spiral)
+    
+    @property
+    def cathode_b_side_coating_extruded_spiral(self) -> pd.DataFrame:
+        cbsc_extruded_spiral = self._extruded_spirals.get("cathode_b_side_coating")
+        return self._format_np_spiral_for_df(cbsc_extruded_spiral)
+
+    @property
     def top_separator_spiral_trace(self) -> go.Scatter:
         return self._format_spiral_trace("top_separator_spiral", self.layup.top_separator.material._color, f"Top Separator")
     
@@ -570,6 +639,38 @@ class _JellyRoll(_ElectrodeAssembly):
     def cathode_b_side_coating_spiral_trace(self) -> go.Scatter:
         return self._format_spiral_trace("cathode_b_side_coating_spiral", self.layup.cathode.formulation._color, f"Cathode b-side Coating")
     
+    @property
+    def top_separator_extruded_spiral_trace(self) -> go.Scatter:
+        return self._format_extruded_spiral_trace("top_separator_extruded_spiral", self.layup.top_separator.material._color, f"Top Separator Extruded")
+
+    @property
+    def bottom_separator_extruded_spiral_trace(self) -> go.Scatter:
+        return self._format_extruded_spiral_trace("bottom_separator_extruded_spiral", self.layup.bottom_separator.material._color, f"Bottom Separator Extruded")
+
+    @property
+    def anode_a_side_coating_extruded_spiral_trace(self) -> go.Scatter:
+        return self._format_extruded_spiral_trace("anode_a_side_coating_extruded_spiral", self.layup.anode.formulation._color, f"Anode a-side Coating Extruded")
+
+    @property
+    def anode_current_collector_extruded_spiral_trace(self) -> go.Scatter:
+        return self._format_extruded_spiral_trace("anode_current_collector_extruded_spiral", self.layup.anode.current_collector.material._color, f"Anode Current Collector Extruded")   
+
+    @property
+    def anode_b_side_coating_extruded_spiral_trace(self) -> go.Scatter:
+        return self._format_extruded_spiral_trace("anode_b_side_coating_extruded_spiral", self.layup.anode.formulation._color, f"Anode b-side Coating Extruded")
+
+    @property
+    def cathode_a_side_coating_extruded_spiral_trace(self) -> go.Scatter:
+        return self._format_extruded_spiral_trace("cathode_a_side_coating_extruded_spiral", self.layup.cathode.formulation._color, f"Cathode a-side Coating Extruded")
+    
+    @property
+    def cathode_current_collector_extruded_spiral_trace(self) -> go.Scatter:
+        return self._format_extruded_spiral_trace("cathode_current_collector_extruded_spiral", self.layup.cathode.current_collector.material._color, f"Cathode Current Collector Extruded")
+    
+    @property
+    def cathode_b_side_coating_extruded_spiral_trace(self) -> go.Scatter:
+        return self._format_extruded_spiral_trace("cathode_b_side_coating_extruded_spiral", self.layup.cathode.formulation._color, f"Cathode b-side Coating Extruded")
+
     @property
     def mandrel(self) -> RoundMandrel | FlatMandrel:
         """Return the mandrel instance."""
@@ -644,7 +745,7 @@ class WoundJellyRoll(_JellyRoll):
         """Public entry to generate variable-thickness winding spiral."""
         self._calculate_variable_thickness_spiral()
         self._build_component_spirals()
-        # self._build_layered_spiral()
+        self._build_extruded_component_spirals()
         self._calculate_spiral_properties()
 
     def _calculate_spiral_properties(self):
@@ -842,172 +943,149 @@ class WoundJellyRoll(_JellyRoll):
         return self._spiral
 
     def _build_component_spirals(self):
-
+        """Build component spirals by mapping flattened center lines onto the wound spiral.
+        
+        Optimized version that:
+        - Pre-computes center line data for all components
+        - Vectorizes height calculations
+        - Reduces redundant array operations
+        - Uses more efficient coordinate updates
+        """
         self._component_spirals = {}
-
-        def get_height_of_center_line(component_string: str, x_unwrapped: float) -> Tuple[float, float]:
-            center_line = self.layup._flattened_center_lines[component_string]
-            z_unwrapped = np.interp(x_unwrapped, center_line[:, 0], center_line[:, 1])
-            height = z_unwrapped - self._mandrel._radius
-            return height
         
-        def get_range_of_center_line(component_string: str) -> Tuple[float, float]:
-            center_line = self.layup._flattened_center_lines[component_string]
-            min_x = np.min(center_line[:, 0])
-            max_x = np.max(center_line[:, 0])
-            return (min_x, max_x)
+        # Component names in processing order
+        component_names = [
+            'bottom_separator', 'top_separator',
+            'anode_a_side_coating', 'anode_current_collector', 'anode_b_side_coating',
+            'cathode_a_side_coating', 'cathode_current_collector', 'cathode_b_side_coating'
+        ]
         
-        def build_component_spiral(component_string: str):
-
-            new_height_list = []
-            spiral = self._spiral.copy()
-
-            # clip spiral to component length range
-            min_x, max_x = get_range_of_center_line(component_string)
-            mask = (spiral[:, 1] >= min_x) & (spiral[:, 1] <= max_x)
-            spiral = spiral[mask]
-
-            # get new heights along spiral
-            for l in spiral[:, 1]:
-                height = get_height_of_center_line(component_string, l)
-                new_height_list.append(height)
-
-            new_height_array = np.array(new_height_list)
-
-            # adjust spiral radius to match component center line height
-            spiral[:, 2] = spiral[:, 2] + new_height_array
-            spiral[:, 3] = spiral[:, 2] * np.cos(spiral[:, 0])
-            spiral[:, 4] = spiral[:, 2] * np.sin(spiral[:, 0])
-
-            return spiral
+        # Pre-compute all center line data to avoid repeated access
+        center_line_data = {}
+        for component_name in component_names:
+            if component_name in self.layup._flattened_center_lines:
+                center_line = self.layup._flattened_center_lines[component_name]
+                center_line_data[component_name] = {
+                    'x_coords': center_line[:, 0],
+                    'z_coords': center_line[:, 1],
+                    'x_min': np.min(center_line[:, 0]),
+                    'x_max': np.max(center_line[:, 0])
+                }
         
-        self._component_spirals['bottom_separator'] = build_component_spiral('bottom_separator')
-        self._component_spirals['top_separator'] = build_component_spiral('top_separator')
-        self._component_spirals['anode_a_side_coating'] = build_component_spiral('anode_a_side_coating')
-        self._component_spirals['anode_current_collector'] = build_component_spiral('anode_current_collector')
-        self._component_spirals['anode_b_side_coating'] = build_component_spiral('anode_b_side_coating')
-        self._component_spirals['cathode_a_side_coating'] = build_component_spiral('cathode_a_side_coating')
-        self._component_spirals['cathode_current_collector'] = build_component_spiral('cathode_current_collector')
-        self._component_spirals['cathode_b_side_coating'] = build_component_spiral('cathode_b_side_coating')
+        # Cache the base spiral reference (avoid repeated copying)
+        base_spiral = self._spiral
+        mandrel_radius = self._mandrel._radius
+        
+        # Process each component
+        for component_name in component_names:
+            if component_name not in center_line_data:
+                # Skip missing components with empty array
+                self._component_spirals[component_name] = np.empty((0, 5))
+                continue
+                
+            cl_data = center_line_data[component_name]
+            
+            # Vectorized spiral clipping using boolean mask
+            x_unwrapped = base_spiral[:, 1]  # Extract x_unwrapped column
+            mask = (x_unwrapped >= cl_data['x_min']) & (x_unwrapped <= cl_data['x_max'])
+            
+            if not np.any(mask):
+                # No spiral points in component range
+                self._component_spirals[component_name] = np.empty((0, 5))
+                continue
+            
+            # Apply mask to get component spiral slice
+            component_spiral = base_spiral[mask].copy()
+            
+            # Vectorized height calculation using numpy interpolation
+            # This replaces the slow loop with a single vectorized operation
+            x_vals = component_spiral[:, 1]
+            z_unwrapped = np.interp(x_vals, cl_data['x_coords'], cl_data['z_coords'])
+            height_adjustments = z_unwrapped - mandrel_radius
+            
+            # Update radius and coordinates in-place for efficiency
+            component_spiral[:, 2] += height_adjustments  # Update radius
+            
+            # Vectorized coordinate recalculation
+            theta_vals = component_spiral[:, 0]
+            new_radii = component_spiral[:, 2]
+            component_spiral[:, 3] = new_radii * np.cos(theta_vals)  # x coordinates
+            component_spiral[:, 4] = new_radii * np.sin(theta_vals)  # z coordinates
+            
+            self._component_spirals[component_name] = component_spiral
 
         return self._component_spirals
 
-    # def _build_layered_spiral(self):
-
-    #     """Build layered spirals for components.
-
-    #     Existing behavior:
-    #         - Creates filled shapes (outer + inner + closure) for each component based on stacked thickness.
-
-    #     Extension:
-    #         - Also maps each component's flat center line (mid-thickness path along unwrapped length)
-    #           onto the wound spiral. Center line radius at a given unwrapped length is:
-    #               r_center = r_spiral - (sum_thickness_below + component_thickness/2)
-    #           where r_spiral is the spiral radius at that unwrapped length.
-
-    #     Results stored in:
-    #         self._component_spirals      (filled shapes: outer/inner)
-    #         self._component_centerlines  (center line only)
-    #     """
-    #     self._component_spirals = {}
-
-    #     component_thicknesses = {
-    #         'top_separator': self.layup.top_separator._thickness,
-    #         'anode_a_side_coating': self.layup.anode._coating_thickness,
-    #         'anode_current_collector': self.layup.anode.current_collector._thickness,
-    #         'anode_b_side_coating': self.layup.anode._coating_thickness,
-    #         'bottom_separator': self.layup.bottom_separator._thickness,
-    #         'cathode_a_side_coating': self.layup.cathode._coating_thickness,
-    #         'cathode_current_collector': self.layup.cathode.current_collector._thickness,
-    #         'cathode_b_side_coating': self.layup.cathode._coating_thickness,
-    #     }
-
-    #     def get_height_of_center_line(component_string: str, x_unwrapped: float) -> Tuple[float, float]:
-    #         center_line = self.layup._flattened_center_lines[component_string]
-    #         z_unwrapped = np.interp(x_unwrapped, center_line[:, 0], center_line[:, 1])
-    #         height = z_unwrapped - self._mandrel._radius
-    #         return height
+    def _build_extruded_component_spirals(self):
+        """Build extruded component spirals by radially thickening center line spirals.
         
-    #     def get_range_of_center_line(component_string: str) -> Tuple[float, float]:
-    #         center_line = self.layup._flattened_center_lines[component_string]
-    #         min_x = np.min(center_line[:, 0])
-    #         max_x = np.max(center_line[:, 0])
-    #         return (min_x, max_x)
+        For each component, creates a filled shape by:
+        1. Taking the center line spiral from _component_spirals
+        2. Creating outer spiral by adding thickness/2 to radius
+        3. Creating inner spiral by subtracting thickness/2 from radius
+        4. Reversing inner spiral direction for proper winding
+        5. Combining outer + inner spirals into a closed filled shape
         
-    #     def build_component_spiral(original_spiral: np.array, component_string: str):
+        Results stored in self._extruded_spirals for visualization.
+        """
+        self._extruded_spirals = {}
 
-    #         new_height_list = []
-
-    #         # clip spiral to component length range
-    #         min_x, max_x = get_range_of_center_line(component_string)
-    #         mask = (original_spiral[:, 1] >= min_x) & (original_spiral[:, 1] <= max_x)
-    #         original_spiral = original_spiral[mask]
-
-    #         # get new heights along spiral
-    #         for l in original_spiral[:, 1]:
-    #             height = get_height_of_center_line(component_string, l)
-    #             new_height_list.append(height)
-
-    #         new_height_array = np.array(new_height_list)
-
-    #         # adjust spiral radius to match component center line height
-    #         original_spiral[:, 2] = original_spiral[:, 2] + new_height_array
-    #         original_spiral[:, 3] = original_spiral[:, 2] * np.cos(original_spiral[:, 0])
-    #         original_spiral[:, 4] = original_spiral[:, 2] * np.sin(original_spiral[:, 0])
-
-    #         return original_spiral
+        component_thicknesses = {
+            'top_separator': self.layup.top_separator._thickness,
+            'anode_a_side_coating': self.layup.anode._coating_thickness,
+            'anode_current_collector': self.layup.anode.current_collector._thickness,
+            'anode_b_side_coating': self.layup.anode._coating_thickness,
+            'bottom_separator': self.layup.bottom_separator._thickness,
+            'cathode_a_side_coating': self.layup.cathode._coating_thickness,
+            'cathode_current_collector': self.layup.cathode.current_collector._thickness,
+            'cathode_b_side_coating': self.layup.cathode._coating_thickness,
+        }
         
-    #     def build_and_extrude_component_spiral(component_string: str):
+        # Process each component that has a center line spiral
+        for component_name, thickness in component_thicknesses.items():
 
-    #         component_spiral = build_component_spiral(self._spiral.copy(), component_string)
+            center_spiral = self._component_spirals[component_name]
+            half_thickness = thickness / 2.0
             
-    #         # Handle empty spiral case
-    #         if len(component_spiral) == 0:
-    #             return np.empty((0, 5))  # Return empty array with correct shape
-                
-    #         thickness = component_thicknesses[component_string]
+            # Create outer spiral (center + thickness/2)
+            outer_spiral = center_spiral.copy()
+            outer_spiral[:, 2] += half_thickness  # Increase radius
+            
+            # Update outer spiral coordinates
+            outer_spiral[:, 3] = outer_spiral[:, 2] * np.cos(outer_spiral[:, 0])  # x coordinates
+            outer_spiral[:, 4] = outer_spiral[:, 2] * np.sin(outer_spiral[:, 0])  # z coordinates
+            
+            # Create inner spiral (center - thickness/2)
+            inner_spiral = center_spiral.copy()
+            inner_spiral[:, 2] -= half_thickness  # Decrease radius
+            
+            # Update inner spiral coordinates
+            inner_spiral[:, 3] = inner_spiral[:, 2] * np.cos(inner_spiral[:, 0])  # x coordinates
+            inner_spiral[:, 4] = inner_spiral[:, 2] * np.sin(inner_spiral[:, 0])  # z coordinates
+            
+            # Reverse inner spiral direction for proper winding (creates closed shape)
+            inner_spiral_reversed = inner_spiral[::-1, :]
+            
+            # Add transition padding points to smooth spline interpolation
+            # Duplicate end points to create smooth transitions
+            outer_end_padding = np.tile(outer_spiral[-1, :], (2, 1))
+            inner_start_padding = np.tile(inner_spiral_reversed[0, :], (2, 1))
+            
+            # Combine into filled shape: outer → padding → inner (reversed) → close
+            if len(outer_spiral) > 0 and len(inner_spiral_reversed) > 0:
+                filled_spiral = np.vstack([
+                    outer_spiral,           # Outer boundary
+                    outer_end_padding,      # Smooth transition
+                    inner_start_padding,    # Smooth transition  
+                    inner_spiral_reversed   # Inner boundary (reversed)
+                ])
+            else:
+                # Fallback for edge cases
+                filled_spiral = outer_spiral
+            
+            self._extruded_spirals[component_name] = filled_spiral
 
-    #         # outer spiral
-    #         outer_spiral = component_spiral.copy()
-    #         outer_spiral[:, 2] = outer_spiral[:, 2] + thickness / 2
-    #         outer_spiral[:, 3] = outer_spiral[:, 2] * np.cos(outer_spiral[:, 0])
-    #         outer_spiral[:, 4] = outer_spiral[:, 2] * np.sin(outer_spiral[:, 0])
-
-    #         # inner spiral
-    #         inner_spiral = component_spiral.copy()
-    #         inner_spiral[:, 2] = inner_spiral[:, 2] - thickness / 2
-    #         inner_spiral[:, 3] = inner_spiral[:, 2] * np.cos(inner_spiral[:, 0])
-    #         inner_spiral[:, 4] = inner_spiral[:, 2] * np.sin(inner_spiral[:, 0])
-
-    #         # add padding points at transition to dampen spline interpolation
-    #         # Only add padding if we have points to work with
-    #         if len(outer_spiral) > 0:
-    #             outer_end_padding = np.tile(outer_spiral[-1, :], (2, 1))  # duplicate last outer point
-    #             inner_start_padding = np.tile(inner_spiral[-1, :], (2, 1))  # duplicate first inner point (after reverse)
-                
-    #             # combine outer and inner for filled shape with padding
-    #             combined_spiral = np.vstack([
-    #                 outer_spiral, 
-    #                 outer_end_padding,
-    #                 inner_start_padding,
-    #                 inner_spiral[::-1, :]
-    #             ])
-    #         else:
-    #             # Fallback for empty spirals
-    #             combined_spiral = np.empty((0, 5))
-                
-    #         return combined_spiral
-
-    #     self._component_spirals['bottom_separator'] = build_and_extrude_component_spiral('bottom_separator')
-    #     self._component_spirals['top_separator'] = build_and_extrude_component_spiral('top_separator')
-    #     self._component_spirals['anode_a_side_coating'] = build_and_extrude_component_spiral('anode_a_side_coating')
-    #     self._component_spirals['anode_current_collector'] = build_and_extrude_component_spiral('anode_current_collector')
-    #     self._component_spirals['anode_b_side_coating'] = build_and_extrude_component_spiral('anode_b_side_coating')
-    #     self._component_spirals['cathode_a_side_coating'] = build_and_extrude_component_spiral('cathode_a_side_coating')
-    #     self._component_spirals['cathode_current_collector'] = build_and_extrude_component_spiral('cathode_current_collector')
-    #     self._component_spirals['cathode_b_side_coating'] = build_and_extrude_component_spiral('cathode_b_side_coating')
-
-    #     return self._component_spirals
+        return self._extruded_spirals
 
     @property
     def radius(self) -> float:

@@ -143,7 +143,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertIsInstance(self.my_jellyroll, WoundJellyRoll)
         self.assertTrue(type(self.my_jellyroll.spiral) == pd.DataFrame)
 
-        fig1 = self.my_jellyroll.get_spiral_plot()
+        fig1 = self.my_jellyroll.get_spiral_plot(layered=True, extruded=True)
         fig2 = self.my_jellyroll.get_spiral_plot(layered=False)
         fig3 = self.my_jellyroll.get_capacity_plot()
         fig1.show()
