@@ -421,6 +421,205 @@ class _JellyRoll(_ElectrodeAssembly):
 
         return fig
 
+    @staticmethod
+    def _format_np_spiral_for_df(np_array: np.ndarray) -> pd.DataFrame:
+        """Format numpy spiral array into pandas DataFrame with proper units and column names.
+
+        Columns: theta (degrees), x_unwrapped (mm), thickness (mm), r (mm), x (mm), y (mm)
+        """
+        return (
+            pd
+            .DataFrame(np_array, columns=["theta","length","r","x","z"])
+            .assign(
+                theta = lambda df: df["theta"] * (180.0 / PI),
+                length = lambda df: df["length"] * M_TO_MM,
+                r = lambda df: df["r"] * M_TO_MM,
+                x = lambda df: df["x"] * M_TO_MM,
+                z = lambda df: df["z"] * M_TO_MM,
+            )
+            .rename(
+                columns={
+                    "x": "X (mm)",
+                    "z": "Z (mm)",
+                    "r": "Radius (mm)",
+                    "length": "Unwrapped Length (mm)",
+                    "theta": "Theta (degrees)",
+                }
+            )
+        )
+    
+    def _format_trace_property(self, property_name: str, fill_color: str, name: str) -> go.Scatter:
+        
+        df = getattr(self, property_name)
+
+        return go.Scatter(
+            x=df['X (mm)'],
+            y=df['Z (mm)'],
+            fillcolor=fill_color,
+            fill='toself',
+            mode='lines',
+            line=dict(color='black', width=0.1),
+            line_shape='spline',
+            name=name
+        )
+
+    @property
+    def spiral(self) -> pd.DataFrame:
+        """Return the spiral as a pandas DataFrame.
+
+        Columns: theta, x_unwrapped, thickness, r, x, y
+        """
+        spiral = self._spiral
+        return self._format_np_spiral_for_df(spiral)
+
+    @property
+    def spiral_trace(self) -> go.Scatter:
+
+        return go.Scatter(
+            x=self.spiral['X (mm)'],
+            y=self.spiral['Z (mm)'],
+            mode='lines',
+            line=dict(color='black', width=1),
+            line_shape='spline',
+            name="Spiral"
+        )
+
+    @property
+    def top_separator_spiral(self) -> pd.DataFrame:
+        """Return the top separator spiral as a pandas DataFrame.
+        Columns: theta, x_unwrapped, thickness, r, x, y
+        """
+        ts_spiral = self._component_spirals.get("top_separator")
+        return self._format_np_spiral_for_df(ts_spiral)
+
+    @property
+    def bottom_separator_spiral(self) -> pd.DataFrame:
+        """Return the bottom separator spiral as a pandas DataFrame.
+        Columns: theta, x_unwrapped, thickness, r, x, y
+        """
+        bs_spiral = self._component_spirals.get("bottom_separator")
+        return self._format_np_spiral_for_df(bs_spiral)
+
+    @property
+    def anode_a_side_coating_spiral(self) -> pd.DataFrame:
+        """Return the anode a-side coating spiral as a pandas DataFrame.
+        Columns: theta, x_unwrapped, thickness, r, x, y
+        """
+        aasc_spiral = self._component_spirals.get("anode_a_side_coating")
+        return self._format_np_spiral_for_df(aasc_spiral)
+
+    @property
+    def anode_current_collector_spiral(self) -> pd.DataFrame:
+        """Return the anode current collector spiral as a pandas DataFrame.
+        Columns: theta, x_unwrapped, thickness, r, x, y
+        """
+        acc_spiral = self._component_spirals.get("anode_current_collector")
+        return self._format_np_spiral_for_df(acc_spiral)
+    
+    @property
+    def anode_b_side_coating_spiral(self) -> pd.DataFrame:
+        """Return the anode b-side coating spiral as a pandas DataFrame.
+        Columns: theta, x_unwrapped, thickness, r, x, y
+        """
+        absc_spiral = self._component_spirals.get("anode_b_side_coating")
+        return self._format_np_spiral_for_df(absc_spiral)
+    
+    @property
+    def cathode_a_side_coating_spiral(self) -> pd.DataFrame:
+        """Return the cathode a-side coating spiral as a pandas DataFrame.
+        Columns: theta, x_unwrapped, thickness, r, x, y
+        """
+        casc_spiral = self._component_spirals.get("cathode_a_side_coating")
+        return self._format_np_spiral_for_df(casc_spiral)
+
+    @property
+    def cathode_current_collector_spiral(self) -> pd.DataFrame:
+        """Return the cathode current collector spiral as a pandas DataFrame.
+        Columns: theta, x_unwrapped, thickness, r, x, y
+        """
+        ccc_spiral = self._component_spirals.get("cathode_current_collector")
+        return self._format_np_spiral_for_df(ccc_spiral)
+    
+    @property
+    def cathode_b_side_coating_spiral(self) -> pd.DataFrame:
+        """Return the cathode b-side coating spiral as a pandas DataFrame.
+        Columns: theta, x_unwrapped, thickness, r, x, y
+        """
+        cbsc_spiral = self._component_spirals.get("cathode_b_side_coating")
+        return self._format_np_spiral_for_df(cbsc_spiral)
+
+    @property
+    def top_separator_spiral_trace(self) -> go.Scatter:
+
+        return self._format_trace_property(
+            property_name="top_separator_spiral",
+            fill_color=self.layup.top_separator.material._color,
+            name=f"Top Separator"
+        )
+    
+    @property
+    def bottom_separator_spiral_trace(self) -> go.Scatter:
+
+        return self._format_trace_property(
+            property_name="bottom_separator_spiral",
+            fill_color=self.layup.bottom_separator.material._color,
+            name=f"Bottom Separator"
+        )
+    
+    @property
+    def anode_a_side_coating_spiral_trace(self) -> go.Scatter:
+
+        return self._format_trace_property(
+            property_name="anode_a_side_coating_spiral",
+            fill_color=self.layup.anode.formulation._color,
+            name=f"Anode a-side Coating"
+        )
+    
+    @property
+    def anode_current_collector_spiral_trace(self) -> go.Scatter:
+
+        return self._format_trace_property(
+            property_name="anode_current_collector_spiral",
+            fill_color=self.layup.anode.current_collector.material._color,
+            name=f"Anode Current Collector"
+        )
+    
+    @property
+    def anode_b_side_coating_spiral_trace(self) -> go.Scatter:
+
+        return self._format_trace_property(
+            property_name="anode_b_side_coating_spiral",
+            fill_color=self.layup.anode.formulation._color,
+            name=f"Anode b-side Coating"
+        )
+    
+    @property
+    def cathode_a_side_coating_spiral_trace(self) -> go.Scatter:
+
+        return self._format_trace_property(
+            property_name="cathode_a_side_coating_spiral",
+            fill_color=self.layup.cathode.formulation._color,
+            name=f"Cathode a-side Coating"
+        )
+
+    @property
+    def cathode_current_collector_spiral_trace(self) -> go.Scatter:
+
+        return self._format_trace_property(
+            property_name="cathode_current_collector_spiral",
+            fill_color=self.layup.cathode.current_collector.material._color,
+            name=f"Cathode Current Collector"
+        )
+    
+    @property
+    def cathode_b_side_coating_spiral_trace(self) -> go.Scatter:
+
+        return self._format_trace_property(
+            property_name="cathode_b_side_coating_spiral",
+            fill_color=self.layup.cathode.formulation._color,
+            name=f"Cathode b-side Coating"
+        )
+    
     @property
     def mandrel(self) -> RoundMandrel | FlatMandrel:
         """Return the mandrel instance."""
@@ -808,48 +1007,6 @@ class WoundJellyRoll(_JellyRoll):
 
         return self._component_spirals
 
-    @staticmethod
-    def _format_np_spiral_for_df(np_array: np.ndarray) -> pd.DataFrame:
-        """Format numpy spiral array into pandas DataFrame with proper units and column names.
-
-        Columns: theta (degrees), x_unwrapped (mm), thickness (mm), r (mm), x (mm), y (mm)
-        """
-        return (
-            pd
-            .DataFrame(np_array, columns=["theta","length","r","x","z"])
-            .assign(
-                theta = lambda df: df["theta"] * (180.0 / PI),
-                length = lambda df: df["length"] * M_TO_MM,
-                r = lambda df: df["r"] * M_TO_MM,
-                x = lambda df: df["x"] * M_TO_MM,
-                z = lambda df: df["z"] * M_TO_MM,
-            )
-            .rename(
-                columns={
-                    "x": "X (mm)",
-                    "z": "Z (mm)",
-                    "r": "Radius (mm)",
-                    "length": "Unwrapped Length (mm)",
-                    "theta": "Theta (degrees)",
-                }
-            )
-        )
-    
-    def _format_trace_property(self, property_name: str, fill_color: str, name: str) -> go.Scatter:
-        
-        df = getattr(self, property_name)
-
-        return go.Scatter(
-            x=df['X (mm)'],
-            y=df['Z (mm)'],
-            fillcolor=fill_color,
-            fill='toself',
-            mode='lines',
-            line=dict(color='black', width=0.1),
-            line_shape='spline',
-            name=name
-        )
-
     @property
     def radius(self) -> float:
         """Return the outer radius of the wound jelly roll in mm."""
@@ -860,163 +1017,6 @@ class WoundJellyRoll(_JellyRoll):
         """Return the outer diameter of the wound jelly roll in mm."""
         return round(self._diameter * M_TO_MM, 2)
 
-    @property
-    def spiral(self) -> pd.DataFrame:
-        """Return the spiral as a pandas DataFrame.
-
-        Columns: theta, x_unwrapped, thickness, r, x, y
-        """
-        spiral = self._spiral
-        return self._format_np_spiral_for_df(spiral)
-
-    @property
-    def spiral_trace(self) -> go.Scatter:
-
-        return go.Scatter(
-            x=self.spiral['X (mm)'],
-            y=self.spiral['Z (mm)'],
-            mode='lines',
-            line=dict(color='black', width=1),
-            line_shape='spline',
-            name="Spiral"
-        )
-
-    @property
-    def top_separator_spiral(self) -> pd.DataFrame:
-        """Return the top separator spiral as a pandas DataFrame.
-        Columns: theta, x_unwrapped, thickness, r, x, y
-        """
-        ts_spiral = self._component_spirals.get("top_separator")
-        return self._format_np_spiral_for_df(ts_spiral)
-
-    @property
-    def bottom_separator_spiral(self) -> pd.DataFrame:
-        """Return the bottom separator spiral as a pandas DataFrame.
-        Columns: theta, x_unwrapped, thickness, r, x, y
-        """
-        bs_spiral = self._component_spirals.get("bottom_separator")
-        return self._format_np_spiral_for_df(bs_spiral)
-
-    @property
-    def anode_a_side_coating_spiral(self) -> pd.DataFrame:
-        """Return the anode a-side coating spiral as a pandas DataFrame.
-        Columns: theta, x_unwrapped, thickness, r, x, y
-        """
-        aasc_spiral = self._component_spirals.get("anode_a_side_coating")
-        return self._format_np_spiral_for_df(aasc_spiral)
-
-    @property
-    def anode_current_collector_spiral(self) -> pd.DataFrame:
-        """Return the anode current collector spiral as a pandas DataFrame.
-        Columns: theta, x_unwrapped, thickness, r, x, y
-        """
-        acc_spiral = self._component_spirals.get("anode_current_collector")
-        return self._format_np_spiral_for_df(acc_spiral)
-    
-    @property
-    def anode_b_side_coating_spiral(self) -> pd.DataFrame:
-        """Return the anode b-side coating spiral as a pandas DataFrame.
-        Columns: theta, x_unwrapped, thickness, r, x, y
-        """
-        absc_spiral = self._component_spirals.get("anode_b_side_coating")
-        return self._format_np_spiral_for_df(absc_spiral)
-    
-    @property
-    def cathode_a_side_coating_spiral(self) -> pd.DataFrame:
-        """Return the cathode a-side coating spiral as a pandas DataFrame.
-        Columns: theta, x_unwrapped, thickness, r, x, y
-        """
-        casc_spiral = self._component_spirals.get("cathode_a_side_coating")
-        return self._format_np_spiral_for_df(casc_spiral)
-
-    @property
-    def cathode_current_collector_spiral(self) -> pd.DataFrame:
-        """Return the cathode current collector spiral as a pandas DataFrame.
-        Columns: theta, x_unwrapped, thickness, r, x, y
-        """
-        ccc_spiral = self._component_spirals.get("cathode_current_collector")
-        return self._format_np_spiral_for_df(ccc_spiral)
-    
-    @property
-    def cathode_b_side_coating_spiral(self) -> pd.DataFrame:
-        """Return the cathode b-side coating spiral as a pandas DataFrame.
-        Columns: theta, x_unwrapped, thickness, r, x, y
-        """
-        cbsc_spiral = self._component_spirals.get("cathode_b_side_coating")
-        return self._format_np_spiral_for_df(cbsc_spiral)
-
-    @property
-    def top_separator_spiral_trace(self) -> go.Scatter:
-
-        return self._format_trace_property(
-            property_name="top_separator_spiral",
-            fill_color=self.layup.top_separator.material._color,
-            name=f"Top Separator"
-        )
-    
-    @property
-    def bottom_separator_spiral_trace(self) -> go.Scatter:
-
-        return self._format_trace_property(
-            property_name="bottom_separator_spiral",
-            fill_color=self.layup.bottom_separator.material._color,
-            name=f"Bottom Separator"
-        )
-    
-    @property
-    def anode_a_side_coating_spiral_trace(self) -> go.Scatter:
-
-        return self._format_trace_property(
-            property_name="anode_a_side_coating_spiral",
-            fill_color=self.layup.anode.formulation._color,
-            name=f"Anode a-side Coating"
-        )
-    
-    @property
-    def anode_current_collector_spiral_trace(self) -> go.Scatter:
-
-        return self._format_trace_property(
-            property_name="anode_current_collector_spiral",
-            fill_color=self.layup.anode.current_collector.material._color,
-            name=f"Anode Current Collector"
-        )
-    
-    @property
-    def anode_b_side_coating_spiral_trace(self) -> go.Scatter:
-
-        return self._format_trace_property(
-            property_name="anode_b_side_coating_spiral",
-            fill_color=self.layup.anode.formulation._color,
-            name=f"Anode b-side Coating"
-        )
-    
-    @property
-    def cathode_a_side_coating_spiral_trace(self) -> go.Scatter:
-
-        return self._format_trace_property(
-            property_name="cathode_a_side_coating_spiral",
-            fill_color=self.layup.cathode.formulation._color,
-            name=f"Cathode a-side Coating"
-        )
-
-    @property
-    def cathode_current_collector_spiral_trace(self) -> go.Scatter:
-
-        return self._format_trace_property(
-            property_name="cathode_current_collector_spiral",
-            fill_color=self.layup.cathode.current_collector.material._color,
-            name=f"Cathode Current Collector"
-        )
-    
-    @property
-    def cathode_b_side_coating_spiral_trace(self) -> go.Scatter:
-
-        return self._format_trace_property(
-            property_name="cathode_b_side_coating_spiral",
-            fill_color=self.layup.cathode.formulation._color,
-            name=f"Cathode b-side Coating"
-        )
-    
 
 class FlatWoundJellyRoll(_JellyRoll):
     """Flat wound jelly roll electrode assembly.
@@ -1042,17 +1042,6 @@ class FlatWoundJellyRoll(_JellyRoll):
 
     def _calculate_roll(self):
         pass
-
-    @property
-    def mandrel_gap(self) -> float:
-        """Return the mandrel gap in mm."""
-        return round(self._mandrel_gap * M_TO_MM, 2)
-    
-    @mandrel_gap.setter
-    @calculate_all_properties
-    def mandrel_gap(self, value: float):
-        self.validate_type(value, float, "mandrel_gap")
-        self._mandrel_gap = value
 
 
 class _Stack(_ElectrodeAssembly):
