@@ -13,31 +13,46 @@ from copy import deepcopy
 import numpy as np
 from shapely.geometry import Polygon
 import plotly.graph_objects as go
-from typing import Dict
+from typing import Dict, Tuple, Union, Any
 
 
 class _Stack(_ElectrodeAssembly):
-    """Stack electrode assembly.
+    """
+    Stack electrode assembly base class.
 
     Accepts a `MonoLayer` or `ZFoldMonoLayer` layup representing stacked sheets.
+    
+    Parameters
+    ----------
+    layup : MonoLayer | ZFoldMonoLayer
+        The layup configuration for the stack
+    n_layers : int, optional
+        Number of layers in the stack, by default 1
+        
+    Raises
+    ------
+    ValueError
+        If n_layers is not a positive integer
     """
     def __init__(
             self, 
-            layup: MonoLayer | ZFoldMonoLayer,
+            layup: Union[MonoLayer, ZFoldMonoLayer],
             n_layers: int = 1
-        ):
+        ) -> None:
 
         super().__init__(layup)
         self.n_layers = n_layers
 
-    def _calculate_geometry_parameters(self):
+    def _calculate_geometry_parameters(self) -> None:
+        """Calculate geometry parameters - placeholder for implementation."""
         pass
 
-    def _calculate_all_properties(self):
+    def _calculate_all_properties(self) -> None:
+        """Calculate all properties including stack configuration."""
         self._calculate_stack()
         super()._calculate_all_properties()
 
-    def _calculate_stack(self):
+    def _calculate_stack(self) -> Dict[int, Any]:
         
         # Initialize dictionaries for components
         stack = {}
@@ -65,45 +80,85 @@ class _Stack(_ElectrodeAssembly):
 
         return self._stack
 
-    def _calculate_interfacial_area(self):
+    def _calculate_interfacial_area(self) -> float:
+        """
+        Calculate the interfacial area between anode and cathode electrodes.
         
-        # set the z tolerance
-        z_tol = 1e-8
+        Returns
+        -------
+        float
+            Total interfacial area in square meters
+            
+        Raises
+        ------
+        ValueError
+            If electrode coordinates are invalid or missing
+        """
+        # Constants
+        Z_TOLERANCE = 1e-8
+        
+        try:
+            # Get anode polygon from top surface coordinates
+            anode_coords = self._layup._anode._a_side_coating_coordinates
+            if len(anode_coords) == 0:
+                raise ValueError("Anode coordinates are empty")
+                
+            max_z_anode = np.max(anode_coords[:, 2])
+            top_anode_coords = anode_coords[
+                np.abs(anode_coords[:, 2] - max_z_anode) < Z_TOLERANCE
+            ][:, :2]
+            anode_polygon = Polygon(top_anode_coords)
 
-        # get the anode polygon
-        _anode_coords = self._layup._anode._a_side_coating_coordinates
-        _max_z = np.max(_anode_coords[:, 2])
-        _top_anode_coords = _anode_coords[np.abs(_anode_coords[:, 2] - _max_z) < z_tol][:, :2]
-        _anode_polygon = Polygon(_top_anode_coords)
+            # Get cathode polygon from top surface coordinates  
+            cathode_coords = self._layup._cathode._a_side_coating_coordinates
+            if len(cathode_coords) == 0:
+                raise ValueError("Cathode coordinates are empty")
+                
+            max_z_cathode = np.max(cathode_coords[:, 2])
+            top_cathode_coords = cathode_coords[
+                np.abs(cathode_coords[:, 2] - max_z_cathode) < Z_TOLERANCE
+            ][:, :2]
+            cathode_polygon = Polygon(top_cathode_coords)
 
-        # get the cathode polygon
-        _cathode_coords = self._layup._cathode._a_side_coating_coordinates
-        _max_z = np.max(_cathode_coords[:, 2])
-        _top_cathode_coords = _cathode_coords[np.abs(_cathode_coords[:, 2] - _max_z) < z_tol][:, :2]
-        _cathode_polygon = Polygon(_top_cathode_coords)
+            # Calculate intersection area
+            intersection_polygon = anode_polygon.intersection(cathode_polygon)
+            single_layer_interfacial_area = intersection_polygon.area
 
-        # calculate the intersection
-        intersection_polygon = _anode_polygon.intersection(_cathode_polygon)
+            # Count cathodes to determine number of interfaces
+            cathodes = [c for c in self._stack.values() if isinstance(c, Cathode)]
+            n_interfaces = len(cathodes) * 2  # Each cathode has two interfaces
 
-        # overlapping area
-        _single_layer_interfacial_area = intersection_polygon.area
+            # Calculate total interfacial area
+            self._interfacial_area = single_layer_interfacial_area * n_interfaces
 
-        # calculate the number of interfaces
-        cathodes = [c for c in self._stack.values() if type(c) == Cathode]       
-        n_interfaces = len(cathodes) * 2
-
-        # calculate total interfacial area
-        self._interfacial_area = _single_layer_interfacial_area * n_interfaces
+        except (IndexError, ValueError) as e:
+            raise ValueError(f"Failed to calculate interfacial area: {e}")
 
         return self._interfacial_area
 
-    def _calculate_mass_properties(self):
+    def _get_component_groups(self) -> Tuple[list, list, list]:
+        """
+        Extract component groups from the stack.
+        
+        Returns
+        -------
+        Tuple[list, list, list]
+            Anodes, cathodes, and separators lists
+        """
+        anodes = [a for a in self._stack.values() if isinstance(a, Anode)]
+        cathodes = [c for c in self._stack.values() if isinstance(c, Cathode)]
+        separators = [s for s in self._stack.values() if isinstance(s, Separator)]
+        return anodes, cathodes, separators
 
-        anodes = [a for a in self._stack.values() if type(a) == Anode]
-        cathodes = [c for c in self._stack.values() if type(c) == Cathode]
-        separators = [s for s in self._stack.values() if type(s) == Separator]
+    def _calculate_mass_properties(self) -> float:
+        """Calculate mass properties for all components in the stack."""
+        anodes, cathodes, separators = self._get_component_groups()
 
-        self._mass = sum([a._mass for a in anodes]) + sum([c._mass for c in cathodes]) + sum([s._mass for s in separators])
+        self._mass = (
+            sum(a._mass for a in anodes) + 
+            sum(c._mass for c in cathodes) + 
+            sum(s._mass for s in separators)
+        )
 
         self._mass_breakdown = {
             "Anodes": self.sum_breakdowns(anodes, "mass"),
@@ -113,13 +168,15 @@ class _Stack(_ElectrodeAssembly):
 
         return self._mass
 
-    def _calculate_cost_properties(self):
+    def _calculate_cost_properties(self) -> float:
+        """Calculate cost properties for all components in the stack."""
+        anodes, cathodes, separators = self._get_component_groups()
 
-        anodes = [a for a in self._stack.values() if type(a) == Anode]
-        cathodes = [c for c in self._stack.values() if type(c) == Cathode]
-        separators = [s for s in self._stack.values() if type(s) == Separator]
-
-        self._cost = sum([a._cost for a in anodes]) + sum([c._cost for c in cathodes]) + sum([s._cost for s in separators])
+        self._cost = (
+            sum(a._cost for a in anodes) + 
+            sum(c._cost for c in cathodes) + 
+            sum(s._cost for s in separators)
+        )
 
         self._cost_breakdown = {
             "Anodes": self.sum_breakdowns(anodes, "cost"),
@@ -156,20 +213,56 @@ class _Stack(_ElectrodeAssembly):
         return figure
 
     @staticmethod
-    def add_layer(stack: Dict, component, z_datum):
-
+    def add_layer(stack: Dict[int, Any], component: Any, z_datum: float) -> Tuple[float, Dict[int, Any]]:
+        """
+        Add a layer component to the stack at specified z-datum.
+        
+        Parameters
+        ----------
+        stack : Dict[int, Any]
+            Current stack of components
+        component : Any
+            Component to add to the stack
+        z_datum : float
+            Current z-position datum
+            
+        Returns
+        -------
+        Tuple[float, Dict[int, Any]]
+            Updated z_datum and stack with new component
+            
+        Raises
+        ------
+        ValueError
+            If component is None or invalid
+        """
+        if component is None:
+            raise ValueError("Component cannot be None")
+            
         stack_size = len(stack)
-
         new_component = deepcopy(component)
 
+        # Calculate new z-datum based on component thickness
+        component_half_thickness = new_component._thickness * M_TO_MM / 2
+        
         if stack_size == 0:
-            new_z_datum = z_datum + new_component._thickness * M_TO_MM / 2
+            # First component: place at z_datum + half thickness
+            new_z_datum = z_datum + component_half_thickness
         else:
-            new_z_datum = z_datum + new_component._thickness * M_TO_MM / 2 + stack[stack_size - 1]._thickness * M_TO_MM / 2
+            # Subsequent components: account for previous component thickness
+            prev_component = stack[stack_size - 1]
+            prev_half_thickness = prev_component._thickness * M_TO_MM / 2
+            new_z_datum = z_datum + component_half_thickness + prev_half_thickness
 
-        new_component.datum = (new_component._datum[0] * M_TO_MM, new_component._datum[1] * M_TO_MM, new_z_datum)
-        stack_size = len(stack)
-        stack[stack_size] = new_component
+        # Update component datum with converted coordinates
+        new_component.datum = (
+            new_component._datum[0] * M_TO_MM, 
+            new_component._datum[1] * M_TO_MM, 
+            new_z_datum
+        )
+        
+        # Add component to stack
+        stack[len(stack)] = new_component
 
         return new_z_datum, stack
 
@@ -191,24 +284,30 @@ class _Stack(_ElectrodeAssembly):
 
 
 class ZFoldStack(_Stack):
-    """Z-Fold stack electrode assembly.
+    """
+    Z-Fold stack electrode assembly.
 
     Accepts a `ZFoldMonoLayer` layup representing stacked sheets in a Z-fold configuration.
+    Additional separator wraps provide extra insulation around the stack.
+    
+    Parameters
+    ----------
+    layup : ZFoldMonoLayer
+        The Z-fold layup configuration
+    n_layers : int
+        Number of electrode layers in the stack
+    additional_separator_wraps : float, optional
+        Number of additional separator wraps around the stack, by default 1
     """
     def __init__(
             self, 
             layup: ZFoldMonoLayer,
             n_layers: int,
             additional_separator_wraps: float = 1
-        ):
+        ) -> None:
 
-        super().__init__(
-            layup,
-            n_layers
-        )
-
+        super().__init__(layup, n_layers)
         self.additional_separator_wraps = additional_separator_wraps
-
         self._calculate_all_properties()
         self._update_properties = True
 
@@ -263,37 +362,8 @@ class ZFoldStack(_Stack):
 
         return self._stack
 
-    def _calculate_mass_properties(self):
-
-        anodes = [a for a in self._stack.values() if type(a) == Anode]
-        cathodes = [c for c in self._stack.values() if type(c) == Cathode]
-        separators = [s for s in self._stack.values() if type(s) == Separator]
-
-        self._mass = sum([a._mass for a in anodes]) + sum([c._mass for c in cathodes]) + sum([s._mass for s in separators])
-
-        self._mass_breakdown = {
-            "Anodes": self.sum_breakdowns(anodes, "mass"),
-            "Cathodes": self.sum_breakdowns(cathodes, "mass"),
-            "Separator": self.sum_breakdowns(separators, "mass"),
-        }
-
-        return self._mass
-
-    def _calculate_cost_properties(self):
-
-        anodes = [a for a in self._stack.values() if type(a) == Anode]
-        cathodes = [c for c in self._stack.values() if type(c) == Cathode]
-        separators = [s for s in self._stack.values() if type(s) == Separator]
-
-        self._cost = sum([a._cost for a in anodes]) + sum([c._cost for c in cathodes]) + sum([s._cost for s in separators])
-
-        self._cost_breakdown = {
-            "Anodes": self.sum_breakdowns(anodes, "cost"),
-            "Cathodes": self.sum_breakdowns(cathodes, "cost"),
-            "Separator": self.sum_breakdowns(separators, "cost"),
-        }
-
-        return self._cost
+    # ZFoldStack uses the same mass/cost calculation as base class
+    # No need to override _calculate_mass_properties and _calculate_cost_properties
 
     @property
     def additional_separator_wraps(self) -> int:
@@ -319,21 +389,26 @@ class ZFoldStack(_Stack):
 
 
 class PunchedStack(_Stack):
-    """Mono-layer stack electrode assembly.
+    """
+    Punched mono-layer stack electrode assembly.
 
     Accepts a `MonoLayer` layup representing stacked sheets in a mono-layer configuration.
+    This configuration is typically used with punched current collectors.
+    
+    Parameters
+    ----------
+    layup : MonoLayer
+        The mono-layer layup configuration
+    n_layers : int
+        Number of electrode layers in the stack
     """
     def __init__(
             self, 
             layup: MonoLayer,
             n_layers: int
-        ):
+        ) -> None:
 
-        super().__init__(
-            layup,
-            n_layers
-        )
-
+        super().__init__(layup, n_layers)
         self._calculate_all_properties()
         self._update_properties = True
     
