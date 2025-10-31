@@ -8,17 +8,28 @@ from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Data import DataMixin
 
+from steer_core.Decorators.General import calculate_all_properties
+
 from steer_core.Constants.Units import *
 
+from abc import ABC, abstractmethod
 from copy import deepcopy
 import pandas as pd
 import numpy as np
-from shapely.geometry import Polygon
 import plotly.graph_objects as go
 from typing import Any, Dict
 
 
+# Constants for curve calculations
+CHARGE_DIRECTION = 1
+DISCHARGE_DIRECTION = -1
+CAPACITY_COL = 0
+VOLTAGE_COL = 1
+DIRECTION_COL = 2
+
+
 class _ElectrodeAssembly(
+    ABC,
     CoordinateMixin, 
     ValidationMixin, 
     SerializerMixin, 
@@ -32,18 +43,42 @@ class _ElectrodeAssembly(
             self,
             layup: _Layup,
             name: str = "Electrode Assembly"
-        ):
-
+        ) -> None:
+        """
+        Initialize the electrode assembly.
+        
+        Parameters
+        ----------
+        layup : _Layup
+            The layup configuration for the electrode assembly
+        name : str, optional
+            Name identifier for the assembly, by default "Electrode Assembly"
+            
+        Raises
+        ------
+        ValueError
+            If layup is invalid or None
+        """
         self._update_properties = False
-
         self.layup = layup
         self.name = name
 
-    def _calculate_all_properties(self):
+    def _calculate_all_properties(self) -> None:
+        """
+        Calculate all properties of the electrode assembly.
+        
+        This method orchestrates the calculation of all derived properties
+        in the correct order to handle dependencies.
+        """
         self._calculate_bulk_properties()
         self._calculate_interfacial_area()
-        self._calcualate_full_cell_curve()
+        self._calculate_full_cell_curve()
         self._calculate_energy()
+        
+    def _ensure_properties_calculated(self) -> None:
+        """Ensure all properties have been calculated before access."""
+        if not hasattr(self, '_energy') or self._energy is None:
+            self._calculate_all_properties()
 
     def _calculate_bulk_properties(self):
         self._calculate_mass_properties()
@@ -58,18 +93,27 @@ class _ElectrodeAssembly(
         self._energy = energy
         return self._energy
 
+    @abstractmethod
     def _calculate_mass_properties(self):
+        """Calculate mass properties of the electrode assembly."""
         pass
 
+    @abstractmethod
     def _calculate_cost_properties(self):
+        """Calculate cost properties of the electrode assembly."""
         pass
 
+    @abstractmethod
     def _calculate_geometry_parameters(self):
         """Calculate geometry parameters of the electrode assembly."""
         pass
 
-    def _calcualate_full_cell_curve(self):
+    @abstractmethod
+    def _calculate_interfacial_area(self):
+        """Calculate the interfacial area between anode and cathode."""
+        pass
 
+    def _calculate_full_cell_curve(self):
         """Calculate full cell voltage curve of the electrode assembly."""
         _full_cell_curve = deepcopy(self._layup._full_cell_curve)
         _full_cell_curve[:, 0] = _full_cell_curve[:, 0] * self._interfacial_area
@@ -86,20 +130,6 @@ class _ElectrodeAssembly(
         self._anode_half_cell_curve = np.column_stack([_anode_half_cell_curve[:,4], _anode_half_cell_curve[:,1], _anode_half_cell_curve[:,2]])
 
         return self._full_cell_curve, self._cathode_half_cell_curve, self._anode_half_cell_curve
-    
-    def _calculate_anode_half_cell_curve(self):
-        """Calculate anode half-cell voltage curve of the electrode assembly."""
-        _anode_half_cell = deepcopy(self._layup._anode._half_cell_curve)
-        _anode_half_cell[:, 0] = _anode_half_cell[:, 0] * self._interfacial_area
-        self._anode_half_cell = _anode_half_cell
-        return self._anode_half_cell
-    
-    def _calculate_cathode_half_cell_curve(self):
-        """Calculate cathode half-cell voltage curve of the electrode assembly."""
-        _cathode_half_cell = deepcopy(self._layup._cathode._half_cell_curve)
-        _cathode_half_cell[:, 0] = _cathode_half_cell[:, 0] * self._interfacial_area
-        self._cathode_half_cell = _cathode_half_cell
-        return self._cathode_half_cell
     
     def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:
 
@@ -162,7 +192,15 @@ class _ElectrodeAssembly(
 
     @property
     def energy(self) -> float:
-        """Return the energy of the electrode assembly in Wh."""
+        """
+        Return the energy of the electrode assembly in Wh.
+        
+        Returns
+        -------
+        float
+            Energy in watt-hours (Wh)
+        """
+        self._ensure_properties_calculated()
         return round(self._energy * J_TO_WH, 2)
 
     @property
@@ -329,6 +367,27 @@ class _ElectrodeAssembly(
         return _convert_and_round_recursive(self._mass_breakdown)
 
     @name.setter
-    def name(self, value: str):
+    def name(self, value: str) -> None:
+        """Set the name of the electrode assembly with validation."""
         self.validate_string(value, "name")
         self._name = value
+
+    @layup.setter
+    @calculate_all_properties
+    def layup(self, value: _Layup) -> None:
+        """
+        Set the layup with validation and property recalculation.
+        
+        Parameters
+        ----------
+        value : _Layup
+            The new layup configuration
+            
+        Raises
+        ------
+        ValueError
+            If layup is None or invalid
+        """
+        self.validate_type(value, _Layup, "layup")
+        self._layup = value
+
