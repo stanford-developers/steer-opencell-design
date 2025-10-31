@@ -21,7 +21,7 @@ from steer_opencell_design.AuxillaryComponents.WindingEquipment import RoundMand
 
 from steer_materials.CellMaterials.Base import CurrentCollectorMaterial
 
-from copy import deepcopy
+from copy import deepcopy, copy
 import pandas as pd
 import numpy as np
 from shapely.geometry import Polygon, Point
@@ -79,9 +79,140 @@ class _ElectrodeAssembly(
         pass
 
     def _calculate_interfacial_area(self):
-        """Calculate interfacial area of the electrode assembly."""
-        pass
+        """Calculate the interfacial area between cathode and anode surfaces in a wound jelly roll.
+        
+        Computes two interfacial surfaces:
+        1. Inner surface: cathode b-side to anode a-side (first contact)
+        2. Outer surface: cathode a-side to anode b-side (after one full rotation)
+        
+        Returns
+        -------
+        float
+            Total interfacial area in m²
+        """
+        # Extract electrode coordinates
+        cathode_coords = self._get_electrode_coordinates('cathode')
+        anode_coords = self._get_electrode_coordinates('anode')
+        
+        # Calculate inner interfacial area (first contact)
+        inner_area = self._calculate_inner_interface_area(
+            cathode_coords['b_side'], anode_coords['a_side']
+        )
+        
+        # Calculate outer interfacial area (after one full rotation)
+        outer_area = self._calculate_outer_interface_area(
+            cathode_coords['a_side'], anode_coords['b_side']
+        )
+        
+        self._interfacial_area = inner_area + outer_area
+        return self._interfacial_area
+    
+    def _get_electrode_coordinates(self, electrode_type: str) -> dict:
+        """Extract electrode coating coordinates.
+        
+        Parameters
+        ----------
+        electrode_type : str
+            Either 'cathode' or 'anode'
+            
+        Returns
+        -------
+        dict
+            Dictionary with 'a_side' and 'b_side' coordinate arrays (2D)
+        """
+        electrode = getattr(self._layup, f'_{electrode_type}')
+        current_collector = electrode._current_collector
+        
+        # Extract 2D coordinates (x, y plane)
+        a_side_coords = current_collector._a_side_coated_coordinates[:, :2]
+        b_side_coords = current_collector._b_side_coated_coordinates[:, :2]
+        
+        return {
+            'a_side': a_side_coords,
+            'b_side': b_side_coords
+        }
+    
+    def _calculate_inner_interface_area(self, cathode_coords: np.ndarray, anode_coords: np.ndarray) -> float:
+        """Calculate interfacial area for inner surface contact.
+        
+        Parameters
+        ----------
+        cathode_coords : np.ndarray
+            Cathode b-side coordinates (2D)
+        anode_coords : np.ndarray  
+            Anode a-side coordinates (2D)
+            
+        Returns
+        -------
+        float
+            Inner interfacial area in m²
+        """
+        cathode_polygon = Polygon(cathode_coords)
+        anode_polygon = Polygon(anode_coords)
+        
+        intersection = cathode_polygon.intersection(anode_polygon)
+        return intersection.area
+    
+    def _calculate_outer_interface_area(self, cathode_coords: np.ndarray, anode_coords: np.ndarray) -> float:
+        """Calculate interfacial area for outer surface contact after one full rotation.
+        
+        Parameters
+        ----------
+        cathode_coords : np.ndarray
+            Cathode a-side coordinates (2D)
+        anode_coords : np.ndarray
+            Anode b-side coordinates (2D)
+            
+        Returns
+        -------
+        float
+            Outer interfacial area in m²
+        """
+        # Calculate cathode shift after one full rotation
+        cathode_shift = self._calculate_full_rotation_shift()
+        
+        # Apply shift to cathode coordinates
+        shifted_cathode_coords = cathode_coords + np.array([cathode_shift, 0])
+        
+        # Create polygons and calculate intersection
+        shifted_cathode_polygon = Polygon(shifted_cathode_coords)
+        anode_polygon = Polygon(anode_coords)
+        
+        intersection = shifted_cathode_polygon.intersection(anode_polygon)
+        return intersection.area
+    
+    def _calculate_full_rotation_shift(self) -> float:
+        """Calculate the x-direction shift after cathode completes one full rotation.
+        
+        Returns
+        -------
+        float
+            Shift distance in meters
+        """
+        # Column indices for clarity
+        THETA_COL = 0
+        X_UNWRAPPED_COL = 1
+        
+        # Get cathode a-side spiral data
+        cathode_spiral = self._component_spirals['cathode_current_collector']
+        
+        # Get starting position
+        cathode_start_angle = cathode_spiral[0, THETA_COL]
+        cathode_start_x = cathode_spiral[0, X_UNWRAPPED_COL]
+        
+        # Find point where cathode completes one full rotation (2π radians)
+        if type(self) == WoundJellyRoll:
+            full_rotation_angle = cathode_start_angle - 2 * np.pi
+        elif type(self) == FlatWoundJellyRoll:
+            full_rotation_angle = cathode_start_angle + 2 * np.pi
 
+        theta_values = np.argsort(cathode_spiral[:, THETA_COL])
+        x_values = cathode_spiral[theta_values, X_UNWRAPPED_COL]
+        length_one_rotation_ahead = np.interp(full_rotation_angle, cathode_spiral[theta_values, THETA_COL], x_values)
+
+        # Calculate shift distance
+        return length_one_rotation_ahead - cathode_start_x
+    
     def _calculate_geometry_parameters(self):
         """Calculate geometry parameters of the electrode assembly."""
         pass
@@ -406,72 +537,37 @@ class _JellyRoll(_ElectrodeAssembly):
         TURNS_COL = 5
         
         # Cache component spirals to avoid repeated dictionary lookups
-        component_spirals = {}
-        component_names = [
-            "anode_a_side_coating", "anode_b_side_coating", "anode_current_collector",
-            "cathode_a_side_coating", "cathode_b_side_coating", "cathode_current_collector", 
-            "bottom_separator", "top_separator"
-        ]
-        
-        # Pre-fetch all component spirals with validation
-        for name in component_names:
-            spiral = self._component_spirals.get(name)
-            if spiral is not None and len(spiral) > 0:
-                component_spirals[name] = spiral
-            else:
-                # Handle missing components gracefully
-                component_spirals[name] = np.empty((0, 6))
+        component_spirals = copy(self._component_spirals)
+        component_names = [n for n in component_spirals.keys()]
         
         # Calculate basic turn counts for all components
         for name in component_names:
-            spiral = component_spirals[name]
-            if len(spiral) > 0:
-                roll_properties[f"{name}_turns"] = np.max(spiral[:, TURNS_COL])
-            else:
-                roll_properties[f"{name}_turns"] = 0.0
+            roll_properties[f"{name}_turns"] = np.max(component_spirals[name][:, TURNS_COL])
+
+        # Get anode theta boundaries
+        roll_start_theta = component_spirals["anode_a_side_coating"][0, THETA_COL]
+        roll_end_theta = component_spirals["anode_b_side_coating"][-1, THETA_COL]
         
-        # Calculate separator inner/outer turns relative to anode placement
-        if (len(component_spirals["anode_a_side_coating"]) > 0 and 
-            len(component_spirals["anode_b_side_coating"]) > 0):
+        # Process both separators with the same logic
+        for sep_name in ["bottom_separator", "top_separator"]:
+
+            separator_spiral = component_spirals[sep_name]
             
-            # Get anode theta boundaries
-            anode_start_theta = component_spirals["anode_a_side_coating"][0, THETA_COL]
-            anode_end_theta = component_spirals["anode_b_side_coating"][-1, THETA_COL]
+            # Inner turns: separator region after anode starts
+            inner_mask = separator_spiral[:, THETA_COL] > roll_start_theta if type(self) == WoundJellyRoll else separator_spiral[:, THETA_COL] < roll_start_theta
+            inner_turns = np.max(separator_spiral[inner_mask, TURNS_COL])
             
-            # Process both separators with the same logic
-            for sep_name in ["bottom_separator", "top_separator"]:
-                separator_spiral = component_spirals[sep_name]
-                
-                if len(separator_spiral) > 0:
-                    # Inner turns: separator region after anode starts
-                    inner_mask = separator_spiral[:, THETA_COL] > anode_start_theta
-                    if np.any(inner_mask):
-                        inner_turns = np.max(separator_spiral[inner_mask, TURNS_COL])
-                    else:
-                        inner_turns = 0.0
-                    
-                    # Outer turns: separator region before anode ends (turn range)
-                    outer_mask = separator_spiral[:, THETA_COL] < anode_end_theta
-                    if np.any(outer_mask):
-                        outer_spiral = separator_spiral[outer_mask, TURNS_COL]
-                        outer_turns = np.max(outer_spiral) - np.min(outer_spiral)
-                    else:
-                        outer_turns = 0.0
-                    
-                    # Store results
-                    roll_properties[f"{sep_name}_inner_turns"] = inner_turns
-                    roll_properties[f"{sep_name}_outer_turns"] = outer_turns
-                else:
-                    # Handle empty separator spirals
-                    roll_properties[f"{sep_name}_inner_turns"] = 0.0
-                    roll_properties[f"{sep_name}_outer_turns"] = 0.0
-        else:
-            # Handle case where anode components are missing
-            for sep_name in ["bottom_separator", "top_separator"]:
-                roll_properties[f"{sep_name}_inner_turns"] = 0.0  
-                roll_properties[f"{sep_name}_outer_turns"] = 0.0
-        
+            # Outer turns: separator region before anode ends (turn range)
+            outer_mask = separator_spiral[:, THETA_COL] < roll_end_theta if type(self) == WoundJellyRoll else separator_spiral[:, THETA_COL] > roll_end_theta
+            outer_spiral = separator_spiral[outer_mask, TURNS_COL]
+            outer_turns = np.max(outer_spiral) - np.min(outer_spiral)
+            
+            # Store results
+            roll_properties[f"{sep_name}_inner_turns"] = inner_turns
+            roll_properties[f"{sep_name}_outer_turns"] = outer_turns
+
         self._roll_properties = roll_properties
+
         return self._roll_properties
 
     def _calculate_mass_properties(self):
@@ -560,7 +656,7 @@ class _JellyRoll(_ElectrodeAssembly):
         """
         # Pre-compute all conversions in numpy (much faster than pandas operations)
         theta_deg = np.abs(np_array[:, 0] * (180.0 / PI) - 90)
-        length_mm = np_array[:, 1] * M_TO_MM
+        length_mm = (np_array[:, 1] - np.min(np_array[:, 1])) * M_TO_MM
         r_mm = np_array[:, 2] * M_TO_MM
         x_mm = np_array[:, 3] * M_TO_MM
         z_mm = np_array[:, 4] * M_TO_MM
@@ -576,7 +672,7 @@ class _JellyRoll(_ElectrodeAssembly):
             "Turns": turns,
         })
     
-    def _format_spiral_trace(self, property_name: str, color: str, name: str) -> go.Scatter:
+    def _format_spiral_trace(self, property_name: str, color: str, name: str, line_width=0) -> go.Scatter:
         
         df = getattr(self, property_name)
         # Build customdata array for rich hover (theta, length, radius, x, z, turns)
@@ -603,11 +699,12 @@ class _JellyRoll(_ElectrodeAssembly):
             x=df['X (mm)'],
             y=df['Z (mm)'],
             mode='lines',
-            line=dict(color=color, width=0),
+            line=dict(color=color, width=line_width),
             line_shape='spline',
             name=name,
             customdata=customdata,
             hovertemplate=hovertemplate,
+            legendgroup=name,
         )
 
         trace.showlegend = False
@@ -648,6 +745,7 @@ class _JellyRoll(_ElectrodeAssembly):
             name=name,
             customdata=customdata,
             hovertemplate=hovertemplate,
+            legendgroup=name,
         )
 
     @property
@@ -700,7 +798,7 @@ class _JellyRoll(_ElectrodeAssembly):
 
     @property
     def spiral_trace(self) -> go.Scatter:
-        return self._format_spiral_trace("spiral", "black", "Spiral")
+        return self._format_spiral_trace("spiral", "black", "Spiral", 1)
 
     @property
     def top_separator_spiral(self) -> pd.DataFrame:
@@ -840,35 +938,35 @@ class _JellyRoll(_ElectrodeAssembly):
     
     @property
     def top_separator_extruded_spiral_trace(self) -> go.Scatter:
-        return self._format_extruded_spiral_trace("top_separator_extruded_spiral", self.layup.top_separator.material._color, f"Top Separator Extruded")
+        return self._format_extruded_spiral_trace("top_separator_extruded_spiral", self.layup.top_separator.material._color, f"Top Separator")
 
     @property
     def bottom_separator_extruded_spiral_trace(self) -> go.Scatter:
-        return self._format_extruded_spiral_trace("bottom_separator_extruded_spiral", self.layup.bottom_separator.material._color, f"Bottom Separator Extruded")
+        return self._format_extruded_spiral_trace("bottom_separator_extruded_spiral", self.layup.bottom_separator.material._color, f"Bottom Separator")
 
     @property
     def anode_a_side_coating_extruded_spiral_trace(self) -> go.Scatter:
-        return self._format_extruded_spiral_trace("anode_a_side_coating_extruded_spiral", self.layup.anode.formulation._color, f"Anode a-side Coating Extruded")
+        return self._format_extruded_spiral_trace("anode_a_side_coating_extruded_spiral", self.layup.anode.formulation._color, f"Anode a-side Coating")
 
     @property
     def anode_current_collector_extruded_spiral_trace(self) -> go.Scatter:
-        return self._format_extruded_spiral_trace("anode_current_collector_extruded_spiral", self.layup.anode.current_collector.material._color, f"Anode Current Collector Extruded")   
+        return self._format_extruded_spiral_trace("anode_current_collector_extruded_spiral", self.layup.anode.current_collector.material._color, f"Anode Current Collector")   
 
     @property
     def anode_b_side_coating_extruded_spiral_trace(self) -> go.Scatter:
-        return self._format_extruded_spiral_trace("anode_b_side_coating_extruded_spiral", self.layup.anode.formulation._color, f"Anode b-side Coating Extruded")
+        return self._format_extruded_spiral_trace("anode_b_side_coating_extruded_spiral", self.layup.anode.formulation._color, f"Anode b-side Coating")
 
     @property
     def cathode_a_side_coating_extruded_spiral_trace(self) -> go.Scatter:
-        return self._format_extruded_spiral_trace("cathode_a_side_coating_extruded_spiral", self.layup.cathode.formulation._color, f"Cathode a-side Coating Extruded")
+        return self._format_extruded_spiral_trace("cathode_a_side_coating_extruded_spiral", self.layup.cathode.formulation._color, f"Cathode a-side Coating")
     
     @property
     def cathode_current_collector_extruded_spiral_trace(self) -> go.Scatter:
-        return self._format_extruded_spiral_trace("cathode_current_collector_extruded_spiral", self.layup.cathode.current_collector.material._color, f"Cathode Current Collector Extruded")
+        return self._format_extruded_spiral_trace("cathode_current_collector_extruded_spiral", self.layup.cathode.current_collector.material._color, f"Cathode Current Collector")
     
     @property
     def cathode_b_side_coating_extruded_spiral_trace(self) -> go.Scatter:
-        return self._format_extruded_spiral_trace("cathode_b_side_coating_extruded_spiral", self.layup.cathode.formulation._color, f"Cathode b-side Coating Extruded")
+        return self._format_extruded_spiral_trace("cathode_b_side_coating_extruded_spiral", self.layup.cathode.formulation._color, f"Cathode b-side Coating")
 
     @property
     def mandrel(self) -> RoundMandrel | FlatMandrel:
@@ -940,138 +1038,6 @@ class WoundJellyRoll(_JellyRoll):
         self._calculate_all_properties()
         self._update_properties = True
 
-    def _calculate_interfacial_area(self):
-        """Calculate the interfacial area between cathode and anode surfaces in a wound jelly roll.
-        
-        Computes two interfacial surfaces:
-        1. Inner surface: cathode b-side to anode a-side (first contact)
-        2. Outer surface: cathode a-side to anode b-side (after one full rotation)
-        
-        Returns
-        -------
-        float
-            Total interfacial area in m²
-        """
-        # Extract electrode coordinates
-        cathode_coords = self._get_electrode_coordinates('cathode')
-        anode_coords = self._get_electrode_coordinates('anode')
-        
-        # Calculate inner interfacial area (first contact)
-        inner_area = self._calculate_inner_interface_area(
-            cathode_coords['b_side'], anode_coords['a_side']
-        )
-        
-        # Calculate outer interfacial area (after one full rotation)
-        outer_area = self._calculate_outer_interface_area(
-            cathode_coords['a_side'], anode_coords['b_side']
-        )
-        
-        self._interfacial_area = inner_area + outer_area
-        return self._interfacial_area
-    
-    def _get_electrode_coordinates(self, electrode_type: str) -> dict:
-        """Extract electrode coating coordinates.
-        
-        Parameters
-        ----------
-        electrode_type : str
-            Either 'cathode' or 'anode'
-            
-        Returns
-        -------
-        dict
-            Dictionary with 'a_side' and 'b_side' coordinate arrays (2D)
-        """
-        electrode = getattr(self._layup, f'_{electrode_type}')
-        current_collector = electrode._current_collector
-        
-        # Extract 2D coordinates (x, y plane)
-        a_side_coords = current_collector._a_side_coated_coordinates[:, :2]
-        b_side_coords = current_collector._b_side_coated_coordinates[:, :2]
-        
-        return {
-            'a_side': a_side_coords,
-            'b_side': b_side_coords
-        }
-    
-    def _calculate_inner_interface_area(self, cathode_coords: np.ndarray, anode_coords: np.ndarray) -> float:
-        """Calculate interfacial area for inner surface contact.
-        
-        Parameters
-        ----------
-        cathode_coords : np.ndarray
-            Cathode b-side coordinates (2D)
-        anode_coords : np.ndarray  
-            Anode a-side coordinates (2D)
-            
-        Returns
-        -------
-        float
-            Inner interfacial area in m²
-        """
-        cathode_polygon = Polygon(cathode_coords)
-        anode_polygon = Polygon(anode_coords)
-        
-        intersection = cathode_polygon.intersection(anode_polygon)
-        return intersection.area
-    
-    def _calculate_outer_interface_area(self, cathode_coords: np.ndarray, anode_coords: np.ndarray) -> float:
-        """Calculate interfacial area for outer surface contact after one full rotation.
-        
-        Parameters
-        ----------
-        cathode_coords : np.ndarray
-            Cathode a-side coordinates (2D)
-        anode_coords : np.ndarray
-            Anode b-side coordinates (2D)
-            
-        Returns
-        -------
-        float
-            Outer interfacial area in m²
-        """
-        # Calculate cathode shift after one full rotation
-        cathode_shift = self._calculate_full_rotation_shift()
-        
-        # Apply shift to cathode coordinates
-        shifted_cathode_coords = cathode_coords + np.array([cathode_shift, 0])
-        
-        # Create polygons and calculate intersection
-        shifted_cathode_polygon = Polygon(shifted_cathode_coords)
-        anode_polygon = Polygon(anode_coords)
-        
-        intersection = shifted_cathode_polygon.intersection(anode_polygon)
-        return intersection.area
-    
-    def _calculate_full_rotation_shift(self) -> float:
-        """Calculate the x-direction shift after cathode completes one full rotation.
-        
-        Returns
-        -------
-        float
-            Shift distance in meters
-        """
-        # Column indices for clarity
-        THETA_COL = 0
-        X_UNWRAPPED_COL = 1
-        
-        # Get cathode a-side spiral data
-        cathode_spiral = self._component_spirals['cathode_a_side_coating']
-        
-        # Get starting position
-        cathode_start_angle = cathode_spiral[0, THETA_COL]
-        cathode_start_x = cathode_spiral[0, X_UNWRAPPED_COL]
-        
-        # Find point where cathode completes one full rotation (2π radians)
-        full_rotation_angle = cathode_start_angle - 2 * np.pi
-        rotation_indices = np.where(cathode_spiral[:, THETA_COL] <= full_rotation_angle)[0]
-        
-        # Get x position at full rotation
-        cathode_full_rotation_x = cathode_spiral[rotation_indices[0], X_UNWRAPPED_COL]
-        
-        # Calculate shift distance
-        return cathode_full_rotation_x - cathode_start_x
-    
     def _calculate_geometry_parameters(self):
         
         radius_list = []
@@ -1491,19 +1457,91 @@ class FlatWoundJellyRoll(_JellyRoll):
         self._calculate_all_properties()
         self._update_properties = True
 
-    def _calculate_interfacial_area(self):
-        self._interfacial_area = 1
-        return self._interfacial_area
+    def _calculate_roll(self):
+        self._calculate_pressed_racetrack()
+        super()._calculate_roll()
 
-    def _calculate_variable_thickness_spiral(self, ds_target: float = 0.5e-3) -> np.ndarray:
-        """Calculate spiral path around flat mandrel with racetrack cross-section.
+    def _calculate_geometry_parameters(self):
+        
+        thickness_list = []
+        width_list = []
+
+        # create the boundings surface
+        for component_name, spiral_data in self._component_spirals.items():
+            max_z = spiral_data[:, 4].max()
+            min_z = spiral_data[:, 4].min()
+            max_x = spiral_data[:, 3].max()
+            min_x = spiral_data[:, 3].min()
+            thickness = max_z - min_z
+            width = max_x - min_x
+            thickness_list.append(thickness)
+            width_list.append(width)
+
+        self._thickness = max(thickness_list)
+        self._width = max(width_list)
+
+        return self._thickness, self._width
+
+    def _calculate_pressed_racetrack(self, pressed_height: float = 0.0008):
+        """Simulate hot pressing by creating a new spiral with a flatter mandrel geometry.
+        
+        This approach calculates the circumference of the original racetrack mandrel,
+        then creates a new mandrel with the specified pressed height and adjusts the
+        width to maintain the same circumference. A completely new spiral is then
+        calculated for this flatter geometry.
+        
+        Parameters
+        ----------
+        pressed_height : float
+            Height of the mandrel after hot pressing in meters (default 1mm = 0.001m)
+            
+        Returns
+        -------
+        np.ndarray
+            Hot-pressed spiral with same structure: [theta, x_unwrapped, r, x, z, turns]
+        """
+        # Get original mandrel parameters
+        original_radius = self._mandrel._radius  # height/2 of original racetrack
+        original_straight_length = self._mandrel._straight_length
+        
+        # Calculate original mandrel circumference (perimeter of racetrack cross-section)
+        original_circumference = self._calculate_racetrack_circumference(
+            original_radius, original_straight_length
+        )
+        
+        # Create new mandrel geometry with pressed height
+        pressed_radius = pressed_height / 2  # New radius from pressed height
+        
+        # Calculate new straight length to maintain same circumference
+        # Circumference = 2 * π * radius + 2 * straight_length
+        # Solve for new straight_length: straight_length = (circumference - 2 * π * radius) / 2
+        new_straight_length = (original_circumference - 2 * np.pi * pressed_radius) / 2
+
+        self._pressed_radius = pressed_radius
+        self._pressed_straight_length = new_straight_length
+
+        return self._pressed_radius, self._pressed_straight_length
+
+    def _calculate_variable_thickness_spiral_for_height(
+            self, 
+            mandrel_radius: float, 
+            straight_length: float, 
+            ds_target: float = 0.5e-3
+        ) -> np.ndarray:
+        """Calculate spiral path for given mandrel geometry parameters (clockwise direction).
         
         The racetrack consists of:
         - Two semicircular ends (radius = height/2)
         - Two straight sections (length = width - height)
         
+        Calculates spiral in clockwise direction, consistent with WoundJellyRoll.
+        
         Parameters
         ----------
+        mandrel_radius : float
+            Radius of semicircular ends (height/2) in meters
+        straight_length : float
+            Length of straight sections (width - height) in meters
         ds_target : float
             Target arc length step size in meters
             
@@ -1513,13 +1551,10 @@ class FlatWoundJellyRoll(_JellyRoll):
             Columns: [theta, x_unwrapped, r, x, z, turns]
         """
         total_length = self.layup._total_length  # meters
-        mandrel_radius = self.mandrel._radius  # height/2
-        straight_length = self.mandrel._straight_length  # width - height
         
         if total_length <= 0:
-            # Return minimal spiral at starting position
-            self._spiral = np.array([[0.0, 0.0, mandrel_radius, mandrel_radius, 0.0, 0.0]])
-            return self._spiral
+            # Return minimal spiral at starting position (clockwise start position)
+            return np.array([[2 * np.pi, 0.0, mandrel_radius, mandrel_radius, 0.0, 0.0]])
         
         # Calculate perimeter of one racetrack loop
         perimeter_base = 2 * np.pi * mandrel_radius + 2 * straight_length
@@ -1530,8 +1565,8 @@ class FlatWoundJellyRoll(_JellyRoll):
         accumulated_thickness = 0.0  # Track actual thickness buildup
         turn_count = 0.0
         
-        # Start at top of right semicircle (theta=0 in racetrack coordinates)
-        theta_racetrack = 0.0
+        # Start at top of right semicircle (theta=2π in racetrack coordinates, will decrease clockwise)
+        theta_racetrack = 2 * np.pi
         
         while x_unwrapped < total_length:
             # Get thickness at current unwrapped position
@@ -1541,14 +1576,20 @@ class FlatWoundJellyRoll(_JellyRoll):
             # Calculate position on current racetrack
             x_pos, z_pos = self._racetrack_position(theta_racetrack, current_radius, straight_length)
             
+            # Calculate normalized theta for clockwise motion (starting from 2π, decreasing)
+            # Total turns traveled = (initial_theta - current_theta) / (2π) + full_turns_completed
+            theta_traveled = (2 * np.pi - theta_racetrack) + turn_count * 2 * np.pi
+            total_turns = theta_traveled / (2 * np.pi)
+            normalized_theta = theta_traveled  # Represents cumulative angle traveled clockwise
+            
             # Store position data
             positions.append([
-                theta_racetrack,  # Parametric angle around racetrack
+                normalized_theta, # Normalized theta representing cumulative angle traveled clockwise
                 x_unwrapped,      # Cumulative unwrapped length
                 current_radius,   # Distance from center to current layer
                 x_pos,           # Cartesian x coordinate
                 z_pos,           # Cartesian z coordinate  
-                turn_count       # Number of complete racetrack loops
+                total_turns      # Total number of turns (fractional)
             ])
             
             # Calculate step size based on local curvature and thickness
@@ -1571,26 +1612,33 @@ class FlatWoundJellyRoll(_JellyRoll):
             thickness_increment = thickness * dtheta / (2 * np.pi)
             accumulated_thickness += thickness_increment
             
-            theta_racetrack += dtheta
+            # Move clockwise (decrease theta)
+            theta_racetrack -= dtheta
             x_unwrapped += ds_actual
             
-            # Update turn count when completing full loops
-            if theta_racetrack >= 2 * np.pi:
-                full_turns = theta_racetrack // (2 * np.pi)
+            # Update turn count when completing full loops (theta goes below 0)
+            if theta_racetrack < 0:
+                full_turns = (-theta_racetrack) // (2 * np.pi) + 1
                 turn_count += full_turns
-                theta_racetrack = theta_racetrack % (2 * np.pi)
+                theta_racetrack = theta_racetrack + full_turns * (2 * np.pi)
         
         # Convert to numpy array
-        self._spiral = np.array(positions)
-        return self._spiral
+        return np.array(positions)
     
     def _racetrack_position(self, theta: float, radius: float, straight_length: float) -> tuple:
-        """Calculate x,z position on racetrack at given parametric angle.
+        """Calculate x,z position on racetrack at given parametric angle (clockwise direction).
+        
+        For clockwise motion starting at top-right:
+        - theta=2π: top of right semicircle 
+        - theta=3π/2: right side
+        - theta=π: bottom of right semicircle
+        - theta=π/2: bottom of left semicircle
+        - theta=0: top of left semicircle
         
         Parameters
         ----------
         theta : float
-            Parametric angle (0 to 2π)
+            Parametric angle (0 to 2π), decreases clockwise from 2π
         radius : float
             Current layer radius
         straight_length : float
@@ -1608,33 +1656,37 @@ class FlatWoundJellyRoll(_JellyRoll):
         semi_arc_length = np.pi * radius
         total_perimeter = 2 * semi_arc_length + 2 * straight_length
         
-        # Determine position based on parametric angle
-        fraction = theta / (2 * np.pi)
-        arc_length = fraction * total_perimeter
+        # For clockwise motion, map theta to arc_length position around perimeter
+        # Start at theta=2π (top right) and go clockwise
+        # Convert to arc position: theta=2π -> 0, theta=3π/2 -> π/4*perimeter, etc.
+        clockwise_fraction = (2 * np.pi - theta) / (2 * np.pi)
+        arc_length = clockwise_fraction * total_perimeter
         
         if arc_length <= semi_arc_length:
-            # Right semicircle (0 to π)
-            phi = arc_length / radius  # Actual geometric angle
-            x = straight_length/2 + radius * np.cos(phi - np.pi/2)
-            z = radius * np.sin(phi - np.pi/2)
+            # Right semicircle (starting from top, going clockwise)
+            phi = arc_length / radius  # Actual geometric angle from top
+            x = straight_length/2 + radius * np.cos(np.pi/2 - phi)  # Start at top (π/2), go clockwise
+            z = radius * np.sin(np.pi/2 - phi)
             
         elif arc_length <= semi_arc_length + straight_length:
-            # Top straight section
+            # Bottom straight section (right to left)
             progress = (arc_length - semi_arc_length) / straight_length
             x = straight_length/2 - progress * straight_length
-            z = radius
+            z = -radius
             
         elif arc_length <= 2 * semi_arc_length + straight_length:
-            # Left semicircle (π to 2π)
+            # Left semicircle (bottom to top, clockwise)
             phi = (arc_length - semi_arc_length - straight_length) / radius
-            x = -straight_length/2 + radius * np.cos(phi + np.pi/2)
-            z = radius * np.sin(phi + np.pi/2)
+            # For left semicircle, start at bottom (-π/2) and go clockwise (decreasing angle)
+            angle = -np.pi/2 - phi  # Start at -π/2, go clockwise (more negative)
+            x = -straight_length/2 + radius * np.cos(angle)  # Center at -straight_length/2
+            z = radius * np.sin(angle)
             
         else:
-            # Bottom straight section
+            # Top straight section (left to right)
             progress = (arc_length - 2 * semi_arc_length - straight_length) / straight_length
             x = -straight_length/2 + progress * straight_length
-            z = -radius
+            z = radius
         
         return x, z
     
@@ -1674,14 +1726,40 @@ class FlatWoundJellyRoll(_JellyRoll):
             return 0.0
 
     def _build_component_spirals(self):
-        """Build component spirals by mapping flattened center lines onto the flat mandrel spiral.
         
-        Key difference from cylindrical winding: height adjustments must be applied in the 
-        correct direction based on position on the racetrack:
-        - On flat sections (top/bottom): adjust z-coordinate directly
-        - On curved sections (semicircles): adjust radially outward from local center
+        # Build component spirals for the hot-pressed geometry
+        self._component_spirals = self._build_component_spirals_for_geometry(
+            self._spiral, self._pressed_radius, self._pressed_straight_length
+        )
+
+        return self._component_spirals
+        
+    def _build_component_spirals_for_geometry(
+            self, 
+            base_spiral: np.ndarray, 
+            mandrel_radius: float, 
+            straight_length: float
+        ) -> dict:
+        """Build component spirals for a given base spiral and mandrel geometry.
+        
+        This is a generalized version of _build_component_spirals that can work with
+        any mandrel geometry parameters, used for hot-pressed spirals.
+        
+        Parameters
+        ----------
+        base_spiral : np.ndarray
+            Base spiral to map components onto
+        mandrel_radius : float
+            Radius of semicircular ends (height/2) in meters
+        straight_length : float
+            Length of straight sections (width - height) in meters
+            
+        Returns
+        -------
+        dict
+            Component spirals dictionary
         """
-        self._component_spirals = {}
+        component_spirals = {}
         
         # Component names in processing order
         component_names = [
@@ -1693,37 +1771,22 @@ class FlatWoundJellyRoll(_JellyRoll):
         # Pre-compute all center line data to avoid repeated access
         center_line_data = {}
         for component_name in component_names:
-            if component_name in self.layup._flattened_center_lines:
-                center_line = self.layup._flattened_center_lines[component_name]
-                center_line_data[component_name] = {
-                    'x_coords': center_line[:, 0],
-                    'z_coords': center_line[:, 1],
-                    'x_min': np.min(center_line[:, 0]),
-                    'x_max': np.max(center_line[:, 0])
-                }
-        
-        # Cache the base spiral reference and mandrel parameters
-        base_spiral = self._spiral
-        mandrel_radius = self._mandrel._radius
-        straight_length = self._mandrel._straight_length
-        
+            center_line = self.layup._flattened_center_lines[component_name]
+            center_line_data[component_name] = {
+                'x_coords': center_line[:, 0],
+                'z_coords': center_line[:, 1],
+                'x_min': np.min(center_line[:, 0]),
+                'x_max': np.max(center_line[:, 0])
+            }
+    
         # Process each component
         for component_name in component_names:
-            if component_name not in center_line_data:
-                # Skip missing components with empty array
-                self._component_spirals[component_name] = np.empty((0, 6))
-                continue
-                
+
             cl_data = center_line_data[component_name]
             
             # Vectorized spiral clipping using boolean mask
             x_unwrapped = base_spiral[:, 1]  # Extract x_unwrapped column
             mask = (x_unwrapped >= cl_data['x_min']) & (x_unwrapped <= cl_data['x_max'])
-            
-            if not np.any(mask):
-                # No spiral points in component range
-                self._component_spirals[component_name] = np.empty((0, 6))
-                continue
             
             # Apply mask to get component spiral slice
             component_spiral = base_spiral[mask].copy()
@@ -1731,10 +1794,10 @@ class FlatWoundJellyRoll(_JellyRoll):
             # Vectorized height calculation using numpy interpolation
             x_vals = component_spiral[:, 1]
             z_unwrapped = np.interp(x_vals, cl_data['x_coords'], cl_data['z_coords'])
-            height_adjustments = z_unwrapped - mandrel_radius
+            height_adjustments = z_unwrapped - self._mandrel._radius
             
             # Apply height adjustments in correct direction based on racetrack position
-            self._apply_flat_mandrel_height_adjustments(
+            component_spiral = self._apply_flat_mandrel_height_adjustments(
                 component_spiral, height_adjustments, mandrel_radius, straight_length
             )
             
@@ -1742,13 +1805,18 @@ class FlatWoundJellyRoll(_JellyRoll):
             theta_start_component = component_spiral[0, 0]  # Starting theta for this component
             theta_traveled_component = component_spiral[:, 0] - theta_start_component  # Angle traveled from component start
             component_spiral[:, 5] = theta_traveled_component / (2 * np.pi)  # Turns relative to component start
-            
-            self._component_spirals[component_name] = component_spiral
+        
+            component_spirals[component_name] = component_spiral
 
-        return self._component_spirals
+        return component_spirals
     
-    def _apply_flat_mandrel_height_adjustments(self, spiral: np.ndarray, height_adjustments: np.ndarray, 
-                                             mandrel_radius: float, straight_length: float):
+    def _apply_flat_mandrel_height_adjustments(
+            self, 
+            spiral: np.ndarray, 
+            height_adjustments: np.ndarray, 
+            mandrel_radius: float, 
+            straight_length: float
+        ):
         """Apply height adjustments to spiral points based on their position on the racetrack.
         
         Parameters
@@ -1783,6 +1851,8 @@ class FlatWoundJellyRoll(_JellyRoll):
             
             # Update effective radius (distance from origin)
             spiral[i, 2] = np.sqrt(new_x**2 + new_z**2)
+
+        return spiral
     
     def _get_height_adjustment_direction(self, theta: float, radius: float, straight_length: float,
                                        mandrel_radius: float) -> np.ndarray:
@@ -1920,22 +1990,36 @@ class FlatWoundJellyRoll(_JellyRoll):
         return np.array([direction_x, direction_z])
 
     def _build_extruded_component_spirals(self):
-        """Build extruded component spirals for flat mandrel by applying thickness in correct directions.
+
+        # Build extruded component spirals for the hot-pressed geometry
+        self._extruded_spirals = self._build_extruded_component_spirals_for_geometry(
+            self._component_spirals, self._pressed_radius, self._pressed_straight_length
+        )
+
+        return self._extruded_spirals
         
-        For each component, creates a filled shape by:
-        1. Taking the center line spiral from _component_spirals
-        2. Creating outer spiral by adding thickness/2 in the correct direction
-        3. Creating inner spiral by subtracting thickness/2 in the correct direction
-        4. Reversing inner spiral direction for proper winding
-        5. Combining outer + inner spirals into a closed filled shape
+    def _build_extruded_component_spirals_for_geometry(self, component_spirals: dict, 
+                                                     mandrel_radius: float, straight_length: float) -> dict:
+        """Build extruded component spirals for a given component spirals dictionary and mandrel geometry.
         
-        Key difference from cylindrical: thickness is applied based on racetrack position:
-        - On flat sections: thickness applied vertically (±z direction)
-        - On curved sections: thickness applied radially from local semicircle center
+        This is a generalized version of _build_extruded_component_spirals that can work with
+        any component spirals dictionary and mandrel geometry parameters, used for hot-pressed spirals.
         
-        Results stored in self._extruded_spirals for visualization.
+        Parameters
+        ----------
+        component_spirals : dict
+            Component spirals dictionary to extrude
+        mandrel_radius : float
+            Radius of semicircular ends (height/2) in meters
+        straight_length : float
+            Length of straight sections (width - height) in meters
+            
+        Returns
+        -------
+        dict
+            Extruded component spirals dictionary
         """
-        self._extruded_spirals = {}
+        extruded_spirals = {}
 
         component_thicknesses = {
             'top_separator': self.layup.top_separator._thickness,
@@ -1948,17 +2032,18 @@ class FlatWoundJellyRoll(_JellyRoll):
             'cathode_b_side_coating': self.layup.cathode._coating_thickness,
         }
         
-        # Cache mandrel parameters
-        mandrel_radius = self._mandrel._radius
-        straight_length = self._mandrel._straight_length
-        
         # Process each component that has a center line spiral
         for component_name, thickness in component_thicknesses.items():
-            center_spiral = self._component_spirals[component_name]
+            if component_name not in component_spirals:
+                # Skip missing components
+                extruded_spirals[component_name] = np.empty((0, 6))
+                continue
+                
+            center_spiral = component_spirals[component_name]
             
             if len(center_spiral) == 0:
                 # Skip empty components
-                self._extruded_spirals[component_name] = np.empty((0, 6))
+                extruded_spirals[component_name] = np.empty((0, 6))
                 continue
                 
             half_thickness = thickness / 2.0
@@ -1988,9 +2073,9 @@ class FlatWoundJellyRoll(_JellyRoll):
                 # Fallback for edge cases
                 filled_spiral = outer_spiral
             
-            self._extruded_spirals[component_name] = filled_spiral
+            extruded_spirals[component_name] = filled_spiral
 
-        return self._extruded_spirals
+        return extruded_spirals
     
     def _create_flat_mandrel_thickness_spirals(self, center_spiral: np.ndarray, half_thickness: float,
                                              mandrel_radius: float, straight_length: float) -> tuple:
@@ -2046,6 +2131,54 @@ class FlatWoundJellyRoll(_JellyRoll):
         
         return outer_spiral, inner_spiral
 
+    def _calculate_variable_thickness_spiral(self) -> np.ndarray:
+
+        # Calculate new spiral with pressed mandrel geometry (no mandrel modification needed)
+        self._spiral = self._calculate_variable_thickness_spiral_for_height(
+            self._pressed_radius, self._pressed_straight_length
+        )
+        
+        return self._spiral
+    
+    def _calculate_racetrack_circumference(self, radius: float, straight_length: float) -> float:
+        """Calculate the circumference (perimeter) of a racetrack cross-section.
+        
+        The racetrack consists of two semicircles connected by straight sections.
+        Circumference = 2 * π * radius + 2 * straight_length
+        
+        Parameters
+        ----------
+        radius : float
+            Radius of the semicircular ends
+        straight_length : float
+            Length of the straight sections
+            
+        Returns
+        -------
+        float
+            Circumference in meters
+        """
+        return 2 * np.pi * radius + 2 * straight_length
+
+    @property
+    def pressed_radius(self) -> float:
+        """Return the pressed mandrel radius in meters."""
+        return round(self._pressed_radius * M_TO_MM, 2)
+    
+    @property
+    def pressed_straight_length(self) -> float:
+        """Return the pressed mandrel straight length in meters."""
+        return round(self._pressed_straight_length * M_TO_MM, 2)
+    
+    @property
+    def thickness(self) -> float:
+        """Return the overall jelly roll thickness in millimeters."""
+        return round(self._thickness * M_TO_MM, 2)
+    
+    @property
+    def width(self) -> float:
+        """Return the overall jelly roll width in millimeters."""
+        return round(self._width * M_TO_MM, 2)
 
 
 class _Stack(_ElectrodeAssembly):

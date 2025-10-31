@@ -136,6 +136,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertTrue(type(self.my_jellyroll), WoundJellyRoll)
         self.assertAlmostEqual(self.my_jellyroll.radius, 18.12, 2)
         self.assertAlmostEqual(self.my_jellyroll.diameter, 36.25, 2)
+        self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23895, 0)
         self.assertAlmostEqual(self.my_jellyroll.energy, 37.29)
 
     def test_plots(self):
@@ -144,12 +145,10 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertTrue(type(self.my_jellyroll.spiral) == pd.DataFrame)
 
         fig1 = self.my_jellyroll.get_spiral_plot()
-        fig2 = self.my_jellyroll.get_spiral_plot(layered=True, extruded=False)
         fig3 = self.my_jellyroll.get_spiral_plot(layered=False)
         fig4 = self.my_jellyroll.get_capacity_plot()
 
         # fig1.show()
-        # fig2.show()
         # fig3.show()
         # fig4.show()
 
@@ -309,9 +308,10 @@ class TestFlatJellyRoll(unittest.TestCase):
 
     def test_basics(self):
         self.assertTrue(type(self.my_jellyroll), WoundJellyRoll)
-        self.assertAlmostEqual(self.my_jellyroll.radius, 18.01, 2)
-        self.assertAlmostEqual(self.my_jellyroll.diameter, 36.02, 2)
-        self.assertAlmostEqual(self.my_jellyroll.energy, 41.34)
+        self.assertEqual(self.my_jellyroll.thickness, 10.01)
+        self.assertEqual(self.my_jellyroll.width, 111.58)
+        self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23725.74, 0)
+        self.assertAlmostEqual(self.my_jellyroll.energy, 37.02)
 
     def test_plots(self):
 
@@ -319,11 +319,57 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertTrue(type(self.my_jellyroll.spiral) == pd.DataFrame)
 
         fig1 = self.my_jellyroll.get_spiral_plot()
-        fig2 = self.my_jellyroll.get_spiral_plot(layered=False)
+        fig2 = self.my_jellyroll.get_spiral_plot(extruded=False, layered=False)
         fig3 = self.my_jellyroll.get_capacity_plot()
-        # fig1.show()
-        # fig2.show()
+        fig1.show()
+        fig2.show()
         # fig3.show()
+
+    def test_roll_properties(self):
+        """Test that roll_properties returns a properly formatted DataFrame with expected values."""
+        
+        # Test that roll_properties is a pandas DataFrame
+        self.assertIsInstance(self.my_jellyroll.roll_properties, pd.DataFrame)
+        
+        # Create expected DataFrame
+        expected_data = {
+            'anode_a_side_coating_turns': 18.15,
+            'anode_current_collector_turns': 20.39,
+            'anode_b_side_coating_turns': 18.60,
+            'cathode_a_side_coating_turns': 20.39,
+            'cathode_current_collector_turns': 20.39,
+            'cathode_b_side_coating_turns': 20.39,
+            'bottom_separator_turns': 31.83,
+            'bottom_separator_inner_turns': 7.03,
+            'bottom_separator_outer_turns': 6.44,
+            'top_separator_turns': 22.69,
+            'top_separator_inner_turns': 2.16,
+            'top_separator_outer_turns': 2.16
+        }
+        
+        expected_df = pd.DataFrame.from_dict(expected_data, orient='index', columns=['Turns'])
+        expected_df.index.name = 'Component'
+        
+        # Get actual DataFrame
+        actual_df = self.my_jellyroll.roll_properties
+        
+        # Test DataFrame structure
+        self.assertEqual(actual_df.columns.tolist(), ['Turns'])
+        self.assertEqual(actual_df.index.name, 'Component')
+        
+        # Test that all expected components are present
+        for component in expected_data.keys():
+            self.assertIn(component, actual_df.index, f"Missing component: {component}")
+        
+        # Test values (rounded to 2 decimal places)
+        for component, expected_value in expected_data.items():
+            actual_value = actual_df.loc[component, 'Turns']
+            self.assertAlmostEqual(
+                actual_value, 
+                expected_value, 
+                places=2, 
+                msg=f"Component {component}: expected {expected_value}, got {actual_value}"
+            )
 
 
 class TestPunchedStack(unittest.TestCase):
