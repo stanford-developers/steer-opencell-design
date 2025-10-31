@@ -1,5 +1,4 @@
 import unittest
-from copy import deepcopy
 import pandas as pd
 
 from steer_opencell_design.Formulations.ElectrodeFormulations import (
@@ -9,7 +8,8 @@ from steer_opencell_design.Formulations.ElectrodeFormulations import (
 from steer_opencell_design.Components.Electrodes import Cathode, Anode
 from steer_opencell_design.Components.CurrentCollectors import PunchedCurrentCollector, NotchedCurrentCollector
 from steer_opencell_design.Components.Separators import Separator
-from steer_opencell_design.Constructions.ElectrodeAssemblies import PunchedStack, ZFoldStack, WoundJellyRoll, FlatWoundJellyRoll
+from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import PunchedStack, ZFoldStack
+from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import WoundJellyRoll, FlatWoundJellyRoll
 from steer_opencell_design.AuxillaryComponents.WindingEquipment import RoundMandrel, FlatMandrel
 from steer_opencell_design.Constructions.Layups import MonoLayer, ZFoldMonoLayer, Laminate
 
@@ -321,8 +321,8 @@ class TestFlatJellyRoll(unittest.TestCase):
         fig1 = self.my_jellyroll.get_spiral_plot()
         fig2 = self.my_jellyroll.get_spiral_plot(extruded=False, layered=False)
         fig3 = self.my_jellyroll.get_capacity_plot()
-        fig1.show()
-        fig2.show()
+        # fig1.show()
+        # fig2.show()
         # fig3.show()
 
     def test_roll_properties(self):
