@@ -30,6 +30,9 @@ class _Stack(_ElectrodeAssembly):
         super().__init__(layup)
         self.n_layers = n_layers
 
+    def _calculate_geometry_parameters(self):
+        pass
+
     def _calculate_all_properties(self):
         self._calculate_stack()
         super()._calculate_all_properties()
