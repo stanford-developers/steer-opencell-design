@@ -1056,6 +1056,7 @@ class WoundJellyRoll(_JellyRoll):
         ValueError
             If component spiral data is invalid or insufficient
         """
+        # get the radius and diameter
         radius_list = []
 
         # Create the bounding surface for each component
@@ -1069,7 +1070,26 @@ class WoundJellyRoll(_JellyRoll):
         self._radius = max(radius_list)
         self._diameter = self._radius * 2
 
-        return self._radius, self._diameter
+
+        # get the radius minimum bound
+        small_layup = deepcopy(self.layup)
+        small_layup.length = small_layup.length_range[0]
+        small_spiral = SpiralCalculator.calculate_variable_thickness_spiral(small_layup, self.mandrel._radius)
+        small_spiral_coords_2d = np.column_stack((small_spiral[:, X_COORD_COL],small_spiral[:, Z_COORD_COL]))
+        small_radius = SpiralCalculator.get_radius_of_spiral(small_spiral_coords_2d)
+        small_radius = small_radius + small_layup.get_thickness_at_x(small_layup._total_length)
+
+        # get the radius maximum bound
+        big_layup = deepcopy(self.layup)
+        big_layup.length = big_layup.length_hard_range[1]
+        big_spiral = SpiralCalculator.calculate_variable_thickness_spiral(big_layup, self.mandrel._radius)
+        big_spiral_coords_2d = np.column_stack((big_spiral[:, X_COORD_COL],big_spiral[:, Z_COORD_COL]))
+        big_radius = SpiralCalculator.get_radius_of_spiral(big_spiral_coords_2d)
+        big_radius = big_radius + big_layup.get_thickness_at_x(big_layup._total_length)
+
+        self._radius_range = (small_radius, big_radius)
+
+        return self._radius, self._diameter, self._radius_range
 
     def _calculate_variable_thickness_spiral(self) -> np.ndarray:
 
@@ -1132,29 +1152,10 @@ class WoundJellyRoll(_JellyRoll):
 
     @property
     def radius_range(self) -> Tuple[float, float]:
-        """Return the radius range (min, max) of the wound jelly roll in mm.
-        
-        Returns
-        -------
-        Tuple[float, float]
-            (min_radius, max_radius) in millimeters, rounded to 2 decimal places
-        """
-        # make layup with small length
-        small_layup = deepcopy(self.layup)
-
-        # set layup length to small
-        small_layup.length = 100
-
-        # make small jelly roll
-        small_jelly_roll = WoundJellyRoll(
-            laminate=small_layup,
-            mandrel=self.mandrel
+        return (
+            round(self._radius_range[0] * M_TO_MM, 2),
+            round(self._radius_range[1] * M_TO_MM, 2)
         )
-
-        min_radius = small_jelly_roll.mandrel.radius
-        max_radius = 50
-
-        return (round(min_radius, 2), round(max_radius, 2))
     
     @property
     def radius_hard_range(self) -> Tuple[float, float]:
@@ -1216,11 +1217,12 @@ class WoundJellyRoll(_JellyRoll):
     def radius(self, target_radius: float) -> None:
         """Set radius by optimizing layup length to achieve target radius.
         
-        Uses Brent's method to find the layup length that produces the desired radius.
+        Uses Brent's method for robust root finding to determine the layup length
+        that produces the desired radius.
         
         Parameters
         ----------
-        target_radius_mm : float
+        target_radius : float
             Target radius in millimeters
             
         Raises
@@ -1228,60 +1230,51 @@ class WoundJellyRoll(_JellyRoll):
         ValueError
             If target radius is invalid or optimization fails
         """
+        from scipy.optimize import brentq
+        
         # Validate input
         self.validate_positive_float(target_radius, "radius")
 
-        # Check if target is realistic
-        if target_radius < self.radius_hard_range[0] or target_radius > self.radius_hard_range[1]:
-            raise ValueError(f"Target radius {target_radius} mm is outside achievable range of {self.radius_hard_range[0]} mm to {self.radius_hard_range[1]} mm.")
-
         # Convert target radius to meters
-        _target_radius = target_radius * MM_TO_M
+        target_radius_m = target_radius * MM_TO_M
 
-        def sample_radius(length: float) -> float:
-
-            # make copy of layup to modify
+        def objective_function(length: float) -> float:
+            """Objective function: difference between actual and target radius."""
+            # Create copy of layup to avoid modifying original during optimization
             layup_copy = deepcopy(self.layup)
-
-            # set the length
             layup_copy.length = length * M_TO_MM
 
-            # get the spiral for the new length
+            # Calculate spiral for this length
             spiral = SpiralCalculator.calculate_variable_thickness_spiral(
                 laminate=layup_copy,
                 start_radius=self.mandrel._radius
             )
 
-            # get the radius of the spiral
+            # Get radius from spiral coordinates
             coords = spiral[:, [X_COORD_COL, Z_COORD_COL]]
+            actual_radius = SpiralCalculator.get_radius_of_spiral(coords=coords)
 
-            _radius = SpiralCalculator.get_radius_of_spiral(coords=coords)
+            # Add thickness at end of layup (this accounts for final layer thickness)
+            thickness_at_end = layup_copy.get_thickness_at_x(x_position=layup_copy._total_length)
+            actual_radius += thickness_at_end  # Half thickness since we want radius, not diameter
 
-            # add thickness at end of layup to radius
-            thickness_at_max_length = layup_copy.get_thickness_at_x(x_position=layup_copy._total_length)
-            _radius += thickness_at_max_length * 2
+            return actual_radius - target_radius_m
 
-            return _radius
+        min_length = self._layup.length_range[0] * MM_TO_M
+        max_length = self._layup.length_hard_range[1] * MM_TO_M
+        
+        # Use Brent's method for robust root finding
+        optimal_length = brentq(
+            objective_function,
+            min_length,
+            max_length,
+            xtol=1e-8,    # High precision in length
+            rtol=1e-6,    # Relative tolerance
+            maxiter=100   # Maximum iterations
+        )
 
-        # sample radius at 5 lengths
-        _l_vs_r = np.ndarray([5, 2], dtype=float)
-        _min_l = self._layup.length_range[0] * MM_TO_M
-        _max_l = self._layup.length_range[1] * MM_TO_M
-        _l_grid = np.linspace(_min_l, _max_l, 5)
-
-        for i, l in enumerate(_l_grid):
-            r = sample_radius(length=l)
-            _l_vs_r[i, 0] = l
-            _l_vs_r[i, 1] = r
-
-        # fit polymonial to length vs radius data
-        poly_coeffs = np.polyfit(_l_vs_r[:, 1], _l_vs_r[:, 0], deg=2)
-
-        # get the length that gives target radius
-        optimized_length = np.polyval(poly_coeffs, _target_radius)
-
-        # set the layup length
-        self.layup.length = optimized_length * M_TO_MM
+        # Set the optimized length
+        self.layup.length = optimal_length * M_TO_MM
 
 
 class FlatWoundJellyRoll(_JellyRoll):
