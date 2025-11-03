@@ -470,6 +470,424 @@ class SpiralCalculator:
         return radius
 
     @staticmethod
+    def calculate_variable_thickness_racetrack(
+            laminate: Laminate,
+            mandrel_radius: float, 
+            straight_length: float, 
+            ds_target: float = DEFAULT_DS_TARGET
+        ) -> np.ndarray:
+        """Calculate spiral path for given mandrel geometry parameters (clockwise direction).
+        
+        The racetrack consists of:
+        - Two semicircular ends (radius = height/2)
+        - Two straight sections (length = width - height)
+        
+        Calculates spiral in clockwise direction, consistent with WoundJellyRoll.
+        
+        Parameters
+        ----------
+        laminate : Laminate
+            The layup structure containing thickness information
+        mandrel_radius : float
+            Radius of semicircular ends (height/2) in meters
+        straight_length : float
+            Length of straight sections (width - height) in meters
+        ds_target : float
+            Target arc length step size in meters
+            
+        Returns
+        -------
+        np.ndarray
+            Columns: [theta, x_unwrapped, r, x, z, turns]
+        """
+        total_length = laminate._total_length  # meters
+
+        # Initialize arrays for spiral path
+        positions = []
+        x_unwrapped = 0.0
+        accumulated_thickness = 0.0  # Track actual thickness buildup
+        turn_count = 0.0
+        
+        # Start at top of right semicircle (theta=2π in racetrack coordinates, will decrease clockwise)
+        theta_racetrack = TWO_PI
+        
+        while x_unwrapped < total_length:
+            # Get thickness at current unwrapped position
+            thickness = laminate.get_thickness_at_x(x_unwrapped)
+            current_radius = mandrel_radius + accumulated_thickness
+            
+            # Calculate position on current racetrack
+            x_pos, z_pos = SpiralCalculator.racetrack_position(theta_racetrack, current_radius, straight_length)
+            
+            # Calculate normalized theta for clockwise motion (starting from 2π, decreasing)
+            # Total turns traveled = (initial_theta - current_theta) / (2π) + full_turns_completed
+            theta_traveled = (TWO_PI - theta_racetrack) + turn_count * TWO_PI
+            total_turns = theta_traveled / TWO_PI
+            normalized_theta = theta_traveled  # Represents cumulative angle traveled clockwise
+            
+            # Store position data
+            positions.append([
+                normalized_theta, # Normalized theta representing cumulative angle traveled clockwise
+                x_unwrapped,      # Cumulative unwrapped length
+                current_radius,   # Distance from center to current layer
+                x_pos,           # Cartesian x coordinate
+                z_pos,           # Cartesian z coordinate  
+                total_turns      # Total number of turns (fractional)
+            ])
+            
+            # Calculate step size based on local curvature and thickness
+            curvature = SpiralCalculator.racetrack_curvature(theta_racetrack, current_radius, straight_length)
+            if curvature > 0:
+                # On curved sections, limit step by curvature
+                ds_max = min(ds_target, 0.1 / curvature)
+            else:
+                # On straight sections, use target step size
+                ds_max = ds_target
+            
+            ds_actual = min(ds_max, total_length - x_unwrapped)
+            
+            # Calculate how much thickness to add based on this step
+            # Thickness accumulation rate depends on perimeter
+            perimeter_current = TWO_PI * current_radius + 2 * straight_length
+            dtheta = ds_actual * TWO_PI / perimeter_current
+            
+            # Add thickness proportional to angular progress
+            thickness_increment = thickness * dtheta / TWO_PI
+            accumulated_thickness += thickness_increment
+            
+            # Move clockwise (decrease theta)
+            theta_racetrack -= dtheta
+            x_unwrapped += ds_actual
+            
+            # Update turn count when completing full loops (theta goes below 0)
+            if theta_racetrack < 0:
+                full_turns = (-theta_racetrack) // TWO_PI + 1
+                turn_count += full_turns
+                theta_racetrack = theta_racetrack + full_turns * TWO_PI
+        
+        # Convert to numpy array
+        return np.array(positions)
+
+    @staticmethod
+    def racetrack_position(theta: float, radius: float, straight_length: float) -> tuple:
+        """Calculate x,z position on racetrack at given parametric angle (clockwise direction).
+        
+        For clockwise motion starting at top-right:
+        - theta=2π: top of right semicircle 
+        - theta=3π/2: right side
+        - theta=π: bottom of right semicircle
+        - theta=π/2: bottom of left semicircle
+        - theta=0: top of left semicircle
+        
+        Parameters
+        ----------
+        theta : float
+            Parametric angle (0 to 2π), decreases clockwise from 2π
+        radius : float
+            Current layer radius
+        straight_length : float
+            Length of straight sections
+            
+        Returns
+        -------
+        tuple
+            (x_position, z_position) in meters
+        """
+        # Normalize theta to [0, 2π)
+        theta = theta % (2 * np.pi)
+        
+        # Calculate total perimeter proportions
+        semi_arc_length = np.pi * radius
+        total_perimeter = 2 * semi_arc_length + 2 * straight_length
+        
+        # For clockwise motion, map theta to arc_length position around perimeter
+        # Start at theta=2π (top right) and go clockwise
+        # Convert to arc position: theta=2π -> 0, theta=3π/2 -> π/4*perimeter, etc.
+        clockwise_fraction = (2 * np.pi - theta) / (2 * np.pi)
+        arc_length = clockwise_fraction * total_perimeter
+        
+        if arc_length <= semi_arc_length:
+            # Right semicircle (starting from top, going clockwise)
+            phi = arc_length / radius  # Actual geometric angle from top
+            x = straight_length/2 + radius * np.cos(np.pi/2 - phi)  # Start at top (π/2), go clockwise
+            z = radius * np.sin(np.pi/2 - phi)
+            
+        elif arc_length <= semi_arc_length + straight_length:
+            # Bottom straight section (right to left)
+            progress = (arc_length - semi_arc_length) / straight_length
+            x = straight_length/2 - progress * straight_length
+            z = -radius
+            
+        elif arc_length <= 2 * semi_arc_length + straight_length:
+            # Left semicircle (bottom to top, clockwise)
+            phi = (arc_length - semi_arc_length - straight_length) / radius
+            # For left semicircle, start at bottom (-π/2) and go clockwise (decreasing angle)
+            angle = -np.pi/2 - phi  # Start at -π/2, go clockwise (more negative)
+            x = -straight_length/2 + radius * np.cos(angle)  # Center at -straight_length/2
+            z = radius * np.sin(angle)
+            
+        else:
+            # Top straight section (left to right)
+            progress = (arc_length - 2 * semi_arc_length - straight_length) / straight_length
+            x = -straight_length/2 + progress * straight_length
+            z = radius
+        
+        return x, z
+
+    @staticmethod
+    def racetrack_curvature(theta: float, radius: float, straight_length: float) -> float:
+        """Calculate curvature at given position on racetrack.
+        
+        Parameters
+        ----------
+        theta : float
+            Parametric angle (0 to 2π)
+        radius : float
+            Current layer radius
+        straight_length : float
+            Length of straight sections
+            
+        Returns
+        -------
+        float
+            Curvature (1/radius on curves, 0 on straight sections)
+        """
+        # Normalize theta to [0, 2π)
+        theta = theta % (2 * np.pi)
+        
+        # Calculate position fractions
+        semi_arc_length = np.pi * radius
+        total_perimeter = 2 * semi_arc_length + 2 * straight_length
+        fraction = theta / (2 * np.pi)
+        arc_length = fraction * total_perimeter
+        
+        # Determine if on curved or straight section
+        if (arc_length <= semi_arc_length or 
+            (semi_arc_length + straight_length <= arc_length <= 2 * semi_arc_length + straight_length)):
+            # On semicircular sections
+            return 1.0 / radius if radius > 0 else 0.0
+        else:
+            # On straight sections
+            return 0.0
+
+    @staticmethod
+    def build_extruded_component_racetracks(
+            component_spirals: dict, 
+            layup: Laminate,
+            mandrel_radius: float, 
+            straight_length: float) -> dict:
+        """Build extruded component spirals for a given component spirals dictionary and mandrel geometry.
+        
+        This is a generalized version of build_extruded_component_spirals that can work with
+        any component spirals dictionary and mandrel geometry parameters, used for hot-pressed spirals.
+        
+        Parameters
+        ----------
+        component_spirals : dict
+            Component spirals dictionary to extrude
+        layup : Laminate
+            The layup structure containing thickness information
+        mandrel_radius : float
+            Radius of semicircular ends (height/2) in meters
+        straight_length : float
+            Length of straight sections (width - height) in meters
+            
+        Returns
+        -------
+        dict
+            Extruded component spirals dictionary
+        """
+        extruded_spirals = {}
+
+        component_thicknesses = {
+            'top_separator': layup.top_separator._thickness,
+            'anode_a_side_coating': layup.anode._coating_thickness,
+            'anode_current_collector': layup.anode.current_collector._thickness,
+            'anode_b_side_coating': layup.anode._coating_thickness,
+            'bottom_separator': layup.bottom_separator._thickness,
+            'cathode_a_side_coating': layup.cathode._coating_thickness,
+            'cathode_current_collector': layup.cathode.current_collector._thickness,
+            'cathode_b_side_coating': layup.cathode._coating_thickness,
+        }
+        
+        # Process each component that has a center line spiral
+        for component_name, thickness in component_thicknesses.items():
+            if component_name not in component_spirals:
+                # Skip missing components
+                extruded_spirals[component_name] = np.empty((0, 6))
+                continue
+                
+            center_spiral = component_spirals[component_name]
+            
+            if len(center_spiral) == 0:
+                # Skip empty components
+                extruded_spirals[component_name] = np.empty((0, 6))
+                continue
+                
+            half_thickness = thickness / 2.0
+            
+            # Create outer and inner spirals with proper flat mandrel thickness application
+            outer_spiral, inner_spiral = SpiralCalculator.create_flat_mandrel_thickness_spirals(
+                center_spiral, half_thickness, mandrel_radius, straight_length
+            )
+            
+            # Reverse inner spiral direction for proper winding (creates closed shape)
+            inner_spiral_reversed = inner_spiral[::-1, :]
+            
+            # Add transition padding points to smooth spline interpolation
+            # Duplicate end points to create smooth transitions
+            outer_end_padding = np.tile(outer_spiral[-1, :], (2, 1))
+            inner_start_padding = np.tile(inner_spiral_reversed[0, :], (2, 1))
+            
+            # Combine into filled shape: outer → padding → inner (reversed) → close
+            if len(outer_spiral) > 0 and len(inner_spiral_reversed) > 0:
+                filled_spiral = np.vstack([
+                    outer_spiral,           # Outer boundary
+                    outer_end_padding,      # Smooth transition
+                    inner_start_padding,    # Smooth transition  
+                    inner_spiral_reversed   # Inner boundary (reversed)
+                ])
+            else:
+                # Fallback for edge cases
+                filled_spiral = outer_spiral
+            
+            extruded_spirals[component_name] = filled_spiral
+
+        return extruded_spirals
+
+    @staticmethod
+    def create_flat_mandrel_thickness_spirals(center_spiral: np.ndarray, half_thickness: float,
+                                             mandrel_radius: float, straight_length: float) -> tuple:
+        """Create outer and inner spirals by applying thickness in correct directions.
+        
+        Parameters
+        ----------
+        center_spiral : np.ndarray
+            Center line spiral coordinates
+        half_thickness : float
+            Half of the component thickness
+        mandrel_radius : float
+            Radius of semicircular ends
+        straight_length : float
+            Length of straight sections
+            
+        Returns
+        -------
+        tuple
+            (outer_spiral, inner_spiral) as numpy arrays
+        """
+        # Initialize outer and inner spirals
+        outer_spiral = center_spiral.copy()
+        inner_spiral = center_spiral.copy()
+        
+        # Process each point to apply thickness in correct direction
+        for i in range(len(center_spiral)):
+            current_x = center_spiral[i, 3]  # Current x position
+            current_z = center_spiral[i, 4]  # Current z position
+            
+            # Get the direction vector for thickness application based on coordinates
+            direction_vector = SpiralCalculator.get_coordinate_based_adjustment_direction(
+                current_x, current_z, mandrel_radius, straight_length
+            )
+            
+            # Calculate outer position (center + half_thickness in direction)
+            outer_x = center_spiral[i, 3] + half_thickness * direction_vector[0]
+            outer_z = center_spiral[i, 4] + half_thickness * direction_vector[1]
+            
+            # Calculate inner position (center - half_thickness in direction)
+            inner_x = center_spiral[i, 3] - half_thickness * direction_vector[0]
+            inner_z = center_spiral[i, 4] - half_thickness * direction_vector[1]
+            
+            # Update outer spiral
+            outer_spiral[i, 3] = outer_x
+            outer_spiral[i, 4] = outer_z
+            outer_spiral[i, 2] = np.sqrt(outer_x**2 + outer_z**2)  # Update effective radius
+            
+            # Update inner spiral
+            inner_spiral[i, 3] = inner_x
+            inner_spiral[i, 4] = inner_z
+            inner_spiral[i, 2] = np.sqrt(inner_x**2 + inner_z**2)  # Update effective radius
+        
+        return outer_spiral, inner_spiral
+
+    @staticmethod
+    def get_coordinate_based_adjustment_direction(x: float, z: float, mandrel_radius: float,
+                                                 straight_length: float) -> np.ndarray:
+        """Get the direction vector for height adjustment based on actual coordinates.
+        
+        This method determines the adjustment direction by analyzing the actual position
+        rather than using parametric angles, which avoids bunching issues on curved sections.
+        
+        Parameters
+        ----------
+        x : float
+            Current x coordinate
+        z : float
+            Current z coordinate  
+        mandrel_radius : float
+            Radius of semicircular ends
+        straight_length : float
+            Length of straight sections
+            
+        Returns
+        -------
+        np.ndarray
+            Unit vector [dx, dz] indicating direction for height adjustment
+        """
+        # Define the centers of the semicircular ends
+        right_center_x = straight_length / 2
+        left_center_x = -straight_length / 2
+        center_z = 0.0
+        
+        # Tolerance for determining if we're on a straight section
+        straight_tolerance = mandrel_radius * 0.1
+        
+        # Check if we're on the right semicircle
+        if x > (straight_length / 2 - straight_tolerance):
+            # Distance from right semicircle center
+            dx_from_center = x - right_center_x
+            dz_from_center = z - center_z
+            distance_from_center = np.sqrt(dx_from_center**2 + dz_from_center**2)
+            
+            if distance_from_center > 1e-12:  # Avoid division by zero
+                # Unit vector pointing radially outward from right center
+                direction_x = dx_from_center / distance_from_center
+                direction_z = dz_from_center / distance_from_center
+            else:
+                # Fallback: assume we're at the center, point upward
+                direction_x = 0.0
+                direction_z = 1.0
+                
+        # Check if we're on the left semicircle
+        elif x < (-straight_length / 2 + straight_tolerance):
+            # Distance from left semicircle center
+            dx_from_center = x - left_center_x
+            dz_from_center = z - center_z
+            distance_from_center = np.sqrt(dx_from_center**2 + dz_from_center**2)
+            
+            if distance_from_center > 1e-12:  # Avoid division by zero
+                # Unit vector pointing radially outward from left center
+                direction_x = dx_from_center / distance_from_center
+                direction_z = dz_from_center / distance_from_center
+            else:
+                # Fallback: assume we're at the center, point upward
+                direction_x = 0.0
+                direction_z = 1.0
+                
+        # We're on a straight section
+        else:
+            if z > 0:
+                # Top straight section: directly upward
+                direction_x = 0.0
+                direction_z = 1.0
+            else:
+                # Bottom straight section: directly downward
+                direction_x = 0.0
+                direction_z = -1.0
+        
+        return np.array([direction_x, direction_z])
+
+    @staticmethod
     def format_np_spiral_for_df(np_array: np.ndarray) -> pd.DataFrame:
         """Format numpy spiral array into pandas DataFrame with proper units and column names.
 
@@ -506,4 +924,123 @@ class SpiralCalculator:
             "Z (mm)": z_mm,
             "Turns": turns,
         })
+
+    @staticmethod  
+    def build_component_racetracks(base_spiral, layup, mandrel_radius, straight_length, original_mandrel_radius):
+        """
+        Build component spirals for racetrack geometry based on a base spiral.
+        
+        This is a generalized version that can work with any mandrel geometry parameters,
+        used for hot-pressed spirals in flat wound jelly rolls.
+        
+        Parameters
+        ----------
+        base_spiral : np.ndarray
+            Base spiral to map components onto
+        layup : Laminate
+            Layup object containing component names and flattened center lines
+        mandrel_radius : float
+            Radius of semicircular ends (height/2) in meters (pressed radius)
+        straight_length : float
+            Length of straight sections (width - height) in meters
+        original_mandrel_radius : float
+            Original mandrel radius before pressing in meters
+            
+        Returns
+        -------
+        dict 
+            Component spirals dictionary mapping component names to their spiral arrays
+        """
+        component_spirals = {}
+        
+        # Component names in processing order
+        component_names = [n for n in layup._flattened_center_lines.keys()]
+        
+        # Pre-compute all center line data to avoid repeated access
+        center_line_data = {}
+        for component_name in component_names:
+            center_line = layup._flattened_center_lines[component_name]
+            center_line_data[component_name] = {
+                'x_coords': center_line[:, 0],
+                'z_coords': center_line[:, 1],
+                'x_min': np.min(center_line[:, 0]),
+                'x_max': np.max(center_line[:, 0])
+            }
     
+        # Process each component
+        for component_name in component_names:
+
+            cl_data = center_line_data[component_name]
+            
+            # Vectorized spiral clipping using boolean mask
+            x_unwrapped = base_spiral[:, 1]  # Extract x_unwrapped column
+            mask = (x_unwrapped >= cl_data['x_min']) & (x_unwrapped <= cl_data['x_max'])
+            
+            # Apply mask to get component spiral slice
+            component_spiral = base_spiral[mask].copy()
+            
+            # Vectorized height calculation using numpy interpolation
+            x_vals = component_spiral[:, 1]
+            z_unwrapped = np.interp(x_vals, cl_data['x_coords'], cl_data['z_coords'])
+            height_adjustments = z_unwrapped - original_mandrel_radius
+            
+            # Apply height adjustments in correct direction based on racetrack position
+            component_spiral = SpiralCalculator.apply_flat_mandrel_height_adjustments(
+                component_spiral, height_adjustments, mandrel_radius, straight_length
+            )
+            
+            # Recalculate turns starting from 0 for this component
+            theta_start_component = component_spiral[0, 0]  # Starting theta for this component
+            theta_traveled_component = component_spiral[:, 0] - theta_start_component  # Angle traveled from component start
+            component_spiral[:, 5] = theta_traveled_component / (2 * np.pi)  # Turns relative to component start
+        
+            component_spirals[component_name] = component_spiral
+
+        return component_spirals
+
+    @staticmethod
+    def apply_flat_mandrel_height_adjustments(spiral, height_adjustments, mandrel_radius, straight_length):
+        """Apply height adjustments to spiral points based on their position on the racetrack.
+        
+        Parameters
+        ----------
+        spiral : np.ndarray
+            Component spiral array (modified in-place)
+        height_adjustments : np.ndarray
+            Height adjustments to apply at each point
+        mandrel_radius : float
+            Radius of the semicircular ends
+        straight_length : float
+            Length of straight sections
+            
+        Returns
+        -------
+        np.ndarray
+            Modified spiral array
+        """
+        # Process each point to determine adjustment direction
+        for i in range(len(spiral)):
+            current_x = spiral[i, 3]  # Current x position
+            current_z = spiral[i, 4]  # Current z position
+            height_adj = height_adjustments[i]
+            
+            # Determine position type and adjustment direction based on actual coordinates
+            adjustment_vector = SpiralCalculator.get_coordinate_based_adjustment_direction(
+                current_x, current_z, mandrel_radius, straight_length
+            )
+            
+            # Apply height adjustment in the correct direction
+            new_x = current_x + height_adj * adjustment_vector[0]
+            new_z = current_z + height_adj * adjustment_vector[1]
+            
+            # Update spiral coordinates
+            spiral[i, 3] = new_x  # x coordinate
+            spiral[i, 4] = new_z  # z coordinate
+            
+            # Update effective radius (distance from origin)
+            spiral[i, 2] = np.sqrt(new_x**2 + new_z**2)
+
+        return spiral
+    
+
+
