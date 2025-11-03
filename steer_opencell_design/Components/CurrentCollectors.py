@@ -491,7 +491,7 @@ class _CurrentCollector(
             reference._x_body_length,
             reference._x_body_length * length_multiplier,
         )
-        
+
         self._y_body_length_range = (
             reference._y_body_length,
             reference._y_body_length * length_multiplier,
@@ -1614,7 +1614,7 @@ class _TapeCurrentCollector(_CurrentCollector):
             )
 
         else:
-            return (100, 5000)
+            return (300, 5000)
 
     @property
     def y_body_length_range(self) -> Tuple[float, float]:
