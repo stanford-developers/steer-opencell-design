@@ -1,6 +1,4 @@
-from __future__ import annotations
-
-from typing import Union, Optional, Dict, Tuple, Any
+from typing import Union, Dict, Tuple, Any
 from abc import ABC, abstractmethod
 from copy import copy
 import pandas as pd
@@ -15,6 +13,8 @@ from steer_core.Constants.Universal import PI
 from steer_core.Decorators.General import calculate_all_properties
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Base import _ElectrodeAssembly
 from steer_opencell_design.AuxillaryComponents.WindingEquipment import RoundMandrel, FlatMandrel
+
+import time
 
 # Constants for array column indices
 THETA_COL = 0
@@ -112,7 +112,10 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         3. Create extruded visualization shapes
         4. Calculate derived spiral properties
         """
+        start_time = time.time()
         self._calculate_variable_thickness_spiral()
+        end_time = time.time()
+        print(f"Spiral calculation time: {end_time - start_time:.4f} seconds")
         self._build_component_spirals()
         self._build_extruded_component_spirals()
         self._calculate_spiral_properties()
@@ -1596,6 +1599,24 @@ class WoundJellyRoll(_JellyRoll):
             Outer diameter in millimeters, rounded to 2 decimal places
         """
         return round(self._diameter * M_TO_MM, 2)
+
+    @radius.setter
+    @calculate_all_properties
+    def radius(self, value: float) -> None:
+
+        # validate input
+        self.validate_positive_float(value, "radius")
+
+        # to si units
+        _target_radius = value * MM_TO_M
+
+        # check if value is less than mandrel radius
+        if _target_radius <= self.mandrel._radius:
+            raise ValueError(f"radius must be greater than mandrel radius of {self.mandrel._radius * M_TO_MM} mm")
+
+
+
+        return None
 
 
 class FlatWoundJellyRoll(_JellyRoll):
