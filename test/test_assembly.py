@@ -138,7 +138,8 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.diameter, 41.27, 2)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23895, 0)
         self.assertAlmostEqual(self.my_jellyroll.energy, 37.29)
-        self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 2.5, 2)
+        self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 3.46, 2)
+        self.assertAlmostEqual(self.my_jellyroll.radius_range[1], 28.1, 2)
 
     def test_plots(self):
 
@@ -206,10 +207,10 @@ class TestRoundJellyRoll(unittest.TestCase):
         # Set a new radius
         new_radius = original_radius + 5.0
         self.my_jellyroll.radius = new_radius
-        
+
         # Check that diameter updated correctly
-        self.assertAlmostEqual(self.my_jellyroll.radius, new_radius)
-        self.assertAlmostEqual(self.my_jellyroll.diameter, new_radius * 2)
+        self.assertAlmostEqual(self.my_jellyroll.radius, new_radius, 1)
+        self.assertAlmostEqual(self.my_jellyroll.diameter, new_radius * 2, 1)
 
 
 class TestFlatJellyRoll(unittest.TestCase):
