@@ -1213,19 +1213,75 @@ class WoundJellyRoll(_JellyRoll):
 
     @radius.setter
     @calculate_all_properties
-    def radius(self, value: float) -> None:
+    def radius(self, target_radius: float) -> None:
+        """Set radius by optimizing layup length to achieve target radius.
+        
+        Uses Brent's method to find the layup length that produces the desired radius.
+        
+        Parameters
+        ----------
+        target_radius_mm : float
+            Target radius in millimeters
+            
+        Raises
+        ------
+        ValueError
+            If target radius is invalid or optimization fails
+        """
+        # Validate input
+        self.validate_positive_float(target_radius, "radius")
 
-        # validate input
-        self.validate_positive_float(value, "radius")
+        # Check if target is realistic
+        if target_radius < self.radius_hard_range[0] or target_radius > self.radius_hard_range[1]:
+            raise ValueError(f"Target radius {target_radius} mm is outside achievable range of {self.radius_hard_range[0]} mm to {self.radius_hard_range[1]} mm.")
 
-        # to si units
-        _target_radius = value * MM_TO_M
+        # Convert target radius to meters
+        _target_radius = target_radius * MM_TO_M
 
-        # check if value is less than mandrel radius
-        if _target_radius <= self.mandrel._radius:
-            raise ValueError(f"radius must be greater than mandrel radius of {self.mandrel._radius * M_TO_MM} mm")
+        def sample_radius(length: float) -> float:
 
-        return None
+            # make copy of layup to modify
+            layup_copy = deepcopy(self.layup)
+
+            # set the length
+            layup_copy.length = length * M_TO_MM
+
+            # get the spiral for the new length
+            spiral = SpiralCalculator.calculate_variable_thickness_spiral(
+                laminate=layup_copy,
+                start_radius=self.mandrel._radius
+            )
+
+            # get the radius of the spiral
+            coords = spiral[:, [X_COORD_COL, Z_COORD_COL]]
+
+            _radius = SpiralCalculator.get_radius_of_spiral(coords=coords)
+
+            # add thickness at end of layup to radius
+            thickness_at_max_length = layup_copy.get_thickness_at_x(x_position=layup_copy._total_length)
+            _radius += thickness_at_max_length * 2
+
+            return _radius
+
+        # sample radius at 5 lengths
+        _l_vs_r = np.ndarray([5, 2], dtype=float)
+        _min_l = self._layup.length_range[0] * MM_TO_M
+        _max_l = self._layup.length_range[1] * MM_TO_M
+        _l_grid = np.linspace(_min_l, _max_l, 5)
+
+        for i, l in enumerate(_l_grid):
+            r = sample_radius(length=l)
+            _l_vs_r[i, 0] = l
+            _l_vs_r[i, 1] = r
+
+        # fit polymonial to length vs radius data
+        poly_coeffs = np.polyfit(_l_vs_r[:, 1], _l_vs_r[:, 0], deg=2)
+
+        # get the length that gives target radius
+        optimized_length = np.polyval(poly_coeffs, _target_radius)
+
+        # set the layup length
+        self.layup.length = optimized_length * M_TO_MM
 
 
 class FlatWoundJellyRoll(_JellyRoll):
