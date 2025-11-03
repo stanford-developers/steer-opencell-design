@@ -149,7 +149,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         fig3 = self.my_jellyroll.get_spiral_plot(layered=False)
         fig4 = self.my_jellyroll.get_capacity_plot()
 
-        fig1.show()
+        # fig1.show()
         # fig3.show()
         # fig4.show()
 
@@ -334,7 +334,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         fig1 = self.my_jellyroll.get_spiral_plot()
         fig2 = self.my_jellyroll.get_spiral_plot(extruded=False, layered=False)
         fig3 = self.my_jellyroll.get_capacity_plot()
-        fig1.show()
+        # fig1.show()
         # fig2.show()
         # fig3.show()
 
