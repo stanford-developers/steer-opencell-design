@@ -1,10 +1,9 @@
 from typing import Union, Dict, Tuple, Any
 from abc import ABC, abstractmethod
-from copy import copy
+from copy import copy, deepcopy
 import pandas as pd
 import numpy as np
-from shapely.geometry import Polygon, Point
-from shapely import minimum_bounding_circle
+from shapely.geometry import Polygon
 import plotly.graph_objects as go
 
 from steer_opencell_design.Constructions.Layups import Laminate
@@ -13,6 +12,7 @@ from steer_core.Constants.Universal import PI
 from steer_core.Decorators.General import calculate_all_properties
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Base import _ElectrodeAssembly
 from steer_opencell_design.AuxillaryComponents.WindingEquipment import RoundMandrel, FlatMandrel
+from steer_opencell_design.Constructions.ElectrodeAssemblies.SpiralUtils import SpiralCalculator
 
 import time
 
@@ -26,7 +26,7 @@ TURNS_COL = 5
 
 # Constants for calculations
 TWO_PI = 2.0 * PI
-DEFAULT_DTHETA = 0.1
+DEFAULT_DTHETA = 0.4
 DEFAULT_DS_TARGET = 0.5e-3
 DEFAULT_PRESSED_HEIGHT = 0.0008
 TARGET_ERROR = 5e-5
@@ -112,10 +112,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         3. Create extruded visualization shapes
         4. Calculate derived spiral properties
         """
-        start_time = time.time()
         self._calculate_variable_thickness_spiral()
-        end_time = time.time()
-        print(f"Spiral calculation time: {end_time - start_time:.4f} seconds")
         self._build_component_spirals()
         self._build_extruded_component_spirals()
         self._calculate_spiral_properties()
@@ -137,27 +134,24 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         ValueError
             If electrode coordinates cannot be calculated
         """
-        try:
-            # Extract electrode coordinates
-            cathode_coords = self._get_electrode_coordinates('cathode')
-            anode_coords = self._get_electrode_coordinates('anode')
+        # Extract electrode coordinates
+        cathode_coords = self._get_electrode_coordinates('cathode')
+        anode_coords = self._get_electrode_coordinates('anode')
+        
+        # Calculate inner interfacial area (first contact)
+        inner_area = self._calculate_inner_interface_area(
+            cathode_coords['b_side'], anode_coords['a_side']
+        )
+        
+        # Calculate outer interfacial area (after one full rotation)
+        outer_area = self._calculate_outer_interface_area(
+            cathode_coords['a_side'], anode_coords['b_side']
+        )
+        
+        self._interfacial_area = inner_area + outer_area
+
+        return self._interfacial_area
             
-            # Calculate inner interfacial area (first contact)
-            inner_area = self._calculate_inner_interface_area(
-                cathode_coords['b_side'], anode_coords['a_side']
-            )
-            
-            # Calculate outer interfacial area (after one full rotation)
-            outer_area = self._calculate_outer_interface_area(
-                cathode_coords['a_side'], anode_coords['b_side']
-            )
-            
-            self._interfacial_area = inner_area + outer_area
-            return self._interfacial_area
-            
-        except Exception as e:
-            raise ValueError(f"Failed to calculate interfacial area: {e}") from e
-    
     def _get_electrode_coordinates(self, electrode_type: str) -> Dict[str, np.ndarray]:
         """Extract electrode coating coordinates.
         
@@ -181,21 +175,18 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         if electrode_type not in ('cathode', 'anode'):
             raise ValueError(f"electrode_type must be 'cathode' or 'anode', got {electrode_type}")
             
-        try:
-            electrode = getattr(self._layup, f'_{electrode_type}')
-            current_collector = electrode._current_collector
-            
-            # Extract 2D coordinates (x, y plane)
-            a_side_coords = current_collector._a_side_coated_coordinates[:, :2]
-            b_side_coords = current_collector._b_side_coated_coordinates[:, :2]
-            
-            return {
-                'a_side': a_side_coords,
-                'b_side': b_side_coords
-            }
-        except AttributeError as e:
-            raise AttributeError(f"Failed to get {electrode_type} coordinates: {e}") from e
-    
+        electrode = getattr(self._layup, f'_{electrode_type}')
+        current_collector = electrode._current_collector
+        
+        # Extract 2D coordinates (x, y plane)
+        a_side_coords = current_collector._a_side_coated_coordinates[:, :2]
+        b_side_coords = current_collector._b_side_coated_coordinates[:, :2]
+        
+        return {
+            'a_side': a_side_coords,
+            'b_side': b_side_coords
+        }
+
     def _calculate_inner_interface_area(self, cathode_coords: np.ndarray, anode_coords: np.ndarray) -> float:
         """Calculate interfacial area for inner surface contact.
         
@@ -216,18 +207,11 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         ValueError
             If coordinates are invalid or polygons cannot be created
         """
-        try:
-            cathode_polygon = Polygon(cathode_coords)
-            anode_polygon = Polygon(anode_coords)
-            
-            if not cathode_polygon.is_valid or not anode_polygon.is_valid:
-                raise ValueError("Invalid polygon geometry")
-                
-            intersection = cathode_polygon.intersection(anode_polygon)
-            return intersection.area
-        except Exception as e:
-            raise ValueError(f"Failed to calculate inner interface area: {e}") from e
-    
+        cathode_polygon = Polygon(cathode_coords)
+        anode_polygon = Polygon(anode_coords)
+        intersection = cathode_polygon.intersection(anode_polygon)
+        return intersection.area
+
     def _calculate_outer_interface_area(self, cathode_coords: np.ndarray, anode_coords: np.ndarray) -> float:
         """Calculate interfacial area for outer surface contact after one full rotation.
         
@@ -248,24 +232,12 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         ValueError
             If coordinates are invalid or shift calculation fails
         """
-        try:
-            # Calculate cathode shift after one full rotation
-            cathode_shift = self._calculate_full_rotation_shift()
-            
-            # Apply shift to cathode coordinates
-            shifted_cathode_coords = cathode_coords + np.array([cathode_shift, 0])
-            
-            # Create polygons and calculate intersection
-            shifted_cathode_polygon = Polygon(shifted_cathode_coords)
-            anode_polygon = Polygon(anode_coords)
-            
-            if not shifted_cathode_polygon.is_valid or not anode_polygon.is_valid:
-                raise ValueError("Invalid polygon geometry after shift")
-                
-            intersection = shifted_cathode_polygon.intersection(anode_polygon)
-            return intersection.area
-        except Exception as e:
-            raise ValueError(f"Failed to calculate outer interface area: {e}") from e
+        cathode_shift = self._calculate_full_rotation_shift()
+        shifted_cathode_coords = cathode_coords + np.array([cathode_shift, 0])
+        shifted_cathode_polygon = Polygon(shifted_cathode_coords)
+        anode_polygon = Polygon(anode_coords)
+        intersection = shifted_cathode_polygon.intersection(anode_polygon)
+        return intersection.area
     
     def _calculate_full_rotation_shift(self) -> float:
         """Calculate the x-direction shift after cathode completes one full rotation.
@@ -282,40 +254,31 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         ValueError
             If spiral data is insufficient for calculation
         """
-        try:
-            # Get cathode a-side spiral data
-            cathode_spiral = self._component_spirals['cathode_current_collector']
-            
-            if len(cathode_spiral) == 0:
-                raise ValueError("Empty cathode spiral data")
-            
-            # Get starting position
-            cathode_start_angle = cathode_spiral[0, THETA_COL]
-            cathode_start_x = cathode_spiral[0, X_UNWRAPPED_COL]
-            
-            # Find point where cathode completes one full rotation (2π radians)
-            if type(self) == WoundJellyRoll:
-                full_rotation_angle = cathode_start_angle - TWO_PI
-            elif type(self) == FlatWoundJellyRoll:
-                full_rotation_angle = cathode_start_angle + TWO_PI
-            else:
-                raise ValueError(f"Unknown jelly roll type: {type(self)}")
+        # Get cathode a-side spiral data
+        cathode_spiral = self._component_spirals['cathode_current_collector']
+        
+        # Get starting position
+        cathode_start_angle = cathode_spiral[0, THETA_COL]
+        cathode_start_x = cathode_spiral[0, X_UNWRAPPED_COL]
+        
+        # Find point where cathode completes one full rotation (2π radians)
+        if type(self) == WoundJellyRoll:
+            full_rotation_angle = cathode_start_angle - TWO_PI
+        elif type(self) == FlatWoundJellyRoll:
+            full_rotation_angle = cathode_start_angle + TWO_PI
+        else:
+            raise ValueError(f"Unknown jelly roll type: {type(self)}")
 
-            theta_values = np.argsort(cathode_spiral[:, THETA_COL])
-            x_values = cathode_spiral[theta_values, X_UNWRAPPED_COL]
-            length_one_rotation_ahead = np.interp(
-                full_rotation_angle, 
-                cathode_spiral[theta_values, THETA_COL], 
-                x_values
-            )
+        theta_values = np.argsort(cathode_spiral[:, THETA_COL])
+        x_values = cathode_spiral[theta_values, X_UNWRAPPED_COL]
 
-            # Calculate shift distance
-            return length_one_rotation_ahead - cathode_start_x
-            
-        except KeyError as e:
-            raise KeyError(f"Missing cathode spiral data: {e}") from e
-        except Exception as e:
-            raise ValueError(f"Failed to calculate rotation shift: {e}") from e
+        length_one_rotation_ahead = np.interp(
+            full_rotation_angle, 
+            cathode_spiral[theta_values, THETA_COL], 
+            x_values
+        )
+
+        return length_one_rotation_ahead - cathode_start_x
     
     def _calculate_spiral_properties(self) -> None:
         """Calculate spiral properties of the electrode assembly.
@@ -399,77 +362,73 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         ValueError
             If spiral data is invalid or insufficient
         """
-        try:
-            roll_properties = {}
-            
-            # Cache component spirals to avoid repeated dictionary lookups
-            component_spirals = copy(self._component_spirals)
-            component_names = [n for n in component_spirals.keys()]
-            
-            # Validate required components exist
-            required_components = ["anode_a_side_coating", "anode_b_side_coating"]
-            missing_components = [comp for comp in required_components if comp not in component_spirals]
-            if missing_components:
-                raise KeyError(f"Missing required components: {missing_components}")
-            
-            # Calculate basic turn counts for all components
-            for name in component_names:
-                spiral_data = component_spirals[name]
-                if len(spiral_data) > 0:
-                    roll_properties[f"{name}_turns"] = np.max(spiral_data[:, TURNS_COL])
-                else:
-                    roll_properties[f"{name}_turns"] = 0.0
+        roll_properties = {}
+        
+        # Cache component spirals to avoid repeated dictionary lookups
+        component_spirals = copy(self._component_spirals)
+        component_names = [n for n in component_spirals.keys()]
+        
+        # Validate required components exist
+        required_components = ["anode_a_side_coating", "anode_b_side_coating"]
+        missing_components = [comp for comp in required_components if comp not in component_spirals]
+        if missing_components:
+            raise KeyError(f"Missing required components: {missing_components}")
+        
+        # Calculate basic turn counts for all components
+        for name in component_names:
+            spiral_data = component_spirals[name]
+            if len(spiral_data) > 0:
+                roll_properties[f"{name}_turns"] = np.max(spiral_data[:, TURNS_COL])
+            else:
+                roll_properties[f"{name}_turns"] = 0.0
 
-            # Get anode theta boundaries
-            anode_a_spiral = component_spirals["anode_a_side_coating"]
-            anode_b_spiral = component_spirals["anode_b_side_coating"]
+        # Get anode theta boundaries
+        anode_a_spiral = component_spirals["anode_a_side_coating"]
+        anode_b_spiral = component_spirals["anode_b_side_coating"]
+        
+        if len(anode_a_spiral) == 0 or len(anode_b_spiral) == 0:
+            raise ValueError("Empty anode spiral data")
             
-            if len(anode_a_spiral) == 0 or len(anode_b_spiral) == 0:
-                raise ValueError("Empty anode spiral data")
+        roll_start_theta = anode_a_spiral[0, THETA_COL]
+        roll_end_theta = anode_b_spiral[-1, THETA_COL]
+        
+        # Process both separators with the same logic
+        for sep_name in ["bottom_separator", "top_separator"]:
+            if sep_name not in component_spirals:
+                roll_properties[f"{sep_name}_inner_turns"] = 0.0
+                roll_properties[f"{sep_name}_outer_turns"] = 0.0
+                continue
                 
-            roll_start_theta = anode_a_spiral[0, THETA_COL]
-            roll_end_theta = anode_b_spiral[-1, THETA_COL]
+            separator_spiral = component_spirals[sep_name]
             
-            # Process both separators with the same logic
-            for sep_name in ["bottom_separator", "top_separator"]:
-                if sep_name not in component_spirals:
-                    roll_properties[f"{sep_name}_inner_turns"] = 0.0
-                    roll_properties[f"{sep_name}_outer_turns"] = 0.0
-                    continue
-                    
-                separator_spiral = component_spirals[sep_name]
-                
-                if len(separator_spiral) == 0:
-                    roll_properties[f"{sep_name}_inner_turns"] = 0.0
-                    roll_properties[f"{sep_name}_outer_turns"] = 0.0
-                    continue
-                
-                # Inner turns: separator region after anode starts
-                if type(self).__name__ == 'WoundJellyRoll':
-                    inner_mask = separator_spiral[:, THETA_COL] > roll_start_theta
-                    outer_mask = separator_spiral[:, THETA_COL] < roll_end_theta
-                else:  # FlatWoundJellyRoll
-                    inner_mask = separator_spiral[:, THETA_COL] < roll_start_theta
-                    outer_mask = separator_spiral[:, THETA_COL] > roll_end_theta
-                
-                inner_turns = np.max(separator_spiral[inner_mask, TURNS_COL]) if np.any(inner_mask) else 0.0
-                
-                # Outer turns: separator region before anode ends (turn range)
-                if np.any(outer_mask):
-                    outer_spiral = separator_spiral[outer_mask, TURNS_COL]
-                    outer_turns = np.max(outer_spiral) - np.min(outer_spiral) if len(outer_spiral) > 0 else 0.0
-                else:
-                    outer_turns = 0.0
-                
-                # Store results
-                roll_properties[f"{sep_name}_inner_turns"] = inner_turns
-                roll_properties[f"{sep_name}_outer_turns"] = outer_turns
+            if len(separator_spiral) == 0:
+                roll_properties[f"{sep_name}_inner_turns"] = 0.0
+                roll_properties[f"{sep_name}_outer_turns"] = 0.0
+                continue
+            
+            # Inner turns: separator region after anode starts
+            if type(self).__name__ == 'WoundJellyRoll':
+                inner_mask = separator_spiral[:, THETA_COL] > roll_start_theta
+                outer_mask = separator_spiral[:, THETA_COL] < roll_end_theta
+            else:  # FlatWoundJellyRoll
+                inner_mask = separator_spiral[:, THETA_COL] < roll_start_theta
+                outer_mask = separator_spiral[:, THETA_COL] > roll_end_theta
+            
+            inner_turns = np.max(separator_spiral[inner_mask, TURNS_COL]) if np.any(inner_mask) else 0.0
+            
+            # Outer turns: separator region before anode ends (turn range)
+            if np.any(outer_mask):
+                outer_spiral = separator_spiral[outer_mask, TURNS_COL]
+                outer_turns = np.max(outer_spiral) - np.min(outer_spiral) if len(outer_spiral) > 0 else 0.0
+            else:
+                outer_turns = 0.0
+            
+            # Store results
+            roll_properties[f"{sep_name}_inner_turns"] = inner_turns
+            roll_properties[f"{sep_name}_outer_turns"] = outer_turns
 
-            self._roll_properties = roll_properties
-            return self._roll_properties
-            
-        except Exception as e:
-            raise ValueError(f"Failed to calculate roll properties: {e}") from e
+        self._roll_properties = roll_properties
+        return self._roll_properties
 
     def _calculate_mass_properties(self) -> float:
         """Calculate total mass and mass breakdown of the jelly roll assembly.
@@ -484,20 +443,17 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         AttributeError
             If component mass properties are not available
         """
-        try:
-            separators = [self.layup._bottom_separator, self.layup._top_separator]
+        separators = [self.layup._bottom_separator, self.layup._top_separator]
 
-            self._mass = self.layup.anode._mass + self.layup.cathode._mass + sum(s._mass for s in separators)
+        self._mass = self.layup.anode._mass + self.layup.cathode._mass + sum(s._mass for s in separators)
 
-            self._mass_breakdown = {
-                "Anode": self.layup.anode._mass_breakdown,
-                "Cathode": self.layup.cathode._mass_breakdown,
-                "Separators": self.sum_breakdowns(separators, "mass"),
-            }
+        self._mass_breakdown = {
+            "Anode": self.layup.anode._mass_breakdown,
+            "Cathode": self.layup.cathode._mass_breakdown,
+            "Separators": self.sum_breakdowns(separators, "mass"),
+        }
 
-            return self._mass
-        except Exception as e:
-            raise AttributeError(f"Failed to calculate mass properties: {e}") from e
+        return self._mass
 
     def _calculate_cost_properties(self) -> float:
         """Calculate total cost and cost breakdown of the jelly roll assembly.
@@ -512,20 +468,17 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         AttributeError
             If component cost properties are not available
         """
-        try:
-            separators = [self.layup._bottom_separator, self.layup._top_separator]
+        separators = [self.layup._bottom_separator, self.layup._top_separator]
 
-            self._cost = self.layup.anode._cost + self.layup.cathode._cost + sum(s._cost for s in separators)
+        self._cost = self.layup.anode._cost + self.layup.cathode._cost + sum(s._cost for s in separators)
 
-            self._cost_breakdown = {
-                "Anode": self.layup.anode._cost_breakdown,
-                "Cathode": self.layup.cathode._cost_breakdown,
-                "Separators": self.sum_breakdowns(separators, "cost"),
-            }
+        self._cost_breakdown = {
+            "Anode": self.layup.anode._cost_breakdown,
+            "Cathode": self.layup.cathode._cost_breakdown,
+            "Separators": self.sum_breakdowns(separators, "cost"),
+        }
 
-            return self._cost
-        except Exception as e:
-            raise AttributeError(f"Failed to calculate cost properties: {e}") from e
+        return self._cost
 
     def get_spiral_plot(
             self, 
@@ -594,52 +547,6 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
         return fig
 
-    @staticmethod
-    def _format_np_spiral_for_df(np_array: np.ndarray) -> pd.DataFrame:
-        """Format numpy spiral array into pandas DataFrame with proper units and column names.
-
-        Parameters
-        ----------
-        np_array : np.ndarray
-            Spiral array with columns [theta, x_unwrapped, r, x, z, turns]
-            
-        Returns
-        -------
-        pd.DataFrame
-            Formatted DataFrame with columns: theta (degrees), x_unwrapped (mm), 
-            r (mm), x (mm), z (mm), turns
-            
-        Raises
-        ------
-        ValueError
-            If input array has incorrect shape or invalid data
-        """
-        if np_array.shape[1] != 6:
-            raise ValueError(f"Expected 6 columns in spiral array, got {np_array.shape[1]}")
-        if len(np_array) == 0:
-            raise ValueError("Empty spiral array provided")
-            
-        try:
-            # Pre-compute all conversions in numpy (much faster than pandas operations)
-            theta_deg = np.abs(np_array[:, THETA_COL] * (180.0 / PI) - 90)
-            length_mm = (np_array[:, X_UNWRAPPED_COL] - np.min(np_array[:, X_UNWRAPPED_COL])) * M_TO_MM
-            r_mm = np_array[:, RADIUS_COL] * M_TO_MM
-            x_mm = np_array[:, X_COORD_COL] * M_TO_MM
-            z_mm = np_array[:, Z_COORD_COL] * M_TO_MM
-            turns = np_array[:, TURNS_COL]  # Number of turns (dimensionless)
-            
-            # Create DataFrame directly with final column names and converted values
-            return pd.DataFrame({
-                "Theta (degrees)": theta_deg,
-                "Unwrapped Length (mm)": length_mm,
-                "Radius (mm)": r_mm,
-                "X (mm)": x_mm,
-                "Z (mm)": z_mm,
-                "Turns": turns,
-            })
-        except Exception as e:
-            raise ValueError(f"Failed to format spiral data: {e}") from e
-    
     def _format_spiral_trace(self, property_name: str, color: str, name: str, line_width: int = 0) -> go.Scatter:
         """Format spiral data into Plotly scatter trace.
         
@@ -666,6 +573,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         """
         
         df = getattr(self, property_name)
+
         # Build customdata array for rich hover (theta, length, radius, x, z, turns)
         customdata = np.stack([
             df['Theta (degrees)'],
@@ -806,7 +714,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         Columns: theta, x_unwrapped, thickness, r, x, y
         """
         spiral = self._spiral
-        return self._format_np_spiral_for_df(spiral)
+        return SpiralCalculator.format_np_spiral_for_df(spiral)
 
     @property
     def spiral_trace(self) -> go.Scatter:
@@ -818,7 +726,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         Columns: theta, x_unwrapped, thickness, r, x, y
         """
         ts_spiral = self._component_spirals.get("top_separator")
-        return self._format_np_spiral_for_df(ts_spiral)
+        return SpiralCalculator.format_np_spiral_for_df(ts_spiral)
 
     @property
     def bottom_separator_spiral(self) -> pd.DataFrame:
@@ -826,7 +734,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         Columns: theta, x_unwrapped, thickness, r, x, y
         """
         bs_spiral = self._component_spirals.get("bottom_separator")
-        return self._format_np_spiral_for_df(bs_spiral)
+        return SpiralCalculator.format_np_spiral_for_df(bs_spiral)
 
     @property
     def anode_a_side_coating_spiral(self) -> pd.DataFrame:
@@ -834,7 +742,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         Columns: theta, x_unwrapped, thickness, r, x, y
         """
         aasc_spiral = self._component_spirals.get("anode_a_side_coating")
-        return self._format_np_spiral_for_df(aasc_spiral)
+        return SpiralCalculator.format_np_spiral_for_df(aasc_spiral)
 
     @property
     def anode_current_collector_spiral(self) -> pd.DataFrame:
@@ -842,7 +750,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         Columns: theta, x_unwrapped, thickness, r, x, y
         """
         acc_spiral = self._component_spirals.get("anode_current_collector")
-        return self._format_np_spiral_for_df(acc_spiral)
+        return SpiralCalculator.format_np_spiral_for_df(acc_spiral)
     
     @property
     def anode_b_side_coating_spiral(self) -> pd.DataFrame:
@@ -850,7 +758,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         Columns: theta, x_unwrapped, thickness, r, x, y
         """
         absc_spiral = self._component_spirals.get("anode_b_side_coating")
-        return self._format_np_spiral_for_df(absc_spiral)
+        return SpiralCalculator.format_np_spiral_for_df(absc_spiral)
     
     @property
     def cathode_a_side_coating_spiral(self) -> pd.DataFrame:
@@ -858,7 +766,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         Columns: theta, x_unwrapped, thickness, r, x, y
         """
         casc_spiral = self._component_spirals.get("cathode_a_side_coating")
-        return self._format_np_spiral_for_df(casc_spiral)
+        return SpiralCalculator.format_np_spiral_for_df(casc_spiral)
 
     @property
     def cathode_current_collector_spiral(self) -> pd.DataFrame:
@@ -866,7 +774,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         Columns: theta, x_unwrapped, thickness, r, x, y
         """
         ccc_spiral = self._component_spirals.get("cathode_current_collector")
-        return self._format_np_spiral_for_df(ccc_spiral)
+        return SpiralCalculator.format_np_spiral_for_df(ccc_spiral)
     
     @property
     def cathode_b_side_coating_spiral(self) -> pd.DataFrame:
@@ -874,47 +782,47 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         Columns: theta, x_unwrapped, thickness, r, x, y
         """
         cbsc_spiral = self._component_spirals.get("cathode_b_side_coating")
-        return self._format_np_spiral_for_df(cbsc_spiral)
+        return SpiralCalculator.format_np_spiral_for_df(cbsc_spiral)
 
     @property
     def top_separator_extruded_spiral(self) -> pd.DataFrame:
         ts_extruded_spiral = self._extruded_spirals.get("top_separator")
-        return self._format_np_spiral_for_df(ts_extruded_spiral)
+        return SpiralCalculator.format_np_spiral_for_df(ts_extruded_spiral)
 
     @property
     def bottom_separator_extruded_spiral(self) -> pd.DataFrame:
         bs_extruded_spiral = self._extruded_spirals.get("bottom_separator")
-        return self._format_np_spiral_for_df(bs_extruded_spiral)
+        return SpiralCalculator.format_np_spiral_for_df(bs_extruded_spiral)
 
     @property
     def anode_a_side_coating_extruded_spiral(self) -> pd.DataFrame:
         aasc_extruded_spiral = self._extruded_spirals.get("anode_a_side_coating")
-        return self._format_np_spiral_for_df(aasc_extruded_spiral)
+        return SpiralCalculator.format_np_spiral_for_df(aasc_extruded_spiral)
     
     @property
     def anode_current_collector_extruded_spiral(self) -> pd.DataFrame:
         acc_extruded_spiral = self._extruded_spirals.get("anode_current_collector")
-        return self._format_np_spiral_for_df(acc_extruded_spiral)
+        return SpiralCalculator.format_np_spiral_for_df(acc_extruded_spiral)
     
     @property
     def anode_b_side_coating_extruded_spiral(self) -> pd.DataFrame:
         absc_extruded_spiral = self._extruded_spirals.get("anode_b_side_coating")
-        return self._format_np_spiral_for_df(absc_extruded_spiral)
+        return SpiralCalculator.format_np_spiral_for_df(absc_extruded_spiral)
 
     @property
     def cathode_a_side_coating_extruded_spiral(self) -> pd.DataFrame:
         casc_extruded_spiral = self._extruded_spirals.get("cathode_a_side_coating")
-        return self._format_np_spiral_for_df(casc_extruded_spiral)
+        return SpiralCalculator.format_np_spiral_for_df(casc_extruded_spiral)
     
     @property
     def cathode_current_collector_extruded_spiral(self) -> pd.DataFrame:
         ccc_extruded_spiral = self._extruded_spirals.get("cathode_current_collector")
-        return self._format_np_spiral_for_df(ccc_extruded_spiral)
+        return SpiralCalculator.format_np_spiral_for_df(ccc_extruded_spiral)
     
     @property
     def cathode_b_side_coating_extruded_spiral(self) -> pd.DataFrame:
         cbsc_extruded_spiral = self._extruded_spirals.get("cathode_b_side_coating")
-        return self._format_np_spiral_for_df(cbsc_extruded_spiral)
+        return SpiralCalculator.format_np_spiral_for_df(cbsc_extruded_spiral)
 
     @property
     def top_separator_spiral_trace(self) -> go.Scatter:
@@ -1122,9 +1030,8 @@ class WoundJellyRoll(_JellyRoll):
         TypeError
             If mandrel is not RoundMandrel or laminate is not Laminate
         """
-        if not isinstance(mandrel, RoundMandrel):
-            raise TypeError(f"mandrel must be RoundMandrel, got {type(mandrel)}")
-            
+        self.validate_type(mandrel, RoundMandrel, "mandrel")
+
         super().__init__(
             laminate=laminate,
             mandrel=mandrel,
@@ -1149,267 +1056,27 @@ class WoundJellyRoll(_JellyRoll):
         ValueError
             If component spiral data is invalid or insufficient
         """
-        try:
-            radius_list = []
+        radius_list = []
 
-            # Create the bounding surface for each component
-            for component_name, spiral_data in self._component_spirals.items():
-            
-                if len(spiral_data) == 0:
-                    continue
-                    
-                x_coords = spiral_data[:, X_COORD_COL]
-                z_coords = spiral_data[:, Z_COORD_COL]
-                coords_2d = np.column_stack((x_coords, z_coords))
-                
-                if len(coords_2d) < 3:
-                    continue  # Need at least 3 points for a polygon
-                    
-                polygon = Polygon(coords_2d)
+        # Create the bounding surface for each component
+        for _, spiral_data in self._component_spirals.items():
+        
+            x_coords = spiral_data[:, X_COORD_COL]
+            z_coords = spiral_data[:, Z_COORD_COL]
+            coords_2d = np.column_stack((x_coords, z_coords))
+            radius_list.append(SpiralCalculator.get_radius_of_spiral(coords_2d))
 
-                circle = minimum_bounding_circle(polygon)
-                center = circle.centroid
-                first_point = list(circle.exterior.coords)[0]
-                radius = Point(center).distance(Point(first_point))
-                radius_list.append(radius)
+        self._radius = max(radius_list)
+        self._diameter = self._radius * 2
 
-            if not radius_list:
-                raise ValueError("No valid component spirals found for geometry calculation")
-                
-            self._radius = max(radius_list)
-            self._diameter = self._radius * 2
+        return self._radius, self._diameter
 
-            return self._radius, self._diameter
-            
-        except Exception as e:
-            raise ValueError(f"Failed to calculate geometry parameters: {e}") from e
+    def _calculate_variable_thickness_spiral(self) -> np.ndarray:
 
-    def _calculate_variable_thickness_spiral(self, dtheta: float = DEFAULT_DTHETA) -> np.ndarray:
-        """Integrate a variable-thickness Archimedean-like spiral (clockwise) with adaptive RK4.
-
-        Governing relations (parametrized by θ, clockwise so θ decreases from π/2):
-            dr/dθ = t(x) / (2π)
-            ds/dθ = sqrt(r² + (dr/dθ)²)         (local arc length rate)
-            dx_unwrapped/dθ = ds/dθ              (treat unwrapped length x as accumulated arc length)
-
-        With spatially varying thickness t(x) provided by layup.get_thickness_at_x(x).
-
-        Improvements over prior implementation:
-            - 4th order Runge–Kutta integration for coupled (r, x) system.
-            - Adaptive step sizing via local Richardson error estimate (1 step h vs 2 half-steps).
-            - Automatic fallback to analytic uniform-thickness solution when thickness variation is negligible.
-            - Gradient-aware minimum step to avoid under-resolving rapid thickness changes.
-            - Early termination and endpoint interpolation to land exactly on total unwrapped length.
-            - Conservative iteration / memory limits to avoid runaway loops.
-
-        Parameters
-        ----------
-        dtheta : float
-            Nominal (maximum) angular step magnitude (radians). Smaller steps are chosen adaptively as needed.
-
-        Returns
-        -------
-        np.ndarray
-            Columns: [theta, x_unwrapped, r, x, z, turns]
-            
-        Raises
-        ------
-        ValueError
-            If layup total length is invalid or spiral calculation fails
-        """
-        try:
-            total_length = self.layup._total_length  # meters
-            r0 = self.mandrel._radius
-            
-            if total_length <= 0:
-                raise ValueError(f"Invalid total length: {total_length}")
-                
-            if total_length <= 1e-12:  # Essentially zero
-                self._spiral = np.array([[np.pi/2, 0.0, r0, r0 * 0.0, r0, 0.0]])
-                return self._spiral
-
-            # Build interpolation grid for thickness
-            # Heuristic: finer where dtheta small or mandrel small
-            base_dl = max(dtheta * r0 / 8.0, 0.00025)
-            n_grid = min(6000, max(400, int(total_length / base_dl) + 2))
-            x_grid = np.linspace(0.0, total_length, n_grid)
-            t_grid = np.array([self.layup.get_thickness_at_x(x) for x in x_grid], dtype=float)
-            t_min, t_max = float(t_grid.min()), float(t_grid.max())
-            near_uniform = (t_max - t_min) < 1e-6 * max(1e-9, t_max)
-        except Exception as e:
-            raise ValueError(f"Failed to initialize spiral calculation: {e}") from e
-
-        def thickness_at(x):
-            if x <= 0: return t_grid[0]
-            if x >= total_length: return t_grid[-1]
-            return float(np.interp(x, x_grid, t_grid))
-
-        # Analytic fast path (uniform thickness)
-        if near_uniform:
-            t = (t_min + t_max) / 2.0
-            k = t / TWO_PI  # dr/dθ
-            # Solve s(θ) ≈ ((r0 + kθ)^2 - r0^2)/(2k) for θ_end where s = total_length
-            if k > 0:
-                theta_span = (np.sqrt(r0*r0 + 2*k*total_length) - r0) / k
-            else:
-                theta_span = 0.0
-            # Choose number of steps so arc increment ~ dtheta*r scale
-            n_steps = max(3, int(theta_span / dtheta) + 2)
-            theta_arr = np.linspace(np.pi/2, np.pi/2 - theta_span, n_steps)
-            dtheta_arr = -(theta_arr - theta_arr[0])  # not used directly, just for clarity
-            # r(θ) = r0 + k(θ - θ_start) with θ_start=π/2
-            delta = theta_arr - theta_arr[0]
-            r_arr = r0 + k * delta
-            # s(θ) relative to start: ((r)^2 - r0^2)/(2k)
-            if k > 0:
-                x_unwrapped_arr = ((r_arr**2 - r0**2) / (2*k))
-            else:
-                x_unwrapped_arr = np.zeros_like(r_arr)
-            # Adjust sign (θ decreases for clockwise). Ensure monotonic x.
-            # Trim / interpolate final
-            if x_unwrapped_arr[-1] > total_length and len(x_unwrapped_arr) > 1:
-                idx = np.searchsorted(x_unwrapped_arr, total_length)
-                idx = min(max(idx, 1), len(x_unwrapped_arr)-1)
-                x0, x1 = x_unwrapped_arr[idx-1], x_unwrapped_arr[idx]
-                f = (total_length - x0)/(x1 - x0)
-                theta_trim = theta_arr[idx-1] + f*(theta_arr[idx]-theta_arr[idx-1])
-                r_trim = r_arr[idx-1] + f*(r_arr[idx]-r_arr[idx-1])
-                theta_arr = np.concatenate([theta_arr[:idx], [theta_trim]])
-                r_arr = np.concatenate([r_arr[:idx], [r_trim]])
-                x_unwrapped_arr = np.concatenate([x_unwrapped_arr[:idx], [total_length]])
-            
-            # Calculate number of turns: cumulative rotations from start (theta decreases from π/2)
-            theta_start = np.pi/2
-            theta_traveled = theta_start - theta_arr  # Total angle traveled (positive)
-            turns_arr = theta_traveled / TWO_PI  # Number of complete turns
-            
-            x_coords = r_arr * np.cos(theta_arr)
-            z_coords = r_arr * np.sin(theta_arr)
-            self._spiral = np.column_stack([theta_arr, x_unwrapped_arr, r_arr, x_coords, z_coords, turns_arr])
-            return self._spiral
-
-        # Adaptive RK4 integration (θ decreases)
-        # State: (r, x); derivatives w.r.t θ
-        def deriv(r, x):
-            tloc = thickness_at(x)
-            dr_dth = tloc / TWO_PI
-            ds_dth = np.sqrt(r*r + dr_dth*dr_dth)
-            return dr_dth, ds_dth
-
-        theta = np.pi/2  # start top
-        r = r0
-        x_unwrapped = 0.0
-        h_max = abs(dtheta)
-        h_min = h_max / 64.0
-        target_err = TARGET_ERROR
-        max_points = MAX_POINTS
-        max_iterations = MAX_ITERATIONS
-        growth = 1.5
-        shrink = 0.5
-
-        theta_list = [theta]
-        r_list = [r]
-        x_list = [x_unwrapped]
-
-        iterations = 0
-        h = h_max
-        # Pre-compute rough gradient to modulate minimal step
-        dt_dx = np.gradient(t_grid, x_grid)
-        max_grad = np.max(np.abs(dt_dx)) + 1e-12
-
-        while x_unwrapped < total_length and iterations < max_iterations and len(theta_list) < max_points:
-            iterations += 1
-            # Clamp step not to overshoot total_length (rough estimate)
-            # Predict ds ≈ r * h; adjust if would exceed remaining length by large margin
-            remaining = total_length - x_unwrapped
-            if r * h > 1.5 * remaining:
-                h = max(remaining / (r + 1e-12), h_min)
-
-            # Single RK4 full step size h
-            dr1, dx1 = deriv(r, x_unwrapped)
-            r2 = r + 0.5*h*dr1; x2 = x_unwrapped + 0.5*h*dx1
-            dr2, dx2 = deriv(r2, x2)
-            r3 = r + 0.5*h*dr2; x3 = x_unwrapped + 0.5*h*dx2
-            dr3, dx3 = deriv(r3, x3)
-            r4 = r + h*dr3; x4 = x_unwrapped + h*dx3
-            dr4, dx4 = deriv(r4, x4)
-            r_full = r + (h/6.0)*(dr1 + 2*dr2 + 2*dr3 + dr4)
-            x_full = x_unwrapped + (h/6.0)*(dx1 + 2*dx2 + 2*dx3 + dx4)
-
-            # Two half steps (h/2 + h/2)
-            h2 = 0.5 * h
-            # First half
-            dr1h, dx1h = dr1, dx1  # same as above first evaluation
-            r2h = r + 0.5*h2*dr1h; x2h = x_unwrapped + 0.5*h2*dx1h
-            dr2h, dx2h = deriv(r2h, x2h)
-            r3h = r + 0.5*h2*dr2h; x3h = x_unwrapped + 0.5*h2*dx2h
-            dr3h, dx3h = deriv(r3h, x3h)
-            r4h = r + h2*dr3h; x4h = x_unwrapped + h2*dx3h
-            dr4h, dx4h = deriv(r4h, x4h)
-            r_half = r + (h2/6.0)*(dr1h + 2*dr2h + 2*dr3h + dr4h)
-            x_half = x_unwrapped + (h2/6.0)*(dx1h + 2*dx2h + 2*dx3h + dx4h)
-            # Second half from (r_half, x_half)
-            dr1s, dx1s = deriv(r_half, x_half)
-            r2s = r_half + 0.5*h2*dr1s; x2s = x_half + 0.5*h2*dx1s
-            dr2s, dx2s = deriv(r2s, x2s)
-            r3s = r_half + 0.5*h2*dr2s; x3s = x_half + 0.5*h2*dx2s
-            dr3s, dx3s = deriv(r3s, x3s)
-            r4s = r_half + h2*dr3s; x4s = x_half + h2*dx3s
-            dr4s, dx4s = deriv(r4s, x4s)
-            r_two_half = r_half + (h2/6.0)*(dr1s + 2*dr2s + 2*dr3s + dr4s)
-            x_two_half = x_half + (h2/6.0)*(dx1s + 2*dx2s + 2*dx3s + dx4s)
-
-            # Error estimate (local): difference between full and two half steps (O(h^5))
-            err_r = abs(r_full - r_two_half)
-            err_x = abs(x_full - x_two_half)
-            scale_r = max(abs(r), abs(r_two_half), 1e-9)
-            scale_x = max(abs(x_unwrapped), abs(x_two_half), 1e-9)
-            rel_err = max(err_r/scale_r, err_x/scale_x)
-
-            if rel_err > target_err and h > h_min * 1.01:
-                # Reject step, shrink and retry
-                h = max(h * shrink * max(0.2, (target_err / (rel_err + 1e-14))**0.25), h_min)
-                continue
-
-            # Accept step -> use higher accuracy two half-steps solution
-            r = r_two_half
-            x_unwrapped = x_two_half
-            theta -= h  # clockwise (θ decreasing)
-
-            theta_list.append(theta)
-            r_list.append(r)
-            x_list.append(x_unwrapped)
-
-            if rel_err < target_err / 8.0 and h < h_max / 0.6:
-                h = min(h * growth * min(2.0, (target_err / (rel_err + 1e-14))**0.20), h_max)
-
-            # Enforce minimal step if local thickness gradient high
-            local_grad = abs(interp_grad := (np.interp(x_unwrapped, x_grid, dt_dx) if 0 < x_unwrapped < total_length else 0.0))
-            grad_factor = 1.0 + 5.0 * (local_grad / max_grad)
-            h = max(h / grad_factor, h_min)
-
-        # Interpolate final point if overshoot
-        if x_list[-1] > total_length and len(x_list) > 1:
-            x_prev, x_curr = x_list[-2], x_list[-1]
-            f = (total_length - x_prev)/(x_curr - x_prev + 1e-14)
-            r_prev, r_curr = r_list[-2], r_list[-1]
-            th_prev, th_curr = theta_list[-2], theta_list[-1]
-            x_list[-1] = total_length
-            r_list[-1] = r_prev + f*(r_curr - r_prev)
-            theta_list[-1] = th_prev + f*(th_curr - th_prev)
-
-        theta_arr = np.array(theta_list)
-        x_unwrapped_arr = np.array(x_list)
-        r_arr = np.array(r_list)
-
-        # Calculate number of turns: cumulative rotations from start (theta decreases from π/2)
-        theta_start = np.pi/2
-        theta_traveled = theta_start - theta_arr  # Total angle traveled (positive)
-        turns_arr = theta_traveled / TWO_PI  # Number of complete turns
-
-        x_coords = r_arr * np.cos(theta_arr)
-        z_coords = r_arr * np.sin(theta_arr)
-        self._spiral = np.column_stack([theta_arr, x_unwrapped_arr, r_arr, x_coords, z_coords, turns_arr])
+        self._spiral = SpiralCalculator.calculate_variable_thickness_spiral(
+            laminate=self.layup,
+            start_radius=self.mandrel._radius
+        )
 
         return self._spiral
 
@@ -1423,80 +1090,12 @@ class WoundJellyRoll(_JellyRoll):
         -------
         Dict[str, np.ndarray]
             Component spirals keyed by component name
-            
-        Raises
-        ------
-        ValueError
-            If component mapping fails or invalid geometry is encountered
         """
-        self._component_spirals = {}
-        
-        # Component names in processing order
-        component_names = [
-            'bottom_separator', 'top_separator',
-            'anode_a_side_coating', 'anode_current_collector', 'anode_b_side_coating',
-            'cathode_a_side_coating', 'cathode_current_collector', 'cathode_b_side_coating'
-        ]
-        
-        # Pre-compute all center line data to avoid repeated access
-        center_line_data = {}
-        for component_name in component_names:
-            if component_name in self.layup._flattened_center_lines:
-                center_line = self.layup._flattened_center_lines[component_name]
-                center_line_data[component_name] = {
-                    'x_coords': center_line[:, 0],
-                    'z_coords': center_line[:, 1],
-                    'x_min': np.min(center_line[:, 0]),
-                    'x_max': np.max(center_line[:, 0])
-                }
-        
-        # Cache the base spiral reference (avoid repeated copying)
-        base_spiral = self._spiral
-        mandrel_radius = self._mandrel._radius
-        
-        # Process each component
-        for component_name in component_names:
-            if component_name not in center_line_data:
-                # Skip missing components with empty array
-                self._component_spirals[component_name] = np.empty((0, 6))  # Updated to 6 columns
-                continue
-                
-            cl_data = center_line_data[component_name]
-            
-            # Vectorized spiral clipping using boolean mask
-            x_unwrapped = base_spiral[:, 1]  # Extract x_unwrapped column
-            mask = (x_unwrapped >= cl_data['x_min']) & (x_unwrapped <= cl_data['x_max'])
-            
-            if not np.any(mask):
-                # No spiral points in component range
-                self._component_spirals[component_name] = np.empty((0, 6))  # Updated to 6 columns
-                continue
-            
-            # Apply mask to get component spiral slice
-            component_spiral = base_spiral[mask].copy()
-            
-            # Vectorized height calculation using numpy interpolation
-            # This replaces the slow loop with a single vectorized operation
-            x_vals = component_spiral[:, 1]
-            z_unwrapped = np.interp(x_vals, cl_data['x_coords'], cl_data['z_coords'])
-            height_adjustments = z_unwrapped - mandrel_radius
-            
-            # Update radius and coordinates in-place for efficiency
-            component_spiral[:, 2] += height_adjustments  # Update radius
-            
-            # Vectorized coordinate recalculation
-            theta_vals = component_spiral[:, 0]
-            new_radii = component_spiral[:, 2]
-            component_spiral[:, 3] = new_radii * np.cos(theta_vals)  # x coordinates
-            component_spiral[:, 4] = new_radii * np.sin(theta_vals)  # z coordinates
-            
-            # Recalculate turns starting from 0 for this component
-            theta_start_component = component_spiral[0, THETA_COL]  # Starting theta for this component
-            theta_traveled_component = theta_start_component - component_spiral[:, THETA_COL]  # Angle traveled from component start
-            component_spiral[:, TURNS_COL] = theta_traveled_component / TWO_PI  # Turns relative to component start
-            
-            self._component_spirals[component_name] = component_spiral
-
+        self._component_spirals = SpiralCalculator.build_component_spirals(
+            base_spiral=self._spiral,
+            layup=self.layup,
+            mandrel_radius=self._mandrel._radius
+        )
         return self._component_spirals
 
     def _build_extruded_component_spirals(self) -> Dict[str, np.ndarray]:
@@ -1513,69 +1112,11 @@ class WoundJellyRoll(_JellyRoll):
         -------
         Dict[str, np.ndarray]
             Extruded component spirals for 3D visualization
-            
-        Raises
-        ------
-        ValueError
-            If extrusion calculation fails or invalid thickness values
         """
-        self._extruded_spirals = {}
-
-        component_thicknesses = {
-            'top_separator': self.layup.top_separator._thickness,
-            'anode_a_side_coating': self.layup.anode._coating_thickness,
-            'anode_current_collector': self.layup.anode.current_collector._thickness,
-            'anode_b_side_coating': self.layup.anode._coating_thickness,
-            'bottom_separator': self.layup.bottom_separator._thickness,
-            'cathode_a_side_coating': self.layup.cathode._coating_thickness,
-            'cathode_current_collector': self.layup.cathode.current_collector._thickness,
-            'cathode_b_side_coating': self.layup.cathode._coating_thickness,
-        }
-        
-        # Process each component that has a center line spiral
-        for component_name, thickness in component_thicknesses.items():
-
-            center_spiral = self._component_spirals[component_name]
-            half_thickness = thickness / 2.0
-            
-            # Create outer spiral (center + thickness/2)
-            outer_spiral = center_spiral.copy()
-            outer_spiral[:, 2] += half_thickness  # Increase radius
-            
-            # Update outer spiral coordinates
-            outer_spiral[:, 3] = outer_spiral[:, 2] * np.cos(outer_spiral[:, 0])  # x coordinates
-            outer_spiral[:, 4] = outer_spiral[:, 2] * np.sin(outer_spiral[:, 0])  # z coordinates
-            
-            # Create inner spiral (center - thickness/2)
-            inner_spiral = center_spiral.copy()
-            inner_spiral[:, 2] -= half_thickness  # Decrease radius
-            
-            # Update inner spiral coordinates
-            inner_spiral[:, 3] = inner_spiral[:, 2] * np.cos(inner_spiral[:, 0])  # x coordinates
-            inner_spiral[:, 4] = inner_spiral[:, 2] * np.sin(inner_spiral[:, 0])  # z coordinates
-            
-            # Reverse inner spiral direction for proper winding (creates closed shape)
-            inner_spiral_reversed = inner_spiral[::-1, :]
-            
-            # Add transition padding points to smooth spline interpolation
-            # Duplicate end points to create smooth transitions
-            outer_end_padding = np.tile(outer_spiral[-1, :], (2, 1))
-            inner_start_padding = np.tile(inner_spiral_reversed[0, :], (2, 1))
-            
-            # Combine into filled shape: outer → padding → inner (reversed) → close
-            if len(outer_spiral) > 0 and len(inner_spiral_reversed) > 0:
-                filled_spiral = np.vstack([
-                    outer_spiral,           # Outer boundary
-                    outer_end_padding,      # Smooth transition
-                    inner_start_padding,    # Smooth transition  
-                    inner_spiral_reversed   # Inner boundary (reversed)
-                ])
-            else:
-                # Fallback for edge cases
-                filled_spiral = outer_spiral
-            
-            self._extruded_spirals[component_name] = filled_spiral
-
+        self._extruded_spirals = SpiralCalculator.build_extruded_component_spirals(
+            component_spirals=self._component_spirals,
+            layup=self.layup
+        )
         return self._extruded_spirals
 
     @property
@@ -1590,6 +1131,46 @@ class WoundJellyRoll(_JellyRoll):
         return round(self._radius * M_TO_MM, 2)
 
     @property
+    def radius_range(self) -> Tuple[float, float]:
+        """Return the radius range (min, max) of the wound jelly roll in mm.
+        
+        Returns
+        -------
+        Tuple[float, float]
+            (min_radius, max_radius) in millimeters, rounded to 2 decimal places
+        """
+        # make layup with small length
+        small_layup = deepcopy(self.layup)
+
+        # set layup length to small
+        small_layup.length = 100
+
+        # make small jelly roll
+        small_jelly_roll = WoundJellyRoll(
+            laminate=small_layup,
+            mandrel=self.mandrel
+        )
+
+        min_radius = small_jelly_roll.mandrel.radius
+        max_radius = 50
+
+        return (round(min_radius, 2), round(max_radius, 2))
+    
+    @property
+    def radius_hard_range(self) -> Tuple[float, float]:
+        """Return the hard radius range (min, max) of the wound jelly roll in mm.
+        
+        Returns
+        -------
+        Tuple[float, float]
+            (min_radius, max_radius) in millimeters, rounded to 2 decimal places
+        """
+        min_radius = self.radius_range[0]
+        max_radius = 200
+
+        return (round(min_radius, 2), round(max_radius, 2))
+
+    @property
     def diameter(self) -> float:
         """Return the outer diameter of the wound jelly roll in mm.
         
@@ -1599,6 +1180,36 @@ class WoundJellyRoll(_JellyRoll):
             Outer diameter in millimeters, rounded to 2 decimal places
         """
         return round(self._diameter * M_TO_MM, 2)
+    
+    @property
+    def diameter_range(self) -> Tuple[float, float]:
+        """Return the diameter range (min, max) of the wound jelly roll in mm.
+        
+        Returns
+        -------
+        Tuple[float, float]
+            (min_diameter, max_diameter) in millimeters, rounded to 2 decimal places
+        """
+        radius_range = self.radius_range
+        min_diameter = radius_range[0] * 2
+        max_diameter = radius_range[1] * 2
+
+        return (round(min_diameter, 2), round(max_diameter, 2))
+    
+    @property
+    def diameter_hard_range(self) -> Tuple[float, float]:
+        """Return the hard diameter range (min, max) of the wound jelly roll in mm.
+        
+        Returns
+        -------
+        Tuple[float, float]
+            (min_diameter, max_diameter) in millimeters, rounded to 2 decimal places
+        """
+        radius_hard_range = self.radius_hard_range
+        min_diameter = radius_hard_range[0] * 2
+        max_diameter = radius_hard_range[1] * 2
+
+        return (round(min_diameter, 2), round(max_diameter, 2))
 
     @radius.setter
     @calculate_all_properties
@@ -1613,8 +1224,6 @@ class WoundJellyRoll(_JellyRoll):
         # check if value is less than mandrel radius
         if _target_radius <= self.mandrel._radius:
             raise ValueError(f"radius must be greater than mandrel radius of {self.mandrel._radius * M_TO_MM} mm")
-
-
 
         return None
 
@@ -1708,34 +1317,25 @@ class FlatWoundJellyRoll(_JellyRoll):
         ValueError
             If component spiral data is invalid or insufficient
         """
-        try:
-            thickness_list = []
-            width_list = []
+        thickness_list = []
+        width_list = []
 
-            # Create the bounding surface for each component
-            for component_name, spiral_data in self._component_spirals.items():
-                if len(spiral_data) == 0:
-                    continue
-                    
-                max_z = spiral_data[:, Z_COORD_COL].max()
-                min_z = spiral_data[:, Z_COORD_COL].min()
-                max_x = spiral_data[:, X_COORD_COL].max()
-                min_x = spiral_data[:, X_COORD_COL].min()
-                thickness = max_z - min_z
-                width = max_x - min_x
-                thickness_list.append(thickness)
-                width_list.append(width)
+        # Create the bounding surface for each component
+        for _, spiral_data in self._component_spirals.items():
+                
+            max_z = spiral_data[:, Z_COORD_COL].max()
+            min_z = spiral_data[:, Z_COORD_COL].min()
+            max_x = spiral_data[:, X_COORD_COL].max()
+            min_x = spiral_data[:, X_COORD_COL].min()
+            thickness = max_z - min_z
+            width = max_x - min_x
+            thickness_list.append(thickness)
+            width_list.append(width)
 
-            if not thickness_list or not width_list:
-                raise ValueError("No valid component spirals found for geometry calculation")
+        self._thickness = max(thickness_list)
+        self._width = max(width_list)
 
-            self._thickness = max(thickness_list)
-            self._width = max(width_list)
-
-            return self._thickness, self._width
-            
-        except Exception as e:
-            raise ValueError(f"Failed to calculate geometry parameters: {e}") from e
+        return self._thickness, self._width
 
     def _calculate_pressed_racetrack(self, pressed_height: float = DEFAULT_PRESSED_HEIGHT) -> Tuple[float, float]:
         """Simulate hot pressing by creating a new spiral with a flatter mandrel geometry.
@@ -1760,37 +1360,27 @@ class FlatWoundJellyRoll(_JellyRoll):
         ValueError
             If pressed height is invalid or circumference calculation fails
         """
-        try:
-            if pressed_height <= 0:
-                raise ValueError(f"Invalid pressed height: {pressed_height}")
-                
-            # Get original mandrel parameters
-            original_radius = self._mandrel._radius  # height/2 of original racetrack
-            original_straight_length = self._mandrel._straight_length
-            
-            # Calculate original mandrel circumference (perimeter of racetrack cross-section)
-            original_circumference = self._calculate_racetrack_circumference(
-                original_radius, original_straight_length
-            )
-            
-            # Create new mandrel geometry with pressed height
-            pressed_radius = pressed_height / 2  # New radius from pressed height
-            
-            # Calculate new straight length to maintain same circumference
-            # Circumference = 2 * π * radius + 2 * straight_length
-            # Solve for new straight_length: straight_length = (circumference - 2 * π * radius) / 2
-            new_straight_length = (original_circumference - TWO_PI * pressed_radius) / 2
+        # Get original mandrel parameters
+        original_radius = self._mandrel._radius  # height/2 of original racetrack
+        original_straight_length = self._mandrel._straight_length
+        
+        # Calculate original mandrel circumference (perimeter of racetrack cross-section)
+        original_circumference = self._calculate_racetrack_circumference(
+            original_radius, original_straight_length
+        )
+        
+        # Create new mandrel geometry with pressed height
+        pressed_radius = pressed_height / 2  # New radius from pressed height
+        
+        # Calculate new straight length to maintain same circumference
+        # Circumference = 2 * π * radius + 2 * straight_length
+        # Solve for new straight_length: straight_length = (circumference - 2 * π * radius) / 2
+        new_straight_length = (original_circumference - TWO_PI * pressed_radius) / 2
 
-            if new_straight_length < 0:
-                raise ValueError(f"Pressed height too large: results in negative straight length")
+        self._pressed_radius = pressed_radius
+        self._pressed_straight_length = new_straight_length
 
-            self._pressed_radius = pressed_radius
-            self._pressed_straight_length = new_straight_length
-
-            return self._pressed_radius, self._pressed_straight_length
-            
-        except Exception as e:
-            raise ValueError(f"Failed to calculate pressed racetrack: {e}") from e
+        return self._pressed_radius, self._pressed_straight_length
 
     def _calculate_variable_thickness_spiral_for_height(
             self, 
@@ -1821,14 +1411,7 @@ class FlatWoundJellyRoll(_JellyRoll):
             Columns: [theta, x_unwrapped, r, x, z, turns]
         """
         total_length = self.layup._total_length  # meters
-        
-        if total_length <= 0:
-            # Return minimal spiral at starting position (clockwise start position)
-            return np.array([[TWO_PI, 0.0, mandrel_radius, mandrel_radius, 0.0, 0.0]])
-        
-        # Calculate perimeter of one racetrack loop
-        perimeter_base = TWO_PI * mandrel_radius + 2 * straight_length
-        
+
         # Initialize arrays for spiral path
         positions = []
         x_unwrapped = 0.0
