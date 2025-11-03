@@ -98,7 +98,7 @@ class TestRoundJellyRoll(unittest.TestCase):
             formulation=formulation,
             mass_loading=7.2,
             current_collector=current_collector,
-            calender_density=2.60,
+            calender_density=1.1,
             insulation_material=insulation,
             insulation_thickness=10,
         )
@@ -134,10 +134,11 @@ class TestRoundJellyRoll(unittest.TestCase):
 
     def test_basics(self):
         self.assertTrue(type(self.my_jellyroll), WoundJellyRoll)
-        self.assertAlmostEqual(self.my_jellyroll.radius, 18.12, 2)
-        self.assertAlmostEqual(self.my_jellyroll.diameter, 36.25, 2)
+        self.assertAlmostEqual(self.my_jellyroll.radius, 20.64, 2)
+        self.assertAlmostEqual(self.my_jellyroll.diameter, 41.27, 2)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23895, 0)
         self.assertAlmostEqual(self.my_jellyroll.energy, 37.29)
+        self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 2.5, 2)
 
     def test_plots(self):
 
@@ -148,7 +149,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         fig3 = self.my_jellyroll.get_spiral_plot(layered=False)
         fig4 = self.my_jellyroll.get_capacity_plot()
 
-        # fig1.show()
+        fig1.show()
         # fig3.show()
         # fig4.show()
 
@@ -160,18 +161,18 @@ class TestRoundJellyRoll(unittest.TestCase):
         
         # Create expected DataFrame
         expected_data = {
-            'anode_a_side_coating_turns': 56.01,
-            'anode_current_collector_turns': 65.24,
-            'anode_b_side_coating_turns': 57.94,
-            'cathode_a_side_coating_turns': 65.24,
-            'cathode_current_collector_turns': 65.24,
-            'cathode_b_side_coating_turns': 65.24,
-            'bottom_separator_turns': 137.18,
+            'anode_a_side_coating_turns': 50.13,
+            'anode_current_collector_turns': 59.0,
+            'anode_b_side_coating_turns': 52.01,
+            'cathode_a_side_coating_turns': 59.0,
+            'cathode_current_collector_turns': 59.0,
+            'cathode_b_side_coating_turns': 59.0,
+            'bottom_separator_turns': 129.58,
             'bottom_separator_inner_turns': 67.32,
-            'bottom_separator_outer_turns': 13.38,
-            'top_separator_turns': 77.45,
+            'bottom_separator_outer_turns': 11.72,
+            'top_separator_turns': 70.95,
             'top_separator_inner_turns': 16.46,
-            'top_separator_outer_turns': 4.52
+            'top_separator_outer_turns': 3.96
         }
         
         expected_df = pd.DataFrame.from_dict(expected_data, orient='index', columns=['Turns'])
@@ -197,6 +198,18 @@ class TestRoundJellyRoll(unittest.TestCase):
                 places=2, 
                 msg=f"Component {component}: expected {expected_value}, got {actual_value}"
             )
+
+    def test_radius_setter(self):
+        """Test that setting the radius updates the diameter correctly."""
+        original_radius = self.my_jellyroll.radius
+
+        # Set a new radius
+        new_radius = original_radius + 5.0
+        self.my_jellyroll.radius = new_radius
+        
+        # Check that diameter updated correctly
+        self.assertAlmostEqual(self.my_jellyroll.radius, new_radius)
+        self.assertAlmostEqual(self.my_jellyroll.diameter, new_radius * 2)
 
 
 class TestFlatJellyRoll(unittest.TestCase):
@@ -321,7 +334,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         fig1 = self.my_jellyroll.get_spiral_plot()
         fig2 = self.my_jellyroll.get_spiral_plot(extruded=False, layered=False)
         fig3 = self.my_jellyroll.get_capacity_plot()
-        # fig1.show()
+        fig1.show()
         # fig2.show()
         # fig3.show()
 

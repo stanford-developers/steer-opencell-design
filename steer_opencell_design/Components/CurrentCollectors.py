@@ -486,10 +486,12 @@ class _CurrentCollector(
             The reference current collector to derive ranges from.
         """
         self.validate_type(reference, _CurrentCollector, "reference")
+
         self._x_body_length_range = (
             reference._x_body_length,
             reference._x_body_length * length_multiplier,
         )
+        
         self._y_body_length_range = (
             reference._y_body_length,
             reference._y_body_length * length_multiplier,
@@ -2077,6 +2079,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
     @property
     def x_body_length_range(self) -> Tuple[float, float]:
+
         if hasattr(self, "_x_body_length_range") and self._x_body_length_range is not None:
             return (
                 round(self._x_body_length_range[0] * M_TO_MM, 2),
