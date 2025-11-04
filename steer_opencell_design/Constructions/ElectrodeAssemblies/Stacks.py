@@ -37,10 +37,11 @@ class _Stack(_ElectrodeAssembly):
     def __init__(
             self, 
             layup: Union[MonoLayer, ZFoldMonoLayer],
-            n_layers: int = 1
+            n_layers: int = 1,
+            name: str = "Stack"
         ) -> None:
 
-        super().__init__(layup)
+        super().__init__(layup, name=name)
         self.n_layers = n_layers
 
     def _calculate_geometry_parameters(self) -> None:
@@ -199,7 +200,7 @@ class _Stack(_ElectrodeAssembly):
                 trace.showlegend = True if legend_group not in [t.legendgroup for t in figure.data] else False
                 # Set line width to 0.5
                 if hasattr(trace, 'line') and trace.line is not None:
-                    trace.line.width = 0.5
+                    trace.line.width = 0.1
                 figure.add_trace(trace)
 
         figure.update_layout(
@@ -303,10 +304,11 @@ class ZFoldStack(_Stack):
             self, 
             layup: ZFoldMonoLayer,
             n_layers: int,
-            additional_separator_wraps: float = 1
+            additional_separator_wraps: float = 1,
+            name: str = "ZFoldStack"
         ) -> None:
 
-        super().__init__(layup, n_layers)
+        super().__init__(layup, n_layers, name=name)
         self.additional_separator_wraps = additional_separator_wraps
         self._calculate_all_properties()
         self._update_properties = True
@@ -405,10 +407,11 @@ class PunchedStack(_Stack):
     def __init__(
             self, 
             layup: MonoLayer,
-            n_layers: int
+            n_layers: int,
+            name: str = "PunchedStack"
         ) -> None:
 
-        super().__init__(layup, n_layers)
+        super().__init__(layup, n_layers, name=name)
         self._calculate_all_properties()
         self._update_properties = True
     
