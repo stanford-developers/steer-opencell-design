@@ -23,6 +23,7 @@ setup(
         "datetime==5.5",
         "shapely==2.1.1",
         "plotly==6.2.0",
+        "scipy==1.15.3"
     ],
     scripts=[],
     classifiers=[
