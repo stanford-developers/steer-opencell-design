@@ -4,6 +4,7 @@ from copy import copy, deepcopy
 import pandas as pd
 import numpy as np
 from shapely.geometry import Polygon
+from scipy.optimize import brentq
 import plotly.graph_objects as go
 
 from steer_opencell_design.Constructions.Layups import Laminate
@@ -1070,10 +1071,13 @@ class WoundJellyRoll(_JellyRoll):
         self._radius = max(radius_list)
         self._diameter = self._radius * 2
 
+        # get the minimum layup length 
+        mandrel_circumference = 2 * 2 * np.pi * self.mandrel._radius
+        min_layup_length = max(mandrel_circumference, self.layup.length_range[0])
 
         # get the radius minimum bound
         small_layup = deepcopy(self.layup)
-        small_layup.length = small_layup.length_range[0]
+        small_layup.length = min_layup_length
         small_spiral = SpiralCalculator.calculate_variable_thickness_spiral(small_layup, self.mandrel._radius)
         small_spiral_coords_2d = np.column_stack((small_spiral[:, X_COORD_COL],small_spiral[:, Z_COORD_COL]))
         small_radius = SpiralCalculator.get_radius_of_spiral(small_spiral_coords_2d)
@@ -1230,10 +1234,15 @@ class WoundJellyRoll(_JellyRoll):
         ValueError
             If target radius is invalid or optimization fails
         """
-        from scipy.optimize import brentq
-        
         # Validate input
         self.validate_positive_float(target_radius, "radius")
+
+        # check if the value is within the hard range
+        if not (self.radius_hard_range[0] <= target_radius <= self.radius_hard_range[1]):
+            raise ValueError(
+                f"target_radius {target_radius} mm is outside of hard range "
+                f"{self.radius_hard_range[0]} mm to {self.radius_hard_range[1]} mm"
+            )
 
         # Convert target radius to meters
         target_radius_m = target_radius * MM_TO_M
@@ -1366,23 +1375,50 @@ class FlatWoundJellyRoll(_JellyRoll):
         ValueError
             If component spiral data is invalid or insufficient
         """
-        thickness_list = []
-        width_list = []
-
-        # Create the bounding surface for each component
+        # Combine all component coordinates to find overall envelope
+        all_coords = []
+        
         for _, spiral_data in self._component_spirals.items():
-                
-            max_z = spiral_data[:, Z_COORD_COL].max()
-            min_z = spiral_data[:, Z_COORD_COL].min()
-            max_x = spiral_data[:, X_COORD_COL].max()
-            min_x = spiral_data[:, X_COORD_COL].min()
-            thickness = max_z - min_z
-            width = max_x - min_x
-            thickness_list.append(thickness)
-            width_list.append(width)
+            coords_2d = spiral_data[:, [X_COORD_COL, Z_COORD_COL]]
+            all_coords.append(coords_2d)
+        
+        # Concatenate all coordinates
+        combined_coords = np.vstack(all_coords)
+        
+        # Calculate dimensions using the utility functions
+        self._thickness = SpiralCalculator.get_thickness_of_racetrack(combined_coords)
+        self._width = SpiralCalculator.get_width_of_racetrack(combined_coords)
 
-        self._thickness = max(thickness_list)
-        self._width = max(width_list)
+        # get the minimum length of the layup
+        mandrel_circumference = 2 * (TWO_PI * self.mandrel._radius + 2 * self.mandrel._straight_length)
+        min_layup_length = max(mandrel_circumference, self.layup.length_range[0])
+
+        # cache some values for later
+        radius = self._pressed_radius
+        straight_length = self._pressed_straight_length
+
+        # get the thickness minimum bound
+        small_layup = deepcopy(self.layup)
+        small_layup.length = min_layup_length
+        small_pressed_racetrack = SpiralCalculator.calculate_variable_thickness_racetrack(small_layup, radius, straight_length)
+        small_racetrack_coords_2d = np.column_stack((small_pressed_racetrack[:, X_COORD_COL],small_pressed_racetrack[:, Z_COORD_COL]))
+        small_width = SpiralCalculator.get_width_of_racetrack(small_racetrack_coords_2d)
+        small_width = small_width + 2 * small_layup.get_thickness_at_x(small_layup._total_length)
+        small_thickness = SpiralCalculator.get_thickness_of_racetrack(small_racetrack_coords_2d)
+        small_thickness = small_thickness + 2 * small_layup.get_thickness_at_x(small_layup._total_length)
+
+        # get the thickness maximum bound
+        big_layup = deepcopy(self.layup)
+        big_layup.length = big_layup.length_hard_range[1]
+        big_pressed_racetrack = SpiralCalculator.calculate_variable_thickness_racetrack(big_layup, radius, straight_length)
+        big_racetrack_coords_2d = np.column_stack((big_pressed_racetrack[:, X_COORD_COL],big_pressed_racetrack[:, Z_COORD_COL]))
+        big_width = SpiralCalculator.get_width_of_racetrack(big_racetrack_coords_2d)
+        big_width = big_width + 2 * big_layup.get_thickness_at_x(big_layup._total_length)
+        big_thickness = SpiralCalculator.get_thickness_of_racetrack(big_racetrack_coords_2d)
+        big_thickness = big_thickness + 2 * big_layup.get_thickness_at_x(big_layup._total_length)
+        
+        self._thickness_range = (small_thickness, big_thickness)
+        self._width_range = (small_width, big_width)
 
         return self._thickness, self._width
 
@@ -1497,7 +1533,7 @@ class FlatWoundJellyRoll(_JellyRoll):
             Overall thickness in millimeters, rounded to 2 decimal places
         """
         return round(self._thickness * M_TO_MM, 2)
-    
+
     @property
     def width(self) -> float:
         """Return the overall jelly roll width in millimeters.
@@ -1508,4 +1544,181 @@ class FlatWoundJellyRoll(_JellyRoll):
             Overall width in millimeters, rounded to 2 decimal places
         """
         return round(self._width * M_TO_MM, 2)
+
+    @property
+    def thickness_hard_range(self) -> Tuple[float, float]:
+        return self.thickness_range
     
+    @property
+    def width_hard_range(self) -> Tuple[float, float]:
+        return self.width_range
+
+    @property
+    def thickness_range(self) -> Tuple[float, float]:
+        """Return the thickness range (min, max) of the flat wound jelly roll in mm.
+        
+        Returns
+        -------
+        Tuple[float, float]
+            (min_thickness, max_thickness) in millimeters, rounded to 2 decimal places
+        """
+        return (
+            round(self._thickness_range[0] * M_TO_MM, 2),
+            round(self._thickness_range[1] * M_TO_MM, 2)
+        )
+    
+    @property
+    def width_range(self) -> Tuple[float, float]:
+        """Return the width range (min, max) of the flat wound jelly roll in mm.
+        
+        Returns
+        -------
+        Tuple[float, float]
+            (min_width, max_width) in millimeters, rounded to 2 decimal places
+        """
+        return (
+            round(self._width_range[0] * M_TO_MM, 2),
+            round(self._width_range[1] * M_TO_MM, 2)
+        )
+    
+    @thickness.setter
+    @calculate_all_properties
+    def thickness(self, target_thickness: float) -> None:
+        """Set thickness by optimizing layup length to achieve target thickness.
+        
+        Uses Brent's method for robust root finding to determine the layup length
+        that produces the desired thickness.
+        
+        Parameters
+        ----------
+        target_thickness : float
+            Target thickness in millimeters
+            
+        Raises
+        ------
+        ValueError
+            If target thickness is invalid or optimization fails
+        """
+
+        # Validate input
+        self.validate_positive_float(target_thickness, "thickness")
+
+        # check if the value is within the hard range
+        if not (self.thickness_hard_range[0] <= target_thickness <= self.thickness_hard_range[1]):
+            raise ValueError(
+                f"target_thickness {target_thickness} mm is outside of hard range "
+                f"{self.thickness_hard_range[0]} mm to {self.thickness_hard_range[1]} mm"
+            )
+
+        # Convert target thickness to meters
+        target_thickness_m = target_thickness * MM_TO_M
+
+        def objective_function(length: float) -> float:
+            """Objective function: difference between actual and target thickness."""
+            # Create copy of layup to avoid modifying original during optimization
+            layup_copy = deepcopy(self.layup)
+            layup_copy.length = length * M_TO_MM
+
+            # Calculate racetrack spiral for this length
+            spiral = SpiralCalculator.calculate_variable_thickness_racetrack(
+                laminate=layup_copy,
+                mandrel_radius=self._pressed_radius,
+                straight_length=self._pressed_straight_length
+            )
+
+            # Get thickness from spiral coordinates
+            coords = spiral[:, [X_COORD_COL, Z_COORD_COL]]
+            actual_thickness = SpiralCalculator.get_thickness_of_racetrack(coords=coords)
+
+            # Add thickness at end of layup (this accounts for final layer thickness)
+            thickness_at_end = layup_copy.get_thickness_at_x(x_position=layup_copy._total_length)
+            actual_thickness += thickness_at_end  # Add to both sides for thickness
+
+            return actual_thickness - target_thickness_m
+
+        min_length = self._layup.length_range[0] * MM_TO_M
+        max_length = self._layup.length_hard_range[1] * MM_TO_M
+        
+        # Use Brent's method for robust root finding
+        optimal_length = brentq(
+            objective_function,
+            min_length,
+            max_length,
+            xtol=1e-8,    # High precision in length
+            rtol=1e-6,    # Relative tolerance
+            maxiter=100   # Maximum iterations
+        )
+
+        # Set the optimized length
+        self.layup.length = optimal_length * M_TO_MM
+
+    @width.setter
+    @calculate_all_properties
+    def width(self, target_width: float) -> None:
+        """Set width by optimizing layup length to achieve target width.
+        
+        Uses Brent's method for robust root finding to determine the layup length
+        that produces the desired width.
+        
+        Parameters
+        ----------
+        target_width : float
+            Target width in millimeters
+            
+        Raises
+        ------
+        ValueError
+            If target width is invalid or optimization fails
+        """
+        # Validate input
+        self.validate_positive_float(target_width, "width")
+
+        # check if the value is within the hard range
+        if not (self.width_hard_range[0] <= target_width <= self.width_hard_range[1]):
+            raise ValueError(
+                f"target_width {target_width} mm is outside of hard range "
+                f"{self.width_hard_range[0]} mm to {self.width_hard_range[1]} mm"
+            )
+
+        # Convert target width to meters
+        target_width_m = target_width * MM_TO_M
+
+        def objective_function(length: float) -> float:
+            """Objective function: difference between actual and target width."""
+            # Create copy of layup to avoid modifying original during optimization
+            layup_copy = deepcopy(self.layup)
+            layup_copy.length = length * M_TO_MM
+
+            # Calculate racetrack spiral for this length
+            spiral = SpiralCalculator.calculate_variable_thickness_racetrack(
+                laminate=layup_copy,
+                mandrel_radius=self._pressed_radius,
+                straight_length=self._pressed_straight_length
+            )
+
+            # Get width from spiral coordinates
+            coords = spiral[:, [X_COORD_COL, Z_COORD_COL]]
+            actual_width = SpiralCalculator.get_width_of_racetrack(coords=coords)
+
+            # Add thickness at end of layup (this accounts for final layer thickness)
+            thickness_at_end = layup_copy.get_thickness_at_x(x_position=layup_copy._total_length)
+            actual_width += thickness_at_end  # Add to both sides for width
+
+            return actual_width - target_width_m
+
+        min_length = self._layup.length_range[0] * MM_TO_M
+        max_length = self._layup.length_hard_range[1] * MM_TO_M
+        
+        # Use Brent's method for robust root finding
+        optimal_length = brentq(
+            objective_function,
+            min_length,
+            max_length,
+            xtol=1e-8,    # High precision in length
+            rtol=1e-6,    # Relative tolerance
+            maxiter=100   # Maximum iterations
+        )
+
+        # Set the optimized length
+        self.layup.length = optimal_length * M_TO_MM
+ 

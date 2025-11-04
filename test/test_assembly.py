@@ -1,3 +1,4 @@
+import time
 import unittest
 import pandas as pd
 
@@ -138,6 +139,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.diameter, 41.27, 2)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23895, 0)
         self.assertAlmostEqual(self.my_jellyroll.energy, 37.29)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 3.36, 2)
         self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 3.46, 2)
         self.assertAlmostEqual(self.my_jellyroll.radius_range[1], 28.1, 2)
 
@@ -150,7 +152,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         fig3 = self.my_jellyroll.get_spiral_plot(layered=False)
         fig4 = self.my_jellyroll.get_capacity_plot()
 
-        fig1.show()
+        # fig1.show()
         # fig3.show()
         # fig4.show()
 
@@ -211,6 +213,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         # Check that diameter updated correctly
         self.assertAlmostEqual(self.my_jellyroll.radius, new_radius, 1)
         self.assertAlmostEqual(self.my_jellyroll.diameter, new_radius * 2, 1)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 5.41, 2)
 
 
 class TestFlatJellyRoll(unittest.TestCase):
@@ -285,7 +288,7 @@ class TestFlatJellyRoll(unittest.TestCase):
             formulation=formulation,
             mass_loading=7.2,
             current_collector=current_collector,
-            calender_density=2.60,
+            calender_density=1.15,
             insulation_material=insulation,
             insulation_thickness=10,
         )
@@ -322,9 +325,14 @@ class TestFlatJellyRoll(unittest.TestCase):
 
     def test_basics(self):
         self.assertTrue(type(self.my_jellyroll), WoundJellyRoll)
-        self.assertEqual(self.my_jellyroll.thickness, 10.01)
-        self.assertEqual(self.my_jellyroll.width, 111.58)
+        self.assertEqual(self.my_jellyroll.thickness, 12.38)
+        self.assertEqual(self.my_jellyroll.width, 113.96)
+        self.assertEqual(self.my_jellyroll.cost, 3.36)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23725.74, 0)
+        self.assertAlmostEqual(self.my_jellyroll.thickness_range[0], 1.02, 2)
+        self.assertAlmostEqual(self.my_jellyroll.thickness_range[1], 21.12, 2)
+        self.assertAlmostEqual(self.my_jellyroll.width_range[0], 102.49, 2)
+        self.assertAlmostEqual(self.my_jellyroll.width_range[1], 122.72, 2)
         self.assertAlmostEqual(self.my_jellyroll.energy, 37.02)
 
     def test_plots(self):
@@ -347,18 +355,18 @@ class TestFlatJellyRoll(unittest.TestCase):
         
         # Create expected DataFrame
         expected_data = {
-            'anode_a_side_coating_turns': 18.15,
-            'anode_current_collector_turns': 20.39,
-            'anode_b_side_coating_turns': 18.60,
-            'cathode_a_side_coating_turns': 20.39,
-            'cathode_current_collector_turns': 20.39,
-            'cathode_b_side_coating_turns': 20.39,
-            'bottom_separator_turns': 31.83,
+            'anode_a_side_coating_turns': 17.84,
+            'anode_current_collector_turns': 20.04,
+            'anode_b_side_coating_turns': 18.28,
+            'cathode_a_side_coating_turns': 20.04,
+            'cathode_current_collector_turns': 20.04,
+            'cathode_b_side_coating_turns': 20.04,
+            'bottom_separator_turns': 31.32,
             'bottom_separator_inner_turns': 7.03,
-            'bottom_separator_outer_turns': 6.44,
-            'top_separator_turns': 22.69,
+            'bottom_separator_outer_turns': 6.24,
+            'top_separator_turns': 22.31,
             'top_separator_inner_turns': 2.16,
-            'top_separator_outer_turns': 2.16
+            'top_separator_outer_turns': 2.09
         }
         
         expected_df = pd.DataFrame.from_dict(expected_data, orient='index', columns=['Turns'])
@@ -384,6 +392,32 @@ class TestFlatJellyRoll(unittest.TestCase):
                 places=2, 
                 msg=f"Component {component}: expected {expected_value}, got {actual_value}"
             )
+
+    def test_thickness_setter(self):
+        """Test that setting the thickness updates the width correctly."""
+        original_thickness = self.my_jellyroll.thickness
+
+        # Set a new thickness
+        new_thickness = original_thickness + 5.0
+        self.my_jellyroll.thickness = new_thickness
+
+        # Check that width updated correctly
+        self.assertAlmostEqual(self.my_jellyroll.thickness, new_thickness, 1)
+        self.assertAlmostEqual(self.my_jellyroll.width, 118.96, 1)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 5.12, 2)
+
+    def test_width_setter(self):
+        """Test that setting the width updates the thickness correctly."""
+        original_width = self.my_jellyroll.width
+
+        # Set a new width
+        new_width = original_width + 2
+        self.my_jellyroll.width = new_width
+
+        # Check that thickness updated correctly
+        self.assertAlmostEqual(self.my_jellyroll.width, new_width, 1)
+        self.assertAlmostEqual(self.my_jellyroll.thickness, 14.38, 1)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 4.05, 2)
 
 
 class TestPunchedStack(unittest.TestCase):

@@ -888,6 +888,42 @@ class SpiralCalculator:
         return np.array([direction_x, direction_z])
 
     @staticmethod
+    def get_thickness_of_racetrack(coords: np.ndarray) -> float:
+        """Calculate the thickness of a racetrack given its coordinates.
+        
+        Parameters
+        ----------
+        coords : np.ndarray
+            Array of shape (N, 2) with columns [x, z]
+            
+        Returns
+        -------
+        float
+            Thickness (z-dimension span) in meters
+        """
+        max_z = coords[:, 1].max()
+        min_z = coords[:, 1].min()
+        return max_z - min_z
+
+    @staticmethod
+    def get_width_of_racetrack(coords: np.ndarray) -> float:
+        """Calculate the width of a racetrack given its coordinates.
+        
+        Parameters
+        ----------
+        coords : np.ndarray
+            Array of shape (N, 2) with columns [x, z]
+            
+        Returns
+        -------
+        float
+            Width (x-dimension span) in meters
+        """
+        max_x = coords[:, 0].max()
+        min_x = coords[:, 0].min()
+        return max_x - min_x
+
+    @staticmethod
     def format_np_spiral_for_df(np_array: np.ndarray) -> pd.DataFrame:
         """Format numpy spiral array into pandas DataFrame with proper units and column names.
 
