@@ -12,14 +12,9 @@ from steer_opencell_design.Components.CurrentCollectors import (
     TablessCurrentCollector,
 )
 from steer_opencell_design.Components.Separators import Separator
-from steer_opencell_design.Constructions.Layups import (
-    Laminate,
-    MonoLayer,
-    ZFoldMonoLayer,
-    OverhangControlMode,
-    NPRatioControlMode,
-    ElectrodeOrientation
-)
+from steer_opencell_design.Constructions.Layups.Base import OverhangControlMode, NPRatioControlMode
+from steer_opencell_design.Constructions.Layups.Laminate import Laminate
+from steer_opencell_design.Constructions.Layups.MonoLayers import MonoLayer, ZFoldMonoLayer, ElectrodeOrientation
 
 from steer_materials.CellMaterials.Base import (
     CurrentCollectorMaterial,

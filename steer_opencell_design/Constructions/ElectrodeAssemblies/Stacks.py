@@ -1,4 +1,4 @@
-from steer_opencell_design.Constructions.Layups import MonoLayer, ZFoldMonoLayer
+from steer_opencell_design.Constructions.Layups.MonoLayers import MonoLayer, ZFoldMonoLayer
 
 from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
 
