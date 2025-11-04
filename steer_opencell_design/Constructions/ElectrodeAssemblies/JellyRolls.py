@@ -68,7 +68,8 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
     def __init__(
             self, 
             laminate: Laminate,
-            mandrel: Union[FlatMandrel, RoundMandrel]
+            mandrel: Union[FlatMandrel, RoundMandrel],
+            name: str = "Jelly Roll"
         ) -> None:
         """Initialize jelly roll electrode assembly.
         
@@ -92,7 +93,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             raise TypeError(f"laminate must be Laminate, got {type(laminate)}")
             
         self.mandrel = mandrel
-        super().__init__(laminate)
+        super().__init__(laminate, name=name)
 
     def _calculate_all_properties(self) -> None:
         """Calculate all properties of the jelly roll electrode assembly.
@@ -544,6 +545,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             xaxis=self.SCHEMATIC_X_AXIS,
             yaxis=self.SCHEMATIC_Z_AXIS,
             hovermode="closest",
+            **kwargs
         )
 
         return fig
@@ -1015,7 +1017,8 @@ class WoundJellyRoll(_JellyRoll):
     def __init__(
             self, 
             laminate: Laminate,
-            mandrel: RoundMandrel
+            mandrel: RoundMandrel,
+            name: str = "Wound Jelly Roll"
         ) -> None:
         """Initialize wound jelly roll electrode assembly.
         
@@ -1036,6 +1039,7 @@ class WoundJellyRoll(_JellyRoll):
         super().__init__(
             laminate=laminate,
             mandrel=mandrel,
+            name=name
         )
 
         self._calculate_all_properties()
@@ -1324,6 +1328,7 @@ class FlatWoundJellyRoll(_JellyRoll):
             self, 
             laminate: Laminate,
             mandrel: FlatMandrel,
+            name: str = "Flat Wound Jelly Roll"
         ) -> None:
         """Initialize flat wound jelly roll electrode assembly.
         
@@ -1344,7 +1349,8 @@ class FlatWoundJellyRoll(_JellyRoll):
 
         super().__init__(
             laminate=laminate,
-            mandrel=mandrel
+            mandrel=mandrel,
+            name=name
         )
 
         self._calculate_all_properties()

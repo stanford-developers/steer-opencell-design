@@ -70,56 +70,11 @@ class SpiralCalculator:
         x_grid = np.linspace(0.0, total_length, n_grid)
         t_grid = np.array([laminate.get_thickness_at_x(x) for x in x_grid], dtype=float)
         t_min, t_max = float(t_grid.min()), float(t_grid.max())
-        near_uniform = (t_max - t_min) < 1e-6 * max(1e-9, t_max)
 
         def thickness_at(x):
             if x <= 0: return t_grid[0]
             if x >= total_length: return t_grid[-1]
             return float(np.interp(x, x_grid, t_grid))
-
-        # Analytic fast path (uniform thickness)
-        if near_uniform:
-            t = (t_min + t_max) / 2.0
-            k = t / TWO_PI  # dr/dθ
-            # Solve s(θ) ≈ ((r0 + kθ)^2 - r0^2)/(2k) for θ_end where s = total_length
-            if k > 0:
-                theta_span = (np.sqrt(r0*r0 + 2*k*total_length) - r0) / k
-            else:
-                theta_span = 0.0
-            # Choose number of steps so arc increment ~ dtheta*r scale
-            n_steps = max(3, int(theta_span / dtheta) + 2)
-            theta_arr = np.linspace(np.pi/2, np.pi/2 - theta_span, n_steps)
-            dtheta_arr = -(theta_arr - theta_arr[0])  # not used directly, just for clarity
-            # r(θ) = r0 + k(θ - θ_start) with θ_start=π/2
-            delta = theta_arr - theta_arr[0]
-            r_arr = r0 + k * delta
-            # s(θ) relative to start: ((r)^2 - r0^2)/(2k)
-            if k > 0:
-                x_unwrapped_arr = ((r_arr**2 - r0**2) / (2*k))
-            else:
-                x_unwrapped_arr = np.zeros_like(r_arr)
-            # Adjust sign (θ decreases for clockwise). Ensure monotonic x.
-            # Trim / interpolate final
-            if x_unwrapped_arr[-1] > total_length and len(x_unwrapped_arr) > 1:
-                idx = np.searchsorted(x_unwrapped_arr, total_length)
-                idx = min(max(idx, 1), len(x_unwrapped_arr)-1)
-                x0, x1 = x_unwrapped_arr[idx-1], x_unwrapped_arr[idx]
-                f = (total_length - x0)/(x1 - x0)
-                theta_trim = theta_arr[idx-1] + f*(theta_arr[idx]-theta_arr[idx-1])
-                r_trim = r_arr[idx-1] + f*(r_arr[idx]-r_arr[idx-1])
-                theta_arr = np.concatenate([theta_arr[:idx], [theta_trim]])
-                r_arr = np.concatenate([r_arr[:idx], [r_trim]])
-                x_unwrapped_arr = np.concatenate([x_unwrapped_arr[:idx], [total_length]])
-            
-            # Calculate number of turns: cumulative rotations from start (theta decreases from π/2)
-            theta_start = np.pi/2
-            theta_traveled = theta_start - theta_arr  # Total angle traveled (positive)
-            turns_arr = theta_traveled / TWO_PI  # Number of complete turns
-            
-            x_coords = r_arr * np.cos(theta_arr)
-            z_coords = r_arr * np.sin(theta_arr)
-            spiral = np.column_stack([theta_arr, x_unwrapped_arr, r_arr, x_coords, z_coords, turns_arr])
-            return spiral
 
         # Adaptive RK4 integration (θ decreases)
         # State: (r, x); derivatives w.r.t θ
