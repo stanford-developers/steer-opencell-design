@@ -7,7 +7,7 @@ from shapely.geometry import Polygon
 from scipy.optimize import brentq
 import plotly.graph_objects as go
 
-from steer_opencell_design.Constructions.Layups import Laminate
+from steer_opencell_design.Constructions.Layups.Laminate import Laminate
 from steer_core.Constants.Units import *
 from steer_core.Constants.Universal import PI
 from steer_core.Decorators.General import calculate_all_properties

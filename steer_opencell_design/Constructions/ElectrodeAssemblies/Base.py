@@ -1,4 +1,4 @@
-from steer_opencell_design.Constructions.Layups import _Layup
+from steer_opencell_design.Constructions.Layups.Base import _Layup
 
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin

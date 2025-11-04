@@ -12,7 +12,8 @@ from steer_opencell_design.Components.Separators import Separator
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import PunchedStack, ZFoldStack
 from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import WoundJellyRoll, FlatWoundJellyRoll
 from steer_opencell_design.AuxillaryComponents.WindingEquipment import RoundMandrel, FlatMandrel
-from steer_opencell_design.Constructions.Layups import MonoLayer, ZFoldMonoLayer, Laminate
+from steer_opencell_design.Constructions.Layups.MonoLayers import MonoLayer, ZFoldMonoLayer
+from steer_opencell_design.Constructions.Layups.Laminate import Laminate
 
 from steer_materials.CellMaterials.Base import (
     CurrentCollectorMaterial, 
