@@ -1147,6 +1147,64 @@ class WoundJellyRoll(_JellyRoll):
         )
         return self._extruded_spirals
 
+    @classmethod
+    def from_flat_wound_jelly_roll(
+            cls,
+            flat_jelly_roll: 'FlatWoundJellyRoll',
+        ) -> 'WoundJellyRoll':
+        """Create a WoundJellyRoll from an existing FlatWoundJellyRoll.
+        
+        This method takes a flat wound jelly roll and creates a cylindrical wound
+        jelly roll using the same layup structure. A round mandrel is automatically
+        created based on the flat mandrel's properties.
+        
+        Parameters
+        ----------
+        flat_jelly_roll : FlatWoundJellyRoll
+            The flat wound jelly roll to convert from
+            
+        Returns
+        -------
+        WoundJellyRoll
+            A new wound jelly roll with the same layup as the flat jelly roll
+            
+        Raises
+        ------
+        TypeError
+            If flat_jelly_roll is not a FlatWoundJellyRoll instance
+            
+        Examples
+        --------
+        >>> flat_roll = FlatWoundJellyRoll(layup, flat_mandrel)
+        >>> wound_roll = WoundJellyRoll.from_FlatWoundJellyRoll(flat_roll)
+        """        
+        # Validate inputs
+        cls.validate_type(flat_jelly_roll, FlatWoundJellyRoll, "flat_jelly_roll")
+        
+        # Create a deep copy of the layup to avoid modifying the original
+        layup_copy = deepcopy(flat_jelly_roll.layup)
+        
+        # Create a round mandrel based on the flat mandrel properties
+        flat_mandrel = deepcopy(flat_jelly_roll.mandrel)
+        
+        # Use the flat mandrel's radius (height/2) as the round mandrel's radius
+        # and preserve the length and material properties
+        round_mandrel = RoundMandrel(
+            diameter=flat_mandrel.height,  # Use height as diameter to maintain radius
+            length=flat_mandrel.length,
+            datum=flat_mandrel.datum,
+            material=flat_mandrel.material
+        )
+        
+        # Create new WoundJellyRoll instance
+        wound_jelly_roll = cls(
+            laminate=layup_copy,
+            mandrel=round_mandrel,
+            name=flat_jelly_roll.name
+        )
+        
+        return wound_jelly_roll
+
     @property
     def radius(self) -> float:
         """Return the outer radius of the wound jelly roll in mm.
@@ -1507,6 +1565,67 @@ class FlatWoundJellyRoll(_JellyRoll):
         
         return self._spiral
     
+    @classmethod
+    def from_round_jelly_roll(
+            cls,
+            round_jelly_roll: 'WoundJellyRoll',
+        ) -> 'FlatWoundJellyRoll':
+        """Create a FlatWoundJellyRoll from an existing WoundJellyRoll.
+        
+        This method takes a wound jelly roll and creates a flat wound jelly roll
+        using the same layup structure. A flat mandrel is automatically created
+        based on the round mandrel's properties.
+        
+        Parameters
+        ----------
+        round_jelly_roll : WoundJellyRoll
+            The wound jelly roll to convert from
+            
+        Returns
+        -------
+        FlatWoundJellyRoll
+            A new flat wound jelly roll with the same layup as the wound jelly roll
+            
+        Raises
+        ------
+        TypeError
+            If round_jelly_roll is not a WoundJellyRoll instance
+            
+        Examples
+        --------
+        >>> wound_roll = WoundJellyRoll(layup, round_mandrel)
+        >>> flat_roll = FlatWoundJellyRoll.from_round_jelly_roll(wound_roll)
+        """        
+        # Validate inputs
+        cls.validate_type(round_jelly_roll, WoundJellyRoll, "round_jelly_roll")
+        
+        # Create a deep copy of the layup to avoid modifying the original
+        layup_copy = deepcopy(round_jelly_roll.layup)
+        
+        # Create a flat mandrel based on the round mandrel properties
+        round_mandrel = deepcopy(round_jelly_roll.mandrel)
+        
+        # Use the round mandrel's diameter as the flat mandrel's height to maintain radius
+        # Set a default straight length (can be adjusted based on requirements)
+        default_straight_length = round_mandrel.diameter * 20  # Default: 2x diameter for reasonable aspect ratio
+        
+        flat_mandrel = FlatMandrel(
+            height=round_mandrel.diameter,  # Use diameter as height to maintain radius
+            width=round_mandrel.diameter + default_straight_length,  # Width = height + straight section
+            length=round_mandrel.length,
+            datum=round_mandrel.datum,
+            material=round_mandrel.material
+        )
+        
+        # Create new FlatWoundJellyRoll instance
+        flat_jelly_roll = cls(
+            laminate=layup_copy,
+            mandrel=flat_mandrel,
+            name=round_jelly_roll.name
+        )
+        
+        return flat_jelly_roll
+
     @property
     def pressed_radius(self) -> float:
         """Return the pressed mandrel radius in mm.

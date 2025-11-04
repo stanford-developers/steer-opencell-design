@@ -215,6 +215,19 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.diameter, new_radius * 2, 1)
         self.assertAlmostEqual(self.my_jellyroll.cost, 5.41, 2)
 
+    def test_to_flat_jelly_roll(self):
+
+        flat_jellyroll = FlatWoundJellyRoll.from_round_jelly_roll(self.my_jellyroll)
+
+        self.assertAlmostEqual(flat_jellyroll.interfacial_area, 23696, 0)
+        self.assertAlmostEqual(flat_jellyroll.energy, 36.98)
+        self.assertAlmostEqual(flat_jellyroll.cost, 3.36, 2)
+        self.assertAlmostEqual(flat_jellyroll.thickness, 12.1, 2)
+        self.assertAlmostEqual(flat_jellyroll.width, 118.67, 2)
+
+        figure = flat_jellyroll.get_spiral_plot()
+        # figure.show()
+
 
 class TestFlatJellyRoll(unittest.TestCase):
     
@@ -418,6 +431,21 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.width, new_width, 1)
         self.assertAlmostEqual(self.my_jellyroll.thickness, 14.38, 1)
         self.assertAlmostEqual(self.my_jellyroll.cost, 4.05, 2)
+
+    def test_to_wound_jelly_roll(self):
+        """Test converting a FlatWoundJellyRoll to a WoundJellyRoll."""
+
+        wound_jellyroll = WoundJellyRoll.from_flat_wound_jelly_roll(self.my_jellyroll)
+
+        self.assertIsInstance(wound_jellyroll, WoundJellyRoll)
+        self.assertAlmostEqual(wound_jellyroll.interfacial_area, 23895, 0)
+        self.assertAlmostEqual(wound_jellyroll.energy, 37.29)
+        self.assertAlmostEqual(wound_jellyroll.cost, 3.36, 2)
+        self.assertAlmostEqual(wound_jellyroll.radius, 20.46, 2)
+        self.assertAlmostEqual(wound_jellyroll.diameter, 40.92, 2)
+
+        figure = wound_jellyroll.get_spiral_plot()
+        figure.show()
 
 
 class TestPunchedStack(unittest.TestCase):
