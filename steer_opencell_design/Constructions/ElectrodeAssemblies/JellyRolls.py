@@ -290,6 +290,30 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         self._calculate_interfacial_area()
         self._calculate_geometry_parameters()
 
+    @staticmethod
+    def position_layup_on_mandrel(layup: Laminate, mandrel: Union[FlatMandrel, RoundMandrel]) -> Laminate:
+            
+        # get the min x in the flattened center lines
+        x_list = [c[:, 0] for c in layup._flattened_center_lines.values()]
+        min_x = min([np.min(mx) for mx in x_list])
+
+        # get the most negative z value
+        z_min = np.min(layup._flattened_center_lines['cathode_b_side_coating'][:, 1])
+
+        # set the new x value
+        new_x = (layup.datum[0] * MM_TO_M) - min_x
+
+        # set the new y value
+        new_y = (layup.datum[1] * MM_TO_M)
+
+        # set the new z value
+        new_z = (layup.datum[2] * MM_TO_M) - z_min + layup._cathode._coating_thickness / 2 + mandrel._radius
+
+        # Convert back to mm and set the new datum
+        layup.datum = (new_x * M_TO_MM, new_y * M_TO_MM, new_z * M_TO_MM)
+
+        return layup
+
     @abstractmethod
     def _calculate_variable_thickness_spiral(self) -> np.ndarray:
         """Calculate the base spiral with variable thickness.
@@ -708,7 +732,18 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         additional_components = [comp for comp in df.index if comp not in component_order]
         ordered_index = existing_components + additional_components
         
-        return df.reindex(ordered_index)
+        df_reordered = df.reindex(ordered_index)
+        
+        # Format component names: replace underscores with spaces and capitalize
+        formatted_index = []
+        for component_name in df_reordered.index:
+            # Replace underscores with spaces and capitalize each word
+            formatted_name = component_name.replace('_', ' ').title()
+            formatted_index.append(formatted_name)
+        
+        df_reordered.index = formatted_index
+        
+        return df_reordered
 
     @property
     def spiral(self) -> pd.DataFrame:
@@ -942,6 +977,9 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         self.validate_type(value, (RoundMandrel, FlatMandrel), "mandrel")
         self._mandrel = value
 
+        if hasattr(self, '_layup'):
+            self._layup = self.position_layup_on_mandrel(self._layup, self._mandrel)
+
     @layup.setter
     @calculate_all_properties
     def layup(self, value: Laminate) -> None:
@@ -961,24 +999,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         # validate type
         self.validate_type(value, Laminate, "layup")
     
-        # get the min x in the flattened center lines
-        x_list = [c[:, 0] for c in value._flattened_center_lines.values()]
-        min_x = min([np.min(mx) for mx in x_list])
-
-        # get the most negative z value
-        z_min = np.min(value._flattened_center_lines['cathode_b_side_coating'][:, 1]) # - value.cathode._coating_thickness
-
-        # set the new x value
-        new_x = (value.datum[0] * MM_TO_M) - min_x
-
-        # set the new y value
-        new_y = (value.datum[1] * MM_TO_M)
-
-        # set the new z value
-        new_z = (value.datum[2] * MM_TO_M) - z_min + value.cathode._coating_thickness / 2 + self.mandrel._radius
-
-        # Convert back to mm and set the new datum
-        value.datum = (new_x * M_TO_MM, new_y * M_TO_MM, new_z * M_TO_MM)
+        value = self.position_layup_on_mandrel(value, self._mandrel)
 
         # set to self
         self._layup = value
@@ -1076,21 +1097,21 @@ class WoundJellyRoll(_JellyRoll):
         self._diameter = self._radius * 2
 
         # get the minimum layup length 
-        mandrel_circumference = 2 * 2 * np.pi * self.mandrel._radius
-        min_layup_length = max(mandrel_circumference, self.layup.length_range[0])
+        mandrel_circumference = 2 * 2 * np.pi * self._mandrel._radius
+        min_layup_length = max(mandrel_circumference, self._layup.length_range[0])
 
         # get the radius minimum bound
         small_layup = deepcopy(self.layup)
         small_layup.length = min_layup_length
-        small_spiral = SpiralCalculator.calculate_variable_thickness_spiral(small_layup, self.mandrel._radius)
+        small_spiral = SpiralCalculator.calculate_variable_thickness_spiral(small_layup, self._mandrel._radius)
         small_spiral_coords_2d = np.column_stack((small_spiral[:, X_COORD_COL],small_spiral[:, Z_COORD_COL]))
         small_radius = SpiralCalculator.get_radius_of_spiral(small_spiral_coords_2d)
         small_radius = small_radius + small_layup.get_thickness_at_x(small_layup._total_length)
 
         # get the radius maximum bound
-        big_layup = deepcopy(self.layup)
+        big_layup = deepcopy(self._layup)
         big_layup.length = big_layup.length_hard_range[1]
-        big_spiral = SpiralCalculator.calculate_variable_thickness_spiral(big_layup, self.mandrel._radius)
+        big_spiral = SpiralCalculator.calculate_variable_thickness_spiral(big_layup, self._mandrel._radius)
         big_spiral_coords_2d = np.column_stack((big_spiral[:, X_COORD_COL],big_spiral[:, Z_COORD_COL]))
         big_radius = SpiralCalculator.get_radius_of_spiral(big_spiral_coords_2d)
         big_radius = big_radius + big_layup.get_thickness_at_x(big_layup._total_length)
@@ -1102,8 +1123,8 @@ class WoundJellyRoll(_JellyRoll):
     def _calculate_variable_thickness_spiral(self) -> np.ndarray:
 
         self._spiral = SpiralCalculator.calculate_variable_thickness_spiral(
-            laminate=self.layup,
-            start_radius=self.mandrel._radius
+            laminate=self._layup,
+            start_radius=self._mandrel._radius
         )
 
         return self._spiral
@@ -1185,7 +1206,7 @@ class WoundJellyRoll(_JellyRoll):
         layup_copy = deepcopy(flat_jelly_roll.layup)
         
         # Create a round mandrel based on the flat mandrel properties
-        flat_mandrel = deepcopy(flat_jelly_roll.mandrel)
+        flat_mandrel = deepcopy(flat_jelly_roll._mandrel)
         
         # Use the flat mandrel's radius (height/2) as the round mandrel's radius
         # and preserve the length and material properties
@@ -1278,6 +1299,29 @@ class WoundJellyRoll(_JellyRoll):
 
         return (round(min_diameter, 2), round(max_diameter, 2))
 
+    @diameter.setter
+    def diameter(self, target_diameter: float) -> None:
+        """Set diameter by optimizing layup length to achieve target diameter.
+        
+        Parameters
+        ----------
+        target_diameter : float
+            Target diameter in millimeters
+            
+        Raises
+        ------
+        ValueError
+            If target diameter is invalid
+        """
+        # Validate input
+        self.validate_positive_float(target_diameter, "diameter")
+
+        # Convert diameter to radius
+        target_radius = target_diameter / 2.0
+
+        # Set radius using the radius setter
+        self.radius = target_radius
+
     @radius.setter
     @calculate_all_properties
     def radius(self, target_radius: float) -> None:
@@ -1312,13 +1356,13 @@ class WoundJellyRoll(_JellyRoll):
         def objective_function(length: float) -> float:
             """Objective function: difference between actual and target radius."""
             # Create copy of layup to avoid modifying original during optimization
-            layup_copy = deepcopy(self.layup)
+            layup_copy = deepcopy(self._layup)
             layup_copy.length = length * M_TO_MM
 
             # Calculate spiral for this length
             spiral = SpiralCalculator.calculate_variable_thickness_spiral(
                 laminate=layup_copy,
-                start_radius=self.mandrel._radius
+                start_radius=self._mandrel._radius
             )
 
             # Get radius from spiral coordinates
@@ -1454,7 +1498,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         self._width = SpiralCalculator.get_width_of_racetrack(combined_coords)
 
         # get the minimum length of the layup
-        mandrel_circumference = 2 * (TWO_PI * self.mandrel._radius + 2 * self.mandrel._straight_length)
+        mandrel_circumference = 2 * (TWO_PI * self._mandrel._radius + 2 * self._mandrel._straight_length)
         min_layup_length = max(mandrel_circumference, self.layup.length_range[0])
 
         # cache some values for later
@@ -1600,14 +1644,14 @@ class FlatWoundJellyRoll(_JellyRoll):
         cls.validate_type(round_jelly_roll, WoundJellyRoll, "round_jelly_roll")
         
         # Create a deep copy of the layup to avoid modifying the original
-        layup_copy = deepcopy(round_jelly_roll.layup)
+        layup_copy = deepcopy(round_jelly_roll._layup)
         
         # Create a flat mandrel based on the round mandrel properties
-        round_mandrel = deepcopy(round_jelly_roll.mandrel)
+        round_mandrel = deepcopy(round_jelly_roll._mandrel)
         
         # Use the round mandrel's diameter as the flat mandrel's height to maintain radius
         # Set a default straight length (can be adjusted based on requirements)
-        default_straight_length = round_mandrel.diameter * 20  # Default: 2x diameter for reasonable aspect ratio
+        default_straight_length = round_mandrel.diameter * 10  # Default: 2x diameter for reasonable aspect ratio
         
         flat_mandrel = FlatMandrel(
             height=round_mandrel.diameter,  # Use diameter as height to maintain radius

@@ -27,7 +27,11 @@ MAX_POINTS = 120000
 class SpiralCalculator:
 
     @staticmethod
-    def calculate_variable_thickness_spiral(laminate: Laminate, start_radius: float, dtheta: float = DEFAULT_DTHETA):
+    def calculate_variable_thickness_spiral(
+        laminate: Laminate, 
+        start_radius: float, 
+        dtheta: float = DEFAULT_DTHETA
+        ) -> np.ndarray:
         """Integrate a variable-thickness Archimedean-like spiral (clockwise) with adaptive RK4.
 
         Governing relations (parametrized by θ, clockwise so θ decreases from π/2):

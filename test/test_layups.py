@@ -1,5 +1,6 @@
 from copy import deepcopy
 import unittest
+import plotly.graph_objects as go
 
 from steer_opencell_design.Formulations.ElectrodeFormulations import (
     CathodeFormulation,
@@ -154,6 +155,7 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertEqual(self.layup.bottom_separator.length, 6000)
         self.assertEqual(self.layup.bottom_separator.width, 310)
         fig1 = self.layup.get_top_down_view(opacity=0.2)
+        fig11 = self.layup.get_down_top_view(opacity=0.2)
 
         self.layup.length = 6000
         self.assertEqual(self.layup.length, 6000)
@@ -181,7 +183,8 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertEqual(self.layup.bottom_separator.width, 404)
         fig3 = self.layup.get_top_down_view(opacity=0.2)
 
-        # fig1.show()
+        fig1.show()
+        fig11.show()
         # fig2.show()
         # fig3.show()
 
@@ -482,6 +485,166 @@ class TestSimpleLaminate(unittest.TestCase):
         """Setting overhang control mode via string should map to enum."""
         self.layup.overhang_control_mode = "fixed_overhangs"
         self.assertEqual(self.layup.overhang_control_mode, OverhangControlMode.FIXED_OVERHANGS)
+
+    # ========== FLIP TESTS ==========
+
+    def test_flip_x_axis(self):
+        """Test flipping the laminate about the x-axis"""
+        # Check initial flip state
+        self.assertFalse(self.layup._flipped_x)
+        
+        # Flip about x-axis
+        self.layup._flip("x")
+        
+        # Verify flip state changed
+        self.assertTrue(self.layup._flipped_x)
+        
+        # Flip back and verify we return to original state
+        self.layup._flip("x")
+        self.assertFalse(self.layup._flipped_x)
+
+    def test_flip_y_axis(self):
+        """Test flipping the laminate about the y-axis"""
+        # Check initial flip state
+        self.assertFalse(self.layup._flipped_y)
+        
+        # Flip about y-axis
+        self.layup._flip("y")
+        
+        # Verify flip state changed
+        self.assertTrue(self.layup._flipped_y)
+        
+        # Flip back
+        self.layup._flip("y")
+        self.assertFalse(self.layup._flipped_y)
+
+    def test_flip_z_axis(self):
+        """Test flipping the laminate about the z-axis"""
+        # Check initial flip state
+        self.assertFalse(self.layup._flipped_z)
+        
+        # Flip about z-axis
+        self.layup._flip("z")
+        
+        # Verify flip state changed
+        self.assertTrue(self.layup._flipped_z)
+        
+        # Flip back
+        self.layup._flip("z")
+        self.assertFalse(self.layup._flipped_z)
+
+    def test_flip_invalid_axis(self):
+        """Test that invalid axis raises ValueError"""
+        with self.assertRaises(ValueError) as context:
+            self.layup._flip("invalid")
+        
+        self.assertIn("Axis must be", str(context.exception))
+        
+        # Test other invalid inputs
+        with self.assertRaises(ValueError):
+            self.layup._flip("X")  # Capital letter
+            
+        with self.assertRaises(ValueError):
+            self.layup._flip("xy")  # Multiple axes
+
+    def test_flip_preserves_overhangs(self):
+        """Test that flipping preserves overhang relationships"""
+        # Record original overhangs
+        original_anode_overhangs = self.layup.anode_overhangs.copy()
+        original_bottom_sep_overhangs = self.layup.bottom_separator_overhangs.copy()
+        original_top_sep_overhangs = self.layup.top_separator_overhangs.copy()
+        
+        # Flip the layup
+        self.layup._flip("x")
+        
+        # Overhangs should remain the same (relative positions preserved)
+        self.assertEqual(self.layup.anode_overhangs, original_anode_overhangs)
+        self.assertEqual(self.layup.bottom_separator_overhangs, original_bottom_sep_overhangs)
+        self.assertEqual(self.layup.top_separator_overhangs, original_top_sep_overhangs)
+
+    def test_flip_preserves_other_properties(self):
+        """Test that flipping doesn't change other layup properties"""
+        # Record original properties
+        original_np_ratio = self.layup.np_ratio
+        original_length = self.layup.length
+        original_width = self.layup.width
+        original_datum = self.layup.datum
+        
+        # Flip the layup
+        self.layup._flip("y")
+        
+        # Verify all properties remain the same
+        self.assertEqual(self.layup.np_ratio, original_np_ratio)
+        self.assertEqual(self.layup.length, original_length)
+        self.assertEqual(self.layup.width, original_width)
+        self.assertEqual(self.layup.datum, original_datum)
+
+    def test_multiple_axis_flips(self):
+        """Test flipping about multiple axes in sequence"""
+        # Flip about x and y axes
+        self.layup._flip("x")
+        self.layup._flip("y")
+        
+        # Check flip states
+        self.assertTrue(self.layup._flipped_x)
+        self.assertTrue(self.layup._flipped_y)
+        self.assertFalse(self.layup._flipped_z)
+        
+        # Flip back both axes
+        self.layup._flip("x")
+        self.layup._flip("y")
+        
+        # Check all flip states are False
+        self.assertFalse(self.layup._flipped_x)
+        self.assertFalse(self.layup._flipped_y)
+        self.assertFalse(self.layup._flipped_z)
+
+    def test_flip_and_visualize(self):
+        """Test that flipped layup can generate visualizations"""
+        # Flip the layup
+        self.layup._flip("y")
+        
+        # Test that all visualization methods work after flipping
+        fig_top = self.layup.get_top_down_view(opacity=0.2)
+        fig_capacity = self.layup.get_areal_capacity_plot()
+        fig_bottom = self.layup.get_bottom_up_view(opacity=0.2)
+        
+        # Verify figures were created
+        self.assertIsInstance(fig_top, go.Figure)
+        self.assertIsInstance(fig_capacity, go.Figure)
+        self.assertIsInstance(fig_bottom, go.Figure)
+        
+        # Verify figures have traces
+        self.assertGreater(len(fig_top.data), 0)
+        self.assertGreater(len(fig_capacity.data), 0)
+        self.assertGreater(len(fig_bottom.data), 0)
+        
+        # Uncomment to visualize flipped layup
+        # fig_top.show()
+        # fig_capacity.show()
+        # fig_bottom.show()
+
+    def test_flip_component_states_synchronized(self):
+        """Test that all components have synchronized flip states"""
+        # Flip the layup
+        self.layup._flip("z")
+        
+        # All components should have the same flip state
+        self.assertTrue(self.layup._flipped_z)
+        self.assertTrue(self.layup.cathode._flipped_z)
+        self.assertTrue(self.layup.anode._flipped_z)
+        self.assertTrue(self.layup.bottom_separator._flipped_z)
+        self.assertTrue(self.layup.top_separator._flipped_z)
+        
+        # Flip back
+        self.layup._flip("z")
+        
+        # All should be False
+        self.assertFalse(self.layup._flipped_z)
+        self.assertFalse(self.layup.cathode._flipped_z)
+        self.assertFalse(self.layup.anode._flipped_z)
+        self.assertFalse(self.layup.bottom_separator._flipped_z)
+        self.assertFalse(self.layup.top_separator._flipped_z)
 
 
 class TestSimpleMonoLayer(unittest.TestCase):
@@ -850,6 +1013,120 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.monolayer.overhang_control_mode = "fixed_overhangs"
         self.assertEqual(self.monolayer.overhang_control_mode, OverhangControlMode.FIXED_OVERHANGS)
 
+    # ========== FLIP TESTS ==========
+
+    def test_flip_x_axis(self):
+        """Test flipping the monolayer about the x-axis"""
+        # Check initial flip state
+        self.assertFalse(self.monolayer._flipped_x)
+        
+        # Flip about x-axis
+        self.monolayer._flip("x")
+        
+        # Verify flip state changed
+        self.assertTrue(self.monolayer._flipped_x)
+        
+        # Flip back and verify we return to original state
+        self.monolayer._flip("x")
+        self.assertFalse(self.monolayer._flipped_x)
+
+    def test_flip_y_axis(self):
+        """Test flipping the monolayer about the y-axis"""
+        # Check initial flip state
+        self.assertFalse(self.monolayer._flipped_y)
+        
+        # Flip about y-axis
+        self.monolayer._flip("y")
+        
+        # Verify flip state changed
+        self.assertTrue(self.monolayer._flipped_y)
+        
+        # Flip back
+        self.monolayer._flip("y")
+        self.assertFalse(self.monolayer._flipped_y)
+
+    def test_flip_z_axis(self):
+        """Test flipping the monolayer about the z-axis"""
+        # Check initial flip state
+        self.assertFalse(self.monolayer._flipped_z)
+        
+        # Flip about z-axis
+        self.monolayer._flip("z")
+        
+        # Verify flip state changed
+        self.assertTrue(self.monolayer._flipped_z)
+        
+        # Flip back
+        self.monolayer._flip("z")
+        self.assertFalse(self.monolayer._flipped_z)
+
+    def test_flip_invalid_axis(self):
+        """Test that invalid axis raises ValueError"""
+        with self.assertRaises(ValueError) as context:
+            self.monolayer._flip("invalid")
+        
+        self.assertIn("Axis must be", str(context.exception))
+
+    def test_flip_preserves_overhangs(self):
+        """Test that flipping preserves overhang relationships for monolayer"""
+        # Record original overhangs
+        original_anode_overhangs = self.monolayer.anode_overhangs.copy()
+        original_separator_overhangs = self.monolayer.separator_overhangs.copy()
+        
+        # Flip the monolayer
+        self.monolayer._flip("x")
+        
+        # Overhangs should remain the same (relative positions preserved)
+        self.assertEqual(self.monolayer.anode_overhangs, original_anode_overhangs)
+        self.assertEqual(self.monolayer.separator_overhangs, original_separator_overhangs)
+
+    def test_flip_and_visualize_monolayer(self):
+        """Test that flipped monolayer can generate visualizations"""
+        # Flip the monolayer
+        self.monolayer._flip("y")
+        
+        # Test that all visualization methods work after flipping
+        fig_top = self.monolayer.get_top_down_view(opacity=0.2)
+        fig_capacity = self.monolayer.get_areal_capacity_plot()
+        fig_bottom = self.monolayer.get_bottom_up_view(opacity=0.2)
+        
+        # Verify figures were created
+        self.assertIsInstance(fig_top, go.Figure)
+        self.assertIsInstance(fig_capacity, go.Figure)
+        self.assertIsInstance(fig_bottom, go.Figure)
+        
+        # Verify figures have traces
+        self.assertGreater(len(fig_top.data), 0)
+        self.assertGreater(len(fig_capacity.data), 0)
+        self.assertGreater(len(fig_bottom.data), 0)
+        
+        # Uncomment to visualize flipped monolayer
+        # fig_top.show()
+        # fig_capacity.show()
+        # fig_bottom.show()
+
+    def test_flip_component_states_synchronized_monolayer(self):
+        """Test that all monolayer components have synchronized flip states"""
+        # Flip the monolayer
+        self.monolayer._flip("z")
+        
+        # All components should have the same flip state
+        self.assertTrue(self.monolayer._flipped_z)
+        self.assertTrue(self.monolayer.cathode._flipped_z)
+        self.assertTrue(self.monolayer.anode._flipped_z)
+        self.assertTrue(self.monolayer.bottom_separator._flipped_z)
+        self.assertTrue(self.monolayer.top_separator._flipped_z)
+        
+        # Flip back
+        self.monolayer._flip("z")
+        
+        # All should be False
+        self.assertFalse(self.monolayer._flipped_z)
+        self.assertFalse(self.monolayer.cathode._flipped_z)
+        self.assertFalse(self.monolayer.anode._flipped_z)
+        self.assertFalse(self.monolayer.bottom_separator._flipped_z)
+        self.assertFalse(self.monolayer.top_separator._flipped_z)
+
 
 class TestZFoldMonoLayer(unittest.TestCase):
 
@@ -1193,6 +1470,145 @@ class TestZFoldMonoLayer(unittest.TestCase):
         # fig1.show()
         # fig2.show()
         # fig3.show()
+
+    # ========== FLIP TESTS ==========
+
+    def test_flip_x_axis_zfold(self):
+        """Test flipping the Z-fold monolayer about the x-axis"""
+        # Check initial flip state
+        self.assertFalse(self.zfoldmonolayer._flipped_x)
+        
+        # Flip about x-axis
+        self.zfoldmonolayer._flip("x")
+        
+        # Verify flip state changed
+        self.assertTrue(self.zfoldmonolayer._flipped_x)
+        
+        # Flip back and verify we return to original state
+        self.zfoldmonolayer._flip("x")
+        self.assertFalse(self.zfoldmonolayer._flipped_x)
+
+    def test_flip_y_axis_zfold(self):
+        """Test flipping the Z-fold monolayer about the y-axis"""
+        # Check initial flip state
+        self.assertFalse(self.zfoldmonolayer._flipped_y)
+        
+        # Flip about y-axis
+        self.zfoldmonolayer._flip("y")
+        
+        # Verify flip state changed
+        self.assertTrue(self.zfoldmonolayer._flipped_y)
+        
+        # Flip back
+        self.zfoldmonolayer._flip("y")
+        self.assertFalse(self.zfoldmonolayer._flipped_y)
+
+    def test_flip_z_axis_zfold(self):
+        """Test flipping the Z-fold monolayer about the z-axis"""
+        # Check initial flip state
+        self.assertFalse(self.zfoldmonolayer._flipped_z)
+        
+        # Flip about z-axis
+        self.zfoldmonolayer._flip("z")
+        
+        # Verify flip state changed
+        self.assertTrue(self.zfoldmonolayer._flipped_z)
+        
+        # Flip back
+        self.zfoldmonolayer._flip("z")
+        self.assertFalse(self.zfoldmonolayer._flipped_z)
+
+    def test_flip_invalid_axis_zfold(self):
+        """Test that invalid axis raises ValueError for Z-fold"""
+        with self.assertRaises(ValueError) as context:
+            self.zfoldmonolayer._flip("invalid")
+        
+        self.assertIn("Axis must be", str(context.exception))
+
+    def test_flip_preserves_separator_constraints_zfold(self):
+        """Test that flipping preserves Z-fold separator length constraints"""
+        # Record original separator lengths (they should be constrained by Z-fold geometry)
+        original_bottom_length = self.zfoldmonolayer._bottom_separator.length
+        original_top_length = self.zfoldmonolayer._top_separator.length
+        
+        # Flip the Z-fold monolayer
+        self.zfoldmonolayer._flip("x")
+        
+        # Separator lengths should remain constrained
+        self.assertAlmostEqual(self.zfoldmonolayer._bottom_separator.length, original_bottom_length, places=1)
+        self.assertAlmostEqual(self.zfoldmonolayer._top_separator.length, original_top_length, places=1)
+
+    def test_flip_preserves_zfold_overhangs(self):
+        """Test that flipping preserves Z-fold overhang relationships"""
+        # Record original overhangs (including unified separator overhangs)
+        original_anode_overhangs = self.zfoldmonolayer.anode_overhangs.copy()
+        original_separator_overhangs = self.zfoldmonolayer.separator_overhangs.copy()
+        
+        # Flip the Z-fold monolayer
+        self.zfoldmonolayer._flip("y")
+        
+        # Overhangs should remain the same (relative positions preserved)
+        self.assertEqual(self.zfoldmonolayer.anode_overhangs, original_anode_overhangs)
+        self.assertEqual(self.zfoldmonolayer.separator_overhangs, original_separator_overhangs)
+
+    def test_flip_and_visualize_zfold(self):
+        """Test that flipped Z-fold monolayer can generate visualizations"""
+        # Flip the Z-fold monolayer
+        self.zfoldmonolayer._flip("z")
+        
+        # Test that all visualization methods work after flipping
+        fig_top = self.zfoldmonolayer.get_top_down_view(opacity=0.2)
+        fig_capacity = self.zfoldmonolayer.get_areal_capacity_plot()
+        fig_bottom = self.zfoldmonolayer.get_bottom_up_view(opacity=0.2)
+        
+        # Verify figures were created
+        self.assertIsInstance(fig_top, go.Figure)
+        self.assertIsInstance(fig_capacity, go.Figure)
+        self.assertIsInstance(fig_bottom, go.Figure)
+        
+        # Verify figures have traces
+        self.assertGreater(len(fig_top.data), 0)
+        self.assertGreater(len(fig_capacity.data), 0)
+        self.assertGreater(len(fig_bottom.data), 0)
+        
+        # Uncomment to visualize flipped Z-fold monolayer
+        # fig_top.show()
+        # fig_capacity.show()
+        # fig_bottom.show()
+
+    def test_flip_component_states_synchronized_zfold(self):
+        """Test that all Z-fold monolayer components have synchronized flip states"""
+        # Flip the Z-fold monolayer
+        self.zfoldmonolayer._flip("y")
+        
+        # The layup and separators should have the same flip state
+        # Note: Individual electrodes may have different internal flip states due to Z-fold initialization
+        self.assertTrue(self.zfoldmonolayer._flipped_y)
+        self.assertTrue(self.zfoldmonolayer.bottom_separator._flipped_y)
+        self.assertTrue(self.zfoldmonolayer.top_separator._flipped_y)
+        
+        # Flip back
+        self.zfoldmonolayer._flip("y")
+        
+        # All should be False
+        self.assertFalse(self.zfoldmonolayer._flipped_y)
+        self.assertFalse(self.zfoldmonolayer.bottom_separator._flipped_y)
+        self.assertFalse(self.zfoldmonolayer.top_separator._flipped_y)
+
+    def test_flip_maintains_zfold_geometry(self):
+        """Test that flipping maintains Z-fold specific geometric relationships"""
+        # Record original geometric relationships
+        original_bottom_sep_length = self.zfoldmonolayer._bottom_separator.length
+        original_top_sep_length = self.zfoldmonolayer._top_separator.length
+        
+        # Flip multiple times
+        self.zfoldmonolayer._flip("x")
+        self.zfoldmonolayer._flip("z")
+        
+        # Z-fold geometric constraints should still be maintained
+        # The separator lengths should remain the same after flipping
+        self.assertAlmostEqual(self.zfoldmonolayer._bottom_separator.length, original_bottom_sep_length, places=1)
+        self.assertAlmostEqual(self.zfoldmonolayer._top_separator.length, original_top_sep_length, places=1)
 
 
 if __name__ == "__main__":

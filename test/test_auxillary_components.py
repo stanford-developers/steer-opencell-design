@@ -196,7 +196,7 @@ class TestFlatMandrel(unittest.TestCase):
         self.assertLessEqual(np.abs(x_coords).max(), 0.0151)  # 15mm + tolerance in meters
         
         # Straight length should have updated
-        self.assertEqual(self.flat_mandrel.straight_length, 18.0)  # 30 - 10 = 20
+        self.assertEqual(self.flat_mandrel.straight_length, 28.0)  # 30 - 10 = 20
 
     def test_flat_mandrel_coordinates_property(self):
         """Test the coordinates property returns proper DataFrame."""
@@ -230,12 +230,12 @@ class TestFlatMandrel(unittest.TestCase):
         # Test width setter
         self.flat_mandrel.width = 25.0
         self.assertEqual(self.flat_mandrel.width, 25.0)
-        self.assertEqual(self.flat_mandrel.straight_length, 18.0)  # 25 - 10 = 15
+        self.assertEqual(self.flat_mandrel.straight_length, 23.0)  # 25 - 10 = 15
         
         # Test height setter
         self.flat_mandrel.height = 12.0
         self.assertEqual(self.flat_mandrel.height, 12.0)
-        self.assertEqual(self.flat_mandrel.radius, 1.0)  # 12/2 = 6
+        self.assertEqual(self.flat_mandrel.radius, 6.0)  # 12/2 = 6
         
         # Test radius setter
         self.flat_mandrel.radius = 1.0

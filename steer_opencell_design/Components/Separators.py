@@ -58,6 +58,9 @@ class Separator(
         """
         self._folded = False
         self._rotated_xy = False
+        self._flipped_x = False
+        self._flipped_y = False
+        self._flipped_z = False
         self._update_properties = False
 
         self.datum = datum
@@ -156,6 +159,38 @@ class Separator(
             self._length_range = (electrode._current_collector._x_body_length, electrode._current_collector._x_body_length + extended_range)
         elif self._rotated_xy:
             self._length_range = (electrode._current_collector._y_body_length, electrode._current_collector._y_body_length + extended_range)
+
+    def _flip(self, axis: str, bool_update: bool = True) -> None:
+        """
+        Function to rotate the current collector around a specified axis by 180 degrees
+        around the current datum position.
+
+        Parameters
+        ----------
+        axis : str
+            The axis to rotate around. Must be 'x', 'y', or 'z'.
+        """
+        if axis not in ["x", "y", "z"]:
+            raise ValueError("Axis must be 'x', 'y', or 'z'.")
+
+        axis_map = {"x": "y", "y": "x", "z": "z"}
+
+        rotation_axis = axis_map[axis]
+
+        # Keep datum as the center of rotation - don't move it to origin
+        # Rotate coordinates around the current datum position
+        self._coordinates = self.rotate_coordinates(self._coordinates, rotation_axis, 180, center=self._datum)
+
+        if bool_update:
+            # update action booleans
+            if axis == "x":
+                self._flipped_x = not self._flipped_x
+            if axis == "y":
+                self._flipped_y = not self._flipped_y
+            if axis == "z":
+                self._flipped_z = not self._flipped_z
+
+        return self
 
     def get_top_down_view(self, **kwargs) -> go.Figure:
         

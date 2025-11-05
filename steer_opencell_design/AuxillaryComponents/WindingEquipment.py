@@ -4,6 +4,7 @@ from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 
+from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Decorators.Coordinates import calculate_coordinates
 
 from steer_core.Constants.Units import *
@@ -271,17 +272,26 @@ class RoundMandrel(_Mandrel):
         return round(self._radius * M_TO_MM, 2)
 
     @property
+    def radius_range(self) -> Tuple[float, float]:
+        """Return the mandrel radius range as a tuple (min, max) in mm."""
+        return (self.diameter_range[0] / 2, self.diameter_range[1] / 2)
+
+    @property
     def diameter(self) -> float:
         """Return the mandrel diameter in mm."""
         return round(self._diameter * M_TO_MM, 2)
 
+    @property
+    def diameter_range(self) -> Tuple[float, float]:
+        """Return the mandrel diameter range as a tuple (min, max) in mm."""
+        return (1, 50)
+
     @radius.setter
-    @calculate_coordinates
     def radius(self, value: float):
-        self._diameter = value * MM_TO_M * 2
+        self.diameter = value * 2
 
     @diameter.setter
-    @calculate_coordinates
+    @calculate_all_properties
     def diameter(self, value: float):
         self._diameter = round(value * MM_TO_M, 6)
 
@@ -390,24 +400,34 @@ class FlatMandrel(_Mandrel):
         return round(self._width * M_TO_MM, 2)
 
     @property
+    def width_range(self) -> Tuple[float, float]:
+        """Return the mandrel width range as a tuple (min, max) in mm."""
+        return (1, 100)
+
+    @property
     def height(self) -> float:
         """Return the mandrel height in mm."""
         return round(self._height * M_TO_MM, 2)
+    
+    @property
+    def height_range(self) -> Tuple[float, float]:
+        """Return the mandrel height range as a tuple (min, max) in mm."""
+        return (1, 30)
 
     @width.setter
-    @calculate_coordinates
+    @calculate_all_properties
     def width(self, value: float):
         self.validate_positive_float(value, "width")
         self._width = round(value * MM_TO_M, 6)
 
     @height.setter
-    @calculate_coordinates
+    @calculate_all_properties
     def height(self, value: float):
         self.validate_positive_float(value, "height")
         self._height = round(value * MM_TO_M, 6)
 
     @radius.setter
-    @calculate_coordinates
+    @calculate_all_properties
     def radius(self, value: float):
         self.validate_positive_float(value, "radius")
         self._height = value * MM_TO_M * 2
