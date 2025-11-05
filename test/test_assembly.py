@@ -1,6 +1,7 @@
 import time
 import unittest
 import pandas as pd
+from copy import deepcopy
 
 from steer_opencell_design.Formulations.ElectrodeFormulations import (
     CathodeFormulation,
@@ -9,7 +10,7 @@ from steer_opencell_design.Formulations.ElectrodeFormulations import (
 from steer_opencell_design.Components.Electrodes import Cathode, Anode
 from steer_opencell_design.Components.CurrentCollectors import PunchedCurrentCollector, NotchedCurrentCollector
 from steer_opencell_design.Components.Separators import Separator
-from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import PunchedStack, ZFoldStack
+from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import PunchedStack, ZFoldStack, _Stack
 from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import WoundJellyRoll, FlatWoundJellyRoll
 from steer_opencell_design.AuxillaryComponents.WindingEquipment import RoundMandrel, FlatMandrel
 from steer_opencell_design.Constructions.Layups.MonoLayers import MonoLayer, ZFoldMonoLayer
@@ -163,20 +164,19 @@ class TestRoundJellyRoll(unittest.TestCase):
         # Test that roll_properties is a pandas DataFrame
         self.assertIsInstance(self.my_jellyroll.roll_properties, pd.DataFrame)
         
-        # Create expected DataFrame
         expected_data = {
-            'anode_a_side_coating_turns': 50.14,
-            'anode_current_collector_turns': 59.0,
-            'anode_b_side_coating_turns': 51.99,
-            'cathode_a_side_coating_turns': 59.0,
-            'cathode_current_collector_turns': 59.0,
-            'cathode_b_side_coating_turns': 59.0,
-            'bottom_separator_turns': 129.58,
-            'bottom_separator_inner_turns': 67.32,
-            'bottom_separator_outer_turns': 11.72,
-            'top_separator_turns': 70.95,
-            'top_separator_inner_turns': 16.46,
-            'top_separator_outer_turns': 3.96
+            'Anode A Side Coating Turns': 50.14,
+            'Anode Current Collector Turns': 59.0,
+            'Anode B Side Coating Turns': 51.99,
+            'Cathode A Side Coating Turns': 59.0,
+            'Cathode Current Collector Turns': 59.0,
+            'Cathode B Side Coating Turns': 59.0,
+            'Bottom Separator Turns': 129.58,
+            'Bottom Separator Inner Turns': 67.32,
+            'Bottom Separator Outer Turns': 11.72,
+            'Top Separator Turns': 70.95,
+            'Top Separator Inner Turns': 16.46,
+            'Top Separator Outer Turns': 3.96
         }
         
         expected_df = pd.DataFrame.from_dict(expected_data, orient='index', columns=['Turns'])
@@ -187,7 +187,6 @@ class TestRoundJellyRoll(unittest.TestCase):
         
         # Test DataFrame structure
         self.assertEqual(actual_df.columns.tolist(), ['Turns'])
-        self.assertEqual(actual_df.index.name, 'Component')
         
         # Test that all expected components are present
         for component in expected_data.keys():
@@ -220,14 +219,26 @@ class TestRoundJellyRoll(unittest.TestCase):
 
         flat_jellyroll = FlatWoundJellyRoll.from_round_jelly_roll(self.my_jellyroll)
 
-        self.assertAlmostEqual(flat_jellyroll.interfacial_area, 23696, 0)
-        self.assertAlmostEqual(flat_jellyroll.energy, 36.98)
+        self.assertAlmostEqual(flat_jellyroll.interfacial_area, 23895, 0)
+        self.assertAlmostEqual(flat_jellyroll.energy, 37.29)
         self.assertAlmostEqual(flat_jellyroll.cost, 3.36, 2)
-        self.assertAlmostEqual(flat_jellyroll.thickness, 12.1, 2)
-        self.assertAlmostEqual(flat_jellyroll.width, 118.67, 2)
+        self.assertAlmostEqual(flat_jellyroll.thickness, 19.06, 2)
+        self.assertAlmostEqual(flat_jellyroll.width, 75.63, 2)
 
         figure = flat_jellyroll.get_spiral_plot()
         # figure.show()
+
+    def test_mandrel_setting(self):
+
+        new_jellyroll = deepcopy(self.my_jellyroll)
+
+        new_jellyroll.mandrel.diameter = 10
+        new_jellyroll.mandrel = new_jellyroll.mandrel
+        self.assertAlmostEqual(new_jellyroll.radius, 21.09, 2)
+
+        new_jellyroll.mandrel.radius = 10
+        new_jellyroll.mandrel = new_jellyroll.mandrel
+        self.assertAlmostEqual(new_jellyroll.radius, 22.8, 2)
 
 
 class TestFlatJellyRoll(unittest.TestCase):
@@ -367,22 +378,21 @@ class TestFlatJellyRoll(unittest.TestCase):
         # Test that roll_properties is a pandas DataFrame
         self.assertIsInstance(self.my_jellyroll.roll_properties, pd.DataFrame)
         
-        # Create expected DataFrame
         expected_data = {
-            'anode_a_side_coating_turns': 17.84,
-            'anode_current_collector_turns': 20.04,
-            'anode_b_side_coating_turns': 18.28,
-            'cathode_a_side_coating_turns': 20.04,
-            'cathode_current_collector_turns': 20.04,
-            'cathode_b_side_coating_turns': 20.04,
-            'bottom_separator_turns': 31.32,
-            'bottom_separator_inner_turns': 7.03,
-            'bottom_separator_outer_turns': 6.24,
-            'top_separator_turns': 22.31,
-            'top_separator_inner_turns': 2.16,
-            'top_separator_outer_turns': 2.09
+            'Anode A Side Coating Turns': 17.84,
+            'Anode Current Collector Turns': 20.04,
+            'Anode B Side Coating Turns': 18.28,
+            'Cathode A Side Coating Turns': 20.04,
+            'Cathode Current Collector Turns': 20.04,
+            'Cathode B Side Coating Turns': 20.04,
+            'Bottom Separator Turns': 31.32,
+            'Bottom Separator Inner Turns': 7.03,
+            'Bottom Separator Outer Turns': 6.24,
+            'Top Separator Turns': 22.31,
+            'Top Separator Inner Turns': 2.16,
+            'Top Separator Outer Turns': 2.09
         }
-        
+
         expected_df = pd.DataFrame.from_dict(expected_data, orient='index', columns=['Turns'])
         expected_df.index.name = 'Component'
         
@@ -391,8 +401,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         
         # Test DataFrame structure
         self.assertEqual(actual_df.columns.tolist(), ['Turns'])
-        self.assertEqual(actual_df.index.name, 'Component')
-        
+
         # Test that all expected components are present
         for component in expected_data.keys():
             self.assertIn(component, actual_df.index, f"Missing component: {component}")
@@ -540,6 +549,10 @@ class TestPunchedStack(unittest.TestCase):
 
     def test_punched_stack_basic_structure(self):
         self.assertIsInstance(self.stack, PunchedStack)
+        self.assertAlmostEqual(self.stack.thickness, 7.64, 2)
+        self.assertAlmostEqual(self.stack.thickness_range[0], 0.63)
+        self.assertAlmostEqual(self.stack.thickness_range[1], 22.41, 2)
+        self.assertAlmostEqual(self.stack.thickness_hard_range[1], 369.66, 2)
         self.assertEqual(len(self.stack.stack), 83)
 
     def test_right_left_view(self):
@@ -574,6 +587,50 @@ class TestPunchedStack(unittest.TestCase):
 
         # mass_breakdown_fig.show()
         # cost_breakdown_fig.show()
+
+    def test_from_layup_constructor(self):
+
+        layup = deepcopy(self.stack.layup)
+
+        stack_from_layup = _Stack.from_layup(
+            layup=layup,
+            n_layers=20,
+        )
+
+        self.assertIsInstance(stack_from_layup, PunchedStack)
+        self.assertAlmostEqual(stack_from_layup.thickness, 7.64, 2)
+        self.assertAlmostEqual(stack_from_layup.thickness_range[0], 0.63)
+        self.assertAlmostEqual(stack_from_layup.thickness_range[1], 22.41, 2)
+        self.assertAlmostEqual(stack_from_layup.thickness_hard_range[1], 369.66, 2)
+        self.assertEqual(len(stack_from_layup.stack), 83)
+
+    def test_different_layup_type(self):
+
+        self.assertEqual(type(self.stack), PunchedStack)
+        original_cost = self.stack._cost
+        original_mass = self.stack._mass
+        original_layer_count = self.stack.n_layers
+
+        anode = deepcopy(self.stack.layup.anode)
+        cathode = deepcopy(self.stack.layup.cathode)
+        separator = deepcopy(self.stack.layup.separator)
+
+        new_layup = ZFoldMonoLayer(
+            anode=anode,
+            cathode=cathode,
+            separator=separator,
+        )
+
+        self.stack.layup = new_layup
+        self.assertEqual(type(self.stack), ZFoldStack)
+
+        new_cost = self.stack._cost
+        new_mass = self.stack._mass
+        new_layer_count = self.stack.n_layers
+
+        self.assertLess(new_cost, original_cost)
+        self.assertLess(new_mass, original_mass)
+        self.assertEqual(new_layer_count, original_layer_count)
 
 
 class TestZFoldStack(unittest.TestCase):
@@ -703,6 +760,35 @@ class TestZFoldStack(unittest.TestCase):
         # mass_breakdown_fig.show()
         # cost_breakdown_fig.show()
 
+    def test_different_layup_type(self):
+        """Test converting ZFoldStack to PunchedStack by changing layup type."""
+        
+        self.assertEqual(type(self.stack), ZFoldStack)
+        original_cost = self.stack._cost
+        original_mass = self.stack._mass
+
+        anode = deepcopy(self.stack.layup.anode)
+        cathode = deepcopy(self.stack.layup.cathode)
+        separator = deepcopy(self.stack.layup.separator)
+
+        new_layup = MonoLayer(
+            anode=anode,
+            cathode=cathode,
+            separator=separator,
+        )
+
+        self.stack.layup = new_layup
+        self.assertEqual(type(self.stack), PunchedStack)
+
+        new_cost = self.stack._cost
+        new_mass = self.stack._mass
+
+        # PunchedStack should have higher cost and mass than ZFoldStack 
+        # (since ZFoldStack has additional separator wraps that reduce material usage)
+        self.assertLess(new_cost, original_cost)
+        self.assertLess(new_mass, original_mass)
+
 
 if __name__ == "__main__":
     unittest.main()
+

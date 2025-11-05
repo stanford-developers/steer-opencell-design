@@ -73,6 +73,9 @@ class _Layup(
             Name of the layup (default: "Layup").
         """
         self._update_properties = False
+        self._flipped_x = False
+        self._flipped_y = False
+        self._flipped_z = False
 
         self.overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
         self.np_ratio_control_mode = NPRatioControlMode.FIXED_ANODE
@@ -477,6 +480,7 @@ class _Layup(
             self.anode.current_collector = new_anode_current_collector
 
     def get_top_down_view(self, opacity: float = 0.2, **kwargs) -> go.Figure:
+
         # Validate opacity using ColorMixin
         self.validate_opacity(opacity)
 
@@ -484,15 +488,18 @@ class _Layup(
 
         # Get trace groups
         cathode_fig = self._cathode._get_full_top_down_view()
+
+        # Check if separators have the same name and create distinct legend groups
+        separators_same_name = self._bottom_separator.name == self._top_separator.name
+
+        # Prepare all traces first
+        cathode_traces = []
         for i, trace in enumerate(cathode_fig.data):
             trace.name = trace.name + " (Cathode)"
             trace.legendgroup = trace.name + " (Cathode)"
             # Use ColorMixin method to adjust trace opacity
             self.adjust_trace_opacity(trace, opacity)
-            fig.add_trace(trace)
-
-        # Check if separators have the same name and create distinct legend groups
-        separators_same_name = self._bottom_separator.name == self._top_separator.name
+            cathode_traces.append(trace)
 
         # Add bottom separator
         bottom_separator_trace = copy(self._bottom_separator.top_down_trace)
@@ -504,9 +511,9 @@ class _Layup(
             bottom_separator_trace.legendgroup = f"{self._bottom_separator.name}"
         # Use ColorMixin method to adjust trace opacity
         self.adjust_trace_opacity(bottom_separator_trace, opacity)
-        fig.add_trace(bottom_separator_trace)
 
         anode_fig = self._anode._get_full_top_down_view()
+        anode_traces = []
         for i, trace in enumerate(anode_fig.data):
             trace.name = trace.name + " (Anode)"
             trace.legendgroup = trace.name + " (Anode)"
@@ -514,7 +521,7 @@ class _Layup(
             trace.yaxis = "y"
             # Use ColorMixin method to adjust trace opacity
             self.adjust_trace_opacity(trace, opacity)
-            fig.add_trace(trace)
+            anode_traces.append(trace)
 
         # Add top separator
         top_separator_trace = copy(self._top_separator.top_down_trace)
@@ -526,7 +533,24 @@ class _Layup(
             top_separator_trace.legendgroup = f"{self._top_separator.name}"
         # Use ColorMixin method to adjust trace opacity
         self.adjust_trace_opacity(top_separator_trace, opacity)
-        fig.add_trace(top_separator_trace)
+
+        # Add traces in correct order based on x-axis flip state
+        if self._flipped_x:
+            # When flipped in x, add traces in reverse z-order
+            fig.add_trace(top_separator_trace)
+            for trace in anode_traces:
+                fig.add_trace(trace)
+            fig.add_trace(bottom_separator_trace)
+            for trace in cathode_traces:
+                fig.add_trace(trace)
+        else:
+            # Normal order (bottom to top in z)
+            for trace in cathode_traces:
+                fig.add_trace(trace)
+            fig.add_trace(bottom_separator_trace)
+            for trace in anode_traces:
+                fig.add_trace(trace)
+            fig.add_trace(top_separator_trace)
 
         # Calculate overall bounds to fix axis ranges
         all_x = []
@@ -607,71 +631,55 @@ class _Layup(
 
         return fig
 
-    def get_bottom_up_view(self, **kwargs) -> go.Figure:
+    def get_down_top_view(self, opacity: float = 0.2, **kwargs) -> go.Figure:
+        """Generate bottom-up (cross-sectional) view of the layup.
 
-        figure = go.Figure()
+        Parameters
+        ----------
+        **kwargs
+            Additional plotting parameters for customization
 
-        # Add bottom separator trace
-        trace = self.bottom_separator.bottom_up_trace
-        trace.legendgroup = f"{self.bottom_separator.name} (Bottom)"
-        trace.name = f"{self.bottom_separator.name} (Bottom)"
-        figure.add_trace(trace)
+        Returns
+        -------
+        go.Figure
+            Plotly figure with bottom-up view of all layup components
 
-        # Add top separator trace
-        trace = self.top_separator.bottom_up_trace
-        trace.legendgroup = f"{self.top_separator.name} (Top)"
-        trace.name = f"{self.top_separator.name} (Top)"
-        figure.add_trace(trace)
-
-        # Add anode current collector trace
-        trace = self.anode.current_collector.bottom_up_body_trace
-        trace.legendgroup = f"{self.anode.name}"
-        trace.name = f"{self.anode.name}"
-        figure.add_trace(trace)
-
-        # Add anode a side coating trace
-        trace = self.anode.bottom_up_a_side_coating_trace
-        trace.legendgroup = f"{self.anode.name}"
-        trace.name = f"{self.anode.name}"
-        trace.showlegend = False
-        figure.add_trace(trace)
-
-        # Add anode b side coating trace
-        trace = self.anode.bottom_up_b_side_coating_trace
-        trace.legendgroup = f"{self.anode.name}"
-        trace.name = f"{self.anode.name}"
-        trace.showlegend = False
-        figure.add_trace(trace)
-
-        # Add cathode current collector trace
-        trace = self.cathode.current_collector.bottom_up_body_trace
-        trace.legendgroup = f"{self.cathode.name}"
-        trace.name = f"{self.cathode.name}"
-        figure.add_trace(trace)
-
-        # Add cathode a side coating trace
-        trace = self.cathode.bottom_up_a_side_coating_trace
-        trace.legendgroup = f"{self.cathode.name}"
-        trace.name = f"{self.cathode.name}"
-        trace.showlegend = False
-        figure.add_trace(trace)
-
-        # Add cathode b side coating trace
-        trace = self.cathode.bottom_up_b_side_coating_trace
-        trace.legendgroup = f"{self.cathode.name}"
-        trace.name = f"{self.cathode.name}"
-        trace.showlegend = False
-        figure.add_trace(trace)
-
-        figure.update_layout(
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Z_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            **kwargs,
-        )
-
+        Raises
+        ------
+        ValueError
+            If component trace data is missing or invalid
+        """
+        self._flip("x")
+        figure = self.get_top_down_view(opacity=opacity, **kwargs)
+        self._flip("x")
         return figure
+
+    #### ACTIONS ####
+
+    def _flip(self, axis: str) -> None:
+        """
+        Function to rotate the electrode around a specified axis by 180 degrees
+        around the current datum position.
+
+        Parameters
+        ----------
+        axis : str
+            The axis to rotate around. Must be 'x', 'y', or 'z'.
+        """
+        if axis not in ["x", "y", "z"]:
+            raise ValueError("Axis must be 'x', 'y', or 'z'.")
+
+        self._cathode._flip(axis)
+        self._anode._flip(axis)
+        self._bottom_separator._flip(axis)
+        self._top_separator._flip(axis)
+
+        if axis == "x":
+            self._flipped_x = not self._flipped_x
+        if axis == "y":
+            self._flipped_y = not self._flipped_y
+        if axis == "z":
+            self._flipped_z = not self._flipped_z
 
     #### COMPONENT PROPERTY/SETTERS ####
 
@@ -1585,7 +1593,7 @@ class _Layup(
             FIXED_COMPONENT: (0, left + right overhang total)
         """
         from steer_opencell_design.Constructions.Layups.Laminate import Laminate
-        
+
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
             if type(self) == Laminate:
                 return (0.0, 500.0)

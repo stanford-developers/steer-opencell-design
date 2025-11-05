@@ -1,3 +1,4 @@
+import math
 from steer_opencell_design.Constructions.Layups.MonoLayers import MonoLayer, ZFoldMonoLayer
 
 from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
@@ -46,12 +47,13 @@ class _Stack(_ElectrodeAssembly):
 
     def _calculate_geometry_parameters(self) -> None:
         """Calculate geometry parameters - placeholder for implementation."""
-        pass
-
+        self._thickness = sum(component._thickness for component in self._stack.values())
+    
     def _calculate_all_properties(self) -> None:
         """Calculate all properties including stack configuration."""
         self._calculate_stack()
         super()._calculate_all_properties()
+        self._calculate_geometry_parameters()
 
     def _calculate_stack(self) -> Dict[int, Any]:
         
@@ -188,20 +190,35 @@ class _Stack(_ElectrodeAssembly):
         return self._cost
 
     def get_side_view(self, **kwargs):
-
         figure = go.Figure()
-
+        
+        # Track legend groups that have been added
+        legend_groups_added = set()
+        
+        # Collect all traces first, then batch add them
+        all_traces = []
+        
         for _, component in self.stack.items():
             layer_figure = component.get_right_left_view()
             legend_group = component.__class__.__name__
+            
+            # Process all traces from this component at once
             for trace in layer_figure.data:
                 trace.legendgroup = legend_group
                 trace.name = legend_group
-                trace.showlegend = True if legend_group not in [t.legendgroup for t in figure.data] else False
-                # Set line width to 0.5
+                trace.showlegend = legend_group not in legend_groups_added
+                
+                # Set line width efficiently
                 if hasattr(trace, 'line') and trace.line is not None:
                     trace.line.width = 0.1
-                figure.add_trace(trace)
+                    
+                all_traces.append(trace)
+                
+            # Mark this legend group as added
+            legend_groups_added.add(legend_group)
+        
+        # Batch add all traces at once (much faster than individual add_trace calls)
+        figure.add_traces(all_traces)
 
         figure.update_layout(
             xaxis=self.SCHEMATIC_X_AXIS,
@@ -267,6 +284,41 @@ class _Stack(_ElectrodeAssembly):
 
         return new_z_datum, stack
 
+    @classmethod
+    def from_layup(
+        cls, 
+        layup: Union[MonoLayer, ZFoldMonoLayer], 
+        n_layers: int = 1,
+        **kwargs
+    ) -> '_Stack':
+        """Create appropriate stack type from layup.
+        
+        Parameters
+        ----------
+        layup : MonoLayer or ZFoldMonoLayer
+            The layup configuration
+        n_layers : int
+            Number of layers in the stack
+        **kwargs
+            Additional arguments for specific stack types
+            
+        Returns
+        -------
+        _Stack
+            ZFoldStack for ZFoldMonoLayer, PunchedStack for MonoLayer
+        """
+        if isinstance(layup, ZFoldMonoLayer):
+            additional_separator_wraps = kwargs.get('additional_separator_wraps', 1)
+            name = kwargs.get('name', 'ZFoldStack')
+            return ZFoldStack(layup, n_layers, additional_separator_wraps, name)
+            
+        elif isinstance(layup, MonoLayer):
+            name = kwargs.get('name', 'PunchedStack')
+            return PunchedStack(layup, n_layers, name)
+            
+        else:
+            raise ValueError(f"Unsupported layup type: {type(layup)}")
+
     @property
     def stack(self) -> dict:
         """Return the stack of components."""
@@ -275,13 +327,136 @@ class _Stack(_ElectrodeAssembly):
     @property
     def n_layers(self) -> int:
         """Return the number of layers in the stack."""
-        return self._n_layers
+        return round(self._n_layers, 0)
     
+    @property
+    def n_layers_range(self) -> Tuple[int, int]:
+        """Return the valid range for number of layers as a tuple (min, max)."""
+        return (1, 60)
+    
+    @property
+    def n_layers_hard_range(self) -> Tuple[int, int]:
+        """Return the hard range for number of layers as a tuple (min, max)."""
+        return (1, 1000)
+    
+    @property
+    def thickness(self) -> float:
+        """Return the total thickness of the stack in mm."""
+        return round(self._thickness * M_TO_MM, 2)
+    
+    @property
+    def thickness_range(self) -> Tuple[float, float]:
+        """Return the valid range for stack thicknesses in mm as a tuple (min, max)."""
+        min_n_layers, max_n_layers = self.n_layers_range
+        
+        # Calculate thickness for n_layers = 1 and n_layers = 2
+        stack_1 = deepcopy(self)
+        stack_1.n_layers = 1
+        thickness_1 = stack_1._thickness
+        
+        stack_2 = deepcopy(self)
+        stack_2.n_layers = 2
+        thickness_2 = stack_2._thickness
+        
+        # Linear extrapolation: thickness = base + slope * n_layers
+        # From two points: (1, thickness_1) and (2, thickness_2)
+        slope = thickness_2 - thickness_1
+        base = thickness_1 - slope  # thickness at n_layers = 0
+        
+        # Calculate min and max thickness using linear relationship
+        _min_thickness = base + slope * min_n_layers
+        _max_thickness = base + slope * max_n_layers
+
+        return (
+            math.ceil(_min_thickness * M_TO_MM * 100) / 100,
+            math.floor(_max_thickness * M_TO_MM * 100) / 100
+        )
+        
+    @property
+    def thickness_hard_range(self) -> Tuple[float, float]:
+        """Return the valid range for stack thicknesses in mm as a tuple (min, max)."""
+        min_n_layers, max_n_layers = self.n_layers_hard_range
+        
+        # Calculate thickness for n_layers = 1 and n_layers = 2
+        stack_1 = deepcopy(self)
+        stack_1.n_layers = 1
+        thickness_1 = stack_1._thickness
+        
+        stack_2 = deepcopy(self)
+        stack_2.n_layers = 2
+        thickness_2 = stack_2._thickness
+        
+        # Linear extrapolation: thickness = base + slope * n_layers
+        # From two points: (1, thickness_1) and (2, thickness_2)
+        slope = thickness_2 - thickness_1
+        base = thickness_1 - slope  # thickness at n_layers = 0
+        
+        # Calculate min and max thickness using linear relationship
+        _min_thickness = base + slope * min_n_layers
+        _max_thickness = base + slope * max_n_layers
+
+        return (
+            math.ceil(_min_thickness * M_TO_MM * 100) / 100,
+            math.floor(_max_thickness * M_TO_MM * 100) / 100
+        )
+
+    @property
+    def layup(self) -> ZFoldMonoLayer | MonoLayer:
+        return self._layup
+
     @n_layers.setter
     @calculate_all_properties
-    def n_layers(self, value: int):
-        self.validate_positive_int(value, "n_layers")
+    def n_layers(self, value: float):
+        self.validate_positive_float(value, "n_layers")
+        value = int(round(value, 0))
         self._n_layers = value
+
+    @thickness.setter
+    def thickness(self, target_thickness: float) -> None:
+        """Set thickness by calculating required number of layers.
+        
+        Uses the linear relationship between thickness and n_layers to determine
+        the number of layers needed for the target thickness.
+        
+        Parameters
+        ----------
+        target_thickness : float
+            Target thickness in millimeters
+            
+        Raises
+        ------
+        ValueError
+            If target thickness is outside achievable range
+        """
+        # Validate input
+        self.validate_positive_float(target_thickness, "thickness")
+        
+        # Check if target is within achievable range
+        thickness_min, thickness_max = self.thickness_range
+        if target_thickness < thickness_min or target_thickness > thickness_max:
+            raise ValueError(
+                f"Target thickness {target_thickness} mm is outside achievable range of "
+                f"{thickness_min} mm to {thickness_max} mm."
+            )
+        
+        # Get the linear relationship parameters
+        min_n_layers, max_n_layers = self.n_layers_hard_range
+        min_thickness, max_thickness = self.thickness_hard_range
+        
+        # Linear relationship: thickness = base + slope * n_layers
+        slope = (max_n_layers - min_n_layers) / (max_thickness - min_thickness)
+        base = min_n_layers - slope * min_thickness
+
+        # Solve for n_layers: n_layers = (thickness - base) / slope
+        calculated_n_layers = slope * target_thickness + base
+
+        # set 
+        self.n_layers = calculated_n_layers
+
+    @layup.setter
+    @calculate_all_properties  
+    def layup(self, value: Union[MonoLayer, ZFoldMonoLayer]):
+        self._layup = value
 
 
 class ZFoldStack(_Stack):
@@ -371,11 +546,11 @@ class ZFoldStack(_Stack):
     def additional_separator_wraps(self) -> int:
         """Return the number of additional separator wraps."""
         return self._additional_separator_wraps
-
+    
     @property
-    def layup(self) -> ZFoldMonoLayer:
-        """Return the underlying `ZFoldMonoLayer` instance."""
-        return self._layup
+    def additional_separator_wraps_range(self) -> Tuple[int, int]:
+        """Return the valid range for additional separator wraps as a tuple (min, max)."""
+        return (0, 10)
 
     @additional_separator_wraps.setter
     @calculate_bulk_properties
@@ -383,11 +558,39 @@ class ZFoldStack(_Stack):
         self.validate_positive_float(value, "additional_separator_wraps")
         self._additional_separator_wraps = value
 
+    @property
+    def layup(self) -> MonoLayer:
+        return self._layup
+    
     @layup.setter
-    @calculate_all_properties
-    def layup(self, value: ZFoldMonoLayer):
-        self.validate_type(value, ZFoldMonoLayer, "layup")
-        self._layup = value
+    @calculate_all_properties  
+    def layup(self, value: Union[MonoLayer, ZFoldMonoLayer]):
+
+        """Set layup and convert stack type if needed."""
+        self.validate_type(value, (MonoLayer, ZFoldMonoLayer), "layup")
+        
+        if self._update_properties:
+
+            # If layup type changed, convert the entire stack
+            current_layup_type = type(self._layup)
+            new_layup_type = type(value)
+            
+            if current_layup_type != new_layup_type:
+        
+                # Create new stack of appropriate type
+                converted_stack = self.from_layup(
+                    layup=value,
+                    n_layers=self.n_layers,
+                    name=self.name
+                )
+                
+                # Replace current instance with converted stack
+                self.__class__ = converted_stack.__class__
+                self.__dict__.update(converted_stack.__dict__)
+            
+        else:
+            # Same type, just update layup
+            self._layup = value
 
 
 class PunchedStack(_Stack):
@@ -417,14 +620,36 @@ class PunchedStack(_Stack):
     
     @property
     def layup(self) -> MonoLayer:
-        """Return the underlying `MonoLayer` instance."""
         return self._layup
-
+    
     @layup.setter
-    @calculate_all_properties
-    def layup(self, value: MonoLayer):
-        self.validate_type(value, MonoLayer, "layup")
-        self._layup = value
+    @calculate_all_properties  
+    def layup(self, value: Union[MonoLayer, ZFoldMonoLayer]):
 
+        """Set layup and convert stack type if needed."""
+        self.validate_type(value, (MonoLayer, ZFoldMonoLayer), "layup")
+        
+        if self._update_properties:
+
+            # If layup type changed, convert the entire stack
+            current_layup_type = type(self._layup)
+            new_layup_type = type(value)
+            
+            if current_layup_type != new_layup_type:
+        
+                # Create new stack of appropriate type
+                converted_stack = self.from_layup(
+                    layup=value,
+                    n_layers=self.n_layers,
+                    name=self.name
+                )
+                
+                # Replace current instance with converted stack
+                self.__class__ = converted_stack.__class__
+                self.__dict__.update(converted_stack.__dict__)
+            
+        else:
+            # Same type, just update layup
+            self._layup = value
 
 

@@ -438,6 +438,202 @@ class TestSeparator(unittest.TestCase):
         # fig3.show()
         # fig4.show()
 
+    # ========== FLIP TESTS ==========
+
+    def test_flip_x_axis(self):
+        """Test flipping the separator about the x-axis"""
+        # Get original coordinates
+        original_coords = self.separator.coordinates.copy()
+        
+        # Check initial flip state
+        self.assertFalse(self.separator._flipped_x)
+        
+        # Flip about x-axis
+        self.separator._flip("x")
+        
+        # Verify flip state changed
+        self.assertTrue(self.separator._flipped_x)
+        
+        # Get new coordinates after flip
+        flipped_coords = self.separator.coordinates.copy()
+        
+        # Verify coordinates changed
+        self.assertFalse(original_coords.equals(flipped_coords))
+        
+        # Flip back and verify we return to original state
+        self.separator._flip("x")
+        self.assertFalse(self.separator._flipped_x)
+        
+        # Verify coordinates are back to original (within tolerance)
+        restored_coords = self.separator.coordinates.copy()
+        np.testing.assert_allclose(
+            original_coords.values, 
+            restored_coords.values, 
+            rtol=1e-10,
+            err_msg="Coordinates should return to original after double flip"
+        )
+
+    def test_flip_y_axis(self):
+        """Test flipping the separator about the y-axis"""
+        # Get original coordinates
+        original_coords = self.separator.coordinates.copy()
+        
+        # Check initial flip state
+        self.assertFalse(self.separator._flipped_y)
+        
+        # Flip about y-axis
+        self.separator._flip("y")
+        
+        # Verify flip state changed
+        self.assertTrue(self.separator._flipped_y)
+        
+        # Get new coordinates after flip
+        flipped_coords = self.separator.coordinates.copy()
+        
+        # Verify coordinates changed
+        self.assertFalse(original_coords.equals(flipped_coords))
+        
+        # Flip back and verify we return to original state
+        self.separator._flip("y")
+        self.assertFalse(self.separator._flipped_y)
+
+    def test_flip_z_axis(self):
+        """Test flipping the separator about the z-axis"""
+        # Get original coordinates
+        original_coords = self.separator.coordinates.copy()
+        
+        # Check initial flip state
+        self.assertFalse(self.separator._flipped_z)
+        
+        # Flip about z-axis
+        self.separator._flip("z")
+        
+        # Verify flip state changed
+        self.assertTrue(self.separator._flipped_z)
+        
+        # Get new coordinates after flip
+        flipped_coords = self.separator.coordinates.copy()
+        
+        # Verify coordinates changed
+        self.assertFalse(original_coords.equals(flipped_coords))
+        
+        # Flip back and verify we return to original state
+        self.separator._flip("z")
+        self.assertFalse(self.separator._flipped_z)
+
+    def test_flip_invalid_axis(self):
+        """Test that invalid axis raises ValueError"""
+        with self.assertRaises(ValueError) as context:
+            self.separator._flip("invalid")
+        
+        self.assertIn("Axis must be", str(context.exception))
+        
+        # Test other invalid inputs
+        with self.assertRaises(ValueError):
+            self.separator._flip("X")  # Capital letter
+            
+        with self.assertRaises(ValueError):
+            self.separator._flip("xy")  # Multiple axes
+
+    def test_flip_without_length_raises_error(self):
+        """Test that flipping without length set raises appropriate error"""
+        separator_material = SeparatorMaterial.from_database(name="Nafion")
+        separator_no_length = Separator(material=separator_material, thickness=25, width=50)
+        
+        # Should raise error when trying to flip without coordinates
+        with self.assertRaises(AttributeError):
+            separator_no_length._flip("x")
+
+    def test_multiple_axis_flips(self):
+        """Test flipping about multiple axes in sequence"""
+        original_coords = self.separator.coordinates.copy()
+        
+        # Flip about x and y axes (should result in different coordinates)
+        self.separator._flip("x")
+        self.separator._flip("y")
+        
+        # Check flip states are True for x and y
+        self.assertTrue(self.separator._flipped_x)
+        self.assertTrue(self.separator._flipped_y)
+        self.assertFalse(self.separator._flipped_z)  # z should still be False
+        
+        # Get coordinates after x and y flips
+        xy_flipped_coords = self.separator.coordinates.copy()
+        
+        # Verify coordinates changed from original
+        self.assertFalse(original_coords.equals(xy_flipped_coords))
+        
+        # Now flip about z-axis as well
+        self.separator._flip("z")
+        self.assertTrue(self.separator._flipped_z)
+        
+        # Get coordinates after all three flips  
+        triple_flipped_coords = self.separator.coordinates.copy()
+        
+        # Note: Flipping 180° about all three axes mathematically returns to original position
+        # This is expected behavior, so we verify the flip states are correct
+        self.assertTrue(self.separator._flipped_x)
+        self.assertTrue(self.separator._flipped_y)
+        self.assertTrue(self.separator._flipped_z)
+        
+        # Flip back all axes
+        self.separator._flip("x")
+        self.separator._flip("y")
+        self.separator._flip("z")
+        
+        # Check all flip states are False
+        self.assertFalse(self.separator._flipped_x)
+        self.assertFalse(self.separator._flipped_y)
+        self.assertFalse(self.separator._flipped_z)
+
+    def test_flip_preserves_other_properties(self):
+        """Test that flipping doesn't change other separator properties"""
+        # Record original properties
+        original_thickness = self.separator.thickness
+        original_width = self.separator.width
+        original_length = self.separator.length
+        original_area = self.separator.area
+        original_mass = self.separator.mass
+        original_cost = self.separator.cost
+        original_datum = self.separator.datum
+        
+        # Flip the separator
+        self.separator._flip("x")
+        
+        # Verify all properties remain the same
+        self.assertEqual(self.separator.thickness, original_thickness)
+        self.assertEqual(self.separator.width, original_width)
+        self.assertEqual(self.separator.length, original_length)
+        self.assertEqual(self.separator.area, original_area)
+        self.assertEqual(self.separator.mass, original_mass)
+        self.assertEqual(self.separator.cost, original_cost)
+        self.assertEqual(self.separator.datum, original_datum)
+
+    def test_flip_and_visualize(self):
+        """Test that flipped separator can generate visualizations"""
+        # Flip the separator
+        self.separator._flip("y")
+        
+        # Test that all visualization methods work after flipping
+        fig_top = self.separator.get_top_down_view()
+        fig_right = self.separator.get_right_left_view()
+        fig_bottom = self.separator.get_bottom_up_view()
+        
+        # Verify figures were created
+        self.assertIsInstance(fig_top, go.Figure)
+        self.assertIsInstance(fig_right, go.Figure)
+        self.assertIsInstance(fig_bottom, go.Figure)
+        
+        # Verify figures have traces
+        self.assertGreater(len(fig_top.data), 0)
+        self.assertGreater(len(fig_right.data), 0)
+        self.assertGreater(len(fig_bottom.data), 0)
+        
+        # Uncomment to visualize flipped separator
+        # fig_top.show()
+        # fig_right.show()
+        # fig_bottom.show()
+
 
 if __name__ == "__main__":
     unittest.main()
