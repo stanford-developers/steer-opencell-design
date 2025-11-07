@@ -6,6 +6,8 @@ import pandas as pd
 from shapely.geometry import Polygon, Point
 from shapely import minimum_bounding_circle
 
+from steer_core.Mixins.Coordinates import CoordinateMixin
+
 # Constants for array column indices
 THETA_COL = 0
 X_UNWRAPPED_COL = 1
@@ -16,7 +18,7 @@ TURNS_COL = 5
 
 # Constants for calculations
 TWO_PI = 2.0 * PI
-DEFAULT_DTHETA = 0.4
+DEFAULT_DTHETA = 0.5
 DEFAULT_DS_TARGET = 0.5e-3
 DEFAULT_PRESSED_HEIGHT = 0.0008
 TARGET_ERROR = 5e-5
@@ -260,7 +262,7 @@ class SpiralCalculator:
             If component mapping fails or invalid geometry is encountered
         """
         component_spirals = {}
-        
+
         # Component names in processing order
         component_names = [n for n in layup._flattened_center_lines.keys()]
         
@@ -272,18 +274,33 @@ class SpiralCalculator:
                 'x_coords': center_line[:, 0],
                 'z_coords': center_line[:, 1],
                 'x_min': np.min(center_line[:, 0]),
-                'x_max': np.max(center_line[:, 0])
+                'x_max': np.max(center_line[:, 0]),
             }
         
         # Process each component
         for component_name in component_names:
                 
+            # get the center line data
             cl_data = center_line_data[component_name]
-            
+
             # Vectorized spiral clipping using boolean mask
-            x_unwrapped = base_spiral[:, 1]  # Extract x_unwrapped column
-            mask = (x_unwrapped >= cl_data['x_min']) & (x_unwrapped <= cl_data['x_max'])
-            
+            x_unwrapped = base_spiral[:, X_UNWRAPPED_COL]  # Extract x_unwrapped column
+
+            # pad first and last row of cl_data with a row of NaNs
+            component_x = cl_data['x_coords']
+            component_x = np.concatenate(([np.nan], component_x, [np.nan]))
+
+            # divide component x into groups based on the nan values
+            isnan = np.isnan(component_x)
+            edges = np.flatnonzero(np.diff(np.concatenate(([True], ~isnan, [True]))))
+            segments = [component_x[start:end] for start, end in zip(edges[:-1], edges[1:]) if not np.isnan(component_x[start])]
+
+            # create mask for each segment and combine them
+            mask = np.zeros_like(x_unwrapped, dtype=bool)
+            for segment in segments:
+                x_min, x_max = np.min(segment), np.max(segment)
+                mask |= (x_unwrapped >= x_min) & (x_unwrapped <= x_max)
+
             # Apply mask to get component spiral slice
             component_spiral = base_spiral[mask].copy()
             
@@ -306,6 +323,9 @@ class SpiralCalculator:
             theta_start_component = component_spiral[0, THETA_COL]  # Starting theta for this component
             theta_traveled_component = theta_start_component - component_spiral[:, THETA_COL]  # Angle traveled from component start
             component_spiral[:, TURNS_COL] = theta_traveled_component / TWO_PI  # Turns relative to component start
+
+            # insert nan rows every time there is a gap
+            component_spiral = CoordinateMixin.insert_gaps_with_nans(component_spiral, X_UNWRAPPED_COL)
             
             component_spirals[component_name] = component_spiral
 
@@ -357,50 +377,61 @@ class SpiralCalculator:
         # Process each component that has a center line spiral
         for component_name in components:
 
+            extruded_segments = []
             thickness = component_thicknesses.get(component_name, 0.0)
-
             center_spiral = component_spirals[component_name]
-            half_thickness = thickness / 2.0
-            
-            # Create outer spiral (center + thickness/2)
-            outer_spiral = center_spiral.copy()
-            outer_spiral[:, 2] += half_thickness  # Increase radius
-            
-            # Update outer spiral coordinates
-            outer_spiral[:, 3] = outer_spiral[:, 2] * np.cos(outer_spiral[:, 0])  # x coordinates
-            outer_spiral[:, 4] = outer_spiral[:, 2] * np.sin(outer_spiral[:, 0])  # z coordinates
-            
-            # Create inner spiral (center - thickness/2)
-            inner_spiral = center_spiral.copy()
-            inner_spiral[:, 2] -= half_thickness  # Decrease radius
-            
-            # Update inner spiral coordinates
-            inner_spiral[:, 3] = inner_spiral[:, 2] * np.cos(inner_spiral[:, 0])  # x coordinates
-            inner_spiral[:, 4] = inner_spiral[:, 2] * np.sin(inner_spiral[:, 0])  # z coordinates
-            
-            # Reverse inner spiral direction for proper winding (creates closed shape)
-            inner_spiral_reversed = inner_spiral[::-1, :]
-            
-            # Add transition padding points to smooth spline interpolation
-            # Duplicate end points to create smooth transitions
-            outer_end_padding = np.tile(outer_spiral[-1, :], (2, 1))
-            inner_start_padding = np.tile(inner_spiral_reversed[0, :], (2, 1))
-            
-            # Combine into filled shape: outer → padding → inner (reversed) → close
-            if len(outer_spiral) > 0 and len(inner_spiral_reversed) > 0:
-                filled_spiral = np.vstack([
-                    outer_spiral,           # Outer boundary
-                    outer_end_padding,      # Smooth transition
-                    inner_start_padding,    # Smooth transition  
-                    inner_spiral_reversed   # Inner boundary (reversed)
-                ])
-            else:
-                # Fallback for edge cases
-                filled_spiral = outer_spiral
-            
-            extruded_spirals[component_name] = filled_spiral
+        
+            # make into segments
+            single_nan_row = np.array([[np.nan] * center_spiral.shape[1]])
+            padded_spiral = np.vstack([single_nan_row, center_spiral, single_nan_row])
+            isnan = np.isnan(padded_spiral[:, 1])
+            edges = np.flatnonzero(np.diff(np.concatenate(([True], ~isnan, [True]))))
+            segments = [padded_spiral[start:end] for start, end in zip(edges[:-1], edges[1:]) if not np.isnan(padded_spiral[start, 1])]
+
+            for segment in segments:
+                filled_spiral = SpiralCalculator._extrude_single_spiral(segment, thickness)
+                filled_spiral = np.vstack([filled_spiral, single_nan_row])
+                extruded_segments.append(filled_spiral)
+
+            # remove last nan row if it exists to avoid trailing NaNs in the final spiral
+            extruded_segments[-1] = extruded_segments[-1][:-1, :]
+            extruded_spiral = np.vstack(extruded_segments)
+            extruded_spirals[component_name] = extruded_spiral
 
         return extruded_spirals
+
+    @staticmethod
+    def _extrude_single_spiral(spiral, thickness) -> np.array:
+
+        half_thickness = thickness / 2.0
+        outer_spiral = spiral.copy()
+        outer_spiral[:, 2] += half_thickness  # Increase radius
+        outer_spiral[:, 3] = outer_spiral[:, 2] * np.cos(outer_spiral[:, 0])  # x coordinates
+        outer_spiral[:, 4] = outer_spiral[:, 2] * np.sin(outer_spiral[:, 0])  # z coordinates
+
+        inner_spiral = spiral.copy()
+        inner_spiral[:, 2] -= half_thickness  # Decrease radius
+        inner_spiral[:, 3] = inner_spiral[:, 2] * np.cos(inner_spiral[:, 0])  # x coordinates
+        inner_spiral[:, 4] = inner_spiral[:, 2] * np.sin(inner_spiral[:, 0])  # z coordinates
+
+        inner_spiral_reversed = inner_spiral[::-1, :]
+
+        # add transition padding points to smooth spline interpolation
+        outer_end_padding = np.tile(outer_spiral[-1, :], (2, 1))
+        inner_start_padding = np.tile(inner_spiral_reversed[0, :], (2, 1))
+
+        # combine into filled shape: outer → padding → inner (reversed) → close
+        if len(outer_spiral) > 0 and len(inner_spiral_reversed) > 0:
+            filled_spiral = np.vstack([
+                outer_spiral,           # Outer boundary
+                outer_end_padding,      # Smooth transition
+                inner_start_padding,    # Smooth transition  
+                inner_spiral_reversed   # Inner boundary (reversed)
+            ])
+        else:
+            filled_spiral = outer_spiral
+
+        return filled_spiral
 
     @staticmethod
     def get_radius_of_spiral(coords: np.ndarray) -> float:
@@ -903,15 +934,23 @@ class SpiralCalculator:
             If input array has incorrect shape or invalid data
         """   
         # Pre-compute all conversions in numpy (much faster than pandas operations)
-        theta_deg = np.abs(np_array[:, THETA_COL] * (180.0 / PI) - 90)
-        length_mm = (np_array[:, X_UNWRAPPED_COL] - np.min(np_array[:, X_UNWRAPPED_COL])) * M_TO_MM
-        r_mm = np_array[:, RADIUS_COL] * M_TO_MM
-        x_mm = np_array[:, X_COORD_COL] * M_TO_MM
-        z_mm = np_array[:, Z_COORD_COL] * M_TO_MM
-        turns = np_array[:, TURNS_COL]  # Number of turns (dimensionless)
+        # Handle NaN values properly during conversions
+        theta_raw = np_array[:, THETA_COL]
+        theta_deg = np.where(np.isnan(theta_raw), np.nan, np.abs(theta_raw * (180.0 / PI) - 90))
         
-        # Create DataFrame directly with final column names and converted values
-        return pd.DataFrame({
+        x_unwrapped_raw = np_array[:, X_UNWRAPPED_COL]
+        # Calculate min only from non-NaN values for proper offset
+        valid_x_unwrapped = x_unwrapped_raw[~np.isnan(x_unwrapped_raw)]
+        x_min = np.min(valid_x_unwrapped) if len(valid_x_unwrapped) > 0 else 0.0
+        length_mm = np.where(np.isnan(x_unwrapped_raw), np.nan, (x_unwrapped_raw - x_min) * M_TO_MM)
+        
+        r_mm = np.where(np.isnan(np_array[:, RADIUS_COL]), np.nan, np_array[:, RADIUS_COL] * M_TO_MM)
+        x_mm = np.where(np.isnan(np_array[:, X_COORD_COL]), np.nan, np_array[:, X_COORD_COL] * M_TO_MM)
+        z_mm = np.where(np.isnan(np_array[:, Z_COORD_COL]), np.nan, np_array[:, Z_COORD_COL] * M_TO_MM)
+        turns = np.where(np.isnan(np_array[:, TURNS_COL]), np.nan, np_array[:, TURNS_COL])
+        
+        # Create DataFrame with NaN values preserved (pandas will convert NaN to None where appropriate)
+        df = pd.DataFrame({
             "Theta (degrees)": theta_deg,
             "Unwrapped Length (mm)": length_mm,
             "Radius (mm)": r_mm,
@@ -919,6 +958,11 @@ class SpiralCalculator:
             "Z (mm)": z_mm,
             "Turns": turns,
         })
+        
+        # Convert NaN to None for better representation in pandas
+        df = df.where(pd.notna(df), None)
+        
+        return df
 
     @staticmethod  
     def build_component_racetracks(base_spiral, layup, mandrel_radius, straight_length, original_mandrel_radius):

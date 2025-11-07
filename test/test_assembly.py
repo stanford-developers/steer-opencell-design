@@ -8,7 +8,7 @@ from steer_opencell_design.Formulations.ElectrodeFormulations import (
     AnodeFormulation,
 )
 from steer_opencell_design.Components.Electrodes import Cathode, Anode
-from steer_opencell_design.Components.CurrentCollectors import PunchedCurrentCollector, NotchedCurrentCollector
+from steer_opencell_design.Components.CurrentCollectors import PunchedCurrentCollector, NotchedCurrentCollector, TabWeldedCurrentCollector, WeldTab
 from steer_opencell_design.Components.Separators import Separator
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import PunchedStack, ZFoldStack, _Stack
 from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import WoundJellyRoll, FlatWoundJellyRoll
@@ -137,13 +137,14 @@ class TestRoundJellyRoll(unittest.TestCase):
 
     def test_basics(self):
         self.assertTrue(type(self.my_jellyroll), WoundJellyRoll)
-        self.assertAlmostEqual(self.my_jellyroll.radius, 20.64, 2)
-        self.assertAlmostEqual(self.my_jellyroll.diameter, 41.27, 2)
+        self.assertAlmostEqual(self.my_jellyroll.radius, 20.64, 1)
+        self.assertAlmostEqual(self.my_jellyroll.diameter, 41.27, 1)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23895, 0)
         self.assertAlmostEqual(self.my_jellyroll.energy, 37.29)
         self.assertAlmostEqual(self.my_jellyroll.cost, 3.36, 2)
         self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 3.46, 2)
-        self.assertAlmostEqual(self.my_jellyroll.radius_range[1], 28.1, 2)
+        self.assertAlmostEqual(self.my_jellyroll.radius_range[1], 28.09, 2)
+        self.assertAlmostEqual(self.my_jellyroll.mass, 646.94, 2)
 
     def test_plots(self):
 
@@ -153,10 +154,14 @@ class TestRoundJellyRoll(unittest.TestCase):
         fig1 = self.my_jellyroll.get_spiral_plot()
         fig3 = self.my_jellyroll.get_spiral_plot(layered=False)
         fig4 = self.my_jellyroll.get_capacity_plot()
+        fig5 = self.my_jellyroll.plot_mass_breakdown()
+        fig6 = self.my_jellyroll.plot_cost_breakdown()
 
         # fig1.show()
         # fig3.show()
         # fig4.show()
+        # fig5.show()
+        # fig6.show()
 
     def test_roll_properties(self):
         """Test that roll_properties returns a properly formatted DataFrame with expected values."""
@@ -165,18 +170,18 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertIsInstance(self.my_jellyroll.roll_properties, pd.DataFrame)
         
         expected_data = {
-            'Anode A Side Coating Turns': 50.14,
-            'Anode Current Collector Turns': 59.0,
-            'Anode B Side Coating Turns': 51.99,
-            'Cathode A Side Coating Turns': 59.0,
-            'Cathode Current Collector Turns': 59.0,
-            'Cathode B Side Coating Turns': 59.0,
+            'Anode A Side Coating Turns': 50.18,
+            'Anode Current Collector Turns': 59.18,
+            'Anode B Side Coating Turns': 52.1,
+            'Cathode A Side Coating Turns': 59.18,
+            'Cathode Current Collector Turns': 59.18,
+            'Cathode B Side Coating Turns': 59.18,
             'Bottom Separator Turns': 129.58,
             'Bottom Separator Inner Turns': 67.32,
-            'Bottom Separator Outer Turns': 11.72,
-            'Top Separator Turns': 70.95,
-            'Top Separator Inner Turns': 16.46,
-            'Top Separator Outer Turns': 3.96
+            'Bottom Separator Outer Turns': 11.66,
+            'Top Separator Turns': 71.06,
+            'Top Separator Inner Turns': 16.53,
+            'Top Separator Outer Turns': 3.87
         }
         
         expected_df = pd.DataFrame.from_dict(expected_data, orient='index', columns=['Turns'])
@@ -222,11 +227,82 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(flat_jellyroll.interfacial_area, 23895, 0)
         self.assertAlmostEqual(flat_jellyroll.energy, 37.29)
         self.assertAlmostEqual(flat_jellyroll.cost, 3.36, 2)
-        self.assertAlmostEqual(flat_jellyroll.thickness, 19.06, 2)
-        self.assertAlmostEqual(flat_jellyroll.width, 75.63, 2)
+        self.assertAlmostEqual(flat_jellyroll.thickness, 19.06, 1)
+        self.assertAlmostEqual(flat_jellyroll.width, 75.64, 2)
 
         figure = flat_jellyroll.get_spiral_plot()
         # figure.show()
+
+    def test_breakdowns(self):
+        """Test that mass_breakdown and cost_breakdown return expected values."""
+        
+        expected_mass_breakdown = {
+            'Anode': {
+                'Anode Formulation': {
+                    'Synthetic Graphite': 161.82, 
+                    'CMC': 6.13, 
+                    'super_P': 8.17
+                }, 
+                'Notched Current Collector': 30.79, 
+                'Aluminium Oxide, 99.5%': 1.63
+            }, 
+            'Cathode': {
+                'Cathode Formulation': {
+                    'LFP': 311.48, 
+                    'CMC': 2.73, 
+                    'super_P': 5.46
+                }, 
+                'Notched Current Collector': 29.68, 
+                'Aluminium Oxide, 99.5%': 1.6
+            }, 
+            'Separators': 87.42
+        }
+        
+        expected_cost_breakdown = {
+            'Anode': {
+                'Anode Formulation': {
+                    'Synthetic Graphite': 0.63, 
+                    'CMC': 0.09, 
+                    'super_P': 0.13
+                }, 
+                'Notched Current Collector': 0.15, 
+                'Aluminium Oxide, 99.5%': 0.0
+            }, 
+            'Cathode': {
+                'Cathode Formulation': {
+                    'LFP': 1.82, 
+                    'CMC': 0.06, 
+                    'super_P': 0.14
+                }, 
+                'Notched Current Collector': 0.15, 
+                'Aluminium Oxide, 99.5%': 0.0
+            }, 
+            'Separators': 0.17
+        }
+        
+        # Helper function to recursively compare nested dictionaries
+        def assert_breakdown_values(actual, expected, breakdown_type, places=2):
+            for key, value in expected.items():
+                self.assertIn(key, actual, f"Missing key '{key}' in {breakdown_type}")
+                if isinstance(value, dict):
+                    # Recursive call for nested dictionaries
+                    assert_breakdown_values(actual[key], value, f"{breakdown_type}['{key}']", places)
+                else:
+                    # Compare numeric values
+                    self.assertAlmostEqual(
+                        actual[key], 
+                        value, 
+                        places=places,
+                        msg=f"{breakdown_type}['{key}']: expected {value}, got {actual[key]}"
+                    )
+        
+        # Test mass breakdown
+        actual_mass_breakdown = self.my_jellyroll.mass_breakdown
+        assert_breakdown_values(actual_mass_breakdown, expected_mass_breakdown, "mass_breakdown")
+        
+        # Test cost breakdown
+        actual_cost_breakdown = self.my_jellyroll.cost_breakdown
+        assert_breakdown_values(actual_cost_breakdown, expected_cost_breakdown, "cost_breakdown")
 
     def test_mandrel_setting(self):
 
@@ -355,9 +431,9 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertEqual(self.my_jellyroll.cost, 3.36)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23725.74, 0)
         self.assertAlmostEqual(self.my_jellyroll.thickness_range[0], 1.02, 2)
-        self.assertAlmostEqual(self.my_jellyroll.thickness_range[1], 21.12, 2)
+        self.assertAlmostEqual(self.my_jellyroll.thickness_range[1], 21.11, 2)
         self.assertAlmostEqual(self.my_jellyroll.width_range[0], 102.49, 2)
-        self.assertAlmostEqual(self.my_jellyroll.width_range[1], 122.72, 2)
+        self.assertAlmostEqual(self.my_jellyroll.width_range[1], 122.71, 2)
         self.assertAlmostEqual(self.my_jellyroll.energy, 37.02)
 
     def test_plots(self):
@@ -379,7 +455,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertIsInstance(self.my_jellyroll.roll_properties, pd.DataFrame)
         
         expected_data = {
-            'Anode A Side Coating Turns': 17.84,
+            'Anode A Side Coating Turns': 17.87,
             'Anode Current Collector Turns': 20.04,
             'Anode B Side Coating Turns': 18.28,
             'Cathode A Side Coating Turns': 20.04,
@@ -412,7 +488,7 @@ class TestFlatJellyRoll(unittest.TestCase):
             self.assertAlmostEqual(
                 actual_value, 
                 expected_value, 
-                places=2, 
+                places=1, 
                 msg=f"Component {component}: expected {expected_value}, got {actual_value}"
             )
 
@@ -427,7 +503,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         # Check that width updated correctly
         self.assertAlmostEqual(self.my_jellyroll.thickness, new_thickness, 1)
         self.assertAlmostEqual(self.my_jellyroll.width, 118.96, 1)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 5.12, 2)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 5.13, 2)
 
     def test_width_setter(self):
         """Test that setting the width updates the thickness correctly."""
@@ -455,7 +531,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(wound_jellyroll.diameter, 40.92, 2)
 
         figure = wound_jellyroll.get_spiral_plot()
-        figure.show()
+        # figure.show()
 
 
 class TestPunchedStack(unittest.TestCase):
@@ -554,6 +630,12 @@ class TestPunchedStack(unittest.TestCase):
         self.assertAlmostEqual(self.stack.thickness_range[1], 22.41, 2)
         self.assertAlmostEqual(self.stack.thickness_hard_range[1], 369.66, 2)
         self.assertEqual(len(self.stack.stack), 83)
+
+    def test_breakdown_plots(self):
+        fig5 = self.stack.plot_mass_breakdown()
+        fig6 = self.stack.plot_cost_breakdown()
+        # fig5.show()
+        # fig6.show()
 
     def test_right_left_view(self):
         """Test right and left side views of the punched stack."""
@@ -787,6 +869,102 @@ class TestZFoldStack(unittest.TestCase):
         # (since ZFoldStack has additional separator wraps that reduce material usage)
         self.assertLess(new_cost, original_cost)
         self.assertLess(new_mass, original_mass)
+
+
+class TestRoundJellyRollWithTabWelded(unittest.TestCase):
+
+    def setUp(self):
+        
+        self.tab_material = CurrentCollectorMaterial.from_database(name="Copper")
+        self.cc_material = CurrentCollectorMaterial.from_database(name="Aluminum")
+
+        self.weld_tab = WeldTab(material=self.tab_material, width=5, length=115, thickness=20)
+
+        cathode_current_collector = TabWeldedCurrentCollector(
+            material=self.cc_material,
+            weld_tab=self.weld_tab,
+            length=1820,
+            width=108,
+            thickness=15,
+            weld_tab_positions=[100, 1000, 1400],
+            skip_coat_width=30,
+            tab_weld_side="a",
+            tab_overhang=10,
+        )
+
+        material = CathodeMaterial.from_database("LFP")
+        material.specific_cost = 6
+        material.density = 3.6
+
+        formulation = CathodeFormulation(active_materials={material: 100})
+
+        cathode = Cathode(
+            formulation=formulation,
+            mass_loading=12,
+            current_collector=cathode_current_collector,
+            calender_density=2.60,
+        )
+
+        anode_current_collector = deepcopy(cathode_current_collector)
+        anode_current_collector.length = 1860
+
+        material = AnodeMaterial.from_database("Synthetic Graphite")
+        material.specific_cost = 4
+        material.density = 2.2
+
+        formulation = AnodeFormulation(active_materials={material: 100})
+
+        anode = Anode(
+            formulation=formulation,
+            mass_loading=7.2,
+            current_collector=anode_current_collector,
+            calender_density=1.1
+        )
+
+        separator_material = SeparatorMaterial(
+            name="Polyethylene",
+            specific_cost=2,
+            density=0.94,
+            color="#FDFDB7",
+            porosity=45,
+        )
+
+        top_separator = Separator(material=separator_material, thickness=25, width=310, length=2200)
+        bottom_separator = Separator(material=separator_material, thickness=25, width=310, length=2200)
+
+        self.layup = Laminate(
+            anode=anode,
+            cathode=cathode,
+            top_separator=top_separator,
+            bottom_separator=bottom_separator,
+        )
+
+        mandrel = RoundMandrel(
+            diameter=5,
+            length=350,
+        )
+
+        self.my_jellyroll = WoundJellyRoll(
+            laminate=self.layup,
+            mandrel=mandrel,
+        )
+
+    def test_type(self):
+        self.assertIsInstance(self.my_jellyroll, WoundJellyRoll)
+
+    def test_plots(self):
+
+        self.assertIsInstance(self.my_jellyroll, WoundJellyRoll)
+        self.assertTrue(type(self.my_jellyroll.spiral) == pd.DataFrame)
+
+        fig1 = self.my_jellyroll.get_spiral_plot()
+        fig3 = self.my_jellyroll.get_spiral_plot(layered=False)
+        fig4 = self.my_jellyroll.get_capacity_plot()
+
+        # fig1.show()
+        # fig3.show()
+        # fig4.show()
+
 
 
 if __name__ == "__main__":

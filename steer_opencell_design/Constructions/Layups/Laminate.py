@@ -108,51 +108,62 @@ class Laminate(_Layup):
             ("top_separator", self._top_separator.get_center_line(), self._top_separator._thickness),
         ]
 
-        # Gather all x breakpoints
+        # Gather all x end points
         x_breaks = []
         for _, coords, _ in layer_specs:
-            if len(coords) == 0:
-                continue
             x_breaks.append(coords[0, 0])
             x_breaks.append(coords[-1, 0])
 
-        if not x_breaks:
-            self._flattened_center_lines = {}
-            self._layer_thickness_map = {}
-            self._top_surface = None
-            return {}
-
+        # Create common x-sampling grid
+        # Get the min and max x values
         x_min, x_max = min(x_breaks), max(x_breaks)
-        # Resolution: sample ~1000 points across full span (consistent w/ prior n=1000)
-        n_samples = 1000
+        # Set the number of samples
+        n_samples = int(self._total_length * 500)  # 1 sample per mm
+        # make the x array
         x = np.linspace(x_min, x_max, n_samples)
 
-        # Baseline directly below lowest layer (use cathode b-side lower surface)
-        baseline_z = (
-            np.min(self._cathode.get_b_side_center_line()[:, 1])
-            - self._cathode._coating_thickness / 2
-        )
+        # Create baseline directly below lowest layer (use cathode b-side lower surface)
+        # Get the cathode z coordinates
+        cathode_b_side_coords_z = layer_specs[0][1][:, 1]
+        # Remove potential NaNs from skip coats
+        cathode_b_side_coords_z = cathode_b_side_coords_z[~np.isnan(cathode_b_side_coords_z)]
+        # Find minimum z
+        zmin = np.min(cathode_b_side_coords_z)
+        # Go half thickness of b side coating below
+        baseline_z = zmin - layer_specs[0][2] / 2
+        # turn into array
         baseline = np.column_stack((x, np.full_like(x, baseline_z)))
 
-        # Coverage masks & thickness arrays
+        # build layer masks
         layer_masks = []
-        layer_thicknesses = []
-        for _, coords, thickness in layer_specs:
-            if len(coords) == 0:
-                layer_masks.append(np.zeros_like(x, dtype=bool))
-            else:
+        for _, coords, _ in layer_specs:
+            # If no nans then limit mask around min/max x
+            if not np.isnan(coords).any():
                 x0, x1 = coords[0, 0], coords[-1, 0]
                 layer_masks.append((x >= x0) & (x <= x1))
-            layer_thicknesses.append(thickness)
+                continue
+            # otherwise build mask from segments
+            else:
+                # make the default mask
+                mask = np.zeros_like(x, dtype=bool)
+                nan_rows = np.isnan(coords[:, 0])
+                groups = np.split(coords[:, 0], np.where(nan_rows)[0])
+                # iterate groups and build mask from non-nan segments
+                for i, g in enumerate(groups):
+                    g = g[~np.isnan(g)]
+                    xmin = g[0]
+                    xmax = g[-1]
+                    mask |= (x >= xmin) & (x <= xmax)
+            layer_masks.append(mask)
 
-        layer_masks = np.array(layer_masks)  # shape (L, N)
+        # Layer thicknesses array
+        layer_thicknesses = [spec[2] for spec in layer_specs]
         layer_thicknesses = np.array(layer_thicknesses)  # shape (L,)
 
         # Cumulative thickness below each layer (exclude that layer's own thickness)
-        cumulative_below = (
-            np.cumsum(layer_thicknesses[:, None] * layer_masks, axis=0)
-            - (layer_thicknesses[:, None] * layer_masks)
-        )
+        cumalitive_below_including_self = np.cumsum(layer_thicknesses[:, None] * layer_masks, axis=0)
+        self_thickness = layer_thicknesses[:, None] * layer_masks
+        cumulative_below = cumalitive_below_including_self - self_thickness
 
         # Raw total thickness profile (top surface w/out baseline offset)
         raw_total_thickness = np.sum(layer_thicknesses[:, None] * layer_masks, axis=0)
@@ -163,13 +174,15 @@ class Laminate(_Layup):
         layer_thickness_map = {}
         for i, (name, _coords, thickness) in enumerate(layer_specs):
             mask = layer_masks[i]
-            if not np.any(mask):
-                flattened[name] = np.empty((0, 2))
-                layer_thickness_map[name] = thickness
-                continue
             center_z = baseline_z + cumulative_below[i, mask] + thickness / 2
             flattened[name] = np.column_stack((x[mask], center_z))
             layer_thickness_map[name] = thickness
+
+        # for each line, add one NaN row at each gap in x coordinates
+        for name in flattened.keys():
+            coords = flattened[name]
+            coords = self.insert_gaps_with_nans(coords, 0)
+            flattened[name] = coords
 
         # Persist for downstream usage
         self._flattened_center_lines = flattened
@@ -245,6 +258,7 @@ class Laminate(_Layup):
         
         # Stack all coordinates and find global bounds
         all_coords = np.vstack(coordinate_arrays)
+        all_coords = all_coords[~np.isnan(all_coords).any(axis=1)]
         min_coords = np.min(all_coords, axis=0)
         max_coords = np.max(all_coords, axis=0)
         
@@ -255,77 +269,6 @@ class Laminate(_Layup):
         self._start_position = tuple(min_coords)
 
         return self._total_length, self._start_position
-    
-    def _smooth_center_line(self, center_line: np.ndarray) -> np.ndarray:
-        """
-        Smooth center line by removing points around z-value jumps.
-        
-        Parameters
-        ----------
-        center_line : np.ndarray
-            Array with x values in column 0 and z values in column 1
-            
-        Returns
-        -------
-        np.ndarray
-            Smoothed center line with points removed around jumps
-        """
-        if len(center_line) < 2:
-            return center_line
-        
-        x_coords = center_line[:, 0]
-        z_coords = center_line[:, 1]
-        
-        # Calculate z differences between consecutive points
-        z_diffs = np.diff(z_coords)
-        
-        # Find significant jumps (use a small threshold to detect actual jumps)
-        jump_threshold = 1e-6  # Small threshold to detect meaningful jumps
-        jump_indices = np.where(np.abs(z_diffs) > jump_threshold)[0]
-        
-        if len(jump_indices) == 0:
-            return center_line
-        
-        # Create mask for points to keep
-        keep_mask = np.ones(len(center_line), dtype=bool)
-        
-        for jump_idx in jump_indices:
-            z_diff = z_diffs[jump_idx]  # Signed z difference
-            z_jump = np.abs(z_diff)     # Size of the z jump
-            removal_distance = 0 * z_jump  # Remove 5 times the jump size
-            x_jump = x_coords[jump_idx]
-            
-            if z_diff > 0:  # Z jumps up - remove x values before the jump
-                removal_mask = (x_coords >= (x_jump - removal_distance)) & (x_coords <= x_jump)
-            else:  # Z jumps down - remove x values after the jump
-                x_after_jump = x_coords[jump_idx + 1] if jump_idx + 1 < len(x_coords) else x_jump
-                removal_mask = (x_coords >= x_after_jump) & (x_coords <= (x_after_jump + removal_distance))
-            
-            keep_mask = keep_mask & ~removal_mask
-        
-        return center_line[keep_mask]
-    
-    def _check_coordinate_intersection(self, coordinates, x_position: float) -> bool:
-        """Helper function to check if x_position intersects with given coordinates.
-        
-        Parameters
-        ----------
-        coordinates : np.ndarray or None
-            Coordinate array to check intersection with
-        x_position : float
-            The x position to check in meters
-            
-        Returns
-        -------
-        bool
-            True if x_position intersects with the coordinates, False otherwise
-        """
-        if coordinates is None or len(coordinates) == 0:
-            return False
-        
-        x_min = np.min(coordinates[:, 0])
-        x_max = np.max(coordinates[:, 0])
-        return x_min <= x_position <= x_max
 
     def _calculate_thickness(self):
 
