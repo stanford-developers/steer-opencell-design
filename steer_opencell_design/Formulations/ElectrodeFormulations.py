@@ -28,8 +28,8 @@ class _ElectrodeFormulation(
     def __init__(
         self,
         active_materials: Dict[_ActiveMaterial, float],
-        binders: Optional[Dict[Binder, float]] = None,
-        conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None,
+        binders: Optional[Dict[Binder, float]] = {},
+        conductive_additives: Optional[Dict[ConductiveAdditive, float]] = {},
         voltage_cutoff: Optional[float] = None,
         name: Optional[str] = "Electrode Formulation",
     ):
@@ -645,6 +645,9 @@ class _ElectrodeFormulation(
     @calculate_all_properties
     def conductive_additives(self, conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None):
 
+        # validate input
+        self.validate_type(conductive_additives, dict, "Conductive additives")
+
         # remove cases where either the key or value is None
         conductive_additives = {k: v for k, v in conductive_additives.items() if k is not None and v is not None}
 
@@ -659,6 +662,9 @@ class _ElectrodeFormulation(
     @binders.setter
     @calculate_all_properties
     def binders(self, binders: Optional[Dict[Binder, float]] = None):
+
+        # validate input
+        self.validate_type(binders, dict, "Binders")
 
         # remove cases where either the key or value is None
         binders = {k: v for k, v in binders.items() if k is not None and v is not None}
@@ -731,8 +737,8 @@ class CathodeFormulation(_ElectrodeFormulation):
     def __init__(
         self,
         active_materials: Dict[_ActiveMaterial, float],
-        binders: Optional[Dict[Binder, float]] = None,
-        conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None,
+        binders: Optional[Dict[Binder, float]] = {},
+        conductive_additives: Optional[Dict[ConductiveAdditive, float]] = {},
         voltage_cutoff: Optional[float] = None,
         name: Optional[str] = "Cathode Formulation",
     ):
@@ -773,8 +779,8 @@ class AnodeFormulation(_ElectrodeFormulation):
     def __init__(
         self,
         active_materials: Dict[_ActiveMaterial, float],
-        binders: Optional[Dict[Binder, float]] = None,
-        conductive_additives: Optional[Dict[ConductiveAdditive, float]] = None,
+        binders: Optional[Dict[Binder, float]] = {},
+        conductive_additives: Optional[Dict[ConductiveAdditive, float]] = {},
         voltage_cutoff: Optional[float] = None,
         name: Optional[str] = "Anode Formulation",
     ):

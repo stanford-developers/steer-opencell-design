@@ -1528,14 +1528,15 @@ class _TapeCurrentCollector(_CurrentCollector):
         return fig
 
     # TODO: improve this function. Axes seem strange when overriding a previous figure in dash
-    def get_top_down_view(self, aspect_ratio: float = 4, side: str = "a", **kwargs) -> go.Figure:
+    def get_top_down_view(self, aspect_ratio: float = 4, side: str = "a", use_subplots: bool = False, **kwargs) -> go.Figure:
         """
         Visualize the notched current collector.
-        If the collector is long, split into two subplots for left and right ends with split indicators.
+        If use_subplots is True and the collector is long, split into two subplots for left and right ends.
         The vertical datum is centered at y = self.width / 2.
 
-        :param aspect_ratio: float: aspect ratio of the plot, default is 3
+        :param aspect_ratio: float: aspect ratio of the plot, default is 4
         :param side: str: 'a' or 'b' to indicate which side to visualize
+        :param use_subplots: bool: whether to create subplots for long collectors, default is False
         """
         if side not in ["a", "b"]:
             raise ValueError("Side must be 'a' or 'b'.")
@@ -1544,7 +1545,7 @@ class _TapeCurrentCollector(_CurrentCollector):
 
         figure = self._get_full_top_down_view(**kwargs)
 
-        if max_x < self.x_body_length:
+        if use_subplots and max_x < self.x_body_length:
             figure_subplot = make_subplots(
                 rows=2,
                 cols=1,
@@ -2581,9 +2582,13 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         z_val = self._body_coordinates[idx[0], 2]
 
-        # Create z array (handle None values in x/y arrays)
-        z = np.full_like(x, z_val, dtype=object)
-        z[x == None] = None  # Keep None values as None
+        # Create z array with proper numeric dtype
+        z = np.full_like(x, z_val, dtype=float)
+        
+        # Handle None values by converting to NaN for numeric arrays
+        none_mask = np.array([val is None for val in x])
+        if np.any(none_mask):
+            z[none_mask] = np.nan
 
         # Stack into final (N, 3) array
         return np.column_stack((x, y, z))
@@ -3849,8 +3854,8 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         else:
             self._skip_coat_width = float(skip_coat_width) * MM_TO_M
 
-        if self._skip_coat_width > self._y_body_length:
-            raise ValueError("Skip coat width cannot be greater than the width of the current collector.")
+        if self._skip_coat_width > self._x_body_length:
+            raise ValueError("Skip coat width cannot be greater than the length of the current collector.")
 
     @tab_weld_side.setter
     @calculate_weld_tab_properties

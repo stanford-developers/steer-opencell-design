@@ -183,8 +183,8 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertEqual(self.layup.bottom_separator.width, 404)
         fig3 = self.layup.get_top_down_view(opacity=0.2)
 
-        fig1.show()
-        fig11.show()
+        # fig1.show()
+        # fig11.show()
         # fig2.show()
         # fig3.show()
 
@@ -207,11 +207,11 @@ class TestSimpleLaminate(unittest.TestCase):
         fig2 = self.layup.cathode._get_full_top_down_view()
         fig3 = self.layup.get_top_down_view(opacity=0.2)
         fig4 = self.layup.get_areal_capacity_plot()
-        fig5 = self.layup.get_bottom_up_view()
+        fig5 = self.layup.get_down_top_view()
 
         self.layup.datum = (self.layup.total_length/2, 0, self.layup.cathode.thickness/2 * UM_TO_MM)
 
-        fig6 = self.layup.get_bottom_up_view()
+        fig6 = self.layup.get_down_top_view()
 
         # fig1.show()
         # fig2.show()
@@ -607,7 +607,7 @@ class TestSimpleLaminate(unittest.TestCase):
         # Test that all visualization methods work after flipping
         fig_top = self.layup.get_top_down_view(opacity=0.2)
         fig_capacity = self.layup.get_areal_capacity_plot()
-        fig_bottom = self.layup.get_bottom_up_view(opacity=0.2)
+        fig_bottom = self.layup.get_down_top_view(opacity=0.2)
         
         # Verify figures were created
         self.assertIsInstance(fig_top, go.Figure)
@@ -1088,7 +1088,7 @@ class TestSimpleMonoLayer(unittest.TestCase):
         # Test that all visualization methods work after flipping
         fig_top = self.monolayer.get_top_down_view(opacity=0.2)
         fig_capacity = self.monolayer.get_areal_capacity_plot()
-        fig_bottom = self.monolayer.get_bottom_up_view(opacity=0.2)
+        fig_bottom = self.monolayer.get_down_top_view(opacity=0.2)
         
         # Verify figures were created
         self.assertIsInstance(fig_top, go.Figure)
@@ -1559,7 +1559,7 @@ class TestZFoldMonoLayer(unittest.TestCase):
         # Test that all visualization methods work after flipping
         fig_top = self.zfoldmonolayer.get_top_down_view(opacity=0.2)
         fig_capacity = self.zfoldmonolayer.get_areal_capacity_plot()
-        fig_bottom = self.zfoldmonolayer.get_bottom_up_view(opacity=0.2)
+        fig_bottom = self.zfoldmonolayer.get_down_top_view(opacity=0.2)
         
         # Verify figures were created
         self.assertIsInstance(fig_top, go.Figure)

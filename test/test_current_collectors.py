@@ -475,6 +475,7 @@ class TestWeldTab(unittest.TestCase):
 
 
 class TestTabWeldedCurrentCollector(unittest.TestCase):
+    
     def setUp(self):
         """
         Set up
@@ -588,3 +589,4 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
 
         figure1 = go.Figure(data=fig11.data + fig21.data)
         # figure1.show()
+
