@@ -3831,7 +3831,10 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
     @weld_tab_positions.setter
     @calculate_all_properties
     def weld_tab_positions(self, weld_tab_positions: Iterable[float]) -> None:
-        self.validate_positive_float_list(weld_tab_positions, "weld_tab_positions")
+
+        print(weld_tab_positions)
+
+        self.validate_type(weld_tab_positions, Iterable, "weld_tab_positions")
 
         if any(pos > self.x_body_length for pos in weld_tab_positions):
             raise ValueError("Weld tab positions cannot be greater than the length of the current collector.")
@@ -3864,3 +3867,4 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             raise ValueError("Tab weld side must be either 'a' or 'b'.")
 
         self._tab_weld_side = tab_weld_side
+

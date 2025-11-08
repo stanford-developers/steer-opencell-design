@@ -967,6 +967,102 @@ class TestRoundJellyRollWithTabWelded(unittest.TestCase):
 
 
 
+class TestFlatJellyRollWithTabWelded(unittest.TestCase):
+
+    def setUp(self):
+        
+        self.tab_material = CurrentCollectorMaterial.from_database(name="Copper")
+        self.cc_material = CurrentCollectorMaterial.from_database(name="Aluminum")
+
+        self.weld_tab = WeldTab(material=self.tab_material, width=5, length=115, thickness=20)
+
+        cathode_current_collector = TabWeldedCurrentCollector(
+            material=self.cc_material,
+            weld_tab=self.weld_tab,
+            length=1820,
+            width=108,
+            thickness=15,
+            weld_tab_positions=[100, 1000, 1400],
+            skip_coat_width=30,
+            tab_weld_side="a",
+            tab_overhang=10,
+        )
+
+        material = CathodeMaterial.from_database("LFP")
+        material.specific_cost = 6
+        material.density = 3.6
+
+        formulation = CathodeFormulation(active_materials={material: 100})
+
+        cathode = Cathode(
+            formulation=formulation,
+            mass_loading=12,
+            current_collector=cathode_current_collector,
+            calender_density=2.60,
+        )
+
+        anode_current_collector = deepcopy(cathode_current_collector)
+        anode_current_collector.length = 1860
+
+        material = AnodeMaterial.from_database("Synthetic Graphite")
+        material.specific_cost = 4
+        material.density = 2.2
+
+        formulation = AnodeFormulation(active_materials={material: 100})
+
+        anode = Anode(
+            formulation=formulation,
+            mass_loading=7.2,
+            current_collector=anode_current_collector,
+            calender_density=1.1
+        )
+
+        separator_material = SeparatorMaterial(
+            name="Polyethylene",
+            specific_cost=2,
+            density=0.94,
+            color="#FDFDB7",
+            porosity=45,
+        )
+
+        top_separator = Separator(material=separator_material, thickness=25, width=310, length=2200)
+        bottom_separator = Separator(material=separator_material, thickness=25, width=310, length=2200)
+
+        self.layup = Laminate(
+            anode=anode,
+            cathode=cathode,
+            top_separator=top_separator,
+            bottom_separator=bottom_separator,
+        )
+
+        mandrel = FlatMandrel(
+            length=350,
+            width=100,
+            height=5
+        )
+
+        self.my_jellyroll = FlatWoundJellyRoll(
+            laminate=self.layup,
+            mandrel=mandrel,
+        )
+
+    def test_type(self):
+        self.assertIsInstance(self.my_jellyroll, FlatWoundJellyRoll)
+
+    def test_plots(self):
+
+        self.assertIsInstance(self.my_jellyroll, FlatWoundJellyRoll)
+        self.assertTrue(type(self.my_jellyroll.spiral) == pd.DataFrame)
+
+        fig1 = self.my_jellyroll.get_spiral_plot()
+        fig3 = self.my_jellyroll.get_spiral_plot(layered=False)
+        fig4 = self.my_jellyroll.get_capacity_plot()
+
+        fig1.show()
+        # fig3.show()
+        # fig4.show()
+
+
 if __name__ == "__main__":
     unittest.main()
 

@@ -713,37 +713,59 @@ class SpiralCalculator:
                 # Skip empty components
                 extruded_spirals[component_name] = np.empty((0, 6))
                 continue
-                
-            half_thickness = thickness / 2.0
+
+            extruded_segments = []
             
-            # Create outer and inner spirals with proper flat mandrel thickness application
-            outer_spiral, inner_spiral = SpiralCalculator.create_flat_mandrel_thickness_spirals(
-                center_spiral, half_thickness, mandrel_radius, straight_length
-            )
-            
-            # Reverse inner spiral direction for proper winding (creates closed shape)
-            inner_spiral_reversed = inner_spiral[::-1, :]
-            
-            # Add transition padding points to smooth spline interpolation
-            # Duplicate end points to create smooth transitions
-            outer_end_padding = np.tile(outer_spiral[-1, :], (2, 1))
-            inner_start_padding = np.tile(inner_spiral_reversed[0, :], (2, 1))
-            
-            # Combine into filled shape: outer → padding → inner (reversed) → close
-            if len(outer_spiral) > 0 and len(inner_spiral_reversed) > 0:
-                filled_spiral = np.vstack([
-                    outer_spiral,           # Outer boundary
-                    outer_end_padding,      # Smooth transition
-                    inner_start_padding,    # Smooth transition  
-                    inner_spiral_reversed   # Inner boundary (reversed)
-                ])
-            else:
-                # Fallback for edge cases
-                filled_spiral = outer_spiral
-            
-            extruded_spirals[component_name] = filled_spiral
+            # make into segments
+            single_nan_row = np.array([[np.nan] * center_spiral.shape[1]])
+            padded_spiral = np.vstack([single_nan_row, center_spiral, single_nan_row])
+            isnan = np.isnan(padded_spiral[:, 1])
+            edges = np.flatnonzero(np.diff(np.concatenate(([True], ~isnan, [True]))))
+            segments = [padded_spiral[start:end] for start, end in zip(edges[:-1], edges[1:]) if not np.isnan(padded_spiral[start, 1])]
+
+            for segment in segments:
+                filled_spiral = SpiralCalculator._extrude_single_racetrack(segment, thickness, mandrel_radius, straight_length)
+                filled_spiral = np.vstack([filled_spiral, single_nan_row])
+                extruded_segments.append(filled_spiral)
+
+            # remove last nan row if it exists to avoid trailing NaNs in the final spiral
+            extruded_segments[-1] = extruded_segments[-1][:-1, :]
+            extruded_spiral = np.vstack(extruded_segments)
+            extruded_spirals[component_name] = extruded_spiral
 
         return extruded_spirals
+
+    @staticmethod
+    def _extrude_single_racetrack(spiral, thickness, mandrel_radius, straight_length) -> np.array:
+
+        half_thickness = thickness / 2.0
+        
+        # Create outer and inner spirals with proper flat mandrel thickness application
+        outer_spiral, inner_spiral = SpiralCalculator.create_flat_mandrel_thickness_spirals(
+            spiral, half_thickness, mandrel_radius, straight_length
+        )
+        
+        # Reverse inner spiral direction for proper winding (creates closed shape)
+        inner_spiral_reversed = inner_spiral[::-1, :]
+        
+        # Add transition padding points to smooth spline interpolation
+        # Duplicate end points to create smooth transitions
+        outer_end_padding = np.tile(outer_spiral[-1, :], (2, 1))
+        inner_start_padding = np.tile(inner_spiral_reversed[0, :], (2, 1))
+        
+        # Combine into filled shape: outer → padding → inner (reversed) → close
+        if len(outer_spiral) > 0 and len(inner_spiral_reversed) > 0:
+            filled_spiral = np.vstack([
+                outer_spiral,           # Outer boundary
+                outer_end_padding,      # Smooth transition
+                inner_start_padding,    # Smooth transition  
+                inner_spiral_reversed   # Inner boundary (reversed)
+            ])
+        else:
+            # Fallback for edge cases
+            filled_spiral = outer_spiral
+
+        return filled_spiral
 
     @staticmethod
     def create_flat_mandrel_thickness_spirals(center_spiral: np.ndarray, half_thickness: float,
@@ -891,8 +913,11 @@ class SpiralCalculator:
         float
             Thickness (z-dimension span) in meters
         """
-        max_z = coords[:, 1].max()
-        min_z = coords[:, 1].min()
+        # Filter out NaN values before computing min/max
+        z_coords = coords[:, 1]
+        valid_z = z_coords[~np.isnan(z_coords)]
+        max_z = valid_z.max()
+        min_z = valid_z.min()
         return max_z - min_z
 
     @staticmethod
@@ -909,8 +934,11 @@ class SpiralCalculator:
         float
             Width (x-dimension span) in meters
         """
-        max_x = coords[:, 0].max()
-        min_x = coords[:, 0].min()
+        # Filter out NaN values before computing min/max
+        x_coords = coords[:, 0]
+        valid_x = x_coords[~np.isnan(x_coords)]
+        max_x = valid_x.max()
+        min_x = valid_x.min()
         return max_x - min_x
 
     @staticmethod
@@ -1013,7 +1041,21 @@ class SpiralCalculator:
             
             # Vectorized spiral clipping using boolean mask
             x_unwrapped = base_spiral[:, 1]  # Extract x_unwrapped column
-            mask = (x_unwrapped >= cl_data['x_min']) & (x_unwrapped <= cl_data['x_max'])
+
+            # pad first and last row of cl_data with a row of NaNs
+            component_x = cl_data['x_coords']
+            component_x = np.concatenate(([np.nan], component_x, [np.nan]))
+
+            # divide component x into groups based on the nan values
+            isnan = np.isnan(component_x)
+            edges = np.flatnonzero(np.diff(np.concatenate(([True], ~isnan, [True]))))
+            segments = [component_x[start:end] for start, end in zip(edges[:-1], edges[1:]) if not np.isnan(component_x[start])]
+
+            # create mask for each segment and combine them
+            mask = np.zeros_like(x_unwrapped, dtype=bool)
+            for segment in segments:
+                x_min, x_max = np.min(segment), np.max(segment)
+                mask |= (x_unwrapped >= x_min) & (x_unwrapped <= x_max)
             
             # Apply mask to get component spiral slice
             component_spiral = base_spiral[mask].copy()
@@ -1032,6 +1074,9 @@ class SpiralCalculator:
             theta_start_component = component_spiral[0, 0]  # Starting theta for this component
             theta_traveled_component = component_spiral[:, 0] - theta_start_component  # Angle traveled from component start
             component_spiral[:, 5] = theta_traveled_component / (2 * np.pi)  # Turns relative to component start
+
+            # insert nan rows every time there is a gap
+            component_spiral = CoordinateMixin.insert_gaps_with_nans(component_spiral, X_UNWRAPPED_COL)
         
             component_spirals[component_name] = component_spiral
 
