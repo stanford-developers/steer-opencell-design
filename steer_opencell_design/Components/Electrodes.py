@@ -443,6 +443,7 @@ class _Electrode(
         return fig
 
     def get_top_down_view(self, **kwargs) -> go.Figure:
+        
         figure = self.current_collector.get_top_down_view(**kwargs)
         figure.data = [trace for trace in figure.data if trace.name == "Body" or trace.name == "Tab"]
 
