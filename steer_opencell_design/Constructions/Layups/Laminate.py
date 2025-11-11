@@ -211,7 +211,7 @@ class Laminate(_Layup):
         cathode_length = self._cathode._current_collector._x_body_length
 
         # The laminate length is determined by the longer of the two electrodes
-        laminate_length = max(anode_length, cathode_length)
+        laminate_length = min(anode_length, cathode_length)
 
         self._length = laminate_length
 

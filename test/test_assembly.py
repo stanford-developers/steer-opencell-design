@@ -316,6 +316,14 @@ class TestRoundJellyRoll(unittest.TestCase):
         new_jellyroll.mandrel = new_jellyroll.mandrel
         self.assertAlmostEqual(new_jellyroll.radius, 22.8, 2)
 
+    def test_current_collector_length_set(self):
+        """Test that setting the current collector length updates the jellyroll properties."""
+        self.my_jellyroll.layup.cathode.current_collector.length = 2000
+        self.my_jellyroll.layup.cathode.current_collector = self.my_jellyroll.layup.cathode.current_collector
+        self.my_jellyroll.layup.cathode = self.my_jellyroll.layup.cathode
+        self.my_jellyroll.layup = self.my_jellyroll.layup
+        self.assertEqual(self.my_jellyroll.layup.cathode.current_collector.length, 2000)
+
 
 class TestFlatJellyRoll(unittest.TestCase):
     
@@ -964,7 +972,6 @@ class TestRoundJellyRollWithTabWelded(unittest.TestCase):
         # fig1.show()
         # fig3.show()
         # fig4.show()
-
 
 
 class TestFlatJellyRollWithTabWelded(unittest.TestCase):

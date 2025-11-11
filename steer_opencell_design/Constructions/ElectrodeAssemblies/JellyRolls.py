@@ -726,7 +726,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             mode='lines',
             fill='toself',
             fillcolor=color,
-            line=dict(color="black", width=0.1),
+            line=dict(color=color, width=0),
             line_shape='spline',
             name=name,
             customdata=customdata,

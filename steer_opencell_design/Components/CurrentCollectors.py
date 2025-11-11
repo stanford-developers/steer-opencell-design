@@ -290,6 +290,7 @@ class _CurrentCollector(
         return fig
 
     def _get_body_coordinates(self) -> None:
+        
         if hasattr(self, "_tab_height"):
             x, y = self._get_footprint(notch_height=self._tab_height)
         else:
