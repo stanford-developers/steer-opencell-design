@@ -432,32 +432,6 @@ class SpiralCalculator:
         return filled_spiral
 
     @staticmethod
-    def get_radius_of_spiral(coords: np.ndarray) -> float:
-        """Calculate the radius of a spiral given its coordinates.
-
-        Parameters
-        ----------
-        coords : np.ndarray
-            Array of shape (N, 2) with columns [x, z]
-
-        Returns
-        -------
-        float
-            Radius of the spiral in meters
-
-        Raises
-        ------
-        ValueError
-            If input coordinates are invalid
-        """
-        polygon = Polygon(coords)
-        circle = minimum_bounding_circle(polygon)
-        center = circle.centroid
-        first_point = list(circle.exterior.coords)[0]
-        radius = Point(center).distance(Point(first_point))
-        return radius
-
-    @staticmethod
     def calculate_variable_thickness_racetrack(
             laminate: Laminate,
             mandrel_radius: float, 
