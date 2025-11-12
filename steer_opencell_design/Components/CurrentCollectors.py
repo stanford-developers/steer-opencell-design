@@ -486,6 +486,7 @@ class _CurrentCollector(
         reference: CurrentCollector
             The reference current collector to derive ranges from.
         """
+        # validate the reference type
         self.validate_type(reference, _CurrentCollector, "reference")
 
         self._x_body_length_range = (
@@ -994,9 +995,14 @@ class _CurrentCollector(
     @x_body_length.setter
     @calculate_all_properties
     def x_body_length(self, x_body_length: float) -> None:
+
+        # validate the x_body_length
         self.validate_positive_float(x_body_length, "x_body_length")
+
+        # set the x_body_length in m
         self._x_body_length = float(x_body_length) * MM_TO_M
 
+        # update the weld tab positions if they exist
         if hasattr(self, "_weld_tabs"):
             self.weld_tab_positions = self.weld_tab_positions
 
@@ -1185,11 +1191,22 @@ class _TabbedCurrentCollector(_CurrentCollector):
         if hasattr(self, "_bare_lengths_a_side") or hasattr(self, "_bare_lengths_b_side"):
             initial_skip_coat = self._bare_lengths_a_side[0] if side == "a" else self._bare_lengths_b_side[0]
             final_skip_coat = self._bare_lengths_a_side[1] if side == "a" else self._bare_lengths_b_side[1]
-            x_start = self._datum[0] - self._x_body_length / 2 + initial_skip_coat
-            x_end = self._datum[0] + self._x_body_length / 2 - final_skip_coat
-            x, y = self._get_footprint(notch_height=notch, y_depth=y_depth, x_start=x_start, x_end=x_end)
+            
+            # Check if bare lengths exceed body length - return empty arrays if so
+            if initial_skip_coat + final_skip_coat >= self._x_body_length:
+                x = np.array([])
+                y = np.array([])
+            else:
+                x_start = self._datum[0] - self._x_body_length / 2 + initial_skip_coat
+                x_end = self._datum[0] + self._x_body_length / 2 - final_skip_coat
+                x, y = self._get_footprint(notch_height=notch, y_depth=y_depth, x_start=x_start, x_end=x_end)
+
         else:
             x, y = self._get_footprint(notch_height=notch, y_depth=y_depth)  # each of shape (N,)
+
+        # If no coated area (empty arrays), return empty coordinate array
+        if len(x) == 0 or len(y) == 0:
+            return np.empty((0, 3))
 
         # Get z value from body coordinates
         idx = np.where(self._body_coordinates_side == side)[0]
@@ -1610,13 +1627,18 @@ class _TapeCurrentCollector(_CurrentCollector):
     @property
     def x_body_length_range(self) -> Tuple[float, float]:
         if hasattr(self, "_x_body_length_range") and self._x_body_length_range is not None:
+
             return (
                 round(self._x_body_length_range[0] * M_TO_MM, 2),
                 round(self._x_body_length_range[1] * M_TO_MM, 2),
             )
 
         else:
-            return (300, 5000)
+
+            a_side_total_bare_length = sum(self.bare_lengths_a_side) if hasattr(self, "_bare_lengths_a_side") else 0
+            b_side_total_bare_length = sum(self.bare_lengths_b_side) if hasattr(self, "_bare_lengths_b_side") else 0
+            min_length = max(a_side_total_bare_length + 10, b_side_total_bare_length + 200, 300)
+            return (min_length, 5000)
 
     @property
     def y_body_length_range(self) -> Tuple[float, float]:
@@ -1765,11 +1787,15 @@ class _TapeCurrentCollector(_CurrentCollector):
 
     @length.setter
     def length(self, length: float) -> None:
+
+        # Validate the input length
         self.validate_positive_float(length, "length")
 
+        # remove the weld tab positions that are greater than the new length
         if hasattr(self, "_weld_tabs"):
             self._weld_tab_positions = [p * MM_TO_M for p in self.weld_tab_positions if p <= length]
 
+        # Set the new length
         self.x_body_length = length
 
 
@@ -2083,6 +2109,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
     def x_body_length_range(self) -> Tuple[float, float]:
 
         if hasattr(self, "_x_body_length_range") and self._x_body_length_range is not None:
+
             return (
                 round(self._x_body_length_range[0] * M_TO_MM, 2),
                 round(self._x_body_length_range[1] * M_TO_MM, 2),
@@ -2520,6 +2547,11 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         # Compute x bounds of coated region
         bare_left, bare_right = self._bare_lengths_a_side if side == "a" else self._bare_lengths_b_side
+        
+        # Check if bare lengths exceed body length - return empty arrays if so
+        if bare_left + bare_right >= self._x_body_length:
+            return np.empty((0, 3))
+            
         x_start = self._datum[0] - self._x_body_length / 2 + bare_left
         x_end = self._datum[0] + self._x_body_length / 2 - bare_right
 

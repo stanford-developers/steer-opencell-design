@@ -106,7 +106,7 @@ class TestSimpleLaminate(unittest.TestCase):
             formulation=formulation,
             mass_loading=3.68,
             current_collector=current_collector,
-            calender_density=2.60,
+            calender_density=1.10,
             insulation_material=insulation,
             insulation_thickness=10,
         )
@@ -136,16 +136,17 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertTrue(condition)
 
     def test_get_thickness_at_x(self):
-        self.assertAlmostEqual(self.layup.get_thickness_at_x(0), 0.000135, places=6)
-        self.assertAlmostEqual(self.layup.get_thickness_at_x(0.1), 0.0001278, places=6)
+        self.layup.calculate_flattened_center_lines()
+        self.assertAlmostEqual(self.layup.get_thickness_at_x(0), 0.000181, places=6)
+        self.assertAlmostEqual(self.layup.get_thickness_at_x(0.1), 0.000147, places=6)
         self.assertAlmostEqual(self.layup.get_thickness_at_x(2), 0.000066, places=6)
-        self.assertAlmostEqual(self.layup.get_thickness_at_x(3), 0.0000469, places=6)
+        self.assertAlmostEqual(self.layup.get_thickness_at_x(3), 0.0000499, places=6)
         self.assertAlmostEqual(self.layup.get_thickness_at_x(15), 0, places=6)
 
     def test_length_width_setter(self):
 
-        self.assertEqual(self.layup.length, 5000)
-        self.assertEqual(self.layup.width, 306)
+        self.assertEqual(self.layup.length, 4500)
+        self.assertEqual(self.layup.width, 300)
         self.assertEqual(self.layup.anode.current_collector.length, 5000)
         self.assertEqual(self.layup.anode.current_collector.width, 306)
         self.assertEqual(self.layup.cathode.current_collector.length, 4500)
@@ -159,28 +160,28 @@ class TestSimpleLaminate(unittest.TestCase):
 
         self.layup.length = 6000
         self.assertEqual(self.layup.length, 6000)
-        self.assertEqual(self.layup.width, 306)
-        self.assertEqual(self.layup.anode.current_collector.length, 6000)
+        self.assertEqual(self.layup.width, 300)
+        self.assertEqual(self.layup.anode.current_collector.length, 6500)
         self.assertEqual(self.layup.anode.current_collector.width, 306)
-        self.assertEqual(self.layup.cathode.current_collector.length, 5500)
+        self.assertEqual(self.layup.cathode.current_collector.length, 6000)
         self.assertEqual(self.layup.cathode.current_collector.width, 300)
-        self.assertEqual(self.layup.top_separator.length, 9000)
+        self.assertEqual(self.layup.top_separator.length, 9500)
         self.assertEqual(self.layup.top_separator.width, 310)
-        self.assertEqual(self.layup.bottom_separator.length, 7000)
+        self.assertEqual(self.layup.bottom_separator.length, 7500)
         self.assertEqual(self.layup.bottom_separator.width, 310)
         fig2 = self.layup.get_top_down_view(opacity=0.2)
 
         self.layup.width = 400
         self.assertEqual(self.layup.length, 6000)
         self.assertEqual(self.layup.width, 400)
-        self.assertEqual(self.layup.anode.current_collector.length, 6000)
-        self.assertEqual(self.layup.anode.current_collector.width, 400)
-        self.assertEqual(self.layup.cathode.current_collector.length, 5500)
-        self.assertEqual(self.layup.cathode.current_collector.width, 394)
-        self.assertEqual(self.layup.top_separator.length, 9000)
-        self.assertEqual(self.layup.top_separator.width, 404)
-        self.assertEqual(self.layup.bottom_separator.length, 7000)
-        self.assertEqual(self.layup.bottom_separator.width, 404)
+        self.assertEqual(self.layup.anode.current_collector.length, 6500)
+        self.assertEqual(self.layup.anode.current_collector.width, 406)
+        self.assertEqual(self.layup.cathode.current_collector.length, 6000)
+        self.assertEqual(self.layup.cathode.current_collector.width, 400)
+        self.assertEqual(self.layup.top_separator.length, 9500)
+        self.assertEqual(self.layup.top_separator.width, 410)
+        self.assertEqual(self.layup.bottom_separator.length, 7500)
+        self.assertEqual(self.layup.bottom_separator.width, 410)
         fig3 = self.layup.get_top_down_view(opacity=0.2)
 
         # fig1.show()
@@ -392,7 +393,7 @@ class TestSimpleLaminate(unittest.TestCase):
         initial_np_ratio = self.layup.np_ratio
         
         # Set new N/P ratio
-        target_np_ratio = 1.3
+        target_np_ratio = 1.1
         self.layup.np_ratio = target_np_ratio
         
         # Check that N/P ratio changed to target

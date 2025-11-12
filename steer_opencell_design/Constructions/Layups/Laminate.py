@@ -7,7 +7,7 @@ import pandas as pd
 
 from steer_core.Constants.Units import *
 from steer_core.Decorators.Coordinates import calculate_coordinates
-from steer_core.Decorators.General import calculate_bulk_properties
+from steer_core.Decorators.General import calculate_bulk_properties, calculate_all_properties
 
 from steer_opencell_design.Components.CurrentCollectors import _TapeCurrentCollector
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
@@ -80,9 +80,9 @@ class Laminate(_Layup):
 
     def _calculate_coordinates(self):
         super()._calculate_coordinates()
-        self._calculate_flattened_center_lines()
+        self._calculate_total_geometries()
 
-    def _calculate_flattened_center_lines(self):
+    def calculate_flattened_center_lines(self, x_spacing: float = 0.008) -> dict:
         """Vectorized construction of flattened center lines for laminate layers.
 
         Builds an explicit bottom->top ordered stack and computes center line
@@ -108,9 +108,20 @@ class Laminate(_Layup):
             ("top_separator", self._top_separator.get_center_line(), self._top_separator._thickness),
         ]
 
-        # Gather all x end points
+        # Filter out empty arrays (components that don't exist due to bare lengths)
+        valid_layer_specs = []
+        for name, coords, thickness in layer_specs:
+            if coords.size > 0 and coords.shape[0] > 0:
+                valid_layer_specs.append((name, coords, thickness))
+        
+        # Check if we have any valid layers
+        if not valid_layer_specs:
+            # Return empty structure if no components exist
+            return {"baseline": np.empty((0, 2))}
+
+        # Gather all x end points from valid layers only
         x_breaks = []
-        for _, coords, _ in layer_specs:
+        for _, coords, _ in valid_layer_specs:
             x_breaks.append(coords[0, 0])
             x_breaks.append(coords[-1, 0])
 
@@ -118,25 +129,25 @@ class Laminate(_Layup):
         # Get the min and max x values
         x_min, x_max = min(x_breaks), max(x_breaks)
         # Set the number of samples
-        n_samples = int(self._total_length * 500)  # 1 sample per mm
+        n_samples = int(self._total_length / x_spacing) + 1
         # make the x array
         x = np.linspace(x_min, x_max, n_samples)
 
-        # Create baseline directly below lowest layer (use cathode b-side lower surface)
-        # Get the cathode z coordinates
-        cathode_b_side_coords_z = layer_specs[0][1][:, 1]
+        # Create baseline directly below lowest layer (use first valid layer's lower surface)
+        # Get the first valid layer's z coordinates
+        first_valid_coords_z = valid_layer_specs[0][1][:, 1]
         # Remove potential NaNs from skip coats
-        cathode_b_side_coords_z = cathode_b_side_coords_z[~np.isnan(cathode_b_side_coords_z)]
+        first_valid_coords_z = first_valid_coords_z[~np.isnan(first_valid_coords_z)]
         # Find minimum z
-        zmin = np.min(cathode_b_side_coords_z)
-        # Go half thickness of b side coating below
-        baseline_z = zmin - layer_specs[0][2] / 2
+        zmin = np.min(first_valid_coords_z)
+        # Go half thickness of first valid layer below
+        baseline_z = zmin - valid_layer_specs[0][2] / 2
         # turn into array
         baseline = np.column_stack((x, np.full_like(x, baseline_z)))
 
-        # build layer masks
+        # build layer masks for valid layers only
         layer_masks = []
-        for _, coords, _ in layer_specs:
+        for _, coords, _ in valid_layer_specs:
             # If no nans then limit mask around min/max x
             if not np.isnan(coords).any():
                 x0, x1 = coords[0, 0], coords[-1, 0]
@@ -156,8 +167,8 @@ class Laminate(_Layup):
                     mask |= (x >= xmin) & (x <= xmax)
             layer_masks.append(mask)
 
-        # Layer thicknesses array
-        layer_thicknesses = [spec[2] for spec in layer_specs]
+        # Layer thicknesses array for valid layers only
+        layer_thicknesses = [spec[2] for spec in valid_layer_specs]
         layer_thicknesses = np.array(layer_thicknesses)  # shape (L,)
 
         # Cumulative thickness below each layer (exclude that layer's own thickness)
@@ -169,10 +180,10 @@ class Laminate(_Layup):
         raw_total_thickness = np.sum(layer_thicknesses[:, None] * layer_masks, axis=0)
         top_surface = baseline_z + raw_total_thickness
 
-        # Build flattened center lines
+        # Build flattened center lines for valid layers only
         flattened = {"baseline": baseline}
         layer_thickness_map = {}
-        for i, (name, _coords, thickness) in enumerate(layer_specs):
+        for i, (name, _coords, thickness) in enumerate(valid_layer_specs):
             mask = layer_masks[i]
             center_z = baseline_z + cumulative_below[i, mask] + thickness / 2
             flattened[name] = np.column_stack((x[mask], center_z))
@@ -210,7 +221,7 @@ class Laminate(_Layup):
         anode_length = self._anode._current_collector._x_body_length
         cathode_length = self._cathode._current_collector._x_body_length
 
-        # The laminate length is determined by the longer of the two electrodes
+        # The laminate length is determined by the shorter of the two electrodes
         laminate_length = min(anode_length, cathode_length)
 
         self._length = laminate_length
@@ -229,8 +240,8 @@ class Laminate(_Layup):
         anode_width = self._anode._current_collector._y_body_length
         cathode_width = self._cathode._current_collector._y_body_length
 
-        # The laminate width is determined by the wider of the two electrodes
-        laminate_width = max(anode_width, cathode_width)
+        # The laminate width is determined by the narrower of the two electrodes
+        laminate_width = min(anode_width, cathode_width)
 
         self._width = laminate_width
 
@@ -288,11 +299,12 @@ class Laminate(_Layup):
         for O(log N) interpolation instead of scanning individual layers.
         Returns 0.0 if x is outside the sampled domain or no layers present.
         """
-        if getattr(self, "_top_surface", None) is None or len(self._top_surface) == 0:
-            return 0.0
+        if not hasattr(self, "_top_surface"):
+            raise ValueError("Top surface coordinates not calculated. Call calculate_flattened_center_lines() first.")
 
         xs = self._top_surface[:, 0]
-        if x_position < xs[0] or x_position > xs[-1]:
+
+        if x_position < xs.min() or x_position > xs.max():
             return 0.0
 
         top_z = np.interp(x_position, xs, self._top_surface[:, 1])
@@ -309,28 +321,6 @@ class Laminate(_Layup):
                 return 0.0
 
         return max(0.0, top_z - baseline_z)
-
-    @property
-    def flattened_center_lines(self) -> dict:
-
-        coordinates = []
-
-        for key, value in self._flattened_center_lines.items():
-
-            coordinate_df = (
-                pd
-                .DataFrame(value, columns=["x", "z"])
-                .assign(Component=key)
-            )
-
-            coordinates.append(coordinate_df)
-
-        return (
-            pd
-            .concat(coordinates, ignore_index=True)
-            .assign(x=lambda df: df["x"] * M_TO_MM, z=lambda df: df["z"] * M_TO_MM)
-            .rename(columns={"x": "X (mm)", "z": "Z (mm)"})
-        )
 
     @property
     def separator(self) -> Separator:
@@ -350,11 +340,11 @@ class Laminate(_Layup):
     
     @property
     def length_range(self) -> tuple:
-        return self.cathode.current_collector.length_range
+        return self._cathode._current_collector.length_range
     
     @property
     def length_hard_range(self) -> tuple:
-        return self.cathode.current_collector.length_hard_range
+        return self._cathode._current_collector.length_hard_range
 
     @property
     def width(self) -> float:
@@ -362,12 +352,11 @@ class Laminate(_Layup):
 
     @property
     def width_range(self) -> tuple:
-        return self.cathode.current_collector.width_range
+        return self._cathode._current_collector.width_range
     
     @property
     def width_hard_range(self) -> tuple:
-        return self.cathode.current_collector.width_hard_range
-
+        return self._cathode._current_collector.width_hard_range
     @property
     def total_length(self) -> float:
         """Return the total length of the layup in mm."""
@@ -401,11 +390,10 @@ class Laminate(_Layup):
         self._canonical_separator.thickness = value.thickness
 
     @length.setter
-    @calculate_coordinates
-    @calculate_bulk_properties
+    @calculate_all_properties
     def length(self, value: float):
 
-        # Validate input
+        # Validate input 
         self.validate_positive_float(value, "Laminate Length")
         
         # get the current length
@@ -415,26 +403,21 @@ class Laminate(_Layup):
         length_diff = value - current_length
 
         # Update the length property of the bottom separator
-        self.bottom_separator.length = self.bottom_separator.length + length_diff
-        self.bottom_separator = self.bottom_separator
+        self._bottom_separator.length = self._bottom_separator.length + length_diff
 
         # Update the length property of the top separator
-        self.top_separator.length = self.top_separator.length + length_diff 
-        self.top_separator = self.top_separator
+        self._top_separator.length = self._top_separator.length + length_diff
 
         # Update the length property of the anode
-        self.anode.current_collector.length = self.anode.current_collector.length + length_diff
-        self.anode.current_collector = self.anode.current_collector
-        self.anode = self.anode
+        self._anode._current_collector.length = self._anode._current_collector.length + length_diff
+        self._anode.current_collector = self._anode._current_collector
 
         # Update the length property of the cathode
-        self.cathode.current_collector.length = self.cathode.current_collector.length + length_diff
-        self.cathode.current_collector = self.cathode.current_collector
-        self.cathode = self.cathode
-
+        self._cathode._current_collector.length = self._cathode._current_collector.length + length_diff
+        self._cathode.current_collector = self._cathode._current_collector
+        
     @width.setter
-    @calculate_coordinates
-    @calculate_bulk_properties
+    @calculate_all_properties
     def width(self, value: float):
 
         # Validate input
@@ -447,21 +430,16 @@ class Laminate(_Layup):
         width_diff = value - current_width
 
         # Update the width property of the bottom separator
-        self.bottom_separator.width = self.bottom_separator.width + width_diff
-        self.bottom_separator = self.bottom_separator
+        self._bottom_separator.width = self._bottom_separator.width + width_diff
 
         # Update the width property of the top separator
-        self.top_separator.width = self.top_separator.width + width_diff 
-        self.top_separator = self.top_separator
+        self._top_separator.width = self._top_separator.width + width_diff
 
         # Update the width property of the anode
-        self.anode.current_collector.width = self.anode.current_collector.width + width_diff
-        self.anode.current_collector = self.anode.current_collector
-        self.anode = self.anode
+        self._anode._current_collector.width = self._anode._current_collector.width + width_diff
+        self._anode.current_collector = self._anode._current_collector
 
         # Update the width property of the cathode
-        self.cathode.current_collector.width = self.cathode.current_collector.width + width_diff
-        self.cathode.current_collector = self.cathode.current_collector
-        self.cathode = self.cathode
-
+        self._cathode._current_collector.width = self._cathode._current_collector.width + width_diff
+        self._cathode.current_collector = self._cathode._current_collector
 

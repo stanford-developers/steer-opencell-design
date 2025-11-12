@@ -1,3 +1,4 @@
+from time import time
 from steer_core.Constants.Units import *
 
 from steer_core.Mixins.Coordinates import CoordinateMixin

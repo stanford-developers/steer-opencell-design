@@ -114,6 +114,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         3. Create extruded visualization shapes
         4. Calculate derived spiral properties
         """
+        self._layup.calculate_flattened_center_lines()
         self._calculate_variable_thickness_spiral()
         self._build_component_spirals()
         self._build_extruded_component_spirals()
@@ -328,25 +329,31 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         layup: Laminate, 
         mandrel: Union[FlatMandrel, RoundMandrel]
         ) -> Laminate:
-            
-        # get the min x in the flattened center lines
-        x_list = [c[:, 0] for c in layup._flattened_center_lines.values()]
-        x_list = [x[~np.isnan(x)] for x in x_list]
-        min_x = min([np.min(x) for x in x_list])
+        
+        # get the min x of the layup
+        coords = [
+            layup._anode._current_collector._body_coordinates[:,0],
+            layup._cathode._current_collector._body_coordinates[:,0],
+            layup._bottom_separator._coordinates[:,0],
+            layup._top_separator._coordinates[:,0]
+        ]
+        x_coords = np.concatenate(coords)
+        x_coords = x_coords[~np.isnan(x_coords)]
+        layup_min_x = np.min(x_coords)
 
         # get the most negative z value
-        z_values = layup._flattened_center_lines['cathode_b_side_coating'][:, 1]
-        z_values = z_values[~np.isnan(z_values)]
-        z_min = np.min(z_values)
+        cathode_b_side_coated_z = layup._cathode._b_side_coating_coordinates[:,2]
+        cathode_b_side_coated_z = cathode_b_side_coated_z[~np.isnan(cathode_b_side_coated_z)]
+        layup_min_z = np.min(cathode_b_side_coated_z) - layup._cathode._coating_thickness/2
 
         # set the new x value
-        new_x = (layup.datum[0] * MM_TO_M) - min_x
+        new_x = (layup.datum[0] * MM_TO_M) - layup_min_x
 
         # set the new y value
         new_y = (layup.datum[1] * MM_TO_M)
 
         # set the new z value
-        new_z = (layup.datum[2] * MM_TO_M) - z_min + layup._cathode._coating_thickness / 2 + mandrel._radius
+        new_z = (layup.datum[2] * MM_TO_M) - layup_min_z + mandrel._radius
 
         # Convert back to mm and set the new datum
         layup.datum = (new_x * M_TO_MM, new_y * M_TO_MM, new_z * M_TO_MM)
@@ -354,7 +361,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         return layup
 
     @abstractmethod
-    def _calculate_variable_thickness_spiral(self) -> np.ndarray:
+    def _calculate_variable_thickness_spiral(self, dtheta) -> np.ndarray:
         """Calculate the base spiral with variable thickness.
         
         This method must be implemented by subclasses to define the specific
@@ -726,7 +733,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             mode='lines',
             fill='toself',
             fillcolor=color,
-            line=dict(color=color, width=0),
+            line=dict(color='black', width=0.1),
             line_shape='spline',
             name=name,
             customdata=customdata,
@@ -1034,10 +1041,10 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         TypeError
             If value is not a Laminate instance
         """
-
         # validate type
         self.validate_type(value, Laminate, "layup")
-    
+
+        # position the layup on the mandrel
         value = self.position_layup_on_mandrel(value, self._mandrel)
 
         # set to self
@@ -1142,6 +1149,8 @@ class WoundJellyRoll(_JellyRoll):
         # get the radius minimum bound
         small_layup = deepcopy(self._layup)
         small_layup.length = min_layup_length
+        small_layup = self.position_layup_on_mandrel(small_layup, self._mandrel)
+        small_layup.calculate_flattened_center_lines()
         small_spiral = SpiralCalculator.calculate_variable_thickness_spiral(small_layup, self._mandrel._radius)
         small_spiral_coords_2d = np.column_stack((small_spiral[:, X_COORD_COL],small_spiral[:, Z_COORD_COL]))
         small_radius = SpiralCalculator.get_radius_of_spiral(small_spiral_coords_2d)
@@ -1150,6 +1159,8 @@ class WoundJellyRoll(_JellyRoll):
         # get the radius maximum bound
         big_layup = deepcopy(self._layup)
         big_layup.length = big_layup.length_hard_range[1]
+        big_layup = self.position_layup_on_mandrel(big_layup, self._mandrel)
+        big_layup.calculate_flattened_center_lines()
         big_spiral = SpiralCalculator.calculate_variable_thickness_spiral(big_layup, self._mandrel._radius)
         big_spiral_coords_2d = np.column_stack((big_spiral[:, X_COORD_COL],big_spiral[:, Z_COORD_COL]))
         big_radius = SpiralCalculator.get_radius_of_spiral(big_spiral_coords_2d)
@@ -1159,11 +1170,12 @@ class WoundJellyRoll(_JellyRoll):
 
         return self._radius, self._diameter, self._radius_range
 
-    def _calculate_variable_thickness_spiral(self) -> np.ndarray:
+    def _calculate_variable_thickness_spiral(self, **kwargs) -> np.ndarray:
 
         self._spiral = SpiralCalculator.calculate_variable_thickness_spiral(
             laminate=self._layup,
-            start_radius=self._mandrel._radius
+            start_radius=self._mandrel._radius,
+            **kwargs
         )
 
         return self._spiral
@@ -1206,6 +1218,21 @@ class WoundJellyRoll(_JellyRoll):
             layup=self._layup
         )
         return self._extruded_spirals
+
+    def calculate_high_resolution_roll(self) -> None:
+            """Generate variable-thickness winding spiral and component placement.
+            
+            This method orchestrates the complete spiral calculation process:
+            1. Calculate base spiral path
+            2. Map components onto spiral
+            3. Create extruded visualization shapes
+            4. Calculate derived spiral properties
+            """
+            self._layup.calculate_flattened_center_lines(x_spacing=0.001)
+            self._calculate_variable_thickness_spiral(dtheta=0.1)
+            self._build_component_spirals()
+            self._build_extruded_component_spirals()
+            self._calculate_spiral_properties()
 
     @classmethod
     def from_flat_wound_jelly_roll(
@@ -1397,6 +1424,8 @@ class WoundJellyRoll(_JellyRoll):
             # Create copy of layup to avoid modifying original during optimization
             layup_copy = deepcopy(self._layup)
             layup_copy.length = length * M_TO_MM
+            layup = self.position_layup_on_mandrel(layup_copy, self._mandrel)
+            layup.calculate_flattened_center_lines()
 
             # Calculate spiral for this length
             spiral = SpiralCalculator.calculate_variable_thickness_spiral(
@@ -1547,6 +1576,8 @@ class FlatWoundJellyRoll(_JellyRoll):
         # get the thickness minimum bound
         small_layup = deepcopy(self._layup)
         small_layup.length = min_layup_length
+        small_layup = self.position_layup_on_mandrel(small_layup, self._mandrel)
+        small_layup.calculate_flattened_center_lines()
         small_pressed_racetrack = SpiralCalculator.calculate_variable_thickness_racetrack(small_layup, radius, straight_length)
         small_racetrack_coords_2d = np.column_stack((small_pressed_racetrack[:, X_COORD_COL],small_pressed_racetrack[:, Z_COORD_COL]))
         small_width = SpiralCalculator.get_width_of_racetrack(small_racetrack_coords_2d)
@@ -1557,6 +1588,8 @@ class FlatWoundJellyRoll(_JellyRoll):
         # get the thickness maximum bound
         big_layup = deepcopy(self._layup)
         big_layup.length = big_layup.length_hard_range[1]
+        big_layup = self.position_layup_on_mandrel(big_layup, self._mandrel)
+        big_layup.calculate_flattened_center_lines()
         big_pressed_racetrack = SpiralCalculator.calculate_variable_thickness_racetrack(big_layup, radius, straight_length)
         big_racetrack_coords_2d = np.column_stack((big_pressed_racetrack[:, X_COORD_COL],big_pressed_racetrack[:, Z_COORD_COL]))
         big_width = SpiralCalculator.get_width_of_racetrack(big_racetrack_coords_2d)
@@ -1637,17 +1670,33 @@ class FlatWoundJellyRoll(_JellyRoll):
 
         return self._extruded_spirals
 
-    def _calculate_variable_thickness_spiral(self) -> np.ndarray:
+    def _calculate_variable_thickness_spiral(self, **kwargs) -> np.ndarray:
 
         # Calculate new spiral with pressed mandrel geometry (no mandrel modification needed)
         self._spiral = SpiralCalculator.calculate_variable_thickness_racetrack(
             laminate=self._layup,
             mandrel_radius=self._pressed_radius, 
-            straight_length=self._pressed_straight_length
+            straight_length=self._pressed_straight_length,
+            **kwargs
         )
         
         return self._spiral
     
+    def calculate_high_resolution_roll(self) -> None:
+            """Generate variable-thickness winding spiral and component placement.
+            
+            This method orchestrates the complete spiral calculation process:
+            1. Calculate base spiral path
+            2. Map components onto spiral
+            3. Create extruded visualization shapes
+            4. Calculate derived spiral properties
+            """
+            self._layup.calculate_flattened_center_lines(x_spacing=0.002)
+            self._calculate_variable_thickness_spiral(ds_target=0.0002)
+            self._build_component_spirals()
+            self._build_extruded_component_spirals()
+            self._calculate_spiral_properties()
+
     @classmethod
     def from_round_jelly_roll(
             cls,
@@ -1826,6 +1875,8 @@ class FlatWoundJellyRoll(_JellyRoll):
             # Create copy of layup to avoid modifying original during optimization
             layup_copy = deepcopy(self._layup)
             layup_copy.length = length * M_TO_MM
+            layup = self.position_layup_on_mandrel(layup_copy, self._mandrel)
+            layup.calculate_flattened_center_lines()
 
             # Calculate racetrack spiral for this length
             spiral = SpiralCalculator.calculate_variable_thickness_racetrack(
@@ -1896,6 +1947,8 @@ class FlatWoundJellyRoll(_JellyRoll):
             # Create copy of layup to avoid modifying original during optimization
             layup_copy = deepcopy(self._layup)
             layup_copy.length = length * M_TO_MM
+            layup = self.position_layup_on_mandrel(layup_copy, self._mandrel)
+            layup.calculate_flattened_center_lines()
 
             # Calculate racetrack spiral for this length
             spiral = SpiralCalculator.calculate_variable_thickness_racetrack(

@@ -18,8 +18,6 @@ TURNS_COL = 5
 
 # Constants for calculations
 TWO_PI = 2.0 * PI
-DEFAULT_DTHETA = 0.5
-DEFAULT_DS_TARGET = 0.5e-3
 DEFAULT_PRESSED_HEIGHT = 0.0008
 TARGET_ERROR = 5e-5
 MAX_ITERATIONS = 500000
@@ -32,7 +30,7 @@ class SpiralCalculator:
     def calculate_variable_thickness_spiral(
         laminate: Laminate, 
         start_radius: float, 
-        dtheta: float = DEFAULT_DTHETA
+        dtheta: float = 0.5
         ) -> np.ndarray:
         """Integrate a variable-thickness Archimedean-like spiral (clockwise) with adaptive RK4.
 
@@ -464,7 +462,7 @@ class SpiralCalculator:
             laminate: Laminate,
             mandrel_radius: float, 
             straight_length: float, 
-            ds_target: float = DEFAULT_DS_TARGET
+            ds_target: float = 0.5e-3
         ) -> np.ndarray:
         """Calculate spiral path for given mandrel geometry parameters (clockwise direction).
         
