@@ -10,7 +10,7 @@ from steer_core.Constants.Units import *
 from steer_core.Decorators.Coordinates import calculate_coordinates
 from steer_core.Decorators.General import calculate_bulk_properties
 
-from steer_opencell_design.Components.CurrentCollectors import PunchedCurrentCollector
+from steer_opencell_design.Components.CurrentCollectors.Punched import PunchedCurrentCollector
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
 from steer_opencell_design.Components.Separators import Separator
 from steer_opencell_design.Constructions.Layups.Base import _Layup
