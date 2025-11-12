@@ -843,21 +843,21 @@ class _Layup(
         # validate the type
         self.validate_type(bottom_separator, Separator, "Bottom Separator")
 
-        # make deep copy
-        bottom_separator = deepcopy(bottom_separator)
-
         # if there is an anode, update its ranges
         if not self._update_properties:
-            bottom_separator.datum = (
-                self.cathode.datum[0],
-                self.cathode.datum[1],
-                bottom_separator.datum[2],
+
+            bottom_separator._datum = (
+                self.cathode._datum[0],
+                self.cathode._datum[1],
+                bottom_separator._datum[2],
             )
+
         elif self._update_properties:
-            bottom_separator.datum = (
-                self.bottom_separator.datum[0],
-                self.bottom_separator.datum[1],
-                bottom_separator.datum[2],
+
+            bottom_separator._datum = (
+                self.bottom_separator._datum[0],
+                self.bottom_separator._datum[1],
+                bottom_separator._datum[2],
             )
 
         # assign to self
@@ -890,16 +890,12 @@ class _Layup(
         self._anode = anode
 
     @top_separator.setter
-    @calculate_bulk_properties
-    @calculate_coordinates
+    @calculate_volumes
     def top_separator(self, top_separator: Separator):
 
         # validate the type
         self.validate_type(top_separator, Separator, "Top Separator")
-
-        # make deep copy
-        top_separator = deepcopy(top_separator)
-
+        
         # if there is an anode, update its ranges
         if not self._update_properties:
             top_separator.datum = (
@@ -931,40 +927,43 @@ class _Layup(
         self.validate_positive_float(np_ratio, "np_ratio")
 
         if self.np_ratio_control_mode == NPRatioControlMode.FIXED_CATHODE:
+            
             new_anode_mass_loading = (np_ratio / self._np_ratio) * self.anode._mass_loading
-            self.anode.mass_loading = new_anode_mass_loading * (KG_TO_MG / M_TO_CM**2)
-            self.anode = self.anode
+            self._anode.mass_loading = new_anode_mass_loading * (KG_TO_MG / M_TO_CM**2)
 
         elif self.np_ratio_control_mode == NPRatioControlMode.FIXED_ANODE:
             new_cathode_mass_loading = (self._np_ratio / np_ratio) * self.cathode._mass_loading
-            self.cathode.mass_loading = new_cathode_mass_loading * (KG_TO_MG / M_TO_CM**2)
-            self.cathode = self.cathode
+            self._cathode.mass_loading = new_cathode_mass_loading * (KG_TO_MG / M_TO_CM**2)
 
         elif self.np_ratio_control_mode == NPRatioControlMode.FIXED_THICKNESS:
             
-            # Store initial mass loadings
-            _initial_anode_ml = self.anode._mass_loading  # kg/m²
-            _initial_cathode_ml = self.cathode._mass_loading  # kg/m²
-            _total_mass_loading = _initial_anode_ml + _initial_cathode_ml
-            
-            # Store the maximum capacity
-            _anode_max_cap = max(self.anode._half_cell_curve[:, 4])  # Ah/m²
-            _cathode_max_cap = max(self.cathode._half_cell_curve[:, 4])
+            # store the initial coating thicknesses
+            initial_anode_thickness = self._anode.coating_thickness
+            initial_cathode_thickness = self._cathode.coating_thickness
+            total_thickness = initial_anode_thickness + initial_cathode_thickness
 
-            # Get capacity per mass loading for each electrode
-            _anode_cap_per_ml = _anode_max_cap / _initial_anode_ml
-            _cathode_cap_per_ml = _cathode_max_cap / _initial_cathode_ml
-            
-            _new_anode_ml = (np_ratio * _total_mass_loading * _cathode_cap_per_ml) / (_anode_cap_per_ml + np_ratio * _cathode_cap_per_ml)
-            _new_cathode_ml = _total_mass_loading - _new_anode_ml
-            
-            # Apply the new mass loadings (convert from kg/m² to mg/cm²)
-            self.anode.mass_loading = _new_anode_ml * (KG_TO_MG / M_TO_CM**2)
-            self.cathode.mass_loading = _new_cathode_ml * (KG_TO_MG / M_TO_CM**2)
-            
-            # Trigger setters to update properties
-            self.anode = self.anode
-            self.cathode = self.cathode
+            # Store the maximum capacity
+            _anode_max_cap = max(self._anode._half_cell_curve[:, 4])  # Ah/m²
+            _cathode_max_cap = max(self._cathode._half_cell_curve[:, 4])
+
+            # get the capacity per thickness for each electrode
+            _anode_cap_per_thickness = _anode_max_cap / initial_anode_thickness
+            _cathode_cap_per_thickness = _cathode_max_cap / initial_cathode_thickness
+
+            # Target ratio (R) relates thicknesses through:
+            # (A * t_a') / (C * t_c') = R  with  t_a' + t_c' = T
+            # => t_a' = (R * C * T) / (A + R * C)
+            R = np_ratio
+            A = _anode_cap_per_thickness
+            C = _cathode_cap_per_thickness
+            T = total_thickness
+
+            new_anode_thickness = (R * C * T) / (A + R * C)
+            new_cathode_thickness = T - new_anode_thickness
+
+            self._anode.coating_thickness = new_anode_thickness
+            self._cathode.coating_thickness = new_cathode_thickness
+
 
     #### ANODE OVERHANG PROPERTY/SETTERS ####
 
