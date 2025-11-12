@@ -555,7 +555,6 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
     def get_spiral_plot(
             self, 
             layered: bool = True,
-            extruded: bool = True,
             **kwargs: Any
         ) -> go.Figure:
         """Generate interactive spiral plot using Plotly.
@@ -575,39 +574,35 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             Interactive Plotly figure with spiral visualization
         """
 
-        fig = go.Figure()
+        if layered:
 
-        if layered and not extruded:
-            fig.add_trace(self.top_separator_spiral_trace)
-            fig.add_trace(self.anode_a_side_coating_spiral_trace)
-            fig.add_trace(self.anode_current_collector_spiral_trace)
-            fig.add_trace(self.anode_b_side_coating_spiral_trace)
-            fig.add_trace(self.bottom_separator_spiral_trace)
-            fig.add_trace(self.cathode_a_side_coating_spiral_trace)
-            fig.add_trace(self.cathode_current_collector_spiral_trace)
-            fig.add_trace(self.cathode_b_side_coating_spiral_trace)
-
-        elif layered and extruded:
-            fig.add_trace(self.top_separator_extruded_spiral_trace)
-            fig.add_trace(self.anode_a_side_coating_extruded_spiral_trace)
-            fig.add_trace(self.anode_current_collector_extruded_spiral_trace)
-            fig.add_trace(self.anode_b_side_coating_extruded_spiral_trace)
-            fig.add_trace(self.bottom_separator_extruded_spiral_trace)
-            fig.add_trace(self.cathode_a_side_coating_extruded_spiral_trace)
-            fig.add_trace(self.cathode_current_collector_extruded_spiral_trace)
-            fig.add_trace(self.cathode_b_side_coating_extruded_spiral_trace)
-
-            fig.add_trace(self.top_separator_spiral_trace)
-            fig.add_trace(self.anode_a_side_coating_spiral_trace)
-            fig.add_trace(self.anode_current_collector_spiral_trace)
-            fig.add_trace(self.anode_b_side_coating_spiral_trace)
-            fig.add_trace(self.bottom_separator_spiral_trace)
-            fig.add_trace(self.cathode_a_side_coating_spiral_trace)
-            fig.add_trace(self.cathode_current_collector_spiral_trace)
-            fig.add_trace(self.cathode_b_side_coating_spiral_trace)
-
-        elif not layered:
-            fig.add_trace(self.spiral_trace)
+            extruded_traces = [
+                self.anode_a_side_coating_extruded_spiral_trace,
+                self.anode_current_collector_extruded_spiral_trace,
+                self.anode_b_side_coating_extruded_spiral_trace,
+                self.cathode_a_side_coating_extruded_spiral_trace,
+                self.cathode_current_collector_extruded_spiral_trace,
+                self.cathode_b_side_coating_extruded_spiral_trace,
+                self.top_separator_extruded_spiral_trace,
+                self.bottom_separator_extruded_spiral_trace,
+            ]
+            
+            line_traces = [
+                self.top_separator_spiral_trace,
+                self.anode_a_side_coating_spiral_trace,
+                self.anode_current_collector_spiral_trace,
+                self.anode_b_side_coating_spiral_trace,
+                self.bottom_separator_spiral_trace,
+                self.cathode_a_side_coating_spiral_trace,
+                self.cathode_current_collector_spiral_trace,
+                self.cathode_b_side_coating_spiral_trace,
+            ]
+            
+            fig = go.Figure(data=extruded_traces + line_traces)
+            
+        else:
+            
+            fig = go.Figure(data=[self.spiral_trace])
 
         fig.update_layout(
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
