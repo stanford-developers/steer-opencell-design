@@ -601,7 +601,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             fig = go.Figure(data=extruded_traces + line_traces)
             
         else:
-            
+
             fig = go.Figure(data=[self.spiral_trace])
 
         fig.update_layout(
@@ -1123,18 +1123,12 @@ class WoundJellyRoll(_JellyRoll):
         ValueError
             If component spiral data is invalid or insufficient
         """
-        # get the radius and diameter
-        radius_list = []
+        spirals = np.concatenate([s for s in self._component_spirals.values()])
+        spirals_x_z = np.column_stack((spirals[:, X_COORD_COL], spirals[:, Z_COORD_COL]))
+        radius, center = self.get_radius_of_points(spirals_x_z)
 
-        # Create the bounding surface for each component
-        for _, spiral_data in self._component_spirals.items():
-        
-            x_coords = spiral_data[:, X_COORD_COL]
-            z_coords = spiral_data[:, Z_COORD_COL]
-            coords_2d = np.column_stack((x_coords, z_coords))
-            radius_list.append(SpiralCalculator.get_radius_of_spiral(coords_2d))
-
-        self._radius = max(radius_list)
+        self._radius = radius
+        self._spiral_center = center
         self._diameter = self._radius * 2
 
         # get the minimum layup length 
@@ -1148,7 +1142,7 @@ class WoundJellyRoll(_JellyRoll):
         small_layup.calculate_flattened_center_lines()
         small_spiral = SpiralCalculator.calculate_variable_thickness_spiral(small_layup, self._mandrel._radius)
         small_spiral_coords_2d = np.column_stack((small_spiral[:, X_COORD_COL],small_spiral[:, Z_COORD_COL]))
-        small_radius = SpiralCalculator.get_radius_of_spiral(small_spiral_coords_2d)
+        small_radius, small_center = self.get_radius_of_points(small_spiral_coords_2d)
         small_radius = small_radius + small_layup.get_thickness_at_x(small_layup._total_length)
 
         # get the radius maximum bound
@@ -1158,7 +1152,7 @@ class WoundJellyRoll(_JellyRoll):
         big_layup.calculate_flattened_center_lines()
         big_spiral = SpiralCalculator.calculate_variable_thickness_spiral(big_layup, self._mandrel._radius)
         big_spiral_coords_2d = np.column_stack((big_spiral[:, X_COORD_COL],big_spiral[:, Z_COORD_COL]))
-        big_radius = SpiralCalculator.get_radius_of_spiral(big_spiral_coords_2d)
+        big_radius, big_center = self.get_radius_of_points(big_spiral_coords_2d)
         big_radius = big_radius + big_layup.get_thickness_at_x(big_layup._total_length)
 
         self._radius_range = (small_radius, big_radius)
@@ -1430,7 +1424,7 @@ class WoundJellyRoll(_JellyRoll):
 
             # Get radius from spiral coordinates
             coords = spiral[:, [X_COORD_COL, Z_COORD_COL]]
-            actual_radius = SpiralCalculator.get_radius_of_spiral(coords=coords)
+            actual_radius, _ = self.get_radius_of_points(coords=coords)
 
             # Add thickness at end of layup (this accounts for final layer thickness)
             thickness_at_end = layup_copy.get_thickness_at_x(x_position=layup_copy._total_length)
