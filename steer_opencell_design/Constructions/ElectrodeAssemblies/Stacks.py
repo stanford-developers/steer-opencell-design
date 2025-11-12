@@ -12,6 +12,7 @@ from steer_opencell_design.Constructions.ElectrodeAssemblies.Base import _Electr
 
 from copy import deepcopy
 import numpy as np
+import pandas as pd
 from shapely.geometry import Polygon
 import plotly.graph_objects as go
 from typing import Dict, Tuple, Union, Any
@@ -190,36 +191,49 @@ class _Stack(_ElectrodeAssembly):
         return self._cost
 
     def get_side_view(self, **kwargs):
-        figure = go.Figure()
+        """
+        Generate an optimized side view of the stack with grouped component traces.
         
-        # Track legend groups that have been added
-        legend_groups_added = set()
+        Returns
+        -------
+        go.Figure
+            Plotly figure showing the stack side view
+        """
+        # Group components by type
+        cathodes = [c for c in self._stack.values() if isinstance(c, Cathode)]
+        anodes = [a for a in self._stack.values() if isinstance(a, Anode)]
+        separators = [s for s in self._stack.values() if isinstance(s, Separator)]
         
-        # Collect all traces first, then batch add them
-        all_traces = []
+        traces = []
         
-        for _, component in self.stack.items():
-            layer_figure = component.get_right_left_view()
-            legend_group = component.__class__.__name__
-            
-            # Process all traces from this component at once
-            for trace in layer_figure.data:
-                trace.legendgroup = legend_group
-                trace.name = legend_group
-                trace.showlegend = legend_group not in legend_groups_added
-                
-                # Set line width efficiently
-                if hasattr(trace, 'line') and trace.line is not None:
-                    trace.line.width = 0.1
-                    
-                all_traces.append(trace)
-                
-            # Mark this legend group as added
-            legend_groups_added.add(legend_group)
+        # Define trace configurations for cleaner code
+        trace_configs = [
+            (cathodes, '_a_side_coating_coordinates', "Cathode A Side", lambda c: c._formulation._color),
+            (cathodes, '_current_collector._body_coordinates', "Cathode Current Collector", lambda c: c._current_collector._material._color),
+            (cathodes, '_b_side_coating_coordinates', "Cathode B Side", lambda c: c._formulation._color),
+            (anodes, '_a_side_coating_coordinates', "Anode A Side", lambda a: a._formulation._color),
+            (anodes, '_current_collector._body_coordinates', "Anode Current Collector", lambda a: a._current_collector._material._color),
+            (anodes, '_b_side_coating_coordinates', "Anode B Side", lambda a: a._formulation._color),
+            (separators, '_coordinates', "Separator", lambda s: s._material._color),
+        ]
         
-        # Batch add all traces at once (much faster than individual add_trace calls)
-        figure.add_traces(all_traces)
-
+        # Process each trace configuration
+        for components, coord_attr, name, color_func in trace_configs:
+            trace = self.create_component_trace(
+                components, 
+                coord_attr, 
+                name, 
+                0.1, 
+                color_func, 
+                unit_conversion_factor=M_TO_MM,
+                order_clockwise='yz'
+            )
+            traces.append(trace)
+        
+        # Create figure with all traces
+        figure = go.Figure(data=traces)
+        
+        # Apply layout
         figure.update_layout(
             xaxis=self.SCHEMATIC_X_AXIS,
             yaxis=self.SCHEMATIC_Y_AXIS,
@@ -227,7 +241,7 @@ class _Stack(_ElectrodeAssembly):
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
         )
-
+        
         return figure
 
     @staticmethod
@@ -553,9 +567,16 @@ class ZFoldStack(_Stack):
         return (0, 10)
 
     @additional_separator_wraps.setter
-    @calculate_bulk_properties
+    @calculate_all_properties
     def additional_separator_wraps(self, value: float):
+
+        # Validate input
         self.validate_positive_float(value, "additional_separator_wraps")
+        
+        # Round to nearest integer
+        value = int(round(value, 0))
+        
+        # set the value
         self._additional_separator_wraps = value
 
     @property

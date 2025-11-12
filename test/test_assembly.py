@@ -459,7 +459,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertTrue(type(self.my_jellyroll.spiral) == pd.DataFrame)
 
         fig1 = self.my_jellyroll.get_spiral_plot()
-        fig2 = self.my_jellyroll.get_spiral_plot(extruded=False, layered=False)
+        fig2 = self.my_jellyroll.get_spiral_plot(layered=False)
         fig3 = self.my_jellyroll.get_capacity_plot()
         # fig1.show()
         # fig2.show()
@@ -839,6 +839,13 @@ class TestZFoldStack(unittest.TestCase):
         """Test right and left side views of the punched stack."""
         fig_right = self.stack.get_side_view()
         # fig_right.show()
+
+    def test_additional_separator_wrap_setter(self):
+        fig1 = self.stack.get_side_view()
+        self.stack.additional_separator_wraps = 40
+        fig2 = self.stack.get_side_view()
+        # fig1.show()
+        # fig2.show()
 
     def test_get_capacity_curve(self):
         """Test getting the full-cell capacity curve of the punched stack."""
