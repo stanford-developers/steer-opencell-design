@@ -1,4 +1,5 @@
 from steer_core.Decorators.Coordinates import calculate_coordinates, calculate_volumes
+
 from steer_core.Decorators.General import (
     calculate_all_properties,
     calculate_bulk_properties,
@@ -18,7 +19,7 @@ from steer_opencell_design.Formulations.ElectrodeFormulations import (
     AnodeFormulation,
     _ElectrodeFormulation,
 )
-from steer_opencell_design.Components.CurrentCollectors import _CurrentCollector
+from steer_opencell_design.Components.CurrentCollectors.base import _CurrentCollector
 
 from steer_materials.CellMaterials.Base import InsulationMaterial
 
@@ -348,21 +349,6 @@ class _Electrode(
 
     # === VIEWS ===
 
-    def _get_full_top_down_view(self, **kwargs) -> pd.DataFrame:
-        """
-        Helper method to get a top-down view of the electrode.
-        """
-        figure = self._current_collector._get_full_top_down_view(**kwargs)
-        figure.data = [trace for trace in figure.data if trace.name == "Body" or trace.name == "Tab"]
-        figure.add_trace(self.top_down_coating_trace)
-
-        # Only add insulation trace if it exists and is not None
-        insulation_trace = self.top_down_insulation_trace
-        if insulation_trace is not None:
-            figure.add_trace(insulation_trace)
-
-        return figure
-
     def get_right_left_view(self, set_z_zero: bool = False, **kwargs) -> pd.DataFrame:
     
         if set_z_zero:
@@ -451,40 +437,11 @@ class _Electrode(
         coating_trace = self.top_down_coating_trace
         insulation_trace = self.top_down_insulation_trace
 
-        # Check if this is a subplot figure by looking for subplot annotations
-        is_subplot = hasattr(figure, "_grid_ref") and figure._grid_ref is not None
+        # Regular figure - add traces normally
+        figure.add_trace(coating_trace)
 
-        if is_subplot:
-            # Get the number of subplots
-            rows = len(figure._grid_ref)
-            cols = len(figure._grid_ref[0]) if rows > 0 else 0
-
-            # Add traces to each subplot
-            for row in range(1, rows + 1):
-                for col in range(1, cols + 1):
-                    # Create deep copies of the traces for each subplot
-                    coating_trace_copy = deepcopy(coating_trace)
-                    insulation_trace_copy = deepcopy(insulation_trace)
-
-                    # Set legend properties - only show in legend for first subplot
-                    is_first_subplot = row == 1 and col == 1
-
-                    coating_trace_copy.showlegend = is_first_subplot
-                    coating_trace_copy.legendgroup = coating_trace.name
-
-                    if insulation_trace_copy:
-                        insulation_trace_copy.showlegend = is_first_subplot
-                        insulation_trace_copy.legendgroup = insulation_trace.name
-
-                    # Add traces to specific subplot
-                    figure.add_trace(coating_trace_copy, row=row, col=col)
-                    if insulation_trace_copy:  # Check if insulation exists
-                        figure.add_trace(insulation_trace_copy, row=row, col=col)
-        else:
-            # Regular figure - add traces normally
-            figure.add_trace(coating_trace)
-            if insulation_trace:  # Check if insulation exists
-                figure.add_trace(insulation_trace)
+        if insulation_trace:  # Check if insulation exists
+            figure.add_trace(insulation_trace)
 
         return figure
 

@@ -487,7 +487,7 @@ class _Layup(
         fig = go.Figure()
 
         # Get trace groups
-        cathode_fig = self._cathode._get_full_top_down_view()
+        cathode_fig = self._cathode.get_top_down_view()
 
         # Check if separators have the same name and create distinct legend groups
         separators_same_name = self._bottom_separator.name == self._top_separator.name
@@ -512,7 +512,7 @@ class _Layup(
         # Use ColorMixin method to adjust trace opacity
         self.adjust_trace_opacity(bottom_separator_trace, opacity)
 
-        anode_fig = self._anode._get_full_top_down_view()
+        anode_fig = self._anode.get_top_down_view()
         anode_traces = []
         for i, trace in enumerate(anode_fig.data):
             trace.name = trace.name + " (Anode)"

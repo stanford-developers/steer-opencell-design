@@ -7,11 +7,10 @@ from steer_opencell_design.Formulations.ElectrodeFormulations import (
     AnodeFormulation,
 )
 from steer_opencell_design.Components.Electrodes import Cathode, Anode
-from steer_opencell_design.Components.CurrentCollectors import (
-    NotchedCurrentCollector,
-    PunchedCurrentCollector,
-    TablessCurrentCollector,
-)
+from steer_opencell_design.Components.CurrentCollectors.Notched import NotchedCurrentCollector
+from steer_opencell_design.Components.CurrentCollectors.Tabless import TablessCurrentCollector
+from steer_opencell_design.Components.CurrentCollectors.Punched import PunchedCurrentCollector
+
 from steer_opencell_design.Components.Separators import Separator
 from steer_opencell_design.Constructions.Layups.Base import OverhangControlMode, NPRatioControlMode
 from steer_opencell_design.Constructions.Layups.Laminate import Laminate
@@ -204,8 +203,8 @@ class TestSimpleLaminate(unittest.TestCase):
 
     def test_plots(self):
 
-        fig1 = self.layup.anode._get_full_top_down_view()
-        fig2 = self.layup.cathode._get_full_top_down_view()
+        fig1 = self.layup.anode.get_top_down_view()
+        fig2 = self.layup.cathode.get_top_down_view()
         fig3 = self.layup.get_top_down_view(opacity=0.2)
         fig4 = self.layup.get_areal_capacity_plot()
         fig5 = self.layup.get_down_top_view()
@@ -224,21 +223,21 @@ class TestSimpleLaminate(unittest.TestCase):
     def test_change_anode_material(self):
 
         anode = deepcopy(self.layup.anode)
-        fig1 = anode._get_full_top_down_view()
+        fig1 = anode.get_top_down_view()
 
         new_cc_material = CurrentCollectorMaterial.from_database("Copper")
         current_collector = anode.current_collector
         current_collector.material = new_cc_material
         anode.current_collector = current_collector
         self.layup.anode = anode
-        fig2 = self.layup.anode._get_full_top_down_view()
+        fig2 = self.layup.anode.get_top_down_view()
 
         new_new_cc_material = CurrentCollectorMaterial.from_database("Aluminum")
         current_collector = anode.current_collector
         current_collector.material = new_new_cc_material
         anode.current_collector = current_collector
         self.layup.anode = anode
-        fig3 = self.layup.anode._get_full_top_down_view()
+        fig3 = self.layup.anode.get_top_down_view()
 
         # fig1.show()
         # fig2.show()
@@ -253,7 +252,7 @@ class TestSimpleLaminate(unittest.TestCase):
         self.layup.anode.current_collector = deepcopy(self.layup.anode.current_collector)
         self.layup.anode = deepcopy(self.layup.anode)
 
-        fig1 = self.layup.anode._get_full_top_down_view()
+        fig1 = self.layup.anode.get_top_down_view()
 
         # fig1.show()
 
@@ -274,8 +273,8 @@ class TestSimpleLaminate(unittest.TestCase):
             cathode_coated_width,
         )
 
-        fig1 = self.layup.anode._get_full_top_down_view()
-        fig2 = self.layup.cathode._get_full_top_down_view()
+        fig1 = self.layup.anode.get_top_down_view()
+        fig2 = self.layup.cathode.get_top_down_view()
 
         # fig1.show()
         # fig2.show()

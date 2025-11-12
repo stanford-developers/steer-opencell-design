@@ -8,7 +8,9 @@ from steer_opencell_design.Formulations.ElectrodeFormulations import (
     AnodeFormulation,
 )
 from steer_opencell_design.Components.Electrodes import Cathode, Anode
-from steer_opencell_design.Components.CurrentCollectors import PunchedCurrentCollector, NotchedCurrentCollector, TabWeldedCurrentCollector, WeldTab
+from steer_opencell_design.Components.CurrentCollectors.Punched import PunchedCurrentCollector
+from steer_opencell_design.Components.CurrentCollectors.Notched import NotchedCurrentCollector
+from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector, WeldTab
 from steer_opencell_design.Components.Separators import Separator
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import PunchedStack, ZFoldStack, _Stack
 from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import WoundJellyRoll, FlatWoundJellyRoll
@@ -21,6 +23,7 @@ from steer_materials.CellMaterials.Base import (
     SeparatorMaterial, 
     InsulationMaterial
 )
+
 from steer_materials.CellMaterials.Electrode import (
     CathodeMaterial,
     AnodeMaterial,
