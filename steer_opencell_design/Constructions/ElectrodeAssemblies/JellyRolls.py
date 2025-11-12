@@ -20,19 +20,13 @@ import time
 # Constants for array column indices
 THETA_COL = 0
 X_UNWRAPPED_COL = 1
-RADIUS_COL = 2
 X_COORD_COL = 3
 Z_COORD_COL = 4
 TURNS_COL = 5
 
 # Constants for calculations
 TWO_PI = 2.0 * PI
-DEFAULT_DTHETA = 0.4
-DEFAULT_DS_TARGET = 0.5e-3
 DEFAULT_PRESSED_HEIGHT = 0.0008
-TARGET_ERROR = 5e-5
-MAX_ITERATIONS = 500000
-MAX_POINTS = 120000
 
 
 class _JellyRoll(_ElectrodeAssembly, ABC):
@@ -337,6 +331,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             layup._bottom_separator._coordinates[:,0],
             layup._top_separator._coordinates[:,0]
         ]
+
         x_coords = np.concatenate(coords)
         x_coords = x_coords[~np.isnan(x_coords)]
         layup_min_x = np.min(x_coords)
@@ -344,7 +339,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         # get the most negative z value
         cathode_b_side_coated_z = layup._cathode._b_side_coating_coordinates[:,2]
         cathode_b_side_coated_z = cathode_b_side_coated_z[~np.isnan(cathode_b_side_coated_z)]
-        layup_min_z = np.min(cathode_b_side_coated_z) - layup._cathode._coating_thickness/2
+        layup_min_z = np.min(cathode_b_side_coated_z)
 
         # set the new x value
         new_x = (layup.datum[0] * MM_TO_M) - layup_min_x
@@ -552,11 +547,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
         return self._cost
 
-    def get_spiral_plot(
-            self, 
-            layered: bool = True,
-            **kwargs: Any
-        ) -> go.Figure:
+    def get_spiral_plot(self, layered: bool = True,**kwargs: Any) -> go.Figure:
         """Generate interactive spiral plot using Plotly.
         
         Parameters
