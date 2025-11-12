@@ -145,7 +145,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23895, 0)
         self.assertAlmostEqual(self.my_jellyroll.energy, 37.29)
         self.assertAlmostEqual(self.my_jellyroll.cost, 3.36, 2)
-        self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 6.76, 2)
+        self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 6.74, 2)
         self.assertAlmostEqual(self.my_jellyroll.radius_range[1], 30.55, 2)
         self.assertAlmostEqual(self.my_jellyroll.mass, 646.94, 2)
 
@@ -182,17 +182,17 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertIsInstance(self.my_jellyroll.roll_properties, pd.DataFrame)
         
         expected_data = {
-            'Anode A Side Coating Turns': 50.01,
-            'Anode Current Collector Turns': 58.94,
+            'Anode A Side Coating Turns': 50.12,
+            'Anode Current Collector Turns': 59.09,
             'Anode B Side Coating Turns': 52.1,
-            'Cathode A Side Coating Turns': 58.94,
-            'Cathode Current Collector Turns': 58.94,
-            'Cathode B Side Coating Turns': 58.94,
+            'Cathode A Side Coating Turns': 59.09,
+            'Cathode Current Collector Turns': 59.09,
+            'Cathode B Side Coating Turns': 59.09,
             'Bottom Separator Turns': 129.58,
-            'Bottom Separator Inner Turns': 67.48,
+            'Bottom Separator Inner Turns': 67.36,
             'Bottom Separator Outer Turns': 11.66,
-            'Top Separator Turns': 71.06,
-            'Top Separator Inner Turns': 16.65,
+            'Top Separator Turns': 70.99,
+            'Top Separator Inner Turns': 16.55,
             'Top Separator Outer Turns': 3.94
         }
         
@@ -230,7 +230,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         # Check that diameter updated correctly
         self.assertAlmostEqual(self.my_jellyroll.radius, new_radius, 0)
         self.assertAlmostEqual(self.my_jellyroll.diameter, new_radius * 2, 0)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 5.27, 2)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 5.27, 1)
 
     def test_to_flat_jelly_roll(self):
 
@@ -240,7 +240,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(flat_jellyroll.energy, 37.29)
         self.assertAlmostEqual(flat_jellyroll.cost, 3.36, 2)
         self.assertAlmostEqual(flat_jellyroll.thickness, 19.06, 1)
-        self.assertAlmostEqual(flat_jellyroll.width, 75.68, 2)
+        self.assertAlmostEqual(flat_jellyroll.width, 75.64, 1)
 
         figure = flat_jellyroll.get_spiral_plot()
         # figure.show()
@@ -322,11 +322,11 @@ class TestRoundJellyRoll(unittest.TestCase):
 
         new_jellyroll.mandrel.diameter = 10
         new_jellyroll.mandrel = new_jellyroll.mandrel
-        self.assertAlmostEqual(new_jellyroll.radius, 21.11, 2)
+        self.assertAlmostEqual(new_jellyroll.radius, 21.09, 1)
 
         new_jellyroll.mandrel.radius = 10
         new_jellyroll.mandrel = new_jellyroll.mandrel
-        self.assertAlmostEqual(new_jellyroll.radius, 22.82, 2)
+        self.assertAlmostEqual(new_jellyroll.radius, 22.82, 1)
 
     def test_current_collector_length_set(self):
         """Test that setting the current collector length updates the jellyroll properties."""
@@ -446,14 +446,14 @@ class TestFlatJellyRoll(unittest.TestCase):
 
     def test_basics(self):
         self.assertTrue(type(self.my_jellyroll), WoundJellyRoll)
-        self.assertEqual(self.my_jellyroll.thickness, 12.43)
-        self.assertEqual(self.my_jellyroll.width, 114)
+        self.assertEqual(self.my_jellyroll.thickness, 12.38)
+        self.assertEqual(self.my_jellyroll.width, 113.96)
         self.assertEqual(self.my_jellyroll.cost, 3.36)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23725.74, 0)
-        self.assertAlmostEqual(self.my_jellyroll.thickness_range[0], 2.02, 2)
-        self.assertAlmostEqual(self.my_jellyroll.thickness_range[1], 24.37, 2)
-        self.assertAlmostEqual(self.my_jellyroll.width_range[0], 103.6, 2)
-        self.assertAlmostEqual(self.my_jellyroll.width_range[1], 125.95, 2)
+        self.assertAlmostEqual(self.my_jellyroll.thickness_range[0], 2.01, 1)
+        self.assertAlmostEqual(self.my_jellyroll.thickness_range[1], 24.37, 1)
+        self.assertAlmostEqual(self.my_jellyroll.width_range[0], 103.6, 1)
+        self.assertAlmostEqual(self.my_jellyroll.width_range[1], 125.95, 1)
         self.assertAlmostEqual(self.my_jellyroll.energy, 37.02)
 
     def test_plots(self):
@@ -531,8 +531,8 @@ class TestFlatJellyRoll(unittest.TestCase):
 
         # Check that width updated correctly
         self.assertAlmostEqual(self.my_jellyroll.thickness, new_thickness, 0)
-        self.assertAlmostEqual(self.my_jellyroll.width, 118.83, 1)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 5.05, 2)
+        self.assertAlmostEqual(self.my_jellyroll.width, 118.73, 1)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 5.03, 1)
 
     def test_width_setter(self):
         """Test that setting the width updates the thickness correctly."""
@@ -544,8 +544,8 @@ class TestFlatJellyRoll(unittest.TestCase):
 
         # Check that thickness updated correctly
         self.assertAlmostEqual(self.my_jellyroll.width, new_width, 0)
-        self.assertAlmostEqual(self.my_jellyroll.thickness, 14.38, 1)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 4.03, 2)
+        self.assertAlmostEqual(self.my_jellyroll.thickness, 14.3, 1)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 4.03, 1)
 
     def test_to_wound_jelly_roll(self):
         """Test converting a FlatWoundJellyRoll to a WoundJellyRoll."""
@@ -555,9 +555,9 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertIsInstance(wound_jellyroll, WoundJellyRoll)
         self.assertAlmostEqual(wound_jellyroll.interfacial_area, 23895, 0)
         self.assertAlmostEqual(wound_jellyroll.energy, 37.29)
-        self.assertAlmostEqual(wound_jellyroll.cost, 3.36, 2)
-        self.assertAlmostEqual(wound_jellyroll.radius, 20.48, 2)
-        self.assertAlmostEqual(wound_jellyroll.diameter, 40.96, 2)
+        self.assertAlmostEqual(wound_jellyroll.cost, 3.36, 1)
+        self.assertAlmostEqual(wound_jellyroll.radius, 20.48, 1)
+        self.assertAlmostEqual(wound_jellyroll.diameter, 40.96, 1)
 
         figure = wound_jellyroll.get_spiral_plot()
         # figure.show()

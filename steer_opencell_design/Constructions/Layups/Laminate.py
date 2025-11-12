@@ -82,7 +82,7 @@ class Laminate(_Layup):
         super()._calculate_coordinates()
         self._calculate_total_geometries()
 
-    def calculate_flattened_center_lines(self, x_spacing: float = 0.008) -> dict:
+    def calculate_flattened_center_lines(self, x_spacing: float = 0.004) -> dict:
         """Vectorized construction of flattened center lines for laminate layers.
 
         Builds an explicit bottom->top ordered stack and computes center line
@@ -114,11 +114,6 @@ class Laminate(_Layup):
             if coords.size > 0 and coords.shape[0] > 0:
                 valid_layer_specs.append((name, coords, thickness))
         
-        # Check if we have any valid layers
-        if not valid_layer_specs:
-            # Return empty structure if no components exist
-            return {"baseline": np.empty((0, 2))}
-
         # Gather all x end points from valid layers only
         x_breaks = []
         for _, coords, _ in valid_layer_specs:
