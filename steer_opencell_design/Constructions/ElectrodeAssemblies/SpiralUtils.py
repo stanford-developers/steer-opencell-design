@@ -29,7 +29,8 @@ class SpiralCalculator:
     def calculate_variable_thickness_spiral(
         laminate: Laminate, 
         start_radius: float, 
-        dtheta: float = 0.5
+        dtheta: float = None,
+        **kwargs
         ) -> np.ndarray:
         """Integrate a variable-thickness Archimedean-like spiral (clockwise) with adaptive RK4.
 
@@ -50,8 +51,11 @@ class SpiralCalculator:
 
         Parameters
         ----------
-        dtheta : float
+        dtheta : float, optional
             Nominal (maximum) angular step magnitude (radians). Smaller steps are chosen adaptively as needed.
+            If None, will look for 'dtheta' in kwargs, defaults to 0.5.
+        **kwargs
+            Additional keyword arguments. Can include 'dtheta' as alternative parameter specification.
 
         Returns
         -------
@@ -63,6 +67,10 @@ class SpiralCalculator:
         ValueError
             If laminate total length is invalid or spiral calculation fails
         """
+        # Handle dtheta parameter from kwargs if not explicitly provided
+        if dtheta is None:
+            dtheta = kwargs.get('dtheta', 0.5)
+        
         total_length = laminate._total_length
         r0 = start_radius
             
@@ -329,7 +337,10 @@ class SpiralCalculator:
         return component_spirals
 
     @staticmethod
-    def build_extruded_component_spirals(component_spirals: dict, layup: Laminate) -> dict:
+    def build_extruded_component_spirals(
+        component_spirals: dict, 
+        component_thicknesses: dict,
+        ) -> dict:
         """Build extruded component spirals by radially thickening center line spirals.
         
         For each component, creates a filled shape by:
@@ -343,13 +354,13 @@ class SpiralCalculator:
         ----------
         component_spirals : dict
             Component spirals from build_component_spirals
-        layup : Laminate
-            The layup structure containing thickness information
+        component_thicknesses : dict
+            Thicknesses for each component
             
         Returns
         -------
         dict
-            Extruded component spirals for 3D visualization
+            Extruded component spirals for 2D visualization
             
         Raises
         ------
@@ -358,18 +369,7 @@ class SpiralCalculator:
         """
         extruded_spirals = {}
 
-        component_thicknesses = {
-            'top_separator': layup.top_separator._thickness,
-            'anode_a_side_coating': layup.anode._coating_thickness,
-            'anode_current_collector': layup.anode.current_collector._thickness,
-            'anode_b_side_coating': layup.anode._coating_thickness,
-            'bottom_separator': layup.bottom_separator._thickness,
-            'cathode_a_side_coating': layup.cathode._coating_thickness,
-            'cathode_current_collector': layup.cathode.current_collector._thickness,
-            'cathode_b_side_coating': layup.cathode._coating_thickness,
-        }
-
-        components = [n for n in layup._flattened_center_lines.keys()]
+        components = [n for n in component_spirals.keys()]
         
         # Process each component that has a center line spiral
         for component_name in components:
@@ -431,11 +431,88 @@ class SpiralCalculator:
         return filled_spiral
 
     @staticmethod
+    def calculate_simple_spiral(
+        n_turns: float,
+        start_radius: float, 
+        thickness: float,
+        points_per_turn: int = 100
+    ) -> np.ndarray:
+        """
+        Calculate a simple uniform-thickness Archimedean spiral.
+        
+        This function generates a basic spiral with constant thickness increment
+        per turn, useful for simple geometric calculations or as a baseline
+        comparison for more complex variable-thickness spirals.
+        
+        Parameters
+        ----------
+        n_turns : float
+            Number of turns to generate
+        start_radius : float
+            Starting radius in meters
+        thickness : float 
+            Constant thickness per turn in meters
+        points_per_turn : int, optional
+            Number of points per complete turn, by default 100
+            
+        Returns
+        -------
+        np.ndarray
+            Spiral coordinates with columns: [theta, x_unwrapped, r, x, z, turns]
+            Same format as calculate_variable_thickness_spiral()
+        """
+        # Calculate total angular span (clockwise, starting from π/2)
+        total_angle = n_turns * TWO_PI
+        n_points = int(n_turns * points_per_turn) + 1
+        
+        # Generate theta array (decreasing from π/2 for clockwise rotation)
+        theta_start = np.pi/2
+        theta_end = theta_start - total_angle
+        theta_arr = np.linspace(theta_start, theta_end, n_points)
+        
+        # Calculate radius for uniform thickness spiral: r = start_radius + (thickness/(2π)) * angle_traveled
+        angle_traveled = theta_start - theta_arr  # Positive angle traveled
+        r_arr = start_radius + (thickness / TWO_PI) * angle_traveled
+        
+        # Calculate unwrapped length (arc length along spiral)
+        # For Archimedean spiral: ds = sqrt(r² + (dr/dtheta)²) * dtheta
+        # where dr/dtheta = thickness/(2π) = constant
+        dr_dtheta = thickness / TWO_PI
+        
+        # Calculate incremental arc lengths
+        ds_arr = np.zeros_like(theta_arr)
+        if len(theta_arr) > 1:
+            dtheta = np.abs(np.diff(theta_arr))  # Angular increments (positive)
+            r_mid = (r_arr[:-1] + r_arr[1:]) / 2  # Midpoint radii
+            ds_increments = np.sqrt(r_mid**2 + dr_dtheta**2) * dtheta
+            ds_arr[1:] = np.cumsum(ds_increments)
+        
+        # Calculate Cartesian coordinates
+        x_coords = r_arr * np.cos(theta_arr)
+        z_coords = r_arr * np.sin(theta_arr)
+        
+        # Calculate number of turns completed
+        turns_arr = angle_traveled / TWO_PI
+        
+        # Assemble spiral array with same format as variable thickness spiral
+        spiral = np.column_stack([
+            theta_arr,      # Column 0: theta (radians)
+            ds_arr,         # Column 1: x_unwrapped (arc length in meters)
+            r_arr,          # Column 2: radius (meters) 
+            x_coords,       # Column 3: x coordinate (meters)
+            z_coords,       # Column 4: z coordinate (meters)
+            turns_arr       # Column 5: turns completed
+        ])
+        
+        return spiral
+
+    @staticmethod
     def calculate_variable_thickness_racetrack(
             laminate: Laminate,
             mandrel_radius: float, 
             straight_length: float, 
-            ds_target: float = 0.5e-3
+            ds_target: float = None,
+            **kwargs
         ) -> np.ndarray:
         """Calculate spiral path for given mandrel geometry parameters (clockwise direction).
         
@@ -453,14 +530,20 @@ class SpiralCalculator:
             Radius of semicircular ends (height/2) in meters
         straight_length : float
             Length of straight sections (width - height) in meters
-        ds_target : float
-            Target arc length step size in meters
+        ds_target : float, optional
+            Target arc length step size in meters. If None, will look for 'ds_target' in kwargs, defaults to 0.5e-3.
+        **kwargs
+            Additional keyword arguments. Can include 'ds_target' as alternative parameter specification.
             
         Returns
         -------
         np.ndarray
             Columns: [theta, x_unwrapped, r, x, z, turns]
         """
+        # Handle ds_target parameter from kwargs if not explicitly provided
+        if ds_target is None:
+            ds_target = kwargs.get('ds_target', 0.5e-3)
+        
         total_length = laminate._total_length  # meters
 
         # Initialize arrays for spiral path
@@ -528,6 +611,99 @@ class SpiralCalculator:
         
         # Convert to numpy array
         return np.array(positions)
+
+    @staticmethod
+    def calculate_simple_racetrack(
+        n_turns: float,
+        start_radius: float,
+        straight_length: float,
+        thickness: float,
+        points_per_turn: int = 100
+    ) -> np.ndarray:
+        """
+        Calculate a simple uniform-thickness racetrack spiral.
+        
+        This function generates a basic racetrack spiral with constant thickness increment
+        per turn, useful for simple geometric calculations or as a baseline
+        comparison for more complex variable-thickness racetracks.
+        
+        Parameters
+        ----------
+        n_turns : float
+            Number of turns to generate
+        start_radius : float
+            Starting radius of semicircular ends in meters
+        straight_length : float
+            Length of straight sections in meters
+        thickness : float
+            Constant thickness per turn in meters
+        points_per_turn : int, optional
+            Number of points per complete turn, by default 100
+            
+        Returns
+        -------
+        np.ndarray
+            Racetrack coordinates with columns: [theta, x_unwrapped, r, x, z, turns]
+            Same format as calculate_variable_thickness_racetrack()
+        """
+        # Calculate total perimeter for one complete turn at start radius
+        perimeter_start = TWO_PI * start_radius + 2 * straight_length
+        total_length = n_turns * perimeter_start
+        
+        # Generate parametric coordinates
+        n_points = int(n_turns * points_per_turn) + 1
+        
+        # For clockwise motion, start at theta=2π and decrease
+        theta_start = TWO_PI
+        total_angle = n_turns * TWO_PI
+        theta_end = theta_start - total_angle
+        theta_arr = np.linspace(theta_start, theta_end, n_points)
+        
+        # Calculate accumulated thickness based on turns completed
+        angle_traveled = theta_start - theta_arr  # Positive angle traveled
+        turns_completed = angle_traveled / TWO_PI
+        accumulated_thickness = (thickness / TWO_PI) * angle_traveled
+        current_radii = start_radius + accumulated_thickness
+        
+        # Calculate unwrapped length along racetrack path
+        x_unwrapped_arr = np.zeros_like(theta_arr)
+        if len(theta_arr) > 1:
+            # Calculate incremental arc lengths
+            for i in range(1, len(theta_arr)):
+                # Use average radius for this segment
+                avg_radius = (current_radii[i-1] + current_radii[i]) / 2
+                dtheta = abs(theta_arr[i] - theta_arr[i-1])
+                
+                # Calculate perimeter at average radius
+                perimeter_avg = TWO_PI * avg_radius + 2 * straight_length
+                
+                # Arc length increment proportional to angle increment
+                ds = (dtheta / TWO_PI) * perimeter_avg
+                x_unwrapped_arr[i] = x_unwrapped_arr[i-1] + ds
+        
+        # Calculate Cartesian coordinates for each point
+        x_coords = np.zeros_like(theta_arr)
+        z_coords = np.zeros_like(theta_arr)
+        
+        for i, (theta, radius) in enumerate(zip(theta_arr, current_radii)):
+            x_pos, z_pos = SpiralCalculator.racetrack_position(theta, radius, straight_length)
+            x_coords[i] = x_pos
+            z_coords[i] = z_pos
+        
+        # Calculate number of turns completed
+        turns_arr = turns_completed
+        
+        # Assemble racetrack array with same format as variable thickness racetrack
+        racetrack = np.column_stack([
+            theta_arr,          # Column 0: theta (parametric angle)
+            x_unwrapped_arr,    # Column 1: x_unwrapped (arc length in meters)
+            current_radii,      # Column 2: current radius (meters)
+            x_coords,           # Column 3: x coordinate (meters)
+            z_coords,           # Column 4: z coordinate (meters)
+            turns_arr           # Column 5: turns completed
+        ])
+        
+        return racetrack
 
     @staticmethod
     def racetrack_position(theta: float, radius: float, straight_length: float) -> tuple:
@@ -634,7 +810,7 @@ class SpiralCalculator:
     @staticmethod
     def build_extruded_component_racetracks(
             component_spirals: dict, 
-            layup: Laminate,
+            component_thicknesses: dict,
             mandrel_radius: float, 
             straight_length: float) -> dict:
         """Build extruded component spirals for a given component spirals dictionary and mandrel geometry.
@@ -646,8 +822,8 @@ class SpiralCalculator:
         ----------
         component_spirals : dict
             Component spirals dictionary to extrude
-        layup : Laminate
-            The layup structure containing thickness information
+        component_thicknesses : dict
+            Thicknesses for each component
         mandrel_radius : float
             Radius of semicircular ends (height/2) in meters
         straight_length : float
@@ -659,17 +835,6 @@ class SpiralCalculator:
             Extruded component spirals dictionary
         """
         extruded_spirals = {}
-
-        component_thicknesses = {
-            'top_separator': layup.top_separator._thickness,
-            'anode_a_side_coating': layup.anode._coating_thickness,
-            'anode_current_collector': layup.anode.current_collector._thickness,
-            'anode_b_side_coating': layup.anode._coating_thickness,
-            'bottom_separator': layup.bottom_separator._thickness,
-            'cathode_a_side_coating': layup.cathode._coating_thickness,
-            'cathode_current_collector': layup.cathode.current_collector._thickness,
-            'cathode_b_side_coating': layup.cathode._coating_thickness,
-        }
         
         # Process each component that has a center line spiral
         for component_name, thickness in component_thicknesses.items():
