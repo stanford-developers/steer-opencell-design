@@ -2,7 +2,7 @@ import unittest
 from copy import deepcopy
 import numpy as np
 
-from steer_opencell_design.AuxillaryComponents.WindingEquipment import RoundMandrel, FlatMandrel
+from steer_opencell_design.Constructions.ElectrodeAssemblies.WindingEquipment import RoundMandrel, FlatMandrel
 
 
 class TestMandrel(unittest.TestCase):

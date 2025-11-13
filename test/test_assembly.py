@@ -3,26 +3,25 @@ import unittest
 import pandas as pd
 from copy import deepcopy
 
-from steer_opencell_design.Formulations.ElectrodeFormulations import (
-    CathodeFormulation,
-    AnodeFormulation,
-)
+from steer_opencell_design.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation
+
 from steer_opencell_design.Components.Electrodes import Cathode, Anode
+from steer_opencell_design.Components.Separators import Separator
+
 from steer_opencell_design.Components.CurrentCollectors.Punched import PunchedCurrentCollector
 from steer_opencell_design.Components.CurrentCollectors.Notched import NotchedCurrentCollector
 from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector, WeldTab
-from steer_opencell_design.Components.Separators import Separator
+
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import PunchedStack, ZFoldStack, _Stack
 from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import WoundJellyRoll, FlatWoundJellyRoll
-from steer_opencell_design.AuxillaryComponents.WindingEquipment import RoundMandrel, FlatMandrel
+from steer_opencell_design.Constructions.ElectrodeAssemblies.WindingEquipment import RoundMandrel, FlatMandrel
+from steer_opencell_design.Constructions.ElectrodeAssemblies.Tape import Tape
+
 from steer_opencell_design.Constructions.Layups.MonoLayers import MonoLayer, ZFoldMonoLayer
 from steer_opencell_design.Constructions.Layups.Laminate import Laminate
 
-from steer_materials.CellMaterials.Base import (
-    CurrentCollectorMaterial, 
-    SeparatorMaterial, 
-    InsulationMaterial
-)
+from steer_materials.CellMaterials.Base import CurrentCollectorMaterial, SeparatorMaterial, InsulationMaterial
+from steer_materials.CellMaterials.Base import TapeMaterial
 
 from steer_materials.CellMaterials.Electrode import (
     CathodeMaterial,
@@ -133,21 +132,32 @@ class TestRoundJellyRoll(unittest.TestCase):
             length=350,
         )
 
+        tape_material = TapeMaterial.from_database("Kapton")
+        tape_material.density = 1.42
+        tape_material.specific_cost = 70
+
+        tape = Tape(
+            material = tape_material,
+            thickness=30
+        )
+
         self.my_jellyroll = WoundJellyRoll(
             laminate=layup,
             mandrel=mandrel,
+            tape=tape,
+            additional_tape_wraps=5,
         )
 
     def test_basics(self):
         self.assertTrue(type(self.my_jellyroll), WoundJellyRoll)
-        self.assertAlmostEqual(self.my_jellyroll.radius, 20.64, 1)
-        self.assertAlmostEqual(self.my_jellyroll.diameter, 41.28, 1)
+        self.assertAlmostEqual(self.my_jellyroll.radius, 20.8, 1)
+        self.assertAlmostEqual(self.my_jellyroll.diameter, 41.6, 1)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23895, 0)
         self.assertAlmostEqual(self.my_jellyroll.energy, 37.29)
         self.assertAlmostEqual(self.my_jellyroll.cost, 3.36, 2)
         self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 6.74, 2)
         self.assertAlmostEqual(self.my_jellyroll.radius_range[1], 30.55, 2)
-        self.assertAlmostEqual(self.my_jellyroll.mass, 646.94, 2)
+        self.assertAlmostEqual(self.my_jellyroll.mass, 646.9, 1)
 
     def test_plots(self):
 
@@ -230,7 +240,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         # Check that diameter updated correctly
         self.assertAlmostEqual(self.my_jellyroll.radius, new_radius, 0)
         self.assertAlmostEqual(self.my_jellyroll.diameter, new_radius * 2, 0)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 5.27, 1)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 5.33, 1)
 
     def test_to_flat_jelly_roll(self):
 
@@ -239,8 +249,8 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(flat_jellyroll.interfacial_area, 23895, 0)
         self.assertAlmostEqual(flat_jellyroll.energy, 37.29)
         self.assertAlmostEqual(flat_jellyroll.cost, 3.36, 2)
-        self.assertAlmostEqual(flat_jellyroll.thickness, 19.06, 1)
-        self.assertAlmostEqual(flat_jellyroll.width, 75.64, 1)
+        self.assertAlmostEqual(flat_jellyroll.thickness, 19.38, 1)
+        self.assertAlmostEqual(flat_jellyroll.width, 75.93, 1)
 
         figure = flat_jellyroll.get_spiral_plot()
         # figure.show()
@@ -322,11 +332,11 @@ class TestRoundJellyRoll(unittest.TestCase):
 
         new_jellyroll.mandrel.diameter = 10
         new_jellyroll.mandrel = new_jellyroll.mandrel
-        self.assertAlmostEqual(new_jellyroll.radius, 21.09, 1)
+        self.assertAlmostEqual(new_jellyroll.radius, 21.26, 1)
 
         new_jellyroll.mandrel.radius = 10
         new_jellyroll.mandrel = new_jellyroll.mandrel
-        self.assertAlmostEqual(new_jellyroll.radius, 22.82, 1)
+        self.assertAlmostEqual(new_jellyroll.radius, 22.97, 1)
 
     def test_current_collector_length_set(self):
         """Test that setting the current collector length updates the jellyroll properties."""
@@ -335,6 +345,49 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.my_jellyroll.layup.cathode = self.my_jellyroll.layup.cathode
         self.my_jellyroll.layup = self.my_jellyroll.layup
         self.assertEqual(self.my_jellyroll.layup.cathode.current_collector.length, 2000)
+
+    def test_tape_setter(self):
+
+        original_radius = self.my_jellyroll._radius
+        original_cost = self.my_jellyroll._cost
+        original_figure = self.my_jellyroll.get_spiral_plot()
+
+        new_tape_material = TapeMaterial.from_database("Polyester")
+        new_tape_material.density = 1.38
+        new_tape_material.specific_cost = 10
+        self.my_jellyroll.tape.material = new_tape_material
+        self.my_jellyroll.tape = self.my_jellyroll.tape
+
+        new_cost = self.my_jellyroll._cost
+        self.assertTrue(new_cost < original_cost)
+
+        self.my_jellyroll.tape.thickness = 10
+        self.my_jellyroll.tape = self.my_jellyroll.tape
+        
+        new_radius = self.my_jellyroll._radius
+        self.assertTrue(new_radius < original_radius)
+
+        new_figure = self.my_jellyroll.get_spiral_plot()
+
+        # original_figure.show()
+        # new_figure.show()
+
+    def test_additional_wraps_setter(self):
+        original_radius = self.my_jellyroll._radius
+        original_cost = self.my_jellyroll._cost
+        original_figure = self.my_jellyroll.get_spiral_plot()
+
+        self.my_jellyroll.additional_tape_wraps = 20
+
+        new_radius = self.my_jellyroll._radius
+        new_cost = self.my_jellyroll._cost
+        new_figure = self.my_jellyroll.get_spiral_plot()
+
+        self.assertTrue(new_radius > original_radius)
+        self.assertTrue(new_cost > original_cost)
+
+        # original_figure.show()
+        # new_figure.show()
 
 
 class TestFlatJellyRoll(unittest.TestCase):
@@ -439,16 +492,27 @@ class TestFlatJellyRoll(unittest.TestCase):
             height=5
         )
 
+        tape_material = TapeMaterial.from_database("Kapton")
+        tape_material.density = 1.42
+        tape_material.specific_cost = 70
+
+        tape = Tape(
+            material = tape_material,
+            thickness=30
+        )
+
         self.my_jellyroll = FlatWoundJellyRoll(
             laminate=layup,
             mandrel=mandrel,
+            tape=tape,
+            additional_tape_wraps=5
         )
 
     def test_basics(self):
         self.assertTrue(type(self.my_jellyroll), WoundJellyRoll)
-        self.assertEqual(self.my_jellyroll.thickness, 12.38)
-        self.assertEqual(self.my_jellyroll.width, 113.96)
-        self.assertEqual(self.my_jellyroll.cost, 3.36)
+        self.assertAlmostEqual(self.my_jellyroll.thickness, 12.7, 1)
+        self.assertAlmostEqual(self.my_jellyroll.width, 114.3, 1)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 3.36)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23725.74, 0)
         self.assertAlmostEqual(self.my_jellyroll.thickness_range[0], 2.01, 1)
         self.assertAlmostEqual(self.my_jellyroll.thickness_range[1], 24.37, 1)
@@ -531,8 +595,8 @@ class TestFlatJellyRoll(unittest.TestCase):
 
         # Check that width updated correctly
         self.assertAlmostEqual(self.my_jellyroll.thickness, new_thickness, 0)
-        self.assertAlmostEqual(self.my_jellyroll.width, 118.73, 1)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 5.03, 1)
+        self.assertAlmostEqual(self.my_jellyroll.width, 119.2, 1)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 5.14, 1)
 
     def test_width_setter(self):
         """Test that setting the width updates the thickness correctly."""
@@ -544,8 +608,8 @@ class TestFlatJellyRoll(unittest.TestCase):
 
         # Check that thickness updated correctly
         self.assertAlmostEqual(self.my_jellyroll.width, new_width, 0)
-        self.assertAlmostEqual(self.my_jellyroll.thickness, 14.3, 1)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 4.03, 1)
+        self.assertAlmostEqual(self.my_jellyroll.thickness, 14.9, 1)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 4.12, 1)
 
     def test_to_wound_jelly_roll(self):
         """Test converting a FlatWoundJellyRoll to a WoundJellyRoll."""
@@ -561,6 +625,53 @@ class TestFlatJellyRoll(unittest.TestCase):
 
         figure = wound_jellyroll.get_spiral_plot()
         # figure.show()
+
+    def test_tape_setter(self):
+        """Test that changing the tape material updates cost and geometry correctly."""
+        original_thickness = self.my_jellyroll._thickness
+        original_cost = self.my_jellyroll._cost
+        original_figure = self.my_jellyroll.get_spiral_plot()
+
+        # Change tape material to a cheaper option
+        new_tape_material = TapeMaterial.from_database("Polyester")
+        new_tape_material.density = 1.38
+        new_tape_material.specific_cost = 10
+        self.my_jellyroll.tape.material = new_tape_material
+        self.my_jellyroll.tape = self.my_jellyroll.tape
+
+        new_cost = self.my_jellyroll._cost
+        self.assertTrue(new_cost < original_cost)
+
+        # Change tape thickness to a smaller value
+        self.my_jellyroll.tape.thickness = 10
+        self.my_jellyroll.tape = self.my_jellyroll.tape
+        
+        new_thickness = self.my_jellyroll._thickness
+        self.assertTrue(new_thickness < original_thickness)
+
+        new_figure = self.my_jellyroll.get_spiral_plot()
+
+        # original_figure.show()
+        # new_figure.show()
+
+    def test_additional_wraps_setter(self):
+        """Test that changing additional tape wraps updates geometry and cost correctly."""
+        original_thickness = self.my_jellyroll._thickness
+        original_cost = self.my_jellyroll._cost
+        original_figure = self.my_jellyroll.get_spiral_plot()
+
+        # Increase additional tape wraps
+        self.my_jellyroll.additional_tape_wraps = 20
+
+        new_thickness = self.my_jellyroll._thickness
+        new_cost = self.my_jellyroll._cost
+        new_figure = self.my_jellyroll.get_spiral_plot()
+
+        self.assertTrue(new_thickness > original_thickness)
+        self.assertTrue(new_cost > original_cost)
+
+        # original_figure.show()
+        # new_figure.show()
 
 
 class TestPunchedStack(unittest.TestCase):
