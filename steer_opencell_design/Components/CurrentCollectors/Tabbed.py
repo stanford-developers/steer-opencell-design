@@ -911,8 +911,6 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
     @calculate_all_properties
     def weld_tab_positions(self, weld_tab_positions: Iterable[float]) -> None:
 
-        print(weld_tab_positions)
-
         self.validate_type(weld_tab_positions, Iterable, "weld_tab_positions")
 
         if any(pos > self.x_body_length for pos in weld_tab_positions):
