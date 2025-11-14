@@ -105,9 +105,15 @@ class Tape(
     def _set_width_range(self, jellyroll, length_multiplier: float = 1.1):
 
         self._width_range = (
-            jellyroll._layup._total_height, 
-            jellyroll._current_collector._y_body_length + length_multiplier
+            jellyroll._layup._anode._current_collector._y_body_length, 
+            jellyroll._layup._anode._current_collector._y_body_length * length_multiplier
         )
+
+    @property
+    def areal_cost_range(self) -> Tuple[float, float]:
+        min = self._material._specific_cost_range[0] * self._material._density * self._thickness
+        max = self._material._specific_cost_range[1] * self._material._density * self._thickness
+        return (min, max)
             
     @property
     def cost(self) -> float:
@@ -140,6 +146,10 @@ class Tape(
         if self._length is None:
             return None
         return round(self._length * M_TO_MM, 2)
+    
+    @property
+    def length_range(self):
+        return (0, 1000)
 
     @property
     def width(self) -> float:
