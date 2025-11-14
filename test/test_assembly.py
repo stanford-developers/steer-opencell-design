@@ -154,10 +154,10 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.diameter, 41.6, 1)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23895, 0)
         self.assertAlmostEqual(self.my_jellyroll.energy, 37.29)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 3.36, 2)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 3.96, 2)
         self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 6.74, 2)
         self.assertAlmostEqual(self.my_jellyroll.radius_range[1], 30.55, 2)
-        self.assertAlmostEqual(self.my_jellyroll.mass, 646.9, 1)
+        self.assertAlmostEqual(self.my_jellyroll.mass, 655.4, 1)
 
     def test_plots(self):
 
@@ -240,7 +240,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         # Check that diameter updated correctly
         self.assertAlmostEqual(self.my_jellyroll.radius, new_radius, 0)
         self.assertAlmostEqual(self.my_jellyroll.diameter, new_radius * 2, 0)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 5.33, 1)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 6.07, 1)
 
     def test_to_flat_jelly_roll(self):
 
@@ -248,7 +248,7 @@ class TestRoundJellyRoll(unittest.TestCase):
 
         self.assertAlmostEqual(flat_jellyroll.interfacial_area, 23895, 0)
         self.assertAlmostEqual(flat_jellyroll.energy, 37.29)
-        self.assertAlmostEqual(flat_jellyroll.cost, 3.36, 2)
+        self.assertAlmostEqual(flat_jellyroll.cost, 4.15, 2)
         self.assertAlmostEqual(flat_jellyroll.thickness, 19.38, 1)
         self.assertAlmostEqual(flat_jellyroll.width, 75.93, 1)
 
@@ -389,6 +389,45 @@ class TestRoundJellyRoll(unittest.TestCase):
         # original_figure.show()
         # new_figure.show()
 
+    def test_set_wraps_to_zero(self):
+
+        original_length = self.my_jellyroll._tape._length
+        original_tape_wraps = self.my_jellyroll._additional_tape_wraps
+        original_cost = self.my_jellyroll._cost
+        original_mass = self.my_jellyroll._mass
+    
+        self.my_jellyroll.additional_tape_wraps = 0
+
+        new_length = self.my_jellyroll._tape._length
+        new_tape_wraps = self.my_jellyroll._additional_tape_wraps
+        new_cost = self.my_jellyroll._cost
+        new_mass = self.my_jellyroll._mass
+
+        self.assertEqual(new_tape_wraps, 0)
+        self.assertTrue(new_length < original_length)
+        self.assertTrue(new_cost < original_cost)
+        self.assertTrue(new_mass < original_mass)
+
+    def test_tape_length_setter(self):
+
+        original_length = self.my_jellyroll._tape._length
+        original_tape_wraps = self.my_jellyroll._additional_tape_wraps
+        original_cost = self.my_jellyroll._cost
+        original_mass = self.my_jellyroll._mass
+
+        self.my_jellyroll.tape.length = 2000
+        self.my_jellyroll.tape = self.my_jellyroll.tape
+
+        new_length = self.my_jellyroll._tape._length
+        new_tape_wraps = self.my_jellyroll._additional_tape_wraps
+        new_cost = self.my_jellyroll._cost
+        new_mass = self.my_jellyroll._mass
+
+        self.assertTrue(new_length > original_length)
+        self.assertTrue(new_tape_wraps > original_tape_wraps)
+        self.assertTrue(new_cost > original_cost)
+        self.assertTrue(new_mass > original_mass)
+        
 
 class TestFlatJellyRoll(unittest.TestCase):
     
@@ -505,14 +544,14 @@ class TestFlatJellyRoll(unittest.TestCase):
             laminate=layup,
             mandrel=mandrel,
             tape=tape,
-            additional_tape_wraps=5
+            additional_tape_wraps=2
         )
 
     def test_basics(self):
         self.assertTrue(type(self.my_jellyroll), WoundJellyRoll)
-        self.assertAlmostEqual(self.my_jellyroll.thickness, 12.7, 1)
-        self.assertAlmostEqual(self.my_jellyroll.width, 114.3, 1)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 3.36)
+        self.assertAlmostEqual(self.my_jellyroll.thickness, 12.5, 1)
+        self.assertAlmostEqual(self.my_jellyroll.width, 114.1, 1)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 3.8, 1)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23725.74, 0)
         self.assertAlmostEqual(self.my_jellyroll.thickness_range[0], 2.01, 1)
         self.assertAlmostEqual(self.my_jellyroll.thickness_range[1], 24.37, 1)
@@ -595,8 +634,8 @@ class TestFlatJellyRoll(unittest.TestCase):
 
         # Check that width updated correctly
         self.assertAlmostEqual(self.my_jellyroll.thickness, new_thickness, 0)
-        self.assertAlmostEqual(self.my_jellyroll.width, 119.2, 1)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 5.14, 1)
+        self.assertAlmostEqual(self.my_jellyroll.width, 118.9, 1)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 5.55, 1)
 
     def test_width_setter(self):
         """Test that setting the width updates the thickness correctly."""
@@ -608,8 +647,8 @@ class TestFlatJellyRoll(unittest.TestCase):
 
         # Check that thickness updated correctly
         self.assertAlmostEqual(self.my_jellyroll.width, new_width, 0)
-        self.assertAlmostEqual(self.my_jellyroll.thickness, 14.9, 1)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 4.12, 1)
+        self.assertAlmostEqual(self.my_jellyroll.thickness, 14.6, 1)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 4.5, 1)
 
     def test_to_wound_jelly_roll(self):
         """Test converting a FlatWoundJellyRoll to a WoundJellyRoll."""
@@ -619,9 +658,9 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertIsInstance(wound_jellyroll, WoundJellyRoll)
         self.assertAlmostEqual(wound_jellyroll.interfacial_area, 23895, 0)
         self.assertAlmostEqual(wound_jellyroll.energy, 37.29)
-        self.assertAlmostEqual(wound_jellyroll.cost, 3.36, 1)
-        self.assertAlmostEqual(wound_jellyroll.radius, 20.48, 1)
-        self.assertAlmostEqual(wound_jellyroll.diameter, 40.96, 1)
+        self.assertAlmostEqual(wound_jellyroll.cost, 3.6, 1)
+        self.assertAlmostEqual(wound_jellyroll.radius, 20.54, 1)
+        self.assertAlmostEqual(wound_jellyroll.diameter, 41.08, 1)
 
         figure = wound_jellyroll.get_spiral_plot()
         # figure.show()
@@ -658,6 +697,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         """Test that changing additional tape wraps updates geometry and cost correctly."""
         original_thickness = self.my_jellyroll._thickness
         original_cost = self.my_jellyroll._cost
+        original_tape_length = self.my_jellyroll._tape._length
         original_figure = self.my_jellyroll.get_spiral_plot()
 
         # Increase additional tape wraps
@@ -665,13 +705,54 @@ class TestFlatJellyRoll(unittest.TestCase):
 
         new_thickness = self.my_jellyroll._thickness
         new_cost = self.my_jellyroll._cost
+        new_tape_length = self.my_jellyroll._tape._length
         new_figure = self.my_jellyroll.get_spiral_plot()
 
         self.assertTrue(new_thickness > original_thickness)
         self.assertTrue(new_cost > original_cost)
+        self.assertTrue(new_tape_length > original_tape_length)
 
         # original_figure.show()
         # new_figure.show()
+
+    def test_set_wraps_to_zero(self):
+
+        original_length = self.my_jellyroll._tape._length
+        original_tape_wraps = self.my_jellyroll._additional_tape_wraps
+        original_cost = self.my_jellyroll._cost
+        original_mass = self.my_jellyroll._mass
+    
+        self.my_jellyroll.additional_tape_wraps = 0
+
+        new_length = self.my_jellyroll._tape._length
+        new_tape_wraps = self.my_jellyroll._additional_tape_wraps
+        new_cost = self.my_jellyroll._cost
+        new_mass = self.my_jellyroll._mass
+
+        self.assertEqual(new_tape_wraps, 0)
+        self.assertTrue(new_length < original_length)
+        self.assertTrue(new_cost < original_cost)
+        self.assertTrue(new_mass < original_mass)
+
+    def test_tape_length_setter(self):
+
+        original_length = self.my_jellyroll._tape._length
+        original_tape_wraps = self.my_jellyroll._additional_tape_wraps
+        original_cost = self.my_jellyroll._cost
+        original_mass = self.my_jellyroll._mass
+
+        self.my_jellyroll.tape.length = 2000
+        self.my_jellyroll.tape = self.my_jellyroll.tape
+
+        new_length = self.my_jellyroll._tape._length
+        new_tape_wraps = self.my_jellyroll._additional_tape_wraps
+        new_cost = self.my_jellyroll._cost
+        new_mass = self.my_jellyroll._mass
+
+        self.assertTrue(new_length > original_length)
+        self.assertTrue(new_tape_wraps > original_tape_wraps)
+        self.assertTrue(new_cost > original_cost)
+        self.assertTrue(new_mass > original_mass)
 
 
 class TestPunchedStack(unittest.TestCase):

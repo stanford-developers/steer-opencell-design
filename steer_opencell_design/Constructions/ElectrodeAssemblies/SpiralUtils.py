@@ -432,10 +432,11 @@ class SpiralCalculator:
 
     @staticmethod
     def calculate_simple_spiral(
-        n_turns: float,
-        start_radius: float, 
-        thickness: float,
-        points_per_turn: int = 100
+        n_turns: float = None,
+        start_radius: float = None, 
+        thickness: float = None,
+        points_per_turn: int = 100,
+        target_length: float = None
     ) -> np.ndarray:
         """
         Calculate a simple uniform-thickness Archimedean spiral.
@@ -446,21 +447,47 @@ class SpiralCalculator:
         
         Parameters
         ----------
-        n_turns : float
-            Number of turns to generate
+        n_turns : float, optional
+            Number of turns to generate. Either this or target_length must be provided, but not both.
         start_radius : float
             Starting radius in meters
         thickness : float 
             Constant thickness per turn in meters
         points_per_turn : int, optional
             Number of points per complete turn, by default 100
+        target_length : float, optional
+            Target unwrapped length in meters. Either this or n_turns must be provided, but not both.
             
         Returns
         -------
         np.ndarray
             Spiral coordinates with columns: [theta, x_unwrapped, r, x, z, turns]
             Same format as calculate_variable_thickness_spiral()
+            
+        Raises
+        ------
+        ValueError
+            If both n_turns and target_length are provided, or if neither are provided,
+            or if required parameters are missing.
         """
+        # Validate input parameters
+        if n_turns is not None and target_length is not None:
+            raise ValueError("Cannot specify both n_turns and target_length. Please provide only one.")
+        
+        if n_turns is None and target_length is None:
+            raise ValueError("Must specify either n_turns or target_length.")
+        
+        if start_radius is None or thickness is None:
+            raise ValueError("start_radius and thickness are required parameters.")
+        
+        # Determine n_turns based on input
+        if target_length is not None:
+            # Rough overestimate: assume average radius is start_radius + some thickness buildup
+            # For safety, use 50% more turns than the rough estimate
+            avg_radius_estimate = start_radius + thickness * 2  # Conservative estimate
+            rough_turns_estimate = target_length / (TWO_PI * avg_radius_estimate)
+            n_turns = rough_turns_estimate * 1.5  # 50% overestimate for safety
+        
         # Calculate total angular span (clockwise, starting from π/2)
         total_angle = n_turns * TWO_PI
         n_points = int(n_turns * points_per_turn) + 1
@@ -481,11 +508,10 @@ class SpiralCalculator:
         
         # Calculate incremental arc lengths
         ds_arr = np.zeros_like(theta_arr)
-        if len(theta_arr) > 1:
-            dtheta = np.abs(np.diff(theta_arr))  # Angular increments (positive)
-            r_mid = (r_arr[:-1] + r_arr[1:]) / 2  # Midpoint radii
-            ds_increments = np.sqrt(r_mid**2 + dr_dtheta**2) * dtheta
-            ds_arr[1:] = np.cumsum(ds_increments)
+        dtheta = np.abs(np.diff(theta_arr))  # Angular increments (positive)
+        r_mid = (r_arr[:-1] + r_arr[1:]) / 2  # Midpoint radii
+        ds_increments = np.sqrt(r_mid**2 + dr_dtheta**2) * dtheta
+        ds_arr[1:] = np.cumsum(ds_increments)
         
         # Calculate Cartesian coordinates
         x_coords = r_arr * np.cos(theta_arr)
@@ -503,6 +529,43 @@ class SpiralCalculator:
             z_coords,       # Column 4: z coordinate (meters)
             turns_arr       # Column 5: turns completed
         ])
+        
+        # If target_length was specified, truncate spiral to exact length
+        if target_length is not None:
+            # Find points that exceed target length
+            length_mask = ds_arr <= target_length
+            
+            if np.any(length_mask):
+                # Get last point within target length
+                last_valid_idx = np.where(length_mask)[0][-1]
+                
+                # Check if we need interpolation for exact length
+                if last_valid_idx < len(ds_arr) - 1 and ds_arr[last_valid_idx] < target_length:
+                    # Interpolate between last valid point and next point for exact target length
+                    next_idx = last_valid_idx + 1
+                    
+                    # Linear interpolation factor
+                    remaining_length = target_length - ds_arr[last_valid_idx]
+                    segment_length = ds_arr[next_idx] - ds_arr[last_valid_idx]
+                    
+                    if segment_length > 1e-12:  # Avoid division by zero
+                        interp_factor = remaining_length / segment_length
+                        
+                        # Interpolate all spiral parameters
+                        interp_row = spiral[last_valid_idx] + interp_factor * (spiral[next_idx] - spiral[last_valid_idx])
+                        interp_row[1] = target_length  # Set exact target length
+                        
+                        # Create truncated spiral with interpolated endpoint
+                        spiral = np.vstack([spiral[:last_valid_idx+1], interp_row])
+                    else:
+                        # Edge case: just truncate at last valid point
+                        spiral = spiral[:last_valid_idx+1]
+                else:
+                    # No interpolation needed, just truncate
+                    spiral = spiral[:last_valid_idx+1]
+            else:
+                # Edge case: target length is very small, return just the first point
+                spiral = spiral[:1]
         
         return spiral
 
@@ -614,11 +677,12 @@ class SpiralCalculator:
 
     @staticmethod
     def calculate_simple_racetrack(
-        n_turns: float,
-        start_radius: float,
-        straight_length: float,
-        thickness: float,
-        points_per_turn: int = 100
+        n_turns: float = None,
+        start_radius: float = None,
+        straight_length: float = None,
+        thickness: float = None,
+        points_per_turn: int = 100,
+        target_length: float = None
     ) -> np.ndarray:
         """
         Calculate a simple uniform-thickness racetrack spiral.
@@ -629,8 +693,8 @@ class SpiralCalculator:
         
         Parameters
         ----------
-        n_turns : float
-            Number of turns to generate
+        n_turns : float, optional
+            Number of turns to generate. Either this or target_length must be provided, but not both.
         start_radius : float
             Starting radius of semicircular ends in meters
         straight_length : float
@@ -639,16 +703,41 @@ class SpiralCalculator:
             Constant thickness per turn in meters
         points_per_turn : int, optional
             Number of points per complete turn, by default 100
+        target_length : float, optional
+            Target unwrapped length in meters. Either this or n_turns must be provided, but not both.
             
         Returns
         -------
         np.ndarray
             Racetrack coordinates with columns: [theta, x_unwrapped, r, x, z, turns]
             Same format as calculate_variable_thickness_racetrack()
+            
+        Raises
+        ------
+        ValueError
+            If both n_turns and target_length are provided, or if neither are provided,
+            or if required parameters are missing.
         """
+        # Validate input parameters
+        if n_turns is not None and target_length is not None:
+            raise ValueError("Cannot specify both n_turns and target_length. Please provide only one.")
+        
+        if n_turns is None and target_length is None:
+            raise ValueError("Must specify either n_turns or target_length.")
+        
+        if start_radius is None or straight_length is None or thickness is None:
+            raise ValueError("start_radius, straight_length, and thickness are required parameters.")
+        
+        # Determine n_turns based on input
+        if target_length is not None:
+            # Estimate based on average perimeter
+            avg_perimeter = TWO_PI * start_radius + 2 * straight_length
+            # For safety, use 50% more turns than the rough estimate
+            rough_turns_estimate = target_length / avg_perimeter
+            n_turns = rough_turns_estimate * 1.5  # 50% overestimate for safety
+        
         # Calculate total perimeter for one complete turn at start radius
         perimeter_start = TWO_PI * start_radius + 2 * straight_length
-        total_length = n_turns * perimeter_start
         
         # Generate parametric coordinates
         n_points = int(n_turns * points_per_turn) + 1
@@ -702,6 +791,43 @@ class SpiralCalculator:
             z_coords,           # Column 4: z coordinate (meters)
             turns_arr           # Column 5: turns completed
         ])
+        
+        # If target_length was specified, truncate racetrack to exact length
+        if target_length is not None:
+            # Find points that exceed target length
+            length_mask = x_unwrapped_arr <= target_length
+            
+            if np.any(length_mask):
+                # Get last point within target length
+                last_valid_idx = np.where(length_mask)[0][-1]
+                
+                # Check if we need interpolation for exact length
+                if last_valid_idx < len(x_unwrapped_arr) - 1 and x_unwrapped_arr[last_valid_idx] < target_length:
+                    # Interpolate between last valid point and next point for exact target length
+                    next_idx = last_valid_idx + 1
+                    
+                    # Linear interpolation factor
+                    remaining_length = target_length - x_unwrapped_arr[last_valid_idx]
+                    segment_length = x_unwrapped_arr[next_idx] - x_unwrapped_arr[last_valid_idx]
+                    
+                    if segment_length > 1e-12:  # Avoid division by zero
+                        interp_factor = remaining_length / segment_length
+                        
+                        # Interpolate all racetrack parameters
+                        interp_row = racetrack[last_valid_idx] + interp_factor * (racetrack[next_idx] - racetrack[last_valid_idx])
+                        interp_row[1] = target_length  # Set exact target length
+                        
+                        # Create truncated racetrack with interpolated endpoint
+                        racetrack = np.vstack([racetrack[:last_valid_idx+1], interp_row])
+                    else:
+                        # Edge case: just truncate at last valid point
+                        racetrack = racetrack[:last_valid_idx+1]
+                else:
+                    # No interpolation needed, just truncate
+                    racetrack = racetrack[:last_valid_idx+1]
+            else:
+                # Edge case: target length is very small, return just the first point
+                racetrack = racetrack[:1]
         
         return racetrack
 
