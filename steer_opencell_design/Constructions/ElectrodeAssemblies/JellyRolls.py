@@ -32,9 +32,26 @@ DEFAULT_PRESSED_HEIGHT = 0.0008
 
 
 def calculate_tape_properties(func):
-    """
-    Decorator to recalculate both spatial and bulk properties after a method call.
-    This is useful for methods that modify both geometry and material properties.
+    """Decorator to recalculate tape-related properties after method execution.
+    
+    This decorator is used on methods that modify tape properties or geometry
+    and ensures that tape roll calculations and bulk properties are updated
+    automatically after the method completes.
+    
+    Parameters
+    ----------
+    func : callable
+        The method to be decorated
+        
+    Returns
+    -------
+    callable
+        Wrapped method that triggers tape property recalculation
+        
+    Notes
+    -----
+    Only triggers recalculation if the instance has _update_properties=True
+    and a tape with additional wraps configured.
     """
 
     @wraps(func)
@@ -127,6 +144,22 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         super()._calculate_all_properties()
 
     def _calculate_roll(self, laminate_x_spacing=0.004, **kwargs) -> None:
+        """Calculate the basic jelly roll geometry and component placement.
+        
+        This method orchestrates the core spiral calculation workflow:
+        1. Flattens the layup center lines with specified spacing
+        2. Calculates the variable thickness spiral path
+        3. Maps components onto the spiral
+        4. Creates extruded visualization shapes
+        5. Centers the spirals for proper visualization
+        
+        Parameters
+        ----------
+        laminate_x_spacing : float, default=0.004
+            Spacing between points along the x-axis for center line calculation in meters
+        **kwargs
+            Additional arguments passed to spiral calculation methods
+        """
         self._layup.calculate_flattened_center_lines(x_spacing=laminate_x_spacing)
         self._calculate_variable_thickness_spiral(**kwargs)        
         self._build_component_spirals()
@@ -134,6 +167,13 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         self._center_spirals()
         
     def _calculate_bulk_properties(self):
+        """Calculate bulk properties including tape properties if tape is present.
+        
+        This method extends the parent's bulk property calculations to include
+        tape-specific properties when a tape is configured with additional wraps.
+        It then calculates geometry parameters and delegates to the parent for
+        final bulk property calculations.
+        """
 
         if hasattr(self, "_tape") and self._tape is not None and self._additional_tape_wraps > 0:
             self._calculate_tape_bulk_properties()
@@ -338,13 +378,26 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         return length_one_rotation_ahead - cathode_start_x
     
     def _calculate_spiral_properties(self) -> None:
-        """Calculate spiral properties of the electrode assembly.
+        """Calculate properties derived from the spiral geometry.
         
-        Computes interfacial area and geometric parameters derived from spiral.
+        This method computes secondary properties that depend on the spiral
+        configuration, primarily the interfacial area between electrodes.
+        Should be called after spiral geometry has been established.
         """
         self._calculate_interfacial_area()
 
     def _calculate_tape_bulk_properties(self) -> None:
+        """Calculate bulk properties for the tape component.
+        
+        Determines the tape length required based on the spiral geometry
+        and updates the tape object's length property accordingly.
+        This is used for cost and mass calculations.
+        
+        Notes
+        -----
+        The tape length is calculated from the difference between maximum
+        and minimum unwrapped spiral coordinates of the tape path.
+        """
         tape_spiral = self._component_spirals.get('tape')
         tape_length = tape_spiral[:, X_UNWRAPPED_COL].max() - tape_spiral[:, X_UNWRAPPED_COL].min()
         self._tape.length = tape_length
@@ -354,6 +407,24 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             x_shift: float, 
             z_shift: float
         ) -> Tuple[np.ndarray, Dict[str, np.ndarray], Dict[str, np.ndarray]]:
+        """Translate all spiral coordinates by specified amounts in x and z directions.
+        
+        This method applies a rigid body translation to all spiral geometries,
+        including the base spiral, component spirals, and extruded spirals.
+        Commonly used for centering spirals or aligning them to a coordinate system.
+        
+        Parameters
+        ----------
+        x_shift : float
+            Translation distance in x-direction (meters)
+        z_shift : float
+            Translation distance in z-direction (meters)
+            
+        Returns
+        -------
+        Tuple[np.ndarray, Dict[str, np.ndarray], Dict[str, np.ndarray]]
+            Updated (spiral, component_spirals, extruded_spirals) after translation
+        """
 
         new_component_spirals = {}
         for name, spiral in self._component_spirals.items():
@@ -384,6 +455,33 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         layup: Laminate, 
         mandrel: Union[FlatMandrel, RoundMandrel]
         ) -> Laminate:
+        """Position a layup correctly relative to a mandrel's coordinate system.
+        
+        This method calculates the proper datum (coordinate offset) for the layup
+        so that it is correctly positioned relative to the mandrel for winding.
+        The positioning ensures that:
+        - The layup starts at the mandrel surface
+        - Component coordinates are properly aligned
+        - The minimum z-coordinate is set to mandrel radius
+        
+        Parameters
+        ----------
+        layup : Laminate
+            The layup structure to be positioned
+        mandrel : Union[FlatMandrel, RoundMandrel]
+            The mandrel around which the layup will be wound
+            
+        Returns
+        -------
+        Laminate
+            The same layup object with updated datum coordinates
+            
+        Notes
+        -----
+        This method modifies the layup's datum property to ensure proper
+        positioning for spiral calculations. The datum is converted between
+        meters and millimeters as needed for internal coordinate systems.
+        """
         
         # get the min x of the layup
         coords = [
@@ -640,69 +738,6 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
         return self._cost
 
-    def get_spiral_plot(self, layered: bool = True,**kwargs: Any) -> go.Figure:
-        """Generate interactive spiral plot using Plotly.
-        
-        Parameters
-        ----------
-        layered : bool, default=True
-            Whether to show individual layer traces
-        extruded : bool, default=True
-            Whether to show filled thickness shapes
-        **kwargs : Any
-            Additional plot styling options (paper_bgcolor, plot_bgcolor, etc.)
-            
-        Returns
-        -------
-        go.Figure
-            Interactive Plotly figure with spiral visualization
-        """
-
-        if layered:
-
-            extruded_traces = [
-                self.anode_a_side_coating_extruded_spiral_trace,
-                self.anode_current_collector_extruded_spiral_trace,
-                self.anode_b_side_coating_extruded_spiral_trace,
-                self.cathode_a_side_coating_extruded_spiral_trace,
-                self.cathode_current_collector_extruded_spiral_trace,
-                self.cathode_b_side_coating_extruded_spiral_trace,
-                self.top_separator_extruded_spiral_trace,
-                self.bottom_separator_extruded_spiral_trace,
-            ]
-            
-            line_traces = [
-                self.top_separator_spiral_trace,
-                self.anode_a_side_coating_spiral_trace,
-                self.anode_current_collector_spiral_trace,
-                self.anode_b_side_coating_spiral_trace,
-                self.bottom_separator_spiral_trace,
-                self.cathode_a_side_coating_spiral_trace,
-                self.cathode_current_collector_spiral_trace,
-                self.cathode_b_side_coating_spiral_trace,
-            ]
-
-            if hasattr(self, "_tape") and self._tape is not None and self._additional_tape_wraps > 0:
-                extruded_traces.append(self.tape_extruded_spiral_trace)
-                line_traces.append(self.tape_spiral_trace)
-            
-            fig = go.Figure(data=extruded_traces + line_traces)
-            
-        else:
-
-            fig = go.Figure(data=[self.spiral_trace])
-
-        fig.update_layout(
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Z_AXIS,
-            hovermode="closest",
-            **kwargs
-        )
-
-        return fig
-
     def _format_spiral_trace(self, property_name: str, color: str, name: str, line_width: int = 0) -> go.Scatter:
         """Format spiral data into Plotly scatter trace.
         
@@ -824,6 +859,69 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             legendgroup=name,
         )
 
+    def get_spiral_plot(self, layered: bool = True,**kwargs: Any) -> go.Figure:
+        """Generate interactive spiral plot using Plotly.
+        
+        Parameters
+        ----------
+        layered : bool, default=True
+            Whether to show individual layer traces
+        extruded : bool, default=True
+            Whether to show filled thickness shapes
+        **kwargs : Any
+            Additional plot styling options (paper_bgcolor, plot_bgcolor, etc.)
+            
+        Returns
+        -------
+        go.Figure
+            Interactive Plotly figure with spiral visualization
+        """
+
+        if layered:
+
+            extruded_traces = [
+                self.anode_a_side_coating_extruded_spiral_trace,
+                self.anode_current_collector_extruded_spiral_trace,
+                self.anode_b_side_coating_extruded_spiral_trace,
+                self.cathode_a_side_coating_extruded_spiral_trace,
+                self.cathode_current_collector_extruded_spiral_trace,
+                self.cathode_b_side_coating_extruded_spiral_trace,
+                self.top_separator_extruded_spiral_trace,
+                self.bottom_separator_extruded_spiral_trace,
+            ]
+            
+            line_traces = [
+                self.top_separator_spiral_trace,
+                self.anode_a_side_coating_spiral_trace,
+                self.anode_current_collector_spiral_trace,
+                self.anode_b_side_coating_spiral_trace,
+                self.bottom_separator_spiral_trace,
+                self.cathode_a_side_coating_spiral_trace,
+                self.cathode_current_collector_spiral_trace,
+                self.cathode_b_side_coating_spiral_trace,
+            ]
+
+            if hasattr(self, "_tape") and self._tape is not None and self._additional_tape_wraps > 0:
+                extruded_traces.append(self.tape_extruded_spiral_trace)
+                line_traces.append(self.tape_spiral_trace)
+            
+            fig = go.Figure(data=extruded_traces + line_traces)
+            
+        else:
+
+            fig = go.Figure(data=[self.spiral_trace])
+
+        fig.update_layout(
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            xaxis=self.SCHEMATIC_X_AXIS,
+            yaxis=self.SCHEMATIC_Z_AXIS,
+            hovermode="closest",
+            **kwargs
+        )
+
+        return fig
+    
     @property
     def additional_tape_wraps(self) -> float:
         """Return the number of additional tape wraps applied to the jelly roll."""
@@ -1315,6 +1413,25 @@ class WoundJellyRoll(_JellyRoll):
         return self._radius, self._diameter, self._radius_range
 
     def _calculate_radius_range(self) -> Tuple[float, float]:
+        """Calculate the valid range of radii for this jelly roll configuration.
+        
+        This method determines the minimum and maximum possible radii by:
+        1. Creating layups with minimum and maximum lengths
+        2. Calculating spirals for each case
+        3. Finding the bounding circle radius for each configuration
+        4. Adding the final layer thickness to account for the outermost surface
+        
+        Returns
+        -------
+        Tuple[float, float]
+            (minimum_radius, maximum_radius) in meters
+            
+        Notes
+        -----
+        The minimum radius is constrained by the mandrel circumference and
+        the layup's minimum length. The maximum radius uses the layup's
+        hard maximum length limit.
+        """
 
         # get the minimum layup length 
         mandrel_circumference = 2 * 2 * np.pi * self._mandrel._radius
@@ -1345,6 +1462,21 @@ class WoundJellyRoll(_JellyRoll):
         return self._radius_range
 
     def _calculate_variable_thickness_spiral(self, **kwargs) -> np.ndarray:
+        """Calculate the base spiral path for variable thickness layup.
+        
+        Delegates to SpiralCalculator to create the fundamental spiral geometry
+        that accounts for varying component thicknesses throughout the layup.
+        
+        Parameters
+        ----------
+        **kwargs
+            Additional arguments passed to the spiral calculation method
+            
+        Returns
+        -------
+        np.ndarray
+            Base spiral coordinates [theta, x_unwrapped, r, x, z, turns]
+        """
 
         self._spiral = SpiralCalculator.calculate_variable_thickness_spiral(
             laminate=self._layup,
@@ -1355,6 +1487,30 @@ class WoundJellyRoll(_JellyRoll):
         return self._spiral
     
     def _calculate_tape_roll(self, **kwargs) -> np.ndarray:
+        """Calculate tape spiral around the existing jelly roll assembly.
+        
+        This method:
+        1. Finds the bounding circle of all extruded spirals (excluding existing tape)
+        2. Creates a simple spiral starting from this radius with specified wraps
+        3. Centers the tape spiral around the existing assembly
+        4. Builds extruded tape visualization
+        5. Updates the spiral geometries
+        
+        Parameters
+        ----------
+        **kwargs
+            Additional arguments passed to tape spiral calculation
+            
+        Returns
+        -------
+        Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]
+            Updated (component_spirals, extruded_spirals) including tape
+            
+        Notes
+        -----
+        The tape wraps around the outermost surface of the jelly roll,
+        adding the specified number of additional turns for insulation.
+        """
 
         # Get the extruded spirals
         extruded_spirals = self._extruded_spirals.copy()
@@ -1452,6 +1608,21 @@ class WoundJellyRoll(_JellyRoll):
         return self._extruded_spirals
 
     def _center_spirals(self) -> None:
+        """Center all spiral geometries around their geometric center.
+        
+        This method:
+        1. Combines all component spirals to find the geometric center
+        2. Calculates the center point of the bounding circle
+        3. Translates all spirals to center them around the origin
+        
+        This centering is important for visualization and ensures consistent
+        coordinate systems across different jelly roll configurations.
+        
+        Returns
+        -------
+        Tuple[np.ndarray, Dict[str, np.ndarray], Dict[str, np.ndarray]]
+            Centered (spiral, component_spirals, extruded_spirals)
+        """
         
         spirals = [s for s in self._component_spirals.values()]
         spirals = np.concatenate(spirals, axis=0)
@@ -1468,15 +1639,30 @@ class WoundJellyRoll(_JellyRoll):
         return self._spiral, self._component_spirals, self._extruded_spirals
 
     def calculate_high_resolution_roll(self) -> None:
-            """Generate variable-thickness winding spiral and component placement.
-            
-            This method orchestrates the complete spiral calculation process:
-            1. Calculate base spiral path
-            2. Map components onto spiral
-            3. Create extruded visualization shapes
-            4. Calculate derived spiral properties
-            """
-            self._calculate_all_properties(laminate_x_spacing=0.001, dtheta=0.1)
+        """Generate high-resolution spiral geometry for detailed analysis.
+        
+        Recalculates the jelly roll using finer spacing parameters for
+        more accurate visualization and analysis. Uses:
+        - 1mm spacing for center line calculation (vs 4mm default)
+        - 0.1° angular spacing for spiral calculation (vs default)
+        
+        This method is useful for detailed studies, publication-quality
+        figures, or when high precision is required for calculations.
+        
+        Notes
+        -----
+        High-resolution calculations take significantly longer to compute
+        but provide much smoother spiral curves and more accurate results.
+        """
+        self._calculate_all_properties(laminate_x_spacing=0.001, dtheta=0.1)
+
+    def get_top_down_view(self) -> go.Figure:
+
+        for name, spiral in self._extruded_spirals.items():
+            spirals_x_z = np.column_stack((spiral[:, X_COORD_COL], spiral[:, Z_COORD_COL]))
+            radius, center = self.get_radius_of_points(spirals_x_z)
+
+        return None
 
     @classmethod
     def from_flat_wound_jelly_roll(
@@ -1531,6 +1717,8 @@ class WoundJellyRoll(_JellyRoll):
         wound_jelly_roll = cls(
             laminate=layup_copy,
             mandrel=round_mandrel,
+            tape=flat_jelly_roll.tape,
+            additional_tape_wraps=flat_jelly_roll.additional_tape_wraps,
             name=flat_jelly_roll.name
         )
         
@@ -1775,10 +1963,44 @@ class FlatWoundJellyRoll(_JellyRoll):
         self._update_properties = True
 
     def _calculate_all_properties(self, **kwargs) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
+        """Calculate all properties with hot-pressing simulation.
+        
+        Extends the base calculation to first simulate the hot-pressing process
+        that flattens the racetrack mandrel geometry before performing standard
+        jelly roll calculations.
+        
+        Parameters
+        ----------
+        **kwargs
+            Additional arguments passed to property calculation methods
+            
+        Returns
+        -------
+        Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]
+            Updated (component_spirals, extruded_spirals) after all calculations
+        """
         self._calculate_pressed_racetrack()
         return super()._calculate_all_properties(**kwargs)
 
     def _calculate_tape_roll(self, **kwargs) -> np.ndarray:
+        """Calculate tape spiral around the flat wound jelly roll assembly.
+        
+        Similar to the round jelly roll version but uses racetrack geometry:
+        1. Finds the thickness (height) of the existing assembly
+        2. Creates a simple racetrack spiral with the specified wraps
+        3. Centers the tape around the existing assembly
+        4. Builds extruded racetrack visualization
+        
+        Parameters
+        ----------
+        **kwargs
+            Additional arguments passed to tape spiral calculation
+            
+        Returns
+        -------
+        Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]
+            Updated (component_spirals, extruded_spirals) including tape
+        """
         
         # Get the extruded spirals
         extruded_spirals = self._extruded_spirals.copy()
@@ -1869,6 +2091,24 @@ class FlatWoundJellyRoll(_JellyRoll):
         return self._thickness, self._width
 
     def _calculate_thickness_width_range(self) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+        """Calculate the valid ranges of thickness and width for this jelly roll.
+        
+        This method determines the minimum and maximum possible dimensions by:
+        1. Creating layups with minimum and maximum lengths
+        2. Calculating racetrack spirals for each case using pressed geometry
+        3. Finding the bounding dimensions for each configuration
+        4. Adding final layer thickness to account for outermost surfaces
+        
+        Returns
+        -------
+        Tuple[Tuple[float, float], Tuple[float, float]]
+            ((min_thickness, max_thickness), (min_width, max_width)) in meters
+            
+        Notes
+        -----
+        Uses the pressed mandrel geometry rather than the original mandrel
+        to properly account for hot-pressing effects on the final dimensions.
+        """
 
         # get the minimum length of the layup
         mandrel_circumference = 2 * (TWO_PI * self._mandrel._radius + 2 * self._mandrel._straight_length)
@@ -1951,6 +2191,17 @@ class FlatWoundJellyRoll(_JellyRoll):
         return self._pressed_radius, self._pressed_straight_length
 
     def _build_component_spirals(self):
+        """Build component spirals using hot-pressed racetrack geometry.
+        
+        Maps individual electrode and separator components from the layup onto
+        the racetrack spiral geometry, using the pressed mandrel dimensions
+        rather than the original mandrel to account for hot-pressing effects.
+        
+        Returns
+        -------
+        Dict[str, np.ndarray]
+            Component spirals keyed by component name, mapped to racetrack geometry
+        """
         
         # Build component spirals for the hot-pressed geometry
         self._component_spirals = SpiralCalculator.build_component_racetracks(
@@ -1964,6 +2215,17 @@ class FlatWoundJellyRoll(_JellyRoll):
         return self._component_spirals
         
     def _build_extruded_component_spirals(self):
+        """Build extruded component spirals for racetrack visualization.
+        
+        Creates filled thickness shapes for each component by extruding the
+        center line spirals radially. Uses the pressed mandrel geometry for
+        proper racetrack shape generation.
+        
+        Returns
+        -------
+        Dict[str, np.ndarray]
+            Extruded component spirals for 3D racetrack visualization
+        """
 
         component_thicknesses = {
             'top_separator': self._layup.top_separator._thickness,
@@ -1987,6 +2249,22 @@ class FlatWoundJellyRoll(_JellyRoll):
         return self._extruded_spirals
 
     def _calculate_variable_thickness_spiral(self, **kwargs) -> np.ndarray:
+        """Calculate the base racetrack spiral path for variable thickness layup.
+        
+        Uses the hot-pressed mandrel geometry to create a racetrack spiral that
+        accounts for the flattened geometry after hot pressing. This differs
+        from the original mandrel geometry.
+        
+        Parameters
+        ----------
+        **kwargs
+            Additional arguments passed to the racetrack spiral calculation method
+            
+        Returns
+        -------
+        np.ndarray
+            Base racetrack spiral coordinates [theta, x_unwrapped, r, x, z, turns]
+        """
 
         # Calculate new spiral with pressed mandrel geometry (no mandrel modification needed)
         self._spiral = SpiralCalculator.calculate_variable_thickness_racetrack(
@@ -2001,6 +2279,21 @@ class FlatWoundJellyRoll(_JellyRoll):
     def _center_spirals(
             self
         ) -> None:
+        """Center all racetrack spiral geometries for proper visualization.
+        
+        Centers the racetrack spirals by:
+        1. Finding the geometric center and thickness of all component spirals
+        2. Translating all spirals to center them horizontally
+        3. Adjusting vertically to position the bottom at z=0
+        
+        This centering ensures consistent coordinate systems and proper
+        visualization alignment for racetrack geometries.
+        
+        Returns
+        -------
+        Tuple[np.ndarray, Dict[str, np.ndarray], Dict[str, np.ndarray]]
+            Centered (spiral, component_spirals, extruded_spirals)
+        """
 
         spirals = [s for s in self._component_spirals.values()]
         spirals = np.concatenate(spirals, axis=0)
@@ -2020,6 +2313,20 @@ class FlatWoundJellyRoll(_JellyRoll):
         return self._spiral, self._component_spirals, self._extruded_spirals
     
     def calculate_high_resolution_roll(self) -> None:
+        """Generate high-resolution racetrack geometry for detailed analysis.
+        
+        Recalculates the flat wound jelly roll using finer spacing parameters:
+        - 1mm spacing for center line calculation (vs 4mm default)
+        - 0.2mm target spacing for racetrack calculation (vs default)
+        
+        This provides smoother racetrack curves and more accurate results
+        for detailed studies or publication-quality figures.
+        
+        Notes
+        -----
+        High-resolution calculations take significantly longer to compute
+        but are essential for accurate racetrack geometry representation.
+        """
         self._calculate_all_properties(laminate_x_spacing=0.001, ds_target=0.0002)
 
     @classmethod
