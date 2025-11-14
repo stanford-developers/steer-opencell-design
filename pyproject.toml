@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "steer-opencell-design"
+dynamic = ["version"]
+description = "STEER OpenCell Design - A Python package for designing and modeling battery cells."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "Nicholas Siemons", email = "nsiemons@stanford.edu"}
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "steer-core==0.1.25",
+    "steer-materials==0.1.13",
+    "pandas==2.1.4",
+    "numpy==1.26.4",
+    "datetime==5.5",
+    "shapely==2.1.1",
+    "plotly==6.2.0",
+    "scipy==1.15.3"
+]
+
+[project.urls]
+Homepage = "https://github.com/stanford-developers/steer-opencell-design/"
+Repository = "https://github.com/stanford-developers/steer-opencell-design/"
+
+[tool.setuptools.dynamic]
+version = {attr = "steer_opencell_design.__version__"}
+
+[tool.setuptools]
+packages = ["steer_opencell_design"]
