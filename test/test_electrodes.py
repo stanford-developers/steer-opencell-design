@@ -756,3 +756,9 @@ class TestElectrodeControlModes(unittest.TestCase):
 
         # Mass loading should remain constant (within tolerance)
         self.assertAlmostEqual(self.cathode.mass_loading, initial_mass_loading, places=5)
+
+
+
+
+
+

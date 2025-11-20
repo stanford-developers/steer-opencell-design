@@ -113,7 +113,10 @@ class Tape(
     def areal_cost_range(self) -> Tuple[float, float]:
         min = self._material._specific_cost_range[0] * self._material._density * self._thickness
         max = self._material._specific_cost_range[1] * self._material._density * self._thickness
-        return (min, max)
+        return (
+            round(min, 2), 
+            round(max, 2)
+        )
             
     @property
     def cost(self) -> float:

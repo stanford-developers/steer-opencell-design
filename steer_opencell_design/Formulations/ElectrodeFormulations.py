@@ -521,6 +521,274 @@ class _ElectrodeFormulation(
         return {key: value * 100 for key, value in self._active_materials.items()}
 
     @property
+    def active_material_1(self) -> _ActiveMaterial:
+        """
+        Get the first active material in the formulation.
+        
+        Returns
+        -------
+        _ActiveMaterial
+            The first active material in the formulation
+        """
+        materials_list = list(self._active_materials.keys())
+        return materials_list[0] if len(materials_list) >= 1 else None
+
+    @property
+    def active_material_2(self) -> _ActiveMaterial:
+        """
+        Get the second active material in the formulation.
+        
+        Returns
+        -------
+        _ActiveMaterial or None
+            The second active material in the formulation, or None if it doesn't exist
+        """
+        materials_list = list(self._active_materials.keys())
+        return materials_list[1] if len(materials_list) >= 2 else None
+
+    @property
+    def active_material_3(self) -> _ActiveMaterial:
+        """
+        Get the third active material in the formulation.
+        
+        Returns
+        -------
+        _ActiveMaterial or None
+            The third active material in the formulation, or None if it doesn't exist
+        """
+        materials_list = list(self._active_materials.keys())
+        return materials_list[2] if len(materials_list) >= 3 else None
+
+    @property
+    def active_material_1_weight(self) -> float:
+        """
+        Get the weight percentage of the first active material.
+        
+        Returns
+        -------
+        float
+            Weight percentage of the first active material
+        """
+        if not self._active_materials:
+            raise ValueError("No active materials found in the formulation")
+        first_material = next(iter(self._active_materials.keys()))
+        return self._active_materials[first_material] * 100
+
+    @property
+    def active_material_2_weight(self) -> float:
+        """
+        Get the weight percentage of the second active material.
+        
+        Returns
+        -------
+        float or None
+            Weight percentage of the second active material, or None if it doesn't exist
+        """
+        materials_list = list(self._active_materials.items())
+        return materials_list[1][1] * 100 if len(materials_list) >= 2 else None
+
+    @property
+    def active_material_3_weight(self) -> float:
+        """
+        Get the weight percentage of the third active material.
+        
+        Returns
+        -------
+        float or None
+            Weight percentage of the third active material, or None if it doesn't exist
+        """
+        materials_list = list(self._active_materials.items())
+        return materials_list[2][1] * 100 if len(materials_list) >= 3 else None
+
+    @property
+    def active_material_1_weight_range(self) -> tuple:
+        """
+        Get the weight percentage range of the first active material.
+        
+        Returns
+        -------
+        tuple or None
+            Weight percentage range (min, max) of the first active material, or None if it doesn't exist
+        """
+        return 0, 100
+    
+    @property
+    def active_material_2_weight_range(self) -> tuple:
+        """
+        Get the weight percentage range of the second active material.
+        
+        Returns
+        -------
+        tuple or None
+            Weight percentage range (min, max) of the second active material, or None if it doesn't exist
+        """
+        return 0, 100
+    
+    @property
+    def active_material_3_weight_range(self) -> tuple:
+        """
+        Get the weight percentage range of the third active material.
+        
+        Returns
+        -------
+        tuple or None
+            Weight percentage range (min, max) of the third active material, or None if it doesn't exist
+        """
+        return 0, 100
+
+    @property
+    def binder_1(self) -> Binder:
+        """
+        Get the first binder in the formulation based on insertion order.
+        
+        Returns
+        -------
+        Binder or None
+            The first binder material, or None if no binders exist
+        """
+        binders_list = list(self._binders.items())
+        return binders_list[0][0] if len(binders_list) >= 1 else None
+
+    @property
+    def binder_2(self) -> Binder:
+        """
+        Get the second binder in the formulation based on insertion order.
+        
+        Returns
+        -------
+        Binder or None
+            The second binder material, or None if it doesn't exist
+        """
+        binders_list = list(self._binders.items())
+        return binders_list[1][0] if len(binders_list) >= 2 else None
+
+    @property
+    def binder_1_weight(self) -> float:
+        """
+        Get the weight percentage of the first binder.
+        
+        Returns
+        -------
+        float or None
+            Weight percentage of the first binder, or None if it doesn't exist
+        """
+        binders_list = list(self._binders.items())
+        return binders_list[0][1] * 100 if len(binders_list) >= 1 else None
+
+    @property
+    def binder_2_weight(self) -> float:
+        """
+        Get the weight percentage of the second binder.
+        
+        Returns
+        -------
+        float or None
+            Weight percentage of the second binder, or None if it doesn't exist
+        """
+        binders_list = list(self._binders.items())
+        return binders_list[1][1] * 100 if len(binders_list) >= 2 else None
+
+    @property
+    def binder_1_weight_range(self) -> tuple:
+        """
+        Get the weight percentage range of the first binder.
+        
+        Returns
+        -------
+        tuple or None
+            Weight percentage range (min, max) of the first binder, or None if it doesn't exist
+        """
+        return 0, 100
+
+    @property
+    def binder_2_weight_range(self) -> tuple:
+        """
+        Get the weight percentage range of the second binder.
+
+        Returns
+        -------
+        tuple or None
+            Weight percentage range (min, max) of the second binder, or None if it doesn't exist
+        """
+        return 0, 100
+
+    @property
+    def conductive_additive_1(self) -> ConductiveAdditive:
+        """
+        Get the first conductive additive in the formulation based on insertion order.
+        
+        Returns
+        -------
+        ConductiveAdditive or None
+            The first conductive additive material, or None if no conductive additives exist
+        """
+        additives_list = list(self._conductive_additives.items())
+        return additives_list[0][0] if len(additives_list) >= 1 else None
+
+    @property
+    def conductive_additive_2(self) -> ConductiveAdditive:
+        """
+        Get the second conductive additive in the formulation based on insertion order.
+        
+        Returns
+        -------
+        ConductiveAdditive or None
+            The second conductive additive material, or None if it doesn't exist
+        """
+        additives_list = list(self._conductive_additives.items())
+        return additives_list[1][0] if len(additives_list) >= 2 else None
+
+    @property
+    def conductive_additive_1_weight(self) -> float:
+        """
+        Get the weight percentage of the first conductive additive.
+        
+        Returns
+        -------
+        float or None
+            Weight percentage of the first conductive additive, or None if it doesn't exist
+        """
+        additives_list = list(self._conductive_additives.items())
+        return additives_list[0][1] * 100 if len(additives_list) >= 1 else None
+
+    @property
+    def conductive_additive_2_weight(self) -> float:
+        """
+        Get the weight percentage of the second conductive additive.
+        
+        Returns
+        -------
+        float or None
+            Weight percentage of the second conductive additive, or None if it doesn't exist
+        """
+        additives_list = list(self._conductive_additives.items())
+        return additives_list[1][1] * 100 if len(additives_list) >= 2 else None
+
+    @property
+    def conductive_additive_1_weight_range(self) -> tuple:
+        """
+        Get the weight percentage range of the first conductive additive.
+        
+        Returns
+        -------
+        tuple or None
+            Weight percentage range (min, max) of the first conductive additive, or None if it doesn't exist
+        """
+        return 0, 100
+
+    @property
+    def conductive_additive_2_weight_range(self) -> tuple:
+        """
+        Get the weight percentage range of the second conductive additive.
+
+        Returns
+        -------
+        tuple or None
+            Weight percentage range (min, max) of the second conductive additive, or None if it doesn't exist
+        """
+        return 0, 100
+
+    @property
     def binders(self) -> Dict[Binder, float]:
         return {key: value * 100 for key, value in self._binders.items()} if self._binders != {} else {}
 
@@ -701,6 +969,464 @@ class _ElectrodeFormulation(
 
         # Handle voltage cutoff compatibility with new materials
         self._handle_voltage_cutoff_compatibility()
+
+    @active_material_1.setter
+    @calculate_all_properties
+    def active_material_1(self, new_material: _ActiveMaterial):
+        """
+        Set the first active material in the formulation, keeping its mass fraction.
+        If None is passed, removes the first active material from the formulation.
+        
+        Parameters
+        ----------
+        new_material : _ActiveMaterial or None
+            The new active material to replace the first one, or None to remove it
+        """
+        if new_material is None:
+            # Remove the first active material
+            materials_list = list(self._active_materials.items())
+            if len(materials_list) > 0:
+                # Create new dictionary without the first material
+                new_active_materials = {}
+                for material, fraction in materials_list[1:]:
+                    new_active_materials[material] = fraction
+                self._active_materials = new_active_materials
+            return
+            
+        # Validate the input
+        self.validate_type(new_material, _ActiveMaterial, "Active material")
+        
+        # Get the materials and mass fractions as lists
+        materials_list = list(self._active_materials.keys())
+        weight_fractions_list = list(self._active_materials.values())
+
+        # Set the first material to the new material, keeping its mass fraction
+        materials_list[0] = new_material
+
+        # Reconstruct the active materials dictionary with the updated first material
+        new_active_materials = {k: v for (k, v) in zip(materials_list, weight_fractions_list)}
+
+        # Update the active materials
+        self._active_materials = new_active_materials
+        
+        # Handle voltage cutoff compatibility with new materials
+        self._handle_voltage_cutoff_compatibility()
+
+    @active_material_2.setter
+    @calculate_all_properties
+    def active_material_2(self, new_material: _ActiveMaterial):
+        """
+        Set the second active material in the formulation.
+        If there's already a second material, it keeps its mass fraction.
+        If there's no second material, it adds one with mass fraction of 0.
+        If None is passed, removes the second active material from the formulation.
+        
+        Parameters
+        ----------
+        new_material : _ActiveMaterial or None
+            The new active material to set as the second one, or None to remove it
+        """
+        if new_material is None:
+            # Remove the second active material
+            materials_list = list(self._active_materials.items())
+            if len(materials_list) >= 2:
+                # Create new dictionary without the second material
+                new_active_materials = {}
+                # Keep first material
+                new_active_materials[materials_list[0][0]] = materials_list[0][1]
+                # Keep materials from third position onwards
+                for material, fraction in materials_list[2:]:
+                    new_active_materials[material] = fraction
+                self._active_materials = new_active_materials
+            return
+            
+        # Validate the input
+        self.validate_type(new_material, _ActiveMaterial, "Active material")
+        
+        # Get the materials and mass fractions as lists
+        materials_list = list(self._active_materials.keys())
+        weight_fractions_list = list(self._active_materials.values())
+
+        if len(materials_list) < 2:
+            self._active_materials[new_material] = 0.0
+        else:
+            materials_list[1] = new_material
+            new_active_materials = {k: v for (k, v) in zip(materials_list, weight_fractions_list)}
+            self._active_materials = new_active_materials
+            
+        # Handle voltage cutoff compatibility with new materials
+        self._handle_voltage_cutoff_compatibility()
+
+    @active_material_3.setter
+    @calculate_all_properties
+    def active_material_3(self, new_material: _ActiveMaterial):
+        """
+        Set the third active material in the formulation.
+        If there's already a third material, it keeps its mass fraction.
+        If there's no third material, it adds one with mass fraction of 0.
+        If None is passed, removes the third active material from the formulation.
+        
+        Parameters
+        ----------
+        new_material : _ActiveMaterial or None
+            The new active material to set as the third one, or None to remove it
+        """
+        if new_material is None:
+            # Remove the third active material
+            materials_list = list(self._active_materials.items())
+            if len(materials_list) >= 3:
+                # Create new dictionary without the third material
+                new_active_materials = {}
+                # Keep first two materials
+                new_active_materials[materials_list[0][0]] = materials_list[0][1]
+                new_active_materials[materials_list[1][0]] = materials_list[1][1]
+                # Keep materials from fourth position onwards
+                for material, fraction in materials_list[3:]:
+                    new_active_materials[material] = fraction
+                self._active_materials = new_active_materials
+            return
+            
+        # Validate the input
+        self.validate_type(new_material, _ActiveMaterial, "Active material")
+        
+        materials_list = list(self._active_materials.items())
+        
+        if len(materials_list) < 3:
+            # Add new material with mass fraction of 0
+            new_active_materials = {}
+            # Keep existing materials
+            for material, fraction in materials_list:
+                new_active_materials[material] = fraction
+            # Add new material with 0 mass fraction
+            new_active_materials[new_material] = 0.0
+        else:
+            # Replace existing third material, keeping its mass fraction
+            third_material_fraction = materials_list[2][1]
+            
+            # Create new dictionary maintaining order
+            new_active_materials = {}
+            new_active_materials[materials_list[0][0]] = materials_list[0][1]  # Keep first material
+            new_active_materials[materials_list[1][0]] = materials_list[1][1]  # Keep second material
+            new_active_materials[new_material] = third_material_fraction       # Replace third material
+            
+            # Add remaining materials (if any)
+            for material, fraction in materials_list[3:]:
+                new_active_materials[material] = fraction
+        
+        # Update the active materials
+        self._active_materials = new_active_materials
+        
+        # Handle voltage cutoff compatibility with new materials
+        self._handle_voltage_cutoff_compatibility()
+
+    @active_material_1_weight.setter
+    @calculate_all_properties
+    def active_material_1_weight(self, weight: float):
+        """
+        Set the weight percentage of the first active material.
+        
+        Parameters
+        ----------
+        weight : float
+            Weight percentage (0-100) for the first active material
+        """
+        if not self._active_materials:
+            raise ValueError("No active materials found in the formulation")
+        
+        self.validate_percentage(weight, "Active material 1 weight")
+        
+        # Get current materials
+        materials_list = list(self._active_materials.items())
+        first_material = materials_list[0][0]
+        
+        # Update the weight fraction
+        self._active_materials[first_material] = weight / 100
+
+    @active_material_2_weight.setter
+    @calculate_all_properties
+    def active_material_2_weight(self, weight: float):
+        """
+        Set the weight percentage of the second active material.
+        If there's no second material, this will raise an error.
+        
+        Parameters
+        ----------
+        weight : float
+            Weight percentage (0-100) for the second active material
+        """
+        materials_list = list(self._active_materials.items())
+        
+        if len(materials_list) < 2:
+            raise ValueError("Cannot set active_material_2_weight: formulation has fewer than 2 active materials")
+        
+        self.validate_percentage(weight, "Active material 2 weight")
+        
+        # Update the weight fraction
+        second_material = materials_list[1][0]
+        self._active_materials[second_material] = weight / 100
+
+    @active_material_3_weight.setter
+    @calculate_all_properties
+    def active_material_3_weight(self, weight: float):
+        """
+        Set the weight percentage of the third active material.
+        If there's no third material, this will raise an error.
+        
+        Parameters
+        ----------
+        weight : float
+            Weight percentage (0-100) for the third active material
+        """
+        materials_list = list(self._active_materials.items())
+        
+        if len(materials_list) < 3:
+            raise ValueError("Cannot set active_material_3_weight: formulation has fewer than 3 active materials")
+        
+        self.validate_percentage(weight, "Active material 3 weight")
+        
+        # Update the weight fraction
+        third_material = materials_list[2][0]
+        self._active_materials[third_material] = weight / 100
+
+    @binder_1.setter
+    @calculate_all_properties
+    def binder_1(self, material: Binder):
+        """
+        Set the first binder material. If a first binder already exists,
+        it will be replaced. If no binder exists, the material will be added
+        with 0 mass fraction. If None is passed, removes the first binder.
+        
+        Parameters
+        ----------
+        material : Binder or None
+            The binder material to set as the first binder, or None to remove it
+        """
+        if material is None:
+            # Remove the first binder
+            binders_list = list(self._binders.items())
+            if len(binders_list) > 0:
+                # Create new dictionary without the first binder
+                new_binders = {}
+                for binder, fraction in binders_list[1:]:
+                    new_binders[binder] = fraction
+                self._binders = new_binders
+            return
+            
+        self.validate_type(material, Binder, "Binder material")
+        
+        binders_list = list(self._binders.items())
+        
+        if len(binders_list) >= 1:
+            # Replace existing first binder
+            old_material = binders_list[0][0]
+            old_weight = self._binders[old_material]
+            del self._binders[old_material]
+            self._binders[material] = old_weight
+            # Reorder to put new material first
+            self._binders = {material: self._binders.pop(material), **self._binders}
+        else:
+            # Add new material with 0 weight fraction
+            self._binders[material] = 0.0
+
+    @binder_2.setter
+    @calculate_all_properties
+    def binder_2(self, material: Binder):
+        """
+        Set the second binder material. If a second binder already exists,
+        it will be replaced. If only one binder exists, the material will be added
+        with 0 mass fraction. If no binders exist, raises an error.
+        If None is passed, removes the second binder.
+        
+        Parameters
+        ----------
+        material : Binder or None
+            The binder material to set as the second binder, or None to remove it
+        """
+        if material is None:
+            # Remove the second binder
+            binders_list = list(self._binders.items())
+            if len(binders_list) >= 2:
+                # Create new dictionary without the second binder
+                new_binders = {}
+                # Keep first binder
+                new_binders[binders_list[0][0]] = binders_list[0][1]
+                # Keep binders from third position onwards
+                for binder, fraction in binders_list[2:]:
+                    new_binders[binder] = fraction
+                self._binders = new_binders
+            return
+            
+        self.validate_type(material, Binder, "Binder material")
+        
+        binders_list = list(self._binders.items())
+        
+        if len(binders_list) == 0:
+            raise ValueError("Cannot set binder_2: formulation has no binders. Set binder_1 first.")
+        elif len(binders_list) == 1:
+            # Add second binder with 0 weight fraction
+            self._binders[material] = 0.0
+        else:
+            # Replace existing second binder
+            old_material = binders_list[1][0]
+            old_weight = self._binders[old_material]
+            del self._binders[old_material]
+            # Insert as second material
+            first_material = binders_list[0][0]
+            first_weight = self._binders[first_material]
+            self._binders = {first_material: first_weight, material: old_weight, **{k: v for k, v in self._binders.items() if k != first_material}}
+
+    @binder_1_weight.setter
+    @calculate_all_properties
+    def binder_1_weight(self, weight: float):
+        """
+        Set the weight percentage of the first binder.
+        If there's no first binder, this will raise an error.
+        
+        Parameters
+        ----------
+        weight : float
+            Weight percentage (0-100) for the first binder
+        """
+        binders_list = list(self._binders.items())
+        
+        if len(binders_list) < 1:
+            raise ValueError("Cannot set binder_1_weight: formulation has no binders")
+        
+        self.validate_percentage(weight, "Binder 1 weight")
+        
+        # Update the weight fraction
+        first_material = binders_list[0][0]
+        self._binders[first_material] = weight / 100
+
+    @binder_2_weight.setter
+    @calculate_all_properties
+    def binder_2_weight(self, weight: float):
+        """
+        Set the weight percentage of the second binder.
+        If there's no second binder, this will raise an error.
+        
+        Parameters
+        ----------
+        weight : float
+            Weight percentage (0-100) for the second binder
+        """
+        binders_list = list(self._binders.items())
+        
+        if len(binders_list) < 2:
+            raise ValueError("Cannot set binder_2_weight: formulation has fewer than 2 binders")
+        
+        self.validate_percentage(weight, "Binder 2 weight")
+        
+        # Update the weight fraction
+        second_material = binders_list[1][0]
+        self._binders[second_material] = weight / 100
+
+    @conductive_additive_1.setter
+    @calculate_all_properties
+    def conductive_additive_1(self, material: ConductiveAdditive):
+        """
+        Set the first conductive additive material. If a first conductive additive already exists,
+        it will be replaced. If no conductive additive exists, the material will be added
+        with 0 mass fraction.
+        
+        Parameters
+        ----------
+        material : ConductiveAdditive
+            The conductive additive material to set as the first conductive additive
+        """
+        self.validate_type(material, ConductiveAdditive, "Conductive additive material")
+        
+        additives_list = list(self._conductive_additives.items())
+        
+        if len(additives_list) >= 1:
+            # Replace existing first conductive additive
+            old_material = additives_list[0][0]
+            old_weight = self._conductive_additives[old_material]
+            del self._conductive_additives[old_material]
+            self._conductive_additives[material] = old_weight
+            # Reorder to put new material first
+            self._conductive_additives = {material: self._conductive_additives.pop(material), **self._conductive_additives}
+        else:
+            # Add new material with 0 weight fraction
+            self._conductive_additives[material] = 0.0
+
+    @conductive_additive_2.setter
+    @calculate_all_properties
+    def conductive_additive_2(self, material: ConductiveAdditive):
+        """
+        Set the second conductive additive material. If a second conductive additive already exists,
+        it will be replaced. If only one conductive additive exists, the material will be added
+        with 0 mass fraction. If no conductive additives exist, raises an error.
+        
+        Parameters
+        ----------
+        material : ConductiveAdditive
+            The conductive additive material to set as the second conductive additive
+        """
+        self.validate_type(material, ConductiveAdditive, "Conductive additive material")
+        
+        additives_list = list(self._conductive_additives.items())
+        
+        if len(additives_list) == 0:
+            raise ValueError("Cannot set conductive_additive_2: formulation has no conductive additives. Set conductive_additive_1 first.")
+        elif len(additives_list) == 1:
+            # Add second conductive additive with 0 weight fraction
+            self._conductive_additives[material] = 0.0
+        else:
+            # Replace existing second conductive additive
+            old_material = additives_list[1][0]
+            old_weight = self._conductive_additives[old_material]
+            del self._conductive_additives[old_material]
+            # Insert as second material
+            first_material = additives_list[0][0]
+            first_weight = self._conductive_additives[first_material]
+            self._conductive_additives = {first_material: first_weight, material: old_weight, **{k: v for k, v in self._conductive_additives.items() if k != first_material}}
+
+    @conductive_additive_1_weight.setter
+    @calculate_all_properties
+    def conductive_additive_1_weight(self, weight: float):
+        """
+        Set the weight percentage of the first conductive additive.
+        If there's no first conductive additive, this will raise an error.
+        
+        Parameters
+        ----------
+        weight : float
+            Weight percentage (0-100) for the first conductive additive
+        """
+        additives_list = list(self._conductive_additives.items())
+        
+        if len(additives_list) < 1:
+            raise ValueError("Cannot set conductive_additive_1_weight: formulation has no conductive additives")
+        
+        self.validate_percentage(weight, "Conductive additive 1 weight")
+        
+        # Update the weight fraction
+        first_material = additives_list[0][0]
+        self._conductive_additives[first_material] = weight / 100
+
+    @conductive_additive_2_weight.setter
+    @calculate_all_properties
+    def conductive_additive_2_weight(self, weight: float):
+        """
+        Set the weight percentage of the second conductive additive.
+        If there's no second conductive additive, this will raise an error.
+        
+        Parameters
+        ----------
+        weight : float
+            Weight percentage (0-100) for the second conductive additive
+        """
+        additives_list = list(self._conductive_additives.items())
+        
+        if len(additives_list) < 2:
+            raise ValueError("Cannot set conductive_additive_2_weight: formulation has fewer than 2 conductive additives")
+        
+        self.validate_percentage(weight, "Conductive additive 2 weight")
+        
+        # Update the weight fraction
+        second_material = additives_list[1][0]
+        self._conductive_additives[second_material] = weight / 100
 
     @voltage_cutoff.setter
     @calculate_half_cell_curve
