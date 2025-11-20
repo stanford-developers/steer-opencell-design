@@ -479,7 +479,7 @@ class _Layup(
             new_anode_current_collector.y_body_length = cathode_cc.y_body_length
             self.anode.current_collector = new_anode_current_collector
 
-    def get_top_down_view(self, opacity: float = 0.2, **kwargs) -> go.Figure:
+    def get_top_down_view(self, opacity: float = 0.5, **kwargs) -> go.Figure:
 
         # Validate opacity using ColorMixin
         self.validate_opacity(opacity)
