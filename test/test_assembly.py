@@ -3,31 +3,23 @@ import unittest
 import pandas as pd
 from copy import deepcopy
 
-from steer_opencell_design.Formulations.ElectrodeFormulations import CathodeFormulation, AnodeFormulation
+from steer_opencell_design import (
+    CathodeFormulation, AnodeFormulation,
+    Cathode, Anode,
+    Separator,
+    NotchedCurrentCollector, PunchedCurrentCollector, TablessCurrentCollector, TabWeldedCurrentCollector, WeldTab,
+    PunchedStack, ZFoldStack,
+    WoundJellyRoll, FlatWoundJellyRoll,
+    RoundMandrel, FlatMandrel,
+    Tape,
+    MonoLayer, ZFoldMonoLayer,
+    Laminate,
+)
 
-from steer_opencell_design.Components.Electrodes import Cathode, Anode
-from steer_opencell_design.Components.Separators import Separator
-
-from steer_opencell_design.Components.CurrentCollectors.Punched import PunchedCurrentCollector
-from steer_opencell_design.Components.CurrentCollectors.Notched import NotchedCurrentCollector
-from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector, WeldTab
-
-from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import PunchedStack, ZFoldStack, _Stack
-from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import WoundJellyRoll, FlatWoundJellyRoll
-from steer_opencell_design.Constructions.ElectrodeAssemblies.WindingEquipment import RoundMandrel, FlatMandrel
-from steer_opencell_design.Constructions.ElectrodeAssemblies.Tape import Tape
-
-from steer_opencell_design.Constructions.Layups.MonoLayers import MonoLayer, ZFoldMonoLayer
-from steer_opencell_design.Constructions.Layups.Laminate import Laminate
-
-from steer_materials.CellMaterials.Base import CurrentCollectorMaterial, SeparatorMaterial, InsulationMaterial
-from steer_materials.CellMaterials.Base import TapeMaterial
-
-from steer_materials.CellMaterials.Electrode import (
-    CathodeMaterial,
-    AnodeMaterial,
-    Binder,
-    ConductiveAdditive,
+from steer_materials import (
+    CathodeMaterial, AnodeMaterial, 
+    Binder, ConductiveAdditive,
+    CurrentCollectorMaterial, SeparatorMaterial, InsulationMaterial, TapeMaterial,
 )
 
 
@@ -175,6 +167,37 @@ class TestRoundJellyRoll(unittest.TestCase):
         # fig4.show()
         # fig5.show()
         # fig6.show()
+        # fig7.show()
+
+    def test_top_down_view(self):
+        
+        fig1 = self.my_jellyroll.get_top_down_view()
+
+        # now change the cathode cc to a tabless current collector
+        cathode_current_collector = TablessCurrentCollector.from_notched(self.my_jellyroll._layup._cathode._current_collector)
+        self.my_jellyroll._layup._cathode.current_collector = cathode_current_collector
+        self.my_jellyroll._layup.cathode = self.my_jellyroll._layup._cathode
+        self.my_jellyroll.layup = self.my_jellyroll._layup
+        fig2 = self.my_jellyroll.get_top_down_view()
+
+        # now change the cathode cc to a tab welded current collector
+        cathode_current_collector = TabWeldedCurrentCollector.from_tabless(self.my_jellyroll._layup._cathode._current_collector)
+        self.my_jellyroll._layup._cathode.current_collector = cathode_current_collector
+        self.my_jellyroll._layup.cathode = self.my_jellyroll._layup._cathode
+        self.my_jellyroll.layup = self.my_jellyroll._layup
+        fig3 = self.my_jellyroll.get_top_down_view()
+
+        # now also convert the anode cc to a tab welded current collector
+        anode_current_collector = TabWeldedCurrentCollector.from_notched(self.my_jellyroll._layup._anode._current_collector)
+        self.my_jellyroll._layup._anode.current_collector = anode_current_collector
+        self.my_jellyroll._layup.anode = self.my_jellyroll._layup._anode
+        self.my_jellyroll.layup = self.my_jellyroll._layup
+        fig4 = self.my_jellyroll.get_top_down_view()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+        # fig4.show()
 
     def test_high_res_spiral(self):
 
@@ -895,7 +918,7 @@ class TestPunchedStack(unittest.TestCase):
 
         layup = deepcopy(self.stack.layup)
 
-        stack_from_layup = _Stack.from_layup(
+        stack_from_layup = PunchedStack.from_layup(
             layup=layup,
             n_layers=20,
         )
