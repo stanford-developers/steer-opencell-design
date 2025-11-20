@@ -1,4 +1,4 @@
-__version__ = "0.4.6"
+__version__ = "0.4.9"
 
 # import current collectors
 from .Components.CurrentCollectors.Notched import NotchedCurrentCollector
@@ -14,6 +14,7 @@ from .Components.Electrodes import Cathode, Anode
 from .Components.Separators import Separator
 
 # import layups
+from .Constructions.Layups.Base import OverhangControlMode, NPRatioControlMode
 from .Constructions.Layups.Laminate import Laminate
 from .Constructions.Layups.MonoLayers import ZFoldMonoLayer, MonoLayer
 
