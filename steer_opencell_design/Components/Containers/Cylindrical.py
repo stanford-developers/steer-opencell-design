@@ -1096,10 +1096,10 @@ class CylindricalEncapsulation(_Container):
         )
 
         self._mass_breakdown = {
-            self._cathode_terminal_connector.name: self._cathode_terminal_connector._mass,
-            self._anode_terminal_connector.name: self._anode_terminal_connector._mass,
-            self._lid_assembly.name: self._lid_assembly._mass,
-            self._cannister.name: self._cannister._mass
+            "Cathode Terminal Connector": self._cathode_terminal_connector._mass,
+            "Anode Terminal Connector": self._anode_terminal_connector._mass,
+            "Lid Assembly": self._lid_assembly._mass,
+            "Cannister": self._cannister._mass
         }
 
     def _calculate_cost(self):
@@ -1112,10 +1112,10 @@ class CylindricalEncapsulation(_Container):
         )
 
         self._cost_breakdown = {
-            self._cathode_terminal_connector.name: self._cathode_terminal_connector._cost,
-            self._anode_terminal_connector.name: self._anode_terminal_connector._cost,
-            self._lid_assembly.name: self._lid_assembly._cost,
-            self._cannister.name: self._cannister._cost
+            "Cathode Terminal Connector": self._cathode_terminal_connector._cost,
+            "Anode Terminal Connector": self._anode_terminal_connector._cost,
+            "Lid Assembly": self._lid_assembly._cost,
+            "Cannister": self._cannister._cost
         }
 
     def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:

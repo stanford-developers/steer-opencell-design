@@ -204,6 +204,12 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         self._calculate_geometry_parameters()
         super()._calculate_bulk_properties()
 
+    def _calculate_pore_volume(self):
+        
+        _cathode_pore_volume = self._layup._cathode._pore_volume
+        _anode_pore_volume = self._layup._anode._pore_volume
+        self._pore_volume = _cathode_pore_volume + _anode_pore_volume
+
     def _calculate_interfacial_area(self) -> float:
         """Calculate the interfacial area between cathode and anode surfaces in a wound jelly roll.
         

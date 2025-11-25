@@ -4,7 +4,7 @@ from steer_core.Decorators.General import (
     calculate_all_properties,
     calculate_bulk_properties,
 )
-from steer_core.Decorators.Electrochemical import calculate_half_cell_curve
+from steer_opencell_design.Utils.Decorators import calculate_half_cell_curve
 
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Coordinates import CoordinateMixin
@@ -19,7 +19,7 @@ from steer_opencell_design.Formulations.ElectrodeFormulations import (
     AnodeFormulation,
     _ElectrodeFormulation,
 )
-from steer_opencell_design.Components.CurrentCollectors.base import _CurrentCollector
+from steer_opencell_design.Components.CurrentCollectors.Base import _CurrentCollector
 
 from steer_materials.CellMaterials.Base import InsulationMaterial
 
@@ -1405,3 +1405,9 @@ class Cathode(_Electrode):
         :return: Tuple containing the minimum and maximum porosity in percentage.
         """
         return (15, 40)
+
+
+
+
+
+

@@ -874,6 +874,7 @@ class TestPunchedStack(unittest.TestCase):
         self.assertAlmostEqual(self.stack.thickness_range[1], 22.41, 2)
         self.assertAlmostEqual(self.stack.thickness_hard_range[1], 369.66, 2)
         self.assertEqual(len(self.stack.stack), 83)
+        self.assertAlmostEqual(self.stack.pore_volume, 251, 2)
 
     def test_breakdown_plots(self):
         fig5 = self.stack.plot_mass_breakdown()

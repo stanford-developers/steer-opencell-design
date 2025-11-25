@@ -81,17 +81,23 @@ class _ElectrodeAssembly(
             self._calculate_all_properties()
 
     def _calculate_bulk_properties(self):
+        self._calculate_pore_volume()
         self._calculate_mass_properties()
         self._calculate_cost_properties()
 
     def _calculate_energy(self):
-        discharge_curve = self._full_cell_curve[self._full_cell_curve[:,2] == -1]
-        discharge_curve = discharge_curve[np.argsort(discharge_curve[:,0])]
-        capacity = discharge_curve[:,0]
-        voltage = discharge_curve[:,1]
-        energy = np.trapz(capacity, voltage)
-        self._energy = energy
+        _discharge_curve = self._full_cell_curve[self._full_cell_curve[:,2] == -1]
+        _discharge_curve = _discharge_curve[np.argsort(_discharge_curve[:,0])]
+        _capacity = _discharge_curve[:,0]
+        _voltage = _discharge_curve[:,1]
+        _energy = np.trapz(_capacity, _voltage)
+        self._energy = _energy
         return self._energy
+
+    @abstractmethod
+    def _calculate_pore_volume(self):
+        self._pore_volume = 0.0
+        pass
 
     @abstractmethod
     def _calculate_mass_properties(self):
@@ -174,9 +180,13 @@ class _ElectrodeAssembly(
         """
         fig = go.Figure()
 
-        fig.add_trace(self.cathode_half_cell_curve_trace)
-        fig.add_trace(self.anode_half_cell_curve_trace)
-        fig.add_trace(self.full_cell_curve_trace)
+        traces = [
+            self.cathode_half_cell_curve_trace,
+            self.anode_half_cell_curve_trace,
+            self.full_cell_curve_trace
+        ]
+
+        fig.add_traces(traces)    
 
         # Enhanced layout with zero lines and faint grid
         fig.update_layout(
@@ -189,6 +199,11 @@ class _ElectrodeAssembly(
         )
 
         return fig
+
+    @property
+    def pore_volume(self) -> float:
+        """Return the pore volume of the jelly roll assembly."""
+        return round(self._pore_volume * M_TO_CM**3, 2)
 
     @property
     def energy(self) -> float:
