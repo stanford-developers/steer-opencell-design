@@ -190,6 +190,16 @@ class _Stack(_ElectrodeAssembly):
 
         return self._cost
 
+    def _calculate_pore_volume(self):
+        
+        _cathodes = [c for c in self._stack.values() if isinstance(c, Cathode)]
+        _anodes = [a for a in self._stack.values() if isinstance(a, Anode)]
+
+        _cathode_pore_volume = sum([c._pore_volume for c in _cathodes])
+        _anode_pore_volume = sum([a._pore_volume for a in _anodes])
+
+        self._pore_volume = _cathode_pore_volume + _anode_pore_volume
+
     def get_side_view(self, **kwargs):
         """
         Generate an optimized side view of the stack with grouped component traces.

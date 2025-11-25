@@ -44,3 +44,19 @@ class _Container(
         """
         pass
 
+    @abstractmethod
+    def _calculate_mass(self) -> float:
+        """
+        Calculate the mass of the container.
+        """
+        self._mass = 0
+        self._mass_breakdown = {}
+
+    @abstractmethod
+    def _calculate_cost(self) -> float:
+        """
+        Calculate the cost of the container.
+        """
+        self._cost = 0
+        self._cost_breakdown = {}
+

@@ -1,16 +1,15 @@
 from steer_core.Decorators.General import calculate_all_properties
-from steer_core.Decorators.Electrochemical import calculate_half_cell_curve
 from steer_core.Constants.Units import *
 
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 
-from steer_materials.CellMaterials.Electrode import (
-    _ActiveMaterial,
-    Binder,
-    ConductiveAdditive,
-)
+from steer_opencell_design.Components.Materials.ActiveMaterials import _ActiveMaterial
+from steer_opencell_design.Components.Materials.Binders import Binder
+from steer_opencell_design.Components.Materials.ConductiveAdditives import ConductiveAdditive
+
+from steer_opencell_design.Utils.Decorators import calculate_half_cell_curve
 
 import pandas as pd
 import numpy as np

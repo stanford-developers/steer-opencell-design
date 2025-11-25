@@ -1,5 +1,11 @@
 __version__ = "0.4.9"
 
+# import materials
+from .Components.Materials.ActiveMaterials import CathodeMaterial, AnodeMaterial
+from .Components.Materials.Binders import Binder
+from .Components.Materials.ConductiveAdditives import ConductiveAdditive
+from .Components.Materials.Electrolytes import Electrolyte
+
 # import current collectors
 from .Components.CurrentCollectors.Notched import NotchedCurrentCollector
 from .Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector, WeldTab
@@ -24,4 +30,9 @@ from .Constructions.ElectrodeAssemblies.JellyRolls import WoundJellyRoll, FlatWo
 from .Constructions.ElectrodeAssemblies.Stacks import ZFoldStack, PunchedStack
 from .Constructions.ElectrodeAssemblies.WindingEquipment import RoundMandrel, FlatMandrel
 
+# import containers
+from .Components.Containers.Cylindrical import CylindricalCannister, CylindricalEncapsulation, CylindricalLidAssembly, CylindricalTerminalConnector
+
+# import cells
+from .Constructions.Cells.CylindricalCell import CylindricalCell
 

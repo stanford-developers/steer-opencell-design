@@ -16,7 +16,7 @@ from steer_core.Constants.Units import *
 from steer_materials.CellMaterials.Base import CurrentCollectorMaterial
 
 # import other current collector types for class methods
-from steer_opencell_design.Components.CurrentCollectors.base import _TapeCurrentCollector
+from steer_opencell_design.Components.CurrentCollectors.Base import _TapeCurrentCollector
 
 # import base functions
 from typing import Tuple, Optional, Iterable

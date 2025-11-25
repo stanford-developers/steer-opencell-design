@@ -10,7 +10,7 @@ from steer_materials.CellMaterials.Base import CurrentCollectorMaterial
 from typing import Tuple, Optional
 import numpy as np
 
-from steer_opencell_design.Components.CurrentCollectors.base import _TabbedCurrentCollector, _TapeCurrentCollector
+from steer_opencell_design.Components.CurrentCollectors.Base import _TabbedCurrentCollector, _TapeCurrentCollector
 
 
 class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):

@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 from typing import Tuple, Optional
 import numpy as np
 
-from steer_opencell_design.Components.CurrentCollectors.base import _TabbedCurrentCollector
+from steer_opencell_design.Components.CurrentCollectors.Base import _TabbedCurrentCollector
 
 
 class PunchedCurrentCollector(_TabbedCurrentCollector):
