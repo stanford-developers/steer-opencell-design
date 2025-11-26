@@ -2,14 +2,8 @@ from copy import deepcopy
 import unittest
 import plotly.graph_objects as go
 
-from steer_opencell_design.Formulations.ElectrodeFormulations import (
-    CathodeFormulation,
-    AnodeFormulation,
-)
-from steer_opencell_design.Components.Electrodes import (
-    Cathode,
-    Anode,
-)
+from steer_opencell_design.Materials.Formulations import CathodeFormulation, AnodeFormulation
+from steer_opencell_design.Components.Electrodes import Cathode, Anode
 
 from steer_opencell_design.Components.CurrentCollectors.Notched import NotchedCurrentCollector
 from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector, WeldTab
