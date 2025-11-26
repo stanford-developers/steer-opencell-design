@@ -7,14 +7,14 @@ from .Materials.ConductiveAdditives import ConductiveAdditive
 from .Materials.Electrolytes import Electrolyte
 from .Materials.Other import TapeMaterial, SeparatorMaterial, CurrentCollectorMaterial, PrismaticContainerMaterial, LaminateMaterial, InsulationMaterial
 
+# import formulations
+from .Materials.Formulations import AnodeFormulation, CathodeFormulation
+
 # import current collectors
 from .Components.CurrentCollectors.Notched import NotchedCurrentCollector
 from .Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector, WeldTab
 from .Components.CurrentCollectors.Punched import PunchedCurrentCollector
 from .Components.CurrentCollectors.Tabless import TablessCurrentCollector
-
-# improt formulations
-from .Formulations.ElectrodeFormulations import AnodeFormulation, CathodeFormulation
 
 # import electrodes
 from .Components.Electrodes import Cathode, Anode

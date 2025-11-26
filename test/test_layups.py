@@ -2,7 +2,7 @@ from copy import deepcopy
 import unittest
 import plotly.graph_objects as go
 
-from steer_opencell_design.Formulations.ElectrodeFormulations import (
+from steer_opencell_design.Materials.Formulations import (
     CathodeFormulation,
     AnodeFormulation,
 )

@@ -14,7 +14,7 @@ from steer_core.Mixins.Dunder import DunderMixin
 
 from steer_core.Constants.Units import *
 
-from steer_opencell_design.Formulations.ElectrodeFormulations import (
+from steer_opencell_design.Materials.Formulations import (
     CathodeFormulation,
     AnodeFormulation,
     _ElectrodeFormulation,
