@@ -13,7 +13,7 @@ from steer_core.Decorators.Objects import calculate_weld_tab_properties
 from steer_core.Constants.Units import *
 
 # import materials
-from steer_materials.CellMaterials.Base import CurrentCollectorMaterial
+from steer_opencell_design.Materials.Other import CurrentCollectorMaterial
 
 # import other current collector types for class methods
 from steer_opencell_design.Components.CurrentCollectors.Base import _TapeCurrentCollector

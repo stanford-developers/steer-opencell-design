@@ -161,18 +161,20 @@ class HalfCellMixin:
             Curve with the discharge segment shifted toward higher or lower
             reversible capacity depending on the scaling factor.
         """
-        charge = curve[curve[:, 2] == 1]
-        discharge = curve[curve[:, 2] == -1]
-        maximum_specific_capacity = curve[:, 0].max()
+        # Work on a copy to avoid modifying the input
+        curve_copy = curve.copy()
+        charge = curve_copy[curve_copy[:, 2] == 1].copy()
+        discharge = curve_copy[curve_copy[:, 2] == -1].copy()
+        maximum_specific_capacity = curve_copy[:, 0].max()
         
         discharge[:, 0] = (
             scaling * (discharge[:, 0] - maximum_specific_capacity)
             + maximum_specific_capacity
         )
 
-        curve = np.concatenate([charge, discharge], axis=0)
+        result = np.concatenate([charge, discharge], axis=0)
 
-        return curve
+        return result
 
     @staticmethod
     def _apply_irreversible_capacity_scaling(curve: np.ndarray, scaling: float) -> np.ndarray:
@@ -190,8 +192,10 @@ class HalfCellMixin:
         np.ndarray
             Curve whose capacity axis has been globally scaled.
         """
-        curve[:, 0] = curve[:, 0] * scaling
-        return curve
+        # Work on a copy to avoid modifying the input
+        result = curve.copy()
+        result[:, 0] = result[:, 0] * scaling
+        return result
     
     @staticmethod
     def _interpolate_curve_on_maximum_voltage(
@@ -501,7 +505,7 @@ class HalfCellMixin:
         )
 
         # Truncate based on material type
-        from steer_opencell_design.Components.Materials.ActiveMaterials import CathodeMaterial
+        from steer_opencell_design.Materials.ActiveMaterials import CathodeMaterial
         
         voltage_condition = (
             (lambda v: v <= voltage_cutoff)

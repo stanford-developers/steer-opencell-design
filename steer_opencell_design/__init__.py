@@ -1,10 +1,11 @@
 __version__ = "0.4.9"
 
 # import materials
-from .Components.Materials.ActiveMaterials import CathodeMaterial, AnodeMaterial
-from .Components.Materials.Binders import Binder
-from .Components.Materials.ConductiveAdditives import ConductiveAdditive
-from .Components.Materials.Electrolytes import Electrolyte
+from .Materials.ActiveMaterials import CathodeMaterial, AnodeMaterial
+from .Materials.Binders import Binder
+from .Materials.ConductiveAdditives import ConductiveAdditive
+from .Materials.Electrolytes import Electrolyte
+from .Materials.Other import TapeMaterial, SeparatorMaterial, CurrentCollectorMaterial, PrismaticContainerMaterial, LaminateMaterial, InsulationMaterial
 
 # import current collectors
 from .Components.CurrentCollectors.Notched import NotchedCurrentCollector

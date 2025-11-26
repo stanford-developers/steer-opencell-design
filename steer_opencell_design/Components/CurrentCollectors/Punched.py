@@ -2,7 +2,7 @@
 from steer_core.Constants.Units import *
 
 # import materials
-from steer_materials.CellMaterials.Base import CurrentCollectorMaterial
+from steer_opencell_design.Materials.Other import CurrentCollectorMaterial
 
 # import base packages
 import plotly.graph_objects as go

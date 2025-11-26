@@ -1,5 +1,5 @@
 from steer_opencell_design.Components.Containers.Base import _Container
-from steer_materials import PrismaticContainerMaterial
+from steer_opencell_design.Materials.Other import PrismaticContainerMaterial
 from steer_core.Constants.Units import *
 from steer_core.Decorators.General import calculate_bulk_properties, calculate_all_properties
 from steer_core.Decorators.Coordinates import calculate_coordinates

@@ -13,10 +13,7 @@ from steer_opencell_design import (
     Tape,
     Laminate,
     CylindricalTerminalConnector, CylindricalLidAssembly, CylindricalCannister, CylindricalEncapsulation,
-    CylindricalCell
-)
-
-from steer_materials import (
+    CylindricalCell,
     CathodeMaterial, AnodeMaterial, 
     Binder, ConductiveAdditive,
     CurrentCollectorMaterial, SeparatorMaterial, InsulationMaterial, TapeMaterial,

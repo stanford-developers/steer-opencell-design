@@ -6,22 +6,12 @@ from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 
-from steer_core.Decorators.Coordinates import calculate_coordinates
-from steer_core.Decorators.General import (
-    calculate_all_properties,
-    calculate_bulk_properties,
-)
+from steer_core.Decorators.General import calculate_all_properties
 
-from steer_materials.CellMaterials.Base import TapeMaterial
-
-from steer_opencell_design.Components.Electrodes import _Electrode
+from steer_opencell_design.Materials.Other import TapeMaterial
 
 from typing import Tuple
 from copy import deepcopy
-
-import numpy as np
-import pandas as pd
-import plotly.graph_objects as go
 
 
 class Tape(

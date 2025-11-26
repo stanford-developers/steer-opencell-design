@@ -2,7 +2,7 @@ from steer_opencell_design.Constructions.ElectrodeAssemblies.Base import _Electr
 from steer_opencell_design.Components.Containers.Base import _Container
 from steer_opencell_design.Utils.Decorators import calculate_electrochemical_properties
 
-from steer_opencell_design.Components.Materials.Electrolytes import Electrolyte
+from steer_opencell_design.Materials.Electrolytes import Electrolyte
 
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin

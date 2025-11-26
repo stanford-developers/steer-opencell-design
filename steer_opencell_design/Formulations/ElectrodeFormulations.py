@@ -5,11 +5,13 @@ from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 
-from steer_opencell_design.Components.Materials.ActiveMaterials import _ActiveMaterial
-from steer_opencell_design.Components.Materials.Binders import Binder
-from steer_opencell_design.Components.Materials.ConductiveAdditives import ConductiveAdditive
+from steer_opencell_design.Materials.ActiveMaterials import _ActiveMaterial
+from steer_opencell_design.Materials.Binders import Binder
+from steer_opencell_design.Materials.ConductiveAdditives import ConductiveAdditive
 
 from steer_opencell_design.Utils.Decorators import calculate_half_cell_curve
+
+from steer_materials.Base import _VolumedMaterialMixin, _Material
 
 import pandas as pd
 import numpy as np
@@ -21,7 +23,7 @@ import warnings
 class _ElectrodeFormulation(
     ValidationMixin, 
     DunderMixin,
-    PlotterMixin
+    PlotterMixin,
     ):
 
     def __init__(

@@ -12,7 +12,7 @@ from steer_core.Decorators.General import (
     calculate_bulk_properties,
 )
 
-from steer_materials.CellMaterials.Base import SeparatorMaterial
+from steer_opencell_design.Materials.Other import SeparatorMaterial
 
 from steer_opencell_design.Components.Electrodes import _Electrode
 

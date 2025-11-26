@@ -2,10 +2,10 @@ import unittest
 from io import StringIO
 import pandas as pd
 
-from steer_opencell_design.Components.Materials.ActiveMaterials import CathodeMaterial, AnodeMaterial
-from steer_opencell_design.Components.Materials.Binders import Binder
-from steer_opencell_design.Components.Materials.ConductiveAdditives import ConductiveAdditive
-from steer_opencell_design.Components.Materials.Electrolytes import Electrolyte
+from steer_opencell_design.Materials.ActiveMaterials import CathodeMaterial, AnodeMaterial
+from steer_opencell_design.Materials.Binders import Binder
+from steer_opencell_design.Materials.ConductiveAdditives import ConductiveAdditive
+from steer_opencell_design.Materials.Electrolytes import Electrolyte
 
 
 class TestLFPSingleCurve(unittest.TestCase):
@@ -317,13 +317,15 @@ class TestLFPSingleCurve(unittest.TestCase):
         self.material.irreversible_capacity_scaling = 0.5
         self.material.reversible_capacity_scaling = 0.2
         self.material.irreversible_capacity_scaling = 0.2
-        self.material.voltage_cutoff = 4
+        self.material.voltage_cutoff = 4.1
+        self.material.voltage_cutoff = 4.0
         self.material.reversible_capacity_scaling = 1
         self.material.irreversible_capacity_scaling = 1
 
         data = self.material.half_cell_curve
 
         self.assertEqual(round(data["Voltage (V)"].max(), 10), 4.0)
+        
         self.assertEqual(
             round(
                 data.query('Direction == "discharge"')[

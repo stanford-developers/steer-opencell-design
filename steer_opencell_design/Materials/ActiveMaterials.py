@@ -369,29 +369,18 @@ class _ActiveMaterial(
 
         :param scaling: float: scaling factor for reversible capacity
         """
+        # validate input
         self.validate_positive_float(scaling, "Reversible capacity scaling")
-        self._reversible_capacity_scaling = scaling
 
-        # Refresh from base curve and reapply both scalings in correct order
-        if hasattr(self, "_half_cell_curve"):
-            self._refresh_half_cell_curve()
-            
-            # Apply irreversible scaling first (global)
-            if (
-                hasattr(self, "_irreversible_capacity_scaling")
-                and self._irreversible_capacity_scaling != 1.0
-            ):
-                self._half_cell_curve = self._apply_irreversible_capacity_scaling(
-                    self._half_cell_curve,
-                    self._irreversible_capacity_scaling,
-                )
-            
-            # Then apply reversible scaling (discharge only)
-            if self._reversible_capacity_scaling != 1.0:
-                self._half_cell_curve = self._apply_reversible_capacity_scaling(
-                    self._half_cell_curve,
-                    self._reversible_capacity_scaling,
-                )
+        # get the old scaling factor
+        if hasattr(self, "_reversible_capacity_scaling") and self._reversible_capacity_scaling != 1.0:
+            original_scaling = self._reversible_capacity_scaling
+            self._half_cell_curve = self._apply_reversible_capacity_scaling(self._half_cell_curve, 1 / original_scaling)
+        else:
+            original_scaling = 1.0
+
+        self._half_cell_curve = self._apply_reversible_capacity_scaling(self._half_cell_curve, scaling)
+        self._reversible_capacity_scaling = scaling
 
     @voltage_cutoff.setter
     def voltage_cutoff(self, voltage: float) -> None:
@@ -458,28 +447,18 @@ class _ActiveMaterial(
         :param scaling: float: scaling factor for irreversible capacity
         """
         self.validate_positive_float(scaling, "Irreversible capacity scaling")
-        self._irreversible_capacity_scaling = float(scaling)
-
-        # Refresh from base curve and reapply both scalings in correct order
+        
+        if hasattr(self, "_irreversible_capacity_scaling") and self._irreversible_capacity_scaling != 1.0:
+            original_scaling = self._irreversible_capacity_scaling
+            self._half_cell_curve = self._apply_irreversible_capacity_scaling(self._half_cell_curve, 1 / original_scaling)
+        else:
+            original_scaling = 1.0
+        
+        # apply the new scaling factor
         if hasattr(self, "_half_cell_curve"):
-            self._refresh_half_cell_curve()
-            
-            # Apply irreversible scaling first (global)
-            if self._irreversible_capacity_scaling != 1.0:
-                self._half_cell_curve = self._apply_irreversible_capacity_scaling(
-                    self._half_cell_curve,
-                    self._irreversible_capacity_scaling,
-                )
-            
-            # Then apply reversible scaling (discharge only)
-            if (
-                hasattr(self, "_reversible_capacity_scaling")
-                and self._reversible_capacity_scaling != 1.0
-            ):
-                self._half_cell_curve = self._apply_reversible_capacity_scaling(
-                    self._half_cell_curve,
-                    self._reversible_capacity_scaling,
-                )
+            self._half_cell_curve = self._apply_irreversible_capacity_scaling(self._half_cell_curve, scaling)
+
+        self._irreversible_capacity_scaling = scaling
 
     @half_cell_curves.setter
     def half_cell_curves(
