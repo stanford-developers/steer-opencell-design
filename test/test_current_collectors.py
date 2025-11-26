@@ -3,8 +3,7 @@ from pickle import loads, dumps
 from base64 import b64decode, b64encode
 from copy import deepcopy
 
-from steer_materials.CellMaterials.Base import CurrentCollectorMaterial
-
+from steer_opencell_design.Materials.Other import CurrentCollectorMaterial
 from steer_opencell_design.Components.CurrentCollectors.Punched import PunchedCurrentCollector
 from steer_opencell_design.Components.CurrentCollectors.Notched import NotchedCurrentCollector
 from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector, WeldTab

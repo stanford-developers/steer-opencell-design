@@ -19,8 +19,7 @@ from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 
-# Materials imports
-from steer_materials.CellMaterials.Base import CurrentCollectorMaterial
+from steer_opencell_design.Materials.Other import CurrentCollectorMaterial
 
 
 class _CurrentCollector(
@@ -234,6 +233,8 @@ class _CurrentCollector(
         self._volume = self._body_area / 2 * self._thickness
         self._mass = self._volume * self._material._density
         self._cost = self._mass * self._material._specific_cost
+
+        # trigger material setter
 
     def _calculate_fill_patterns(self) -> None:
         # Shading patterns

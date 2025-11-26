@@ -5,12 +5,10 @@ from steer_opencell_design.Formulations.ElectrodeFormulations import (
     CathodeFormulation,
     AnodeFormulation,
 )
-from steer_materials.CellMaterials.Electrode import (
-    CathodeMaterial,
-    AnodeMaterial,
-    Binder,
-    ConductiveAdditive,
-)
+
+from steer_opencell_design.Materials.ActiveMaterials import CathodeMaterial, AnodeMaterial
+from steer_opencell_design.Materials.Binders import Binder
+from steer_opencell_design.Materials.ConductiveAdditives import ConductiveAdditive
 
 
 class TestSimpleCathodeFormulation(unittest.TestCase):

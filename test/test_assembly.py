@@ -14,12 +14,10 @@ from steer_opencell_design import (
     Tape,
     MonoLayer, ZFoldMonoLayer,
     Laminate,
-)
-
-from steer_materials import (
-    CathodeMaterial, AnodeMaterial, 
-    Binder, ConductiveAdditive,
-    CurrentCollectorMaterial, SeparatorMaterial, InsulationMaterial, TapeMaterial,
+    CathodeMaterial, AnodeMaterial,
+    Binder,
+    ConductiveAdditive,
+    CurrentCollectorMaterial, SeparatorMaterial, InsulationMaterial, TapeMaterial
 )
 
 

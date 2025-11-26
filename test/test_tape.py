@@ -2,7 +2,7 @@ from copy import deepcopy
 import unittest
 import numpy as np
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Tape import Tape
-from steer_materials.CellMaterials.Base import TapeMaterial
+from steer_opencell_design.Materials.Other import TapeMaterial
 import plotly.graph_objects as go
 import plotly.io as pio
 import pandas as pd

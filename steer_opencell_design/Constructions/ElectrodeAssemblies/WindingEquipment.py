@@ -10,7 +10,7 @@ from steer_core.Decorators.Coordinates import calculate_coordinates
 from steer_core.Constants.Units import *
 from steer_core.Constants.Universal import PI
 
-from steer_materials.CellMaterials.Base import CurrentCollectorMaterial
+from steer_opencell_design.Materials.Other import CurrentCollectorMaterial
 
 import pandas as pd
 import numpy as np

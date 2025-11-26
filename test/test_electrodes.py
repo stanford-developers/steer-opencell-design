@@ -9,7 +9,6 @@ from steer_opencell_design.Formulations.ElectrodeFormulations import (
 from steer_opencell_design.Components.Electrodes import (
     Cathode,
     Anode,
-    ElectrodeControlMode,
 )
 
 from steer_opencell_design.Components.CurrentCollectors.Notched import NotchedCurrentCollector
@@ -17,16 +16,10 @@ from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedC
 from steer_opencell_design.Components.CurrentCollectors.Punched import PunchedCurrentCollector
 from steer_opencell_design.Components.CurrentCollectors.Tabless import TablessCurrentCollector
 
-from steer_materials.CellMaterials.Base import (
-    CurrentCollectorMaterial,
-    InsulationMaterial,
-)
-from steer_materials.CellMaterials.Electrode import (
-    CathodeMaterial,
-    AnodeMaterial,
-    Binder,
-    ConductiveAdditive,
-)
+from steer_opencell_design.Materials.Other import CurrentCollectorMaterial, InsulationMaterial
+from steer_opencell_design.Materials.ActiveMaterials import CathodeMaterial, AnodeMaterial
+from steer_opencell_design.Materials.Binders import Binder
+from steer_opencell_design.Materials.ConductiveAdditives import ConductiveAdditive
 
 
 class TestAnodeNoInsulation(unittest.TestCase):

@@ -2,7 +2,7 @@ from steer_opencell_design.Constructions.Cells.Base import _Cell
 from steer_opencell_design.Components.Containers.Cylindrical import CylindricalEncapsulation
 from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import WoundJellyRoll
 
-from steer_opencell_design.Components.Materials.Electrolytes import Electrolyte
+from steer_opencell_design.Materials.Electrolytes import Electrolyte
 
 from steer_core.Decorators.General import calculate_all_properties
 

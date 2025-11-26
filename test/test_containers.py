@@ -8,7 +8,7 @@ from steer_opencell_design.Components.Containers.Cylindrical import (
     CylindricalEncapsulation,
 )
 
-from steer_materials.CellMaterials.Base import PrismaticContainerMaterial
+from steer_opencell_design.Materials.Other import PrismaticContainerMaterial
 
 class TestCylindricalTerminalConnector(unittest.TestCase):
     def setUp(self):
@@ -1252,10 +1252,10 @@ class TestCylindricalEncapsulation(unittest.TestCase):
         
         # Check that all components are included
         component_names = list(breakdown.keys())
-        self.assertIn("Cylindrical Terminal Connector (Cathode)", component_names)  # Will have 2 instances
-        self.assertIn("Cylindrical Terminal Connector (Anode)", component_names)  # Will have 2 instances
-        self.assertIn("Cylindrical Lid Assembly", component_names)
-        self.assertIn("Cylindrical Cannister", component_names)
+        self.assertIn("Cathode Terminal Connector", component_names)  # Will have 2 instances
+        self.assertIn("Anode Terminal Connector", component_names)  # Will have 2 instances
+        self.assertIn("Lid Assembly", component_names)
+        self.assertIn("Cannister", component_names)
         
         # Check that all values are positive numbers
         for name, mass in breakdown.items():
@@ -1439,7 +1439,7 @@ class TestCylindricalEncapsulation(unittest.TestCase):
             self.assertAlmostEqual(test_encapsulation.cathode_terminal_connector.radius, expected_terminal_radius, places=2)
             
             # Check that calculations are reasonable
-            self.assertGreater(test_encapsulation.mass_breakdown[test_cannister.name], 0)
+            self.assertGreater(test_encapsulation.mass_breakdown["Cannister"], 0)
 
 
 if __name__ == '__main__':

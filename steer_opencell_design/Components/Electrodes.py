@@ -21,7 +21,7 @@ from steer_opencell_design.Formulations.ElectrodeFormulations import (
 )
 from steer_opencell_design.Components.CurrentCollectors.Base import _CurrentCollector
 
-from steer_materials.CellMaterials.Base import InsulationMaterial
+from steer_opencell_design.Materials.Other import InsulationMaterial
 
 import pandas as pd
 import numpy as np
