@@ -110,9 +110,14 @@ class _CylindricalComponent(
             self._cost = None
             return
             
-        self._volume = np.pi * (self._radius) ** 2 * (self._thickness) * self._fill_factor
-        self._mass = self._volume * self._material._density
-        self._cost = self._mass * self._material._specific_cost
+        _volume = np.pi * (self._radius) ** 2 * (self._thickness) * self._fill_factor
+        _mass = _volume * self._material._density
+        mass = _mass * KG_TO_G
+        self._material.mass = mass
+
+        self._mass = self._material._mass
+        self._volume = self._material._volume
+        self._cost = self._material._cost
 
     def _calculate_coordinates(self):
         """Calculate 3D coordinates if radius is available."""
@@ -733,11 +738,15 @@ class CylindricalCannister(
         _inner_volume = np.pi * self._inner_radius**2 * _wall_height
         _wall_volume = _outer_volume - _inner_volume
         _base_volume = np.pi * self._outer_radius**2 * self._wall_thickness
-        self._volume = _wall_volume + _base_volume
-        self._mass = self._volume * self._material._density
+        _volume = _wall_volume + _base_volume
+        _mass = _volume * self._material._density
+        mass = _mass * KG_TO_G
+        self._material.mass = mass
 
-        # get the cost
-        self._cost = self._mass * self._material._specific_cost
+        # set the properties
+        self._mass = self._material._mass
+        self._volume = self._material._volume
+        self._cost = self._material._cost
 
         # get other dimensions
         self._inner_height = self._height - self._wall_thickness
@@ -1089,33 +1098,33 @@ class CylindricalEncapsulation(_Container):
     def _calculate_mass(self):
 
         self._mass = (
-            self._cathode_terminal_connector._mass +
-            self._anode_terminal_connector._mass +
-            self._lid_assembly._mass +
-            self._cannister._mass
+            self._cathode_terminal_connector._material._mass +
+            self._anode_terminal_connector._material._mass +
+            self._lid_assembly._material._mass +
+            self._cannister._material._mass
         )
 
         self._mass_breakdown = {
-            "Cathode Terminal Connector": self._cathode_terminal_connector._mass,
-            "Anode Terminal Connector": self._anode_terminal_connector._mass,
-            "Lid Assembly": self._lid_assembly._mass,
-            "Cannister": self._cannister._mass
+            "Cathode Terminal Connector": self._cathode_terminal_connector._material._mass,
+            "Anode Terminal Connector": self._anode_terminal_connector._material._mass,
+            "Lid Assembly": self._lid_assembly._material._mass,
+            "Cannister": self._cannister._material._mass
         }
 
     def _calculate_cost(self):
 
         self._cost = (
-            self._cathode_terminal_connector._cost +
-            self._anode_terminal_connector._cost +
-            self._lid_assembly._cost +
-            self._cannister._cost
+            self._cathode_terminal_connector._material._cost +
+            self._anode_terminal_connector._material._cost +
+            self._lid_assembly._material._cost +
+            self._cannister._material._cost
         )
 
         self._cost_breakdown = {
-            "Cathode Terminal Connector": self._cathode_terminal_connector._cost,
-            "Anode Terminal Connector": self._anode_terminal_connector._cost,
-            "Lid Assembly": self._lid_assembly._cost,
-            "Cannister": self._cannister._cost
+            "Cathode Terminal Connector": self._cathode_terminal_connector._material._cost,
+            "Anode Terminal Connector": self._anode_terminal_connector._material._cost,
+            "Lid Assembly": self._lid_assembly._material._cost,
+            "Cannister": self._cannister._material._cost
         }
 
     def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:

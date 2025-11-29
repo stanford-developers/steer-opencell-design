@@ -319,8 +319,8 @@ class TestSimpleLaminate(unittest.TestCase):
         initial_np_ratio = self.layup.np_ratio
         
         # Verify it's calculated correctly
-        anode_capacity = self.layup.anode._mass_loading * self.layup.anode._half_cell_curve[:, 4].max() / self.layup.anode._mass_loading
-        cathode_capacity = self.layup.cathode._mass_loading * self.layup.cathode._half_cell_curve[:, 4].max() / self.layup.cathode._mass_loading
+        anode_capacity = self.layup.anode._mass_loading * self.layup.anode._areal_capacity_curve[:, 0].max() / self.layup.anode._mass_loading
+        cathode_capacity = self.layup.cathode._mass_loading * self.layup.cathode._areal_capacity_curve[:, 0].max() / self.layup.cathode._mass_loading
         expected_np_ratio = anode_capacity / cathode_capacity
         
         self.assertAlmostEqual(initial_np_ratio, expected_np_ratio, places=2)
@@ -445,7 +445,7 @@ class TestSimpleLaminate(unittest.TestCase):
         """Test that layup properties are properly updated after N/P ratio changes."""
         # Store initial properties
         initial_thickness = self.layup.anode.thickness + self.layup.cathode.thickness
-        initial_capacity_curve = self.layup.full_cell_curve.copy()
+        initial_capacity_curve = self.layup.areal_capacity_curve.copy()
         
         # Change N/P ratio
         self.layup.np_ratio_control_mode = NPRatioControlMode.FIXED_CATHODE
@@ -453,7 +453,7 @@ class TestSimpleLaminate(unittest.TestCase):
         
         # Check that properties were updated
         new_thickness = self.layup.anode.thickness + self.layup.cathode.thickness
-        new_capacity_curve = self.layup.full_cell_curve
+        new_capacity_curve = self.layup.areal_capacity_curve
 
         # Thickness should change if anode mass loading changed
         self.assertNotEqual(initial_thickness, new_thickness)
@@ -614,7 +614,7 @@ class TestSimpleLaminate(unittest.TestCase):
         
         # Uncomment to visualize flipped layup
         # fig_top.show()
-        # fig_capacity.show()
+        fig_capacity.show()
         # fig_bottom.show()
 
     def test_flip_component_states_synchronized(self):

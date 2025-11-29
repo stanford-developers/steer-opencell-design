@@ -12,7 +12,13 @@ from steer_core.Decorators.General import calculate_bulk_properties, calculate_a
 from steer_opencell_design.Components.CurrentCollectors.Base import _TapeCurrentCollector
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
 from steer_opencell_design.Components.Separators import Separator
-from steer_opencell_design.Constructions.Layups.Base import _Layup
+from steer_opencell_design.Constructions.Layups.Base import (
+    _Layup,
+    SEPARATOR_WIDTH_EXTENSION,
+    SEPARATOR_LENGTH_EXTENSION,
+    DEFAULT_X_SPACING,
+    THICKNESS_FALLBACK,
+)
 
 
 class Laminate(_Layup):
@@ -72,28 +78,44 @@ class Laminate(_Layup):
         # First call parent method to calculate all standard properties
         super()._calculate_all_properties()
         
-        # set separator width/length ranges based on anode size
-        self._top_separator._set_width_range(self._anode, extended_range=0.1)
-        self._top_separator._set_length_range(self._anode, extended_range=1)
-        self._bottom_separator._set_width_range(self._cathode, extended_range=0.1)
-        self._bottom_separator._set_length_range(self._cathode, extended_range=1)
+        # set separator width/length ranges based on electrode sizes
+        self._top_separator._set_width_range(self._anode, extended_range=SEPARATOR_WIDTH_EXTENSION)
+        self._top_separator._set_length_range(self._anode, extended_range=SEPARATOR_LENGTH_EXTENSION)
+        self._bottom_separator._set_width_range(self._cathode, extended_range=SEPARATOR_WIDTH_EXTENSION)
+        self._bottom_separator._set_length_range(self._cathode, extended_range=SEPARATOR_LENGTH_EXTENSION)
 
     def _calculate_coordinates(self):
         super()._calculate_coordinates()
         self._calculate_total_geometries()
 
-    def calculate_flattened_center_lines(self, x_spacing: float = 0.004) -> dict:
+    def calculate_flattened_center_lines(self, x_spacing: float = DEFAULT_X_SPACING) -> dict:
         """Vectorized construction of flattened center lines for laminate layers.
 
         Builds an explicit bottom->top ordered stack and computes center line
         elevations using cumulative thickness. This replaces the prior per-layer
         search for a single "supporting" component and removes duplication.
 
+        Parameters
+        ----------
+        x_spacing : float, optional
+            Sampling resolution along the x-axis in meters. Determines the spacing
+            between interpolation points for thickness calculations. Smaller values
+            provide higher resolution but increase computation time.
+            Default is 0.004 meters (4mm).
+
+        Returns
+        -------
+        dict
+            Dictionary mapping layer names to their flattened center line coordinates.
+            Keys include component names like 'cathode_current_collector', 'anode_b_side_coating', etc.
+
         Notes
         -----
         - Currently no smoothing is applied (keeps geometric fidelity). A future
           enhancement could expose smoothing parameters.
         - Stores auxiliary arrays for rapid thickness interpolation.
+        - The sampling resolution affects the accuracy of thickness calculations
+          via get_thickness_at_x().
         """
 
         # Ordered bottom->top layers (excluding baseline) using canonical names
@@ -292,7 +314,7 @@ class Laminate(_Layup):
 
         Uses precomputed top surface (baseline + cumulative layer thickness)
         for O(log N) interpolation instead of scanning individual layers.
-        Returns 0.0 if x is outside the sampled domain or no layers present.
+        Returns THICKNESS_FALLBACK if x is outside the sampled domain or no layers present.
         """
         if not hasattr(self, "_top_surface"):
             raise ValueError("Top surface coordinates not calculated. Call calculate_flattened_center_lines() first.")
@@ -300,7 +322,7 @@ class Laminate(_Layup):
         xs = self._top_surface[:, 0]
 
         if x_position < xs.min() or x_position > xs.max():
-            return 0.0
+            return THICKNESS_FALLBACK
 
         top_z = np.interp(x_position, xs, self._top_surface[:, 1])
         baseline_z = getattr(self, "_baseline_z", None)
@@ -313,9 +335,9 @@ class Laminate(_Layup):
             ):
                 baseline_z = self._flattened_center_lines["baseline"][0, 1]
             else:
-                return 0.0
+                return THICKNESS_FALLBACK
 
-        return max(0.0, top_z - baseline_z)
+        return max(THICKNESS_FALLBACK, top_z - baseline_z)
 
     @property
     def separator(self) -> Separator:

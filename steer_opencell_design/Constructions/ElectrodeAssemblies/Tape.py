@@ -89,8 +89,12 @@ class Tape(
             return
 
         self._area = self._length * self._width
-        self._mass = self._area * self._material._density * self._thickness
-        self._cost = self._area * self._areal_cost
+        _mass = self._area * self._material._density * self._thickness
+        mass = _mass * KG_TO_G
+        self._material.mass = mass
+
+        self._mass = self._material._mass
+        self._cost = self._material._cost
 
     def _set_width_range(self, jellyroll, length_multiplier: float = 1.1):
 

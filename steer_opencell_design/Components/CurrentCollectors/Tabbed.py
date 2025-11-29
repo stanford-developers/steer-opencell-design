@@ -154,8 +154,11 @@ class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin):
         Calculate the bulk properties of the tab.
         """
         self._volume = self._body_area * self._thickness
-        self._mass = self._volume * self._material._density
-        self._cost = self._mass * self._material._specific_cost
+        volume = self._volume * M_TO_CM**3
+        self._material.volume = volume
+
+        self._mass = self._material._mass
+        self._cost = self._material._cost
 
     def _calculate_coordinates(self) -> None:
         """
@@ -608,9 +611,13 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         super()._calculate_all_properties()
 
     def _calculate_bulk_properties(self) -> None:
-        self._volume = self._body_area / 2 * self._thickness + sum([t._volume for t in self._weld_tabs])
-        self._mass = self._volume * self._material._density + sum([t._mass for t in self._weld_tabs])
-        self._cost = self._mass * self._material._specific_cost + sum([t._cost for t in self._weld_tabs])
+
+        self._volume = self._body_area / 2 * self._thickness
+        volume = self._volume * M_TO_CM**3
+        self._material.volume = volume
+
+        self._mass = self._material._mass + sum([t._mass for t in self._weld_tabs])
+        self._cost = self._material._cost + sum([t._cost for t in self._weld_tabs])
 
     def _calculate_weld_tab_properties(self) -> None:
         # copy the weld tabs and set their datums
