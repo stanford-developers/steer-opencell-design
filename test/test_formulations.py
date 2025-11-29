@@ -50,31 +50,128 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
         self.assertEqual(len(self.cathode_formulation._conductive_additives), 2)
         self.assertEqual(self.cathode_formulation._name, "Cathode Formulation")
         self.assertEqual(self.cathode_formulation.name, "Cathode Formulation")
-        self.assertEqual(self.cathode_formulation.density, 3.76)
+        self.assertEqual(self.cathode_formulation.density, 3.43)
         self.assertEqual(self.cathode_formulation.specific_cost, 11.29)
+
+    def test_mass_setter(self):
+
+        self.cathode_formulation.mass = 0.45
+
+        self.assertEqual(self.cathode_formulation.mass, 0.45)
+        self.assertEqual(self.cathode_formulation.cost, 0.01)
+        self.assertEqual(self.cathode_formulation.volume, 0.13)
+
+        material_masses = 0
+        for material in self.cathode_formulation.active_materials.keys():
+            material_masses += material._mass
+        for material in self.cathode_formulation.binders.keys():
+            material_masses += material._mass
+        for material in self.cathode_formulation.conductive_additives.keys():
+            material_masses += material._mass
+        self.assertAlmostEqual(material_masses, self.cathode_formulation._mass, 10)
+
+        material_costs = 0
+        for material in self.cathode_formulation.active_materials.keys():
+            material_costs += material._cost
+        for material in self.cathode_formulation.binders.keys():
+            material_costs += material._cost
+        for material in self.cathode_formulation.conductive_additives.keys():
+            material_costs += material._cost
+        self.assertAlmostEqual(material_costs, self.cathode_formulation._cost, 10)
+
+        material_volumes = 0
+        for material in self.cathode_formulation.active_materials.keys():
+            material_volumes += material._volume
+        for material in self.cathode_formulation.binders.keys():
+            material_volumes += material._volume
+        for material in self.cathode_formulation.conductive_additives.keys():
+            material_volumes += material._volume
+        self.assertAlmostEqual(material_volumes, self.cathode_formulation._volume, 10)
+
         self.assertEqual(
-            round(sum(self.cathode_formulation.specific_cost_breakdown.values()), 2),
-            self.cathode_formulation.specific_cost,
+            self.cathode_formulation.mass_breakdown,
+            {
+                "NaNiMn P2-O3 Composite": 0.41,
+                "PVDF": 0.01,
+                "CMC": 0.01,
+                "Super P": 0.01,
+                "Graphite": 0.01,
+            },
         )
+
         self.assertEqual(
-            round(sum(self.cathode_formulation.density_breakdown.values()), 2),
-            self.cathode_formulation.density,
+            self.cathode_formulation.cost_breakdown,
+            {
+                "NaNiMn P2-O3 Composite": 0.0,
+                "PVDF": 0.0,
+                "CMC": 0.0,
+                "Super P": 0.0,
+                "Graphite": 0.0,
+            },
         )
+
+        def sum_nested_dict(data):
+            """Recursively sum all numeric values in a nested dictionary"""
+            total = 0
+            for key, value in data.items():
+                if isinstance(value, dict):
+                    total += sum_nested_dict(value)  # Recursive call for nested dict
+                elif isinstance(value, (int, float)):
+                    total += value
+            return total
+
+        self.assertAlmostEqual(self.cathode_formulation._cost, sum_nested_dict(self.cathode_formulation._cost_breakdown), 5)
+        self.assertAlmostEqual(self.cathode_formulation._mass, sum_nested_dict(self.cathode_formulation._mass_breakdown), 5)
+
+    def test_volume_setter(self):
+
+        self.cathode_formulation.volume = 0.2
+
+        self.assertEqual(self.cathode_formulation.volume, 0.2)
+        self.assertEqual(self.cathode_formulation.mass, 0.69)
+        self.assertEqual(self.cathode_formulation.cost, 0.01)
+
+        material_masses = 0
+        for material in self.cathode_formulation.active_materials.keys():
+            material_masses += material._mass
+        for material in self.cathode_formulation.binders.keys():
+            material_masses += material._mass
+        for material in self.cathode_formulation.conductive_additives.keys():
+            material_masses += material._mass
+        self.assertAlmostEqual(material_masses, self.cathode_formulation._mass, 10)
+
+        material_costs = 0
+        for material in self.cathode_formulation.active_materials.keys():
+            material_costs += material._cost
+        for material in self.cathode_formulation.binders.keys():
+            material_costs += material._cost
+        for material in self.cathode_formulation.conductive_additives.keys():
+            material_costs += material._cost
+        self.assertAlmostEqual(material_costs, self.cathode_formulation._cost, 10)
+
+        material_volumes = 0
+        for material in self.cathode_formulation.active_materials.keys():
+            material_volumes += material._volume
+        for material in self.cathode_formulation.binders.keys():
+            material_volumes += material._volume
+        for material in self.cathode_formulation.conductive_additives.keys():
+            material_volumes += material._volume
+        self.assertAlmostEqual(material_volumes, self.cathode_formulation._volume, 10)
 
     def test_voltage_cutoff(self):
         self.cathode_formulation.voltage_cutoff = 4.2
-        figure = self.cathode_formulation.plot_half_cell_curve(add_materials=True)
+        figure = self.cathode_formulation.plot_specific_capacity_curve(add_materials=True)
 
         self.assertEqual(
-            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[10],
+            self.cathode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[10],
             12.8,
         )
         self.assertEqual(
-            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[20],
+            self.cathode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[20],
             25.7,
         )
         self.assertEqual(
-            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[80],
+            self.cathode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[80],
             102.8,
         )
 
@@ -136,18 +233,10 @@ class TestMultiCathodeFormulation(unittest.TestCase):
         self.assertEqual(len(self.cathode_formulation._conductive_additives), 2)
         self.assertEqual(self.cathode_formulation._name, "Cathode Formulation")
         self.assertEqual(self.cathode_formulation.name, "Cathode Formulation")
-        self.assertEqual(self.cathode_formulation.density, 3.55)
+        self.assertEqual(self.cathode_formulation.density, 3.37)
         self.assertEqual(self.cathode_formulation.specific_cost, 8.37)
-        self.assertEqual(
-            round(sum(self.cathode_formulation.specific_cost_breakdown.values()), 2),
-            self.cathode_formulation.specific_cost,
-        )
-        self.assertEqual(
-            round(sum(self.cathode_formulation.density_breakdown.values()), 2),
-            self.cathode_formulation.density,
-        )
 
-        figure = self.cathode_formulation.plot_half_cell_curve(add_materials=True)
+        figure = self.cathode_formulation.plot_specific_capacity_curve(add_materials=True)
 
         # figure.show()
 
@@ -157,19 +246,21 @@ class TestMultiCathodeFormulation(unittest.TestCase):
         self.assertTrue(condition)
 
     def test_voltage_cutoff(self):
+
         self.cathode_formulation.voltage_cutoff = 4.09
-        figure = self.cathode_formulation.plot_half_cell_curve(add_materials=True)
+        
+        figure = self.cathode_formulation.plot_specific_capacity_curve(add_materials=True)
 
         self.assertEqual(
-            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[10],
+            self.cathode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[10],
             0.2,
         )
         self.assertEqual(
-            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[20],
+            self.cathode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[20],
             0.2,
         )
         self.assertEqual(
-            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[80],
+            self.cathode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[80],
             134.4,
         )
 
@@ -179,10 +270,10 @@ class TestMultiCathodeFormulation(unittest.TestCase):
         self.cathode_formulation.active_materials = {self.cathode_active_material1: 90}
         self.cathode_formulation.voltage_cutoff = 4.09
 
-        self.assertEqual(self.cathode_formulation.density, 3.43)
+        self.assertEqual(self.cathode_formulation.density, 3.3)
         self.assertEqual(self.cathode_formulation.specific_cost, 6.47)
 
-        figure = self.cathode_formulation.plot_half_cell_curve(add_materials=True)
+        figure = self.cathode_formulation.plot_specific_capacity_curve(add_materials=True)
         # figure.show()
 
 
@@ -220,40 +311,32 @@ class TestSimpleAnodeFormulation(unittest.TestCase):
         self.assertEqual(len(self.anode_formulation._conductive_additives), 1)
         self.assertEqual(self.anode_formulation._name, "Anode Formulation")
         self.assertEqual(self.anode_formulation.name, "Anode Formulation")
-        self.assertEqual(self.anode_formulation.density, 1.54)
+        self.assertEqual(self.anode_formulation.density, 1.53)
         self.assertEqual(self.anode_formulation.specific_cost, 13.67)
-        self.assertEqual(
-            round(sum(self.anode_formulation.specific_cost_breakdown.values()), 2),
-            self.anode_formulation.specific_cost,
-        )
-        self.assertEqual(
-            round(sum(self.anode_formulation.density_breakdown.values()), 2),
-            self.anode_formulation.density,
-        )
 
-        figure = self.anode_formulation.plot_half_cell_curve(add_materials=True)
+        figure = self.anode_formulation.plot_specific_capacity_curve(add_materials=True)
         # figure.show()
 
-    def test_plot_half_cell_curve(self):
+    def test_plot_specific_capacity_curve(self):
         self.anode_formulation.voltage_cutoff = 0.0
-        figure = self.anode_formulation.plot_half_cell_curve(add_materials=True)
+        figure = self.anode_formulation.plot_specific_capacity_curve(add_materials=True)
 
         self.assertEqual(
-            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[10],
+            self.anode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[10],
             0,
         )
         self.assertEqual(
-            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[20],
+            self.anode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[20],
             1.8,
         )
         self.assertEqual(
-            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[80],
+            self.anode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[80],
             262.1,
         )
         # figure.show()
 
-    def test_anode_half_Cell_curve_set(self):
-        figure = self.anode_formulation2.plot_half_cell_curve(add_materials=True)
+    def test_anode_specific_capacity_curve_set(self):
+        figure = self.anode_formulation2.plot_specific_capacity_curve(add_materials=True)
         # figure.show()
 
 
@@ -277,30 +360,22 @@ class TestDualAnodeFormulation(unittest.TestCase):
         self.assertEqual(len(self.anode_formulation._conductive_additives), 1)
         self.assertEqual(self.anode_formulation._name, "Anode Formulation")
         self.assertEqual(self.anode_formulation.name, "Anode Formulation")
-        self.assertEqual(self.anode_formulation.density, 1.55)
+        self.assertEqual(self.anode_formulation.density, 1.54)
         self.assertEqual(self.anode_formulation.specific_cost, 7.87)
-        self.assertEqual(
-            round(sum(self.anode_formulation.specific_cost_breakdown.values()), 2),
-            self.anode_formulation.specific_cost,
-        )
-        self.assertEqual(
-            round(sum(self.anode_formulation.density_breakdown.values()), 2),
-            self.anode_formulation.density,
-        )
 
-    def test_plot_half_cell_curve(self):
-        figure = self.anode_formulation.plot_half_cell_curve(add_materials=True)
+    def test_plot_specific_capacity_curve(self):
+        figure = self.anode_formulation.plot_specific_capacity_curve(add_materials=True)
 
         self.assertEqual(
-            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[10],
+            self.anode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[10],
             0.4,
         )
         self.assertEqual(
-            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[20],
+            self.anode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[20],
             0.5,
         )
         self.assertEqual(
-            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[80],
+            self.anode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[80],
             76.3,
         )
 

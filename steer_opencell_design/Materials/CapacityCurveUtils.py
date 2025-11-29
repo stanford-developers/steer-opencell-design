@@ -1,11 +1,39 @@
 import numpy as np
 from typing import List, Type
+from functools import wraps
 
 from steer_core.Mixins.Data import DataMixin
 from steer_core.Constants.Units import H_TO_S, mA_TO_A, G_TO_KG
 
 
-class HalfCellMixin:
+def calculate_specific_capacity_curve(func):
+    """
+    Decorator to recalculate half-cell curve properties after a method call.
+    This is useful for methods that modify the half-cell curve data.
+    """
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        result = func(self, *args, **kwargs)
+        if hasattr(self, '_update_properties') and self._update_properties:
+            self._calculate_specific_capacity_curve()
+        return result
+    return wrapper
+
+def calculate_capacity_curve(func):
+    """
+    Decorator to recalculate half-cell curve properties after a method call.
+    This is useful for methods that modify the half-cell curve data.
+    """
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        result = func(self, *args, **kwargs)
+        if hasattr(self, '_update_properties') and self._update_properties and hasattr(self, '_mass') and self._mass is not None:
+            self._calculate_capacity_curve()
+        return result
+    return wrapper
+
+
+class CapacityCurveMixin:
 
     @staticmethod
     def _correct_curve_directions(curve: np.ndarray) -> np.ndarray:
@@ -118,7 +146,7 @@ class HalfCellMixin:
         return np.concatenate([charge_curve, discharge_curve], axis=0)
     
     @staticmethod
-    def process_half_cell_curves(curve: np.ndarray) -> np.ndarray:
+    def process_specific_capacity_curves(curve: np.ndarray) -> np.ndarray:
         """Normalize and prepare raw half-cell curves for downstream use.
 
         Steps include unit conversion, direction validation, monotonic cleanup,
@@ -137,10 +165,10 @@ class HalfCellMixin:
             Processed curve ready for property calculations.
         """
         curve[:, 0] = curve[:, 0] * (H_TO_S * mA_TO_A / G_TO_KG)
-        curve = HalfCellMixin._correct_curve_directions(curve)
-        curve = HalfCellMixin._make_curve_monotonic(curve)
-        curve = HalfCellMixin._reverse_discharge_curve(curve)
-        curve = HalfCellMixin._add_point_to_discharge_curve(curve)
+        curve = CapacityCurveMixin._correct_curve_directions(curve)
+        curve = CapacityCurveMixin._make_curve_monotonic(curve)
+        curve = CapacityCurveMixin._reverse_discharge_curve(curve)
+        curve = CapacityCurveMixin._add_point_to_discharge_curve(curve)
         return curve
     
     @staticmethod
@@ -327,14 +355,14 @@ class HalfCellMixin:
     
     @staticmethod
     def _interpolate_curve(
-        half_cell_curves: List[np.ndarray],
+        specific_capacity_curves: List[np.ndarray],
         voltage_cutoff: float,
     ) -> np.ndarray:
         """Interpolate between nearby curves so they share a target max voltage.
 
         Parameters
         ----------
-        half_cell_curves : list[np.ndarray]
+        specific_capacity_curves : list[np.ndarray]
             Collection of processed curves sampled at different maximum
             voltages.
         voltage_cutoff : float
@@ -348,7 +376,7 @@ class HalfCellMixin:
         """
         # Calculate voltage at max capacity for each curve
         voltages_at_max_capacity = []
-        for curve in half_cell_curves:
+        for curve in specific_capacity_curves:
             max_capacity_idx = np.argmax(curve[:, 0])
             voltage_at_max_capacity = curve[max_capacity_idx, 1]
             voltages_at_max_capacity.append(voltage_at_max_capacity)
@@ -360,14 +388,14 @@ class HalfCellMixin:
         below_voltages = voltages_at_max_capacity[below_mask]
         max_below_voltage = np.max(below_voltages)
         below_curve_idx = np.where(voltages_at_max_capacity == max_below_voltage)[0][0]
-        closest_below_curve = half_cell_curves[below_curve_idx]
+        closest_below_curve = specific_capacity_curves[below_curve_idx]
 
         # Get the closest curve above the voltage cutoff
         above_mask = voltages_at_max_capacity >= voltage_cutoff
         above_voltages = voltages_at_max_capacity[above_mask]
         min_above_voltage = np.min(above_voltages)
         above_curve_idx = np.where(voltages_at_max_capacity == min_above_voltage)[0][0]
-        closest_above_curve = half_cell_curves[above_curve_idx]
+        closest_above_curve = specific_capacity_curves[above_curve_idx]
 
         # Split below curve into charge and discharge
         below_charge = closest_below_curve[closest_below_curve[:, 2] == 1]
@@ -378,7 +406,7 @@ class HalfCellMixin:
         above_discharge = closest_above_curve[closest_above_curve[:, 2] == -1]
 
         # Interpolate charge curve
-        charge_curve = HalfCellMixin._interpolate_curve_on_maximum_voltage(
+        charge_curve = CapacityCurveMixin._interpolate_curve_on_maximum_voltage(
             voltage_cutoff,
             below_charge,
             above_charge,
@@ -387,7 +415,7 @@ class HalfCellMixin:
         )
 
         # Interpolate discharge curve
-        discharge_curve = HalfCellMixin._interpolate_curve_on_maximum_voltage(
+        discharge_curve = CapacityCurveMixin._interpolate_curve_on_maximum_voltage(
             voltage_cutoff,
             below_discharge,
             above_discharge,
@@ -442,7 +470,7 @@ class HalfCellMixin:
         
     @staticmethod
     def _truncate_and_shift_curves(
-        half_cell_curves: List[np.array],
+        specific_capacity_curves: List[np.array],
         voltage_cutoff: float,
         material_type: Type
         ) -> np.ndarray:
@@ -450,7 +478,7 @@ class HalfCellMixin:
 
         Parameters
         ----------
-        half_cell_curves : list[np.ndarray]
+        specific_capacity_curves : list[np.ndarray]
             Collection of processed curves sampled at different maximum
             voltages.
         voltage_cutoff : float
@@ -469,10 +497,10 @@ class HalfCellMixin:
 
         # Get curve with minimum voltage at max capacity
         max_capacity_voltages = [
-            curve[np.argmax(curve[:, 0]), 1] for curve in half_cell_curves
+            curve[np.argmax(curve[:, 0]), 1] for curve in specific_capacity_curves
         ]
 
-        min_voltage_curve = half_cell_curves[
+        min_voltage_curve = specific_capacity_curves[
             np.argmin(max_capacity_voltages)
         ].copy()
 
@@ -481,10 +509,10 @@ class HalfCellMixin:
         discharge = min_voltage_curve[min_voltage_curve[:, 2] == -1]
 
         # Prepare arrays for interpolation
-        charge_v_sorted, charge_c_sorted = HalfCellMixin._prepare_arrays_for_interp(
+        charge_v_sorted, charge_c_sorted = CapacityCurveMixin._prepare_arrays_for_interp(
             charge[:, 1], charge[:, 0]
         )
-        discharge_v_sorted, discharge_c_sorted = HalfCellMixin._prepare_arrays_for_interp(
+        discharge_v_sorted, discharge_c_sorted = CapacityCurveMixin._prepare_arrays_for_interp(
             discharge[:, 1], discharge[:, 0]
         )
 
@@ -531,8 +559,8 @@ class HalfCellMixin:
         return np.vstack([charge_final, discharge_final])
     
     @staticmethod
-    def _calculate_half_cell_curve(
-        half_cell_curves: List[np.array],
+    def _calculate_specific_capacity_curve(
+        specific_capacity_curves: List[np.array],
         voltage_cutoff: float,
         voltage_operation_window: tuple[float, float, float],
         material_type: Type,
@@ -541,7 +569,7 @@ class HalfCellMixin:
 
         Parameters
         ----------
-        half_cell_curves : list[np.ndarray]
+        specific_capacity_curves : list[np.ndarray]
             Curve catalogue sampled at distinct maximum voltages.
         voltage_cutoff : float
             Desired maximum voltage for the returned curve.
@@ -561,7 +589,7 @@ class HalfCellMixin:
         # Calculate the cutoff voltages for each curve
         voltages_at_max_capacity = []
 
-        for curve in half_cell_curves:
+        for curve in specific_capacity_curves:
             max_capacity_idx = np.argmax(curve[:, 0])
             voltage_at_max_capacity = curve[max_capacity_idx, 1]
             voltages_at_max_capacity.append(voltage_at_max_capacity)
@@ -572,7 +600,7 @@ class HalfCellMixin:
         # If the voltage cutoff corresponds to a particular curve, then return that curve
         if rounded_voltage_cutoff in [round(v, 5) for v in voltages_at_max_capacity]:
             curve_idx = voltages_at_max_capacity.index(voltage_cutoff)
-            half_cell_curve = half_cell_curves[curve_idx].copy()
+            specific_capacity_curve = specific_capacity_curves[curve_idx].copy()
 
         # If the voltage is between the second and third float in operating voltage range, then interpolate between the two curves
         elif (
@@ -580,8 +608,8 @@ class HalfCellMixin:
             <= rounded_voltage_cutoff
             <= round(max(voltage_operation_window[1:]), 5)
         ):
-            half_cell_curve = HalfCellMixin._interpolate_curve(
-                half_cell_curves,
+            specific_capacity_curve = CapacityCurveMixin._interpolate_curve(
+                specific_capacity_curves,
                 voltage_cutoff,
             )
 
@@ -591,8 +619,8 @@ class HalfCellMixin:
             <= rounded_voltage_cutoff
             <= round(max(voltage_operation_window[:2]), 5)
         ):
-            half_cell_curve = HalfCellMixin._truncate_and_shift_curves(
-                half_cell_curves,
+            specific_capacity_curve = CapacityCurveMixin._truncate_and_shift_curves(
+                specific_capacity_curves,
                 voltage_cutoff,
                 material_type,
             )
@@ -603,6 +631,6 @@ class HalfCellMixin:
                 f"Valid range is {voltage_operation_window[0]} to {voltage_operation_window[2]}."
             )
 
-        return half_cell_curve
+        return specific_capacity_curve
 
 

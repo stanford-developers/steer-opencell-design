@@ -1,6 +1,6 @@
 from copy import copy, deepcopy
 from enum import Enum
-from typing import Tuple
+from typing import Tuple, TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -19,6 +19,27 @@ from steer_core.Mixins.Plotter import PlotterMixin
 
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
 from steer_opencell_design.Components.Separators import Separator
+
+if TYPE_CHECKING:
+    from steer_opencell_design.Constructions.Layups.Laminate import Laminate
+
+# Module-level constants for overhang ranges and plotting parameters
+OVERHANG_MIN = 0.0  # Minimum overhang value in mm
+OVERHANG_MAX_DEFAULT = 20.0  # Maximum overhang for non-Laminate classes in mm
+OVERHANG_MAX_LAMINATE = 500.0  # Maximum overhang for Laminate class in mm
+PLOT_PADDING_FACTOR = 0.05  # 5% padding for plot bounds
+CAPACITY_INTERPOLATION_POINTS = 100  # Number of points for capacity curve interpolation
+PLOT_FALLBACK_BOUND = 100.0  # Fallback axis bounds in mm
+
+# Separator range extension constants for Laminate validation
+SEPARATOR_WIDTH_EXTENSION = 0.1  # Extension factor (10%) for separator width range
+SEPARATOR_LENGTH_EXTENSION = 1.0  # Extension factor (100%) for separator length range
+
+# Sampling resolution for flattened center line calculations
+DEFAULT_X_SPACING = 0.004  # Default x-axis sampling spacing in meters (4mm)
+
+# Thickness calculation fallback
+THICKNESS_FALLBACK = 0.0  # Return value when thickness cannot be determined
 
 
 class OverhangControlMode(Enum):
@@ -89,7 +110,7 @@ class _Layup(
     def _calculate_all_properties(self):
         self._calculate_bulk_properties()
         self._calculate_coordinates()
-        self._calculate_full_cell_curves()
+        self._calculate_areal_capacity_curves()
 
     def _calculate_bulk_properties(self):
         pass
@@ -202,7 +223,28 @@ class _Layup(
 
         return ref_left - sep_left, sep_right - ref_right, ref_bottom - sep_bottom, sep_top - ref_top
 
-    def _calculate_full_cell_curves(self) -> np.ndarray:
+    def _set_overhang(
+        self, component: str, direction: str, overhang: float
+    ) -> None:
+        """Generic helper to set overhang for any component and direction.
+        
+        Parameters
+        ----------
+        component : str
+            Component name ('anode', 'bottom_separator', 'top_separator')
+        direction : str
+            Direction of overhang ('left', 'right', 'bottom', 'top')
+        overhang : float
+            Target overhang value in mm
+        """
+        self.validate_positive_float(overhang, f"{component}_overhang_{direction}")
+        
+        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
+            self._adjust_overhang_fixed_component(component, overhang, direction)
+        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
+            self._adjust_overhang_fixed_overhangs(component, overhang, direction)
+
+    def _calculate_areal_capacity_curves(self) -> np.ndarray:
         """
         Calculate the half-cell curves for the cathode and anode.
 
@@ -211,54 +253,53 @@ class _Layup(
         np.ndarray
             The combined half-cell curve for the full cell.
         """
-        cathode_half_cell = copy(self._cathode._half_cell_curve)
-        anode_half_cell = copy(self._anode._half_cell_curve)
+        cathode_areal_capacity_curve = copy(self._cathode._areal_capacity_curve)
+        anode_areal_capacity_curve = copy(self._anode._areal_capacity_curve)
 
-        max_cap_cathode = max(self._cathode._half_cell_curve[:, 4])
-        max_cap_anode = max(self._anode._half_cell_curve[:, 4])
+        max_cap_cathode = max(cathode_areal_capacity_curve[:, 0])
+        max_cap_anode = max(anode_areal_capacity_curve[:, 0])
         self._np_ratio = max_cap_anode / max_cap_cathode
 
         # Split cathode curves by direction (column 2: 0=discharge, 1=charge)
-        cathode_charge = cathode_half_cell[cathode_half_cell[:, 2] == 1]
-        cathode_discharge = cathode_half_cell[cathode_half_cell[:, 2] == -1]
+        cathode_charge = cathode_areal_capacity_curve[cathode_areal_capacity_curve[:, 2] == 1]
+        cathode_discharge = cathode_areal_capacity_curve[cathode_areal_capacity_curve[:, 2] == -1]
 
         # Split anode curves by direction
-        anode_charge = anode_half_cell[anode_half_cell[:, 2] == 1]
-        anode_discharge = anode_half_cell[anode_half_cell[:, 2] == -1]
+        anode_charge = anode_areal_capacity_curve[anode_areal_capacity_curve[:, 2] == 1]
+        anode_discharge = anode_areal_capacity_curve[anode_areal_capacity_curve[:, 2] == -1]
 
-        # Calculate valid x range (column 4 is areal capacity)
+        # Calculate valid x range (column 0 is areal capacity)
         # For charge: find overlapping range (intersection)
-        charge_x_min = max(cathode_charge[:, 4].min(), anode_charge[:, 4].min())
-        charge_x_max = min(cathode_charge[:, 4].max(), anode_charge[:, 4].max())
+        charge_x_min = max(cathode_charge[:, 0].min(), anode_charge[:, 0].min())
+        charge_x_max = min(cathode_charge[:, 0].max(), anode_charge[:, 0].max())
 
         # For discharge: find overlapping range (intersection)
-        discharge_x_min = max(cathode_discharge[:, 4].min(), anode_discharge[:, 4].min())
-        discharge_x_max = min(cathode_discharge[:, 4].max(), anode_discharge[:, 4].max())
-
+        discharge_x_min = max(cathode_discharge[:, 0].min(), anode_discharge[:, 0].min())
+        discharge_x_max = min(cathode_discharge[:, 0].max(), anode_discharge[:, 0].max())
         # Create interpolation functions for voltage vs areal capacity
 
         # Sort by areal capacity for interpolation
-        cathode_charge_sorted = cathode_charge[cathode_charge[:, 4].argsort()]
-        cathode_discharge_sorted = cathode_discharge[cathode_discharge[:, 4].argsort()]
-        anode_charge_sorted = anode_charge[anode_charge[:, 4].argsort()]
-        anode_discharge_sorted = anode_discharge[anode_discharge[:, 4].argsort()]
+        cathode_charge_sorted = cathode_charge[cathode_charge[:, 0].argsort()]
+        cathode_discharge_sorted = cathode_discharge[cathode_discharge[:, 0].argsort()]
+        anode_charge_sorted = anode_charge[anode_charge[:, 0].argsort()]
+        anode_discharge_sorted = anode_discharge[anode_discharge[:, 0].argsort()]
 
         # Create common x arrays for interpolation
-        n_points = 100  # Number of points for smooth curves
+        n_points = CAPACITY_INTERPOLATION_POINTS  # Number of points for smooth curves
         charge_x_common = np.linspace(charge_x_min, charge_x_max, n_points)
         discharge_x_common = np.linspace(discharge_x_min, discharge_x_max, n_points)
 
-        # Interpolate voltages using numpy.interp (voltage = column 1, areal capacity = column 4)
-        cathode_charge_voltage = np.interp(charge_x_common, cathode_charge_sorted[:, 4], cathode_charge_sorted[:, 1])
+        # Interpolate voltages using numpy.interp (voltage = column 1, areal capacity = column 0)
+        cathode_charge_voltage = np.interp(charge_x_common, cathode_charge_sorted[:, 0], cathode_charge_sorted[:, 1])
         cathode_discharge_voltage = np.interp(
             discharge_x_common,
-            cathode_discharge_sorted[:, 4],
+            cathode_discharge_sorted[:, 0],
             cathode_discharge_sorted[:, 1],
         )
-        anode_charge_voltage = np.interp(charge_x_common, anode_charge_sorted[:, 4], anode_charge_sorted[:, 1])
+        anode_charge_voltage = np.interp(charge_x_common, anode_charge_sorted[:, 0], anode_charge_sorted[:, 1])
         anode_discharge_voltage = np.interp(
             discharge_x_common,
-            anode_discharge_sorted[:, 4],
+            anode_discharge_sorted[:, 0],
             anode_discharge_sorted[:, 1],
         )
 
@@ -286,9 +327,9 @@ class _Layup(
         )
 
         # Recombine: charge first (ascending), then discharge (descending)
-        self._full_cell_curve = np.vstack([charge_curve, discharge_curve])
+        self._areal_capacity_curve = np.vstack([charge_curve, discharge_curve])
 
-        return self._full_cell_curve
+        return self._areal_capacity_curve
 
     def _adjust_overhang_fixed_component(self, component: str, target_overhang: float, direction: str) -> None:
         """
@@ -568,18 +609,18 @@ class _Layup(
             x_min, x_max = min(all_x), max(all_x)
             y_min, y_max = min(all_y), max(all_y)
 
-            # Add 5% padding
+            # Add padding
             x_range = x_max - x_min
             y_range = y_max - y_min
-            padding_x = x_range * 0.05
-            padding_y = y_range * 0.05
+            padding_x = x_range * PLOT_PADDING_FACTOR
+            padding_y = y_range * PLOT_PADDING_FACTOR
 
             x_bounds = [x_min - padding_x, x_max + padding_x]
             y_bounds = [y_min - padding_y, y_max + padding_y]
         else:
             # Fallback bounds
-            x_bounds = [-100, 100]
-            y_bounds = [-100, 100]
+            x_bounds = [-PLOT_FALLBACK_BOUND, PLOT_FALLBACK_BOUND]
+            y_bounds = [-PLOT_FALLBACK_BOUND, PLOT_FALLBACK_BOUND]
 
         # Final layout with fixed axis ranges
         fig.update_layout(
@@ -615,9 +656,9 @@ class _Layup(
         fig = go.Figure()
 
         # add the traces
-        fig.add_trace(self.cathode.half_cell_curve_trace)
-        fig.add_trace(self.anode.half_cell_curve_trace)       
-        fig.add_trace(self.full_cell_curve_trace)
+        fig.add_trace(self.cathode.areal_capacity_curve_trace)
+        fig.add_trace(self.anode.areal_capacity_curve_trace)       
+        fig.add_trace(self.areal_capacity_curve_trace)
 
         # Enhanced layout with zero lines and faint grid
         fig.update_layout(
@@ -723,36 +764,33 @@ class _Layup(
         return 0, 1.5
 
     @property
-    def full_cell_curve(self) -> pd.DataFrame:
-        return (
-            pd.DataFrame(
-                self._full_cell_curve,
-                columns=["areal_capacity", "voltage", "direction"],
-            )
-            .assign(
-                direction=lambda x: np.where(x["direction"] == 1, "charge", "discharge"),
-                areal_capacity=lambda x: x["areal_capacity"] * (S_TO_H * A_TO_mA / M_TO_CM**2),
-            )
-            .rename(
-                columns={
-                    "voltage": "Voltage (V)",
-                    "direction": "Direction",
-                    "areal_capacity": "Areal Capacity (mAh/cm²)",
-                }
-            )
-            .round(4)
-        )
+    def areal_capacity_curve(self) -> pd.DataFrame:
+        """Get the areal capacity curve with proper units and formatting."""
+        # Pre-compute unit conversion factor
+        capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
+
+        # calculate the columns 
+        areal_capacity = np.round(self._areal_capacity_curve[:, 0] * capacity_conversion, 4)
+        voltage = np.round(self._areal_capacity_curve[:, 1], 4)
+        direction = np.where(self._areal_capacity_curve[:, 2] == 1, "charge", "discharge")
+        
+        # Create DataFrame with converted values directly
+        return pd.DataFrame({
+            "Areal Capacity (mAh/cm²)": areal_capacity,
+            "Voltage (V)": voltage,
+            "Direction": direction,
+        })
     
     @property
-    def full_cell_curve_trace(self) -> go.Scatter:
+    def areal_capacity_curve_trace(self) -> go.Scatter:
 
         return go.Scatter(
-            x=self.full_cell_curve["Areal Capacity (mAh/cm²)"],
-            y=self.full_cell_curve["Voltage (V)"],
+            x=self.areal_capacity_curve["Areal Capacity (mAh/cm²)"],
+            y=self.areal_capacity_curve["Voltage (V)"],
             mode="lines",
             name=f"{self.name} Full-Cell",
             line=dict(color= "#ff8c00", width=3),  # Slightly thicker for emphasis
-            customdata=self.full_cell_curve["Direction"],
+            customdata=self.areal_capacity_curve["Direction"],
             hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
 
@@ -834,7 +872,7 @@ class _Layup(
             self._update_anode_dimensions(cathode)
 
         # set the cathode to self
-        self._cathode = deepcopy(cathode)
+        self._cathode = cathode
 
     @bottom_separator.setter
     @calculate_volumes
@@ -927,7 +965,6 @@ class _Layup(
         self.validate_positive_float(np_ratio, "np_ratio")
 
         if self.np_ratio_control_mode == NPRatioControlMode.FIXED_CATHODE:
-            
             new_anode_mass_loading = (np_ratio / self._np_ratio) * self.anode._mass_loading
             self._anode.mass_loading = new_anode_mass_loading * (KG_TO_MG / M_TO_CM**2)
 
@@ -943,8 +980,8 @@ class _Layup(
             total_thickness = initial_anode_thickness + initial_cathode_thickness
 
             # Store the maximum capacity
-            _anode_max_cap = max(self._anode._half_cell_curve[:, 4])  # Ah/m²
-            _cathode_max_cap = max(self._cathode._half_cell_curve[:, 4])
+            _anode_max_cap = max(self._anode._areal_capacity_curve[:, 0])  # Ah/m²
+            _cathode_max_cap = max(self._cathode._areal_capacity_curve[:, 0])
 
             # get the capacity per thickness for each electrode
             _anode_cap_per_thickness = _anode_max_cap / initial_anode_thickness
@@ -1044,12 +1081,7 @@ class _Layup(
         overhang : float
             Target left overhang in mm. Positive values indicate anode extends beyond cathode.
         """
-        self.validate_positive_float(overhang, "anode_overhang_left")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("anode", overhang, "left")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("anode", overhang, "left")
+        self._set_overhang("anode", "left", overhang)
 
     @anode_overhang_right.setter
     @calculate_coordinates
@@ -1063,12 +1095,7 @@ class _Layup(
         overhang : float
             Target right overhang in mm. Positive values indicate anode extends beyond cathode.
         """
-        self.validate_positive_float(overhang, "anode_overhang_right")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("anode", overhang, "right")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("anode", overhang, "right")
+        self._set_overhang("anode", "right", overhang)
 
     @anode_overhang_bottom.setter
     @calculate_coordinates
@@ -1082,12 +1109,7 @@ class _Layup(
         overhang : float
             Target bottom overhang in mm. Positive values indicate anode extends beyond cathode.
         """
-        self.validate_positive_float(overhang, "anode_overhang_bottom")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("anode", overhang, "bottom")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("anode", overhang, "bottom")
+        self._set_overhang("anode", "bottom", overhang)
 
     @anode_overhang_top.setter
     @calculate_coordinates
@@ -1101,12 +1123,7 @@ class _Layup(
         overhang : float
             Target top overhang in mm. Positive values indicate anode extends beyond cathode.
         """
-        self.validate_positive_float(overhang, "anode_overhang_top")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("anode", overhang, "top")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("anode", overhang, "top")
+        self._set_overhang("anode", "top", overhang)
 
     #### ANODE OVERHANG RANGE PROPERTIES ####
 
@@ -1123,9 +1140,9 @@ class _Layup(
             FIXED_COMPONENT: (0, left + right overhang total)
         """
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            return (0.0, 20.0)
+            return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
-            return (0.0, self.anode_overhang_left + self.anode_overhang_right)
+            return (OVERHANG_MIN, self.anode_overhang_left + self.anode_overhang_right)
 
     @property
     def anode_overhang_right_range(self) -> tuple:
@@ -1140,9 +1157,9 @@ class _Layup(
             FIXED_COMPONENT: (0, left + right overhang total)
         """
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            return (0.0, 20.0)
+            return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
-            return (0.0, self.anode_overhang_left + self.anode_overhang_right)
+            return (OVERHANG_MIN, self.anode_overhang_left + self.anode_overhang_right)
 
     @property
     def anode_overhang_bottom_range(self) -> tuple:
@@ -1157,9 +1174,9 @@ class _Layup(
             FIXED_COMPONENT: (0, bottom + top overhang total)
         """
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            return (0.0, 20.0)
+            return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
-            return (0.0, self.anode_overhang_bottom + self.anode_overhang_top)
+            return (OVERHANG_MIN, self.anode_overhang_bottom + self.anode_overhang_top)
 
     @property
     def anode_overhang_top_range(self) -> tuple:
@@ -1174,9 +1191,9 @@ class _Layup(
             FIXED_COMPONENT: (0, bottom + top overhang total)
         """
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            return (0.0, 20.0)
+            return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
-            return (0.0, self.anode_overhang_bottom + self.anode_overhang_top)
+            return (OVERHANG_MIN, self.anode_overhang_bottom + self.anode_overhang_top)
 
     #### BOTTOM SEPARATOR OVERHANG PROPERTY/SETTERS ####
 
@@ -1257,12 +1274,7 @@ class _Layup(
         overhang : float
             Target left overhang in mm. Positive values indicate separator extends beyond cathode.
         """
-        self.validate_positive_float(overhang, "bottom_separator_overhang_left")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("bottom_separator", overhang, "left")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("bottom_separator", overhang, "left")
+        self._set_overhang("bottom_separator", "left", overhang)
 
     @bottom_separator_overhang_right.setter
     @calculate_coordinates
@@ -1276,12 +1288,7 @@ class _Layup(
         overhang : float
             Target right overhang in mm. Positive values indicate separator extends beyond cathode.
         """
-        self.validate_positive_float(overhang, "bottom_separator_overhang_right")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("bottom_separator", overhang, "right")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("bottom_separator", overhang, "right")
+        self._set_overhang("bottom_separator", "right", overhang)
 
     @bottom_separator_overhang_bottom.setter
     @calculate_coordinates
@@ -1295,12 +1302,7 @@ class _Layup(
         overhang : float
             Target bottom overhang in mm. Positive values indicate separator extends beyond cathode.
         """
-        self.validate_positive_float(overhang, "bottom_separator_overhang_bottom")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("bottom_separator", overhang, "bottom")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("bottom_separator", overhang, "bottom")
+        self._set_overhang("bottom_separator", "bottom", overhang)
 
     @bottom_separator_overhang_top.setter
     @calculate_coordinates
@@ -1314,12 +1316,7 @@ class _Layup(
         overhang : float
             Target top overhang in mm. Positive values indicate separator extends beyond cathode.
         """
-        self.validate_positive_float(overhang, "bottom_separator_overhang_top")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("bottom_separator", overhang, "top")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("bottom_separator", overhang, "top")
+        self._set_overhang("bottom_separator", "top", overhang)
 
     #### BOTTOM SEPARATOR OVERHANG RANGE PROPERTIES ####
 
@@ -1332,20 +1329,17 @@ class _Layup(
         -------
         tuple
             (min, max) overhang range in mm.
-            FIXED_OVERHANGS: (0, 20)
+            FIXED_OVERHANGS: (0, 20) or (0, 500) for Laminate
             FIXED_COMPONENT: (0, left + right overhang total)
         """
-        from steer_opencell_design.Constructions.Layups.Laminate import Laminate
-
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            if type(self) == Laminate:
-                return (0.0, 500.0)
+            if type(self).__name__ == "Laminate":
+                return (OVERHANG_MIN, OVERHANG_MAX_LAMINATE)
             else:
-                return (0.0, 20.0)
+                return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
-            min = 0
-            max = (self._bottom_separator_overhang_left + self._bottom_separator_overhang_right) * M_TO_MM
-            return (min, max)
+            max_val = (self._bottom_separator_overhang_left + self._bottom_separator_overhang_right) * M_TO_MM
+            return (OVERHANG_MIN, max_val)
 
     @property
     def bottom_separator_overhang_right_range(self) -> tuple:
@@ -1356,20 +1350,17 @@ class _Layup(
         -------
         tuple
             (min, max) overhang range in mm.
-            FIXED_OVERHANGS: (0, 20)
+            FIXED_OVERHANGS: (0, 20) or (0, 500) for Laminate
             FIXED_COMPONENT: (0, left + right overhang total)
         """
-        from steer_opencell_design.Constructions.Layups.Laminate import Laminate
-
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            if type(self) == Laminate:
-                return (0.0, 500.0)
+            if type(self).__name__ == "Laminate":
+                return (OVERHANG_MIN, OVERHANG_MAX_LAMINATE)
             else:
-                return (0.0, 20.0)
+                return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
-            min = 0
-            max = (self._bottom_separator_overhang_left + self._bottom_separator_overhang_right) * M_TO_MM
-            return (min, max)
+            max_val = (self._bottom_separator_overhang_left + self._bottom_separator_overhang_right) * M_TO_MM
+            return (OVERHANG_MIN, max_val)
 
     @property
     def bottom_separator_overhang_bottom_range(self) -> tuple:
@@ -1384,11 +1375,10 @@ class _Layup(
             FIXED_COMPONENT: (0, bottom + top overhang total)
         """
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            return (0.0, 20.0)
+            return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
-            min = 0
-            max = (self._bottom_separator_overhang_bottom + self._bottom_separator_overhang_top) * M_TO_MM
-            return (min, max)
+            max_val = (self._bottom_separator_overhang_bottom + self._bottom_separator_overhang_top) * M_TO_MM
+            return (OVERHANG_MIN, max_val)
 
     @property
     def bottom_separator_overhang_top_range(self) -> tuple:
@@ -1403,11 +1393,10 @@ class _Layup(
             FIXED_COMPONENT: (0, bottom + top overhang total)
         """
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            return (0.0, 20.0)
+            return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
-            min = 0
-            max = (self._bottom_separator_overhang_bottom + self._bottom_separator_overhang_top) * M_TO_MM
-            return (min, max)
+            max_val = (self._bottom_separator_overhang_bottom + self._bottom_separator_overhang_top) * M_TO_MM
+            return (OVERHANG_MIN, max_val)
 
     #### TOP SEPARATOR OVERHANG PROPERTY/SETTERS ####
 
@@ -1488,12 +1477,7 @@ class _Layup(
         overhang : float
             Target left overhang in mm. Positive values indicate separator extends beyond cathode.
         """
-        self.validate_positive_float(overhang, "top_separator_overhang_left")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("top_separator", overhang, "left")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("top_separator", overhang, "left")
+        self._set_overhang("top_separator", "left", overhang)
 
     @top_separator_overhang_right.setter
     @calculate_coordinates
@@ -1507,12 +1491,7 @@ class _Layup(
         overhang : float
             Target right overhang in mm. Positive values indicate separator extends beyond cathode.
         """
-        self.validate_positive_float(overhang, "top_separator_overhang_right")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("top_separator", overhang, "right")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("top_separator", overhang, "right")
+        self._set_overhang("top_separator", "right", overhang)
 
     @top_separator_overhang_bottom.setter
     @calculate_coordinates
@@ -1526,12 +1505,7 @@ class _Layup(
         overhang : float
             Target bottom overhang in mm. Positive values indicate separator extends beyond cathode.
         """
-        self.validate_positive_float(overhang, "top_separator_overhang_bottom")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("top_separator", overhang, "bottom")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("top_separator", overhang, "bottom")
+        self._set_overhang("top_separator", "bottom", overhang)
 
     @top_separator_overhang_top.setter
     @calculate_coordinates
@@ -1545,12 +1519,7 @@ class _Layup(
         overhang : float
             Target top overhang in mm. Positive values indicate separator extends beyond cathode.
         """
-        self.validate_positive_float(overhang, "top_separator_overhang_top")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("top_separator", overhang, "top")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("top_separator", overhang, "top")
+        self._set_overhang("top_separator", "top", overhang)
 
     #### TOP SEPARATOR OVERHANG RANGE PROPERTIES ####
 
@@ -1563,19 +1532,17 @@ class _Layup(
         -------
         tuple
             (min, max) overhang range in mm.
-            FIXED_OVERHANGS: (0, 20)
+            FIXED_OVERHANGS: (0, 20) or (0, 500) for Laminate
             FIXED_COMPONENT: (0, left + right overhang total)
         """
-        from steer_opencell_design.Constructions.Layups.Laminate import Laminate
-
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            if type(self) == Laminate:
-                return (0.0, 500.0)
+            if type(self).__name__ == "Laminate":
+                return (OVERHANG_MIN, OVERHANG_MAX_LAMINATE)
             else:
-                return (0.0, 20.0)
+                return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
             return (
-                0.0,
+                OVERHANG_MIN,
                 self.top_separator_overhang_left + self.top_separator_overhang_right,
             )
 
@@ -1588,19 +1555,17 @@ class _Layup(
         -------
         tuple
             (min, max) overhang range in mm.
-            FIXED_OVERHANGS: (0, 20)
+            FIXED_OVERHANGS: (0, 20) or (0, 500) for Laminate
             FIXED_COMPONENT: (0, left + right overhang total)
         """
-        from steer_opencell_design.Constructions.Layups.Laminate import Laminate
-
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            if type(self) == Laminate:
-                return (0.0, 500.0)
+            if type(self).__name__ == "Laminate":
+                return (OVERHANG_MIN, OVERHANG_MAX_LAMINATE)
             else:
-                return (0.0, 20.0)
+                return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
             return (
-                0.0,
+                OVERHANG_MIN,
                 self.top_separator_overhang_left + self.top_separator_overhang_right,
             )
 
@@ -1617,10 +1582,10 @@ class _Layup(
             FIXED_COMPONENT: (0, bottom + top overhang total)
         """
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            return (0.0, 20.0)
+            return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
             return (
-                0.0,
+                OVERHANG_MIN,
                 self.top_separator_overhang_bottom + self.top_separator_overhang_top,
             )
 
@@ -1637,10 +1602,10 @@ class _Layup(
             FIXED_COMPONENT: (0, bottom + top overhang total)
         """
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            return (0.0, 20.0)
+            return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
             return (
-                0.0,
+                OVERHANG_MIN,
                 self.top_separator_overhang_bottom + self.top_separator_overhang_top,
             )
 

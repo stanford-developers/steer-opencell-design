@@ -13,7 +13,11 @@ from steer_core.Decorators.General import calculate_bulk_properties
 from steer_opencell_design.Components.CurrentCollectors.Punched import PunchedCurrentCollector
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
 from steer_opencell_design.Components.Separators import Separator
-from steer_opencell_design.Constructions.Layups.Base import _Layup
+from steer_opencell_design.Constructions.Layups.Base import (
+    _Layup,
+    SEPARATOR_WIDTH_EXTENSION,
+    SEPARATOR_LENGTH_EXTENSION,
+)
 
 
 class ElectrodeOrientation(Enum):

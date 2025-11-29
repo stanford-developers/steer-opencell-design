@@ -72,7 +72,7 @@ class _ElectrodeAssembly(
         """
         self._calculate_bulk_properties()
         self._calculate_interfacial_area()
-        self._calculate_full_cell_curve()
+        self._calculate_capacity_curves()
         self._calculate_energy()
         
     def _ensure_properties_calculated(self) -> None:
@@ -86,7 +86,7 @@ class _ElectrodeAssembly(
         self._calculate_cost_properties()
 
     def _calculate_energy(self):
-        _discharge_curve = self._full_cell_curve[self._full_cell_curve[:,2] == -1]
+        _discharge_curve = self._capacity_curve[self._capacity_curve[:,2] == -1]
         _discharge_curve = _discharge_curve[np.argsort(_discharge_curve[:,0])]
         _capacity = _discharge_curve[:,0]
         _voltage = _discharge_curve[:,1]
@@ -119,23 +119,23 @@ class _ElectrodeAssembly(
         """Calculate the interfacial area between anode and cathode."""
         pass
 
-    def _calculate_full_cell_curve(self):
+    def _calculate_capacity_curves(self):
         """Calculate full cell voltage curve of the electrode assembly."""
-        _full_cell_curve = deepcopy(self._layup._full_cell_curve)
-        _full_cell_curve[:, 0] = _full_cell_curve[:, 0] * self._interfacial_area
-        self._full_cell_curve = _full_cell_curve
+        _capacity_curve = deepcopy(self._layup._areal_capacity_curve)
+        _capacity_curve[:, 0] = _capacity_curve[:, 0] * self._interfacial_area
+        self._capacity_curve = _capacity_curve
 
-        # also calculate half-cell curve for cathode
-        _cathode_half_cell_curve = deepcopy(self._layup._cathode._half_cell_curve)
-        _cathode_half_cell_curve[:, 4] = _cathode_half_cell_curve[:, 4] * self._interfacial_area
-        self._cathode_half_cell_curve = np.column_stack([_cathode_half_cell_curve[:,4], _cathode_half_cell_curve[:,1], _cathode_half_cell_curve[:,2]])
+        # also calculate capacity curve for cathode
+        _cathode_capacity_curve = deepcopy(self._layup._cathode._areal_capacity_curve)
+        _cathode_capacity_curve[:, 0] = _cathode_capacity_curve[:, 0] * self._interfacial_area
+        self._cathode_capacity_curve = np.column_stack([_cathode_capacity_curve[:, 0], _cathode_capacity_curve[:,1], _cathode_capacity_curve[:,2]])
 
-        # also calculate half-cell curve for anode
-        _anode_half_cell_curve = deepcopy(self._layup._anode._half_cell_curve)
-        _anode_half_cell_curve[:, 4] = _anode_half_cell_curve[:, 4] * self._interfacial_area
-        self._anode_half_cell_curve = np.column_stack([_anode_half_cell_curve[:,4], _anode_half_cell_curve[:,1], _anode_half_cell_curve[:,2]])
+        # also calculate capacity curve for anode
+        _anode_capacity_curve = deepcopy(self._layup._anode._areal_capacity_curve)
+        _anode_capacity_curve[:, 0] = _anode_capacity_curve[:, 0] * self._interfacial_area
+        self._anode_capacity_curve = np.column_stack([_anode_capacity_curve[:,0], _anode_capacity_curve[:,1], _anode_capacity_curve[:,2]])
 
-        return self._full_cell_curve, self._cathode_half_cell_curve, self._anode_half_cell_curve
+        return self._capacity_curve, self._cathode_capacity_curve, self._anode_capacity_curve
     
     def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:
 
@@ -181,9 +181,9 @@ class _ElectrodeAssembly(
         fig = go.Figure()
 
         traces = [
-            self.cathode_half_cell_curve_trace,
-            self.anode_half_cell_curve_trace,
-            self.full_cell_curve_trace
+            self.cathode_capacity_curve_trace,
+            self.anode_capacity_curve_trace,
+            self.capacity_curve_trace
         ]
 
         fig.add_traces(traces)    
@@ -234,109 +234,85 @@ class _ElectrodeAssembly(
         return self._layup
     
     @property
-    def full_cell_curve(self) -> pd.DataFrame:
+    def capacity_curve(self) -> pd.DataFrame:
 
-        return (
-            pd.DataFrame(
-                self._full_cell_curve,
-                columns=["capacity", "voltage", "direction"],
-            )
-            .assign(
-                direction=lambda x: np.where(x["direction"] == 1, "charge", "discharge"),
-                capacity=lambda x: x["capacity"] * (S_TO_H),
-            )
-            .rename(
-                columns={
-                    "voltage": "Voltage (V)",
-                    "direction": "Direction",
-                    "capacity": "Capacity (Ah)",
-                }
-            )
-            .round(4)
-        )
+        curve = self._capacity_curve.copy()
+        direction = np.where(curve[:, DIRECTION_COL] == 1, "charge", "discharge")
+        capacity = curve[:, CAPACITY_COL] * S_TO_H
+        voltage = curve[:, VOLTAGE_COL]
+
+        return pd.DataFrame({
+            "Capacity (Ah)": capacity,
+            "Voltage (V)": voltage,
+            "Direction": direction
+        })
     
     @property
-    def full_cell_curve_trace(self) -> go.Scatter:
+    def capacity_curve_trace(self) -> go.Scatter:
 
-        full_cell_color = "#ff8c00"
+        color = "#ff8c00"
 
         return go.Scatter(
-            x=self.full_cell_curve["Capacity (Ah)"],
-            y=self.full_cell_curve["Voltage (V)"],
+            x=self.capacity_curve["Capacity (Ah)"],
+            y=self.capacity_curve["Voltage (V)"],
             mode="lines",
             name=f"{self.name} Full-Cell",
-            line=dict(color=full_cell_color, width=3),  # Slightly thicker for emphasis
-            customdata=self.full_cell_curve["Direction"],
+            line=dict(color=color, width=3),  # Slightly thicker for emphasis
+            customdata=self.capacity_curve["Direction"],
             hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
 
     @property
-    def anode_half_cell_curve(self) -> pd.DataFrame:
+    def anode_capacity_curve(self) -> pd.DataFrame:
 
-        return (
-            pd
-            .DataFrame(
-                self._anode_half_cell_curve,
-                columns=["capacity", "voltage", "direction"],
-            )
-            .assign(
-                direction=lambda x: np.where(x["direction"] == 1, "charge", "discharge"),
-                capacity=lambda x: x["capacity"] * (S_TO_H),
-            )
-            .rename(
-                columns={
-                    "capacity": "Capacity (Ah)",
-                    "voltage": "Voltage (V)",
-                    "direction": "Direction",
-                }
-            )
-        )
+        curve = self._anode_capacity_curve.copy()
+        direction = np.where(curve[:, DIRECTION_COL] == 1, "charge", "discharge")
+        capacity = curve[:, CAPACITY_COL] * S_TO_H
+        voltage = curve[:, VOLTAGE_COL]
+
+        return pd.DataFrame({
+            "Capacity (Ah)": capacity,
+            "Voltage (V)": voltage,
+            "Direction": direction
+        })
     
     @property
-    def anode_half_cell_curve_trace(self) -> go.Scatter:
+    def anode_capacity_curve_trace(self) -> go.Scatter:
 
         return go.Scatter(
-            x=self.anode_half_cell_curve["Capacity (Ah)"],
-            y=self.anode_half_cell_curve["Voltage (V)"],
+            x=self.anode_capacity_curve["Capacity (Ah)"],
+            y=self.anode_capacity_curve["Voltage (V)"],
             mode="lines",
             name=f"{self.layup.anode.name} Half-Cell",
             line=dict(color=self.layup.anode.formulation.color, width=2.5),
-            customdata=self.anode_half_cell_curve["Direction"],
+            customdata=self.anode_capacity_curve["Direction"],
             hovertemplate="<b>Anode</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
 
     @property
-    def cathode_half_cell_curve(self) -> pd.DataFrame:
-        
-        return (
-            pd
-            .DataFrame(
-                self._cathode_half_cell_curve,
-                columns=["capacity", "voltage", "direction"],
-            )
-            .assign(
-                direction=lambda x: np.where(x["direction"] == 1, "charge", "discharge"),
-                capacity=lambda x: x["capacity"] * (S_TO_H),
-            )
-            .rename(
-                columns={
-                    "capacity": "Capacity (Ah)",
-                    "voltage": "Voltage (V)",
-                    "direction": "Direction",
-                }
-            )
-        )
+    def cathode_capacity_curve(self) -> pd.DataFrame:
+
+        curve = self._cathode_capacity_curve.copy()
+        direction = np.where(curve[:, DIRECTION_COL] == 1, "charge", "discharge")
+        capacity = curve[:, CAPACITY_COL] * S_TO_H
+        voltage = curve[:, VOLTAGE_COL]
+
+        return pd.DataFrame({
+            "Capacity (Ah)": capacity,
+            "Voltage (V)": voltage,
+            "Direction": direction
+        })
     
     @property
-    def cathode_half_cell_curve_trace(self) -> go.Scatter:
+    def cathode_capacity_curve_trace(self) -> go.Scatter:
 
         return go.Scatter(
-            x=self.cathode_half_cell_curve["Capacity (Ah)"],
-            y=self.cathode_half_cell_curve["Voltage (V)"],
+            x=self.cathode_capacity_curve["Capacity (Ah)"],
+            y=self.cathode_capacity_curve["Voltage (V)"],
             mode="lines",
             name=f"{self.layup.cathode.name} Half-Cell",
             line=dict(color=self.layup.cathode.formulation.color, width=2.5),
-            customdata=self.cathode_half_cell_curve["Direction"],
+            customdata=self.cathode_capacity_curve["Direction"],
             hovertemplate="<b>Cathode</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
 

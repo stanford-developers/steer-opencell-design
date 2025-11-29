@@ -3,14 +3,18 @@ from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.DataManager import DataManager
 
 
-class Binder(_Material, _VolumedMaterialMixin):
+class Binder(_VolumedMaterialMixin, _Material):
 
     def __init__(
         self, 
         name: str, 
         specific_cost: float, 
         density: float, 
-        color: str = "#2c2c2c"
+        color: str = "#2c2c2c",
+        *,
+        volume=None,
+        mass=None,
+        **kwargs,
     ):
         """
         Initialize an object that represents a binder.
@@ -23,7 +27,10 @@ class Binder(_Material, _VolumedMaterialMixin):
             name=name, 
             density=density, 
             specific_cost=specific_cost, 
-            color=color
+            color=color,
+            volume=volume,
+            mass=mass,
+            **kwargs,
         )
 
     @staticmethod

@@ -231,8 +231,11 @@ class _CurrentCollector(
 
     def _calculate_bulk_properties(self) -> None:
         self._volume = self._body_area / 2 * self._thickness
-        self._mass = self._volume * self._material._density
-        self._cost = self._mass * self._material._specific_cost
+        volume = self._volume * M_TO_CM**3
+        self._material.volume = volume
+
+        self._mass = self._material._mass
+        self._cost = self._material._cost
 
         # trigger material setter
 
@@ -513,6 +516,20 @@ class _CurrentCollector(
         Get the footprint of the current collector.
         """
         pass
+
+    @property
+    def mass(self) -> float:
+        """
+        Get the mass of the current collector in grams.
+        """
+        return round(self._mass * KG_TO_G, 2)
+    
+    @property
+    def cost(self) -> float:
+        """
+        Get the cost of the current collector in USD.
+        """
+        return round(self._cost, 2)
 
     @property
     def right_left_b_side_insulation_trace(self) -> pd.DataFrame:
@@ -931,14 +948,6 @@ class _CurrentCollector(
     @property
     def insulation_area(self) -> float:
         return round(self._insulation_area * M_TO_CM**2, 2)
-
-    @property
-    def mass(self) -> float:
-        return round(self._mass * KG_TO_G, 2)
-
-    @property
-    def cost(self) -> float:
-        return round(self._cost, 3)
 
     @property
     def width_hard_range(self) -> Tuple[float, float]:

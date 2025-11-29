@@ -109,9 +109,14 @@ class Separator(
             return
 
         self._area = self._length * self._width
-        self._mass = self._area * self._material._density * self._thickness
-        self._cost = self._area * self._areal_cost
-        self._pore_volume = self._area * self._thickness * self._material._porosity
+
+        _mass = self._area * self._material._density * self._thickness
+        mass = _mass * KG_TO_G
+        self._material.mass = mass
+
+        self._mass = self._material._mass
+        self._cost = self._material._cost
+        self._pore_volume = self._material._volume * self._material._porosity
 
     def _calculate_coordinates(self):
         """

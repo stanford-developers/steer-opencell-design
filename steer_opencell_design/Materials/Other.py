@@ -1,14 +1,24 @@
 from steer_core.DataManager import DataManager
 from steer_core.Mixins.Serializer import SerializerMixin
-from steer_materials.Base import Metal, _Material
+from steer_materials.Base import Metal, _Material, _VolumedMaterialMixin
 
 
-class CurrentCollectorMaterial(Metal):
+class CurrentCollectorMaterial(_VolumedMaterialMixin, Metal):
     """
     Materials from which current collectors are made.
     """
 
-    def __init__(self, name: str, density: float, specific_cost: float, color: str):
+    def __init__(
+            self, 
+            name: str, 
+            density: float, 
+            specific_cost: float, 
+            color: str = "#2c2c2c",
+            *,
+            volume=None,
+            mass=None,
+            **kwargs,
+        ):
         """
         Current collector material for encapsulation of the cell
 
@@ -23,7 +33,15 @@ class CurrentCollectorMaterial(Metal):
         color : str
             Color of the material.
         """
-        super().__init__(name, density, specific_cost, color)
+        super().__init__(
+            name=name, 
+            density=density, 
+            specific_cost=specific_cost, 
+            color=color,
+            volume=volume,
+            mass=mass,
+            **kwargs,
+        )
 
     @staticmethod
     def from_database(name) -> "CurrentCollectorMaterial":
@@ -65,12 +83,22 @@ class CurrentCollectorMaterial(Metal):
         return material
 
 
-class InsulationMaterial(_Material):
+class InsulationMaterial(_VolumedMaterialMixin, _Material):
     """
     Materials from which insulation is made.
     """
 
-    def __init__(self, name: str, density: float, specific_cost: float, color: str):
+    def __init__(
+            self, 
+            name: str, 
+            density: float, 
+            specific_cost: float, 
+            color: str = "#2c2c2c",
+            *,
+            volume=None,
+            mass=None,
+            **kwargs,
+        ):
         """
         Insulation material for encapsulation of the cell
 
@@ -85,7 +113,15 @@ class InsulationMaterial(_Material):
         color : str
             Color of the material.
         """
-        super().__init__(name, density, specific_cost, color)
+        super().__init__(
+            name=name, 
+            density=density, 
+            specific_cost=specific_cost, 
+            color=color,
+            volume=volume,
+            mass=mass,
+            **kwargs,
+        )
 
     @staticmethod
     def from_database(name) -> "InsulationMaterial":
@@ -122,7 +158,7 @@ class InsulationMaterial(_Material):
         return material
 
 
-class SeparatorMaterial(_Material):
+class SeparatorMaterial(_VolumedMaterialMixin, _Material):
     """
     Materials from which separators are made.
     """
@@ -133,7 +169,11 @@ class SeparatorMaterial(_Material):
         density: float,
         specific_cost: float,
         porosity: float,
-        color: str,
+        color: str = "#2c2c2c",
+        *,
+        volume=None,
+        mass=None,
+        **kwargs,
     ):
         """
         Separator material for encapsulation of the cell
@@ -152,10 +192,13 @@ class SeparatorMaterial(_Material):
             Color of the material.
         """
         super().__init__(
-            name, 
-            density, 
-            specific_cost, 
-            color
+            name=name, 
+            density=density, 
+            specific_cost=specific_cost, 
+            color=color,
+            volume=volume,
+            mass=mass,
+            **kwargs,
         )
 
         self.porosity = porosity
@@ -209,7 +252,7 @@ class SeparatorMaterial(_Material):
         return material
 
 
-class TapeMaterial(_Material):
+class TapeMaterial(_VolumedMaterialMixin, _Material):
     """
     Materials from which tapes are made.
     """
@@ -219,7 +262,11 @@ class TapeMaterial(_Material):
         name: str,
         density: float,
         specific_cost: float,
-        color: str,
+        color: str = "#2c2c2c",
+        *,
+        volume=None,
+        mass=None,
+        **kwargs,
     ):
         """
         Separator material for encapsulation of the cell
@@ -236,10 +283,13 @@ class TapeMaterial(_Material):
             Color of the material.
         """
         super().__init__(
-            name, 
-            density, 
-            specific_cost, 
-            color
+            name=name, 
+            density=density, 
+            specific_cost=specific_cost, 
+            color=color,
+            volume=volume,
+            mass=mass,
+            **kwargs,
         )
 
     @staticmethod
@@ -277,7 +327,7 @@ class TapeMaterial(_Material):
         return material
 
 
-class PrismaticContainerMaterial(Metal):
+class PrismaticContainerMaterial(_VolumedMaterialMixin, _Material):
     """
     Materials from which containers are made.
     """
@@ -287,7 +337,11 @@ class PrismaticContainerMaterial(Metal):
         name: str,
         density: float,
         specific_cost: float,
-        color: str,
+        color: str = "#2c2c2c",
+        *,
+        volume=None,
+        mass=None,
+        **kwargs,
     ):
         """
         Container material for encapsulation of the cell
@@ -304,10 +358,13 @@ class PrismaticContainerMaterial(Metal):
             Color of the material.
         """
         super().__init__(
-            name, 
-            density, 
-            specific_cost, 
-            color
+            name=name, 
+            density=density, 
+            specific_cost=specific_cost, 
+            color=color,
+            volume=volume,
+            mass=mass,
+            **kwargs,
         )
 
     @staticmethod
@@ -346,7 +403,7 @@ class PrismaticContainerMaterial(Metal):
         return material
     
 
-class LaminateMaterial(_Material):
+class LaminateMaterial(_VolumedMaterialMixin, _Material):
     """
     Materials from which containers are made.
     """
@@ -356,7 +413,11 @@ class LaminateMaterial(_Material):
         name: str,
         density: float,
         specific_cost: float,
-        color: str,
+        color: str = "#2c2c2c",
+        *,
+        volume=None,
+        mass=None,
+        **kwargs,
     ):
         """
         Container material for encapsulation of the cell
@@ -373,10 +434,13 @@ class LaminateMaterial(_Material):
             Color of the material.
         """
         super().__init__(
-            name, 
-            density, 
-            specific_cost, 
-            color
+            name=name, 
+            density=density, 
+            specific_cost=specific_cost, 
+            color=color,
+            volume=volume,
+            mass=mass,
+            **kwargs,
         )
 
     @staticmethod

@@ -17,8 +17,13 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         """
         Set up
         """
-        self.material = CurrentCollectorMaterial(name="Copper", density=8.96, specific_cost=18.1, color="#B87333")
-
+        self.material = CurrentCollectorMaterial(
+            name="Copper", 
+            density=8.96, 
+            specific_cost=18.1, 
+            color="#B87333"
+        )
+    
         self.current_collector = PunchedCurrentCollector(
             material=self.material,
             width=160,
@@ -93,8 +98,8 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         decoded = b64decode(encoded)
         deserialized = loads(decoded)
 
-        self.assertEqual(self.current_collector.mass, deserialized.mass)
-        self.assertEqual(self.current_collector.cost, deserialized.cost)
+        self.assertEqual(self.current_collector.material.mass, deserialized.material.mass)
+        self.assertEqual(self.current_collector.material.cost, deserialized.material.cost)
         self.assertEqual(self.current_collector.material.name, deserialized.material.name)
         self.assertEqual(self.current_collector.width, deserialized.width)
         self.assertEqual(self.current_collector.height, deserialized.height)
@@ -180,8 +185,8 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         self.assertEqual(round(self.current_collector.body_area, 6), 6732)
         self.assertEqual(round(self.current_collector.coated_area, 6), 3079.3 + 3074)
         self.assertEqual(round(self.current_collector.insulation_area, 6), 185.8)
-        self.assertEqual(self.current_collector.cost, 0.168)
-        self.assertEqual(self.current_collector.mass, 13.63)
+        self.assertEqual(self.current_collector.material.cost, 0.17)
+        self.assertEqual(self.current_collector.material.mass, 13.63)
 
     def test_figures(self):
         fig_b = self.current_collector.get_top_down_view()
@@ -195,17 +200,17 @@ class TestNotchedCurrentCollector(unittest.TestCase):
     def test_setters(self):
         self.current_collector.material = CurrentCollectorMaterial.from_database(name="Copper")
         self.assertEqual(self.current_collector.material.name, "Copper")
-        self.assertEqual(self.current_collector.mass, 45.24)
-        self.assertEqual(self.current_collector.cost, 0.819)
+        self.assertEqual(self.current_collector.material.mass, 45.24)
+        self.assertEqual(self.current_collector.material.cost, 0.82)
 
         self.current_collector.thickness = 10
         self.assertEqual(self.current_collector.thickness, 10)
-        self.assertEqual(self.current_collector.mass, 30.16)
-        self.assertEqual(self.current_collector.cost, 0.546)
+        self.assertEqual(self.current_collector.material.mass, 30.16)
+        self.assertEqual(self.current_collector.material.cost, 0.55)
 
         self.current_collector.bare_lengths_a_side = (100, 100)
-        self.assertEqual(self.current_collector.mass, 30.16)
-        self.assertEqual(self.current_collector.cost, 0.546)
+        self.assertEqual(self.current_collector.material.mass, 30.16)
+        self.assertEqual(self.current_collector.material.cost, 0.55)
 
         fig_a = self.current_collector.get_a_side_view()
         fig_b = self.current_collector.get_b_side_view()
