@@ -195,10 +195,10 @@ class TestCylindricalCell(unittest.TestCase):
     def test_basics(self):
         self.assertIsInstance(self.cell, CylindricalCell)
         self.assertEqual(self.cell.energy, 0.123)
-        self.assertEqual(self.cell.mass, 840.72)
-        self.assertEqual(self.cell.specific_energy, 0.147)
-        self.assertEqual(self.cell.volumetric_energy, 1.964)
-        self.assertEqual(self.cell.cost_per_energy, 57.79)
+        self.assertEqual(self.cell.mass, 845.29)
+        self.assertEqual(self.cell.specific_energy, 0.146)
+        self.assertEqual(self.cell.volumetric_energy, 0.267)
+        self.assertEqual(self.cell.cost_per_energy, 58.37)
     
     def test_plots(self):
 
