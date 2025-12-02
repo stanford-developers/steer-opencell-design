@@ -157,14 +157,135 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         This method orchestrates the calculation of spiral geometry, component
         placement, and derived properties in the correct sequence.
         """
+        # calculate geometry and spirals
+        self._calculate_coordinates(laminate_x_spacing=laminate_x_spacing, **kwargs)
+
+        # calculate bulk properties
+        super()._calculate_all_properties()
+
+    def _calculate_coordinates(self, laminate_x_spacing=0.004, **kwargs) -> None:
+
+        # calculate the roll
         self._calculate_roll(laminate_x_spacing=laminate_x_spacing, **kwargs)
 
+        # calculate tape roll if applicable
         if self._tape is not None and self._additional_tape_wraps > 0:
             self._calculate_tape_roll()
 
+        # calculate derived properties  
         self._calculate_roll_properties()
+
+        # calculate spiral-dependent properties
         self._calculate_spiral_properties()
-        super()._calculate_all_properties()
+
+        # calculate top down coordinates
+        self._calculate_top_down_coordinates()
+
+    def _calculate_top_down_coordinates(self) -> None:
+        """Calculate and store top-down view coordinates for all components.
+        
+        This method pre-calculates the x and y coordinates for rectangular representations
+        of each component in the top-down view. Coordinates are stored in the
+        self._component_top_down_coordinates dictionary as numpy arrays (shape: [N, 2])
+        for later use in trace creation.
+        
+        The method handles:
+        - Standard components (coatings, separators, current collectors)
+        - Tape component (if present)
+        - Tab-welded current collector tabs (if present)
+        
+        Stored coordinates are in millimeters for plotting.
+        """
+        self._component_top_down_coordinates = {}
+        
+        # Check if tabs are welded
+        cathode_is_tab_welded = isinstance(
+            self._layup._cathode._current_collector, TabWeldedCurrentCollector
+        )
+        anode_is_tab_welded = isinstance(
+            self._layup._anode._current_collector, TabWeldedCurrentCollector
+        )
+        
+        # Component configuration: (spiral_key, coords_attr, is_cc, is_tabbed, electrode_type)
+        component_configs = [
+            ('cathode_b_side_coating', '_cathode._b_side_coating_coordinates', False, False, None),
+            ('cathode_current_collector', '_cathode._current_collector._body_coordinates', True, cathode_is_tab_welded, 'cathode'),
+            ('cathode_a_side_coating', '_cathode._a_side_coating_coordinates', False, False, None),
+            ('bottom_separator', '_bottom_separator._coordinates', False, False, None),
+            ('anode_b_side_coating', '_anode._b_side_coating_coordinates', False, False, None),
+            ('anode_current_collector', '_anode._current_collector._body_coordinates', True, anode_is_tab_welded, 'anode'),
+            ('anode_a_side_coating', '_anode._a_side_coating_coordinates', False, False, None),
+            ('top_separator', '_top_separator._coordinates', False, False, None),
+        ]
+        
+        # Calculate coordinates for standard components
+        for spiral_key, coordinates_attr, is_cc, is_tabbed, electrode_type in component_configs:
+            spiral = self._extruded_spirals.get(spiral_key)
+            spiral = spiral[~np.isnan(spiral[:, RADIUS_COL])]
+            diameter = spiral[:, RADIUS_COL].max() * 2
+            
+            # Get coordinates using attribute path navigation
+            coords_obj = self._layup
+            for attr in coordinates_attr.split('.'):
+                coords_obj = getattr(coords_obj, attr)
+            
+            max_y = coords_obj[~np.isnan(coords_obj[:, 1]), 1].max()
+            min_y = coords_obj[~np.isnan(coords_obj[:, 1]), 1].min()
+            
+            # Apply tab crumple factor adjustments for current collectors
+            if is_cc and electrode_type and not is_tabbed:
+                if electrode_type == 'cathode':
+                    tab_height = self._layup._cathode._current_collector._tab_height
+                    crumple_factor = self._collector_tab_crumple_factor
+                    max_y = max_y - (tab_height * crumple_factor)
+                elif electrode_type == 'anode':
+                    tab_height = self._layup._anode._current_collector._tab_height
+                    crumple_factor = self._collector_tab_crumple_factor
+                    min_y = min_y + (tab_height * crumple_factor)
+            
+            height = max_y - min_y
+            
+            x, y = self.build_square_array(-diameter/2, min_y, diameter, height)
+            
+            # Store as numpy array with shape [N, 2]
+            self._component_top_down_coordinates[spiral_key] = np.column_stack((x, y))
+        
+        # Calculate tape coordinates if applicable
+        if hasattr(self, '_tape') and self._tape is not None and self._additional_tape_wraps > 0:
+            tape_diameter = self._extruded_spirals.get('tape')[:, RADIUS_COL].max() * 2
+            tape_width = self._tape._width
+            x, y = self.build_square_array(-tape_diameter/2, -tape_width/2, tape_diameter, tape_width)
+            x = x
+            y = y
+            self._component_top_down_coordinates['tape'] = np.column_stack((x, y))
+        
+        # Calculate cathode tab coordinates if tab welded
+        if cathode_is_tab_welded:
+            ref_tab_coordinates = self._layup._cathode._current_collector._weld_tabs[0]._body_coordinates
+            ref_tab_coordinates = ref_tab_coordinates[~np.isnan(ref_tab_coordinates[:, 0])]
+            tab_max_x = ref_tab_coordinates[:, 0].max()
+            tab_min_x = ref_tab_coordinates[:, 0].min()
+            tab_max_y = ref_tab_coordinates[:, 1].max()
+            tab_min_y = ref_tab_coordinates[:, 1].min()
+            tab_width = tab_max_x - tab_min_x
+            tab_height = tab_max_y - tab_min_y
+            tab_height = tab_height - self._layup._cathode._current_collector.tab_overhang * self._collector_tab_crumple_factor
+            x, y = self.build_square_array(-tab_width/2, tab_min_y, tab_width, tab_height)
+            self._component_top_down_coordinates['cathode_tab'] = np.column_stack((x, y))
+        
+        # Calculate anode tab coordinates if tab welded
+        if anode_is_tab_welded:
+            ref_tab_coordinates = self._layup._anode._current_collector._weld_tabs[0]._body_coordinates
+            ref_tab_coordinates = ref_tab_coordinates[~np.isnan(ref_tab_coordinates[:, 0])]
+            tab_max_x = ref_tab_coordinates[:, 0].max()
+            tab_min_x = ref_tab_coordinates[:, 0].min()
+            tab_max_y = ref_tab_coordinates[:, 1].max()
+            tab_min_y = ref_tab_coordinates[:, 1].min()  + self._layup._anode._current_collector.tab_overhang * self._collector_tab_crumple_factor
+            tab_width = tab_max_x - tab_min_x
+            tab_height = tab_max_y - tab_min_y
+            tab_height = tab_height - self._layup._anode._current_collector.tab_overhang * self._collector_tab_crumple_factor
+            x, y = self.build_square_array(-tab_width/2, tab_min_y, tab_width, tab_height)
+            self._component_top_down_coordinates['anode_tab'] = np.column_stack((x, y))
 
     def _calculate_roll(self, laminate_x_spacing=0.004, **kwargs) -> None:
         """Calculate the basic jelly roll geometry and component placement.
@@ -1772,8 +1893,19 @@ class WoundJellyRoll(_JellyRoll):
         self._radius = radius
         self._diameter = self._radius * 2
         self._calculate_radius_range()
+        self._calculate_total_height()
 
         return self._radius, self._diameter, self._radius_range
+
+    def _calculate_total_height(self) -> float:
+        y_coords = [c[:, 1] for c in self._component_top_down_coordinates.values()]
+        min_vals = [np.min(y) for y in y_coords]
+        max_vals = [np.max(y) for y in y_coords]
+        self._min_y_point = min(min_vals)
+        self._max_y_point = max(max_vals)
+        self._mid_y_point = (self._min_y_point + self._max_y_point) / 2
+        self._total_height = self._max_y_point - self._min_y_point
+        return self._total_height, self._min_y_point, self._max_y_point
 
     def _calculate_radius_range(self) -> Tuple[float, float]:
         """Calculate the valid range of radii for this jelly roll configuration.
@@ -2017,67 +2149,30 @@ class WoundJellyRoll(_JellyRoll):
     def _create_component_top_down_trace(
             self, 
             spiral_key: str, 
-            coordinates_attr: str, 
             color: str, 
             name: str, 
-            opacity: float, 
-            is_current_collector: bool = False, 
-            is_tab_welded: bool = False,
-            electrode_type: str = None) -> go.Scatter:
-        """Create a single component trace for the top-down view.
+            opacity: float) -> go.Scatter:
+        """Create a single component trace for the top-down view using pre-calculated coordinates.
         
         Parameters
         ----------
         spiral_key : str
-            Key to access the component spiral in _extruded_spirals
-        coordinates_attr : str
-            Attribute path to access Y coordinates (e.g., '_coordinates' or '_body_coordinates')
+            Key to access the component coordinates in _component_top_down_coordinates
         color : str
             Fill color for the component
         name : str
             Display name for the trace
         opacity : float
             Opacity level for the trace
-        is_current_collector : bool, default=False
-            Whether this is a current collector trace that needs tab crumple factor adjustment
-        electrode_type : str, optional
-            Type of electrode ('cathode' or 'anode') for current collector adjustments
             
         Returns
         -------
         go.Scatter
             Plotly scatter trace for the component
         """
-        spiral = self._extruded_spirals.get(spiral_key)
-        spiral = spiral[~np.isnan(spiral[:, RADIUS_COL])]
-        diameter = spiral[:, RADIUS_COL].max() * 2
-        
-        # Get coordinates using attribute path navigation
-        coords_obj = self._layup
-        for attr in coordinates_attr.split('.'):
-            coords_obj = getattr(coords_obj, attr)
-        
-        max_y = coords_obj[~np.isnan(coords_obj[:, 1]), 1].max()
-        min_y = coords_obj[~np.isnan(coords_obj[:, 1]), 1].min()
-        
-        # Apply tab crumple factor adjustments for current collectors
-        if is_current_collector and electrode_type and not is_tab_welded:
-            if electrode_type == 'cathode':
-                # For cathode: subtract tab_height * crumple_factor from max_y
-                tab_height = self._layup._cathode._current_collector._tab_height
-                crumple_factor = self._collector_tab_crumple_factor
-                max_y = max_y - (tab_height * crumple_factor)
-            elif electrode_type == 'anode':
-                # For anode: add tab_height * crumple_factor to min_y
-                tab_height = self._layup._anode._current_collector._tab_height
-                crumple_factor = self._collector_tab_crumple_factor
-                min_y = min_y + (tab_height * crumple_factor)
-        
-        height = max_y - min_y
-        
-        x, y = self.build_square_array(-diameter/2, min_y, diameter, height)
-        x = x * M_TO_MM
-        y = y * M_TO_MM
+        coords = self._component_top_down_coordinates[spiral_key]
+        x = coords[:, 0] * M_TO_MM
+        y = coords[:, 1] * M_TO_MM
         
         trace = go.Scatter(
             x=x,
@@ -2088,7 +2183,9 @@ class WoundJellyRoll(_JellyRoll):
             line=dict(color='black', width=0.5),
             name=name
         )
+
         self.adjust_trace_opacity(trace, opacity)
+
         return trace
 
     def get_top_down_view(self, opacity: float = 0.5, **kwargs) -> go.Figure:
@@ -2108,40 +2205,38 @@ class WoundJellyRoll(_JellyRoll):
         """
         figure = go.Figure()
 
-        # cathode is tabbed bool
-        cathode_is_tab_welded = isinstance(self._layup._cathode._current_collector, TabWeldedCurrentCollector)
-
-        # anode is tabbed bool
-        anode_is_tab_welded = isinstance(self._layup._anode._current_collector, TabWeldedCurrentCollector)
+        # Check if tabs are welded
+        cathode_is_tab_welded = isinstance(
+            self._layup._cathode._current_collector, TabWeldedCurrentCollector
+        )
+        anode_is_tab_welded = isinstance(
+            self._layup._anode._current_collector, TabWeldedCurrentCollector
+        )
         
-        # Component configuration in display order: (spiral_key, coords_attr, color, name, is_cc, electrode_type)
+        # Component configuration: (spiral_key, color, name)
         component_configs = [
-            ('cathode_b_side_coating', '_cathode._b_side_coating_coordinates', self._layup._cathode._formulation._color, 'Cathode b-side Coating', False, False, None),
-            ('cathode_current_collector', '_cathode._current_collector._body_coordinates', self._layup._cathode.current_collector.material._color, 'Cathode Current Collector', True, cathode_is_tab_welded, 'cathode'),
-            ('cathode_a_side_coating', '_cathode._a_side_coating_coordinates', self._layup._cathode._formulation._color, 'Cathode a-side Coating', False,False, None),
-            ('bottom_separator', '_bottom_separator._coordinates', self._layup.bottom_separator.material._color, 'Bottom Separator', False, False, None),
-            ('anode_b_side_coating', '_anode._b_side_coating_coordinates', self._layup._anode._formulation._color, 'Anode b-side Coating', False, False, None),
-            ('anode_current_collector', '_anode._current_collector._body_coordinates', self._layup._anode.current_collector.material._color, 'Anode Current Collector', True, anode_is_tab_welded, 'anode'),
-            ('anode_a_side_coating', '_anode._a_side_coating_coordinates', self._layup._anode._formulation._color, 'Anode a-side Coating', False, False, None),
-            ('top_separator', '_top_separator._coordinates', self._layup.top_separator.material._color, 'Top Separator', False, False, None),
+            ('cathode_b_side_coating', self._layup._cathode._formulation._color, 'Cathode b-side Coating'),
+            ('cathode_current_collector', self._layup._cathode.current_collector.material._color, 'Cathode Current Collector'),
+            ('cathode_a_side_coating', self._layup._cathode._formulation._color, 'Cathode a-side Coating'),
+            ('bottom_separator', self._layup.bottom_separator.material._color, 'Bottom Separator'),
+            ('anode_b_side_coating', self._layup._anode._formulation._color, 'Anode b-side Coating'),
+            ('anode_current_collector', self._layup._anode.current_collector.material._color, 'Anode Current Collector'),
+            ('anode_a_side_coating', self._layup._anode._formulation._color, 'Anode a-side Coating'),
+            ('top_separator', self._layup.top_separator.material._color, 'Top Separator'),
         ]
 
         # Create traces for all components
         traces = [
-            self._create_component_top_down_trace(spiral_key, coords_attr, color, name, opacity, is_cc, is_tabbed, electrode_type)
-            for spiral_key, coords_attr, color, name, is_cc, is_tabbed, electrode_type in component_configs
+            self._create_component_top_down_trace(spiral_key, color, name, opacity)
+            for spiral_key, color, name in component_configs
         ]
 
         # Handle tape component separately (conditional)
-        if hasattr(self, '_tape') and self._tape is not None and self._additional_tape_wraps > 0:
-            tape_diameter = self._extruded_spirals.get('tape')[:, RADIUS_COL].max() * 2
-            tape_width = self._tape._width
-            x, y = self.build_square_array(-tape_diameter/2, -tape_width/2, tape_diameter, tape_width)
-            x = x * M_TO_MM
-            y = y * M_TO_MM
+        if 'tape' in self._component_top_down_coordinates:
+            coords = self._component_top_down_coordinates['tape']
             tape_trace = go.Scatter(
-                x=x,
-                y=y,
+                x=coords[:, 0],
+                y=coords[:, 1],
                 mode='lines',
                 fill='toself',
                 fillcolor=self._tape._material._color,
@@ -2151,21 +2246,12 @@ class WoundJellyRoll(_JellyRoll):
             self.adjust_trace_opacity(tape_trace, opacity)
             traces.append(tape_trace)
 
-        # handle current collector tab separately if tab welded
-        if cathode_is_tab_welded:
-            ref_tab_coordinates = self._layup._cathode._current_collector._weld_tabs[0]._body_coordinates
-            ref_tab_coordinates = ref_tab_coordinates[~np.isnan(ref_tab_coordinates[:, 0])]
-            tab_max_x = ref_tab_coordinates[:, 0].max() * M_TO_MM
-            tab_min_x = ref_tab_coordinates[:, 0].min() * M_TO_MM
-            tab_max_y = ref_tab_coordinates[:, 1].max() * M_TO_MM
-            tab_min_y = ref_tab_coordinates[:, 1].min() * M_TO_MM
-            tab_width = tab_max_x - tab_min_x
-            tab_height = tab_max_y - tab_min_y
-            tab_height = tab_height - self._layup._cathode._current_collector.tab_overhang * self._collector_tab_crumple_factor
-            x, y = self.build_square_array(-tab_width/2, tab_min_y, tab_width, tab_height)
+        # Handle current collector tabs separately if tab welded
+        if cathode_is_tab_welded and 'cathode_tab' in self._component_top_down_coordinates:
+            coords = self._component_top_down_coordinates['cathode_tab']
             tab_trace = go.Scatter(
-                x=x,
-                y=y,
+                x=coords[:, 0],
+                y=coords[:, 1],
                 mode='lines',
                 fill='toself',
                 fillcolor=self._layup._cathode._current_collector._weld_tab._material._color,
@@ -2175,21 +2261,12 @@ class WoundJellyRoll(_JellyRoll):
             self.adjust_trace_opacity(tab_trace, opacity)
             traces = [tab_trace] + traces  # Add tab trace on top of other components
 
-        # handle anode tab separately if tab welded
-        if anode_is_tab_welded:
-            ref_tab_coordinates = self._layup._anode._current_collector._weld_tabs[0]._body_coordinates
-            ref_tab_coordinates = ref_tab_coordinates[~np.isnan(ref_tab_coordinates[:, 0])]
-            tab_max_x = ref_tab_coordinates[:, 0].max() * M_TO_MM
-            tab_min_x = ref_tab_coordinates[:, 0].min() * M_TO_MM
-            tab_max_y = ref_tab_coordinates[:, 1].max() * M_TO_MM
-            tab_min_y = ref_tab_coordinates[:, 1].min() * M_TO_MM  + self._layup._anode._current_collector.tab_overhang * self._collector_tab_crumple_factor
-            tab_width = tab_max_x - tab_min_x
-            tab_height = tab_max_y - tab_min_y
-            tab_height = tab_height - self._layup._anode._current_collector.tab_overhang * self._collector_tab_crumple_factor
-            x, y = self.build_square_array(-tab_width/2, tab_min_y, tab_width, tab_height)
+        # Handle anode tab separately if tab welded
+        if anode_is_tab_welded and 'anode_tab' in self._component_top_down_coordinates:
+            coords = self._component_top_down_coordinates['anode_tab']
             tab_trace = go.Scatter(
-                x=x,
-                y=y,
+                x=coords[:, 0],
+                y=coords[:, 1],
                 mode='lines',
                 fill='toself',
                 fillcolor=self._layup._anode._current_collector._weld_tab._material._color,
@@ -2272,6 +2349,17 @@ class WoundJellyRoll(_JellyRoll):
         )
         
         return wound_jelly_roll
+
+    @property
+    def total_height(self) -> float:
+        """Return the total height of the wound jelly roll in mm.
+        
+        Returns
+        -------
+        float
+            Total height in millimeters, rounded to 2 decimal places
+        """
+        return round(self._total_height * M_TO_MM, 2)
 
     @property
     def radius(self) -> float:

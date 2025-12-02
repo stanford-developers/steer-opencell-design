@@ -745,11 +745,13 @@ class CylindricalCannister(
 
         # set the properties
         self._mass = self._material._mass
-        self._volume = self._material._volume
         self._cost = self._material._cost
 
         # get other dimensions
         self._inner_height = self._height - self._wall_thickness
+
+        # get the volume
+        self._volume = self._height * np.pi * (self._outer_radius**2)
 
     def _calculate_coordinates(self):
         self._get_top_down_cross_section_coordinates()
@@ -1063,7 +1065,7 @@ class CylindricalEncapsulation(_Container):
         
         self._lid_assembly.datum = (
             self._datum[0] * M_TO_MM,
-            (self._datum[1]+ self._cannister._height - self._lid_assembly._thickness / 2) * M_TO_MM ,
+            (self._datum[1] + self._cannister._height - self._lid_assembly._thickness / 2) * M_TO_MM ,
             self._datum[2] * M_TO_MM
         )
 
@@ -1079,6 +1081,11 @@ class CylindricalEncapsulation(_Container):
             self._datum[2] * M_TO_MM
         )
 
+        _max_anode_side_coords = self._anode_terminal_connector._coordinates[:, 1].max()
+        _min_cathode_side_coords = self._cathode_terminal_connector._coordinates[:, 1].min()
+        _midpoint = (_max_anode_side_coords + _min_cathode_side_coords) / 2
+        self._mid_y_point = _midpoint
+
     def _calculate_bulk_properties(self):
 
         self._lid_assembly.radius = self._cannister._inner_radius * M_TO_MM
@@ -1091,6 +1098,8 @@ class CylindricalEncapsulation(_Container):
             self._anode_terminal_connector._thickness - \
             self._cathode_terminal_connector._thickness
         )
+
+        self._volume = self._cannister._volume
 
         self._calculate_mass()
         self._calculate_cost()
@@ -1172,6 +1181,10 @@ class CylindricalEncapsulation(_Container):
 
         return figure
     
+    @property
+    def volume(self) -> float:
+        return round(self._volume * M_TO_MM**3, 2)
+
     @property
     def internal_height(self) -> float:
         return round(self._internal_height * M_TO_MM, 2)
@@ -1265,9 +1278,16 @@ class CylindricalEncapsulation(_Container):
     
     @datum.setter
     @calculate_coordinates
-    def datum(self, datum: Tuple[float, float, float]) -> None:
-        self.validate_datum(datum)
-        self._datum = tuple(coord * MM_TO_M for coord in datum)
+    def datum(self, value: Tuple[float, float, float]) -> None:
+
+        # validate input
+        self.validate_datum(value)
+
+        # set datum to self
+        self._datum = tuple(coord * MM_TO_M for coord in value)
+
+        # set the datum to the cannister
+        self._cannister.datum = value
 
     @cathode_terminal_connector.setter
     @calculate_all_properties

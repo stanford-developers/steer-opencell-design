@@ -73,26 +73,11 @@ class _ElectrodeAssembly(
         self._calculate_bulk_properties()
         self._calculate_interfacial_area()
         self._calculate_capacity_curves()
-        self._calculate_energy()
         
-    def _ensure_properties_calculated(self) -> None:
-        """Ensure all properties have been calculated before access."""
-        if not hasattr(self, '_energy') or self._energy is None:
-            self._calculate_all_properties()
-
     def _calculate_bulk_properties(self):
         self._calculate_pore_volume()
         self._calculate_mass_properties()
         self._calculate_cost_properties()
-
-    def _calculate_energy(self):
-        _discharge_curve = self._capacity_curve[self._capacity_curve[:,2] == -1]
-        _discharge_curve = _discharge_curve[np.argsort(_discharge_curve[:,0])]
-        _capacity = _discharge_curve[:,0]
-        _voltage = _discharge_curve[:,1]
-        _energy = np.trapz(_capacity, _voltage)
-        self._energy = _energy
-        return self._energy
 
     @abstractmethod
     def _calculate_pore_volume(self):
@@ -204,19 +189,6 @@ class _ElectrodeAssembly(
     def pore_volume(self) -> float:
         """Return the pore volume of the jelly roll assembly."""
         return round(self._pore_volume * M_TO_CM**3, 2)
-
-    @property
-    def energy(self) -> float:
-        """
-        Return the energy of the electrode assembly in Wh.
-        
-        Returns
-        -------
-        float
-            Energy in watt-hours (Wh)
-        """
-        self._ensure_properties_calculated()
-        return round(self._energy * J_TO_WH, 2)
 
     @property
     def name(self) -> str:

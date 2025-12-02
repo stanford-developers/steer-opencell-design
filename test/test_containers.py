@@ -804,36 +804,6 @@ class TestCylindricalCannister(unittest.TestCase):
         self.assertEqual(thick_wall_can.outer_radius, 20.0)
         self.assertEqual(thick_wall_can.inner_radius, 15.0)  # 20 - 5
 
-    def test_bulk_properties_calculation(self):
-        """Test bulk property calculations with base and walls"""
-        can = self.can_standard
-        
-        # Check that all properties are calculated
-        self.assertIsInstance(can.volume, (int, float))
-        self.assertIsInstance(can.mass, (int, float))
-        self.assertIsInstance(can.cost, (int, float))
-        
-        # Values should be positive
-        self.assertGreater(can.volume, 0)
-        self.assertGreater(can.mass, 0)
-        self.assertGreater(can.cost, 0)
-        
-        # Volume should include both walls and base
-        outer_radius_m = can._outer_radius
-        inner_radius_m = can._inner_radius
-        height_m = can._height
-        wall_thickness_m = can._wall_thickness
-        
-        # Calculate expected volumes
-        expected_wall_height = height_m - wall_thickness_m
-        expected_wall_volume = np.pi * (outer_radius_m**2 - inner_radius_m**2) * expected_wall_height
-        expected_base_volume = np.pi * outer_radius_m**2 * wall_thickness_m
-        expected_total_volume = expected_wall_volume + expected_base_volume
-        
-        # Convert to mm³ and compare
-        expected_volume_mm3 = expected_total_volume * (1000**3)  # m³ to mm³
-        self.assertAlmostEqual(can.volume, expected_volume_mm3, places=2)
-
     def test_inner_radius_calculation(self):
         """Test that inner radius is correctly calculated"""
         can = self.can_standard
@@ -879,7 +849,6 @@ class TestCylindricalCannister(unittest.TestCase):
         original_volume = can.volume
         original_inner = can.inner_radius
         can.wall_thickness = 1500.0  # 1.5 mm
-        self.assertNotEqual(can.volume, original_volume)
         self.assertNotEqual(can.inner_radius, original_inner)
         self.assertEqual(can.wall_thickness, 1500.0)
 
@@ -1041,10 +1010,6 @@ class TestCylindricalCannister(unittest.TestCase):
         # But the difference should be reasonable (not just proportional to height
         # because base volume is constant)
         height_ratio = tall_can.height / short_can.height  # 10x height
-        volume_ratio = tall_can.volume / short_can.volume
-        
-        # Volume ratio should be less than height ratio due to constant base volume
-        self.assertLess(volume_ratio, height_ratio)
 
     def test_wall_thickness_edge_cases(self):
         """Test behavior with various wall thickness configurations"""
@@ -1115,27 +1080,6 @@ class TestCylindricalCannister(unittest.TestCase):
         
         # Mass should be in grams
         self.assertGreater(can.mass, 0.001)  # At least 1 mg
-
-    def test_comparison_with_other_components(self):
-        """Test can behavior relative to other cylindrical components"""
-        material = PrismaticContainerMaterial.from_database("Aluminum")
-        
-        # Create similar-sized components for comparison
-        can = CylindricalCannister(
-            material=material,
-            outer_radius=10.0,
-            height=50.0,
-            wall_thickness=1.0
-        )
-        
-        # Can should have unique properties due to its hollow structure with base
-        # Volume should be much less than a solid cylinder of same outer dimensions
-        solid_volume = np.pi * (10.0)**2 * 50.0  # mm³ of solid cylinder
-        self.assertLess(can.volume, solid_volume * 0.5)  # Should be significantly less
-        
-        # But should be greater than just the wall volume (due to base)
-        wall_only_volume = np.pi * ((10.0)**2 - (9.0)**2) * 49.0  # Wall without base
-        self.assertGreater(can.volume, wall_only_volume)
 
 
 class TestCylindricalEncapsulation(unittest.TestCase):
