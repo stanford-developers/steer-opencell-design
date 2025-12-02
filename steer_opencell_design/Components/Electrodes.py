@@ -827,7 +827,7 @@ class _Electrode(
         return {
             "Cost": f"$ {self.cost}",
             "Mass": f"{self.mass} g",
-            "Coating mass": f"{self.coating_mass} g",
+            "Coating mass": f"{self._formulation.mass} g",
             "Total thickness": f"{self.thickness} um",
             "Coating thickness": f"{self.coating_thickness} um",
         }

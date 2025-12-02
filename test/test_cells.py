@@ -164,8 +164,8 @@ class TestCylindricalCell(unittest.TestCase):
         
         cannister = CylindricalCannister(
             material=aluminum,
-            outer_radius=20.0,  # mm
-            height=50.0,  # mm
+            outer_radius=21.4,  # mm
+            height=321,  # mm
             wall_thickness=0.5  
         )
 
@@ -194,15 +194,34 @@ class TestCylindricalCell(unittest.TestCase):
 
     def test_basics(self):
         self.assertIsInstance(self.cell, CylindricalCell)
+        self.assertEqual(self.cell.energy, 0.123)
+        self.assertEqual(self.cell.mass, 840.72)
+        self.assertEqual(self.cell.specific_energy, 0.147)
+        self.assertEqual(self.cell.volumetric_energy, 1.964)
+        self.assertEqual(self.cell.cost_per_energy, 57.79)
     
     def test_plots(self):
 
         fig1 = self.cell.plot_mass_breakdown()
         fig2 = self.cell.plot_cost_breakdown()
+        fig3 = self.cell.get_capacity_plot()
+        fig4 = self.cell.get_top_down_view()
 
         self.assertIsNotNone(fig1)
         self.assertIsNotNone(fig2)
+        self.assertIsNotNone(fig3)
+        self.assertIsNotNone(fig4)
 
-        fig1.show()
-        fig2.show()
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+        # fig4.show()
+
+
+
+
+
+
+
+
 
