@@ -25,7 +25,6 @@ from typing import Any, Dict, Tuple
 
 
 # Module-level constants for calculations and formatting
-MINIMUM_VOLTAGE_RANGE_FRACTION = 0.25
 VOLTAGE_GUIDE_MARGIN_LOWER = 0.95
 VOLTAGE_GUIDE_MARGIN_UPPER = 1.05
 CAPACITY_GUIDE_EXTENSION = 1.1
@@ -96,65 +95,12 @@ class _Cell(
         self._calculate_cathode_curve()
         self._calculate_anode_curve()
 
-    def _calculate_voltage_limits(self) -> None:
-        """Calculate upper and lower voltage limits for the operating window."""
-        self._calculate_upper_voltage_limit()
-        self._calculate_lower_voltage_limit()
-
     def _calculate_electrolyte_properties(self) -> None:
         """Calculate electrolyte volume based on pore volume and overfill."""
         _pore_volume = sum([ea._pore_volume for ea in self._electrode_assemblies])
         _electrolyte_volume = _pore_volume * (1 + self.electrolyte_overfill)
         electrolyte_volume = _electrolyte_volume * M_TO_CM**3
         self._electrolyte.volume = electrolyte_volume
-
-    def _calculate_lower_voltage_limit(self) -> None:
-        """Calculate the minimum operating voltage range from discharge curve.
-        
-        Sets the minimum voltage range as the bottom quartile of the discharge voltage range,
-        providing a safe operating window above the absolute minimum voltage.
-        """
-        # get the areal capacity curve for the reference electrode assembly
-        _areal_capacity_curve = self._reference_electrode_assembly._layup._areal_capacity_curve
-
-        # get the discharge curve
-        _areal_discharge_curve = _areal_capacity_curve[_areal_capacity_curve[:, 2] == -1]
-
-        # calculate the lower voltage limit
-        _lower_voltage_minimum = _areal_discharge_curve[:, 1].min()
-
-        # calculate the voltage range and top limit (bottom quartile)
-        _voltage_range = _areal_discharge_curve[:, 1].max() - _lower_voltage_minimum
-        _lower_voltage_top_limit = _lower_voltage_minimum + _voltage_range * MINIMUM_VOLTAGE_RANGE_FRACTION
-
-        # set the minimum operating voltage range
-        self._minimum_operating_voltage_range = (_lower_voltage_minimum, _lower_voltage_top_limit)
-
-    def _calculate_upper_voltage_limit(self) -> None:
-        """Calculate the maximum operating voltage range from cathode voltage cutoff range.
-        
-        Determines the upper voltage bounds by testing the cathode's voltage cutoff range
-        and observing the resulting maximum voltages in the capacity curve.
-        """
-        # copy the layup
-        layup = deepcopy(self._reference_electrode_assembly._layup)
-
-        # modify the cathode formulation voltage to have its maximum voltage
-        _formulation_max_voltage = max(layup._cathode._formulation.voltage_cutoff_range)
-        layup._cathode._formulation.voltage_cutoff = _formulation_max_voltage
-        layup._cathode.formulation = layup._cathode._formulation
-        layup.cathode = layup._cathode
-        _upper_voltage_max = layup._areal_capacity_curve[:, 1].max()
-
-        # modify the cathode formulation voltage to have its minimum voltage
-        _formulation_min_voltage = min(layup._cathode._formulation.voltage_cutoff_range)
-        layup._cathode._formulation.voltage_cutoff = _formulation_min_voltage
-        layup._cathode.formulation = layup._cathode._formulation
-        layup.cathode = layup._cathode
-        _upper_voltage_min = layup._areal_capacity_curve[:, 1].max()
-
-        # set the maximum and minimum operating voltage ranges
-        self._maximum_operating_voltage_range = (_upper_voltage_min, _upper_voltage_max)
 
     def _make_assemblies(self) -> None:
 
@@ -219,6 +165,7 @@ class _Cell(
             min(self.operating_voltage_window[0] * VOLTAGE_GUIDE_MARGIN_LOWER, 0),
             self.operating_voltage_window[1] * VOLTAGE_GUIDE_MARGIN_UPPER
         ]
+
         return go.Scatter(
             x=[x_value, x_value],
             y=y_range,
@@ -638,40 +585,6 @@ class _Cell(
         return _convert_and_round_recursive(self._mass_breakdown)
 
     @property
-    def operating_voltage_window(self) -> Tuple[float, float]:
-        """Operating voltage window (min, max) in volts."""
-        return (
-            round(self._operating_voltage_window[0], VOLTAGE_PRECISION),
-            round(self._operating_voltage_window[1], VOLTAGE_PRECISION),
-        )
-    
-    @property
-    def maximum_operating_voltage(self) -> float:
-        """Maximum operating voltage in volts."""
-        return round(self._operating_voltage_window[1], VOLTAGE_PRECISION)
-    
-    @property
-    def minimum_operating_voltage(self) -> float:
-        """Minimum operating voltage in volts."""
-        return round(self._operating_voltage_window[0], VOLTAGE_PRECISION)
-
-    @property
-    def maximum_operating_voltage_range(self) -> Tuple[float, float]:
-        """Maximum operating voltage range in volts."""
-        return (
-            round(self._maximum_operating_voltage_range[0], VOLTAGE_PRECISION),
-            round(self._maximum_operating_voltage_range[1], VOLTAGE_PRECISION),
-        )
-    
-    @property
-    def minimum_operating_voltage_range(self) -> Tuple[float, float]:
-        """Minimum operating voltage range in volts."""
-        return (
-            round(self._minimum_operating_voltage_range[0], VOLTAGE_PRECISION),
-            round(self._minimum_operating_voltage_range[1], VOLTAGE_PRECISION),
-        )
-
-    @property
     def reversible_capacity(self) -> float:
         """Reversible capacity in Ah."""
         return round(self._reversible_capacity * S_TO_H, CAPACITY_PRECISION)
@@ -847,74 +760,6 @@ class _Cell(
     def name(self, value: str) -> None:
         self.validate_string(value, "name")
         self._name = value
-
-    @operating_voltage_window.setter
-    @calculate_electrochemical_properties
-    def operating_voltage_window(self, value: Tuple[float, float]) -> None:
-        """Set operating voltage window (min, max) in volts."""
-        old_update_state = self._update_properties
-        self._update_properties = False
-        self.minimum_operating_voltage = value[0]
-        self.maximum_operating_voltage = value[1]
-        self._operating_voltage_window = (self._minimum_operating_voltage, self._maximum_operating_voltage)
-        self._update_properties = old_update_state
-
-    @minimum_operating_voltage.setter
-    @calculate_electrochemical_properties
-    def minimum_operating_voltage(self, value: float) -> None:
-
-        range_min = min(self._minimum_operating_voltage_range)
-        range_max = max(self._minimum_operating_voltage_range)
-        
-        if value is None:
-            value = range_min
-
-        # validate positive float
-        self.validate_positive_float(value, "minimum_operating_voltage")
-        
-        # clamp to operating voltage range
-        if value < range_min:
-            self._minimum_operating_voltage = range_min
-        elif value > range_max:
-            self._minimum_operating_voltage = range_max
-        else:
-            self._minimum_operating_voltage = value
-
-        if self._update_properties:
-            self._operating_voltage_window = (
-                self._minimum_operating_voltage,
-                self._maximum_operating_voltage,
-            )
-
-    @maximum_operating_voltage.setter
-    @calculate_electrochemical_properties
-    def maximum_operating_voltage(self, value: float) -> None:
-
-        range_min = min(self._maximum_operating_voltage_range)
-        range_max = max(self._maximum_operating_voltage_range)
-        
-        if value is None:
-            value = range_max
-
-        # validate positive float
-        self.validate_positive_float(value, "maximum_operating_voltage")
-        
-        # clamp to operating voltage range
-        if value < range_min:
-            self._maximum_operating_voltage = range_min
-        elif value > range_max:
-            self._maximum_operating_voltage = range_max
-        else:
-            self._maximum_operating_voltage = value
-
-        if self._update_properties:
-            self._operating_voltage_window = (
-                self._minimum_operating_voltage,
-                self._maximum_operating_voltage,
-            )
-
-
-
 
 
 

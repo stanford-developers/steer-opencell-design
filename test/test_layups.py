@@ -136,6 +136,35 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertAlmostEqual(self.layup.get_thickness_at_x(3), 0.0000499, places=6)
         self.assertAlmostEqual(self.layup.get_thickness_at_x(15), 0, places=6)
 
+    def test_voltage_limits(self):
+        self.assertTrue(hasattr(self.layup, "_minimum_operating_voltage_range"))
+        self.assertTrue(hasattr(self.layup, "_maximum_operating_voltage_range"))
+        self.assertTrue(hasattr(self.layup, "minimum_operating_voltage_range"))
+        self.assertTrue(hasattr(self.layup, "maximum_operating_voltage_range"))
+        self.assertEqual(self.layup.minimum_operating_voltage_range, (2.27, 2.7))
+        self.assertEqual(self.layup.maximum_operating_voltage_range, (3.63, 4.03))
+
+    def test_voltage_maximum_setter(self):
+
+        self.layup.maximum_operating_voltage = 3.8
+        self.assertEqual(self.layup.maximum_operating_voltage, 3.8)
+        self.assertAlmostEqual(self.layup._areal_capacity_curve[:,1].max(), 3.8, places=4)
+        figure1 = self.layup.get_areal_capacity_plot()
+
+        self.layup.maximum_operating_voltage = 4.0
+        self.assertEqual(self.layup.maximum_operating_voltage, 4.0)
+        self.assertAlmostEqual(self.layup._areal_capacity_curve[:,1].max(), 4.0, places=4)
+        figure2 = self.layup.get_areal_capacity_plot()
+
+        self.layup.maximum_operating_voltage = 3.5
+        self.assertEqual(self.layup.maximum_operating_voltage, 3.63)
+        self.assertAlmostEqual(self.layup._areal_capacity_curve[:,1].max(), 3.63, places=2)
+        figure3 = self.layup.get_areal_capacity_plot()
+
+        # figure1.show()
+        # figure2.show()
+        # figure3.show()
+
     def test_length_width_setter(self):
 
         self.assertEqual(self.layup.length, 4500)
