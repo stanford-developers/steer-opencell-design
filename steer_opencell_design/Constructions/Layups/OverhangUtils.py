@@ -17,25 +17,137 @@ OVERHANG_MAX_DEFAULT = 20.0  # Maximum overhang for non-Laminate classes in mm
 OVERHANG_MAX_LAMINATE = 500.0  # Maximum overhang for Laminate class in mm
 
 class OverhangControlMode(Enum):
-    """Control modes for anode overhang adjustments."""
+    """Control modes for overhang adjustments.
+    
+    Attributes
+    ----------
+    FIXED_COMPONENT : str
+        Adjusting overhangs moves component positions (keeps dimensions fixed)
+    FIXED_OVERHANGS : str
+        Adjusting overhangs changes component dimensions (keeps positions centered)
+    """
     FIXED_COMPONENT = "fixed_component"
     FIXED_OVERHANGS = "fixed_overhangs"
 
 
 class OverhangMixin:
+    """Mixin providing overhang management for layup components.
+    
+    This mixin adds properties and methods to calculate, get, and set
+    overhangs for anode and separator components relative to the cathode
+    reference electrode.
+    
+    Overhang Conventions
+    --------------------
+    - Positive overhang: Component extends beyond cathode in that direction
+    - Negative overhang: Component recessed relative to cathode
+    - Units: Internal storage in meters, exposed properties in millimeters
+    
+    Control Modes
+    -------------
+    FIXED_COMPONENT:
+        Adjusting overhangs moves component positions while keeping their
+        dimensions fixed. This is the default mode.
+    
+    FIXED_OVERHANGS:
+        Adjusting overhangs changes component dimensions while keeping their
+        positions centered relative to the cathode.
+    
+    Components Managed
+    ------------------
+    - anode: Anode electrode overhangs (precision: 2 decimal places)
+    - bottom_separator: Bottom separator overhangs (precision: 3 decimal places)
+    - top_separator: Top separator overhangs (precision: 3 decimal places)
+    
+    Properties Added
+    ----------------
+    For each component and direction (left/right/bottom/top):
+    
+    - {component}_overhang_{direction} : float
+        Get/set overhang value in mm
+    - {component}_overhang_{direction}_range : Tuple[float, float]
+        Valid (min, max) range for overhang in mm
+    - {component}_overhangs : dict
+        Dictionary of all four overhangs for the component
+    - overhang_control_mode : OverhangControlMode
+        Current control mode for overhang adjustments
+    
+    Methods
+    -------
+    _calculate_coordinates()
+        Calculate all overhang values after coordinate setup
+    _calculate_anode_overhangs()
+        Calculate anode overhangs relative to cathode
+    _calculate_bottom_separator_overhangs()
+        Calculate bottom separator overhangs
+    _calculate_top_separator_overhangs()
+        Calculate top separator overhangs
+    _compute_electrode_overhangs(ref, target)
+        Compute overhangs between rectangular electrodes
+    _compute_separator_overhangs(ref, separator)
+        Compute overhangs between electrode and polygon separator
+    _set_overhang(component, direction, overhang)
+        Set overhang for any component and direction
+    _adjust_overhang_fixed_component(component, overhang, direction)
+        Adjust overhang by moving component position
+    _adjust_overhang_fixed_overhangs(component, overhang, direction)
+        Adjust overhang by changing component dimensions
+    
+    Notes
+    -----
+    This mixin should be placed early in the method resolution order (MRO)
+    to ensure proper override of _calculate_coordinates() and calling of
+    super() methods.
+    
+    When using FIXED_COMPONENT mode, the component's datum position is
+    adjusted. When using FIXED_OVERHANGS mode, the component's dimensions
+    (x_body_length, y_body_length for electrodes; width, length for separators)
+    are adjusted.
+    
+    Special handling exists for ZFoldMonoLayer: when the anode moves
+    left/right in FIXED_COMPONENT mode, the top separator follows to
+    maintain the fold structure.
+    
+    Examples
+    --------
+    >>> layup.overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
+    >>> layup.anode_overhang_left = 2.5  # mm
+    >>> print(layup.anode_overhangs)
+    {'left': 2.5, 'right': 2.5, 'bottom': 2.0, 'top': 2.0}
+    
+    >>> # Switch to FIXED_OVERHANGS mode
+    >>> layup.overhang_control_mode = OverhangControlMode.FIXED_OVERHANGS
+    >>> layup.anode_overhang_right = 3.0  # Extends anode width
+    >>> print(layup.anode.current_collector.x_body_length)
+    152.0  # Width increased
+    """
 
-    def __init__(
-            self,
-        ):
+    def __init__(self) -> None:
+        """Initialize overhang control mode to default value.
+        
+        Sets the overhang control mode to FIXED_COMPONENT, where adjusting
+        overhangs moves component positions rather than changing dimensions.
+        """
+        self._overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
 
-        self.overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
-
-    def _calculate_coordinates(self):
+    def _calculate_coordinates(self) -> None:
+        """Calculate overhang values after parent coordinate calculations.
+        
+        This method is called by the coordinate calculation decorator chain.
+        It ensures overhangs are recalculated whenever component positions
+        or dimensions change.
+        
+        Notes
+        -----
+        This method should call super()._calculate_coordinates() to maintain
+        the method resolution order (MRO) chain, but the current implementation
+        assumes it's the final handler in the chain.
+        """
         self._calculate_anode_overhangs()
         self._calculate_bottom_separator_overhangs()
         self._calculate_top_separator_overhangs()
 
-    def _calculate_anode_overhangs(self):
+    def _calculate_anode_overhangs(self) -> None:
         """Calculate anode overhangs relative to cathode.
 
         Overhang sign convention:
@@ -46,6 +158,14 @@ class OverhangMixin:
 
         Positive values mean the anode extends beyond the cathode in that direction.
         Values stored in internal SI units (meters).
+        
+        Notes
+        -----
+        This method updates the private attributes:
+        - _anode_overhang_left
+        - _anode_overhang_right
+        - _anode_overhang_bottom
+        - _anode_overhang_top
         """
         left, right, bottom, top = self._compute_electrode_overhangs(self._cathode, self._anode)
 
@@ -55,10 +175,19 @@ class OverhangMixin:
         self._anode_overhang_top = top
 
     
-    def _calculate_bottom_separator_overhangs(self):
+    def _calculate_bottom_separator_overhangs(self) -> None:
         """Calculate bottom separator overhangs relative to cathode.
 
         Positive values mean the separator extends beyond the cathode in the given direction.
+        Values stored in internal SI units (meters).
+        
+        Notes
+        -----
+        This method updates the private attributes:
+        - _bottom_separator_overhang_left
+        - _bottom_separator_overhang_right
+        - _bottom_separator_overhang_bottom
+        - _bottom_separator_overhang_top
         """
         left, right, bottom, top = self._compute_separator_overhangs(self._cathode, self._bottom_separator)
 
@@ -67,10 +196,19 @@ class OverhangMixin:
         self._bottom_separator_overhang_bottom = bottom
         self._bottom_separator_overhang_top = top
 
-    def _calculate_top_separator_overhangs(self):
+    def _calculate_top_separator_overhangs(self) -> None:
         """Calculate top separator overhangs relative to cathode.
 
         Positive values mean the separator extends beyond the cathode in the given direction.
+        Values stored in internal SI units (meters).
+        
+        Notes
+        -----
+        This method updates the private attributes:
+        - _top_separator_overhang_left
+        - _top_separator_overhang_right
+        - _top_separator_overhang_bottom
+        - _top_separator_overhang_top
         """
         left, right, bottom, top = self._compute_separator_overhangs(self._cathode, self._top_separator)
         self._top_separator_overhang_left = left
@@ -79,9 +217,25 @@ class OverhangMixin:
         self._top_separator_overhang_top = top
 
     def _compute_electrode_overhangs(self, ref_electrode: Cathode, target_electrode: Anode) -> Tuple[float, float, float, float]:
-        """Return (left, right, bottom, top) overhangs for rectangular current collectors.
+        """Compute (left, right, bottom, top) overhangs between rectangular electrodes.
 
-        A positive component means target extends beyond reference in that direction.
+        Parameters
+        ----------
+        ref_electrode : Cathode
+            Reference electrode (typically cathode) for overhang calculation
+        target_electrode : Anode
+            Target electrode (typically anode) to measure overhangs for
+        
+        Returns
+        -------
+        Tuple[float, float, float, float]
+            (left, right, bottom, top) overhangs in meters.
+            Positive values mean target extends beyond reference in that direction.
+        
+        Notes
+        -----
+        This method assumes rectangular current collectors with uniform dimensions.
+        Edge positions are calculated from the datum (center point) and body lengths.
         """
         # Reference edges
         ref_left = ref_electrode._current_collector._datum[0] - ref_electrode._current_collector._x_body_length / 2
@@ -97,11 +251,27 @@ class OverhangMixin:
 
         return ref_left - tgt_left, tgt_right - ref_right, ref_bottom - tgt_bottom, tgt_top - ref_top
 
-
     def _compute_separator_overhangs(self, ref_electrode: Cathode, separator: Separator) -> Tuple[float, float, float, float]:
-        """Return (left, right, bottom, top) overhangs for polygon separator relative to electrode.
+        """Compute (left, right, bottom, top) overhangs for polygon separator relative to electrode.
 
-        A positive component means separator extends beyond cathode in that direction.
+        Parameters
+        ----------
+        ref_electrode : Cathode
+            Reference electrode (typically cathode) for overhang calculation
+        separator : Separator
+            Separator component to measure overhangs for
+        
+        Returns
+        -------
+        Tuple[float, float, float, float]
+            (left, right, bottom, top) overhangs in meters.
+            Positive values mean separator extends beyond cathode in that direction.
+        
+        Notes
+        -----
+        This method handles polygon separators by finding the min/max coordinates
+        from the separator's coordinate array, unlike rectangular electrodes which
+        use datum and body length calculations.
         """
         ref_left = ref_electrode._current_collector._datum[0] - ref_electrode._current_collector._x_body_length / 2
         ref_right = ref_electrode._current_collector._datum[0] + ref_electrode._current_collector._x_body_length / 2
@@ -128,6 +298,11 @@ class OverhangMixin:
             Direction of overhang ('left', 'right', 'bottom', 'top')
         overhang : float
             Target overhang value in mm
+        
+        Notes
+        -----
+        This method routes to the appropriate adjustment method based on the
+        current overhang_control_mode. Validation is performed before adjustment.
         """
         self.validate_positive_float(overhang, f"{component}_overhang_{direction}")
         
@@ -138,8 +313,7 @@ class OverhangMixin:
 
     
     def _adjust_overhang_fixed_component(self, component: str, target_overhang: float, direction: str) -> None:
-        """
-        Adjust overhang by moving the component position (fixed component mode).
+        """Adjust overhang by moving the component position (fixed component mode).
 
         Parameters
         ----------
@@ -149,6 +323,20 @@ class OverhangMixin:
             Target overhang value in mm
         direction : str
             Direction of overhang ('left', 'right', 'bottom', 'top')
+        
+        Notes
+        -----
+        In FIXED_COMPONENT mode, component dimensions remain constant and the
+        datum position is adjusted to achieve the target overhang.
+        
+        Special handling for ZFoldMonoLayer: when the anode moves left/right,
+        the top separator follows to maintain the fold structure.
+        
+        The adjustment amount is calculated as:
+            overhang_difference = target_overhang - current_overhang
+        
+        The component datum is then shifted by this difference in the specified
+        direction.
         """
         current_overhang = getattr(self, f"{component}_overhang_{direction}")
         overhang_difference = target_overhang - current_overhang
@@ -184,8 +372,7 @@ class OverhangMixin:
             self._top_separator.datum = top_separator_datum
 
     def _adjust_overhang_fixed_overhangs(self, component: str, target_overhang: float, direction: str) -> None:
-        """
-        Adjust overhang by extending the component dimensions (fixed overhangs mode).
+        """Adjust overhang by extending the component dimensions (fixed overhangs mode).
 
         Parameters
         ----------
@@ -195,6 +382,25 @@ class OverhangMixin:
             Target overhang value in mm
         direction : str
             Direction of overhang ('left', 'right', 'bottom', 'top')
+        
+        Notes
+        -----
+        In FIXED_OVERHANGS mode, the overhang values remain constant and the
+        component dimensions are adjusted to achieve the target overhang.
+        
+        For anodes:
+            - Adjusts x_body_length for left/right directions
+            - Adjusts y_body_length for bottom/top directions
+            - Centers the component by adjusting datum by half the dimension change
+        
+        For separators:
+            - Adjusts width or length based on rotation and direction
+            - Rotated separators: width affects x-direction, length affects y-direction
+            - Non-rotated separators: length affects x-direction, width affects y-direction
+            - Centers the separator by adjusting datum by half the dimension change
+        
+        The component setters are triggered after adjustments to recalculate
+        dependent properties.
         """
         target_overhang = target_overhang * MM_TO_M
         current_overhang = getattr(self, f"_{component}_overhang_{direction}")
@@ -256,11 +462,42 @@ class OverhangMixin:
 
     @property
     def overhang_control_mode(self) -> OverhangControlMode:
-        """Get the current overhang control mode."""
+        """Get the current overhang control mode.
+        
+        Returns
+        -------
+        OverhangControlMode
+            Current control mode (FIXED_COMPONENT or FIXED_OVERHANGS)
+        
+        See Also
+        --------
+        overhang_control_mode.setter : Set the control mode
+        """
         return self._overhang_control_mode
 
     @overhang_control_mode.setter
-    def overhang_control_mode(self, mode: OverhangControlMode):
+    def overhang_control_mode(self, mode: OverhangControlMode) -> None:
+        """Set the overhang control mode.
+        
+        Parameters
+        ----------
+        mode : OverhangControlMode or str
+            Control mode to set. Can be an OverhangControlMode enum value
+            or a string matching one of the enum values ('fixed_component' or 'fixed_overhangs').
+            String matching is case-insensitive and spaces are replaced with underscores.
+        
+        Notes
+        -----
+        This setter accepts both enum values and string representations for convenience:
+        - OverhangControlMode.FIXED_COMPONENT or "fixed_component" or "Fixed Component"
+        - OverhangControlMode.FIXED_OVERHANGS or "fixed_overhangs" or "Fixed Overhangs"
+        
+        Examples
+        --------
+        >>> layup.overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
+        >>> layup.overhang_control_mode = "fixed_component"
+        >>> layup.overhang_control_mode = "Fixed Component"  # Also works
+        """
 
         if isinstance(mode, OverhangControlMode):
             self._overhang_control_mode = mode
