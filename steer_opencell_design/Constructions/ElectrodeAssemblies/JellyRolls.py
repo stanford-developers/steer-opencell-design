@@ -1840,6 +1840,7 @@ class WoundJellyRoll(_JellyRoll):
             mandrel: RoundMandrel,
             tape: Tape = None,
             additional_tape_wraps: float = 0,
+            collector_tab_crumple_factor: float = 80.0,
             name: str = "Wound Jelly Roll"
         ) -> None:
         """Initialize wound jelly roll electrode assembly.
@@ -1863,6 +1864,7 @@ class WoundJellyRoll(_JellyRoll):
             mandrel=mandrel,
             tape=tape,
             additional_tape_wraps=additional_tape_wraps,
+            collector_tab_crumple_factor=collector_tab_crumple_factor,
             name=name
         )
 
@@ -2533,6 +2535,7 @@ class FlatWoundJellyRoll(_JellyRoll):
             mandrel: FlatMandrel,
             tape: Tape = None,
             additional_tape_wraps: float = 0,
+            collector_tab_crumple_factor: float = 80.0,
             name: str = "Flat Wound Jelly Roll"
         ) -> None:
         """Initialize flat wound jelly roll electrode assembly.
@@ -2557,6 +2560,7 @@ class FlatWoundJellyRoll(_JellyRoll):
             mandrel=mandrel,
             tape=tape,
             additional_tape_wraps=additional_tape_wraps,
+            collector_tab_crumple_factor=collector_tab_crumple_factor,
             name=name
         )
 

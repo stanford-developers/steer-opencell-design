@@ -189,16 +189,22 @@ class TestCylindricalCell(unittest.TestCase):
             encapsulation=encapsulation,
             electrolyte=electrolyte,
             electrolyte_overfill=0.2,
-            operating_voltage_window=(2.5, 4.1),
         )
+        
+        # Store components for tests
+        self.jellyroll = my_jellyroll
+        self.cathode_connector = cathode_connector
+        self.anode_connector = anode_connector
+        self.lid = lid
+        self.cannister = cannister
 
     def test_basics(self):
         self.assertIsInstance(self.cell, CylindricalCell)
-        self.assertEqual(self.cell.energy, 0.123)
-        self.assertEqual(self.cell.mass, 845.29)
-        self.assertEqual(self.cell.specific_energy, 0.146)
-        self.assertEqual(self.cell.volumetric_energy, 0.267)
-        self.assertEqual(self.cell.cost_per_energy, 58.37)
+        self.assertEqual(self.cell.energy, 124.09)
+        self.assertEqual(self.cell.mass, 908.47)
+        self.assertEqual(self.cell.specific_energy, 136.59)
+        self.assertEqual(self.cell.volumetric_energy, 268.69)
+        self.assertEqual(self.cell.cost_per_energy, 64.29)
     
     def test_plots(self):
 
@@ -206,18 +212,270 @@ class TestCylindricalCell(unittest.TestCase):
         fig2 = self.cell.plot_cost_breakdown()
         fig3 = self.cell.get_capacity_plot()
         fig4 = self.cell.get_top_down_view()
+        fig5 = self.cell.get_cross_section()
 
         self.assertIsNotNone(fig1)
         self.assertIsNotNone(fig2)
         self.assertIsNotNone(fig3)
         self.assertIsNotNone(fig4)
+        self.assertIsNotNone(fig5)
 
         # fig1.show()
         # fig2.show()
         # fig3.show()
         # fig4.show()
+        # fig5.show()
+
+    def test_operating_voltage_window_setter(self):
+        """Test setting operating voltage window updates both min and max voltages."""
+        original_window = self.cell.operating_voltage_window
+        
+        # Set new voltage window
+        new_window = (2.6, 3.7)
+        self.cell.operating_voltage_window = new_window
+        
+        # Check both values updated
+        self.assertAlmostEqual(self.cell.minimum_operating_voltage, 2.6, 2)
+        self.assertAlmostEqual(self.cell.maximum_operating_voltage, 3.7, 2)
+        self.assertEqual(self.cell.operating_voltage_window, new_window)
+        
+        # Check that properties recalculated
+        self.assertIsNotNone(self.cell.capacity_curve)
+        self.assertIsNotNone(self.cell.reversible_capacity)
+
+        fig1 = self.cell.get_capacity_plot()
+        fig1.show()
+        
+    def test_minimum_operating_voltage_setter(self):
+        """Test setting minimum operating voltage within valid range."""
+        original_min = self.cell.minimum_operating_voltage
+        
+        # Set to a valid value within range
+        new_min = original_min + 0.1
+        self.cell.minimum_operating_voltage = new_min
+        
+        self.assertAlmostEqual(self.cell.minimum_operating_voltage, new_min, 2)
+        
+        # Check that capacity curve updated
+        discharge_curve = self.cell.capacity_curve.query("direction == 'discharge'")
+        min_voltage_in_curve = discharge_curve["Voltage (V)"].min()
+        self.assertAlmostEqual(min_voltage_in_curve, new_min, 1)
+        
+    def test_maximum_operating_voltage_setter(self):
+        """Test setting maximum operating voltage within valid range."""
+        original_max = self.cell.maximum_operating_voltage
+        
+        # Set to a valid value within range
+        new_max = original_max - 0.1
+        self.cell.maximum_operating_voltage = new_max
+        
+        self.assertAlmostEqual(self.cell.maximum_operating_voltage, new_max, 2)
+        
+        # Check that energy properties updated
+        self.assertIsNotNone(self.cell.energy)
+        self.assertIsNotNone(self.cell.specific_energy)
+        
+    def test_minimum_operating_voltage_clamping(self):
+        """Test that minimum voltage is clamped to valid range."""
+        min_range, max_range = self.cell.minimum_operating_voltage_range
+        
+        # Try setting below minimum - should clamp to minimum
+        self.cell.minimum_operating_voltage = min_range - 1.0
+        self.assertAlmostEqual(self.cell.minimum_operating_voltage, min_range, 2)
+        
+        # Try setting above maximum - should clamp to maximum
+        self.cell.minimum_operating_voltage = max_range + 1.0
+        self.assertAlmostEqual(self.cell.minimum_operating_voltage, max_range, 2)
+        
+    def test_maximum_operating_voltage_clamping(self):
+        """Test that maximum voltage is clamped to valid range."""
+        min_range, max_range = self.cell.maximum_operating_voltage_range
+        
+        # Try setting below minimum - should clamp to minimum
+        self.cell.maximum_operating_voltage = min_range - 1.0
+        self.assertAlmostEqual(self.cell.maximum_operating_voltage, min_range, 2)
+        
+        # Try setting above maximum - should clamp to maximum
+        self.cell.maximum_operating_voltage = max_range + 1.0
+        self.assertAlmostEqual(self.cell.maximum_operating_voltage, max_range, 2)
+        
+    def test_reference_electrode_assembly_setter(self):
+        """Test setting reference electrode assembly triggers recalculation."""
+        # Create a new jellyroll with different properties
+        new_jellyroll = deepcopy(self.jellyroll)
+        new_jellyroll._layup._cathode._coating_thickness = 150  # Thicker coating
+        new_jellyroll._calculate_all_properties()
+        
+        original_energy = self.cell.energy
+        original_capacity = self.cell.reversible_capacity
+        
+        # Set new assembly
+        self.cell.reference_electrode_assembly = new_jellyroll
+        
+        # Check that cell properties changed
+        self.assertIsNotNone(self.cell.energy)
+        self.assertIsNotNone(self.cell.reversible_capacity)
+        
+        # Verify the assembly was updated
+        self.assertEqual(self.cell.reference_electrode_assembly, new_jellyroll)
+        
+    def test_encapsulation_setter(self):
+        """Test setting encapsulation triggers recalculation."""
+        # Create new encapsulation with different dimensions
+        new_cannister = deepcopy(self.cannister)
+        new_cannister._length = 72  # Longer cannister
+        
+        new_encapsulation = CylindricalEncapsulation(
+            cathode_terminal_connector=self.cathode_connector,
+            anode_terminal_connector=self.anode_connector,
+            lid_assembly=self.lid,
+            cannister=new_cannister
+        )
+        
+        original_mass = self.cell.mass
+        
+        # Set new encapsulation
+        self.cell.encapsulation = new_encapsulation
+        
+        # Check that mass changed (different cannister mass)
+        self.assertIsNotNone(self.cell.mass)
+        
+        # Verify encapsulation was updated
+        self.assertEqual(self.cell.encapsulation, new_encapsulation)
+        
+    def test_encapsulation_setter_validation(self):
+        """Test encapsulation setter validates assembly fit."""
+        # Create encapsulation that's too small
+        small_cannister = deepcopy(self.cannister)
+        small_cannister._inner_diameter = 10  # Much too small
+        
+        small_encapsulation = CylindricalEncapsulation(
+            cathode_terminal_connector=self.cathode_connector,
+            anode_terminal_connector=self.anode_connector,
+            lid_assembly=self.lid,
+            cannister=small_cannister
+        )
+        
+        # Should warn but still set
+        with self.assertWarns(UserWarning):
+            self.cell.encapsulation = small_encapsulation
+            
+    def test_reference_electrode_assembly_setter_validation(self):
+        """Test reference assembly setter validates encapsulation fit."""
+        # Create jellyroll that's too large
+        large_jellyroll = deepcopy(self.jellyroll)
+        large_jellyroll._pressed_radius = 50  # Much too large
+        large_jellyroll._calculate_all_properties()
+        
+        # Should warn but still set
+        with self.assertWarns(UserWarning):
+            self.cell.reference_electrode_assembly = large_jellyroll
+        
+    def test_n_electrode_assembly_setter(self):
+        """Test setting number of electrode assemblies scales capacity."""
+        original_n = self.cell.n_electrode_assembly
+        original_capacity = self.cell.reversible_capacity
+        
+        # Double the number of assemblies
+        new_n = 2
+        self.cell.n_electrode_assembly = new_n
+        
+        # Check capacity approximately doubled
+        new_capacity = self.cell.reversible_capacity
+        self.assertAlmostEqual(new_capacity / original_capacity, 2.0, 1)
+        
+        # Check mass increased
+        self.assertIsNotNone(self.cell.mass)
+        
+    def test_electrolyte_setter(self):
+        """Test setting electrolyte updates cell properties."""
+        # Create new electrolyte with different properties
+        new_electrolyte = Electrolyte(
+            name="New Electrolyte",
+            specific_cost=25,  # More expensive
+            density=1.3,
+            color="#00FFFF"
+        )
+        
+        original_cost = self.cell.cost
+        
+        # Set new electrolyte
+        self.cell.electrolyte = new_electrolyte
+        
+        # Check that cost changed
+        new_cost = self.cell.cost
+        self.assertNotEqual(new_cost, original_cost)
+        
+        # Verify electrolyte was updated
+        self.assertEqual(self.cell.electrolyte, new_electrolyte)
+        
+    def test_electrolyte_overfill_setter(self):
+        """Test setting electrolyte overfill updates electrolyte mass."""
+        original_overfill = self.cell.electrolyte_overfill
+        original_mass = self.cell.mass
+        
+        # Increase overfill
+        new_overfill = 0.5  # 50% overfill instead of 20%
+        self.cell.electrolyte_overfill = new_overfill
+        
+        # Check that mass increased (more electrolyte)
+        new_mass = self.cell.mass
+        self.assertGreater(new_mass, original_mass)
+        
+        # Verify overfill was updated
+        self.assertEqual(self.cell.electrolyte_overfill, new_overfill)
+        
+    def test_name_setter(self):
+        """Test setting cell name."""
+        new_name = "Test Cell 2024"
+        self.cell.name = new_name
+        
+        self.assertEqual(self.cell.name, new_name)
+        
+    def test_setter_chain_consistency(self):
+        """Test that multiple setter calls maintain consistency."""
+        # Change multiple properties
+        self.cell.operating_voltage_window = (2.8, 3.9)
+        self.cell.electrolyte_overfill = 0.3
+        self.cell.name = "Modified Cell"
+        
+        # Verify all properties are consistent
+        self.assertEqual(self.cell.operating_voltage_window, (2.8, 3.9))
+        self.assertEqual(self.cell.electrolyte_overfill, 0.3)
+        self.assertEqual(self.cell.name, "Modified Cell")
+        
+        # Verify calculated properties are still valid
+        self.assertIsNotNone(self.cell.energy)
+        self.assertIsNotNone(self.cell.mass)
+        self.assertIsNotNone(self.cell.cost)
+        self.assertGreater(self.cell.reversible_capacity, 0)
+        
+    def test_setter_type_validation(self):
+        """Test that setters validate input types."""
+        # Test invalid type for reference_electrode_assembly
+        with self.assertRaises((TypeError, AttributeError)):
+            self.cell.reference_electrode_assembly = "not a jellyroll"
+            
+        # Test invalid type for encapsulation
+        with self.assertRaises((TypeError, AttributeError)):
+            self.cell.encapsulation = 123
+            
+        # Test invalid type for electrolyte
+        with self.assertRaises((TypeError, AttributeError)):
+            self.cell.electrolyte = []
+            
+    def test_voltage_setter_with_none_values(self):
+        """Test voltage setters handle None values correctly."""
+        # Set to None should use default behavior
+        self.cell.minimum_operating_voltage = None
+        self.assertIsNotNone(self.cell.minimum_operating_voltage)
+        
+        self.cell.maximum_operating_voltage = None
+        self.assertIsNotNone(self.cell.maximum_operating_voltage)
 
 
+if __name__ == "__main__":
+    unittest.main()
 
 
 

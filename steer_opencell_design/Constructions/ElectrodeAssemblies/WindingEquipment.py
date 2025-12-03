@@ -1,3 +1,4 @@
+from copy import deepcopy
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Serializer import SerializerMixin
@@ -166,7 +167,7 @@ class _Mandrel(
 
         else:
             self.validate_type(value, CurrentCollectorMaterial, "material")
-            self._material = value
+            self._material = deepcopy(value)
 
     @property
     def length(self) -> float:

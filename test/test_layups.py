@@ -614,7 +614,7 @@ class TestSimpleLaminate(unittest.TestCase):
         
         # Uncomment to visualize flipped layup
         # fig_top.show()
-        fig_capacity.show()
+        # fig_capacity.show()
         # fig_bottom.show()
 
     def test_flip_component_states_synchronized(self):

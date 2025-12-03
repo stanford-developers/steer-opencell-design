@@ -1,3 +1,4 @@
+from copy import deepcopy
 from steer_opencell_design.Components.Containers.Base import _Container
 from steer_opencell_design.Materials.Other import PrismaticContainerMaterial
 from steer_core.Constants.Units import *
@@ -340,7 +341,7 @@ class _CylindricalComponent(
     @calculate_bulk_properties
     def material(self, material: PrismaticContainerMaterial) -> None:
         self.validate_type(material, PrismaticContainerMaterial, "Material")
-        self._material = material
+        self._material = deepcopy(material)
 
     @radius.setter
     def radius(self, radius: float) -> None:
@@ -803,13 +804,13 @@ class CylindricalCannister(
         
     def _get_top_down_cross_section_coordinates(self):
         """Calculate the top-down view coordinates for the can."""
-        x_outer, z_outer = self.build_circle_array(self._datum[0], self._datum[1], self._outer_radius)
+        x_outer, z_outer = self.build_circle_array(self._datum[0], self._datum[2], self._outer_radius)
         x_outer = np.append(x_outer, x_outer[-1])
         x_outer = np.append(x_outer[0], x_outer)
         z_outer = np.append(z_outer, z_outer[-1])
         z_outer = np.append(z_outer[0], z_outer)
 
-        x_inner, z_inner = self.build_circle_array(self._datum[0], self._datum[1], self._inner_radius, anticlockwise=False)
+        x_inner, z_inner = self.build_circle_array(self._datum[0], self._datum[2], self._inner_radius, anticlockwise=False)
         x_inner = np.append(x_inner[0], x_inner)
         x_inner = np.append(x_inner, x_inner[-1])
         z_inner = np.append(z_inner[0], z_inner)
@@ -986,7 +987,7 @@ class CylindricalCannister(
     @calculate_bulk_properties
     def material(self, material: PrismaticContainerMaterial) -> None:
         self.validate_type(material, PrismaticContainerMaterial, "Material")
-        self._material = material
+        self._material = deepcopy(material)
 
     @outer_radius.setter
     @calculate_all_properties

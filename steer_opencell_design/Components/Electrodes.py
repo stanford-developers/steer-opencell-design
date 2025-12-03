@@ -1182,7 +1182,7 @@ class _Electrode(
         if self._current_collector.insulation_area == 0 and insulation_material is not None:
             raise ValueError("Insulation material cannot be provided if the current collector does not have an insulation area")
 
-        self._insulation_material = insulation_material
+        self._insulation_material = deepcopy(insulation_material)
 
     @insulation_thickness.setter
     @calculate_volumes
