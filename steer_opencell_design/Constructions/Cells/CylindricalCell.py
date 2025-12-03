@@ -1,14 +1,17 @@
-from steer_opencell_design.Constructions.Cells.Base import _Cell
 from steer_opencell_design.Components.Containers.Cylindrical import CylindricalEncapsulation
 from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import WoundJellyRoll
-
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
+from steer_opencell_design.Constructions.Cells.Base import _Cell
 
 from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Constants.Units import *
 
+from typing import Tuple
 import warnings
 import plotly.graph_objects as go
+
+# Tab alignment tolerance constant
+TAB_ALIGNMENT_TOLERANCE = 5e-6  # 5 micron tolerance for tab-terminal alignment (meters)
 
 
 class CylindricalCell(_Cell):
@@ -18,33 +21,29 @@ class CylindricalCell(_Cell):
         reference_electrode_assembly: WoundJellyRoll,
         encapsulation: CylindricalEncapsulation,
         electrolyte: Electrolyte,
-        operating_voltage_window: tuple[float, float],
+        operating_voltage_window: Tuple[float, float] = (None, None),
         electrolyte_overfill: float = 0.2,
         name: str = "Cylindrical Cell",
         n_electrode_assembly: int = 1,
     ):
-        """Create a cylindrical cell composed of a wound jelly roll and canister.
+        """Create a cylindrical cell with wound jelly roll electrode assembly.
 
         Parameters
         ----------
         reference_electrode_assembly : WoundJellyRoll
-            Fully defined jelly-roll electrode assembly that serves as the
-            electrochemical stack for the cell.
+            Electrochemical stack defining cell capacity and voltage behavior
         encapsulation : CylindricalEncapsulation
-            Mechanical enclosure (cannister, lid, terminals) that houses the
-            jelly roll and defines external geometry.
+            Mechanical housing (canister, lid, terminals) defining external geometry
         electrolyte : Electrolyte
-            Bulk electrolyte model providing density, cost, and chemistry data.
-        electrolyte_overfill : float
-            Fractional overfill (0-1) applied to the calculated void volume to
-            determine required electrolyte mass.
-        operating_voltage_window : tuple[float, float]
-            Operating voltage window for the cell (typically in volts).
+            Bulk electrolyte material with density and cost properties
+        operating_voltage_window : Tuple[float, float]
+            Operating voltage window (min_voltage, max_voltage) in volts
+        electrolyte_overfill : float, optional
+            Fractional overfill beyond pore volume (default: 0.2 = 20%)
         name : str, optional
-            Human-readable identifier for the cell, defaults to "Cylindrical Cell".
+            Display name for the cell (default: "Cylindrical Cell")
         n_electrode_assembly : int, optional
-            Number of identical jelly-roll assemblies contained in the cell,
-            defaults to one.
+            Number of parallel electrode assemblies (default: 1)
         """
         
         super().__init__(
@@ -60,12 +59,13 @@ class CylindricalCell(_Cell):
         self._update_properties = True
         self._calculate_all_properties()
 
-    def _calculate_all_properties(self):
+    def _calculate_all_properties(self) -> None:
+        """Calculate all cell properties and position encapsulation."""
         super()._calculate_all_properties()
         self._position_encapsulation()
 
     def _position_encapsulation(self) -> None:
-
+        """Align encapsulation vertically to match jelly roll mid-point."""
         jelly_roll_mid_y_point = self._reference_electrode_assembly._mid_y_point
         encapsulation_mid_y_point = self._encapsulation._mid_y_point
 
@@ -77,41 +77,168 @@ class CylindricalCell(_Cell):
             self._encapsulation._datum[2] * M_TO_MM,
         )
 
-    def _check_assembly_dimensions(self, assembly) -> None:
+    def _get_cathode_tab_y_position(self, assembly: WoundJellyRoll) -> float:
+        """Extract cathode current collector tab Y position from assembly.
+        
+        Parameters
+        ----------
+        assembly : WoundJellyRoll
+            Electrode assembly to extract position from
+            
+        Returns
+        -------
+        float
+            Maximum Y coordinate of cathode current collector body (meters)
+        """
+        return assembly._layup._cathode._current_collector._body_coordinates[:, 1].max()
 
-        if assembly._total_height > self._encapsulation._internal_height:
+    def _get_anode_tab_y_position(self, assembly: WoundJellyRoll) -> float:
+        """Extract anode current collector tab Y position from assembly.
+        
+        Parameters
+        ----------
+        assembly : WoundJellyRoll
+            Electrode assembly to extract position from
+            
+        Returns
+        -------
+        float
+            Minimum Y coordinate of anode current collector body (meters)
+        """
+        return assembly._layup._anode._current_collector._body_coordinates[:, 1].min()
+
+    def _get_cathode_terminal_y_position(self, encapsulation: CylindricalEncapsulation) -> float:
+        """Extract cathode terminal connector Y position from encapsulation.
+        
+        Parameters
+        ----------
+        encapsulation : CylindricalEncapsulation
+            Encapsulation to extract position from
+            
+        Returns
+        -------
+        float
+            Minimum Y coordinate of cathode terminal connector (meters)
+        """
+        return encapsulation._cathode_terminal_connector._coordinates[:, 1].min()
+
+    def _get_anode_terminal_y_position(self, encapsulation: CylindricalEncapsulation) -> float:
+        """Extract anode terminal connector Y position from encapsulation.
+        
+        Parameters
+        ----------
+        encapsulation : CylindricalEncapsulation
+            Encapsulation to extract position from
+            
+        Returns
+        -------
+        float
+            Maximum Y coordinate of anode terminal connector (meters)
+        """
+        return encapsulation._anode_terminal_connector._coordinates[:, 1].max()
+
+    def _is_within_tolerance(self, value1: float, value2: float, tolerance: float) -> bool:
+        """Check if two values are within tolerance of each other.
+        
+        Parameters
+        ----------
+        value1 : float
+            First value to compare
+        value2 : float
+            Second value to compare
+        tolerance : float
+            Maximum allowed difference
+            
+        Returns
+        -------
+        bool
+            True if values are within tolerance
+        """
+        return abs(value1 - value2) <= tolerance
+
+    def _validate_assembly_encapsulation_fit(
+        self, 
+        assembly: WoundJellyRoll, 
+        encapsulation: CylindricalEncapsulation
+    ) -> None:
+        """Validate that assembly fits within encapsulation and tabs align with terminals.
+        
+        Parameters
+        ----------
+        assembly : WoundJellyRoll
+            Electrode assembly to validate
+        encapsulation : CylindricalEncapsulation
+            Encapsulation to validate against
+        """
+        # Height validation
+        if assembly._total_height > encapsulation._internal_height:
             warnings.warn(
-                f"The height of the provided electrode assembly ({assembly.total_height} mm) "
-                f"exceeds the internal height of the encapsulation ({self._encapsulation.internal_height} mm). "
-                "Please ensure compatibility between components."
+                f"Assembly height ({assembly.total_height} mm) exceeds "
+                f"encapsulation internal height ({encapsulation.internal_height} mm). "
+                "Please ensure compatibility."
             )
 
-        if assembly._radius > self._encapsulation._cannister._inner_radius:
+        # Radius validation
+        if assembly._radius > encapsulation._cannister._inner_radius:
             warnings.warn(
-                f"The radius of the provided electrode assembly ({assembly.radius} mm) "
-                f"exceeds the internal radius of the encapsulation ({self._encapsulation._cannister.inner_radius} mm). "
-                "Please ensure compatibility between components."
+                f"Assembly radius ({assembly.radius} mm) exceeds "
+                f"encapsulation internal radius ({encapsulation._cannister.inner_radius} mm). "
+                "Please ensure compatibility."
             )
 
-    def _check_encapsulation_dimensions(self, encapsulation) -> None:
-
-        jellyroll = self._reference_electrode_assembly
-
-        if jellyroll._total_height > encapsulation._internal_height:
+        # Cathode tab alignment validation
+        cathode_cc_max_y = self._get_cathode_tab_y_position(assembly)
+        cathode_terminal_min_y = self._get_cathode_terminal_y_position(encapsulation)
+        
+        if not self._is_within_tolerance(cathode_cc_max_y, cathode_terminal_min_y, TAB_ALIGNMENT_TOLERANCE):
             warnings.warn(
-                f"The height of the provided electrode assembly ({jellyroll.total_height} mm) "
-                f"exceeds the internal height of the encapsulation ({encapsulation.internal_height} mm). "
-                "Please ensure compatibility between components."
+                f"Cathode tab position ({cathode_cc_max_y * MM_TO_M:.6f} m) "
+                f"not aligned with terminal ({cathode_terminal_min_y * MM_TO_M:.6f} m)."
+            )
+        
+        # Anode tab alignment validation
+        anode_cc_min_y = self._get_anode_tab_y_position(assembly)
+        anode_terminal_max_y = self._get_anode_terminal_y_position(encapsulation)
+        
+        if not self._is_within_tolerance(anode_cc_min_y, anode_terminal_max_y, TAB_ALIGNMENT_TOLERANCE):
+            warnings.warn(
+                f"Anode tab position ({anode_cc_min_y * MM_TO_M:.6f} m) "
+                f"not aligned with terminal ({anode_terminal_max_y * MM_TO_M:.6f} m)."
             )
 
-        if jellyroll._radius > encapsulation._cannister._inner_radius:
-            warnings.warn(
-                f"The radius of the provided electrode assembly ({jellyroll.radius} mm) "
-                f"exceeds the internal radius of the encapsulation ({encapsulation._cannister.inner_radius} mm). "
-                "Please ensure compatibility between components."
-            )
+    def _check_assembly_dimensions(self, assembly: WoundJellyRoll) -> None:
+        """Validate assembly dimensions against current encapsulation.
+        
+        Parameters
+        ----------
+        assembly : WoundJellyRoll
+            Assembly to validate
+        """
+        self._validate_assembly_encapsulation_fit(assembly, self._encapsulation)
 
-    def get_top_down_view(self, **kwargs) -> None:
+    def _check_encapsulation_dimensions(self, encapsulation: CylindricalEncapsulation) -> None:
+        """Validate encapsulation dimensions against current assembly.
+        
+        Parameters
+        ----------
+        encapsulation : CylindricalEncapsulation
+            Encapsulation to validate
+        """
+        self._validate_assembly_encapsulation_fit(self._reference_electrode_assembly, encapsulation)
+
+    def get_top_down_view(self, **kwargs) -> go.Figure:
+        """Generate top down view plot showing encapsulation and jelly roll cross-section.
+        
+        Parameters
+        ----------
+        **kwargs
+            Additional layout options (paper_bgcolor, plot_bgcolor, title, etc.)
+            
+        Returns
+        -------
+        go.Figure
+            Plotly figure with combined encapsulation and jelly roll traces
+        """
         encapsulation_plot = self._encapsulation.plot_side_view()
         jellyroll_plot = self._reference_electrode_assembly.get_top_down_view()
         encapsulation_traces = encapsulation_plot['data']
@@ -125,12 +252,30 @@ class CylindricalCell(_Cell):
             yaxis=self.SCHEMATIC_Y_AXIS,
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            title=kwargs.get("title", f"{self.name} Side View"),
             **kwargs,
         )
 
         return figure
+    
+    def get_cross_section(self, **kwargs) -> go.Figure:
 
+        spiral_plot = self._reference_electrode_assembly.get_spiral_plot()
+        spiral_traces = spiral_plot['data']
+        encapsulation_trace = self._encapsulation._cannister.top_down_cross_section_trace
+        traces = spiral_traces + (encapsulation_trace,)
+
+        figure = go.Figure(data=traces)
+
+        figure.update_layout(
+            xaxis=self.SCHEMATIC_X_AXIS,
+            yaxis=self.SCHEMATIC_Y_AXIS,
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            **kwargs,
+        )
+
+        return figure
+        
     @property
     def reference_electrode_assembly(self) -> WoundJellyRoll:
         return self._reference_electrode_assembly
@@ -141,33 +286,33 @@ class CylindricalCell(_Cell):
     
     @reference_electrode_assembly.setter
     @calculate_all_properties
-    def reference_electrode_assembly(self, value: WoundJellyRoll):
-
-        # validate type
+    def reference_electrode_assembly(self, value: WoundJellyRoll) -> None:
+        """Set reference electrode assembly with validation.
+        
+        Parameters
+        ----------
+        value : WoundJellyRoll
+            New electrode assembly to set
+        """
         self.validate_type(value, WoundJellyRoll, "reference_electrode_assembly")
-
-        # check dimensions
         if hasattr(self, "_encapsulation"):
-            self._check_assembly_dimensions(value)
-
-        # set value
+            self._validate_assembly_encapsulation_fit(value, self._encapsulation)
         self._reference_electrode_assembly = value
-
-        # recalculate voltage limits
         self._calculate_voltage_limits()
     
     @encapsulation.setter
     @calculate_all_properties
-    def encapsulation(self, value: CylindricalEncapsulation):
-
-        # validate input type
+    def encapsulation(self, value: CylindricalEncapsulation) -> None:
+        """Set encapsulation with validation.
+        
+        Parameters
+        ----------
+        value : CylindricalEncapsulation
+            New encapsulation to set
+        """
         self.validate_type(value, CylindricalEncapsulation, "encapsulation")
-
-        # check dimensions
         if hasattr(self, "_reference_electrode_assembly"):
-            self._check_encapsulation_dimensions(value)
-
-        # set value
+            self._validate_assembly_encapsulation_fit(self._reference_electrode_assembly, value)
         self._encapsulation = value
 
 

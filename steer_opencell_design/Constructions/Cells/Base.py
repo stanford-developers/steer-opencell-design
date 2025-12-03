@@ -32,15 +32,16 @@ CAPACITY_GUIDE_EXTENSION = 1.1
 
 # Precision constants for different property types
 MASS_PRECISION = 2
-ENERGY_PRECISION = 3
+ENERGY_PRECISION = 2
 CAPACITY_PRECISION = 2
 VOLTAGE_PRECISION = 2
 CURVE_PRECISION = 4
+COST_PRECISION = 2
 
 # Unit conversion factors
-ENERGY_CONVERSION_FACTOR = W_TO_KW * S_TO_H
-VOLUMETRIC_ENERGY_CONVERSION = W_TO_KW * S_TO_H / M_TO_DM**3
-
+ENERGY_CONVERSION_FACTOR = S_TO_H
+VOLUMETRIC_ENERGY_CONVERSION = S_TO_H / M_TO_DM**3
+NORMALISED_COST_CONVERSION = 1 / (ENERGY_CONVERSION_FACTOR * W_TO_KW)
 
 class _Cell(
     ABC,
@@ -60,7 +61,7 @@ class _Cell(
         n_electrode_assembly: int,
         electrolyte: Electrolyte,
         electrolyte_overfill: float,
-        operating_voltage_window: tuple[float, float],
+        operating_voltage_window: Tuple[float, float] = (None, None),
         name: str = "Cell",
     ):
         self._update_properties = False
@@ -122,11 +123,8 @@ class _Cell(
         # calculate the lower voltage limit
         _lower_voltage_minimum = _areal_discharge_curve[:, 1].min()
 
-        # calculate the voltage range
-        _upper_voltage = _areal_discharge_curve[:, 1].max()
-        _voltage_range = _upper_voltage - _lower_voltage_minimum
-
-        # set the minimum operating voltage range (bottom quartile)
+        # calculate the voltage range and top limit (bottom quartile)
+        _voltage_range = _areal_discharge_curve[:, 1].max() - _lower_voltage_minimum
         _lower_voltage_top_limit = _lower_voltage_minimum + _voltage_range * MINIMUM_VOLTAGE_RANGE_FRACTION
 
         # set the minimum operating voltage range
@@ -142,13 +140,15 @@ class _Cell(
         layup = deepcopy(self._reference_electrode_assembly._layup)
 
         # modify the cathode formulation voltage to have its maximum voltage
-        layup._cathode._formulation.voltage_cutoff = layup._cathode._formulation.voltage_cutoff_range[1]
+        _formulation_max_voltage = max(layup._cathode._formulation.voltage_cutoff_range)
+        layup._cathode._formulation.voltage_cutoff = _formulation_max_voltage
         layup._cathode.formulation = layup._cathode._formulation
         layup.cathode = layup._cathode
         _upper_voltage_max = layup._areal_capacity_curve[:, 1].max()
 
         # modify the cathode formulation voltage to have its minimum voltage
-        layup._cathode._formulation.voltage_cutoff = layup._cathode._formulation.voltage_cutoff_range[0]
+        _formulation_min_voltage = min(layup._cathode._formulation.voltage_cutoff_range)
+        layup._cathode._formulation.voltage_cutoff = _formulation_min_voltage
         layup._cathode.formulation = layup._cathode._formulation
         layup.cathode = layup._cathode
         _upper_voltage_min = layup._areal_capacity_curve[:, 1].max()
@@ -186,6 +186,9 @@ class _Cell(
         # Add end point for spline interpolation
         charge_curve = np.vstack((charge_curve, charge_curve[-1, :]))
         combined_curve = np.vstack((charge_curve, discharge_curve))
+
+        # round curves
+        combined_curve = np.round(combined_curve, CURVE_PRECISION)
         
         # Create DataFrame with all columns at once (more efficient)
         return pd.DataFrame({
@@ -193,7 +196,7 @@ class _Cell(
             "Voltage (V)": combined_curve[:, 1],
             "Direction": combined_curve[:, 2],
             "direction": np.where(combined_curve[:, 2] == 1, "charge", "discharge")
-        }).round(CURVE_PRECISION)
+        })
     
     def _create_vertical_guide_trace(self, x_value: float, label: str, color: str) -> go.Scatter:
         """Create a vertical guide line at specified x-value.
@@ -263,7 +266,7 @@ class _Cell(
     def _calculate_capacity_curve(self) -> np.ndarray:
         
         # get the full cell curve from the reference electrode assembly and scale it by the number of assemblies
-        _capacity_curve = self._reference_electrode_assembly._capacity_curve
+        _capacity_curve = self._reference_electrode_assembly._capacity_curve.copy()
         _capacity_curve[:, 0] = _capacity_curve[:, 0] * self._n_electrode_assembly
         
         # cut the discharge curve off at the self._minimum_operating_voltage
@@ -274,21 +277,34 @@ class _Cell(
         _min_op_voltage = self._minimum_operating_voltage
 
         # find the indices surrounding the min operating voltage
-        above_idx = np.where(_discharge_curve[:, 1] >= _min_op_voltage)[0][-1]
-        below_idx = np.where(_discharge_curve[:, 1] <= _min_op_voltage)[0][0]
+        above_indices = np.where(_discharge_curve[:, 1] >= _min_op_voltage)[0]
+        below_indices = np.where(_discharge_curve[:, 1] <= _min_op_voltage)[0]
+        
+        # Check if min voltage is exactly on an existing point
+        exact_match = np.where(np.isclose(_discharge_curve[:, 1], _min_op_voltage))[0]
+        
+        if len(exact_match) > 0:
+            # Min voltage is exactly on a point, truncate at that point
+            cutoff_idx = exact_match[0]
+            _discharge_curve = _discharge_curve[:cutoff_idx + 1]
+        elif len(above_indices) > 0 and len(below_indices) > 0:
+            # Need to interpolate between two points
+            above_idx = above_indices[-1]
+            below_idx = below_indices[0]
+            
+            # linear interpolation to find the capacity at min operating voltage
+            v1, c1 = _discharge_curve[above_idx, 1], _discharge_curve[above_idx, 0]
+            v2, c2 = _discharge_curve[below_idx, 1], _discharge_curve[below_idx, 0]
 
-        # linear interpolation to find the capacity at min operating voltage
-        v1, c1 = _discharge_curve[above_idx, 1], _discharge_curve[above_idx, 0]
-        v2, c2 = _discharge_curve[below_idx, 1], _discharge_curve[below_idx, 0]
+            slope = (c2 - c1) / (v2 - v1)
+            c_min_op = c1 + slope * (_min_op_voltage - v1)
 
-        slope = (c2 - c1) / (v2 - v1)
-        c_min_op = c1 + slope * (_min_op_voltage - v1)
+            # create new point
+            new_point = np.array([[c_min_op, _min_op_voltage, -1]])
 
-        # create new point
-        new_point = np.array([[c_min_op, _min_op_voltage, -1]])
-
-        # insert the new point into the discharge curve
-        _discharge_curve = np.vstack((_discharge_curve[:below_idx], new_point))
+            # insert the new point into the discharge curve (keep points up to and including below_idx)
+            _discharge_curve = np.vstack((_discharge_curve[:below_idx + 1], new_point))
+        # else: min voltage is outside the discharge curve range, keep full discharge curve
 
         # recombine the charge and discharge curves
         _capacity_curve = np.vstack((_charge_curve, _discharge_curve))
@@ -496,6 +512,7 @@ class _Cell(
             xaxis={**self.SCATTER_X_AXIS, "title": "Capacity (Ah)"},
             yaxis={**self.SCATTER_Y_AXIS, "title": "Voltage (V)"},
             hovermode="closest",
+            **kwargs
         )
 
         return fig
@@ -523,8 +540,43 @@ class _Cell(
         return fig
 
     # ------------------------------------------------------------------
-    # Properties with validation-backed setters
+    # Properties
     # ------------------------------------------------------------------
+
+    @property
+    def reference_electrode_assembly(self) -> _ElectrodeAssembly:
+        return self._reference_electrode_assembly
+
+    @property
+    def encapsulation(self) -> _Container:
+        return self._encapsulation
+
+    @property
+    def n_electrode_assembly(self) -> int:
+        return self._n_electrode_assembly
+
+    @property
+    def electrolyte(self) -> Electrolyte:
+        return self._electrolyte
+
+    @property
+    def electrolyte_overfill(self) -> float:
+        return self._electrolyte_overfill
+
+    @property
+    def name(self) -> str:
+        """Cell name."""
+        return self._name
+    
+    @property
+    def electrode_assemblies(self) -> list[_ElectrodeAssembly]:
+        """List of electrode assemblies in the cell."""
+        return self._electrode_assemblies
+    
+    @property
+    def cost(self) -> float:
+        """Cell cost in dollars."""
+        return round(self._cost, COST_PRECISION)
 
     @property
     def mass(self) -> float:
@@ -549,40 +601,7 @@ class _Cell(
     @property
     def cost_per_energy(self) -> float:
         """Cell cost per energy in $/kWh."""
-        return round(self._cost_per_energy / ENERGY_CONVERSION_FACTOR, MASS_PRECISION)
-
-    @property
-    def integrated_capacity_area_trace(self) -> go.Scatter:
-
-        color = "#ff8c00"
-
-        curve = self.capacity_curve.query("direction == 'discharge'")
-
-        return go.Scatter(
-            x=curve["Capacity (Ah)"],
-            y=curve["Voltage (V)"],
-            mode="lines",
-            name=f"Integrated Capacity",
-            line=dict(color=color, width=1),
-            fillcolor='rgba(255, 140, 0, 0.2)',
-            fill='tozeroy',
-        )
-
-    @property
-    def maximum_operating_voltage_range(self) -> Tuple[float, float]:
-        """Maximum operating voltage range in volts."""
-        return (
-            round(self._maximum_operating_voltage_range[0], VOLTAGE_PRECISION),
-            round(self._maximum_operating_voltage_range[1], VOLTAGE_PRECISION),
-        )
-    
-    @property
-    def minimum_operating_voltage_range(self) -> Tuple[float, float]:
-        """Minimum operating voltage range in volts."""
-        return (
-            round(self._minimum_operating_voltage_range[0], VOLTAGE_PRECISION),
-            round(self._minimum_operating_voltage_range[1], VOLTAGE_PRECISION),
-        )
+        return round(self._cost_per_energy * NORMALISED_COST_CONVERSION, MASS_PRECISION)
 
     @property
     def cost_breakdown(self) -> Dict[str, Any]:
@@ -619,6 +638,45 @@ class _Cell(
         return _convert_and_round_recursive(self._mass_breakdown)
 
     @property
+    def operating_voltage_window(self) -> Tuple[float, float]:
+        """Operating voltage window (min, max) in volts."""
+        return (
+            round(self._operating_voltage_window[0], VOLTAGE_PRECISION),
+            round(self._operating_voltage_window[1], VOLTAGE_PRECISION),
+        )
+    
+    @property
+    def maximum_operating_voltage(self) -> float:
+        """Maximum operating voltage in volts."""
+        return round(self._operating_voltage_window[1], VOLTAGE_PRECISION)
+    
+    @property
+    def minimum_operating_voltage(self) -> float:
+        """Minimum operating voltage in volts."""
+        return round(self._operating_voltage_window[0], VOLTAGE_PRECISION)
+
+    @property
+    def maximum_operating_voltage_range(self) -> Tuple[float, float]:
+        """Maximum operating voltage range in volts."""
+        return (
+            round(self._maximum_operating_voltage_range[0], VOLTAGE_PRECISION),
+            round(self._maximum_operating_voltage_range[1], VOLTAGE_PRECISION),
+        )
+    
+    @property
+    def minimum_operating_voltage_range(self) -> Tuple[float, float]:
+        """Minimum operating voltage range in volts."""
+        return (
+            round(self._minimum_operating_voltage_range[0], VOLTAGE_PRECISION),
+            round(self._minimum_operating_voltage_range[1], VOLTAGE_PRECISION),
+        )
+
+    @property
+    def reversible_capacity(self) -> float:
+        """Reversible capacity in Ah."""
+        return round(self._reversible_capacity * S_TO_H, CAPACITY_PRECISION)
+
+    @property
     def irreversible_capacity(self) -> float:
         """Irreversible capacity in Ah."""
         return round(self._irreversible_capacity * S_TO_H, CAPACITY_PRECISION)
@@ -633,6 +691,28 @@ class _Cell(
             DataFrame with columns: Capacity (Ah), Voltage (V), Direction, direction
         """
         return self._format_curve_for_display(self._capacity_curve)
+
+    @property
+    def anode_capacity_curve(self) -> pd.DataFrame:
+        """Anode half-cell capacity curve as DataFrame.
+        
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with columns: Capacity (Ah), Voltage (V), Direction, direction
+        """
+        return self._format_curve_for_display(self._anode_capacity_curve)
+
+    @property
+    def cathode_capacity_curve(self) -> pd.DataFrame:
+        """Cathode half-cell capacity curve as DataFrame.
+        
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame with columns: Capacity (Ah), Voltage (V), Direction, direction
+        """
+        return self._format_curve_for_display(self._cathode_capacity_curve)
     
     @property
     def capacity_curve_trace(self) -> go.Scatter:
@@ -648,17 +728,6 @@ class _Cell(
             customdata=self.capacity_curve["Direction"],
             hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
-
-    @property
-    def anode_capacity_curve(self) -> pd.DataFrame:
-        """Anode half-cell capacity curve as DataFrame.
-        
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame with columns: Capacity (Ah), Voltage (V), Direction, direction
-        """
-        return self._format_curve_for_display(self._anode_capacity_curve)
     
     @property
     def anode_capacity_curve_trace(self) -> go.Scatter:
@@ -672,17 +741,6 @@ class _Cell(
             customdata=self.anode_capacity_curve["Direction"],
             hovertemplate="<b>Anode</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
-
-    @property
-    def cathode_capacity_curve(self) -> pd.DataFrame:
-        """Cathode half-cell capacity curve as DataFrame.
-        
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame with columns: Capacity (Ah), Voltage (V), Direction, direction
-        """
-        return self._format_curve_for_display(self._cathode_capacity_curve)
     
     @property
     def cathode_capacity_curve_trace(self) -> go.Scatter:
@@ -695,6 +753,23 @@ class _Cell(
             line=dict(color=self._reference_electrode_assembly._layup._cathode.formulation.color, width=2, shape='spline'),
             customdata=self.cathode_capacity_curve["Direction"],
             hovertemplate="<b>Cathode</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
+        )
+
+    @property
+    def integrated_capacity_area_trace(self) -> go.Scatter:
+
+        color = "#ff8c00"
+
+        curve = self.capacity_curve.query("direction == 'discharge'")
+
+        return go.Scatter(
+            x=curve["Capacity (Ah)"],
+            y=curve["Voltage (V)"],
+            mode="lines",
+            name=f"Integrated Capacity",
+            line=dict(color=color, width=1),
+            fillcolor='rgba(255, 140, 0, 0.2)',
+            fill='tozeroy',
         )
 
     @property
@@ -733,123 +808,9 @@ class _Cell(
             "#ff7f0e"
         )
 
-    @property
-    def reference_electrode_assembly(self) -> _ElectrodeAssembly:
-        return self._reference_electrode_assembly
-
-    @property
-    def encapsulation(self) -> _Container:
-        return self._encapsulation
-
-    @property
-    def n_electrode_assembly(self) -> int:
-        return self._n_electrode_assembly
-
-    @property
-    def electrolyte(self) -> Electrolyte:
-        return self._electrolyte
-
-    @property
-    def electrolyte_overfill(self) -> float:
-        return self._electrolyte_overfill
-
-    @property
-    def reversible_capacity(self) -> float:
-        """Reversible capacity in Ah."""
-        return round(self._reversible_capacity * S_TO_H, CAPACITY_PRECISION)
-
-    @property
-    def name(self) -> str:
-        """Cell name."""
-        return self._name
-    
-    @property
-    def electrode_assemblies(self) -> list[_ElectrodeAssembly]:
-        """List of electrode assemblies in the cell."""
-        return self._electrode_assemblies
-    
-    @property
-    def operating_voltage_window(self) -> Tuple[float, float]:
-        """Operating voltage window (min, max) in volts."""
-        return (
-            round(self._operating_voltage_window[0], VOLTAGE_PRECISION),
-            round(self._operating_voltage_window[1], VOLTAGE_PRECISION),
-        )
-    
-    @property
-    def maximum_operating_voltage(self) -> float:
-        """Maximum operating voltage in volts."""
-        return round(self._operating_voltage_window[1], VOLTAGE_PRECISION)
-    
-    @property
-    def minimum_operating_voltage(self) -> float:
-        """Minimum operating voltage in volts."""
-        return round(self._operating_voltage_window[0], VOLTAGE_PRECISION)
-
     # ------------------------------------------------------------------
     # Setters
     # ------------------------------------------------------------------
-
-    @operating_voltage_window.setter
-    @calculate_electrochemical_properties
-    def operating_voltage_window(self, value: Tuple[float, float]) -> None:
-        """Set operating voltage window (min, max) in volts."""
-
-        self.validate_positive_float(value[0], "operating_voltage_window[0]")
-        self.validate_positive_float(value[1], "operating_voltage_window[1]")
-
-        old_update_state = self._update_properties
-        self._update_properties = False
-        self.minimum_operating_voltage = value[0]
-        self.maximum_operating_voltage = value[1]
-        self._operating_voltage_window = (self._minimum_operating_voltage, self._maximum_operating_voltage)
-        self._update_properties = old_update_state
-
-    @minimum_operating_voltage.setter
-    @calculate_electrochemical_properties
-    def minimum_operating_voltage(self, value: float) -> None:
-        
-        # validate positive float
-        self.validate_positive_float(value, "minimum_operating_voltage")
-        
-        # if below minimum value set to minimum
-        if value < self._minimum_operating_voltage_range[0]:
-            self._minimum_operating_voltage = self._minimum_operating_voltage_range[0]
-        # elif above maximum value set to maximum
-        elif value > self._minimum_operating_voltage_range[1]:
-            self._minimum_operating_voltage = self._minimum_operating_voltage_range[1]
-        # else set to value
-        else:
-            self._minimum_operating_voltage = value
-
-        if self._update_properties:
-            self._operating_voltage_window = (
-                self._minimum_operating_voltage,
-                self._maximum_operating_voltage,
-            )
-
-    @maximum_operating_voltage.setter
-    @calculate_electrochemical_properties
-    def maximum_operating_voltage(self, value: float) -> None:
-        
-        # validate positive float
-        self.validate_positive_float(value, "maximum_operating_voltage")
-        
-        # if below minimum value set to minimum
-        if value < self._maximum_operating_voltage_range[0]:
-            self._maximum_operating_voltage = self._maximum_operating_voltage_range[0]
-        # elif above maximum value set to maximum
-        elif value > self._maximum_operating_voltage_range[1]:
-            self._maximum_operating_voltage = self._maximum_operating_voltage_range[1]
-        # else set to value
-        else:
-            self._maximum_operating_voltage = value
-
-        if self._update_properties:
-            self._operating_voltage_window = (
-                self._minimum_operating_voltage,
-                self._maximum_operating_voltage,
-            )
 
     @reference_electrode_assembly.setter
     @calculate_all_properties
@@ -886,6 +847,71 @@ class _Cell(
     def name(self, value: str) -> None:
         self.validate_string(value, "name")
         self._name = value
+
+    @operating_voltage_window.setter
+    @calculate_electrochemical_properties
+    def operating_voltage_window(self, value: Tuple[float, float]) -> None:
+        """Set operating voltage window (min, max) in volts."""
+        old_update_state = self._update_properties
+        self._update_properties = False
+        self.minimum_operating_voltage = value[0]
+        self.maximum_operating_voltage = value[1]
+        self._operating_voltage_window = (self._minimum_operating_voltage, self._maximum_operating_voltage)
+        self._update_properties = old_update_state
+
+    @minimum_operating_voltage.setter
+    @calculate_electrochemical_properties
+    def minimum_operating_voltage(self, value: float) -> None:
+
+        range_min = min(self._minimum_operating_voltage_range)
+        range_max = max(self._minimum_operating_voltage_range)
+        
+        if value is None:
+            value = range_min
+
+        # validate positive float
+        self.validate_positive_float(value, "minimum_operating_voltage")
+        
+        # clamp to operating voltage range
+        if value < range_min:
+            self._minimum_operating_voltage = range_min
+        elif value > range_max:
+            self._minimum_operating_voltage = range_max
+        else:
+            self._minimum_operating_voltage = value
+
+        if self._update_properties:
+            self._operating_voltage_window = (
+                self._minimum_operating_voltage,
+                self._maximum_operating_voltage,
+            )
+
+    @maximum_operating_voltage.setter
+    @calculate_electrochemical_properties
+    def maximum_operating_voltage(self, value: float) -> None:
+
+        range_min = min(self._maximum_operating_voltage_range)
+        range_max = max(self._maximum_operating_voltage_range)
+        
+        if value is None:
+            value = range_max
+
+        # validate positive float
+        self.validate_positive_float(value, "maximum_operating_voltage")
+        
+        # clamp to operating voltage range
+        if value < range_min:
+            self._maximum_operating_voltage = range_min
+        elif value > range_max:
+            self._maximum_operating_voltage = range_max
+        else:
+            self._maximum_operating_voltage = value
+
+        if self._update_properties:
+            self._operating_voltage_window = (
+                self._minimum_operating_voltage,
+                self._maximum_operating_voltage,
+            )
 
 
 

@@ -1,5 +1,6 @@
 # Standard library imports
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from typing import Tuple, Optional, Iterable, Union
 
 # Third-party imports
@@ -980,7 +981,7 @@ class _CurrentCollector(
     @calculate_bulk_properties
     def material(self, material: CurrentCollectorMaterial) -> None:
         self.validate_type(material, CurrentCollectorMaterial, "material")
-        self._material = material
+        self._material = deepcopy(material)
         self._calculate_fill_patterns()
 
     @datum_x.setter

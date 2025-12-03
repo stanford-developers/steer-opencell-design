@@ -341,7 +341,7 @@ class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin):
     @calculate_all_properties
     def material(self, material: CurrentCollectorMaterial) -> None:
         self.validate_type(material, CurrentCollectorMaterial, "material")
-        self._material = material
+        self._material = deepcopy(material)
 
     @width.setter
     @calculate_all_properties
