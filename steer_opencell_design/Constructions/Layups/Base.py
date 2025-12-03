@@ -42,6 +42,7 @@ THICKNESS_FALLBACK = 0.0  # Return value when thickness cannot be determined
 # Electrochemical calculation constants
 MINIMUM_VOLTAGE_RANGE_FRACTION = 0.25
 VOLTAGE_PRECISION = 2
+AREAL_CAPACITY_PRECISION = 3
 
 
 class NPRatioControlMode(Enum):
@@ -127,6 +128,7 @@ class _Layup(
         self._calculate_upper_voltage_limit_range()
         self._calculate_lower_voltage_limit_range()
         self._operating_voltage_window = (min(self._minimum_operating_voltage_range), max(self._maximum_operating_voltage_range))
+        self._operating_reversible_areal_capacity = max(self._maximum_areal_reversible_capacity_range)
 
     def _calculate_lower_voltage_limit_range(self) -> None:
         """Calculate the minimum operating voltage range from discharge curve.
@@ -156,7 +158,7 @@ class _Layup(
         # Get voltage cutoff range bounds using numpy operations (faster than min/max)
         _voltage_cutoff_range = self._cathode._formulation._voltage_operation_window
         _formulation_min_voltage, _formulation_max_voltage = min(_voltage_cutoff_range), max(_voltage_cutoff_range)
-        
+
         # get the upper voltage max
         _layup = deepcopy(self)
         _layup._cathode._formulation.voltage_cutoff = _formulation_max_voltage
@@ -165,7 +167,10 @@ class _Layup(
             _layup._cathode._areal_capacity_curve,
             _layup._anode._areal_capacity_curve,
         )
+        _discharge_mask = _areal_curve[:, 2] == -1
+        _discharge_curve = _areal_curve[_discharge_mask]
         _upper_voltage_max = _areal_curve[:, 1].max()
+        _upper_areal_reversible_capacity_max = _discharge_curve[:, 0].max() - _discharge_curve[:, 0].min()
 
         # get the lower voltage min
         _layup._cathode._formulation.voltage_cutoff = _formulation_min_voltage
@@ -174,10 +179,16 @@ class _Layup(
             _layup._cathode._areal_capacity_curve,
             _layup._anode._areal_capacity_curve,
         )
+        _discharge_mask = _areal_curve[:, 2] == -1
+        _discharge_curve = _areal_curve[_discharge_mask]
         _upper_voltage_min = _areal_curve[:, 1].max()
+        _upper_areal_reversible_capacity_min = _discharge_curve[:, 0].max() - _discharge_curve[:, 0].min()
 
         # Set the maximum and minimum operating voltage ranges
         self._maximum_operating_voltage_range = (_upper_voltage_min, _upper_voltage_max)
+        self._maximum_areal_reversible_capacity_range = (_upper_areal_reversible_capacity_min, _upper_areal_reversible_capacity_max)
+
+        return self._maximum_operating_voltage_range, self._maximum_areal_reversible_capacity_range
     
     def _set_z_positions(self):
 
@@ -506,6 +517,21 @@ class _Layup(
             round(self._maximum_operating_voltage_range[0], VOLTAGE_PRECISION),
             round(self._maximum_operating_voltage_range[1], VOLTAGE_PRECISION),
         )
+    
+    @property
+    def maximum_areal_reversible_capacity_range(self) -> Tuple[float, float]:
+        """Maximum areal capacity range in mAh/cm²."""
+        capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
+        return (
+            round(self._maximum_areal_reversible_capacity_range[0] * capacity_conversion, AREAL_CAPACITY_PRECISION),
+            round(self._maximum_areal_reversible_capacity_range[1] * capacity_conversion, AREAL_CAPACITY_PRECISION),
+        )
+    
+    @property
+    def operating_reversible_areal_capacity(self) -> float:
+        """Operating reversible areal capacity in mAh/cm²."""
+        capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
+        return round(self._operating_reversible_areal_capacity * capacity_conversion, AREAL_CAPACITY_PRECISION)
     
     @property
     def minimum_operating_voltage_range(self) -> Tuple[float, float]:
@@ -946,6 +972,86 @@ class _Layup(
         # Find optimal cutoff using Brent's method
         optimal_cathode_cutoff = brentq(
             voltage_objective,
+            min(self._cathode._formulation._voltage_operation_window),
+            max(self._cathode._formulation._voltage_operation_window),
+            xtol=1e-5,
+            rtol=1e-5,
+        )
+
+        # set the cathode formulation voltage cutoff
+        self._cathode._formulation.voltage_cutoff = optimal_cathode_cutoff
+        self._cathode.formulation = self._cathode._formulation
+        self._cathode = self._cathode
+
+
+    @operating_reversible_areal_capacity.setter
+    @calculate_electrochemical_properties
+    def operating_reversible_areal_capacity(self, value: float) -> None:
+
+        # get the minimum and maximum of the operating voltage range
+        range_min = min(self._maximum_areal_reversible_capacity_range)
+        range_max = max(self._maximum_areal_reversible_capacity_range)
+        
+        # if value is None, set to max of range
+        if value is None:
+            value = range_max
+
+        # validate positive float
+        self.validate_positive_float(value, "operating_reversible_areal_capacity")
+        
+        # convert value to Ah/m²
+        capacity_conversion = M_TO_CM**2 / (S_TO_H * A_TO_mA)
+        value = value * capacity_conversion
+
+        # clamp values to range
+        self._operating_reversible_areal_capacity = np.clip(value, range_min, range_max)
+
+        def areal_capacity_objective(voltage_cutoff: float):
+            """Calculate difference between target and actual maximum voltage.
+        
+            Parameters
+            ----------
+            cutoff : float
+                Cathode formulation voltage cutoff to test.
+                
+            Returns
+            -------
+            float
+                Difference between achieved max voltage and target.
+            """
+            # get the cathode with modified cutoff
+            _cathode = deepcopy(self._cathode)
+            _cathode._formulation.voltage_cutoff = voltage_cutoff
+            _cathode.formulation = _cathode._formulation
+
+            # get the electrode curves
+            _cathode_areal_curve = _cathode._areal_capacity_curve
+            _anode_areal_curve = self._anode._areal_capacity_curve
+
+            # compute the full-cell curve
+            _, full_cell_curve = self._compute_areal_full_cell_curve(
+                _cathode_areal_curve, 
+                _anode_areal_curve
+            )
+
+            # get the discharge portion of the full-cell curve
+            discharge_mask = full_cell_curve[:, 2] == -1
+            discharge_curve = full_cell_curve[discharge_mask]
+
+            # get the max areal capacity of the discharge curve
+            max_capacity = discharge_curve[:, 0].max()
+            min_capacity = discharge_curve[:, 0].min()
+            reversible_capacity = max_capacity - min_capacity
+
+            # calculate the difference
+            difference = reversible_capacity - self._operating_reversible_areal_capacity
+
+            # return the difference from target
+            return difference
+        
+        # Find optimal cutoff using Brent's method
+        optimal_cathode_cutoff = brentq(
+            areal_capacity_objective,
             min(self._cathode._formulation._voltage_operation_window),
             max(self._cathode._formulation._voltage_operation_window),
             xtol=1e-5,

@@ -141,8 +141,14 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertTrue(hasattr(self.layup, "_maximum_operating_voltage_range"))
         self.assertTrue(hasattr(self.layup, "minimum_operating_voltage_range"))
         self.assertTrue(hasattr(self.layup, "maximum_operating_voltage_range"))
+        self.assertTrue(hasattr(self.layup, "operating_reversible_areal_capacity"))
+        self.assertTrue(hasattr(self.layup, "_operating_reversible_areal_capacity"))
+        self.assertTrue(hasattr(self.layup, "maximum_areal_reversible_capacity_range"))
+        self.assertTrue(hasattr(self.layup, "_maximum_areal_reversible_capacity_range"))
         self.assertEqual(self.layup.minimum_operating_voltage_range, (2.27, 2.7))
         self.assertEqual(self.layup.maximum_operating_voltage_range, (3.63, 4.03))
+        self.assertEqual(self.layup.operating_reversible_areal_capacity, 0.842)
+        self.assertEqual(self.layup.maximum_areal_reversible_capacity_range, (0.819, 0.842))
 
     def test_voltage_maximum_setter(self):
 
@@ -164,6 +170,13 @@ class TestSimpleLaminate(unittest.TestCase):
         # figure1.show()
         # figure2.show()
         # figure3.show()
+
+    def test_reversible_capacity_setter(self):
+
+        self.layup.operating_reversible_areal_capacity = 0.83
+        self.assertEqual(self.layup.operating_reversible_areal_capacity, 0.83)
+        figure1 = self.layup.get_areal_capacity_plot()
+        figure1.show()
 
     def test_length_width_setter(self):
 
