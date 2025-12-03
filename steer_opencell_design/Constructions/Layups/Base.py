@@ -1,10 +1,11 @@
 from copy import copy, deepcopy
 from enum import Enum
-from typing import Tuple, TYPE_CHECKING
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+from scipy.optimize import brentq
 
 from steer_core.Constants.Units import *
 from steer_core.Decorators.Coordinates import calculate_volumes, calculate_coordinates
@@ -20,13 +21,12 @@ from steer_core.Mixins.Plotter import PlotterMixin
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
 from steer_opencell_design.Components.Separators import Separator
 from steer_opencell_design.Constructions.Layups.OverhangUtils import OverhangMixin
+from steer_opencell_design.Constructions.Layups.ArealCapacityCurveUtils import ArealCapacityCurveMixin
+from steer_opencell_design.Utils.Decorators import calculate_electrochemical_properties
 
-if TYPE_CHECKING:
-    from steer_opencell_design.Constructions.Layups.Laminate import Laminate
 
 # Module-level constants for overhang ranges and plotting parameters
 PLOT_PADDING_FACTOR = 0.05  # 5% padding for plot bounds
-CAPACITY_INTERPOLATION_POINTS = 100  # Number of points for capacity curve interpolation
 PLOT_FALLBACK_BOUND = 100.0  # Fallback axis bounds in mm
 
 # Separator range extension constants for Laminate validation
@@ -38,6 +38,10 @@ DEFAULT_X_SPACING = 0.004  # Default x-axis sampling spacing in meters (4mm)
 
 # Thickness calculation fallback
 THICKNESS_FALLBACK = 0.0  # Return value when thickness cannot be determined
+
+# Electrochemical calculation constants
+MINIMUM_VOLTAGE_RANGE_FRACTION = 0.25
+VOLTAGE_PRECISION = 2
 
 
 class NPRatioControlMode(Enum):
@@ -54,6 +58,7 @@ class _Layup(
     ColorMixin, 
     DunderMixin,
     PlotterMixin,
+    ArealCapacityCurveMixin,
     OverhangMixin,
 ):
     """
@@ -104,7 +109,8 @@ class _Layup(
     def _calculate_all_properties(self):
         self._calculate_bulk_properties()
         self._calculate_coordinates()
-        self._calculate_areal_capacity_curves()
+        self._calculate_electrochemical_properties()
+        self._calculate_voltage_limits()
 
     def _calculate_bulk_properties(self):
         pass
@@ -113,6 +119,66 @@ class _Layup(
         self._set_z_positions()
         super()._calculate_coordinates()
 
+    def _calculate_electrochemical_properties(self):
+        self._calculate_areal_capacity_curves()
+
+    def _calculate_voltage_limits(self) -> None:
+        """Calculate upper and lower voltage limits for the operating window."""
+        self._calculate_upper_voltage_limit_range()
+        self._calculate_lower_voltage_limit_range()
+        self._operating_voltage_window = (min(self._minimum_operating_voltage_range), max(self._maximum_operating_voltage_range))
+
+    def _calculate_lower_voltage_limit_range(self) -> None:
+        """Calculate the minimum operating voltage range from discharge curve.
+        
+        Sets the minimum voltage range as the bottom quartile of the discharge voltage range,
+        providing a safe operating window above the absolute minimum voltage.
+        """
+        # Extract discharge voltages directly using boolean indexing
+        discharge_mask = self._areal_capacity_curve[:, 2] == -1
+        discharge_voltages = self._areal_capacity_curve[discharge_mask, 1]
+
+        # Calculate min and max in one pass using numpy's aminmax (faster than separate calls)
+        _lower_voltage_minimum, voltage_max = discharge_voltages.min(), discharge_voltages.max()
+
+        # Calculate top limit directly
+        _lower_voltage_top_limit = _lower_voltage_minimum + (voltage_max - _lower_voltage_minimum) * MINIMUM_VOLTAGE_RANGE_FRACTION
+
+        # set the minimum operating voltage range
+        self._minimum_operating_voltage_range = (_lower_voltage_minimum, _lower_voltage_top_limit)
+
+    def _calculate_upper_voltage_limit_range(self) -> None:
+        """Calculate the maximum operating voltage range from cathode voltage cutoff range.
+        
+        Determines the upper voltage bounds by testing the cathode's voltage cutoff range
+        and observing the resulting maximum voltages in the capacity curve.
+        """
+        # Get voltage cutoff range bounds using numpy operations (faster than min/max)
+        _voltage_cutoff_range = self._cathode._formulation._voltage_operation_window
+        _formulation_min_voltage, _formulation_max_voltage = min(_voltage_cutoff_range), max(_voltage_cutoff_range)
+        
+        # get the upper voltage max
+        _layup = deepcopy(self)
+        _layup._cathode._formulation.voltage_cutoff = _formulation_max_voltage
+        _layup._cathode.formulation = _layup._cathode._formulation
+        _, _areal_curve = self._compute_areal_full_cell_curve(
+            _layup._cathode._areal_capacity_curve,
+            _layup._anode._areal_capacity_curve,
+        )
+        _upper_voltage_max = _areal_curve[:, 1].max()
+
+        # get the lower voltage min
+        _layup._cathode._formulation.voltage_cutoff = _formulation_min_voltage
+        _layup._cathode.formulation = _layup._cathode._formulation
+        _, _areal_curve = self._compute_areal_full_cell_curve(
+            _layup._cathode._areal_capacity_curve,
+            _layup._anode._areal_capacity_curve,
+        )
+        _upper_voltage_min = _areal_curve[:, 1].max()
+
+        # Set the maximum and minimum operating voltage ranges
+        self._maximum_operating_voltage_range = (_upper_voltage_min, _upper_voltage_max)
+    
     def _set_z_positions(self):
 
         _bottom_separator_z = self._cathode._current_collector._datum[2] + self._cathode._thickness / 2 + self._bottom_separator._thickness / 2
@@ -137,92 +203,24 @@ class _Layup(
             _top_separator_z * M_TO_MM,
         )
 
-    def _calculate_areal_capacity_curves(self) -> np.ndarray:
+    def _calculate_areal_capacity_curves(self) -> Tuple[float, np.ndarray]:
         """
         Calculate the half-cell curves for the cathode and anode.
 
         Returns
         -------
-        np.ndarray
-            The combined half-cell curve for the full cell.
+        Tuple[float, np.ndarray]
+            A tuple containing the n/p ratio and the combined half-cell curve for the full cell.
         """
-        cathode_areal_capacity_curve = copy(self._cathode._areal_capacity_curve)
-        anode_areal_capacity_curve = copy(self._anode._areal_capacity_curve)
+        # Use views instead of copies for better performance
+        cathode_areal_curve = self._cathode._areal_capacity_curve
+        anode_areal_curve = self._anode._areal_capacity_curve
 
-        max_cap_cathode = max(cathode_areal_capacity_curve[:, 0])
-        max_cap_anode = max(anode_areal_capacity_curve[:, 0])
-        self._np_ratio = max_cap_anode / max_cap_cathode
+        # Call the static helper method to compute the full-cell curve
+        self._np_ratio, self._areal_capacity_curve = self._compute_areal_full_cell_curve(cathode_areal_curve, anode_areal_curve)
 
-        # Split cathode curves by direction (column 2: 0=discharge, 1=charge)
-        cathode_charge = cathode_areal_capacity_curve[cathode_areal_capacity_curve[:, 2] == 1]
-        cathode_discharge = cathode_areal_capacity_curve[cathode_areal_capacity_curve[:, 2] == -1]
-
-        # Split anode curves by direction
-        anode_charge = anode_areal_capacity_curve[anode_areal_capacity_curve[:, 2] == 1]
-        anode_discharge = anode_areal_capacity_curve[anode_areal_capacity_curve[:, 2] == -1]
-
-        # Calculate valid x range (column 0 is areal capacity)
-        # For charge: find overlapping range (intersection)
-        charge_x_min = max(cathode_charge[:, 0].min(), anode_charge[:, 0].min())
-        charge_x_max = min(cathode_charge[:, 0].max(), anode_charge[:, 0].max())
-
-        # For discharge: find overlapping range (intersection)
-        discharge_x_min = max(cathode_discharge[:, 0].min(), anode_discharge[:, 0].min())
-        discharge_x_max = min(cathode_discharge[:, 0].max(), anode_discharge[:, 0].max())
-        # Create interpolation functions for voltage vs areal capacity
-
-        # Sort by areal capacity for interpolation
-        cathode_charge_sorted = cathode_charge[cathode_charge[:, 0].argsort()]
-        cathode_discharge_sorted = cathode_discharge[cathode_discharge[:, 0].argsort()]
-        anode_charge_sorted = anode_charge[anode_charge[:, 0].argsort()]
-        anode_discharge_sorted = anode_discharge[anode_discharge[:, 0].argsort()]
-
-        # Create common x arrays for interpolation
-        n_points = CAPACITY_INTERPOLATION_POINTS  # Number of points for smooth curves
-        charge_x_common = np.linspace(charge_x_min, charge_x_max, n_points)
-        discharge_x_common = np.linspace(discharge_x_min, discharge_x_max, n_points)
-
-        # Interpolate voltages using numpy.interp (voltage = column 1, areal capacity = column 0)
-        cathode_charge_voltage = np.interp(charge_x_common, cathode_charge_sorted[:, 0], cathode_charge_sorted[:, 1])
-        cathode_discharge_voltage = np.interp(
-            discharge_x_common,
-            cathode_discharge_sorted[:, 0],
-            cathode_discharge_sorted[:, 1],
-        )
-        anode_charge_voltage = np.interp(charge_x_common, anode_charge_sorted[:, 0], anode_charge_sorted[:, 1])
-        anode_discharge_voltage = np.interp(
-            discharge_x_common,
-            anode_discharge_sorted[:, 0],
-            anode_discharge_sorted[:, 1],
-        )
-
-        # Calculate full-cell voltages (cathode - anode)
-        charge_voltage_full = cathode_charge_voltage - anode_charge_voltage
-        discharge_voltage_full = cathode_discharge_voltage - anode_discharge_voltage
-
-        # Create full-cell arrays
-        # Charge curve: ascending x order (direction = 1)
-        charge_curve = np.column_stack(
-            [
-                charge_x_common,  # Column 0: areal capacity
-                charge_voltage_full,  # Column 1: voltage
-                np.ones(len(charge_x_common)),  # Column 2: direction (1 = charge)
-            ]
-        )
-
-        # Discharge curve: descending x order (direction = -1)
-        discharge_curve = np.column_stack(
-            [
-                discharge_x_common[::-1],  # Column 0: areal capacity (descending)
-                discharge_voltage_full[::-1],  # Column 1: voltage
-                -np.ones(len(discharge_x_common)),  # Column 2: direction (-1 = discharge)
-            ]
-        )
-
-        # Recombine: charge first (ascending), then discharge (descending)
-        self._areal_capacity_curve = np.vstack([charge_curve, discharge_curve])
-
-        return self._areal_capacity_curve
+        # Return n/p ratio and areal capacity curve
+        return self._np_ratio, self._areal_capacity_curve
 
     def _update_anode_ranges(self, cathode: Cathode):
         """Update anode current collector ranges based on cathode."""
@@ -295,6 +293,31 @@ class _Layup(
             new_anode_current_collector = deepcopy(anode_cc)
             new_anode_current_collector.y_body_length = cathode_cc.y_body_length
             self.anode.current_collector = new_anode_current_collector
+
+    def _flip(self, axis: str) -> None:
+        """
+        Function to rotate the electrode around a specified axis by 180 degrees
+        around the current datum position.
+
+        Parameters
+        ----------
+        axis : str
+            The axis to rotate around. Must be 'x', 'y', or 'z'.
+        """
+        if axis not in ["x", "y", "z"]:
+            raise ValueError("Axis must be 'x', 'y', or 'z'.")
+
+        self._cathode._flip(axis)
+        self._anode._flip(axis)
+        self._bottom_separator._flip(axis)
+        self._top_separator._flip(axis)
+
+        if axis == "x":
+            self._flipped_x = not self._flipped_x
+        if axis == "y":
+            self._flipped_y = not self._flipped_y
+        if axis == "z":
+            self._flipped_z = not self._flipped_z
 
     def get_top_down_view(self, opacity: float = 0.5, **kwargs) -> go.Figure:
 
@@ -476,34 +499,21 @@ class _Layup(
         self._flip("x")
         return figure
 
-    #### ACTIONS ####
-
-    def _flip(self, axis: str) -> None:
-        """
-        Function to rotate the electrode around a specified axis by 180 degrees
-        around the current datum position.
-
-        Parameters
-        ----------
-        axis : str
-            The axis to rotate around. Must be 'x', 'y', or 'z'.
-        """
-        if axis not in ["x", "y", "z"]:
-            raise ValueError("Axis must be 'x', 'y', or 'z'.")
-
-        self._cathode._flip(axis)
-        self._anode._flip(axis)
-        self._bottom_separator._flip(axis)
-        self._top_separator._flip(axis)
-
-        if axis == "x":
-            self._flipped_x = not self._flipped_x
-        if axis == "y":
-            self._flipped_y = not self._flipped_y
-        if axis == "z":
-            self._flipped_z = not self._flipped_z
-
-    #### COMPONENT PROPERTY/SETTERS ####
+    @property
+    def maximum_operating_voltage_range(self) -> Tuple[float, float]:
+        """Maximum operating voltage range in volts."""
+        return (
+            round(self._maximum_operating_voltage_range[0], VOLTAGE_PRECISION),
+            round(self._maximum_operating_voltage_range[1], VOLTAGE_PRECISION),
+        )
+    
+    @property
+    def minimum_operating_voltage_range(self) -> Tuple[float, float]:
+        """Minimum operating voltage range in volts."""
+        return (
+            round(self._minimum_operating_voltage_range[0], VOLTAGE_PRECISION),
+            round(self._minimum_operating_voltage_range[1], VOLTAGE_PRECISION),
+        )
 
     @property
     def datum(self) -> Tuple[float, float, float]:
@@ -547,13 +557,26 @@ class _Layup(
     @property
     def areal_capacity_curve(self) -> pd.DataFrame:
         """Get the areal capacity curve with proper units and formatting."""
+
         # Pre-compute unit conversion factor
         capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
 
+        # split into charge and discharge
+        charge_mask = self._areal_capacity_curve[:, 2] == 1
+        discharge_mask = self._areal_capacity_curve[:, 2] == -1
+        _charge_curve = self._areal_capacity_curve[charge_mask]
+        _discharge_curve = self._areal_capacity_curve[discharge_mask]
+
+        # pad the end of the charge curve to the max capacity of the discharge curve
+        _charge_curve = np.vstack([_charge_curve, _charge_curve[-1, :]])
+        _discharge_curve = np.vstack([_discharge_curve[0, :], _discharge_curve])
+        _curve = np.vstack([_charge_curve, _discharge_curve])
+        _curve = _curve[np.isnan(_curve).sum(axis=1) == 0]
+
         # calculate the columns 
-        areal_capacity = np.round(self._areal_capacity_curve[:, 0] * capacity_conversion, 4)
-        voltage = np.round(self._areal_capacity_curve[:, 1], 4)
-        direction = np.where(self._areal_capacity_curve[:, 2] == 1, "charge", "discharge")
+        areal_capacity = np.round(_curve[:, 0] * capacity_conversion, 4)
+        voltage = np.round(_curve[:, 1], 4)
+        direction = np.where(_curve[:, 2] == 1, "charge", "discharge")
         
         # Create DataFrame with converted values directly
         return pd.DataFrame({
@@ -565,12 +588,14 @@ class _Layup(
     @property
     def areal_capacity_curve_trace(self) -> go.Scatter:
 
+        curve = self.areal_capacity_curve
+
         return go.Scatter(
-            x=self.areal_capacity_curve["Areal Capacity (mAh/cm²)"],
-            y=self.areal_capacity_curve["Voltage (V)"],
+            x=curve["Areal Capacity (mAh/cm²)"],
+            y=curve["Voltage (V)"],
             mode="lines",
             name=f"{self.name} Full-Cell",
-            line=dict(color= "#ff8c00", width=3),  # Slightly thicker for emphasis
+            line=dict(color= "#ff8c00", width=3, shape="spline"),
             customdata=self.areal_capacity_curve["Direction"],
             hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
@@ -590,6 +615,29 @@ class _Layup(
     @property
     def top_separator(self):
         return self._top_separator
+
+    @property
+    def np_ratio_control_mode(self) -> NPRatioControlMode:
+        """Get the current N/P ratio control mode."""
+        return self._np_ratio_control_mode
+    
+    @property
+    def operating_voltage_window(self) -> Tuple[float, float]:
+        """Operating voltage window (min, max) in volts."""
+        return (
+            round(self._operating_voltage_window[0], VOLTAGE_PRECISION),
+            round(self._operating_voltage_window[1], VOLTAGE_PRECISION),
+        )
+    
+    @property
+    def maximum_operating_voltage(self) -> float:
+        """Maximum operating voltage in volts."""
+        return round(self._operating_voltage_window[1], VOLTAGE_PRECISION)
+    
+    @property
+    def minimum_operating_voltage(self) -> float:
+        """Minimum operating voltage in volts."""
+        return round(self._operating_voltage_window[0], VOLTAGE_PRECISION)
 
     @datum.setter
     @calculate_coordinates
@@ -782,14 +830,6 @@ class _Layup(
             self._anode.coating_thickness = new_anode_thickness
             self._cathode.coating_thickness = new_cathode_thickness
 
-
-    #### N/P RATIO CONTROL MODE ####
-
-    @property
-    def np_ratio_control_mode(self) -> NPRatioControlMode:
-        """Get the current N/P ratio control mode."""
-        return self._np_ratio_control_mode
-    
     @np_ratio_control_mode.setter
     def np_ratio_control_mode(self, mode: NPRatioControlMode):
 
@@ -803,5 +843,117 @@ class _Layup(
                     self._np_ratio_control_mode = enum_member
                     return
 
+    @operating_voltage_window.setter
+    @calculate_electrochemical_properties
+    def operating_voltage_window(self, value: Tuple[float, float]) -> None:
+        """Set operating voltage window (min, max) in volts."""
+        old_update_state = self._update_properties
+        self._update_properties = False
+        self.minimum_operating_voltage = value[0]
+        self.maximum_operating_voltage = value[1]
+        self._operating_voltage_window = (self._minimum_operating_voltage, self._maximum_operating_voltage)
+        self._update_properties = old_update_state
 
+    @minimum_operating_voltage.setter
+    @calculate_electrochemical_properties
+    def minimum_operating_voltage(self, value: float) -> None:
+
+        range_min = min(self._minimum_operating_voltage_range)
+        range_max = max(self._minimum_operating_voltage_range)
+        
+        if value is None:
+            value = range_min
+
+        # validate positive float
+        self.validate_positive_float(value, "minimum_operating_voltage")
+        
+        # clamp to operating voltage range
+        if value < range_min:
+            self._minimum_operating_voltage = range_min
+        elif value > range_max:
+            self._minimum_operating_voltage = range_max
+        else:
+            self._minimum_operating_voltage = value
+
+        if self._update_properties:
+            self._operating_voltage_window = (
+                self._minimum_operating_voltage,
+                self._maximum_operating_voltage,
+            )
+
+    @maximum_operating_voltage.setter
+    @calculate_electrochemical_properties
+    def maximum_operating_voltage(self, value: float) -> None:
+
+        # get the minimum and maximum of the operating voltage range
+        range_min = min(self._maximum_operating_voltage_range)
+        range_max = max(self._maximum_operating_voltage_range)
+        
+        # if value is None, set to max of range
+        if value is None:
+            value = range_max
+
+        # validate positive float
+        self.validate_positive_float(value, "maximum_operating_voltage")
+        
+        # clamp values to range
+        self._maximum_operating_voltage = np.clip(value, range_min, range_max)
+
+        if self._update_properties:
+
+            self._operating_voltage_window = (
+                self._minimum_operating_voltage,
+                self._maximum_operating_voltage,
+            )
+
+        def voltage_objective(cutoff: float):
+            """Calculate difference between target and actual maximum voltage.
+        
+            Parameters
+            ----------
+            cutoff : float
+                Cathode formulation voltage cutoff to test.
+                
+            Returns
+            -------
+            float
+                Difference between achieved max voltage and target.
+            """
+            # get the cathode with modified cutoff
+            _cathode = deepcopy(self._cathode)
+            _cathode._formulation.voltage_cutoff = cutoff
+            _cathode.formulation = _cathode._formulation
+
+            # get the electrode curves
+            _cathode_areal_curve = _cathode._areal_capacity_curve
+            _anode_areal_curve = self._anode._areal_capacity_curve
+
+            # compute the full-cell curve
+            _, full_cell_curve = self._compute_areal_full_cell_curve(
+                _cathode_areal_curve, 
+                _anode_areal_curve
+            )
+
+            # get the max voltage of the full-cell curve
+            max_voltage = full_cell_curve[:, 1].max()
+
+            # calculate the difference
+            difference = max_voltage - self._maximum_operating_voltage
+
+            # return the difference from target
+            return difference
+        
+        # Find optimal cutoff using Brent's method
+        optimal_cathode_cutoff = brentq(
+            voltage_objective,
+            min(self._cathode._formulation._voltage_operation_window),
+            max(self._cathode._formulation._voltage_operation_window),
+            xtol=1e-5,
+            rtol=1e-5,
+        )
+
+        # set the cathode formulation voltage cutoff
+        self._cathode._formulation.voltage_cutoff = optimal_cathode_cutoff
+        self._cathode.formulation = self._cathode._formulation
+        self._cathode = self._cathode
 

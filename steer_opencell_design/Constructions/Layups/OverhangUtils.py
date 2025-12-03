@@ -16,6 +16,7 @@ OVERHANG_MIN = 0.0  # Minimum overhang value in mm
 OVERHANG_MAX_DEFAULT = 20.0  # Maximum overhang for non-Laminate classes in mm
 OVERHANG_MAX_LAMINATE = 500.0  # Maximum overhang for Laminate class in mm
 
+
 class OverhangControlMode(Enum):
     """Control modes for overhang adjustments.
     

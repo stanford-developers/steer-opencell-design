@@ -82,6 +82,10 @@ class MonoLayer(_Layup):
         self._calculate_all_properties()
         self._update_properties = True
 
+        # set voltage operating limits
+        self._minimum_operating_voltage = min(self._minimum_operating_voltage_range)
+        self._maximum_operating_voltage = max(self._maximum_operating_voltage_range)
+
     def _calculate_all_properties(self):
 
         self.validate_type(
