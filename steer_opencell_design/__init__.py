@@ -21,7 +21,8 @@ from .Components.Electrodes import Cathode, Anode
 from .Components.Separators import Separator
 
 # import layups
-from .Constructions.Layups.Base import OverhangControlMode, NPRatioControlMode
+from .Constructions.Layups.Base import NPRatioControlMode
+from .Constructions.Layups.OverhangUtils import OverhangControlMode
 from .Constructions.Layups.Laminate import Laminate
 from .Constructions.Layups.MonoLayers import ZFoldMonoLayer, MonoLayer
 
