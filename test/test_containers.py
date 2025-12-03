@@ -908,14 +908,14 @@ class TestCylindricalCannister(unittest.TestCase):
         coords = can.top_down_cross_section_coordinates
         self.assertIsInstance(coords, type(can.top_down_cross_section_coordinates))
         self.assertFalse(coords.empty)
-        self.assertEqual(list(coords.columns), ["x", "y"])
+        self.assertEqual(list(coords.columns), ["x", "z"])
         
         # Should have both outer and inner circles
         x_coords = coords["x"].values
-        y_coords = coords["y"].values
+        z_coords = coords["z"].values
         
         # Calculate radii from center (assuming centered at datum)
-        radii = np.sqrt((x_coords - can.datum[0])**2 + (y_coords - can.datum[1])**2)
+        radii = np.sqrt((x_coords - can.datum[0])**2 + (z_coords - can.datum[1])**2)
         
         # Should have points at both outer and inner radius
         max_radius = np.max(radii)
@@ -1053,10 +1053,10 @@ class TestCylindricalCannister(unittest.TestCase):
         # Coordinates should be offset from origin
         coords = offset_can.top_down_cross_section_coordinates
         x_center = (coords["x"].max() + coords["x"].min()) / 2
-        y_center = (coords["y"].max() + coords["y"].min()) / 2
+        z_center = (coords["z"].max() + coords["z"].min()) / 2
         
         self.assertAlmostEqual(x_center, 10.0, places=1)
-        self.assertAlmostEqual(y_center, 15.0, places=1)
+        self.assertAlmostEqual(z_center, 5.0, places=1)
 
     def test_property_units_consistency(self):
         """Test that all properties return values in correct units"""

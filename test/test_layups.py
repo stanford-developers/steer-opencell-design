@@ -12,7 +12,8 @@ from steer_opencell_design.Components.CurrentCollectors.Tabless import TablessCu
 from steer_opencell_design.Components.CurrentCollectors.Punched import PunchedCurrentCollector
 
 from steer_opencell_design.Components.Separators import Separator
-from steer_opencell_design.Constructions.Layups.Base import OverhangControlMode, NPRatioControlMode
+from steer_opencell_design.Constructions.Layups.Base import NPRatioControlMode
+from steer_opencell_design.Constructions.Layups.OverhangUtils import OverhangControlMode
 from steer_opencell_design.Constructions.Layups.Laminate import Laminate
 from steer_opencell_design.Constructions.Layups.MonoLayers import MonoLayer, ZFoldMonoLayer, ElectrodeOrientation
 from steer_opencell_design.Materials.Other import CurrentCollectorMaterial, InsulationMaterial, SeparatorMaterial

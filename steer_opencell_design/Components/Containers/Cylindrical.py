@@ -895,7 +895,7 @@ class CylindricalCannister(
 
         return pd.DataFrame(
             np.column_stack((x, y)),
-            columns=["x", "y"]
+            columns=["x", "z"]
         )
 
     @property
@@ -906,7 +906,7 @@ class CylindricalCannister(
 
         return go.Scatter(
             x=coordinates["x"],
-            y=coordinates["y"],
+            y=coordinates["z"],
             mode="lines",
             name=self.name,
             line=dict(color="black", width=0.5, shape="spline"),
