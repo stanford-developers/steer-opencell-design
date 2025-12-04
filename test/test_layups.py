@@ -176,7 +176,7 @@ class TestSimpleLaminate(unittest.TestCase):
         self.layup.operating_reversible_areal_capacity = 0.83
         self.assertEqual(self.layup.operating_reversible_areal_capacity, 0.83)
         figure1 = self.layup.get_areal_capacity_plot()
-        figure1.show()
+        # figure1.show()
 
     def test_length_width_setter(self):
 

@@ -214,8 +214,8 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
     def test_breakdown_plots(self):
         plot_cost = self.cathode.plot_cost_breakdown(title="Cost Breakdown Plot")
         plot_mass = self.cathode.plot_mass_breakdown(title="Mass Breakdown Plot")
-        plot_cost.show()
-        plot_mass.show()
+        # plot_cost.show()
+        # plot_mass.show()
 
     def test_half_cell_curve(self):
         self.cathode.voltage_cutoff = 4.0
@@ -542,7 +542,7 @@ class testAnodeTabWelded(unittest.TestCase):
 
     def test_half_cell_curve(self):
         figure1 = self.anode.plot_areal_capacity_curve()
-        figure1.show()
+        # figure1.show()
 
     def test_views(self):
         figure1 = self.anode.get_a_side_view()

@@ -85,6 +85,8 @@ class _Cell(
 
     def _calculate_electrochemical_properties(self) -> None:
         self._calculate_curves()
+        self._calculate_upper_voltage_limit_range()
+        self._calculate_lower_voltage_limit_range()
         self._calculate_reversible_capacity()
         self._calculate_irreversible_capacity()
         self._calculate_energy_properties()
@@ -94,6 +96,14 @@ class _Cell(
         self._calculate_capacity_curve()
         self._calculate_cathode_curve()
         self._calculate_anode_curve()
+
+    def _calculate_upper_voltage_limit_range(self) -> None:
+        self._maximum_operating_voltage_range = self._reference_electrode_assembly._layup._maximum_operating_voltage_range
+        return self._maximum_operating_voltage_range
+    
+    def _calculate_lower_voltage_limit_range(self) -> None:
+        self._minimum_operating_voltage_range = self._reference_electrode_assembly._layup._minimum_operating_voltage_range
+        return self._minimum_operating_voltage_range
 
     def _calculate_electrolyte_properties(self) -> None:
         """Calculate electrolyte volume based on pore volume and overfill."""
@@ -161,9 +171,13 @@ class _Cell(
         go.Scatter
             Plotly scatter trace for the vertical guide line
         """
+        voltage_values = self.capacity_curve["Voltage (V)"]
+        min_voltage = voltage_values.min()
+        max_voltage = voltage_values.max()
+
         y_range = [
-            min(self.operating_voltage_window[0] * VOLTAGE_GUIDE_MARGIN_LOWER, 0),
-            self.operating_voltage_window[1] * VOLTAGE_GUIDE_MARGIN_UPPER
+            min(min_voltage * VOLTAGE_GUIDE_MARGIN_LOWER, 0),
+            max_voltage * VOLTAGE_GUIDE_MARGIN_UPPER
         ]
 
         return go.Scatter(
@@ -193,13 +207,15 @@ class _Cell(
         go.Scatter
             Plotly scatter trace for the horizontal guide line
         """
+        capacity_values = self.capacity_curve["Capacity (Ah)"]
+        max_capacity = capacity_values.max()
+        min_capacity = capacity_values.min()
+
         x_range = [
-            0, 
-            max(
-                self.reversible_capacity * CAPACITY_GUIDE_EXTENSION, 
-                self.irreversible_capacity * CAPACITY_GUIDE_EXTENSION
-            )
+            min_capacity * CAPACITY_GUIDE_EXTENSION, 
+            max_capacity * CAPACITY_GUIDE_EXTENSION
         ]
+
         return go.Scatter(
             x=x_range,
             y=[y_value, y_value],
@@ -249,8 +265,8 @@ class _Cell(
             # create new point
             new_point = np.array([[c_min_op, _min_op_voltage, -1]])
 
-            # insert the new point into the discharge curve (keep points up to and including below_idx)
-            _discharge_curve = np.vstack((_discharge_curve[:below_idx + 1], new_point))
+            # truncate the discharge curve up to above_idx and append the new point
+            _discharge_curve = np.vstack((_discharge_curve[:above_idx + 1], new_point))
         # else: min voltage is outside the discharge curve range, keep full discharge curve
 
         # recombine the charge and discharge curves
@@ -287,60 +303,16 @@ class _Cell(
         return self._anode_capacity_curve
 
     def _calculate_reversible_capacity(self) -> float:
-        """Calculate reversible capacity at maximum voltage.
-        
-        Returns
-        -------
-        float
-            Reversible capacity in C (coulombs)
-        """
-        # get the capacity curve
-        _capacity_curve = self._capacity_curve.copy()
-
-        # order by capacity
-        _capacity_curve = _capacity_curve[np.argsort(_capacity_curve[:, 0])]
-
-        # get the capacity at the maximum voltage
-        v_max = _capacity_curve[:, 1].max()
-        c_at_max_voltage = _capacity_curve[_capacity_curve[:, 1] == v_max][0, 0]
-
-        # assign
-        self._reversible_capacity = c_at_max_voltage
-
-        # return
-        return self._reversible_capacity
+        _discharge_mask = self._capacity_curve[:, 2] == -1
+        _discharge_curve = self._capacity_curve[_discharge_mask]
+        _max_cap = (_discharge_curve[:, 0]).max()
+        _min_cap = (_discharge_curve[:, 0]).min()
+        self._reversible_capacity = _max_cap - _min_cap
 
     def _calculate_irreversible_capacity(self) -> float:
-        """Calculate irreversible capacity at minimum operating voltage.
-        
-        Returns
-        -------
-        float
-            Irreversible capacity in C (coulombs)
-        """
-
-        # get the capacity curve
-        _capacity_curve = self._capacity_curve.copy()
-
-        # get the discharge curve
-        _discharge_curve = _capacity_curve[_capacity_curve[:, 2] == -1]
-
-        # order by capacity
-        _discharge_curve = _discharge_curve[np.argsort(_discharge_curve[:, 0])]
-
-        # linear interpolate to find the capacity at self._minimum_operating_voltage
-        v1_idx = np.where(_discharge_curve[:, 1] <= self._minimum_operating_voltage)[0][0]
-        v2_idx = v1_idx - 1
-        v1, c1 = _discharge_curve[v1_idx, 1], _discharge_curve[v1_idx, 0]
-        v2, c2 = _discharge_curve[v2_idx, 1], _discharge_curve[v2_idx, 0]
-        slope = (c2 - c1) / (v2 - v1)
-        c_at_min_op_voltage = c1 + slope * (self._minimum_operating_voltage - v1)
-
-        # assign
-        self._irreversible_capacity = c_at_min_op_voltage
-
-        # return 
-        return self._irreversible_capacity
+        _discharge_mask = self._capacity_curve[:, 2] == -1
+        _discharge_curve = self._capacity_curve[_discharge_mask]
+        self._irreversible_capacity = _discharge_curve[:, 0].min()
 
     def _calculate_mass_properties(self) -> tuple[float, Dict]:
         
@@ -698,7 +670,7 @@ class _Cell(
     def reversible_capacity_guide_trace(self) -> go.Scatter:
         """Vertical line marking reversible capacity."""
         return self._create_vertical_guide_trace(
-            self.reversible_capacity,
+            self.reversible_capacity + self.irreversible_capacity,
             f"Reversible Cap: {self.reversible_capacity:.2f} Ah",
             "#2ca02c"
         )
@@ -720,6 +692,45 @@ class _Cell(
             f"Max Voltage: {self.maximum_operating_voltage:.2f} V",
             "#ff7f0e"
         )
+
+    @property
+    def operating_voltage_window(self) -> Tuple[float, float]:
+        """Operating voltage window (min, max) in volts."""
+        return (
+            round(self._operating_voltage_window[0], VOLTAGE_PRECISION),
+            round(self._operating_voltage_window[1], VOLTAGE_PRECISION),
+        )
+    
+    @property
+    def maximum_operating_voltage_range(self) -> Tuple[float, float]:
+        """Maximum operating voltage range in volts."""
+        return (
+            round(self._maximum_operating_voltage_range[0], VOLTAGE_PRECISION),
+            round(self._maximum_operating_voltage_range[1], VOLTAGE_PRECISION),
+        )
+    
+    @property
+    def maximum_operating_voltage(self) -> float:
+        """Maximum operating voltage in volts."""
+        return round(self._maximum_operating_voltage, VOLTAGE_PRECISION)
+    
+    @property
+    def minimum_operating_voltage_range(self) -> Tuple[float, float]:
+        """Minimum operating voltage range in volts."""
+        return (
+            round(self._minimum_operating_voltage_range[0], VOLTAGE_PRECISION),
+            round(self._minimum_operating_voltage_range[1], VOLTAGE_PRECISION),
+        )
+    
+    @property
+    def minimum_operating_voltage(self) -> float:
+        """Minimum operating voltage in volts."""
+        return round(self._minimum_operating_voltage, VOLTAGE_PRECISION)
+    
+    @property
+    def reversible_capacity(self) -> float:
+        """Reversible capacity in Ah."""
+        return round(self._reversible_capacity * S_TO_H, CAPACITY_PRECISION)
 
     # ------------------------------------------------------------------
     # Setters
@@ -761,8 +772,61 @@ class _Cell(
         self.validate_string(value, "name")
         self._name = value
 
+    @operating_voltage_window.setter
+    @calculate_electrochemical_properties
+    def operating_voltage_window(self, value: Tuple[float, float]) -> None:
 
+        # Ensure value is a list for mutability
+        value = list(value)
 
+        # Fill in None values with layup limits
+        if value[0] is None:
+            value[0] = min(self._reference_electrode_assembly._layup._minimum_operating_voltage_range)
+        if value[1] is None:
+            value[1] = max(self._reference_electrode_assembly._layup._maximum_operating_voltage_range)
 
+        # clip values
+        if self._update_properties:
+            value[0] = np.clip(value[0], self._minimum_operating_voltage_range[0], self._minimum_operating_voltage_range[1])
+            value[1] = np.clip(value[1], self._maximum_operating_voltage_range[0], self._maximum_operating_voltage_range[1])
 
+        # Validate tuple structure
+        self.validate_positive_float(value[0], "operating_voltage_window minimum")
+        self.validate_positive_float(value[1], "operating_voltage_window maximum")
+
+        # Validate logical consistency
+        if value[0] >= value[1]:
+            raise ValueError("operating_voltage_window minimum must be less than maximum.")
+
+        # set the voltage window to the layup
+        self._reference_electrode_assembly._layup.operating_voltage_window = value
+        self._reference_electrode_assembly._calculate_capacity_curves()
+
+        # assign
+        self._operating_voltage_window = value
+        self._maximum_operating_voltage = max(value)
+        self._minimum_operating_voltage = min(value)
+
+    @maximum_operating_voltage.setter
+    def maximum_operating_voltage(self, value: float) -> None:
+
+        if value is None:
+            value = max(self._reference_electrode_assembly._layup._maximum_operating_voltage_range)
+
+        self.validate_positive_float(value, "maximum_operating_voltage")
+        value = np.clip(value, self._maximum_operating_voltage_range[0], self._maximum_operating_voltage_range[1])
+        self._maximum_operating_voltage = value
+        self.operating_voltage_window = (self._minimum_operating_voltage, value)
+
+    @minimum_operating_voltage.setter
+    @calculate_electrochemical_properties
+    def minimum_operating_voltage(self, value: float) -> None:
+            
+        if value is None:
+            value = min(self._reference_electrode_assembly._layup._minimum_operating_voltage_range)
+
+        self.validate_positive_float(value, "minimum_operating_voltage")
+        value = np.clip(value, self._minimum_operating_voltage_range[0], self._minimum_operating_voltage_range[1])
+        self._minimum_operating_voltage = value
+        self._operating_voltage_window = (value, self._maximum_operating_voltage)
 
