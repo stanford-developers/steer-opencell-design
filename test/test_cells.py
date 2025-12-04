@@ -294,7 +294,7 @@ class TestCylindricalCell(unittest.TestCase):
         self.assertIsNotNone(self.cell.specific_energy)
 
         fig1 = self.cell.get_capacity_plot()
-        fig1.show()
+        # fig1.show()
         
     def test_minimum_operating_voltage_clamping(self):
         """Test that minimum voltage is clamped to valid range."""
@@ -494,6 +494,29 @@ class TestCylindricalCell(unittest.TestCase):
         self.cell.maximum_operating_voltage = None
         self.assertIsNotNone(self.cell.maximum_operating_voltage)
 
+    def test_formulation_setter(self):
+
+        material = CathodeMaterial.from_database("NMC811")
+        material.specific_cost = 25
+        material.density = 4.8
+
+        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+
+        formulation = CathodeFormulation(
+            active_materials={material: 95},
+            binders={binder: 2},
+            conductive_additives={conductive_additive: 3},
+        )
+
+        self.cell._reference_electrode_assembly._layup._cathode.formulation = formulation
+        self.cell._reference_electrode_assembly._layup._cathode.mass_loading = 10
+        self.cell._reference_electrode_assembly._layup.cathode = self.cell._reference_electrode_assembly._layup._cathode
+        self.cell._reference_electrode_assembly.layup = self.cell._reference_electrode_assembly._layup
+        self.cell.reference_electrode_assembly = self.cell._reference_electrode_assembly
+
+        fig1 = self.cell.get_capacity_plot()
+        # fig1.show()
 
 if __name__ == "__main__":
     unittest.main()
