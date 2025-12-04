@@ -40,7 +40,7 @@ DEFAULT_X_SPACING = 0.004  # Default x-axis sampling spacing in meters (4mm)
 THICKNESS_FALLBACK = 0.0  # Return value when thickness cannot be determined
 
 # Electrochemical calculation constants
-MINIMUM_VOLTAGE_RANGE_FRACTION = 0.25
+MINIMUM_VOLTAGE_RANGE_FRACTION = 0.5
 VOLTAGE_PRECISION = 2
 AREAL_CAPACITY_PRECISION = 3
 
@@ -127,7 +127,9 @@ class _Layup(
         """Calculate upper and lower voltage limits for the operating window."""
         self._calculate_upper_voltage_limit_range()
         self._calculate_lower_voltage_limit_range()
-        self._operating_voltage_window = (min(self._minimum_operating_voltage_range), max(self._maximum_operating_voltage_range))
+        self._maximum_operating_voltage = max(self._maximum_operating_voltage_range)
+        self._minimum_operating_voltage = min(self._minimum_operating_voltage_range)
+        self._operating_voltage_window = (self._minimum_operating_voltage, self._maximum_operating_voltage)
         self._operating_reversible_areal_capacity = max(self._maximum_areal_reversible_capacity_range)
 
     def _calculate_lower_voltage_limit_range(self) -> None:

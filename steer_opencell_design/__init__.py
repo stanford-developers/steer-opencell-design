@@ -1,4 +1,4 @@
-__version__ = "0.4.9"
+__version__ = "0.4.10"
 
 # import materials
 from .Materials.ActiveMaterials import CathodeMaterial, AnodeMaterial
@@ -37,4 +37,6 @@ from .Components.Containers.Cylindrical import CylindricalCannister, Cylindrical
 
 # import cells
 from .Constructions.Cells.CylindricalCell import CylindricalCell
+from .Constructions.Cells.PrismaticCell import PrismaticCell
+from .Constructions.Cells.PouchCell import PouchCell
 

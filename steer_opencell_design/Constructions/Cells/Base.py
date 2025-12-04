@@ -84,6 +84,7 @@ class _Cell(
         self._calculate_cost_properties()
 
     def _calculate_electrochemical_properties(self) -> None:
+        self._calculate_operating_voltage_window()
         self._calculate_curves()
         self._calculate_upper_voltage_limit_range()
         self._calculate_lower_voltage_limit_range()
@@ -96,6 +97,11 @@ class _Cell(
         self._calculate_capacity_curve()
         self._calculate_cathode_curve()
         self._calculate_anode_curve()
+
+    def _calculate_operating_voltage_window(self) -> None:
+        self._minimum_operating_voltage = self._reference_electrode_assembly._layup._minimum_operating_voltage
+        self._maximum_operating_voltage = self._reference_electrode_assembly._layup._maximum_operating_voltage
+        self._operating_voltage_window = (self._minimum_operating_voltage, self._maximum_operating_voltage)
 
     def _calculate_upper_voltage_limit_range(self) -> None:
         self._maximum_operating_voltage_range = self._reference_electrode_assembly._layup._maximum_operating_voltage_range
@@ -237,7 +243,7 @@ class _Cell(
         _discharge_curve = _capacity_curve[_capacity_curve[:, 2] == -1]
         
         # add a point in the discharge curve where voltage equals self._minimum_operating_voltage
-        _min_op_voltage = self._minimum_operating_voltage
+        _min_op_voltage = self._reference_electrode_assembly._layup._minimum_operating_voltage
 
         # find the indices surrounding the min operating voltage
         above_indices = np.where(_discharge_curve[:, 1] >= _min_op_voltage)[0]
@@ -247,9 +253,9 @@ class _Cell(
         exact_match = np.where(np.isclose(_discharge_curve[:, 1], _min_op_voltage))[0]
         
         if len(exact_match) > 0:
-            # Min voltage is exactly on a point, truncate at that point
-            cutoff_idx = exact_match[0]
-            _discharge_curve = _discharge_curve[:cutoff_idx + 1]
+            # Min voltage is exactly on a point, truncate points below this index
+            match_idx = exact_match[0]
+            _discharge_curve = _discharge_curve[:match_idx + 1]
         elif len(above_indices) > 0 and len(below_indices) > 0:
             # Need to interpolate between two points
             above_idx = above_indices[-1]
@@ -815,6 +821,10 @@ class _Cell(
 
         self.validate_positive_float(value, "maximum_operating_voltage")
         value = np.clip(value, self._maximum_operating_voltage_range[0], self._maximum_operating_voltage_range[1])
+
+        self._reference_electrode_assembly._layup.maximum_operating_voltage = value
+        self._reference_electrode_assembly._calculate_capacity_curves()
+
         self._maximum_operating_voltage = value
         self.operating_voltage_window = (self._minimum_operating_voltage, value)
 
@@ -827,6 +837,10 @@ class _Cell(
 
         self.validate_positive_float(value, "minimum_operating_voltage")
         value = np.clip(value, self._minimum_operating_voltage_range[0], self._minimum_operating_voltage_range[1])
+
+        self._reference_electrode_assembly._layup.minimum_operating_voltage = value
+        self._reference_electrode_assembly._calculate_capacity_curves()
+
         self._minimum_operating_voltage = value
         self._operating_voltage_window = (value, self._maximum_operating_voltage)
 

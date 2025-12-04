@@ -112,7 +112,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             mandrel: Union[FlatMandrel, RoundMandrel],
             tape: Tape = None,
             additional_tape_wraps: float = 0,
-            collector_tab_crumple_factor: float = 80,
+            collector_tab_crumple_factor: float = 50,
             name: str = "Jelly Roll"
         ) -> None:
         """Initialize jelly roll electrode assembly.
@@ -2237,8 +2237,8 @@ class WoundJellyRoll(_JellyRoll):
         if 'tape' in self._component_top_down_coordinates:
             coords = self._component_top_down_coordinates['tape']
             tape_trace = go.Scatter(
-                x=coords[:, 0],
-                y=coords[:, 1],
+                x=coords[:, 0] * M_TO_MM,
+                y=coords[:, 1] * M_TO_MM,
                 mode='lines',
                 fill='toself',
                 fillcolor=self._tape._material._color,
@@ -2252,8 +2252,8 @@ class WoundJellyRoll(_JellyRoll):
         if cathode_is_tab_welded and 'cathode_tab' in self._component_top_down_coordinates:
             coords = self._component_top_down_coordinates['cathode_tab']
             tab_trace = go.Scatter(
-                x=coords[:, 0],
-                y=coords[:, 1],
+                x=coords[:, 0] * M_TO_MM,
+                y=coords[:, 1] * M_TO_MM,
                 mode='lines',
                 fill='toself',
                 fillcolor=self._layup._cathode._current_collector._weld_tab._material._color,
@@ -2267,8 +2267,8 @@ class WoundJellyRoll(_JellyRoll):
         if anode_is_tab_welded and 'anode_tab' in self._component_top_down_coordinates:
             coords = self._component_top_down_coordinates['anode_tab']
             tab_trace = go.Scatter(
-                x=coords[:, 0],
-                y=coords[:, 1],
+                x=coords[:, 0] * M_TO_MM,
+                y=coords[:, 1] * M_TO_MM,
                 mode='lines',
                 fill='toself',
                 fillcolor=self._layup._anode._current_collector._weld_tab._material._color,

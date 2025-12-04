@@ -11,7 +11,7 @@ import warnings
 import plotly.graph_objects as go
 
 # Tab alignment tolerance constant
-TAB_ALIGNMENT_TOLERANCE = 5e-6  # 5 micron tolerance for tab-terminal alignment (meters)
+TAB_ALIGNMENT_TOLERANCE = 1e-3  # 1 mm tolerance for tab-terminal alignment (meters)
 
 
 class CylindricalCell(_Cell):
@@ -24,7 +24,6 @@ class CylindricalCell(_Cell):
         operating_voltage_window: Tuple[float, float] = (None, None),
         electrolyte_overfill: float = 0.2,
         name: str = "Cylindrical Cell",
-        n_electrode_assembly: int = 1,
     ):
         """Create a cylindrical cell with wound jelly roll electrode assembly.
 
@@ -49,7 +48,7 @@ class CylindricalCell(_Cell):
         super().__init__(
             reference_electrode_assembly=reference_electrode_assembly,
             encapsulation=encapsulation,
-            n_electrode_assembly=n_electrode_assembly,
+            n_electrode_assembly=1,
             electrolyte=electrolyte,
             electrolyte_overfill=electrolyte_overfill,
             operating_voltage_window=operating_voltage_window,
@@ -63,7 +62,8 @@ class CylindricalCell(_Cell):
         """Calculate all cell properties and position encapsulation."""
         super()._calculate_all_properties()
         self._position_encapsulation()
-
+        self._validate_assembly_encapsulation_fit(self._reference_electrode_assembly, self._encapsulation)
+        
     def _position_encapsulation(self) -> None:
         """Align encapsulation vertically to match jelly roll mid-point."""
         jelly_roll_mid_y_point = self._reference_electrode_assembly._mid_y_point
@@ -90,7 +90,8 @@ class CylindricalCell(_Cell):
         float
             Maximum Y coordinate of cathode current collector body (meters)
         """
-        return assembly._layup._cathode._current_collector._body_coordinates[:, 1].max()
+        cathode_tab_deduction = assembly._layup._cathode._current_collector._tab_height * assembly._collector_tab_crumple_factor
+        return assembly._layup._cathode._current_collector._body_coordinates[:, 1].max() - cathode_tab_deduction
 
     def _get_anode_tab_y_position(self, assembly: WoundJellyRoll) -> float:
         """Extract anode current collector tab Y position from assembly.
@@ -105,7 +106,8 @@ class CylindricalCell(_Cell):
         float
             Minimum Y coordinate of anode current collector body (meters)
         """
-        return assembly._layup._anode._current_collector._body_coordinates[:, 1].min()
+        anode_tab_deduction = assembly._layup._anode._current_collector._tab_height * assembly._collector_tab_crumple_factor
+        return assembly._layup._anode._current_collector._body_coordinates[:, 1].min() + anode_tab_deduction
 
     def _get_cathode_terminal_y_position(self, encapsulation: CylindricalEncapsulation) -> float:
         """Extract cathode terminal connector Y position from encapsulation.
@@ -192,8 +194,8 @@ class CylindricalCell(_Cell):
         
         if not self._is_within_tolerance(cathode_cc_max_y, cathode_terminal_min_y, TAB_ALIGNMENT_TOLERANCE):
             warnings.warn(
-                f"Cathode tab position ({cathode_cc_max_y * MM_TO_M:.6f} m) "
-                f"not aligned with terminal ({cathode_terminal_min_y * MM_TO_M:.6f} m)."
+                f"Cathode tab position ({cathode_cc_max_y * M_TO_MM:.1f} m) "
+                f"not aligned with terminal ({cathode_terminal_min_y * M_TO_MM:.1f} m)."
             )
         
         # Anode tab alignment validation
@@ -202,8 +204,8 @@ class CylindricalCell(_Cell):
         
         if not self._is_within_tolerance(anode_cc_min_y, anode_terminal_max_y, TAB_ALIGNMENT_TOLERANCE):
             warnings.warn(
-                f"Anode tab position ({anode_cc_min_y * MM_TO_M:.6f} m) "
-                f"not aligned with terminal ({anode_terminal_max_y * MM_TO_M:.6f} m)."
+                f"Anode tab position ({anode_cc_min_y * M_TO_MM:.1f} m) "
+                f"not aligned with terminal ({anode_terminal_max_y * M_TO_MM:.1f} m)."
             )
 
     def _check_assembly_dimensions(self, assembly: WoundJellyRoll) -> None:
@@ -295,10 +297,6 @@ class CylindricalCell(_Cell):
             New electrode assembly to set
         """
         self.validate_type(value, WoundJellyRoll, "reference_electrode_assembly")
-
-        if hasattr(self, "_encapsulation"):
-            self._validate_assembly_encapsulation_fit(value, self._encapsulation)
-
         self._reference_electrode_assembly = value
 
     @encapsulation.setter
@@ -312,10 +310,6 @@ class CylindricalCell(_Cell):
             New encapsulation to set
         """
         self.validate_type(value, CylindricalEncapsulation, "encapsulation")
-
-        if hasattr(self, "_reference_electrode_assembly"):
-            self._validate_assembly_encapsulation_fit(self._reference_electrode_assembly, value)
-            
         self._encapsulation = value
 
 
