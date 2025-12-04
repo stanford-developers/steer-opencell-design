@@ -295,11 +295,12 @@ class CylindricalCell(_Cell):
             New electrode assembly to set
         """
         self.validate_type(value, WoundJellyRoll, "reference_electrode_assembly")
+
         if hasattr(self, "_encapsulation"):
             self._validate_assembly_encapsulation_fit(value, self._encapsulation)
+
         self._reference_electrode_assembly = value
-        self._calculate_voltage_limits()
-    
+
     @encapsulation.setter
     @calculate_all_properties
     def encapsulation(self, value: CylindricalEncapsulation) -> None:
@@ -311,8 +312,10 @@ class CylindricalCell(_Cell):
             New encapsulation to set
         """
         self.validate_type(value, CylindricalEncapsulation, "encapsulation")
+
         if hasattr(self, "_reference_electrode_assembly"):
             self._validate_assembly_encapsulation_fit(self._reference_electrode_assembly, value)
+            
         self._encapsulation = value
 
 

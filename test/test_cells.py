@@ -228,7 +228,8 @@ class TestCylindricalCell(unittest.TestCase):
 
     def test_operating_voltage_window_setter(self):
         """Test setting operating voltage window updates both min and max voltages."""
-        original_window = self.cell.operating_voltage_window
+
+        original_energy = self.cell.energy
         
         # Set new voltage window
         new_window = (2.6, 3.7)
@@ -243,8 +244,22 @@ class TestCylindricalCell(unittest.TestCase):
         self.assertIsNotNone(self.cell.capacity_curve)
         self.assertIsNotNone(self.cell.reversible_capacity)
 
+        # Check that energy changed
+        self.assertLess(self.cell.energy, original_energy)
+
         fig1 = self.cell.get_capacity_plot()
+
+        new_window = (2.3, 5.0)
+        self.cell.operating_voltage_window = new_window
+        self.assertEqual(self.cell.operating_voltage_window, (2.3, 4.03))
+
+        # check that energy changed
+        #self.assertLess(self.cell.energy, original_energy)
+
+        fig2 = self.cell.get_capacity_plot()
+
         fig1.show()
+        fig2.show()
         
     def test_minimum_operating_voltage_setter(self):
         """Test setting minimum operating voltage within valid range."""
@@ -260,6 +275,9 @@ class TestCylindricalCell(unittest.TestCase):
         discharge_curve = self.cell.capacity_curve.query("direction == 'discharge'")
         min_voltage_in_curve = discharge_curve["Voltage (V)"].min()
         self.assertAlmostEqual(min_voltage_in_curve, new_min, 1)
+
+        fig1 = self.cell.get_capacity_plot()
+        # fig1.show()
         
     def test_maximum_operating_voltage_setter(self):
         """Test setting maximum operating voltage within valid range."""
@@ -274,6 +292,9 @@ class TestCylindricalCell(unittest.TestCase):
         # Check that energy properties updated
         self.assertIsNotNone(self.cell.energy)
         self.assertIsNotNone(self.cell.specific_energy)
+
+        fig1 = self.cell.get_capacity_plot()
+        fig1.show()
         
     def test_minimum_operating_voltage_clamping(self):
         """Test that minimum voltage is clamped to valid range."""
@@ -435,12 +456,12 @@ class TestCylindricalCell(unittest.TestCase):
     def test_setter_chain_consistency(self):
         """Test that multiple setter calls maintain consistency."""
         # Change multiple properties
-        self.cell.operating_voltage_window = (2.8, 3.9)
+        self.cell.operating_voltage_window = (2.69, 3.9)
         self.cell.electrolyte_overfill = 0.3
         self.cell.name = "Modified Cell"
         
         # Verify all properties are consistent
-        self.assertEqual(self.cell.operating_voltage_window, (2.8, 3.9))
+        self.assertEqual(self.cell.operating_voltage_window, (2.69, 3.9))
         self.assertEqual(self.cell.electrolyte_overfill, 0.3)
         self.assertEqual(self.cell.name, "Modified Cell")
         
