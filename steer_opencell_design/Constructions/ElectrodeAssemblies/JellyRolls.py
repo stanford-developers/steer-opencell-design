@@ -147,9 +147,9 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             
         self.mandrel = mandrel
         self.additional_tape_wraps = additional_tape_wraps
-        super().__init__(laminate, name=name)
-        self.tape = tape
+        super().__init__(layup=laminate, name=name)
         self.collector_tab_crumple_factor = collector_tab_crumple_factor
+        self.tape = tape
 
     def _calculate_all_properties(self, laminate_x_spacing=0.004, **kwargs) -> None:
         """Calculate all properties of the jelly roll electrode assembly.
@@ -254,7 +254,8 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         if hasattr(self, '_tape') and self._tape is not None and self._additional_tape_wraps > 0:
             tape_diameter = self._extruded_spirals.get('tape')[:, RADIUS_COL].max() * 2
             tape_width = self._tape._width
-            x, y = self.build_square_array(-tape_diameter/2, -tape_width/2, tape_diameter, tape_width)
+            start_y = -self._tape._width / 2 + self._tape._datum[1]
+            x, y = self.build_square_array(-tape_diameter/2, start_y, tape_diameter, tape_width)
             x = x
             y = y
             self._component_top_down_coordinates['tape'] = np.column_stack((x, y))
@@ -1310,6 +1311,40 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             legendgroup=name,
         )
 
+    def _get_cathode_tab_y_position(self) -> float:
+        """Get cathode current collector tab Y position.
+        
+        Returns
+        -------
+        float
+            Maximum Y coordinate of cathode current collector body minus tab (meters)
+        """
+        cathode_tab_deduction = (
+            self._layup._cathode._current_collector._tab_height * 
+            self._collector_tab_crumple_factor
+        )
+        return (
+            self._layup._cathode._current_collector._body_coordinates[:, 1].max() - 
+            cathode_tab_deduction
+        )
+
+    def _get_anode_tab_y_position(self) -> float:
+        """Get anode current collector tab Y position.
+        
+        Returns
+        -------
+        float
+            Minimum Y coordinate of anode current collector body plus tab (meters)
+        """
+        anode_tab_deduction = (
+            self._layup._anode._current_collector._tab_height * 
+            self._collector_tab_crumple_factor
+        )
+        return (
+            self._layup._anode._current_collector._body_coordinates[:, 1].min() + 
+            anode_tab_deduction
+        )
+
     def get_spiral_plot(self, layered: bool = True,**kwargs: Any) -> go.Figure:
         """Generate interactive spiral plot using Plotly.
         
@@ -1741,13 +1776,21 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             self._tape = None
             return
 
+        # validate type
         self.validate_type(value, Tape, "tape")
     
+        # set the tape width to at least the current collector y-body length
         if value._width is None or value._width < self._layup._anode._current_collector._y_body_length:
             value.width = self._layup._anode._current_collector._y_body_length * M_TO_MM
 
         # Set the tape width range to match the layup width
         value._set_width_range(self)
+
+        # set the tape datum
+        _cathode_max_y = self._get_cathode_tab_y_position()
+        _anode_min_y = self._get_anode_tab_y_position()
+        _middle_y = (_cathode_max_y + _anode_min_y) / 2
+        value.datum = (0.0, _middle_y * M_TO_MM, 0.0)
 
         self._tape = value
 

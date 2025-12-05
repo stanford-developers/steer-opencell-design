@@ -77,38 +77,6 @@ class CylindricalCell(_Cell):
             self._encapsulation._datum[2] * M_TO_MM,
         )
 
-    def _get_cathode_tab_y_position(self, assembly: WoundJellyRoll) -> float:
-        """Extract cathode current collector tab Y position from assembly.
-        
-        Parameters
-        ----------
-        assembly : WoundJellyRoll
-            Electrode assembly to extract position from
-            
-        Returns
-        -------
-        float
-            Maximum Y coordinate of cathode current collector body (meters)
-        """
-        cathode_tab_deduction = assembly._layup._cathode._current_collector._tab_height * assembly._collector_tab_crumple_factor
-        return assembly._layup._cathode._current_collector._body_coordinates[:, 1].max() - cathode_tab_deduction
-
-    def _get_anode_tab_y_position(self, assembly: WoundJellyRoll) -> float:
-        """Extract anode current collector tab Y position from assembly.
-        
-        Parameters
-        ----------
-        assembly : WoundJellyRoll
-            Electrode assembly to extract position from
-            
-        Returns
-        -------
-        float
-            Minimum Y coordinate of anode current collector body (meters)
-        """
-        anode_tab_deduction = assembly._layup._anode._current_collector._tab_height * assembly._collector_tab_crumple_factor
-        return assembly._layup._anode._current_collector._body_coordinates[:, 1].min() + anode_tab_deduction
-
     def _get_cathode_terminal_y_position(self, encapsulation: CylindricalEncapsulation) -> float:
         """Extract cathode terminal connector Y position from encapsulation.
         
@@ -189,23 +157,23 @@ class CylindricalCell(_Cell):
             )
 
         # Cathode tab alignment validation
-        cathode_cc_max_y = self._get_cathode_tab_y_position(assembly)
+        cathode_cc_max_y = assembly._get_cathode_tab_y_position()
         cathode_terminal_min_y = self._get_cathode_terminal_y_position(encapsulation)
         
         if not self._is_within_tolerance(cathode_cc_max_y, cathode_terminal_min_y, TAB_ALIGNMENT_TOLERANCE):
             warnings.warn(
-                f"Cathode tab position ({cathode_cc_max_y * M_TO_MM:.1f} m) "
-                f"not aligned with terminal ({cathode_terminal_min_y * M_TO_MM:.1f} m)."
+                f"Cathode tab position ({cathode_cc_max_y * M_TO_MM:.1f} mm) "
+                f"not aligned with terminal ({cathode_terminal_min_y * M_TO_MM:.1f} mm)."
             )
         
         # Anode tab alignment validation
-        anode_cc_min_y = self._get_anode_tab_y_position(assembly)
+        anode_cc_min_y = assembly._get_anode_tab_y_position()
         anode_terminal_max_y = self._get_anode_terminal_y_position(encapsulation)
         
         if not self._is_within_tolerance(anode_cc_min_y, anode_terminal_max_y, TAB_ALIGNMENT_TOLERANCE):
             warnings.warn(
-                f"Anode tab position ({anode_cc_min_y * M_TO_MM:.1f} m) "
-                f"not aligned with terminal ({anode_terminal_max_y * M_TO_MM:.1f} m)."
+                f"Anode tab position ({anode_cc_min_y * M_TO_MM:.1f} mm) "
+                f"not aligned with terminal ({anode_terminal_max_y * M_TO_MM:.1f} mm)."
             )
 
     def _check_assembly_dimensions(self, assembly: WoundJellyRoll) -> None:
