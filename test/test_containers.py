@@ -1386,5 +1386,892 @@ class TestCylindricalEncapsulation(unittest.TestCase):
             self.assertGreater(test_encapsulation.mass_breakdown["Cannister"], 0)
 
 
+class TestLaminateSheet(unittest.TestCase):
+    """Test suite for LaminateSheet class."""
+
+    def setUp(self):
+        """Set up test fixtures for LaminateSheet tests."""
+        from steer_opencell_design.Components.Containers.Pouch import LaminateSheet
+        
+        # Create a basic laminate sheet with all parameters
+        self.laminate_sheet = LaminateSheet(
+            areal_cost=2.5,
+            density=920,
+            thickness=50,
+            datum=(0.0, 0.0, 0.0),
+            name="Test Laminate Sheet"
+        )
+        # Set width and height after initialization
+        self.laminate_sheet.width = 200
+        self.laminate_sheet.height = 300
+        
+        # Create a laminate sheet without width and length
+        self.partial_laminate_sheet = LaminateSheet(
+            areal_cost=3.0,
+            density=950,
+            thickness=60,
+            name="Partial Laminate Sheet"
+        )
+
+    def test_initialization_with_all_parameters(self):
+        """Test that laminate sheet initializes correctly with all parameters."""
+        self.assertIsNotNone(self.laminate_sheet)
+        self.assertEqual(self.laminate_sheet.name, "Test Laminate Sheet")
+        self.assertEqual(self.laminate_sheet.areal_cost, 2.5)
+        self.assertEqual(self.laminate_sheet.density, 920)
+        self.assertEqual(self.laminate_sheet.thickness, 50)
+        self.assertEqual(self.laminate_sheet.width, 200)
+        self.assertEqual(self.laminate_sheet.height, 300)
+
+    def test_initialization_without_dimensions(self):
+        """Test that laminate sheet initializes correctly without width and length."""
+        self.assertIsNotNone(self.partial_laminate_sheet)
+        self.assertEqual(self.partial_laminate_sheet.name, "Partial Laminate Sheet")
+        self.assertEqual(self.partial_laminate_sheet.areal_cost, 3.0)
+        self.assertEqual(self.partial_laminate_sheet.density, 950)
+        self.assertEqual(self.partial_laminate_sheet.thickness, 60)
+        self.assertIsNone(self.partial_laminate_sheet.width)
+        self.assertIsNone(self.partial_laminate_sheet.height)
+
+    def test_areal_cost_property(self):
+        """Test that areal_cost property returns correct value."""
+        areal_cost = self.laminate_sheet.areal_cost
+        self.assertIsInstance(areal_cost, float)
+        self.assertEqual(areal_cost, 2.5)
+
+    def test_density_property(self):
+        """Test that density property returns correct value."""
+        density = self.laminate_sheet.density
+        self.assertIsInstance(density, float)
+        self.assertEqual(density, 920)
+
+    def test_thickness_property(self):
+        """Test that thickness property returns correct value."""
+        thickness = self.laminate_sheet.thickness
+        self.assertIsInstance(thickness, float)
+        self.assertEqual(thickness, 50)
+
+    def test_width_property(self):
+        """Test that width property returns correct value."""
+        width = self.laminate_sheet.width
+        self.assertIsInstance(width, float)
+        self.assertEqual(width, 200)
+
+    def test_height_property(self):
+        """Test that height property returns correct value."""
+        height = self.laminate_sheet.height
+        self.assertIsInstance(height, float)
+        self.assertEqual(height, 300)
+
+    def test_datum_property(self):
+        """Test that datum property returns correct value."""
+        datum = self.laminate_sheet.datum
+        self.assertIsInstance(datum, tuple)
+        self.assertEqual(len(datum), 3)
+        self.assertEqual(datum, (0.0, 0.0, 0.0))
+
+    def test_name_property(self):
+        """Test that name property returns correct value."""
+        name = self.laminate_sheet.name
+        self.assertIsInstance(name, str)
+        self.assertEqual(name, "Test Laminate Sheet")
+
+    def test_area_property(self):
+        """Test that area property calculates correctly."""
+        area = self.laminate_sheet.area
+        self.assertIsInstance(area, float)
+        self.assertGreater(area, 0)
+
+    def test_mass_property(self):
+        """Test that mass property calculates correctly."""
+        mass = self.laminate_sheet.mass
+        self.assertIsInstance(mass, float)
+        self.assertGreater(mass, 0)
+
+    def test_cost_property(self):
+        """Test that cost property calculates correctly."""
+        cost = self.laminate_sheet.cost
+        self.assertIsInstance(cost, float)
+        self.assertGreater(cost, 0)
+
+    def test_area_when_dimensions_missing(self):
+        """Test that area returns None when width or length is missing."""
+        area = self.partial_laminate_sheet.area
+        self.assertIsNone(area)
+
+    def test_mass_when_dimensions_missing(self):
+        """Test that mass returns None when width or length is missing."""
+        mass = self.partial_laminate_sheet.mass
+        self.assertIsNone(mass)
+
+    def test_cost_when_dimensions_missing(self):
+        """Test that cost returns None when width or length is missing."""
+        cost = self.partial_laminate_sheet.cost
+        self.assertIsNone(cost)
+
+    def test_height_range_property(self):
+        """Test that height_range returns valid tuple."""
+        height_range = self.laminate_sheet.height_range
+        self.assertIsInstance(height_range, tuple)
+        self.assertEqual(len(height_range), 2)
+        self.assertLessEqual(height_range[0], height_range[1])
+
+    def test_width_range_property(self):
+        """Test that width_range returns valid tuple."""
+        width_range = self.laminate_sheet.width_range
+        self.assertIsInstance(width_range, tuple)
+        self.assertEqual(len(width_range), 2)
+        self.assertLessEqual(width_range[0], width_range[1])
+
+    def test_thickness_range_property(self):
+        """Test that thickness_range returns valid tuple."""
+        thickness_range = self.laminate_sheet.thickness_range
+        self.assertIsInstance(thickness_range, tuple)
+        self.assertEqual(len(thickness_range), 2)
+        self.assertLessEqual(thickness_range[0], thickness_range[1])
+
+    def test_areal_cost_setter(self):
+        """Test that areal_cost setter works correctly."""
+        original_areal_cost = self.laminate_sheet.areal_cost
+        new_areal_cost = 3.5
+        
+        self.laminate_sheet.areal_cost = new_areal_cost
+        
+        self.assertEqual(self.laminate_sheet.areal_cost, new_areal_cost)
+        self.assertNotEqual(self.laminate_sheet.areal_cost, original_areal_cost)
+
+    def test_density_setter(self):
+        """Test that density setter works correctly."""
+        original_density = self.laminate_sheet.density
+        new_density = 1000
+        
+        self.laminate_sheet.density = new_density
+        
+        self.assertEqual(self.laminate_sheet.density, new_density)
+        self.assertNotEqual(self.laminate_sheet.density, original_density)
+
+    def test_thickness_setter(self):
+        """Test that thickness setter works correctly."""
+        original_thickness = self.laminate_sheet.thickness
+        new_thickness = 70
+        
+        self.laminate_sheet.thickness = new_thickness
+        
+        self.assertEqual(self.laminate_sheet.thickness, new_thickness)
+        self.assertNotEqual(self.laminate_sheet.thickness, original_thickness)
+
+    def test_width_setter(self):
+        """Test that width setter works correctly."""
+        original_width = self.laminate_sheet.width
+        new_width = 250
+        
+        self.laminate_sheet.width = new_width
+        
+        self.assertEqual(self.laminate_sheet.width, new_width)
+        self.assertNotEqual(self.laminate_sheet.width, original_width)
+
+    def test_height_setter(self):
+        """Test that height setter works correctly."""
+        original_height = self.laminate_sheet.height
+        new_height = 400
+        
+        self.laminate_sheet.height = new_height
+        
+        self.assertEqual(self.laminate_sheet.height, new_height)
+        self.assertNotEqual(self.laminate_sheet.height, original_height)
+
+    def test_datum_setter(self):
+        """Test that datum setter works correctly."""
+        new_datum = (10.0, 20.0, 30.0)
+        
+        self.laminate_sheet.datum = new_datum
+        
+        self.assertEqual(self.laminate_sheet.datum, new_datum)
+
+    def test_name_setter(self):
+        """Test that name setter works correctly."""
+        new_name = "Updated Laminate Sheet"
+        
+        self.laminate_sheet.name = new_name
+        
+        self.assertEqual(self.laminate_sheet.name, new_name)
+
+    def test_bulk_properties_recalculation_on_width_change(self):
+        """Test that bulk properties are recalculated when width changes."""
+        original_mass = self.laminate_sheet.mass
+        original_cost = self.laminate_sheet.cost
+        
+        self.laminate_sheet.width = 250
+        
+        new_mass = self.laminate_sheet.mass
+        new_cost = self.laminate_sheet.cost
+        
+        self.assertNotEqual(new_mass, original_mass)
+        self.assertNotEqual(new_cost, original_cost)
+
+    def test_bulk_properties_recalculation_on_height_change(self):
+        """Test that bulk properties are recalculated when height changes."""
+        original_mass = self.laminate_sheet.mass
+        original_cost = self.laminate_sheet.cost
+        
+        self.laminate_sheet.height = 400
+        
+        new_mass = self.laminate_sheet.mass
+        new_cost = self.laminate_sheet.cost
+        
+        self.assertNotEqual(new_mass, original_mass)
+        self.assertNotEqual(new_cost, original_cost)
+
+    def test_bulk_properties_recalculation_on_density_change(self):
+        """Test that bulk properties are recalculated when density changes."""
+        original_mass = self.laminate_sheet.mass
+        
+        self.laminate_sheet.density = 1000
+        
+        new_mass = self.laminate_sheet.mass
+        
+        self.assertNotEqual(new_mass, original_mass)
+
+    def test_bulk_properties_recalculation_on_areal_cost_change(self):
+        """Test that bulk properties are recalculated when areal_cost changes."""
+        original_cost = self.laminate_sheet.cost
+        
+        self.laminate_sheet.areal_cost = 4.0
+        
+        new_cost = self.laminate_sheet.cost
+        
+        self.assertNotEqual(new_cost, original_cost)
+
+    def test_adding_dimensions_to_partial_sheet(self):
+        """Test that adding dimensions to partial sheet enables bulk property calculation."""
+        self.assertIsNone(self.partial_laminate_sheet.mass)
+        self.assertIsNone(self.partial_laminate_sheet.cost)
+        
+        # Add width and height
+        self.partial_laminate_sheet.width = 150
+        self.partial_laminate_sheet.height = 250
+        
+        # Now bulk properties should be calculated
+        self.assertIsNotNone(self.partial_laminate_sheet.mass)
+        self.assertIsNotNone(self.partial_laminate_sheet.cost)
+        self.assertGreater(self.partial_laminate_sheet.mass, 0)
+        self.assertGreater(self.partial_laminate_sheet.cost, 0)
+
+    def test_sequential_property_changes(self):
+        """Test that multiple property changes work correctly."""
+        # Change areal cost
+        self.laminate_sheet.areal_cost = 3.0
+        self.assertEqual(self.laminate_sheet.areal_cost, 3.0)
+        
+        # Change density
+        self.laminate_sheet.density = 1000
+        self.assertEqual(self.laminate_sheet.density, 1000)
+        
+        # Change thickness
+        self.laminate_sheet.thickness = 80
+        self.assertEqual(self.laminate_sheet.thickness, 80)
+        
+        # Change width
+        self.laminate_sheet.width = 220
+        self.assertEqual(self.laminate_sheet.width, 220)
+        
+        # Change height
+        self.laminate_sheet.height = 350
+        self.assertEqual(self.laminate_sheet.height, 350)
+        
+        # Verify all changes persisted
+        self.assertEqual(self.laminate_sheet.areal_cost, 3.0)
+        self.assertEqual(self.laminate_sheet.density, 1000)
+        self.assertEqual(self.laminate_sheet.thickness, 80)
+        self.assertEqual(self.laminate_sheet.width, 220)
+        self.assertEqual(self.laminate_sheet.height, 350)
+
+
+class TestPouchTerminal(unittest.TestCase):
+    """Test suite for PouchTerminal class."""
+
+    def setUp(self):
+        """Set up test fixtures for PouchTerminal tests."""
+        from steer_opencell_design.Components.Containers.Pouch import PouchTerminal
+        
+        # Create test material
+        self.material = PrismaticContainerMaterial(
+            name="Aluminum",
+            density=2700,  # kg/m³
+            specific_cost=2.5,  # $/kg
+            color="#silver"
+        )
+        
+        # Create a standard pouch terminal
+        self.terminal = PouchTerminal(
+            material=self.material,
+            width=10,
+            length=30,
+            height=1.0,  # 1mm thickness for measurable cost
+            datum=(0.0, 0.0, 0.0),
+            name="Test Terminal"
+        )
+        
+        # Create a larger terminal
+        self.large_terminal = PouchTerminal(
+            material=self.material,
+            width=15,
+            length=50,
+            height=1.5,  # 1.5mm thickness
+            name="Large Terminal"
+        )
+
+    def test_initialization_standard(self):
+        """Test that pouch terminal initializes correctly."""
+        self.assertIsNotNone(self.terminal)
+        self.assertEqual(self.terminal.name, "Test Terminal")
+        self.assertEqual(self.terminal.width, 10)
+        self.assertEqual(self.terminal.length, 30)
+        self.assertEqual(self.terminal.height, 1.0)
+        self.assertEqual(self.terminal.datum, (0.0, 0.0, 0.0))
+
+    def test_width_property(self):
+        """Test that width property returns correct value."""
+        width = self.terminal.width
+        self.assertIsInstance(width, float)
+        self.assertEqual(width, 10)
+
+    def test_length_property(self):
+        """Test that length property returns correct value."""
+        length = self.terminal.length
+        self.assertIsInstance(length, float)
+        self.assertEqual(length, 30)
+
+    def test_height_property(self):
+        """Test that height property returns correct value."""
+        height = self.terminal.height
+        self.assertIsInstance(height, float)
+        self.assertEqual(height, 1.0)
+
+    def test_datum_property(self):
+        """Test that datum property returns correct value."""
+        datum = self.terminal.datum
+        self.assertIsInstance(datum, tuple)
+        self.assertEqual(len(datum), 3)
+        self.assertEqual(datum, (0.0, 0.0, 0.0))
+
+    def test_name_property(self):
+        """Test that name property returns correct value."""
+        name = self.terminal.name
+        self.assertIsInstance(name, str)
+        self.assertEqual(name, "Test Terminal")
+
+    def test_volume_property(self):
+        """Test that volume property calculates correctly."""
+        volume = self.terminal.volume
+        self.assertIsInstance(volume, float)
+        self.assertGreater(volume, 0)
+
+    def test_mass_property(self):
+        """Test that mass property calculates correctly."""
+        mass = self.terminal.mass
+        self.assertIsInstance(mass, float)
+        self.assertGreater(mass, 0)
+
+    def test_cost_property(self):
+        """Test that cost property calculates correctly."""
+        cost = self.terminal.cost
+        self.assertIsInstance(cost, float)
+        self.assertGreaterEqual(cost, 0)
+
+    def test_width_range_property(self):
+        """Test that width_range returns valid tuple."""
+        width_range = self.terminal.width_range
+        self.assertIsInstance(width_range, tuple)
+        self.assertEqual(len(width_range), 2)
+        self.assertLessEqual(width_range[0], width_range[1])
+
+    def test_length_range_property(self):
+        """Test that length_range returns valid tuple."""
+        length_range = self.terminal.length_range
+        self.assertIsInstance(length_range, tuple)
+        self.assertEqual(len(length_range), 2)
+        self.assertLessEqual(length_range[0], length_range[1])
+
+    def test_height_range_property(self):
+        """Test that height_range returns valid tuple."""
+        height_range = self.terminal.height_range
+        self.assertIsInstance(height_range, tuple)
+        self.assertEqual(len(height_range), 2)
+        self.assertLessEqual(height_range[0], height_range[1])
+
+    def test_width_setter(self):
+        """Test that width setter works correctly."""
+        original_width = self.terminal.width
+        new_width = 12
+        
+        self.terminal.width = new_width
+        
+        self.assertEqual(self.terminal.width, new_width)
+        self.assertNotEqual(self.terminal.width, original_width)
+
+    def test_length_setter(self):
+        """Test that length setter works correctly."""
+        original_length = self.terminal.length
+        new_length = 40
+        
+        self.terminal.length = new_length
+        
+        self.assertEqual(self.terminal.length, new_length)
+        self.assertNotEqual(self.terminal.length, original_length)
+
+    def test_height_setter(self):
+        """Test that height setter works correctly."""
+        original_height = self.terminal.height
+        new_height = 1.5
+        
+        self.terminal.height = new_height
+        
+        self.assertEqual(self.terminal.height, new_height)
+        self.assertNotEqual(self.terminal.height, original_height)
+
+    def test_datum_setter(self):
+        """Test that datum setter works correctly."""
+        new_datum = (5.0, 10.0, 2.0)
+        
+        self.terminal.datum = new_datum
+        
+        self.assertEqual(self.terminal.datum, new_datum)
+
+    def test_name_setter(self):
+        """Test that name setter works correctly."""
+        new_name = "Updated Terminal"
+        
+        self.terminal.name = new_name
+        
+        self.assertEqual(self.terminal.name, new_name)
+
+    def test_bulk_properties_recalculation_on_width_change(self):
+        """Test that bulk properties are recalculated when width changes."""
+        original_volume = self.terminal.volume
+        original_mass = self.terminal.mass
+        
+        self.terminal.width = 12
+        
+        new_volume = self.terminal.volume
+        new_mass = self.terminal.mass
+        
+        self.assertNotEqual(new_volume, original_volume)
+        self.assertNotEqual(new_mass, original_mass)
+        # Cost should also change
+        self.assertGreaterEqual(self.terminal.cost, 0)
+
+    def test_bulk_properties_recalculation_on_length_change(self):
+        """Test that bulk properties are recalculated when length changes."""
+        original_volume = self.terminal.volume
+        original_mass = self.terminal.mass
+        
+        self.terminal.length = 40
+        
+        new_volume = self.terminal.volume
+        new_mass = self.terminal.mass
+        
+        self.assertNotEqual(new_volume, original_volume)
+        self.assertNotEqual(new_mass, original_mass)
+        # Cost should also change
+        self.assertGreaterEqual(self.terminal.cost, 0)
+
+    def test_bulk_properties_recalculation_on_height_change(self):
+        """Test that bulk properties are recalculated when height changes."""
+        original_volume = self.terminal.volume
+        original_mass = self.terminal.mass
+        
+        self.terminal.height = 1.3
+        
+        new_volume = self.terminal.volume
+        new_mass = self.terminal.mass
+        
+        self.assertNotEqual(new_volume, original_volume)
+        self.assertNotEqual(new_mass, original_mass)
+        # Cost should also change
+        self.assertGreaterEqual(self.terminal.cost, 0)
+
+    def test_volume_calculation(self):
+        """Test that volume is calculated correctly."""
+        # Volume = width * length * height (in cm³)
+        # width = 10mm = 1cm, length = 30mm = 3cm, height = 1.0mm = 0.1cm
+        # Expected volume = 1 * 3 * 0.1 = 0.3 cm³
+        expected_volume = 0.3
+        self.assertAlmostEqual(self.terminal.volume, expected_volume, places=2)
+
+    def test_mass_calculation(self):
+        """Test that mass is calculated correctly based on material density."""
+        # Mass should increase with volume
+        mass_small = self.terminal.mass
+        mass_large = self.large_terminal.mass
+        self.assertGreater(mass_large, mass_small)
+
+    def test_cost_calculation(self):
+        """Test that cost is calculated correctly based on material cost."""
+        # Cost should increase with mass/volume
+        cost_small = self.terminal.cost
+        cost_large = self.large_terminal.cost
+        # Both should be non-negative, and larger should be >= smaller
+        self.assertGreaterEqual(cost_small, 0)
+        self.assertGreaterEqual(cost_large, cost_small)
+
+    def test_coordinates_calculation(self):
+        """Test that coordinates are calculated."""
+        # Check that top-down coordinates exist
+        self.assertTrue(hasattr(self.terminal, '_top_down_coordinates'))
+        self.assertIsNotNone(self.terminal._top_down_coordinates)
+        
+        # Check that side cross-section coordinates exist
+        self.assertTrue(hasattr(self.terminal, '_side_cross_section_coordinates'))
+        self.assertIsNotNone(self.terminal._side_cross_section_coordinates)
+
+    def test_sequential_property_changes(self):
+        """Test that multiple property changes work correctly."""
+        # Change width
+        self.terminal.width = 12
+        self.assertEqual(self.terminal.width, 12)
+        
+        # Change length
+        self.terminal.length = 35
+        self.assertEqual(self.terminal.length, 35)
+        
+        # Change height
+        self.terminal.height = 1.25
+        self.assertEqual(self.terminal.height, 1.25)
+        
+        # Verify all changes persisted
+        self.assertEqual(self.terminal.width, 12)
+        self.assertEqual(self.terminal.length, 35)
+        self.assertEqual(self.terminal.height, 1.25)
+        
+        # Verify bulk properties are still calculated
+        self.assertGreater(self.terminal.volume, 0)
+        self.assertGreater(self.terminal.mass, 0)
+        self.assertGreaterEqual(self.terminal.cost, 0)
+
+    def test_default_datum(self):
+        """Test that default datum is set correctly when not specified."""
+        terminal = self.large_terminal  # Created without explicit datum
+        self.assertEqual(terminal.datum, (0.0, 0.0, 0.0))
+
+    def test_custom_datum(self):
+        """Test that custom datum is set correctly."""
+        from steer_opencell_design.Components.Containers.Pouch import PouchTerminal
+        
+        
+        custom_datum = (5.0, 10.0, 2.5)
+        terminal = PouchTerminal(
+            material=self.material,
+            width=10,
+            length=30,
+            height=1.0,
+            datum=custom_datum,
+            name="Custom Datum Terminal"
+        )
+        
+        self.assertEqual(terminal.datum, custom_datum)
+
+
+class TestPouchEncapsulation(unittest.TestCase):
+    """Test suite for PouchEncapsulation class."""
+
+    def setUp(self):
+        """Set up test fixtures for PouchEncapsulation tests."""
+        from steer_opencell_design.Components.Containers.Pouch import (
+            PouchEncapsulation, PouchTerminal, LaminateSheet
+        )
+        
+        # Create test material
+        self.material = PrismaticContainerMaterial(
+            name="Aluminum",
+            density=2700,  # kg/m³
+            specific_cost=2.5,  # $/kg
+            color="#silver"
+        )
+        
+        # Create terminals
+        self.cathode_terminal = PouchTerminal(
+            material=self.material,
+            width=10,
+            length=30,
+            height=1.0,
+            name="Cathode Terminal"
+        )
+        
+        self.anode_terminal = PouchTerminal(
+            material=self.material,
+            width=10,
+            length=30,
+            height=1.0,
+            name="Anode Terminal"
+        )
+        
+        # Create laminates
+        self.top_laminate = LaminateSheet(
+            areal_cost=2.5,
+            density=920,
+            thickness=50,
+            name="Top Laminate"
+        )
+        
+        self.bottom_laminate = LaminateSheet(
+            areal_cost=2.5,
+            density=920,
+            thickness=50,
+            name="Bottom Laminate"
+        )
+        
+        # Create encapsulation with dimensions
+        self.encapsulation = PouchEncapsulation(
+            cathode_terminal=self.cathode_terminal,
+            anode_terminal=self.anode_terminal,
+            top_laminate=self.top_laminate,
+            bottom_laminate=self.bottom_laminate,
+            width=150,
+            height=200,
+            name="Test Encapsulation"
+        )
+        
+        # Create encapsulation without dimensions
+        self.partial_encapsulation = PouchEncapsulation(
+            cathode_terminal=PouchTerminal(
+                material=self.material,
+                width=8,
+                length=25,
+                height=0.8,
+                name="Cathode Terminal"
+            ),
+            anode_terminal=PouchTerminal(
+                material=self.material,
+                width=8,
+                length=25,
+                height=0.8,
+                name="Anode Terminal"
+            ),
+            top_laminate=LaminateSheet(
+                areal_cost=3.0,
+                density=950,
+                thickness=60,
+                name="Top Laminate"
+            ),
+            bottom_laminate=LaminateSheet(
+                areal_cost=3.0,
+                density=950,
+                thickness=60,
+                name="Bottom Laminate"
+            ),
+            name="Partial Encapsulation"
+        )
+
+    def test_initialization_with_dimensions(self):
+        """Test that encapsulation initializes correctly with width and height."""
+        self.assertIsNotNone(self.encapsulation)
+        self.assertEqual(self.encapsulation.name, "Test Encapsulation")
+        self.assertEqual(self.encapsulation.width, 150)
+        self.assertEqual(self.encapsulation.height, 200)
+
+    def test_initialization_without_dimensions(self):
+        """Test that encapsulation initializes correctly without width and height."""
+        self.assertIsNotNone(self.partial_encapsulation)
+        self.assertEqual(self.partial_encapsulation.name, "Partial Encapsulation")
+        self.assertIsNone(self.partial_encapsulation.width)
+        self.assertIsNone(self.partial_encapsulation.height)
+
+    def test_width_sets_both_laminates(self):
+        """Test that setting width on encapsulation sets both laminates."""
+        # Set width on encapsulation
+        self.encapsulation.width = 180
+        
+        # Check both laminates have the same width
+        self.assertEqual(self.encapsulation.width, 180)
+        self.assertEqual(self.encapsulation.top_laminate.width, 180)
+        self.assertEqual(self.encapsulation.bottom_laminate.width, 180)
+
+    def test_height_sets_both_laminates(self):
+        """Test that setting height on encapsulation sets both laminates."""
+        # Set height on encapsulation
+        self.encapsulation.height = 220
+        
+        # Check both laminates have the same height
+        self.assertEqual(self.encapsulation.height, 220)
+        self.assertEqual(self.encapsulation.top_laminate.height, 220)
+        self.assertEqual(self.encapsulation.bottom_laminate.height, 220)
+
+    def test_width_property_returns_laminate_width(self):
+        """Test that width property returns the top laminate width."""
+        width = self.encapsulation.width
+        self.assertIsInstance(width, float)
+        self.assertEqual(width, self.encapsulation.top_laminate.width)
+
+    def test_height_property_returns_laminate_height(self):
+        """Test that height property returns the top laminate height."""
+        height = self.encapsulation.height
+        self.assertIsInstance(height, float)
+        self.assertEqual(height, self.encapsulation.top_laminate.height)
+
+    def test_mass_property(self):
+        """Test that mass property calculates correctly."""
+        mass = self.encapsulation.mass
+        self.assertIsInstance(mass, float)
+        self.assertGreater(mass, 0)
+
+    def test_cost_property(self):
+        """Test that cost property calculates correctly."""
+        cost = self.encapsulation.cost
+        self.assertIsInstance(cost, float)
+        self.assertGreaterEqual(cost, 0)
+
+    def test_mass_breakdown(self):
+        """Test that mass breakdown includes all components."""
+        breakdown = self.encapsulation.mass_breakdown
+        self.assertIsInstance(breakdown, dict)
+        self.assertIn("Cathode Terminal", breakdown)
+        self.assertIn("Anode Terminal", breakdown)
+        self.assertIn("Laminates", breakdown)
+        
+        # All values should be positive
+        for value in breakdown.values():
+            self.assertGreaterEqual(value, 0)
+
+    def test_cost_breakdown(self):
+        """Test that cost breakdown includes all components."""
+        breakdown = self.encapsulation.cost_breakdown
+        self.assertIsInstance(breakdown, dict)
+        self.assertIn("Cathode Terminal", breakdown)
+        self.assertIn("Anode Terminal", breakdown)
+        self.assertIn("Top Laminate", breakdown)
+        self.assertIn("Bottom Laminate", breakdown)
+        
+        # All values should be non-negative
+        for value in breakdown.values():
+            self.assertGreaterEqual(value, 0)
+
+    def test_adding_dimensions_to_partial_encapsulation(self):
+        """Test that adding dimensions to partial encapsulation updates laminates."""
+        # Initially no dimensions
+        self.assertIsNone(self.partial_encapsulation.width)
+        self.assertIsNone(self.partial_encapsulation.height)
+        
+        # Set dimensions
+        self.partial_encapsulation.width = 160
+        self.partial_encapsulation.height = 210
+        
+        # Check encapsulation dimensions
+        self.assertEqual(self.partial_encapsulation.width, 160)
+        self.assertEqual(self.partial_encapsulation.height, 210)
+        
+        # Check both laminates have the dimensions
+        self.assertEqual(self.partial_encapsulation.top_laminate.width, 160)
+        self.assertEqual(self.partial_encapsulation.top_laminate.height, 210)
+        self.assertEqual(self.partial_encapsulation.bottom_laminate.width, 160)
+        self.assertEqual(self.partial_encapsulation.bottom_laminate.height, 210)
+
+    def test_mass_recalculation_on_width_change(self):
+        """Test that mass is recalculated when width changes."""
+        original_mass = self.encapsulation.mass
+        
+        self.encapsulation.width = 180
+        
+        new_mass = self.encapsulation.mass
+        self.assertNotEqual(new_mass, original_mass)
+
+    def test_mass_recalculation_on_height_change(self):
+        """Test that mass is recalculated when height changes."""
+        original_mass = self.encapsulation.mass
+        
+        self.encapsulation.height = 220
+        
+        new_mass = self.encapsulation.mass
+        self.assertNotEqual(new_mass, original_mass)
+
+    def test_cost_recalculation_on_width_change(self):
+        """Test that cost is recalculated when width changes."""
+        original_cost = self.encapsulation.cost
+        
+        self.encapsulation.width = 180
+        
+        new_cost = self.encapsulation.cost
+        self.assertNotEqual(new_cost, original_cost)
+
+    def test_cost_recalculation_on_height_change(self):
+        """Test that cost is recalculated when height changes."""
+        original_cost = self.encapsulation.cost
+        
+        self.encapsulation.height = 220
+        
+        new_cost = self.encapsulation.cost
+        self.assertNotEqual(new_cost, original_cost)
+
+    def test_terminal_properties(self):
+        """Test that terminal properties return correct objects."""
+        self.assertIsInstance(self.encapsulation.cathode_terminal, type(self.cathode_terminal))
+        self.assertIsInstance(self.encapsulation.anode_terminal, type(self.anode_terminal))
+
+    def test_laminate_properties(self):
+        """Test that laminate properties return correct objects."""
+        self.assertIsInstance(self.encapsulation.top_laminate, type(self.top_laminate))
+        self.assertIsInstance(self.encapsulation.bottom_laminate, type(self.bottom_laminate))
+
+    def test_datum_property(self):
+        """Test that datum property returns correct value."""
+        datum = self.encapsulation.datum
+        self.assertIsInstance(datum, tuple)
+        self.assertEqual(len(datum), 3)
+        self.assertEqual(datum, (0.0, 0.0, 0.0))
+
+    def test_name_property(self):
+        """Test that name property returns correct value."""
+        name = self.encapsulation.name
+        self.assertIsInstance(name, str)
+        self.assertEqual(name, "Test Encapsulation")
+
+    def test_datum_setter(self):
+        """Test that datum setter works correctly."""
+        new_datum = (10.0, 20.0, 5.0)
+        self.encapsulation.datum = new_datum
+        self.assertEqual(self.encapsulation.datum, new_datum)
+
+    def test_name_setter(self):
+        """Test that name setter works correctly."""
+        new_name = "Updated Encapsulation"
+        self.encapsulation.name = new_name
+        self.assertEqual(self.encapsulation.name, new_name)
+
+    def test_sequential_dimension_changes(self):
+        """Test that multiple dimension changes work correctly."""
+        # Change width
+        self.encapsulation.width = 170
+        self.assertEqual(self.encapsulation.width, 170)
+        
+        # Change height
+        self.encapsulation.height = 230
+        self.assertEqual(self.encapsulation.height, 230)
+        
+        # Verify both changes persisted
+        self.assertEqual(self.encapsulation.width, 170)
+        self.assertEqual(self.encapsulation.height, 230)
+        
+        # Verify both laminates have correct dimensions
+        self.assertEqual(self.encapsulation.top_laminate.width, 170)
+        self.assertEqual(self.encapsulation.top_laminate.height, 230)
+        self.assertEqual(self.encapsulation.bottom_laminate.width, 170)
+        self.assertEqual(self.encapsulation.bottom_laminate.height, 230)
+
+    def test_laminates_stay_synchronized(self):
+        """Test that top and bottom laminates stay synchronized."""
+        # Change width multiple times
+        for width in [160, 170, 180]:
+            self.encapsulation.width = width
+            self.assertEqual(self.encapsulation.top_laminate.width, width)
+            self.assertEqual(self.encapsulation.bottom_laminate.width, width)
+        
+        # Change height multiple times
+        for height in [210, 220, 230]:
+            self.encapsulation.height = height
+            self.assertEqual(self.encapsulation.top_laminate.height, height)
+            self.assertEqual(self.encapsulation.bottom_laminate.height, height)
+
+
 if __name__ == '__main__':
     unittest.main()
+

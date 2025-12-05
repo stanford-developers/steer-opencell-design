@@ -26,6 +26,7 @@ class Tape(
         thickness: float,
         width: float = None,
         length: float = None,
+        datum: Tuple[float, float, float] = (0.0, 0.0, 0.0),
         name: str = "Tape"
     ):
         """
@@ -41,6 +42,8 @@ class Tape(
             Width of the tape in mm. If None, bulk properties won't be calculated until set.
         length : float, optional
             Length of the tape in mm. If None, bulk properties won't be calculated until set.
+        datum : Tuple[float, float, float], optional
+            Reference point (x, y, z) in mm. Defaults to (0.0, 0.0, 0.0).
         name : str, optional
             Name of the tape. Defaults to 'Tape'.
         """
@@ -48,6 +51,7 @@ class Tape(
 
         self.thickness = thickness
         self.material = material
+        self.datum = datum
         self.name = name
 
         # Set width and length after other properties
@@ -135,6 +139,11 @@ class Tape(
         return round(self._areal_cost, 2)
 
     @property
+    def datum(self) -> Tuple[float, float, float]:
+        """Get the datum position in mm."""
+        return tuple(round(coord * M_TO_MM, 2) for coord in self._datum)
+
+    @property
     def name(self) -> str:
         return self._name
 
@@ -184,6 +193,12 @@ class Tape(
         new_material_specific_cost = areal_cost / (self.material._density * self._thickness)  # $/kg
         self._material.specific_cost = new_material_specific_cost
 
+    @datum.setter
+    def datum(self, datum: Tuple[float, float, float]) -> None:
+        """Set the datum position in mm."""
+        self.validate_datum(datum)
+        self._datum = tuple(coord * MM_TO_M for coord in datum)
+
     @name.setter
     def name(self, name: str) -> None:
         self.validate_string(name, "Name")
@@ -212,28 +227,3 @@ class Tape(
     def thickness(self, thickness: float) -> None:
         self.validate_positive_float(thickness, "Thickness")
         self._thickness = float(thickness) * UM_TO_M
-
-    def calculate_total_cost(self, area: float) -> float:
-        """
-        Calculate the total cost for a given area of tape.
-        
-        Parameters
-        ----------
-        area : float
-            Area of tape in cm²
-            
-        Returns
-        -------
-        float
-            Total cost in dollars
-            
-        Raises
-        ------
-        ValueError
-            If area is not positive
-        """
-        self.validate_positive_float(area, "area")
-        
-        total_cost = self.areal_cost * area
-        return round(total_cost, 4)
-
