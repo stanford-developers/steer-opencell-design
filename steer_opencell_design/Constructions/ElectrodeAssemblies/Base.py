@@ -9,6 +9,7 @@ from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Data import DataMixin
 
 from steer_core.Decorators.General import calculate_all_properties
+from steer_core.Decorators.Coordinates import calculate_coordinates
 
 from steer_core.Constants.Units import *
 
@@ -17,7 +18,7 @@ from copy import deepcopy
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 
 
 # Constants for curve calculations
@@ -186,6 +187,11 @@ class _ElectrodeAssembly(
         return fig
 
     @property
+    def datum(self) -> Tuple[float, float, float]:
+        """Return the datum coordinates of the electrode assembly."""
+        return tuple(round(d * M_TO_MM, 2) for d in self._datum)
+
+    @property
     def pore_volume(self) -> float:
         """Return the pore volume of the jelly roll assembly."""
         return round(self._pore_volume * M_TO_CM**3, 2)
@@ -328,6 +334,14 @@ class _ElectrodeAssembly(
                 return round(obj * KG_TO_G, 2)
 
         return _convert_and_round_recursive(self._mass_breakdown)
+
+    @datum.setter
+    @calculate_coordinates
+    def datum(self, value: Tuple[float, float, float]) -> None:
+        """Set the datum coordinates of the electrode assembly with validation."""
+        self.validate_datum(value, "datum")
+        self._layup.datum = value
+        self._datum = tuple(float(v) * MM_TO_M for v in value)
 
     @name.setter
     def name(self, value: str) -> None:

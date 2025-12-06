@@ -145,7 +145,7 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertTrue(hasattr(self.layup, "_operating_reversible_areal_capacity"))
         self.assertTrue(hasattr(self.layup, "maximum_areal_reversible_capacity_range"))
         self.assertTrue(hasattr(self.layup, "_maximum_areal_reversible_capacity_range"))
-        self.assertEqual(self.layup.minimum_operating_voltage_range, (2.27, 2.7))
+        self.assertEqual(self.layup.minimum_operating_voltage_range, (2.27, 3.12))
         self.assertEqual(self.layup.maximum_operating_voltage_range, (3.63, 4.03))
         self.assertEqual(self.layup.operating_reversible_areal_capacity, 0.842)
         self.assertEqual(self.layup.maximum_areal_reversible_capacity_range, (0.819, 0.842))

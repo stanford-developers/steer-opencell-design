@@ -75,6 +75,7 @@ class _Cell(
     
     def _calculate_all_properties(self) -> None:
         self._make_assemblies()
+        self._position_assemblies()
         self._calculate_bulk_properties()
         self._calculate_electrochemical_properties()
 
@@ -118,10 +119,32 @@ class _Cell(
         electrolyte_volume = _electrolyte_volume * M_TO_CM**3
         self._electrolyte.volume = electrolyte_volume
 
-    def _make_assemblies(self) -> None:
+    def _make_assemblies(self) -> list[_ElectrodeAssembly]:
 
         # Create the electrode assemblies based on the reference assembly and number of assemblies
         self._electrode_assemblies = [deepcopy(self.reference_electrode_assembly) for _ in range(self.n_electrode_assembly)]
+
+        return self._electrode_assemblies
+    
+    def _position_assemblies(self) -> None:
+
+        if len(self._electrode_assemblies) == 1:
+            return
+        
+        # make z-grid centered at 0 with self._n_electrode_assembly points spaced by self._reference_electrode_assembly._thickness
+        z_positions = np.linspace(
+            -((self.n_electrode_assembly - 1) / 2) * self._reference_electrode_assembly._thickness,
+            ((self.n_electrode_assembly - 1) / 2) * self._reference_electrode_assembly._thickness,
+            self.n_electrode_assembly,
+        )
+
+        # position each assembly at the corresponding z position
+        for assembly, z in zip(self._electrode_assemblies, z_positions):
+            assembly.datum = (
+                assembly._datum[0] * M_TO_MM,
+                assembly._datum[1] * M_TO_MM,
+                z * M_TO_MM
+            )
 
     def _format_curve_for_display(self, curve: np.ndarray, scale_factor: float = S_TO_H) -> pd.DataFrame:
         """Convert raw curve array to formatted DataFrame with spline interpolation point.
