@@ -18,7 +18,12 @@ from steer_opencell_design import (
     Binder, ConductiveAdditive,
     CurrentCollectorMaterial, SeparatorMaterial, InsulationMaterial, TapeMaterial,
     PrismaticContainerMaterial,
-    Electrolyte
+    Electrolyte,
+    PunchedCurrentCollector,
+    MonoLayer,
+    PunchedStack,
+    PouchTerminal, PouchEncapsulation, LaminateSheet,
+    PouchCell
 )
 
 
@@ -258,8 +263,8 @@ class TestCylindricalCell(unittest.TestCase):
 
         fig2 = self.cell.get_capacity_plot()
 
-        fig1.show()
-        fig2.show()
+        # fig1.show()
+        # fig2.show()
         
     def test_minimum_operating_voltage_setter(self):
         """Test setting minimum operating voltage within valid range."""
@@ -392,22 +397,6 @@ class TestCylindricalCell(unittest.TestCase):
         with self.assertWarns(UserWarning):
             self.cell.reference_electrode_assembly = large_jellyroll
         
-    def test_n_electrode_assembly_setter(self):
-        """Test setting number of electrode assemblies scales capacity."""
-        original_n = self.cell.n_electrode_assembly
-        original_capacity = self.cell.reversible_capacity
-        
-        # Double the number of assemblies
-        new_n = 2
-        self.cell.n_electrode_assembly = new_n
-        
-        # Check capacity approximately doubled
-        new_capacity = self.cell.reversible_capacity
-        self.assertAlmostEqual(new_capacity / original_capacity, 2.0, 1)
-        
-        # Check mass increased
-        self.assertIsNotNone(self.cell.mass)
-        
     def test_electrolyte_setter(self):
         """Test setting electrolyte updates cell properties."""
         # Create new electrolyte with different properties
@@ -517,6 +506,169 @@ class TestCylindricalCell(unittest.TestCase):
 
         fig1 = self.cell.get_capacity_plot()
         # fig1.show()
+
+
+class TestStackedPouchCell(unittest.TestCase):
+    
+    def setUp(self):
+        # Replicate MonoLayer setup similar to TestSimpleMonoLayer in test_layups
+        cathode_active = CathodeMaterial.from_database("LFP")
+        cathode_active.specific_cost = 6
+        cathode_active.density = 3.6
+
+        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+
+        cathode_formulation = CathodeFormulation(
+            active_materials={cathode_active: 95},
+            binders={binder: 2},
+            conductive_additives={conductive_additive: 3},
+        )
+
+        cathode_cc_material = CurrentCollectorMaterial(name="Copper", specific_cost=5, density=2.7, color="#FFAE00")
+
+        cathode_cc = PunchedCurrentCollector(
+            material=cathode_cc_material,
+            width=300,
+            height=320,
+            thickness=8,
+            tab_width=60,
+            tab_height=18,
+            tab_position=50,
+        )
+
+        cathode = Cathode(
+            formulation=cathode_formulation,
+            mass_loading=14.2,
+            current_collector=cathode_cc,
+            calender_density=2.60,
+        )
+
+        anode_active = AnodeMaterial.from_database("Synthetic Graphite")
+        anode_active.specific_cost = 4
+        anode_active.density = 2.2
+
+        anode_formulation = AnodeFormulation(
+            active_materials={anode_active: 90},
+            binders={binder: 5},
+            conductive_additives={conductive_additive: 5},
+        )
+
+        cc_material = CurrentCollectorMaterial(name="Aluminium", specific_cost=5, density=2.7, color="#717171")
+
+        anode_cc = PunchedCurrentCollector(
+            material=cc_material,
+            width=304,
+            height=324,
+            thickness=8,
+            tab_width=60,
+            tab_height=18,
+            tab_position=250,
+        )
+
+        anode = Anode(
+            formulation=anode_formulation,
+            mass_loading=10.68,
+            current_collector=anode_cc,
+            calender_density=1.1,
+            insulation_thickness=10,
+        )
+
+        separator_material = SeparatorMaterial(
+            name="Polyethylene",
+            specific_cost=2,
+            density=0.94,
+            color="#FDFDB7",
+            porosity=45,
+        )
+
+        separator = Separator(material=separator_material, thickness=25, width=310, length=326)
+
+        monolayer = MonoLayer(
+            anode=anode,
+            cathode=cathode,
+            separator=separator,
+        )
+
+        # default stack for reuse in tests
+        stack = PunchedStack(
+            layup=monolayer, 
+            n_layers=20
+        )
+
+        top_laminate_sheet = LaminateSheet(
+            areal_cost=10,
+            thickness=0.1,
+            density=1500,
+        )
+
+        bottom_laminate_sheet = LaminateSheet(
+            areal_cost=10,
+            thickness=0.1,
+            density=1500,
+        )
+
+        cathode_terminal = PouchTerminal(
+            material=cathode_cc_material,
+            thickness=2,
+            width=80,
+            length=100,
+        )
+
+        anode_terminal = PouchTerminal(
+            material=cc_material,
+            thickness=3,
+            width=80,
+            length=100,
+        )
+
+        encapsulation = PouchEncapsulation(
+            top_laminate=top_laminate_sheet,
+            bottom_laminate=bottom_laminate_sheet,
+            cathode_terminal=cathode_terminal,
+            anode_terminal=anode_terminal,
+            width=320,
+            height=340,
+        )
+
+        electrolyte = Electrolyte(
+            name="1M LiPF6 in EC:DMC (1:1)",
+            density=1.2,
+            specific_cost=15.0,
+            color="#00FF00"
+        )
+
+        self.cell = PouchCell(
+            reference_electrode_assembly=stack,
+            n_electrode_assembly=3,
+            encapsulation=encapsulation,
+            electrolyte=electrolyte,
+            electrolyte_overfill=0.2,
+        )
+
+    def test_basics(self):
+        self.assertIsInstance(self.cell, PouchCell)
+
+    def test_plots(self):
+
+        fig1 = self.cell.plot_mass_breakdown()
+        fig2 = self.cell.plot_cost_breakdown()
+        fig3 = self.cell.get_capacity_plot()
+        # fig4 = self.cell.get_top_down_view()
+        # fig5 = self.cell.get_cross_section()
+
+        self.assertIsNotNone(fig1)
+        self.assertIsNotNone(fig2)
+        self.assertIsNotNone(fig3)
+        # self.assertIsNotNone(fig4)
+        # self.assertIsNotNone(fig5)
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+        # fig4.show()
+        # fig5.show()
+
 
 if __name__ == "__main__":
     unittest.main()

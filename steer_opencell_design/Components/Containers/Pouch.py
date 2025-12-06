@@ -9,12 +9,14 @@ from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 
 from steer_core.Decorators.General import calculate_all_properties
+from steer_core.Decorators.Coordinates import calculate_coordinates
 
-from steer_opencell_design.Materials.Other import LaminateMaterial, TapeMaterial, PrismaticContainerMaterial
+from steer_opencell_design.Materials.Other import PrismaticContainerMaterial
 
 from typing import Tuple
 from copy import deepcopy
 import numpy as np
+import pandas as pd
 
 
 class LaminateSheet(
@@ -23,6 +25,7 @@ class LaminateSheet(
     DunderMixin,
     PlotterMixin,
     ):
+
     def __init__(
         self,
         areal_cost: float,
@@ -49,6 +52,8 @@ class LaminateSheet(
         """
         self._update_properties = False
 
+        self._hot_pressed = False
+
         self.areal_cost = areal_cost
         self.density = density
         self.thickness = thickness
@@ -63,6 +68,7 @@ class LaminateSheet(
 
         self._update_properties = True
 
+    # Private functions
     def _calculate_all_properties(self):
         """
         Calculate all properties of the laminate sheet.
@@ -92,10 +98,8 @@ class LaminateSheet(
             return
         
         self._calculate_top_down_coordinates()
-        self._calculate_side_cross_section_coordinates()
-
-    def _calculate_side_cross_section_coordinates(self):
-        pass
+        self._calculate_right_left_coordinates()
+        self._calculate_bottom_up_coordinates()
 
     def _calculate_top_down_coordinates(self):
         
@@ -110,6 +114,218 @@ class LaminateSheet(
 
         return self._top_down_coordinates
 
+    def _generate_bucket_cross_section(self, axis: int, start: float, end: float, perpendicular_pos: float) -> np.ndarray:
+        """Generate bucket-shaped cross-section coordinates for hot-pressed laminates.
+        
+        Parameters
+        ----------
+        axis : int
+            Coordinate axis index (0 for x, 1 for y) for the main dimension
+        start : float
+            Start position along the main axis
+        end : float
+            End position along the main axis
+        perpendicular_pos : float
+            Position in the perpendicular direction (z-coordinate)
+        
+        Returns
+        -------
+        np.ndarray
+            Array of (coord, z) points defining the bucket shape
+        """
+        cavity_min = self._cavity_coordinates[:, axis].min()
+        cavity_max = self._cavity_coordinates[:, axis].max()
+        
+        # For negative depth (dip), outer edges need to contract inward
+        # For positive depth (raised), outer edges need to expand outward
+        # This is opposite to what you might initially think
+        offset = self._thickness if self._cavity_depth > 0 else -self._thickness
+        
+        # Inner bucket edge (top of laminate)
+        points = [
+            (start, perpendicular_pos),
+            (cavity_min, perpendicular_pos),
+            (cavity_min, perpendicular_pos - self._cavity_depth),
+            (cavity_max, perpendicular_pos - self._cavity_depth),
+            (cavity_max, perpendicular_pos),
+            (end, perpendicular_pos),
+        ]
+        
+        # Outer bucket edge (bottom of laminate)
+        points.extend([
+            (end, perpendicular_pos - self._thickness),
+            (cavity_max + offset, perpendicular_pos - self._thickness),
+            (cavity_max + offset, perpendicular_pos - self._thickness - self._cavity_depth),
+            (cavity_min - offset, perpendicular_pos - self._thickness - self._cavity_depth),
+            (cavity_min - offset, perpendicular_pos - self._thickness),
+            (start, perpendicular_pos - self._thickness),
+            (start, perpendicular_pos),  # Close the loop
+        ])
+        
+        return np.array(points)
+
+    def _calculate_right_left_coordinates(self):
+        """Calculate the side cross-section coordinates (right/left view)."""
+        
+        if not self._hot_pressed:
+            # Simple flat sheet - rectangular cross-section
+            y, z = self.build_square_array(
+                self._datum[1] - self._height / 2,
+                self._datum[2] - self._thickness / 2,
+                self._height,
+                self._thickness
+            )
+            self._right_left_coordinates = np.column_stack((y, z))
+        else:
+            # Hot-pressed sheet with bucket-shaped dip
+            start = self._datum[1] - self._height / 2
+            end = self._datum[1] + self._height / 2
+            top_z = self._datum[2] + self._thickness / 2
+            
+            self._right_left_coordinates = self._generate_bucket_cross_section(
+                axis=1,  # y-axis
+                start=start,
+                end=end,
+                perpendicular_pos=top_z
+            )
+
+        return self._right_left_coordinates
+
+    def _calculate_bottom_up_coordinates(self):
+        """Calculate the front/back cross-section coordinates (bottom-up view)."""
+        
+        if not self._hot_pressed:
+            # Simple flat sheet - rectangular cross-section
+            x, z = self.build_square_array(
+                self._datum[0] - self._width / 2,
+                self._datum[2] - self._thickness / 2,
+                self._width,
+                self._thickness
+            )
+            self._bottom_up_coordinates = np.column_stack((x, z))
+        else:
+            # Hot-pressed sheet with bucket-shaped dip
+            start = self._datum[0] - self._width / 2
+            end = self._datum[0] + self._width / 2
+            top_z = self._datum[2] + self._thickness / 2
+            
+            self._bottom_up_coordinates = self._generate_bucket_cross_section(
+                axis=0,  # x-axis
+                start=start,
+                end=end,
+                perpendicular_pos=top_z
+            )
+
+        return self._bottom_up_coordinates
+    
+    @calculate_coordinates
+    def _hot_press(
+        self, 
+        _depth: float, 
+        _width: float, 
+        _height: float,
+        _datum: Tuple[float, float] = (0.0, 0.0)
+    ) -> None:
+        """Set the laminate as hot-pressed."""
+
+        if _width > self._width or _height > self._height:
+            raise ValueError("Cavity dimensions exceed laminate dimensions.")
+
+        if _depth == 0:
+            self._hot_pressed = False
+            return 
+
+        self._hot_pressed = True
+        self._cavity_depth = _depth
+
+        _cavity_x = self._datum[0] + _datum[0]
+        _cavity_y = self._datum[1] + _datum[1]
+
+        x, y = self.build_square_array(
+            _cavity_x - _width / 2,
+            _cavity_y - _height / 2,
+            _width,
+            _height
+        )
+
+        if min(y) < min(self._top_down_coordinates[:, 1]) or max(y) > max(self._top_down_coordinates[:, 1]):
+            raise ValueError("Cavity height exceeds laminate height.")
+        if min(x) < min(self._top_down_coordinates[:, 0]) or max(x) > max(self._top_down_coordinates[:, 0]):
+            raise ValueError("Cavity width exceeds laminate width.")
+
+        self._cavity_coordinates = np.column_stack((x, y))
+
+    # Public functions
+    def get_top_down_view(self, **kwargs):
+        """Get a Plotly Figure showing the top-down view of the laminate sheet.
+        
+        Returns a go.Figure with the laminate sheet footprint.
+        """
+        import plotly.graph_objects as go
+        
+        if not hasattr(self, '_top_down_coordinates') or self._top_down_coordinates is None:
+            return go.Figure()
+        
+        fig = go.Figure()
+        fig.add_trace(self.top_down_trace)
+        
+        fig.update_layout(
+            xaxis=self.SCHEMATIC_X_AXIS,
+            yaxis=self.SCHEMATIC_Y_AXIS,
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            **kwargs,
+        )
+        
+        return fig
+
+    def get_right_left_view(self, **kwargs):
+        """Get a Plotly Figure showing the right-left (side) view of the laminate sheet.
+        
+        Returns a go.Figure with the laminate sheet cross-section.
+        """
+        import plotly.graph_objects as go
+        
+        if not hasattr(self, '_right_left_coordinates') or self._right_left_coordinates is None:
+            return go.Figure()
+        
+        fig = go.Figure()
+        fig.add_trace(self.right_left_trace)
+        
+        fig.update_layout(
+            xaxis=self.SCHEMATIC_Y_AXIS,
+            yaxis=self.SCHEMATIC_Z_AXIS,
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            **kwargs,
+        )
+        
+        return fig
+
+    def get_bottom_up_view(self, **kwargs):
+        """Get a Plotly Figure showing the bottom-up view of the laminate sheet.
+        
+        Returns a go.Figure with the laminate sheet cross-section.
+        """
+        import plotly.graph_objects as go
+        
+        if not hasattr(self, '_bottom_up_coordinates') or self._bottom_up_coordinates is None:
+            return go.Figure()
+        
+        fig = go.Figure()
+        fig.add_trace(self.bottom_up_trace)
+        
+        fig.update_layout(
+            xaxis=self.SCHEMATIC_X_AXIS,
+            yaxis=self.SCHEMATIC_Z_AXIS,
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            **kwargs,
+        )
+        
+        return fig
+
+    # Properties
     @property
     def cost(self) -> float:
         if self._cost is None:
@@ -181,6 +397,130 @@ class LaminateSheet(
     def thickness_range(self):
         return (0, 100)
 
+    @property
+    def top_down_coordinates(self):
+        """Get the top-down coordinates in mm.
+        
+        Returns coordinates as a DataFrame with 'x' and 'y' columns.
+        """
+        if not hasattr(self, '_top_down_coordinates') or self._top_down_coordinates is None:
+            return None
+        
+        # Perform operations on numpy array first for speed
+        coords_mm = self._top_down_coordinates * M_TO_MM
+        coords_rounded = np.round(coords_mm, 2)
+        return pd.DataFrame(coords_rounded, columns=['x', 'y'])
+
+    @property
+    def right_left_coordinates(self):
+        """Get the right-left (side) cross-section coordinates in mm.
+        
+        Returns coordinates as a DataFrame with 'y' and 'z' columns.
+        """
+        if not hasattr(self, '_right_left_coordinates') or self._right_left_coordinates is None:
+            return None
+        
+        # Perform operations on numpy array first for speed
+        coords_mm = self._right_left_coordinates * M_TO_MM
+        coords_rounded = np.round(coords_mm, 2)
+        return pd.DataFrame(coords_rounded, columns=['y', 'z'])
+
+    @property
+    def bottom_up_coordinates(self):
+        """Get the bottom-up cross-section coordinates in mm.
+        
+        Returns coordinates as a DataFrame with 'x' and 'z' columns.
+        """
+        if not hasattr(self, '_bottom_up_coordinates') or self._bottom_up_coordinates is None:
+            return None
+        
+        # Perform operations on numpy array first for speed
+        coords_mm = self._bottom_up_coordinates * M_TO_MM
+        coords_rounded = np.round(coords_mm, 2)
+        return pd.DataFrame(coords_rounded, columns=['x', 'z'])
+
+    @property
+    def right_left_trace(self):
+        """Get a Plotly Scatter trace for the right-left (side) view.
+        
+        Returns a go.Scatter trace showing the cross-section of the laminate sheet.
+        """
+        import plotly.graph_objects as go
+        
+        if not hasattr(self, '_right_left_coordinates') or self._right_left_coordinates is None:
+            return None
+        
+        coords = self.right_left_coordinates
+        
+        trace = go.Scatter(
+            x=coords['y'],
+            y=coords['z'],
+            mode='lines',
+            name=self._name,
+            line=dict(color='gray', width=1),
+            fill='toself',
+            fillcolor='lightgray',
+            legendgroup='Laminate Sheet',
+            showlegend=True,
+        )
+        
+        return trace
+
+    @property
+    def bottom_up_trace(self):
+        """Get a Plotly Scatter trace for the bottom-up view.
+        
+        Returns a go.Scatter trace showing the cross-section of the laminate sheet.
+        """
+        import plotly.graph_objects as go
+        
+        if not hasattr(self, '_bottom_up_coordinates') or self._bottom_up_coordinates is None:
+            return None
+        
+        coords = self.bottom_up_coordinates
+        
+        trace = go.Scatter(
+            x=coords['x'],
+            y=coords['z'],
+            mode='lines',
+            name=self._name,
+            line=dict(color='gray', width=1),
+            fill='toself',
+            fillcolor='lightgray',
+            legendgroup='Laminate Sheet',
+            showlegend=True,
+        )
+        
+        return trace
+
+    @property
+    def top_down_trace(self):
+        """Get a Plotly Scatter trace for the top-down view.
+        
+        Returns a go.Scatter trace showing the laminate sheet footprint.
+        """
+        import plotly.graph_objects as go
+        
+        if not hasattr(self, '_top_down_coordinates') or self._top_down_coordinates is None:
+            return None
+        
+        coords = self.top_down_coordinates
+        
+        trace = go.Scatter(
+            x=coords['x'],
+            y=coords['y'],
+            mode='lines',
+            name=self._name,
+            line=dict(color='gray', width=2),
+            fill='toself',
+            fillcolor='lightgray',
+            legendgroup='Laminate Sheet',
+            showlegend=True,
+        )
+        
+        return trace
+
+    # Setters
     @areal_cost.setter
     @calculate_all_properties
     def areal_cost(self, areal_cost: float) -> None:
@@ -242,7 +582,7 @@ class PouchTerminal(
         material,
         width: float,
         length: float,
-        height: float,
+        thickness: float,
         datum: Tuple[float, float, float] = (0.0, 0.0, 0.0),
         name: str = "Pouch Terminal",
     ):
@@ -257,8 +597,8 @@ class PouchTerminal(
             Width of the terminal in mm. Must be positive.
         length : float
             Length of the terminal in mm. Must be positive.
-        height : float
-            Height of the terminal in mm. Must be positive.
+        thickness : float
+            Thickness of the terminal in mm. Must be positive.
         datum : Tuple[float, float, float], optional
             Center position in mm as (x, y, z) coordinates. Defaults to (0.0, 0.0, 0.0).
         name : str, optional
@@ -267,14 +607,14 @@ class PouchTerminal(
         Raises
         ------
         ValueError
-            If width, length, or height <= 0 when provided.
+            If width, length, or thickness <= 0 when provided.
         """
         self._update_properties = False
 
         self.material = material
         self.width = width
         self.length = length
-        self.height = height
+        self.thickness = thickness
         self.datum = datum
         self.name = name
 
@@ -289,13 +629,13 @@ class PouchTerminal(
     def _calculate_bulk_properties(self):
         """Calculate volume, mass, and cost of the terminal."""
         # Volume in m³
-        self._volume = self._width * self._length * self._height
-        
-        # Mass in kg
-        self._mass = self._volume * self.material.density
-        
-        # Cost in $
-        self._cost = self._mass * self.material.specific_cost
+        _volume = self._width * self._length * self._thickness
+        volume = _volume * M_TO_CM**3
+        self._material.volume = volume
+
+        self._volume = self._material._volume
+        self._mass = self._material._mass
+        self._cost = self._material._cost
 
     def _calculate_coordinates(self):
         """Calculate the 3D coordinates of the terminal."""
@@ -317,9 +657,9 @@ class PouchTerminal(
         """Calculate side cross-section coordinates."""
         x, z = self.build_square_array(
             self._datum[0] - self._width / 2,
-            self._datum[2] - self._height / 2,
+            self._datum[2] - self._thickness / 2,
             self._width,
-            self._height
+            self._thickness
         )
         self._side_cross_section_coordinates = np.column_stack((x, z))
         return self._side_cross_section_coordinates
@@ -361,13 +701,13 @@ class PouchTerminal(
         return (0, 200)
 
     @property
-    def height(self) -> float:
-        """Height in mm."""
-        return round(self._height * M_TO_MM, 2)
+    def thickness(self) -> float:
+        """Thickness in mm."""
+        return round(self._thickness * M_TO_MM, 2)
 
     @property
-    def height_range(self):
-        """Height range in mm."""
+    def thickness_range(self):
+        """Thickness range in mm."""
         return (0, 50)
 
     @property
@@ -380,7 +720,16 @@ class PouchTerminal(
         """Component name."""
         return self._name
 
-    # Setters
+    @property
+    def material(self) -> PrismaticContainerMaterial:
+        """Get material."""
+        return self._material
+    
+    @material.setter
+    def material(self, material: PrismaticContainerMaterial) -> None:
+        """Set material."""
+        self._material = material
+
     @width.setter
     @calculate_all_properties
     def width(self, width: float) -> None:
@@ -395,12 +744,12 @@ class PouchTerminal(
         self.validate_positive_float(length, "Length")
         self._length = float(length) * MM_TO_M
 
-    @height.setter
+    @thickness.setter
     @calculate_all_properties
-    def height(self, height: float) -> None:
-        """Set height in mm."""
-        self.validate_positive_float(height, "Height")
-        self._height = float(height) * MM_TO_M
+    def thickness(self, thickness: float) -> None:
+        """Set thickness in mm."""
+        self.validate_positive_float(thickness, "Thickness")
+        self._thickness = float(thickness) * MM_TO_M
 
     @datum.setter
     def datum(self, datum: Tuple[float, float, float]) -> None:
@@ -425,11 +774,15 @@ class PouchEncapsulation(_Container):
             bottom_laminate: LaminateSheet,
             width: float = None,
             height: float = None,
+            thickness: float = None,
             name: str = "Pouch Encapsulation",
             datum: Tuple[float, float, float] = (0.0, 0.0, 0.0)
         ):
 
         self._update_properties = False
+        
+        # Initialize volume to None
+        self._volume = None
         
         self.cathode_terminal = cathode_terminal
         self.anode_terminal = anode_terminal
@@ -438,11 +791,9 @@ class PouchEncapsulation(_Container):
         self.name = name
         self.datum = datum
         
-        # Set width and height on laminates if provided
-        if width is not None:
-            self.width = width
-        if height is not None:
-            self.height = height
+        self.width = width
+        self.height = height
+        self.thickness = thickness
 
         self._update_properties = True
         self._calculate_all_properties()
@@ -454,14 +805,19 @@ class PouchEncapsulation(_Container):
 
     def _calculate_bulk_properties(self):
         """Calculate bulk properties including volume, mass, and cost."""
-        self._calculate_mass()
-        self._calculate_cost()
+        if self._top_laminate._mass is not None and self._bottom_laminate._mass is not None:
+            self._calculate_mass()
+        if self._top_laminate._cost is not None and self._bottom_laminate._cost is not None:
+            self._calculate_cost()
+        if self._top_laminate._mass is not None and self._bottom_laminate._mass is not None and self._thickness is not None:
+            self._calculate_volume()
 
     def _calculate_coordinates(self):
         """Calculate coordinates for all components."""
         # Position laminates relative to datum
         # Top laminate above datum
         if self.top_laminate.width is not None and self.top_laminate.height is not None:
+
             self._top_laminate.datum = (
                 self._datum[0] * M_TO_MM,
                 self._datum[1] * M_TO_MM,
@@ -470,6 +826,7 @@ class PouchEncapsulation(_Container):
         
         # Bottom laminate below datum
         if self.bottom_laminate.width is not None and self.bottom_laminate.height is not None:
+
             self._bottom_laminate.datum = (
                 self._datum[0] * M_TO_MM,
                 self._datum[1] * M_TO_MM,
@@ -481,9 +838,8 @@ class PouchEncapsulation(_Container):
         cathode_mass = self._cathode_terminal._mass
         anode_mass = self._anode_terminal._mass
         
-        # Laminate masses (might be None if dimensions not set)
-        top_laminate_mass = self._top_laminate._mass if self._top_laminate._mass is not None else 0
-        bottom_laminate_mass = self._bottom_laminate._mass if self._bottom_laminate._mass is not None else 0
+        top_laminate_mass = self._top_laminate._mass
+        bottom_laminate_mass = self._bottom_laminate._mass
         
         self._mass = cathode_mass + anode_mass + top_laminate_mass + bottom_laminate_mass
         
@@ -498,9 +854,8 @@ class PouchEncapsulation(_Container):
         cathode_cost = self._cathode_terminal._cost
         anode_cost = self._anode_terminal._cost
         
-        # Laminate costs (might be None if dimensions not set)
-        top_laminate_cost = self._top_laminate._cost if self._top_laminate._cost is not None else 0
-        bottom_laminate_cost = self._bottom_laminate._cost if self._bottom_laminate._cost is not None else 0
+        top_laminate_cost = self._top_laminate._cost
+        bottom_laminate_cost = self._bottom_laminate._cost
         
         self._cost = cathode_cost + anode_cost + top_laminate_cost + bottom_laminate_cost
         
@@ -511,7 +866,36 @@ class PouchEncapsulation(_Container):
             "Bottom Laminate": bottom_laminate_cost
         }
 
-    # Properties
+    def _calculate_volume(self):
+        """Calculate the volume of the encapsulation."""
+        if self._thickness is None:
+            self._volume = None
+            return
+
+        _top_laminate_width = self._top_laminate._width
+        _top_laminate_height = self._top_laminate._height
+        _bottom_laminate_width = self._bottom_laminate._width
+        _bottom_laminate_height = self._bottom_laminate._height
+
+        _max_width = max(_top_laminate_width, _bottom_laminate_width)
+        _max_height = max(_top_laminate_height, _bottom_laminate_height)
+
+        self._volume = _max_width * _max_height * self._thickness
+
+    @property
+    def thickness(self) -> float:
+        """Get thickness of the encapsulation in mm."""
+        if self._thickness is None:
+            return None
+        return round(self._thickness * M_TO_MM, 2)
+    
+    @property
+    def volume(self) -> float:
+        """Total volume in cm³."""
+        if self._volume is None:
+            return None
+        return round(self._volume * M_TO_CM**3, 2)
+    
     @property
     def mass(self) -> float:
         """Total mass in g."""
@@ -584,7 +968,16 @@ class PouchEncapsulation(_Container):
         
         return _round_recursive(self._cost_breakdown)
 
-    # Setters
+    @thickness.setter
+    @calculate_all_properties
+    def thickness(self, thickness: float) -> None:
+        """Set thickness of both laminate sheets in mm."""
+        if thickness is None:
+            self._thickness = None
+            return
+        self.validate_positive_float(thickness, "Thickness")
+        self._thickness = float(thickness) * MM_TO_M
+    
     @datum.setter
     @calculate_all_properties
     def datum(self, value: Tuple[float, float, float]) -> None:
@@ -632,6 +1025,9 @@ class PouchEncapsulation(_Container):
     @calculate_all_properties
     def width(self, width: float) -> None:
         """Set width of both laminate sheets in mm."""
+        if width is None:
+            self._width = None
+            return
         self.validate_positive_float(width, "Width")
         self._top_laminate.width = width
         self._bottom_laminate.width = width
@@ -640,6 +1036,9 @@ class PouchEncapsulation(_Container):
     @calculate_all_properties
     def height(self, height: float) -> None:
         """Set height of both laminate sheets in mm."""
+        if height is None:
+            self._height = None
+            return
         self.validate_positive_float(height, "Height")
         self._top_laminate.height = height
         self._bottom_laminate.height = height

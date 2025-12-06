@@ -254,6 +254,10 @@ class CylindricalCell(_Cell):
     def encapsulation(self) -> CylindricalEncapsulation:
         return self._encapsulation
     
+    @property
+    def n_electrode_assembly(self) -> int:
+        return 1
+
     @reference_electrode_assembly.setter
     @calculate_all_properties
     def reference_electrode_assembly(self, value: WoundJellyRoll) -> None:
@@ -280,4 +284,17 @@ class CylindricalCell(_Cell):
         self.validate_type(value, CylindricalEncapsulation, "encapsulation")
         self._encapsulation = value
 
+    @n_electrode_assembly.setter
+    def n_electrode_assembly(self, value: int) -> None:
+        """Set number of electrode assemblies with validation.
+        
+        Parameters
+        ----------
+        value : int
+            Number of parallel electrode assemblies (must be 1 for cylindrical cells)
+        """
+        if value != 1:
+            raise ValueError("Cylindrical cells can only have 1 electrode assembly.")
+        
+        self._n_electrode_assembly = value
 

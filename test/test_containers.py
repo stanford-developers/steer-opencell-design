@@ -1686,6 +1686,60 @@ class TestLaminateSheet(unittest.TestCase):
         self.assertEqual(self.laminate_sheet.width, 220)
         self.assertEqual(self.laminate_sheet.height, 350)
 
+    def test_hot_press_basic(self):
+        """Test that hot press method works with basic parameters."""
+        # Apply hot press with a cavity
+        self.laminate_sheet._hot_press(
+            _depth=0.01,  # 10mm deep cavity
+            _width=0.05,  # 50mm wide cavity
+            _height=0.28,  # 150mm high cavity
+            _datum=(0.0, 0.0)  # Centered cavity
+        )
+        
+        # Check that hot pressed flag is set
+        self.assertTrue(self.laminate_sheet._hot_pressed)
+        self.assertEqual(self.laminate_sheet._cavity_depth, 0.01)
+        
+        # Check that cavity coordinates exist
+        self.assertIsNotNone(self.laminate_sheet._cavity_coordinates)
+        self.assertIsInstance(self.laminate_sheet._cavity_coordinates, np.ndarray)
+        self.assertEqual(self.laminate_sheet._cavity_coordinates.shape[1], 2)
+
+        fig1 = self.laminate_sheet.get_top_down_view()
+        fig2 = self.laminate_sheet.get_right_left_view()
+        fig3 = self.laminate_sheet.get_bottom_up_view()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+
+    def test_hot_press_basic_negative_depth(self):
+        """Test that hot press method works with basic parameters."""
+        # Apply hot press with a cavity
+        self.laminate_sheet._hot_press(
+            _depth=-0.01,  # 10mm deep cavity
+            _width=0.05,  # 50mm wide cavity
+            _height=0.28,  # 150mm high cavity
+            _datum=(0.0, 0.0)  # Centered cavity
+        )
+        
+        # Check that hot pressed flag is set
+        self.assertTrue(self.laminate_sheet._hot_pressed)
+        self.assertEqual(self.laminate_sheet._cavity_depth, -0.01)
+        
+        # Check that cavity coordinates exist
+        self.assertIsNotNone(self.laminate_sheet._cavity_coordinates)
+        self.assertIsInstance(self.laminate_sheet._cavity_coordinates, np.ndarray)
+        self.assertEqual(self.laminate_sheet._cavity_coordinates.shape[1], 2)
+
+        fig1 = self.laminate_sheet.get_top_down_view()
+        fig2 = self.laminate_sheet.get_right_left_view()
+        fig3 = self.laminate_sheet.get_bottom_up_view()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+
 
 class TestPouchTerminal(unittest.TestCase):
     """Test suite for PouchTerminal class."""
@@ -1707,7 +1761,7 @@ class TestPouchTerminal(unittest.TestCase):
             material=self.material,
             width=10,
             length=30,
-            height=1.0,  # 1mm thickness for measurable cost
+            thickness=1.0,  # 1mm thickness for measurable cost
             datum=(0.0, 0.0, 0.0),
             name="Test Terminal"
         )
@@ -1717,7 +1771,7 @@ class TestPouchTerminal(unittest.TestCase):
             material=self.material,
             width=15,
             length=50,
-            height=1.5,  # 1.5mm thickness
+            thickness=1.5,  # 1.5mm thickness
             name="Large Terminal"
         )
 
@@ -1727,7 +1781,7 @@ class TestPouchTerminal(unittest.TestCase):
         self.assertEqual(self.terminal.name, "Test Terminal")
         self.assertEqual(self.terminal.width, 10)
         self.assertEqual(self.terminal.length, 30)
-        self.assertEqual(self.terminal.height, 1.0)
+        self.assertEqual(self.terminal.thickness, 1.0)
         self.assertEqual(self.terminal.datum, (0.0, 0.0, 0.0))
 
     def test_width_property(self):
@@ -1742,12 +1796,12 @@ class TestPouchTerminal(unittest.TestCase):
         self.assertIsInstance(length, float)
         self.assertEqual(length, 30)
 
-    def test_height_property(self):
-        """Test that height property returns correct value."""
-        height = self.terminal.height
-        self.assertIsInstance(height, float)
-        self.assertEqual(height, 1.0)
-
+    def test_thickness_property(self):
+        """Test that thickness property returns correct value."""
+        thickness = self.terminal.thickness
+        self.assertIsInstance(thickness, float)
+        self.assertEqual(thickness, 1.0)
+        
     def test_datum_property(self):
         """Test that datum property returns correct value."""
         datum = self.terminal.datum
@@ -1793,12 +1847,12 @@ class TestPouchTerminal(unittest.TestCase):
         self.assertEqual(len(length_range), 2)
         self.assertLessEqual(length_range[0], length_range[1])
 
-    def test_height_range_property(self):
-        """Test that height_range returns valid tuple."""
-        height_range = self.terminal.height_range
-        self.assertIsInstance(height_range, tuple)
-        self.assertEqual(len(height_range), 2)
-        self.assertLessEqual(height_range[0], height_range[1])
+    def test_thickness_range_property(self):
+        """Test that thickness_range returns valid tuple."""
+        thickness_range = self.terminal.thickness_range
+        self.assertIsInstance(thickness_range, tuple)
+        self.assertEqual(len(thickness_range), 2)
+        self.assertLessEqual(thickness_range[0], thickness_range[1])
 
     def test_width_setter(self):
         """Test that width setter works correctly."""
@@ -1820,15 +1874,15 @@ class TestPouchTerminal(unittest.TestCase):
         self.assertEqual(self.terminal.length, new_length)
         self.assertNotEqual(self.terminal.length, original_length)
 
-    def test_height_setter(self):
-        """Test that height setter works correctly."""
-        original_height = self.terminal.height
-        new_height = 1.5
+    def test_thickness_setter(self):
+        """Test that thickness setter works correctly."""
+        original_thickness = self.terminal.thickness
+        new_thickness = 1.5
         
-        self.terminal.height = new_height
+        self.terminal.thickness = new_thickness
         
-        self.assertEqual(self.terminal.height, new_height)
-        self.assertNotEqual(self.terminal.height, original_height)
+        self.assertEqual(self.terminal.thickness, new_thickness)
+        self.assertNotEqual(self.terminal.thickness, original_thickness)
 
     def test_datum_setter(self):
         """Test that datum setter works correctly."""
@@ -1876,12 +1930,12 @@ class TestPouchTerminal(unittest.TestCase):
         # Cost should also change
         self.assertGreaterEqual(self.terminal.cost, 0)
 
-    def test_bulk_properties_recalculation_on_height_change(self):
-        """Test that bulk properties are recalculated when height changes."""
+    def test_bulk_properties_recalculation_on_thickness_change(self):
+        """Test that bulk properties are recalculated when thickness changes."""
         original_volume = self.terminal.volume
         original_mass = self.terminal.mass
         
-        self.terminal.height = 1.3
+        self.terminal.thickness = 1.3
         
         new_volume = self.terminal.volume
         new_mass = self.terminal.mass
@@ -1964,7 +2018,7 @@ class TestPouchTerminal(unittest.TestCase):
             material=self.material,
             width=10,
             length=30,
-            height=1.0,
+            thickness=1.0,
             datum=custom_datum,
             name="Custom Datum Terminal"
         )
@@ -1994,7 +2048,7 @@ class TestPouchEncapsulation(unittest.TestCase):
             material=self.material,
             width=10,
             length=30,
-            height=1.0,
+            thickness=1.0,
             name="Cathode Terminal"
         )
         
@@ -2002,7 +2056,7 @@ class TestPouchEncapsulation(unittest.TestCase):
             material=self.material,
             width=10,
             length=30,
-            height=1.0,
+            thickness=1.0,
             name="Anode Terminal"
         )
         
@@ -2021,7 +2075,7 @@ class TestPouchEncapsulation(unittest.TestCase):
             name="Bottom Laminate"
         )
         
-        # Create encapsulation with dimensions
+        # Create encapsulation with dimensions including thickness
         self.encapsulation = PouchEncapsulation(
             cathode_terminal=self.cathode_terminal,
             anode_terminal=self.anode_terminal,
@@ -2029,7 +2083,41 @@ class TestPouchEncapsulation(unittest.TestCase):
             bottom_laminate=self.bottom_laminate,
             width=150,
             height=200,
+            thickness=5.0,
             name="Test Encapsulation"
+        )
+        
+        # Create encapsulation without thickness
+        self.encapsulation_no_thickness = PouchEncapsulation(
+            cathode_terminal=PouchTerminal(
+                material=self.material,
+                width=10,
+                length=30,
+                thickness=1.0,
+                name="Cathode Terminal"
+            ),
+            anode_terminal=PouchTerminal(
+                material=self.material,
+                width=10,
+                length=30,
+                thickness=1.0,
+                name="Anode Terminal"
+            ),
+            top_laminate=LaminateSheet(
+                areal_cost=2.5,
+                density=920,
+                thickness=50,
+                name="Top Laminate"
+            ),
+            bottom_laminate=LaminateSheet(
+                areal_cost=2.5,
+                density=920,
+                thickness=50,
+                name="Bottom Laminate"
+            ),
+            width=150,
+            height=200,
+            name="Test Encapsulation No Thickness"
         )
         
         # Create encapsulation without dimensions
@@ -2038,14 +2126,14 @@ class TestPouchEncapsulation(unittest.TestCase):
                 material=self.material,
                 width=8,
                 length=25,
-                height=0.8,
+                thickness=0.8,
                 name="Cathode Terminal"
             ),
             anode_terminal=PouchTerminal(
                 material=self.material,
                 width=8,
                 length=25,
-                height=0.8,
+                thickness=0.8,
                 name="Anode Terminal"
             ),
             top_laminate=LaminateSheet(

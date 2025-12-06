@@ -158,6 +158,8 @@ class TestRoundJellyRoll(unittest.TestCase):
         fig4 = self.my_jellyroll.get_capacity_plot()
         fig5 = self.my_jellyroll.plot_mass_breakdown()
         fig6 = self.my_jellyroll.plot_cost_breakdown()
+        fig7 = self.my_jellyroll.get_top_down_view()
+        fig8 = self.my_jellyroll.get_right_left_view()
 
         # fig1.show()
         # fig3.show()
@@ -165,6 +167,25 @@ class TestRoundJellyRoll(unittest.TestCase):
         # fig5.show()
         # fig6.show()
         # fig7.show()
+        # fig8.show()
+
+    def test_datum_set(self):
+
+        original_datum = self.my_jellyroll.datum
+
+        new_datum = (50.0, 60.0, 70.0)
+
+        self.my_jellyroll.datum = new_datum
+
+        self.assertEqual(self.my_jellyroll.datum, new_datum)
+
+        fig1 = self.my_jellyroll.get_spiral_plot()
+        fig2 = self.my_jellyroll.get_top_down_view()
+        fig3 = self.my_jellyroll.get_right_left_view()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
 
     def test_top_down_view(self):
         
@@ -583,8 +604,35 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertTrue(type(self.my_jellyroll.spiral) == pd.DataFrame)
 
         fig1 = self.my_jellyroll.get_spiral_plot()
-        fig2 = self.my_jellyroll.get_spiral_plot(layered=False)
-        fig3 = self.my_jellyroll.get_capacity_plot()
+        fig3 = self.my_jellyroll.get_spiral_plot(layered=False)
+        fig4 = self.my_jellyroll.get_capacity_plot()
+        fig5 = self.my_jellyroll.plot_mass_breakdown()
+        fig6 = self.my_jellyroll.plot_cost_breakdown()
+        fig7 = self.my_jellyroll.get_top_down_view()
+        fig8 = self.my_jellyroll.get_right_left_view()
+
+        # fig1.show()
+        # fig3.show()
+        # fig4.show()
+        # fig5.show()
+        # fig6.show()
+        # fig7.show()
+        # fig8.show()
+
+    def test_datum_set(self):
+
+        original_datum = self.my_jellyroll.datum
+
+        new_datum = (50.0, 60.0, 70.0)
+
+        self.my_jellyroll.datum = new_datum
+
+        self.assertEqual(self.my_jellyroll.datum, new_datum)
+
+        fig1 = self.my_jellyroll.get_spiral_plot()
+        fig2 = self.my_jellyroll.get_top_down_view()
+        fig3 = self.my_jellyroll.get_right_left_view()
+
         # fig1.show()
         # fig2.show()
         # fig3.show()
