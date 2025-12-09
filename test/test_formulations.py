@@ -1,4 +1,5 @@
 import unittest
+import warnings
 from copy import deepcopy
 
 from steer_opencell_design.Materials.Formulations import CathodeFormulation, AnodeFormulation
@@ -510,7 +511,9 @@ class TestActiveMaterialPropertiesAndSetters(unittest.TestCase):
         """Test that setting active_material_1 to None removes the first active material."""
         f = CathodeFormulation({self.mat1: 60, self.mat2: 40})
         
-        f.active_material_1 = None
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.active_material_1 = None
         
         # Should only have the second material now, which becomes the first
         self.assertEqual(f.active_material_1, self.mat2)
@@ -523,7 +526,9 @@ class TestActiveMaterialPropertiesAndSetters(unittest.TestCase):
         """Test that setting active_material_2 to None removes the second active material."""
         f = CathodeFormulation({self.mat1: 60, self.mat2: 30, self.mat3: 10})
         
-        f.active_material_2 = None
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.active_material_2 = None
         
         # Should have first and third materials, third becomes second
         self.assertEqual(f.active_material_1, self.mat1)
@@ -537,7 +542,9 @@ class TestActiveMaterialPropertiesAndSetters(unittest.TestCase):
         """Test that setting active_material_3 to None removes the third active material."""
         f = CathodeFormulation({self.mat1: 60, self.mat2: 30, self.mat3: 10})
         
-        f.active_material_3 = None
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.active_material_3 = None
         
         # Should only have first two materials
         self.assertEqual(f.active_material_1, self.mat1)
@@ -578,7 +585,9 @@ class TestActiveMaterialWeightPropertiesAndSetters(unittest.TestCase):
         """Test active_material_1_weight setter updates the weight percentage."""
         f = CathodeFormulation({self.mat1: 60, self.mat2: 40})
         
-        f.active_material_1_weight = 70.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.active_material_1_weight = 70.0
         
         self.assertEqual(f.active_material_1_weight, 70.0)
         self.assertEqual(f._active_materials[self.mat1], 0.7)
@@ -599,7 +608,9 @@ class TestActiveMaterialWeightPropertiesAndSetters(unittest.TestCase):
         """Test active_material_2_weight setter updates the weight percentage."""
         f = CathodeFormulation({self.mat1: 60, self.mat2: 40})
         
-        f.active_material_2_weight = 30.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.active_material_2_weight = 30.0
         
         self.assertEqual(f.active_material_2_weight, 30.0)
         self.assertEqual(f._active_materials[self.mat2], 0.3)
@@ -629,7 +640,9 @@ class TestActiveMaterialWeightPropertiesAndSetters(unittest.TestCase):
         """Test active_material_3_weight setter updates the weight percentage."""
         f = CathodeFormulation({self.mat1: 60, self.mat2: 30, self.mat3: 10})
         
-        f.active_material_3_weight = 15.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.active_material_3_weight = 15.0
         
         self.assertEqual(f.active_material_3_weight, 15.0)
         self.assertEqual(f._active_materials[self.mat3], 0.15)
@@ -662,7 +675,9 @@ class TestActiveMaterialWeightPropertiesAndSetters(unittest.TestCase):
         """Test that weight can be set to zero."""
         f = CathodeFormulation({self.mat1: 60, self.mat2: 40})
         
-        f.active_material_2_weight = 0.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.active_material_2_weight = 0.0
         
         self.assertEqual(f.active_material_2_weight, 0.0)
         self.assertEqual(f._active_materials[self.mat2], 0.0)
@@ -790,7 +805,9 @@ class TestBinderPropertiesAndSetters(unittest.TestCase):
         """Test that setting binder_1 to None removes the first binder."""
         f = CathodeFormulation({self.mat1: 95}, binders={self.binder1: 3, self.binder2: 2})
         
-        f.binder_1 = None
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.binder_1 = None
         
         # Should only have the second binder now, which becomes the first
         self.assertEqual(f.binder_1, self.binder2)
@@ -803,7 +820,9 @@ class TestBinderPropertiesAndSetters(unittest.TestCase):
         """Test that setting binder_2 to None removes the second binder."""
         f = CathodeFormulation({self.mat1: 95}, binders={self.binder1: 3, self.binder2: 2})
         
-        f.binder_2 = None
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.binder_2 = None
         
         # Should only have the first binder
         self.assertEqual(f.binder_1, self.binder1)
@@ -855,7 +874,9 @@ class TestBinderWeightPropertiesAndSetters(unittest.TestCase):
         """Test binder_1_weight setter updates the weight percentage."""
         f = CathodeFormulation({self.mat1: 95}, binders={self.binder1: 3, self.binder2: 2})
         
-        f.binder_1_weight = 5.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.binder_1_weight = 5.0
         
         self.assertEqual(f.binder_1_weight, 5.0)
         self.assertEqual(f._binders[self.binder1], 0.05)
@@ -885,7 +906,9 @@ class TestBinderWeightPropertiesAndSetters(unittest.TestCase):
         """Test binder_2_weight setter updates the weight percentage."""
         f = CathodeFormulation({self.mat1: 95}, binders={self.binder1: 3, self.binder2: 2})
         
-        f.binder_2_weight = 4.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.binder_2_weight = 4.0
         
         self.assertEqual(f.binder_2_weight, 4.0)
         self.assertEqual(f._binders[self.binder2], 0.04)
@@ -917,7 +940,9 @@ class TestBinderWeightPropertiesAndSetters(unittest.TestCase):
         """Test that binder weight can be set to zero."""
         f = CathodeFormulation({self.mat1: 95}, binders={self.binder1: 3, self.binder2: 2})
         
-        f.binder_2_weight = 0.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.binder_2_weight = 0.0
         
         self.assertEqual(f.binder_2_weight, 0.0)
         self.assertEqual(f._binders[self.binder2], 0.0)
@@ -1073,7 +1098,9 @@ class TestConductiveAdditiveWeightPropertiesAndSetters(unittest.TestCase):
         """Test conductive_additive_1_weight setter updates the weight percentage."""
         f = CathodeFormulation({self.mat1: 95}, conductive_additives={self.additive1: 3, self.additive2: 2})
         
-        f.conductive_additive_1_weight = 5.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.conductive_additive_1_weight = 5.0
         
         self.assertEqual(f.conductive_additive_1_weight, 5.0)
         self.assertEqual(f._conductive_additives[self.additive1], 0.05)
@@ -1103,7 +1130,9 @@ class TestConductiveAdditiveWeightPropertiesAndSetters(unittest.TestCase):
         """Test conductive_additive_2_weight setter updates the weight percentage."""
         f = CathodeFormulation({self.mat1: 95}, conductive_additives={self.additive1: 3, self.additive2: 2})
         
-        f.conductive_additive_2_weight = 4.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.conductive_additive_2_weight = 4.0
         
         self.assertEqual(f.conductive_additive_2_weight, 4.0)
         self.assertEqual(f._conductive_additives[self.additive2], 0.04)
@@ -1135,7 +1164,9 @@ class TestConductiveAdditiveWeightPropertiesAndSetters(unittest.TestCase):
         """Test that conductive additive weight can be set to zero."""
         f = CathodeFormulation({self.mat1: 95}, conductive_additives={self.additive1: 3, self.additive2: 2})
         
-        f.conductive_additive_2_weight = 0.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.conductive_additive_2_weight = 0.0
         
         self.assertEqual(f.conductive_additive_2_weight, 0.0)
         self.assertEqual(f._conductive_additives[self.additive2], 0.0)

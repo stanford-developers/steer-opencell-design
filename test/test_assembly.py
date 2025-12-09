@@ -1101,6 +1101,18 @@ class TestZFoldStack(unittest.TestCase):
         fig_right = self.stack.get_side_view()
         # fig_right.show()
 
+    def test_datum_set(self):
+
+        fig1 = self.stack.get_side_view()
+        fig2 = self.stack.get_top_down_view()
+        self.stack.datum = (100.0, 200.0, 300.0)
+        fig3 = self.stack.get_side_view()
+        fig4 = self.stack.get_top_down_view()
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+        # fig4.show()
+
     def test_additional_separator_wrap_setter(self):
         fig1 = self.stack.get_side_view()
         self.stack.additional_separator_wraps = 40

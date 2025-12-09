@@ -56,6 +56,8 @@ class CylindricalCell(_Cell):
         )
 
         self._update_properties = True
+        self._make_assemblies()
+        self._position_assemblies()
         self._calculate_all_properties()
 
     def _calculate_all_properties(self) -> None:
