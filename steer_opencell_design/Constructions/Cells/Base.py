@@ -74,8 +74,6 @@ class _Cell(
         self.name = name
     
     def _calculate_all_properties(self) -> None:
-        self._make_assemblies()
-        self._position_assemblies()
         self._calculate_bulk_properties()
         self._calculate_electrochemical_properties()
 
@@ -140,6 +138,7 @@ class _Cell(
 
         # position each assembly at the corresponding z position
         for assembly, z in zip(self._electrode_assemblies, z_positions):
+
             assembly.datum = (
                 assembly._datum[0] * M_TO_MM,
                 assembly._datum[1] * M_TO_MM,

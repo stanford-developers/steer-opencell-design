@@ -49,12 +49,33 @@ class _Stack(_ElectrodeAssembly):
     def _calculate_geometry_parameters(self) -> None:
         """Calculate geometry parameters - placeholder for implementation."""
         self._thickness = sum(component._thickness for component in self._stack.values())
+
+    def _calculate_datum(self): 
+
+        _x_datums = [c._datum[0] for c in self._stack.values()]
+        _y_datums = [c._datum[1] for c in self._stack.values()]
+        _z_datums = [c._datum[2] for c in self._stack.values()]
+
+        _datum = (
+            np.mean(_x_datums),
+            np.mean(_y_datums),
+            np.mean(_z_datums)
+        )
+
+        if not hasattr(self, '_datum') or self._datum == None:
+            self._datum = _datum
+        else:
+            _old_datum = self._datum
+            old_datum = tuple(d * M_TO_MM for d in _old_datum)
+            self._datum = _datum
+            self.datum = old_datum  # triggers the setter to reposition components
     
     def _calculate_all_properties(self) -> None:
         """Calculate all properties including stack configuration."""
         self._calculate_stack()
         super()._calculate_all_properties()
         self._calculate_geometry_parameters()
+        self._calculate_datum()
 
     def _calculate_stack(self) -> Dict[int, Any]:
         
@@ -200,6 +221,22 @@ class _Stack(_ElectrodeAssembly):
 
         self._pore_volume = _cathode_pore_volume + _anode_pore_volume
 
+    def _clip_current_collector_tabs(self, _clipped_length: float) -> None:
+        """Clip current collector tabs to specified length."""
+        
+        # clip current collector tabs on cathode
+        self._layup._cathode._current_collector.tab_height = _clipped_length * M_TO_MM
+        self._layup._cathode.current_collector = self._layup._cathode._current_collector
+        self._layup.cathode = self._layup._cathode
+        
+        # clip current collector tabs on anode
+        self._layup._anode._current_collector.tab_height = _clipped_length * M_TO_MM
+        self._layup._anode.current_collector = self._layup._anode._current_collector
+        self._layup.anode = self._layup._anode
+        
+        # set the new layup to self
+        self.layup = self._layup
+
     def get_side_view(self, **kwargs):
         """
         Generate an optimized side view of the stack with grouped component traces.
@@ -245,14 +282,17 @@ class _Stack(_ElectrodeAssembly):
         
         # Apply layout
         figure.update_layout(
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Y_AXIS,
+            xaxis=self.SCHEMATIC_Y_AXIS,
+            yaxis=self.SCHEMATIC_Z_AXIS,
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
         )
         
         return figure
+
+    def get_top_down_view(self):
+        return self._layup.get_top_down_view()
 
     @staticmethod
     def add_layer(stack: Dict[int, Any], component: Any, z_datum: float) -> Tuple[float, Dict[int, Any]]:
@@ -427,6 +467,45 @@ class _Stack(_ElectrodeAssembly):
     @property
     def layup(self) -> ZFoldMonoLayer | MonoLayer:
         return self._layup
+
+    @property
+    def datum(self) -> Tuple[float, float, float]:
+        """Get the datum position in mm."""
+        return tuple(round(coord * M_TO_MM, 2) for coord in self._datum)
+
+    @datum.setter
+    def datum(self, value: Tuple[float, float, float]):
+
+        # Validate input
+        self.validate_datum(value)
+
+        # value in m
+        _value = tuple(coord * MM_TO_M for coord in value)
+
+        # get the translation vector
+        _translation_vector = (
+            _value[0] - self._datum[0],
+            _value[1] - self._datum[1],
+            _value[2] - self._datum[2],
+        )
+
+        # go through each component and apply the translation
+        for component in self._stack.values():
+            component.datum = (
+                (component._datum[0] + _translation_vector[0]) * M_TO_MM,
+                (component._datum[1] + _translation_vector[1]) * M_TO_MM,
+                (component._datum[2] + _translation_vector[2]) * M_TO_MM,
+            )
+
+        # translate the layup
+        self._layup.datum = (
+            (self._layup._cathode._datum[0] + _translation_vector[0]) * M_TO_MM,
+            (self._layup._cathode._datum[1] + _translation_vector[1]) * M_TO_MM,
+            (self._layup._cathode._datum[2] + _translation_vector[2]) * M_TO_MM,
+        )
+
+        # update the stack datum
+        self._datum = _value
 
     @n_layers.setter
     @calculate_all_properties

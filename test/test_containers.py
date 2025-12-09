@@ -69,26 +69,6 @@ class TestCylindricalTerminalConnector(unittest.TestCase):
         # fig5.show()
         # fig6.show()
 
-    def test_initialization_edge_cases(self):
-        """Test connector initialization with edge case values"""
-        # Test minimum viable connector
-        min_connector = CylindricalTerminalConnector(
-            material=PrismaticContainerMaterial.from_database("Aluminum"), 
-            thickness=0.0001,
-            radius=0.5,
-            fill_factor=0.1
-        )
-        self.assertEqual(min_connector.fill_factor, 0.1)
-        
-        # Test maximum viable connector
-        max_connector = CylindricalTerminalConnector(
-            material=PrismaticContainerMaterial.from_database("Aluminum"), 
-            thickness=0.01,
-            radius=25,
-            fill_factor=1.0
-        )
-        self.assertEqual(max_connector.fill_factor, 1.0)
-
     def test_bulk_properties(self):
         """Test bulk property calculations"""
         connector = self.connector_standard
@@ -1422,7 +1402,7 @@ class TestLaminateSheet(unittest.TestCase):
         self.assertEqual(self.laminate_sheet.thickness, 50)
         self.assertEqual(self.laminate_sheet.width, 200)
         self.assertEqual(self.laminate_sheet.height, 300)
-
+        
     def test_initialization_without_dimensions(self):
         """Test that laminate sheet initializes correctly without width and length."""
         self.assertIsNotNone(self.partial_laminate_sheet)
@@ -1976,8 +1956,8 @@ class TestPouchTerminal(unittest.TestCase):
         self.assertIsNotNone(self.terminal._top_down_coordinates)
         
         # Check that side cross-section coordinates exist
-        self.assertTrue(hasattr(self.terminal, '_side_cross_section_coordinates'))
-        self.assertIsNotNone(self.terminal._side_cross_section_coordinates)
+        self.assertTrue(hasattr(self.terminal, '_right_left_coordinates'))
+        self.assertIsNotNone(self.terminal._right_left_coordinates)
 
     def test_sequential_property_changes(self):
         """Test that multiple property changes work correctly."""

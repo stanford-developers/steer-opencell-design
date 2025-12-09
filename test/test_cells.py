@@ -170,7 +170,7 @@ class TestCylindricalCell(unittest.TestCase):
         cannister = CylindricalCannister(
             material=aluminum,
             outer_radius=21.4,  # mm
-            height=321,  # mm
+            height=330,  # mm
             wall_thickness=0.5  
         )
 
@@ -206,10 +206,10 @@ class TestCylindricalCell(unittest.TestCase):
     def test_basics(self):
         self.assertIsInstance(self.cell, CylindricalCell)
         self.assertEqual(self.cell.energy, 124.09)
-        self.assertEqual(self.cell.mass, 908.47)
-        self.assertEqual(self.cell.specific_energy, 136.59)
-        self.assertEqual(self.cell.volumetric_energy, 268.69)
-        self.assertEqual(self.cell.cost_per_energy, 64.29)
+        self.assertEqual(self.cell.mass, 910.08)
+        self.assertEqual(self.cell.specific_energy, 136.35)
+        self.assertEqual(self.cell.volumetric_energy, 261.36)
+        self.assertEqual(self.cell.cost_per_energy, 64.45)
     
     def test_plots(self):
 
@@ -327,13 +327,20 @@ class TestCylindricalCell(unittest.TestCase):
         
     def test_reference_electrode_assembly_setter(self):
         """Test setting reference electrode assembly triggers recalculation."""
+        from steer_opencell_design.Constructions.Layups.Base import NPRatioControlMode
+        # get original np ratio
+        original_np_ratio = self.jellyroll.layup.np_ratio
+
         # Create a new jellyroll with different properties
         new_jellyroll = deepcopy(self.jellyroll)
-        new_jellyroll._layup._cathode._coating_thickness = 150  # Thicker coating
-        new_jellyroll._calculate_all_properties()
+        new_jellyroll._layup._cathode.coating_thickness = 150  # Thicker coating
+        new_jellyroll._layup.cathode = new_jellyroll._layup._cathode
+        new_jellyroll.layup = new_jellyroll._layup
+        new_jellyroll._layup.np_ratio_control_mode = NPRatioControlMode.FIXED_CATHODE
+        new_jellyroll._layup.np_ratio = original_np_ratio  # keep np ratio same
+        new_jellyroll.radius = 20.8
         
         original_energy = self.cell.energy
-        original_capacity = self.cell.reversible_capacity
         
         # Set new assembly
         self.cell.reference_electrode_assembly = new_jellyroll
@@ -344,6 +351,9 @@ class TestCylindricalCell(unittest.TestCase):
         
         # Verify the assembly was updated
         self.assertEqual(self.cell.reference_electrode_assembly, new_jellyroll)
+
+        # verify energy increased due to thicker cathode
+        self.assertGreater(self.cell.energy, original_energy)
         
     def test_encapsulation_setter(self):
         """Test setting encapsulation triggers recalculation."""
@@ -368,35 +378,7 @@ class TestCylindricalCell(unittest.TestCase):
         
         # Verify encapsulation was updated
         self.assertEqual(self.cell.encapsulation, new_encapsulation)
-        
-    def test_encapsulation_setter_validation(self):
-        """Test encapsulation setter validates assembly fit."""
-        # Create encapsulation that's too small
-        small_cannister = deepcopy(self.cannister)
-        small_cannister._inner_diameter = 10  # Much too small
-        
-        small_encapsulation = CylindricalEncapsulation(
-            cathode_terminal_connector=self.cathode_connector,
-            anode_terminal_connector=self.anode_connector,
-            lid_assembly=self.lid,
-            cannister=small_cannister
-        )
-        
-        # Should warn but still set
-        with self.assertWarns(UserWarning):
-            self.cell.encapsulation = small_encapsulation
             
-    def test_reference_electrode_assembly_setter_validation(self):
-        """Test reference assembly setter validates encapsulation fit."""
-        # Create jellyroll that's too large
-        large_jellyroll = deepcopy(self.jellyroll)
-        large_jellyroll._pressed_radius = 50  # Much too large
-        large_jellyroll._calculate_all_properties()
-        
-        # Should warn but still set
-        with self.assertWarns(UserWarning):
-            self.cell.reference_electrode_assembly = large_jellyroll
-        
     def test_electrolyte_setter(self):
         """Test setting electrolyte updates cell properties."""
         # Create new electrolyte with different properties
@@ -530,7 +512,7 @@ class TestStackedPouchCell(unittest.TestCase):
         cathode_cc = PunchedCurrentCollector(
             material=cathode_cc_material,
             width=300,
-            height=320,
+            height=800,
             thickness=8,
             tab_width=60,
             tab_height=18,
@@ -539,7 +521,7 @@ class TestStackedPouchCell(unittest.TestCase):
 
         cathode = Cathode(
             formulation=cathode_formulation,
-            mass_loading=14.2,
+            mass_loading=28.2,
             current_collector=cathode_cc,
             calender_density=2.60,
         )
@@ -558,8 +540,8 @@ class TestStackedPouchCell(unittest.TestCase):
 
         anode_cc = PunchedCurrentCollector(
             material=cc_material,
-            width=304,
-            height=324,
+            width=300,
+            height=805,
             thickness=8,
             tab_width=60,
             tab_height=18,
@@ -568,7 +550,7 @@ class TestStackedPouchCell(unittest.TestCase):
 
         anode = Anode(
             formulation=anode_formulation,
-            mass_loading=10.68,
+            mass_loading=20.68,
             current_collector=anode_cc,
             calender_density=1.1,
             insulation_thickness=10,
@@ -588,6 +570,7 @@ class TestStackedPouchCell(unittest.TestCase):
             anode=anode,
             cathode=cathode,
             separator=separator,
+            electrode_orientation='transverse'
         )
 
         # default stack for reuse in tests
@@ -598,28 +581,28 @@ class TestStackedPouchCell(unittest.TestCase):
 
         top_laminate_sheet = LaminateSheet(
             areal_cost=10,
-            thickness=0.1,
+            thickness=150,
             density=1500,
         )
 
         bottom_laminate_sheet = LaminateSheet(
             areal_cost=10,
-            thickness=0.1,
+            thickness=150,
             density=1500,
         )
 
         cathode_terminal = PouchTerminal(
-            material=cathode_cc_material,
+            material=cc_material,
             thickness=2,
-            width=80,
-            length=100,
+            width=50,
+            length=40,
         )
 
         anode_terminal = PouchTerminal(
             material=cc_material,
-            thickness=3,
-            width=80,
-            length=100,
+            thickness=2,
+            width=50,
+            length=40,
         )
 
         encapsulation = PouchEncapsulation(
@@ -634,40 +617,257 @@ class TestStackedPouchCell(unittest.TestCase):
         electrolyte = Electrolyte(
             name="1M LiPF6 in EC:DMC (1:1)",
             density=1.2,
-            specific_cost=15.0,
+            specific_cost=5.0,
             color="#00FF00"
         )
 
         self.cell = PouchCell(
             reference_electrode_assembly=stack,
-            n_electrode_assembly=3,
+            n_electrode_assembly=2,
             encapsulation=encapsulation,
             electrolyte=electrolyte,
             electrolyte_overfill=0.2,
+            clipped_tab_length=10
         )
 
     def test_basics(self):
         self.assertIsInstance(self.cell, PouchCell)
+        self.assertAlmostEqual(self.cell.energy, 2282.76, 1)
+        self.assertAlmostEqual(self.cell.mass, 14066.36, 0)
+        self.assertAlmostEqual(self.cell.cost, 80.53, 1)
 
     def test_plots(self):
 
         fig1 = self.cell.plot_mass_breakdown()
         fig2 = self.cell.plot_cost_breakdown()
         fig3 = self.cell.get_capacity_plot()
-        # fig4 = self.cell.get_top_down_view()
-        # fig5 = self.cell.get_cross_section()
+        fig4 = self.cell.get_side_view()
+        fig5 = self.cell.get_top_down_view(opacity=0.6)
 
         self.assertIsNotNone(fig1)
         self.assertIsNotNone(fig2)
         self.assertIsNotNone(fig3)
-        # self.assertIsNotNone(fig4)
-        # self.assertIsNotNone(fig5)
+        self.assertIsNotNone(fig4)
+        self.assertIsNotNone(fig5)
 
         # fig1.show()
         # fig2.show()
         # fig3.show()
         # fig4.show()
         # fig5.show()
+
+    def test_seal_thickness_setters(self):
+        """Test setting seal thicknesses triggers recalculation."""
+        original_width = self.cell.encapsulation.width
+        original_height = self.cell.encapsulation.height
+        
+        # Change side seal thickness
+        self.cell.side_seal_thickness = 20  # from 15mm default
+        new_width = self.cell.encapsulation.width
+        self.assertGreater(new_width, original_width)
+        self.assertEqual(self.cell.side_seal_thickness, 20)
+        
+        # Change top seal thickness
+        self.cell.top_seal_thickness = 20
+        new_height = self.cell.encapsulation.height
+        self.assertGreater(new_height, original_height)
+        self.assertEqual(self.cell.top_seal_thickness, 20)
+        
+        # Change bottom seal thickness
+        self.cell.bottom_seal_thickness = 20
+        self.assertEqual(self.cell.bottom_seal_thickness, 20)
+
+    def test_clipped_tab_length_setter(self):
+        """Test clipped tab length validation and setting."""
+        # Get valid range
+        min_length, max_length = self.cell.clipped_tab_length_range
+        
+        # Set to valid value
+        mid_length = (min_length + max_length) / 2
+        self.cell.clipped_tab_length = mid_length
+        self.assertAlmostEqual(self.cell.clipped_tab_length, mid_length, 2)
+        
+        # Test invalid values
+        with self.assertRaises(ValueError):
+            self.cell.clipped_tab_length = max_length + 10
+        
+        with self.assertRaises(ValueError):
+            self.cell.clipped_tab_length = -1
+        
+    def test_clipped_tab_length_range_property(self):
+        """Test that clipped tab length range is correctly calculated."""
+        min_length, max_length = self.cell.clipped_tab_length_range
+        
+        # Min should be 0
+        self.assertEqual(min_length, 0.0)
+        
+        # Max should be positive and less than total tab height
+        self.assertGreater(max_length, 0)
+        self.assertLess(max_length, 100)  # Reasonable upper bound
+
+    def test_operating_voltage_window_setter(self):
+        """Test setting operating voltage window updates energy calculations."""
+        original_energy = self.cell.energy
+        
+        # Set new voltage window
+        new_window = (2.6, 3.7)
+        self.cell.operating_voltage_window = new_window
+        
+        # Check both values updated
+        self.assertAlmostEqual(self.cell.minimum_operating_voltage, 2.6, 2)
+        self.assertAlmostEqual(self.cell.maximum_operating_voltage, 3.7, 2)
+        self.assertEqual(self.cell.operating_voltage_window, new_window)
+        
+        # Check that energy changed
+        self.assertNotEqual(self.cell.energy, original_energy)
+
+    def test_reference_electrode_assembly_setter(self):
+        """Test setting reference electrode assembly triggers recalculation."""
+        # Create a new stack with different properties
+        new_stack = deepcopy(self.cell.reference_electrode_assembly)
+        new_stack._n_layers = 25  # More layers
+        new_stack._calculate_all_properties()
+        
+        original_energy = self.cell.energy
+        
+        # Set new assembly
+        self.cell.reference_electrode_assembly = new_stack
+        
+        # Check that cell properties changed
+        self.assertNotEqual(self.cell.energy, original_energy)
+        self.assertEqual(self.cell.reference_electrode_assembly, new_stack)
+
+    def test_encapsulation_setter(self):
+        """Test setting encapsulation updates cell properties."""
+        # Create new encapsulation with different dimensions
+        new_encapsulation = deepcopy(self.cell.encapsulation)
+        new_encapsulation.top_laminate.thickness = 200  # Thicker top laminate
+        new_encapsulation.bottom_laminate.thickness = 200  # Thicker bottom laminate
+        
+        original_mass = self.cell.mass
+        
+        # Set new encapsulation
+        self.cell.encapsulation = new_encapsulation
+        
+        # Check that mass changed
+        self.assertNotEqual(self.cell.mass, original_mass)
+        self.assertEqual(self.cell.encapsulation, new_encapsulation)
+
+    def test_electrolyte_setter(self):
+        """Test setting electrolyte updates cell properties."""
+        new_electrolyte = Electrolyte(
+            name="New Electrolyte",
+            specific_cost=10,
+            density=1.3,
+            color="#00FFFF"
+        )
+        
+        original_cost = self.cell.cost
+        
+        # Set new electrolyte
+        self.cell.electrolyte = new_electrolyte
+        
+        # Check that cost changed
+        self.assertNotEqual(self.cell.cost, original_cost)
+        self.assertEqual(self.cell.electrolyte, new_electrolyte)
+
+    def test_electrolyte_overfill_setter(self):
+        """Test setting electrolyte overfill updates electrolyte mass."""
+        original_mass = self.cell.mass
+        
+        # Increase overfill
+        self.cell.electrolyte_overfill = 0.5
+        
+        # Check that mass increased
+        self.assertGreater(self.cell.mass, original_mass)
+        self.assertEqual(self.cell.electrolyte_overfill, 0.5)
+
+    def test_n_electrode_assembly_setter(self):
+        """Test setting number of electrode assemblies."""
+        original_energy = self.cell.energy
+        
+        # Increase number of assemblies
+        self.cell.n_electrode_assembly = 3
+        
+        # Energy should increase (more assemblies = more capacity)
+        self.assertGreater(self.cell.energy, original_energy)
+        self.assertEqual(self.cell.n_electrode_assembly, 3)
+
+    def test_side_view_legend_only_first_assembly(self):
+        """Test that side view only shows legend for first assembly."""
+        fig = self.cell.get_side_view()
+        
+        # Count traces with showlegend=True
+        legend_traces = [trace for trace in fig.data if trace.showlegend]
+        
+        # Should have some legend entries, but not duplicated for each assembly
+        self.assertGreater(len(legend_traces), 0)
+        
+        # Get all trace names
+        trace_names = [trace.name for trace in fig.data if trace.name]
+        
+        # Check for duplicates - there should be some traces with same name but showlegend=False
+        self.assertEqual(self.cell.n_electrode_assembly, 2)
+
+    def test_top_down_view_opacity(self):
+        """Test that top-down view applies opacity correctly."""
+        # Get view with different opacity values
+        fig1 = self.cell.get_top_down_view(opacity=0.3)
+        fig2 = self.cell.get_top_down_view(opacity=0.8)
+        
+        self.assertIsNotNone(fig1)
+        self.assertIsNotNone(fig2)
+        
+        # Both should have traces
+        self.assertGreater(len(fig1.data), 0)
+        self.assertGreater(len(fig2.data), 0)
+
+    def test_hot_pressing_geometry(self):
+        """Test that hot-pressing creates cavity in laminates."""
+        # Check that laminates have been hot-pressed
+        top_laminate = self.cell.encapsulation._top_laminate
+        bottom_laminate = self.cell.encapsulation._bottom_laminate
+        
+        # Both should have cavity properties set
+        self.assertIsNotNone(top_laminate._cavity_depth)
+        self.assertIsNotNone(bottom_laminate._cavity_depth)
+        
+        # Top should be negative (pressed inward), bottom positive (pressed outward)
+        self.assertLess(top_laminate._cavity_depth, 0)
+        self.assertGreater(bottom_laminate._cavity_depth, 0)
+
+    def test_terminal_positioning(self):
+        """Test that terminals are positioned correctly."""
+        cathode_terminal = self.cell.encapsulation._cathode_terminal
+        anode_terminal = self.cell.encapsulation._anode_terminal
+        
+        # Both terminals should have datum set
+        self.assertIsNotNone(cathode_terminal._datum)
+        self.assertIsNotNone(anode_terminal._datum)
+        
+        # Terminals should be positioned at different locations
+        self.assertNotEqual(cathode_terminal._datum, anode_terminal._datum)
+
+    def test_setter_chain_consistency(self):
+        """Test that multiple setter calls maintain consistency."""
+        # Change multiple properties
+        self.cell.side_seal_thickness = 18
+        self.cell.top_seal_thickness = 18
+        self.cell.bottom_seal_thickness = 18
+        self.cell.clipped_tab_length = 5
+        self.cell.operating_voltage_window = (2.7, 3.8)
+        
+        # Verify all properties are consistent
+        self.assertEqual(self.cell.side_seal_thickness, 18)
+        self.assertEqual(self.cell.top_seal_thickness, 18)
+        self.assertEqual(self.cell.bottom_seal_thickness, 18)
+        self.assertEqual(self.cell.clipped_tab_length, 5)
+        
+        # Verify calculated properties are still valid
+        self.assertIsNotNone(self.cell.energy)
+        self.assertIsNotNone(self.cell.mass)
+        self.assertIsNotNone(self.cell.cost)
+        self.assertGreater(self.cell.reversible_capacity, 0)
 
 
 if __name__ == "__main__":

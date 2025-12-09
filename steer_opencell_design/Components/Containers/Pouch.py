@@ -17,6 +17,7 @@ from typing import Tuple
 from copy import deepcopy
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 
 
 class LaminateSheet(
@@ -115,54 +116,71 @@ class LaminateSheet(
         return self._top_down_coordinates
 
     def _generate_bucket_cross_section(self, axis: int, start: float, end: float, perpendicular_pos: float) -> np.ndarray:
-        """Generate bucket-shaped cross-section coordinates for hot-pressed laminates.
+        """Generate a bucket-shaped cross-section with smooth rounded corners.
         
-        Parameters
-        ----------
-        axis : int
-            Coordinate axis index (0 for x, 1 for y) for the main dimension
-        start : float
-            Start position along the main axis
-        end : float
-            End position along the main axis
-        perpendicular_pos : float
-            Position in the perpendicular direction (z-coordinate)
-        
-        Returns
-        -------
-        np.ndarray
-            Array of (coord, z) points defining the bucket shape
+        Creates a centerline path following the bucket profile, then extrudes it
+        to create top and bottom surfaces with constant thickness.
         """
         cavity_min = self._cavity_coordinates[:, axis].min()
         cavity_max = self._cavity_coordinates[:, axis].max()
-        
-        # For negative depth (dip), outer edges need to contract inward
-        # For positive depth (raised), outer edges need to expand outward
-        # This is opposite to what you might initially think
+
+        # Determine horizontal offset for the cavity based on depth direction
         offset = self._thickness if self._cavity_depth > 0 else -self._thickness
+
+        # Smoothing parameters
+        smooth_width = max(self._thickness * 0.5, abs(self._cavity_depth) * 0.2)
+        k = 8.0 / smooth_width  # steepness of sigmoid
+
+        def sigmoid(coord_array: np.ndarray, z0: float, z1: float, center: float) -> np.ndarray:
+            """Smooth transition from z0 to z1 centered at 'center'."""
+            t = 1.0 / (1.0 + np.exp(-k * (coord_array - center)))
+            return z0 + (z1 - z0) * t
+
+        # Number of points per segment
+        n_pts = 30
+
+        # CENTERLINE PATH - defines the middle of the laminate sheet
+        centerline_z = perpendicular_pos - self._thickness / 2
         
-        # Inner bucket edge (top of laminate)
-        points = [
-            (start, perpendicular_pos),
-            (cavity_min, perpendicular_pos),
-            (cavity_min, perpendicular_pos - self._cavity_depth),
-            (cavity_max, perpendicular_pos - self._cavity_depth),
-            (cavity_max, perpendicular_pos),
-            (end, perpendicular_pos),
-        ]
-        
-        # Outer bucket edge (bottom of laminate)
-        points.extend([
-            (end, perpendicular_pos - self._thickness),
-            (cavity_max + offset, perpendicular_pos - self._thickness),
-            (cavity_max + offset, perpendicular_pos - self._thickness - self._cavity_depth),
-            (cavity_min - offset, perpendicular_pos - self._thickness - self._cavity_depth),
-            (cavity_min - offset, perpendicular_pos - self._thickness),
-            (start, perpendicular_pos - self._thickness),
-            (start, perpendicular_pos),  # Close the loop
-        ])
-        
-        return np.array(points)
+        # Segment 1: Left flat region
+        left_flat = np.linspace(start, cavity_min - smooth_width, n_pts)
+        z_left_flat = np.full(n_pts, centerline_z)
+
+        # Segment 2: Left corner transition (rounding down into cavity)
+        left_corner = np.linspace(cavity_min - smooth_width, cavity_min + smooth_width, n_pts)
+        z_left_corner = sigmoid(left_corner, centerline_z, centerline_z - self._cavity_depth, cavity_min)
+
+        # Segment 3: Cavity flat bottom (with lateral offset)
+        cavity_flat = np.linspace(cavity_min + smooth_width, cavity_max - smooth_width, n_pts)
+        z_cavity_flat = np.full(n_pts, centerline_z - self._cavity_depth)
+        cavity_flat_offset = cavity_flat + offset / 2  # Half offset on centerline
+
+        # Segment 4: Right corner transition (rounding up out of cavity)
+        right_corner = np.linspace(cavity_max - smooth_width, cavity_max + smooth_width, n_pts)
+        z_right_corner = sigmoid(right_corner, centerline_z - self._cavity_depth, centerline_z, cavity_max)
+
+        # Segment 5: Right flat region
+        right_flat = np.linspace(cavity_max + smooth_width, end, n_pts)
+        z_right_flat = np.full(n_pts, centerline_z)
+
+        # Assemble centerline coordinates
+        centerline_coords = np.concatenate([left_flat, left_corner, cavity_flat_offset, right_corner, right_flat])
+        centerline_z_all = np.concatenate([z_left_flat, z_left_corner, z_cavity_flat, z_right_corner, z_right_flat])
+
+        # EXTRUDE: Create top and bottom surfaces by offsetting perpendicular to centerline
+        # Top surface: +thickness/2 in z
+        top_coords = centerline_coords.copy()
+        top_z = centerline_z_all + self._thickness / 2
+
+        # Bottom surface: -thickness/2 in z (reversed for polygon closure)
+        bot_coords = centerline_coords[::-1].copy()
+        bot_z = centerline_z_all[::-1] - self._thickness / 2
+
+        # Close the polygon
+        all_coords = np.concatenate([top_coords, bot_coords, [top_coords[0]]])
+        all_z = np.concatenate([top_z, bot_z, [top_z[0]]])
+
+        return np.column_stack((all_coords, all_z))
 
     def _calculate_right_left_coordinates(self):
         """Calculate the side cross-section coordinates (right/left view)."""
@@ -408,8 +426,8 @@ class LaminateSheet(
         
         # Perform operations on numpy array first for speed
         coords_mm = self._top_down_coordinates * M_TO_MM
-        coords_rounded = np.round(coords_mm, 2)
-        return pd.DataFrame(coords_rounded, columns=['x', 'y'])
+        coords_rounded = np.round(coords_mm, 5)
+        return pd.DataFrame(coords_rounded, columns=['X (mm)', 'Y (mm)'])
 
     @property
     def right_left_coordinates(self):
@@ -457,9 +475,9 @@ class LaminateSheet(
             y=coords['z'],
             mode='lines',
             name=self._name,
-            line=dict(color='gray', width=1),
+            line=dict(color='rgb(128, 128, 128)', width=1),
             fill='toself',
-            fillcolor='lightgray',
+            fillcolor='rgba(211, 211, 211, 1.0)',
             legendgroup='Laminate Sheet',
             showlegend=True,
         )
@@ -484,9 +502,9 @@ class LaminateSheet(
             y=coords['z'],
             mode='lines',
             name=self._name,
-            line=dict(color='gray', width=1),
+            line=dict(color='rgb(128, 128, 128)', width=1),
             fill='toself',
-            fillcolor='lightgray',
+            fillcolor='rgba(211, 211, 211, 1.0)',
             legendgroup='Laminate Sheet',
             showlegend=True,
         )
@@ -507,13 +525,13 @@ class LaminateSheet(
         coords = self.top_down_coordinates
         
         trace = go.Scatter(
-            x=coords['x'],
-            y=coords['y'],
+            x=coords['X (mm)'],
+            y=coords['Y (mm)'],
             mode='lines',
             name=self._name,
-            line=dict(color='gray', width=2),
+            line=dict(color='black', width=1),
             fill='toself',
-            fillcolor='lightgray',
+            fillcolor='rgba(211, 211, 211, 1.0)',
             legendgroup='Laminate Sheet',
             showlegend=True,
         )
@@ -640,7 +658,7 @@ class PouchTerminal(
     def _calculate_coordinates(self):
         """Calculate the 3D coordinates of the terminal."""
         self._calculate_top_down_coordinates()
-        self._calculate_side_cross_section_coordinates()
+        self._calculate_right_left_coordinates()
 
     def _calculate_top_down_coordinates(self):
         """Calculate top-down view coordinates."""
@@ -653,18 +671,53 @@ class PouchTerminal(
         self._top_down_coordinates = np.column_stack((x, y))
         return self._top_down_coordinates
 
-    def _calculate_side_cross_section_coordinates(self):
-        """Calculate side cross-section coordinates."""
+    def _calculate_right_left_coordinates(self):
+        """Calculate right-left view coordinates."""
         x, z = self.build_square_array(
-            self._datum[0] - self._width / 2,
+            self._datum[1] - self._length / 2,
             self._datum[2] - self._thickness / 2,
-            self._width,
+            self._length,
             self._thickness
         )
-        self._side_cross_section_coordinates = np.column_stack((x, z))
-        return self._side_cross_section_coordinates
+        self._right_left_coordinates = np.column_stack((x, z))
+        return self._right_left_coordinates
 
     # Properties
+    @property
+    def right_left_coordinates(self):
+        """Get the right-left coordinates in mm.
+        
+        Returns coordinates as a DataFrame with 'x' and 'z' columns.
+        """
+        # Perform operations on numpy array first for speed
+        coords_mm = self._right_left_coordinates * M_TO_MM
+        coords_rounded = np.round(coords_mm, 5)
+        return pd.DataFrame(coords_rounded, columns=['X (mm)', 'Z (mm)'])
+    
+    @property
+    def right_left_trace(self):
+        """Get a Plotly Scatter trace for the right-left view.
+        
+        Returns a go.Scatter trace showing the terminal cross-section.
+        """
+        import plotly.graph_objects as go
+        
+        coords = self.right_left_coordinates
+        
+        trace = go.Scatter(
+            x=coords['X (mm)'],
+            y=coords['Z (mm)'],
+            mode='lines',
+            name=self._name,
+            line=dict(color='black', width=1),
+            fill='toself',
+            fillcolor=self._material._color,
+            legendgroup='Pouch Terminal',
+            showlegend=True,
+        )
+        
+        return trace
+
     @property
     def volume(self) -> float:
         """Volume in cm³."""
@@ -725,6 +778,41 @@ class PouchTerminal(
         """Get material."""
         return self._material
     
+    @property
+    def top_down_coordinates(self):
+        """Get the top-down coordinates in mm.
+        
+        Returns coordinates as a DataFrame with 'x' and 'y' columns.
+        """
+        # Perform operations on numpy array first for speed
+        coords_mm = self._top_down_coordinates * M_TO_MM
+        coords_rounded = np.round(coords_mm, 5)
+        return pd.DataFrame(coords_rounded, columns=['X (mm)', 'Y (mm)'])
+    
+    @property
+    def top_down_trace(self):
+        """Get a Plotly Scatter trace for the top-down view.
+        
+        Returns a go.Scatter trace showing the terminal footprint.
+        """
+        import plotly.graph_objects as go
+        
+        coords = self.top_down_coordinates
+        
+        trace = go.Scatter(
+            x=coords['X (mm)'],
+            y=coords['Y (mm)'],
+            mode='lines',
+            name=self._name,
+            line=dict(color='black', width=1),
+            fill='toself',
+            fillcolor=self._material._color,
+            legendgroup='Pouch Terminal',
+            showlegend=True,
+        )
+        
+        return trace
+
     @material.setter
     def material(self, material: PrismaticContainerMaterial) -> None:
         """Set material."""
@@ -752,6 +840,7 @@ class PouchTerminal(
         self._thickness = float(thickness) * MM_TO_M
 
     @datum.setter
+    @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]) -> None:
         """Set datum position in mm."""
         self.validate_datum(datum)
@@ -780,6 +869,7 @@ class PouchEncapsulation(_Container):
         ):
 
         self._update_properties = False
+        self._terminals_positioned = False
         
         # Initialize volume to None
         self._volume = None
@@ -804,12 +894,14 @@ class PouchEncapsulation(_Container):
         self._calculate_coordinates()
 
     def _calculate_bulk_properties(self):
+        
         """Calculate bulk properties including volume, mass, and cost."""
+
         if self._top_laminate._mass is not None and self._bottom_laminate._mass is not None:
             self._calculate_mass()
         if self._top_laminate._cost is not None and self._bottom_laminate._cost is not None:
             self._calculate_cost()
-        if self._top_laminate._mass is not None and self._bottom_laminate._mass is not None and self._thickness is not None:
+        if self._top_laminate._mass is not None and self._bottom_laminate._mass is not None and self._thickness is not None and self._terminals_positioned:
             self._calculate_volume()
 
     def _calculate_coordinates(self):
@@ -868,19 +960,70 @@ class PouchEncapsulation(_Container):
 
     def _calculate_volume(self):
         """Calculate the volume of the encapsulation."""
-        if self._thickness is None:
+
+        if self._thickness is None or not self._terminals_positioned:
             self._volume = None
             return
+        
+        # aggregate the coordinates to find max width and height
+        _coordinates = np.vstack((
+            self._top_laminate._top_down_coordinates,
+            self._bottom_laminate._top_down_coordinates,
+            self._cathode_terminal._top_down_coordinates,
+            self._anode_terminal._top_down_coordinates
+        ))
 
-        _top_laminate_width = self._top_laminate._width
-        _top_laminate_height = self._top_laminate._height
-        _bottom_laminate_width = self._bottom_laminate._width
-        _bottom_laminate_height = self._bottom_laminate._height
+        _max_x = np.max(_coordinates[:, 0])
+        _min_x = np.min(_coordinates[:, 0])
+        _max_y = np.max(_coordinates[:, 1])
+        _min_y = np.min(_coordinates[:, 1])
 
-        _max_width = max(_top_laminate_width, _bottom_laminate_width)
-        _max_height = max(_top_laminate_height, _bottom_laminate_height)
+        _width = _max_x - _min_x
+        _height = _max_y - _min_y
 
-        self._volume = _max_width * _max_height * self._thickness
+        self._volume = _width * _height * self._thickness
+
+    def get_side_view(self, **kwargs) -> go.Figure:
+        """Get a Plotly Figure showing the side view of the pouch encapsulation."""        
+        traces = []
+        traces.append(self._cathode_terminal.right_left_trace)
+        traces.append(self._anode_terminal.right_left_trace)
+        traces.append(self._top_laminate.right_left_trace)
+        traces.append(self._bottom_laminate.right_left_trace)
+
+        fig = go.Figure(data=traces)
+
+        # Apply layout
+        fig.update_layout(
+            xaxis=self.SCHEMATIC_X_AXIS,
+            yaxis=self.SCHEMATIC_Y_AXIS,
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            **kwargs,
+        )
+
+        return fig
+    
+    def get_top_down_view(self, **kwargs) -> go.Figure:
+        """Get a Plotly Figure showing the top view of the pouch encapsulation."""        
+        traces = []
+        traces.append(self._bottom_laminate.top_down_trace)
+        traces.append(self._cathode_terminal.top_down_trace)
+        traces.append(self._anode_terminal.top_down_trace)
+        traces.append(self._top_laminate.top_down_trace)
+
+        fig = go.Figure(data=traces)
+
+        # Apply layout
+        fig.update_layout(
+            xaxis=self.SCHEMATIC_X_AXIS,
+            yaxis=self.SCHEMATIC_Y_AXIS,
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            **kwargs,
+        )
+
+        return fig
 
     @property
     def thickness(self) -> float:
