@@ -35,6 +35,7 @@ from .Constructions.ElectrodeAssemblies.WindingEquipment import RoundMandrel, Fl
 # import containers
 from .Components.Containers.Cylindrical import CylindricalCannister, CylindricalEncapsulation, CylindricalLidAssembly, CylindricalTerminalConnector
 from .Components.Containers.Pouch import PouchEncapsulation, LaminateSheet, PouchTerminal
+from .Components.Containers.Prismatic import PrismaticCannister, PrismaticEncapsulation, PrismaticLidAssembly, PrismaticTerminalConnector
 
 # import cells
 from .Constructions.Cells.CylindricalCell import CylindricalCell
