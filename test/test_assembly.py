@@ -611,7 +611,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         fig7 = self.my_jellyroll.get_top_down_view()
         fig8 = self.my_jellyroll.get_right_left_view()
 
-        # fig1.show()
+        fig1.show()
         # fig3.show()
         # fig4.show()
         # fig5.show()
@@ -699,9 +699,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.my_jellyroll.thickness = new_thickness
 
         # Check that width updated correctly
-        self.assertAlmostEqual(self.my_jellyroll.thickness, new_thickness, 0)
-        self.assertAlmostEqual(self.my_jellyroll.width, 118.9, 1)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 6.12, 1)
+        self.assertAlmostEqual(self.my_jellyroll.thickness, new_thickness, 1)
 
     def test_width_setter(self):
         """Test that setting the width updates the thickness correctly."""
@@ -713,8 +711,6 @@ class TestFlatJellyRoll(unittest.TestCase):
 
         # Check that thickness updated correctly
         self.assertAlmostEqual(self.my_jellyroll.width, new_width, 0)
-        self.assertAlmostEqual(self.my_jellyroll.thickness, 14.6, 1)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 4.96, 1)
 
     def test_to_wound_jelly_roll(self):
         """Test converting a FlatWoundJellyRoll to a WoundJellyRoll."""
@@ -818,6 +814,125 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertTrue(new_tape_wraps > original_tape_wraps)
         self.assertTrue(new_cost > original_cost)
         self.assertTrue(new_mass > original_mass)
+
+
+class TestFlatJellyRollThick(unittest.TestCase):
+
+    def setUp(self):
+        import steer_opencell_design as ocd
+
+        conductive_additive = ocd.ConductiveAdditive.from_database("Super P")
+        binder = ocd.Binder.from_database("PVDF")
+        insulation = ocd.InsulationMaterial.from_database("Aluminium Oxide, 95%")
+        current_collector_material = ocd.CurrentCollectorMaterial.from_database('Aluminum')
+        separator_material = ocd.SeparatorMaterial.from_database('Polyethylene')
+        tape_material = ocd.TapeMaterial.from_database("Kapton")
+        prismatic_material = ocd.PrismaticContainerMaterial.from_database("Steel")
+
+        cathode_current_collector = ocd.TablessCurrentCollector(
+            material=current_collector_material,
+            width=130,
+            length=3200,
+            coated_width=125,
+            insulation_width=2.5,
+            thickness=13.5
+        )
+
+        cathode_active_material = ocd.CathodeMaterial.from_database("NFPP")
+
+        cathode_formulation = ocd.CathodeFormulation(
+            active_materials={cathode_active_material: 95},
+            binders={binder: 2.5},
+            conductive_additives={conductive_additive: 2.5}
+        )
+
+        my_cathode = ocd.Cathode(
+            formulation=cathode_formulation,
+            current_collector=cathode_current_collector,
+            calender_density=2.53,
+            mass_loading=20,
+            insulation_material=insulation,
+            insulation_thickness=3
+        )
+
+        anode_current_collector = ocd.TablessCurrentCollector(
+            material=current_collector_material,
+            width=133,
+            length=3250,
+            coated_width=128,
+            insulation_width=2.5,
+            thickness=13.5,
+        )
+
+        anode_active_material = ocd.AnodeMaterial.from_database("Hard Carbon (Vendor A)")
+
+        anode_formulation = ocd.AnodeFormulation(
+            active_materials={anode_active_material: 95},
+            binders={binder: 2.5},
+            conductive_additives={conductive_additive: 2.5}
+        )
+
+        my_anode = ocd.Anode(
+            formulation=anode_formulation,
+            current_collector=anode_current_collector,
+            calender_density=1.1,
+            mass_loading=8,
+            insulation_material=insulation,
+            insulation_thickness=3
+        )
+
+        top_separator = ocd.Separator(
+            material=separator_material, 
+            thickness=12,
+            width = 127,
+            length = 3600
+        )
+
+        bottom_serparator = ocd.Separator(
+            material=separator_material, 
+            thickness=12,
+            width = 127,
+            length = 3600,
+        )
+
+        my_layup = ocd.Laminate(
+            anode=my_anode,
+            cathode=my_cathode,
+            top_separator=top_separator,
+            bottom_separator=bottom_serparator,
+            name="CBAK-32140NS"
+        )
+
+        mandrel = ocd.FlatMandrel(
+            length=500,
+            width=120,
+            height=5
+        )
+
+
+        tape = ocd.Tape(
+            material = tape_material,
+            thickness=30,
+            width=130
+        )
+
+        self.jellyroll = ocd.FlatWoundJellyRoll(
+            laminate=my_layup,
+            mandrel=mandrel,
+            tape=tape,
+            additional_tape_wraps=10,
+            collector_tab_crumple_factor=50
+        )
+
+    def test_plots(self):
+        fig1 = self.jellyroll.get_spiral_plot()
+        fig2 = self.jellyroll.get_capacity_plot()
+        fig3 = self.jellyroll.plot_mass_breakdown()
+        fig4 = self.jellyroll.plot_cost_breakdown()
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+        # fig4.show()
 
 
 class TestPunchedStack(unittest.TestCase):

@@ -224,50 +224,6 @@ class PouchCell(_Cell):
         self._encapsulation.height = encapsulation_height
         self._encapsulation.thickness = encapsulation_thickness
 
-    def _position_encapsulation(self) -> None:
-        """Position encapsulation centered around electrode assemblies.
-        
-        Calculates the bounding box of all current collectors and separators in the
-        top assembly, then positions the encapsulation at the geometric center of
-        the electrode stack. The z-position is the midpoint between the highest and
-        lowest assembly datums.
-        """
-        # get stack components
-        top_assembly = self._electrode_assemblies[0]
-        cathodes = [c for c in top_assembly._stack.values() if isinstance(c, Cathode)]
-        anodes = [a for a in top_assembly._stack.values() if isinstance(a, Anode)]
-        current_collectors = [c._current_collector for c in cathodes + anodes]
-        separators = [s for s in top_assembly._stack.values() if isinstance(s, Separator)]
-
-        # get the overall coordinates
-        cc_coordaintes = np.vstack([cc._body_coordinates for cc in current_collectors])
-        separator_coordinates = np.vstack([s._coordinates for s in separators])
-        all_coordinates = np.vstack([cc_coordaintes, separator_coordinates])
-
-        # get the bounding box
-        max_y = all_coordinates[:, 1].max()
-        min_y = all_coordinates[:, 1].min()
-        max_x = all_coordinates[:, 0].max()
-        min_x = all_coordinates[:, 0].min()
-
-        # get the midpoints
-        mid_x = (max_x + min_x) / 2 * M_TO_MM
-        mid_y = (max_y + min_y) / 2 * M_TO_MM
-        
-        # get the z datums for each assembly
-        assembly_z_datums = [assembly._datum[2] for assembly in self._electrode_assemblies]
-        max_z = max(assembly_z_datums) + (self._reference_electrode_assembly._thickness) / 2
-        min_z = min(assembly_z_datums) - (self._reference_electrode_assembly._thickness) / 2
-        mid_z = (max_z + min_z) / 2 * M_TO_MM
-
-        # position the encapsulation so that it is centered around the electrode assembly stack,
-        # taking into account the top and bottom and side seal thicknesses
-        self._encapsulation.datum = (
-            mid_x,
-            mid_y,
-            mid_z
-        )
-
     def get_side_view(self, **kwargs) -> go.Figure:
         """Get side view figure of the pouch cell.
 

@@ -1,6 +1,8 @@
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Base import _ElectrodeAssembly
 from steer_opencell_design.Components.Containers.Base import _Container
 from steer_opencell_design.Utils.Decorators import calculate_electrochemical_properties
+from steer_opencell_design.Components.Electrodes import Cathode, Anode
+from steer_opencell_design.Components.Separators import Separator
 
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
 
@@ -124,6 +126,50 @@ class _Cell(
 
         return self._electrode_assemblies
     
+    def _position_encapsulation(self) -> None:
+        """Position encapsulation centered around electrode assemblies.
+        
+        Calculates the bounding box of all current collectors and separators in the
+        top assembly, then positions the encapsulation at the geometric center of
+        the electrode stack. The z-position is the midpoint between the highest and
+        lowest assembly datums.
+        """
+        # get stack components
+        top_assembly = self._electrode_assemblies[0]
+        cathodes = [c for c in top_assembly._stack.values() if isinstance(c, Cathode)]
+        anodes = [a for a in top_assembly._stack.values() if isinstance(a, Anode)]
+        current_collectors = [c._current_collector for c in cathodes + anodes]
+        separators = [s for s in top_assembly._stack.values() if isinstance(s, Separator)]
+
+        # get the overall coordinates
+        cc_coordaintes = np.vstack([cc._body_coordinates for cc in current_collectors])
+        separator_coordinates = np.vstack([s._coordinates for s in separators])
+        all_coordinates = np.vstack([cc_coordaintes, separator_coordinates])
+
+        # get the bounding box
+        max_y = all_coordinates[:, 1].max()
+        min_y = all_coordinates[:, 1].min()
+        max_x = all_coordinates[:, 0].max()
+        min_x = all_coordinates[:, 0].min()
+
+        # get the midpoints
+        mid_x = (max_x + min_x) / 2 * M_TO_MM
+        mid_y = (max_y + min_y) / 2 * M_TO_MM
+        
+        # get the z datums for each assembly
+        assembly_z_datums = [assembly._datum[2] for assembly in self._electrode_assemblies]
+        max_z = max(assembly_z_datums) + (self._reference_electrode_assembly._thickness) / 2
+        min_z = min(assembly_z_datums) - (self._reference_electrode_assembly._thickness) / 2
+        mid_z = (max_z + min_z) / 2 * M_TO_MM
+
+        # position the encapsulation so that it is centered around the electrode assembly stack,
+        # taking into account the top and bottom and side seal thicknesses
+        self._encapsulation.datum = (
+            mid_x,
+            mid_y,
+            mid_z
+        )
+
     def _position_assemblies(self) -> None:
 
         if len(self._electrode_assemblies) == 1:
@@ -491,10 +537,6 @@ class _Cell(
     # ------------------------------------------------------------------
 
     @property
-    def reference_electrode_assembly(self) -> _ElectrodeAssembly:
-        return self._reference_electrode_assembly
-
-    @property
     def encapsulation(self) -> _Container:
         return self._encapsulation
 
@@ -763,13 +805,6 @@ class _Cell(
     # ------------------------------------------------------------------
     # Setters
     # ------------------------------------------------------------------
-
-    @reference_electrode_assembly.setter
-    @calculate_all_properties
-    def reference_electrode_assembly(self, value: _ElectrodeAssembly) -> None:
-        self.validate_type(value, _ElectrodeAssembly, "reference_electrode_assembly")
-        self._reference_electrode_assembly = value
-        self._calculate_voltage_limits()
 
     @encapsulation.setter
     @calculate_all_properties
