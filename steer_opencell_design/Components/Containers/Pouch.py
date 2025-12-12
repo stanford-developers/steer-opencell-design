@@ -147,8 +147,10 @@ class LaminateSheet(
         z_left_flat = np.full(n_pts, centerline_z)
 
         # Segment 2: Left corner transition (rounding down into cavity)
+        # Transition starts at cavity edge and ends smooth_width beyond it
         left_corner = np.linspace(cavity_min - smooth_width, cavity_min + smooth_width, n_pts)
-        z_left_corner = sigmoid(left_corner, centerline_z, centerline_z - self._cavity_depth, cavity_min)
+        # Center the sigmoid at cavity_min - smooth_width/2 so transition begins at cavity edge
+        z_left_corner = sigmoid(left_corner, centerline_z, centerline_z - self._cavity_depth, cavity_min - smooth_width / 2)
 
         # Segment 3: Cavity flat bottom (with lateral offset)
         cavity_flat = np.linspace(cavity_min + smooth_width, cavity_max - smooth_width, n_pts)
@@ -156,8 +158,10 @@ class LaminateSheet(
         cavity_flat_offset = cavity_flat + offset / 2  # Half offset on centerline
 
         # Segment 4: Right corner transition (rounding up out of cavity)
+        # Transition starts smooth_width before cavity edge and ends at cavity edge
         right_corner = np.linspace(cavity_max - smooth_width, cavity_max + smooth_width, n_pts)
-        z_right_corner = sigmoid(right_corner, centerline_z - self._cavity_depth, centerline_z, cavity_max)
+        # Center the sigmoid at cavity_max + smooth_width/2 so transition completes at cavity edge
+        z_right_corner = sigmoid(right_corner, centerline_z - self._cavity_depth, centerline_z, cavity_max + smooth_width / 2)
 
         # Segment 5: Right flat region
         right_flat = np.linspace(cavity_max + smooth_width, end, n_pts)

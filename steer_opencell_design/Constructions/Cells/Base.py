@@ -129,41 +129,21 @@ class _Cell(
     def _position_encapsulation(self) -> None:
         """Position encapsulation centered around electrode assemblies.
         
-        Calculates the bounding box of all current collectors and separators in the
-        top assembly, then positions the encapsulation at the geometric center of
-        the electrode stack. The z-position is the midpoint between the highest and
-        lowest assembly datums.
+        Uses the _get_center_point method from each assembly to calculate the
+        geometric center, then positions the encapsulation accordingly.
         """
-        # get stack components
-        top_assembly = self._electrode_assemblies[0]
-        cathodes = [c for c in top_assembly._stack.values() if isinstance(c, Cathode)]
-        anodes = [a for a in top_assembly._stack.values() if isinstance(a, Anode)]
-        current_collectors = [c._current_collector for c in cathodes + anodes]
-        separators = [s for s in top_assembly._stack.values() if isinstance(s, Separator)]
-
-        # get the overall coordinates
-        cc_coordaintes = np.vstack([cc._body_coordinates for cc in current_collectors])
-        separator_coordinates = np.vstack([s._coordinates for s in separators])
-        all_coordinates = np.vstack([cc_coordaintes, separator_coordinates])
-
-        # get the bounding box
-        max_y = all_coordinates[:, 1].max()
-        min_y = all_coordinates[:, 1].min()
-        max_x = all_coordinates[:, 0].max()
-        min_x = all_coordinates[:, 0].min()
-
-        # get the midpoints
-        mid_x = (max_x + min_x) / 2 * M_TO_MM
-        mid_y = (max_y + min_y) / 2 * M_TO_MM
+        # Get center point from reference assembly (x, y coordinates)
+        reference_center = self._electrode_assemblies[0]._get_center_point()
+        mid_x = reference_center[0]
+        mid_y = reference_center[1]
         
-        # get the z datums for each assembly
+        # Calculate z-position as midpoint between all assemblies
         assembly_z_datums = [assembly._datum[2] for assembly in self._electrode_assemblies]
         max_z = max(assembly_z_datums) + (self._reference_electrode_assembly._thickness) / 2
         min_z = min(assembly_z_datums) - (self._reference_electrode_assembly._thickness) / 2
         mid_z = (max_z + min_z) / 2 * M_TO_MM
 
-        # position the encapsulation so that it is centered around the electrode assembly stack,
-        # taking into account the top and bottom and side seal thicknesses
+        # Position the encapsulation centered around the electrode assembly stack
         self._encapsulation.datum = (
             mid_x,
             mid_y,
@@ -172,13 +152,30 @@ class _Cell(
 
     def _position_assemblies(self) -> None:
 
-        if len(self._electrode_assemblies) == 1:
-            return
-        
+        # get center point of the reference assembly
+        _center_x, _center_y, _ = self._electrode_assemblies[0]._get_center_point()
+
+        # get x and y datum positions from the reference assembly
+        _datum_x, _datum_y, _ = self._electrode_assemblies[0]._datum
+
+        # get translation to center assemblies at origin
+        translation_x = _center_x - _datum_x
+        translation_y = _center_y - _datum_y
+
+        # get new datum positions for x and y
+        new_datum_x = _datum_x - translation_x
+        new_datum_y = _datum_y - translation_y
+
+        # get the z values
+        if hasattr(self._reference_electrode_assembly, "_thickness"):
+            thickness = self._reference_electrode_assembly._thickness
+        elif hasattr(self._reference_electrode_assembly, "_radius"):
+            thickness = self._reference_electrode_assembly._radius
+
         # make z-grid centered at 0 with self._n_electrode_assembly points spaced by self._reference_electrode_assembly._thickness
         z_positions = np.linspace(
-            -((self.n_electrode_assembly - 1) / 2) * self._reference_electrode_assembly._thickness,
-            ((self.n_electrode_assembly - 1) / 2) * self._reference_electrode_assembly._thickness,
+            -((self.n_electrode_assembly - 1) / 2) * thickness,
+            ((self.n_electrode_assembly - 1) / 2) * thickness,
             self.n_electrode_assembly,
         )
 
@@ -186,8 +183,8 @@ class _Cell(
         for assembly, z in zip(self._electrode_assemblies, z_positions):
 
             assembly.datum = (
-                assembly._datum[0] * M_TO_MM,
-                assembly._datum[1] * M_TO_MM,
+                new_datum_x * M_TO_MM,
+                new_datum_y * M_TO_MM,
                 z * M_TO_MM
             )
 

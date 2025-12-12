@@ -56,12 +56,12 @@ class CylindricalCell(_Cell):
         )
 
         self._update_properties = True
-        self._make_assemblies()
-        self._position_assemblies()
         self._calculate_all_properties()
 
     def _calculate_all_properties(self) -> None:
         """Calculate all cell properties and position encapsulation."""
+        self._make_assemblies()
+        self._position_assemblies()
         super()._calculate_all_properties()
         self._position_encapsulation()
         self._validate_assembly_encapsulation_fit(self._reference_electrode_assembly, self._encapsulation)
