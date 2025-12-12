@@ -543,6 +543,28 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         _anode_pore_volume = self._layup._anode._pore_volume
         self._pore_volume = _cathode_pore_volume + _anode_pore_volume
 
+    def _get_center_point(self) -> Tuple[float, float, float]:
+        """Get the center point of the jelly roll assembly.
+        
+        Returns the datum of the jelly roll, which represents its center point.
+        
+        Returns
+        -------
+        Tuple[float, float, float]
+            (x, y, z) coordinates of the center point in millimeters
+        """
+        # get all spiral coordinates
+        all_spirals = np.vstack(list(self._component_spirals.values()))
+        all_spirals = all_spirals[~np.isnan(all_spirals[:, X_COORD_COL])]
+        x_center = (all_spirals[:, X_COORD_COL].max() + all_spirals[:, X_COORD_COL].min()) / 2
+        z_center = (all_spirals[:, Z_COORD_COL].max() + all_spirals[:, Z_COORD_COL].min()) / 2
+
+        # get all top down coordinates
+        all_top_down = np.vstack(list(self._component_top_down_coordinates.values()))
+        y_center = (all_top_down[:, 1].max() + all_top_down[:, 1].min()) / 2
+
+        return (x_center, y_center, z_center)
+
     def _calculate_interfacial_area(self) -> float:
         """Calculate the interfacial area between cathode and anode surfaces in a wound jelly roll.
         
@@ -1660,7 +1682,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
         return figure
 
-    def get_right_left_view(self, opacity: float = 0.5, **kwargs) -> go.Figure:
+    def get_side_view(self, opacity: float = 0.5, **kwargs) -> go.Figure:
         """Generate right-left side view of the jelly roll with all component layers.
         
         Parameters

@@ -221,6 +221,42 @@ class _Stack(_ElectrodeAssembly):
 
         self._pore_volume = _cathode_pore_volume + _anode_pore_volume
 
+    def _get_center_point(self) -> Tuple[float, float, float]:
+        """Get the center point of the stack assembly.
+        
+        Calculates the geometric center by finding the bounding box of all
+        current collectors and separators.
+        
+        Returns
+        -------
+        Tuple[float, float, float]
+            (x, y, z) coordinates of the center point in millimeters
+        """
+        cathodes = [c for c in self._stack.values() if isinstance(c, Cathode)]
+        anodes = [a for a in self._stack.values() if isinstance(a, Anode)]
+        current_collectors = [c._current_collector for c in cathodes + anodes]
+        separators = [s for s in self._stack.values() if isinstance(s, Separator)]
+
+        # Get the overall coordinates
+        _cc_coordinates = np.vstack([cc._body_coordinates for cc in current_collectors])
+        _separator_coordinates = np.vstack([s._coordinates for s in separators])
+        _all_coordinates = np.vstack([_cc_coordinates, _separator_coordinates])
+
+        # Get the bounding box
+        _max_x = _all_coordinates[:, 0].max()
+        _min_x = _all_coordinates[:, 0].min()
+        _max_y = _all_coordinates[:, 1].max()
+        _min_y = _all_coordinates[:, 1].min()
+        _max_z = _all_coordinates[:, 2].max()
+        _min_z = _all_coordinates[:, 2].min()
+
+        # Get the midpoints
+        _mid_x = (_max_x + _min_x) / 2
+        _mid_y = (_max_y + _min_y) / 2
+        _mid_z = (_max_z + _min_z) / 2
+
+        return (_mid_x, _mid_y, _mid_z)
+    
     def _clip_current_collector_tabs(self, _clipped_length: float) -> None:
         """Clip current collector tabs to specified length."""
         
@@ -273,7 +309,8 @@ class _Stack(_ElectrodeAssembly):
                 0.1, 
                 color_func, 
                 unit_conversion_factor=M_TO_MM,
-                order_clockwise='yz'
+                order_clockwise='yz',
+                gl=True
             )
             traces.append(trace)
         
@@ -291,8 +328,8 @@ class _Stack(_ElectrodeAssembly):
         
         return figure
 
-    def get_top_down_view(self):
-        return self._layup.get_top_down_view()
+    def get_top_down_view(self, **kwargs):
+        return self._layup.get_top_down_view(**kwargs)
 
     @staticmethod
     def add_layer(stack: Dict[int, Any], component: Any, z_datum: float) -> Tuple[float, Dict[int, Any]]:

@@ -1617,7 +1617,7 @@ class PrismaticEncapsulation(_Container):
 
         return figure
     
-    def get_top_down_view(self, **kwargs) -> go.Figure:
+    def get_top_down_view(self, opacity=0.8, **kwargs) -> go.Figure:
         """Generate a top-down view plot showing all components."""
         figure = go.Figure()
         traces = []
@@ -1626,6 +1626,9 @@ class PrismaticEncapsulation(_Container):
         traces.append(self._lid_assembly.top_down_trace)
         traces.append(self._cathode_terminal_connector.top_down_trace)
         traces.append(self._anode_terminal_connector.top_down_trace)
+
+        for trace in traces:
+            self.adjust_trace_opacity(trace, opacity)
 
         figure.add_traces(traces)
 

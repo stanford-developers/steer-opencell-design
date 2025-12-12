@@ -80,13 +80,13 @@ class PrismaticCell(_Cell):
         self.clipped_tab_length = clipped_tab_length
 
         self._update_properties = True
-        self._make_assemblies()
-        self._position_assemblies()
-        self._clip_tabs()
         self._calculate_all_properties()
 
     def _calculate_all_properties(self) -> None:
         """Calculate all cell properties and position encapsulation."""
+        self._make_assemblies()
+        self._position_assemblies()
+        self._clip_tabs()
         self._calculate_encapsulation_properties()
         super()._calculate_all_properties()
 
@@ -128,12 +128,11 @@ class PrismaticCell(_Cell):
 
         traces = []
 
-        # Pass opacity to layup's get_top_down_view
         first_assembly = self._electrode_assemblies[0]
-        layup_traces = first_assembly._layup.get_top_down_view(opacity=opacity).data
+        layup_traces = first_assembly.get_top_down_view(opacity=opacity).data
         traces.extend(layup_traces)
 
-        encapsulation_traces = self._encapsulation.get_top_down_view().data
+        encapsulation_traces = self._encapsulation.get_top_down_view(opacity=opacity).data
         
         # Apply opacity only to encapsulation traces
         for trace in encapsulation_traces:
@@ -270,7 +269,7 @@ class PrismaticCell(_Cell):
         value : ZFoldStack | PunchedStack
             New electrode assembly to set
         """
-        self.validate_type(value, (ZFoldStack, PunchedStack), "reference_electrode_assembly")
+        self.validate_type(value, (ZFoldStack, PunchedStack, FlatWoundJellyRoll), "reference_electrode_assembly")
         self._reference_electrode_assembly = value
 
         # Ensure encapsulation connector orientation matches electrode orientation

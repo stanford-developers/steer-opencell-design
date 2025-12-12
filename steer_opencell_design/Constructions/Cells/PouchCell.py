@@ -44,9 +44,9 @@ class PouchCell(_Cell):
         encapsulation: PouchEncapsulation,
         electrolyte: Electrolyte,
         operating_voltage_window: Tuple[float, float] = (None, None),
-        side_seal_thickness: float = 15,
-        top_seal_thickness: float = 15,
-        bottom_seal_thickness: float = 15,
+        side_seal_thickness: float = 5,
+        top_seal_thickness: float = 5,
+        bottom_seal_thickness: float = 5,
         clipped_tab_length: float = None,
         electrolyte_overfill: float = 0.2,
         name: str = "Pouch Cell",
@@ -87,13 +87,13 @@ class PouchCell(_Cell):
         self.clipped_tab_length = clipped_tab_length
 
         self._update_properties = True
-        self._make_assemblies()
-        self._position_assemblies()
-        self._clip_tabs()
         self._calculate_all_properties()
 
     def _calculate_all_properties(self) -> None:
         """Calculate all cell properties and position encapsulation."""
+        self._make_assemblies()
+        self._clip_tabs()
+        self._position_assemblies()
         self._calculate_encapsulation_properties()
         super()._calculate_all_properties()
 
@@ -131,12 +131,12 @@ class PouchCell(_Cell):
         from steer_opencell_design.Constructions.Layups.MonoLayers import ElectrodeOrientation
         
         # cathode get the tab position
-        _current_collector = self._reference_electrode_assembly._layup._cathode._current_collector
+        _current_collector = self._electrode_assemblies[0]._layup._cathode._current_collector
         _terminal = self._encapsulation._cathode_terminal
         _cathode_connector_position_x = _current_collector._tab_position - _current_collector._x_body_length / 2
         _cathode_connector_position_y = _current_collector._datum[1] + _current_collector._y_body_length / 2 + self._clipped_tab_length + _terminal._length / 2
 
-        _current_collector = self._reference_electrode_assembly._layup._anode._current_collector
+        _current_collector = self._electrode_assemblies[0]._layup._anode._current_collector
         _terminal = self._encapsulation._anode_terminal
         _anode_connector_position_x = _current_collector._tab_position - _current_collector._x_body_length / 2
         _anode_connector_position_y = _current_collector._datum[1]
