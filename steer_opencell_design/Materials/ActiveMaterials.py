@@ -1,4 +1,3 @@
-from steer_core.DataManager import DataManager
 from steer_core.Constants.Units import *
 from steer_core.Mixins.Data import DataMixin
 from steer_core.Mixins.Serializer import SerializerMixin
