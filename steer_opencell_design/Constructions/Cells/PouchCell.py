@@ -313,17 +313,17 @@ class PouchCell(_Cell):
     @property
     def side_seal_thickness(self) -> float:
         """Get side seal thickness."""
-        return round(self._side_seal_thickness * M_TO_MM, 2)
+        return np.round(self._side_seal_thickness * M_TO_MM, 2)
     
     @property
     def top_seal_thickness(self) -> float:
         """Get top seal thickness."""
-        return round(self._top_seal_thickness * M_TO_MM, 2)
+        return np.round(self._top_seal_thickness * M_TO_MM, 2)
     
     @property
     def bottom_seal_thickness(self) -> float:
         """Get bottom seal thickness."""
-        return round(self._bottom_seal_thickness * M_TO_MM, 2)
+        return np.round(self._bottom_seal_thickness * M_TO_MM, 2)
 
     @property
     def reference_electrode_assembly(self) -> ZFoldStack | PunchedStack:
@@ -338,7 +338,7 @@ class PouchCell(_Cell):
     @property
     def clipped_tab_length(self) -> float:
         """Get clipped tab length."""
-        return round(self._clipped_tab_length * M_TO_MM, 2)
+        return np.round(self._clipped_tab_length * M_TO_MM, 2)
     
     @property
     def clipped_tab_length_range(self) -> Tuple[float, float]:

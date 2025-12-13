@@ -128,6 +128,12 @@ class TestSimpleLaminate(unittest.TestCase):
         condition = self.layup == temp_layup
         self.assertTrue(condition)
 
+    def test_serialization(self):
+        serialized = self.layup.serialize()
+        deserialized = Laminate.deserialize(serialized)
+        test_case = self.layup == deserialized
+        self.assertTrue(test_case)
+
     def test_get_thickness_at_x(self):
         self.layup.calculate_flattened_center_lines()
         self.assertAlmostEqual(self.layup.get_thickness_at_x(0), 0.000181, places=6)

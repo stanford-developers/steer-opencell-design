@@ -49,6 +49,17 @@ class TestAnodeNoInsulation(unittest.TestCase):
     def test_electrodes(self):
         self.assertTrue(isinstance(self.anode, Anode))
 
+    def test_serialization(self):
+        serialized = self.anode.serialize()
+        deserialized = Anode.deserialize(serialized)
+        test_case = self.anode == deserialized
+        self.assertTrue(test_case)
+
+    def test_equality(self):
+        temp_electrode = deepcopy(self.anode)
+        condition = temp_electrode == self.anode
+        self.assertTrue(condition)
+
     def test_datum_shift_updates_coordinates(self):
         """Changing the electrode datum should translate top-down coating coordinates by the same delta.
 

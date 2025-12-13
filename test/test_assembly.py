@@ -148,6 +148,12 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.radius_range[1], 30.55, 2)
         self.assertAlmostEqual(self.my_jellyroll.mass, 655.4, 1)
 
+    def test_serialization(self):
+        serialized = self.my_jellyroll.serialize()
+        deserialized = WoundJellyRoll.deserialize(serialized)
+        test_case = self.my_jellyroll == deserialized
+        self.assertTrue(test_case)
+
     def test_plots(self):
 
         self.assertIsInstance(self.my_jellyroll, WoundJellyRoll)
@@ -598,6 +604,12 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.width_range[0], 103.6, 1)
         self.assertAlmostEqual(self.my_jellyroll.width_range[1], 125.95, 1)
 
+    def test_serialization(self):
+        serialized = self.my_jellyroll.serialize()
+        deserialized = FlatWoundJellyRoll.deserialize(serialized)
+        test_case = self.my_jellyroll == deserialized
+        self.assertTrue(test_case)
+
     def test_plots(self):
 
         self.assertIsInstance(self.my_jellyroll, FlatWoundJellyRoll)
@@ -913,6 +925,12 @@ class TestPunchedStack(unittest.TestCase):
         self.assertAlmostEqual(self.stack.thickness_hard_range[1], 369.66, 2)
         self.assertEqual(len(self.stack.stack), 83)
         self.assertAlmostEqual(self.stack.pore_volume, 245.51, 2)
+
+    def test_serialization(self):
+        serialized = self.stack.serialize()
+        deserialized = PunchedStack.deserialize(serialized)
+        test_case = self.stack == deserialized
+        self.assertTrue(test_case)
 
     def test_breakdown_plots(self):
         fig5 = self.stack.plot_mass_breakdown()

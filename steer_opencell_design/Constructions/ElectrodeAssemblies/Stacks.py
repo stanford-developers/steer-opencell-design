@@ -361,6 +361,10 @@ class _Stack(_ElectrodeAssembly):
         stack_size = len(stack)
         new_component = deepcopy(component)
 
+        # if electrode then clear its cached data
+        if type(new_component) in [Cathode, Anode]:
+            new_component._clear_cached_data()
+
         # Calculate new z-datum based on component thickness
         component_half_thickness = new_component._thickness * M_TO_MM / 2
         
@@ -428,7 +432,7 @@ class _Stack(_ElectrodeAssembly):
     @property
     def n_layers(self) -> int:
         """Return the number of layers in the stack."""
-        return round(self._n_layers, 0)
+        return np.round(self._n_layers, 0)
     
     @property
     def n_layers_range(self) -> Tuple[int, int]:
@@ -443,7 +447,7 @@ class _Stack(_ElectrodeAssembly):
     @property
     def thickness(self) -> float:
         """Return the total thickness of the stack in mm."""
-        return round(self._thickness * M_TO_MM, 2)
+        return np.round(self._thickness * M_TO_MM, 2)
     
     @property
     def thickness_range(self) -> Tuple[float, float]:

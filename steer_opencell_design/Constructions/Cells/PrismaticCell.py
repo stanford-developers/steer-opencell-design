@@ -11,6 +11,7 @@ from typing import Tuple
 import warnings
 import plotly.graph_objects as go
 from functools import wraps
+import numpy as np
 
 # Tab alignment tolerance constant
 TAB_ALIGNMENT_TOLERANCE = 5e-6  # 5 micron tolerance for tab-terminal alignment (meters)
@@ -199,7 +200,7 @@ class PrismaticCell(_Cell):
         """Get clipped tab length."""
         if self._clipped_tab_length is None:
             return None
-        return round(self._clipped_tab_length * M_TO_MM, 2)
+        return np.round(self._clipped_tab_length * M_TO_MM, 2)
     
     @property
     def clipped_tab_length_range(self) -> Tuple[float, float]:
