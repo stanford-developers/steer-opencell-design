@@ -1,6 +1,4 @@
 from steer_materials.Base import _Material, _VolumedMaterialMixin
-from steer_core.Mixins.Serializer import SerializerMixin
-from steer_core.DataManager import DataManager
 
 
 class ConductiveAdditive(_VolumedMaterialMixin, _Material):

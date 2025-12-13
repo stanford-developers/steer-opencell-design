@@ -1,5 +1,3 @@
-from steer_core.DataManager import DataManager
-from steer_core.Mixins.Serializer import SerializerMixin
 from steer_materials.Base import Metal, _Material, _VolumedMaterialMixin
 import numpy as np
 
