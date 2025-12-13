@@ -613,6 +613,19 @@ class TestStackedPouchCell(unittest.TestCase):
         self.assertAlmostEqual(self.cell.mass, 14008.36, 0)
         self.assertAlmostEqual(self.cell.cost, 79.82, 1)
 
+    def test_serialization(self):
+        serialized = self.cell.serialize()
+        deserialized = ocd.PouchCell.deserialize(serialized)
+
+        original_encapsulation = self.cell.electrode_assemblies[0]
+        new_encapsulation = deserialized.electrode_assemblies[0]
+
+        test_case = original_encapsulation == new_encapsulation
+        self.assertTrue(test_case)
+
+        # test_case = self.cell == deserialized
+        # self.assertTrue(test_case)
+
     def test_plots(self):
 
         fig1 = self.cell.plot_mass_breakdown()

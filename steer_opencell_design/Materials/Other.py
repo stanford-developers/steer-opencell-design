@@ -1,12 +1,15 @@
 from steer_core.DataManager import DataManager
 from steer_core.Mixins.Serializer import SerializerMixin
 from steer_materials.Base import Metal, _Material, _VolumedMaterialMixin
+import numpy as np
 
 
 class CurrentCollectorMaterial(_VolumedMaterialMixin, Metal):
     """
     Materials from which current collectors are made.
     """
+
+    _table_name = "current_collector_materials"
 
     def __init__(
             self, 
@@ -43,50 +46,13 @@ class CurrentCollectorMaterial(_VolumedMaterialMixin, Metal):
             **kwargs,
         )
 
-    @staticmethod
-    def from_database(name) -> "CurrentCollectorMaterial":
-        """
-        Pull object from the database.
-
-        Parameters
-        ----------
-        name : str
-            Name of the current collector material.
-
-        Returns
-        -------
-        CurrentCollectorMaterial: Instance of the class.
-
-        Raises
-        ------
-        ValueError: If the material is not found in the database.
-        """
-        database = DataManager()
-
-        available_materials = database.get_unique_values(
-            "current_collector_materials", "name"
-        )
-
-        if name not in available_materials:
-            raise ValueError(
-                f"Material '{name}' not found in the database. Available materials: {available_materials}"
-            )
-
-        data = database.get_current_collector_materials(most_recent=True).query(
-            f"name == '{name}'"
-        )
-
-        string_rep = data["object"].iloc[0]
-
-        material = SerializerMixin.deserialize(string_rep)
-
-        return material
-
 
 class InsulationMaterial(_VolumedMaterialMixin, _Material):
     """
     Materials from which insulation is made.
     """
+
+    _table_name = "insulation_materials"
 
     def __init__(
             self, 
@@ -123,45 +89,13 @@ class InsulationMaterial(_VolumedMaterialMixin, _Material):
             **kwargs,
         )
 
-    @staticmethod
-    def from_database(name) -> "InsulationMaterial":
-        """
-        Pull object from the database.
-
-        Parameters
-        ----------
-        name : str
-            Name of the insulation material.
-
-        Returns
-        -------
-        InsulationMaterial: Instance of the class.
-
-        Raises
-        ------
-        ValueError: If the material is not found in the database.
-        """
-        database = DataManager()
-        available_materials = database.get_unique_values("insulation_materials", "name")
-
-        if name not in available_materials:
-            raise ValueError(
-                f"Material '{name}' not found in the database. Available materials: {available_materials}"
-            )
-
-        data = database.get_data(table_name="insulation_materials").query(
-            f"name == '{name}'"
-        )
-
-        string_data = data["object"].iloc[0]
-        material = SerializerMixin.deserialize(string_data)
-        return material
-
 
 class SeparatorMaterial(_VolumedMaterialMixin, _Material):
     """
     Materials from which separators are made.
     """
+
+    _table_name = "separator_materials"
 
     def __init__(
         self,
@@ -205,7 +139,7 @@ class SeparatorMaterial(_VolumedMaterialMixin, _Material):
 
     @property
     def porosity(self):
-        return round(self._porosity * 100, 2)
+        return np.round(self._porosity * 100, 2)
     
     @property
     def porosity_range(self):
@@ -216,46 +150,13 @@ class SeparatorMaterial(_VolumedMaterialMixin, _Material):
         self.validate_percentage(porosity, "Porosity")
         self._porosity = porosity / 100.0
 
-    @staticmethod
-    def from_database(name) -> "SeparatorMaterial":
-        """
-        Pull object from the database.
-
-        Parameters
-        ----------
-        name : str
-            Name of the separator material.
-
-        Returns
-        -------
-        SeparatorMaterial: Instance of the class.
-
-        Raises
-        ------
-        ValueError: If the material is not found in the database.
-        """
-        database = DataManager()
-
-        available_materials = database.get_unique_values("separator_materials", "name")
-
-        if name not in available_materials:
-            raise ValueError(
-                f"Material '{name}' not found in the database. Available materials: {available_materials}"
-            )
-
-        data = database.get_data(table_name="separator_materials").query(
-            f"name == '{name}'"
-        )
-
-        string_data = data["object"].iloc[0]
-        material = SerializerMixin.deserialize(string_data)
-        return material
-
 
 class TapeMaterial(_VolumedMaterialMixin, _Material):
     """
     Materials from which tapes are made.
     """
+
+    _table_name = "tape_materials"
 
     def __init__(
         self,
@@ -292,46 +193,14 @@ class TapeMaterial(_VolumedMaterialMixin, _Material):
             **kwargs,
         )
 
-    @staticmethod
-    def from_database(name) -> "TapeMaterial":
-        """
-        Pull object from the database.
-
-        Parameters
-        ----------
-        name : str
-            Name of the tape material.
-
-        Returns
-        -------
-        TapeMaterial: Instance of the class.
-        Raises
-        ------
-        ValueError: If the material is not found in the database.
-        """
-        database = DataManager()
-
-        available_materials = database.get_unique_values("tape_materials", "name")
-
-        if name not in available_materials:
-            raise ValueError(
-                f"Material '{name}' not found in the database. Available materials: {available_materials}"
-            )
-
-        data = database.get_data(table_name="tape_materials").query(
-            f"name == '{name}'"
-        )
-
-        string_data = data["object"].iloc[0]
-        material = SerializerMixin.deserialize(string_data)
-        return material
-
 
 class PrismaticContainerMaterial(_VolumedMaterialMixin, _Material):
     """
     Materials from which containers are made.
     """
 
+    _table_name = "prismatic_container_materials"
+
     def __init__(
         self,
         name: str,
@@ -367,47 +236,14 @@ class PrismaticContainerMaterial(_VolumedMaterialMixin, _Material):
             **kwargs,
         )
 
-    @staticmethod
-    def from_database(name) -> "PrismaticContainerMaterial":
-        """
-        Pull object from the database.
-
-        Parameters
-        ----------
-        name : str
-            Name of the container material.
-
-        Returns
-        -------
-        ContainerMaterial: Instance of the class.
-
-        Raises
-        ------
-        ValueError: If the material is not found in the database.
-        """
-        database = DataManager()
-
-        available_materials = database.get_unique_values("prismatic_container_materials", "name")
-
-        if name not in available_materials:
-            raise ValueError(
-                f"Material '{name}' not found in the database. Available materials: {available_materials}"
-            )
-
-        data = database.get_data(table_name="prismatic_container_materials").query(
-            f"name == '{name}'"
-        )
-
-        string_data = data["object"].iloc[0]
-        material = SerializerMixin.deserialize(string_data)
-        return material
-    
 
 class LaminateMaterial(_VolumedMaterialMixin, _Material):
     """
     Materials from which containers are made.
     """
 
+    _table_name = "laminate_materials"
+
     def __init__(
         self,
         name: str,
@@ -443,38 +279,4 @@ class LaminateMaterial(_VolumedMaterialMixin, _Material):
             **kwargs,
         )
 
-    @staticmethod
-    def from_database(name) -> "LaminateMaterial":
-        """
-        Pull object from the database.
-
-        Parameters
-        ----------
-        name : str
-            Name of the container material.
-
-        Returns
-        -------
-        LaminateMaterial: Instance of the class.
-
-        Raises
-        ------
-        ValueError: If the material is not found in the database.
-        """
-        database = DataManager()
-
-        available_materials = database.get_unique_values("laminate_materials", "name")
-
-        if name not in available_materials:
-            raise ValueError(
-                f"Material '{name}' not found in the database. Available materials: {available_materials}"
-            )
-
-        data = database.get_data(table_name="laminate_materials").query(
-            f"name == '{name}'"
-        )
-
-        string_data = data["object"].iloc[0]
-        material = SerializerMixin.deserialize(string_data)
-        return material
     

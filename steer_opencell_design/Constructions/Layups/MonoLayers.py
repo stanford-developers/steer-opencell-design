@@ -1,5 +1,6 @@
 from copy import copy, deepcopy
 from enum import Enum
+import numpy as np
 
 from steer_core.Constants.Units import *
 from steer_core.Decorators.Coordinates import calculate_coordinates
@@ -175,7 +176,7 @@ class MonoLayer(_Layup):
     
     @property
     def width(self) -> float:
-        return round(self._width * M_TO_MM, 2)
+        return np.round(self._width * M_TO_MM, 2)
 
     @property
     def width_range(self) -> tuple:
@@ -187,7 +188,7 @@ class MonoLayer(_Layup):
 
     @property
     def height(self) -> float:
-        return round(self._height * M_TO_MM, 2)
+        return np.round(self._height * M_TO_MM, 2)
 
     @property
     def height_range(self) -> tuple:
@@ -486,11 +487,11 @@ class ZFoldMonoLayer(MonoLayer):
 
     @property
     def width(self) -> float:
-        return round(self._width * M_TO_MM, 2)
+        return np.round(self._width * M_TO_MM, 2)
 
     @property
     def height(self) -> float:
-        return round(self._height * M_TO_MM, 2)
+        return np.round(self._height * M_TO_MM, 2)
 
     @property
     def separator(self) -> Separator:

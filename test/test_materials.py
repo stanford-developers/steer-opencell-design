@@ -1,6 +1,7 @@
 import unittest
 from io import StringIO
 import pandas as pd
+import numpy as np
 
 from steer_opencell_design.Materials.ActiveMaterials import CathodeMaterial, AnodeMaterial
 from steer_opencell_design.Materials.Binders import Binder
@@ -168,6 +169,11 @@ class TestLFPSingleCurve(unittest.TestCase):
         # figure1.show()
         # figure2.show()
 
+    def test_serialization(self):
+        serialized = self.material.serialize()
+        deserialized = CathodeMaterial.deserialize(serialized)
+        self.assertEqual(self.material, deserialized)
+
     def test_equality(self):
         self.assertTrue(self.material == self.material)
         self.assertTrue(self.material != self.material2)
@@ -189,7 +195,7 @@ class TestLFPSingleCurve(unittest.TestCase):
 
         self.assertEqual(round(data["Voltage (V)"].max(), 10), 4.0)
         self.assertEqual(
-            round(
+            np.round(
                 data.query('Direction == "discharge"')[
                     "Specific Capacity (mAh/g)"
                 ].min(),
@@ -198,10 +204,10 @@ class TestLFPSingleCurve(unittest.TestCase):
             3.59,
         )
         self.assertEqual(
-            round(data.query('Direction == "discharge"')["Voltage (V)"].min(), 2), 2.7
+            np.round(data.query('Direction == "discharge"')["Voltage (V)"].min(), 2), 2.7
         )
         self.assertEqual(
-            round(
+            np.round(
                 data.query('Direction == "charge"')["Specific Capacity (mAh/g)"].max(),
                 2,
             ),
@@ -226,7 +232,7 @@ class TestLFPSingleCurve(unittest.TestCase):
 
         self.assertEqual(round(data["Voltage (V)"].max(), 10), 4.0)
         self.assertEqual(
-            round(
+            np.round(
                 data.query('Direction == "discharge"')[
                     "Specific Capacity (mAh/g)"
                 ].min(),
@@ -235,10 +241,10 @@ class TestLFPSingleCurve(unittest.TestCase):
             1.79,
         )
         self.assertEqual(
-            round(data.query('Direction == "discharge"')["Voltage (V)"].min(), 2), 2.7
+            np.round(data.query('Direction == "discharge"')["Voltage (V)"].min(), 2), 2.7
         )
         self.assertEqual(
-            round(
+            np.round(
                 data.query('Direction == "charge"')["Specific Capacity (mAh/g)"].max(),
                 2,
             ),
@@ -259,7 +265,7 @@ class TestLFPSingleCurve(unittest.TestCase):
 
         self.assertEqual(round(data["Voltage (V)"].max(), 10), 4)
         self.assertEqual(
-            round(
+            np.round(
                 data.query('Direction == "discharge"')[
                     "Specific Capacity (mAh/g)"
                 ].min(),
@@ -268,10 +274,10 @@ class TestLFPSingleCurve(unittest.TestCase):
             79.39,
         )
         self.assertEqual(
-            round(data.query('Direction == "discharge"')["Voltage (V)"].min(), 2), 2.7
+            np.round(data.query('Direction == "discharge"')["Voltage (V)"].min(), 2), 2.7
         )
         self.assertEqual(
-            round(
+            np.round(
                 data.query('Direction == "charge"')["Specific Capacity (mAh/g)"].max(),
                 2,
             ),
@@ -287,7 +293,7 @@ class TestLFPSingleCurve(unittest.TestCase):
 
         self.assertEqual(round(data["Voltage (V)"].max(), 10), 4)
         self.assertEqual(
-            round(
+            np.round(
                 data.query('Direction == "discharge"')[
                     "Specific Capacity (mAh/g)"
                 ].min(),
@@ -296,10 +302,10 @@ class TestLFPSingleCurve(unittest.TestCase):
             79.39,
         )
         self.assertEqual(
-            round(data.query('Direction == "discharge"')["Voltage (V)"].min(), 2), 2.7
+            np.round(data.query('Direction == "discharge"')["Voltage (V)"].min(), 2), 2.7
         )
         self.assertEqual(
-            round(
+            np.round(
                 data.query('Direction == "charge"')["Specific Capacity (mAh/g)"].max(),
                 2,
             ),
@@ -327,7 +333,7 @@ class TestLFPSingleCurve(unittest.TestCase):
         self.assertEqual(round(data["Voltage (V)"].max(), 10), 4.0)
         
         self.assertEqual(
-            round(
+            np.round(
                 data.query('Direction == "discharge"')[
                     "Specific Capacity (mAh/g)"
                 ].min(),
@@ -336,10 +342,10 @@ class TestLFPSingleCurve(unittest.TestCase):
             3.59,
         )
         self.assertEqual(
-            round(data.query('Direction == "discharge"')["Voltage (V)"].min(), 2), 2.7
+            np.round(data.query('Direction == "discharge"')["Voltage (V)"].min(), 2), 2.7
         )
         self.assertEqual(
-            round(
+            np.round(
                 data.query('Direction == "charge"')["Specific Capacity (mAh/g)"].max(),
                 2,
             ),
@@ -786,7 +792,7 @@ class TestNMMMultiCurve(unittest.TestCase):
 
         self.assertEqual(round(data["Voltage (V)"].max(), 10), 4.1)
         self.assertEqual(
-            round(
+            np.round(
                 data.query('Direction == "discharge"')[
                     "Specific Capacity (mAh/g)"
                 ].min(),
@@ -795,10 +801,10 @@ class TestNMMMultiCurve(unittest.TestCase):
             1.24,
         )
         self.assertEqual(
-            round(data.query('Direction == "discharge"')["Voltage (V)"].min(), 2), 2
+            np.round(data.query('Direction == "discharge"')["Voltage (V)"].min(), 2), 2
         )
         self.assertEqual(
-            round(
+            np.round(
                 data.query('Direction == "charge"')["Specific Capacity (mAh/g)"].max(),
                 2,
             ),
@@ -815,7 +821,7 @@ class TestNMMMultiCurve(unittest.TestCase):
 
         self.assertEqual(round(data["Voltage (V)"].max(), 2), 4.20)
         self.assertEqual(
-            round(
+            np.round(
                 data.query('Direction == "discharge"')[
                     "Specific Capacity (mAh/g)"
                 ].min(),
@@ -824,10 +830,10 @@ class TestNMMMultiCurve(unittest.TestCase):
             3.49,
         )
         self.assertEqual(
-            round(data.query('Direction == "discharge"')["Voltage (V)"].min(), 2), 2.0
+            np.round(data.query('Direction == "discharge"')["Voltage (V)"].min(), 2), 2.0
         )
         self.assertEqual(
-            round(
+            np.round(
                 data.query('Direction == "charge"')["Specific Capacity (mAh/g)"].max(),
                 2,
             ),
@@ -1072,7 +1078,7 @@ class TestHardCarbon(unittest.TestCase):
 
         self.assertEqual(round(data["Voltage (V)"].min(), 10), 0)
         self.assertEqual(
-            round(
+            np.round(
                 data.query('Direction == "discharge"')[
                     "Specific Capacity (mAh/g)"
                 ].max(),
@@ -1081,7 +1087,7 @@ class TestHardCarbon(unittest.TestCase):
             358.61,
         )
         self.assertEqual(
-            round(data.query('Direction == "discharge"')["Voltage (V)"].min(), 2), 0.0
+            np.round(data.query('Direction == "discharge"')["Voltage (V)"].min(), 2), 0.0
         )
 
         # figure.show()
@@ -1096,7 +1102,7 @@ class TestHardCarbon(unittest.TestCase):
 
         self.assertEqual(round(data["Voltage (V)"].max(), 2), 2.06)
         self.assertEqual(
-            round(
+            np.round(
                 data.query('Direction == "discharge"')[
                     "Specific Capacity (mAh/g)"
                 ].min(),
@@ -1105,10 +1111,10 @@ class TestHardCarbon(unittest.TestCase):
             194.24,
         )
         self.assertEqual(
-            round(data.query('Direction == "discharge"')["Voltage (V)"].min(), 2), 0
+            np.round(data.query('Direction == "discharge"')["Voltage (V)"].min(), 2), 0
         )
         self.assertEqual(
-            round(
+            np.round(
                 data.query('Direction == "charge"')["Specific Capacity (mAh/g)"].max(),
                 2,
             ),

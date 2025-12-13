@@ -595,7 +595,7 @@ class CapacityCurveMixin:
             voltages_at_max_capacity.append(voltage_at_max_capacity)
 
         # Round voltage cutoff for consistent comparison
-        rounded_voltage_cutoff = round(voltage_cutoff, 5)
+        rounded_voltage_cutoff = np.round(voltage_cutoff, 5)
 
         # If the voltage cutoff corresponds to a particular curve, then return that curve
         if rounded_voltage_cutoff in [round(v, 5) for v in voltages_at_max_capacity]:
@@ -604,9 +604,9 @@ class CapacityCurveMixin:
 
         # If the voltage is between the second and third float in operating voltage range, then interpolate between the two curves
         elif (
-            round(min(voltage_operation_window[1:]), 5)
+            np.round(min(voltage_operation_window[1:]), 5)
             <= rounded_voltage_cutoff
-            <= round(max(voltage_operation_window[1:]), 5)
+            <= np.round(max(voltage_operation_window[1:]), 5)
         ):
             specific_capacity_curve = CapacityCurveMixin._interpolate_curve(
                 specific_capacity_curves,
@@ -615,9 +615,9 @@ class CapacityCurveMixin:
 
         # If the voltage cutoff is below the second float and above the first float in the operating voltage range, then interpolate between the two curves
         elif (
-            round(min(voltage_operation_window[:2]), 5)
+            np.round(min(voltage_operation_window[:2]), 5)
             <= rounded_voltage_cutoff
-            <= round(max(voltage_operation_window[:2]), 5)
+            <= np.round(max(voltage_operation_window[:2]), 5)
         ):
             specific_capacity_curve = CapacityCurveMixin._truncate_and_shift_curves(
                 specific_capacity_curves,

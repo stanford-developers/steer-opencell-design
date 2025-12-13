@@ -7,6 +7,7 @@ from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
+from steer_core.Mixins.Serializer import SerializerMixin
 
 from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Decorators.Coordinates import calculate_coordinates
@@ -25,6 +26,7 @@ class LaminateSheet(
     ValidationMixin,
     DunderMixin,
     PlotterMixin,
+    SerializerMixin,
     ):
 
     def __init__(
@@ -352,28 +354,28 @@ class LaminateSheet(
     def cost(self) -> float:
         if self._cost is None:
             return None
-        return round(self._cost, 2)
+        return np.round(self._cost, 2)
 
     @property
     def mass(self) -> float:
         if self._mass is None:
             return None
-        return round(self._mass * KG_TO_G, 2)
+        return np.round(self._mass * KG_TO_G, 2)
 
     @property
     def area(self) -> float:
         if self._area is None:
             return None
-        return round(self._area * M_TO_CM**2, 2)
+        return np.round(self._area * M_TO_CM**2, 2)
 
     @property
     def areal_cost(self) -> float:
-        return round(self._areal_cost, 2)
+        return np.round(self._areal_cost, 2)
 
     @property
     def datum(self) -> Tuple[float, float, float]:
         """Get the datum position in mm."""
-        return tuple(round(coord * M_TO_MM, 2) for coord in self._datum)
+        return tuple(np.round(coord * M_TO_MM, 2) for coord in self._datum)
 
     @property
     def name(self) -> str:
@@ -383,7 +385,7 @@ class LaminateSheet(
     def height(self) -> float:
         if self._height is None:
             return None
-        return round(self._height * M_TO_MM, 2)
+        return np.round(self._height * M_TO_MM, 2)
     
     @property
     def height_range(self):
@@ -393,15 +395,15 @@ class LaminateSheet(
     def width(self) -> float:
         if self._width is None:
             return None
-        return round(self._width * M_TO_MM, 2)
+        return np.round(self._width * M_TO_MM, 2)
 
     @property
     def width_range(self):
 
         if hasattr(self, "_width_range"):
             return (
-                round(self._width_range[0] * M_TO_MM, 2),
-                round(self._width_range[1] * M_TO_MM, 2),
+                np.round(self._width_range[0] * M_TO_MM, 2),
+                np.round(self._width_range[1] * M_TO_MM, 2),
             )
         else:
             return (0, 500)
@@ -409,11 +411,11 @@ class LaminateSheet(
     @property
     def density(self) -> float:
         """Density in kg/m³."""
-        return round(self._density, 2)
+        return np.round(self._density, 2)
 
     @property
     def thickness(self):
-        return round(self._thickness * M_TO_UM, 2)
+        return np.round(self._thickness * M_TO_UM, 2)
 
     @property
     def thickness_range(self):
@@ -590,6 +592,7 @@ class PouchTerminal(
     ValidationMixin,
     DunderMixin,
     PlotterMixin,
+    SerializerMixin
 ):
     """
     A pouch terminal connector component with rectangular prismatic geometry.
@@ -725,22 +728,22 @@ class PouchTerminal(
     @property
     def volume(self) -> float:
         """Volume in cm³."""
-        return round(self._volume * M_TO_CM**3, 2)
+        return np.round(self._volume * M_TO_CM**3, 2)
 
     @property
     def mass(self) -> float:
         """Mass in g."""
-        return round(self._mass * KG_TO_G, 2)
+        return np.round(self._mass * KG_TO_G, 2)
 
     @property
     def cost(self) -> float:
         """Cost in $."""
-        return round(self._cost, 2)
+        return np.round(self._cost, 2)
 
     @property
     def width(self) -> float:
         """Width in mm."""
-        return round(self._width * M_TO_MM, 2)
+        return np.round(self._width * M_TO_MM, 2)
 
     @property
     def width_range(self):
@@ -750,7 +753,7 @@ class PouchTerminal(
     @property
     def length(self) -> float:
         """Length in mm."""
-        return round(self._length * M_TO_MM, 2)
+        return np.round(self._length * M_TO_MM, 2)
 
     @property
     def length_range(self):
@@ -760,7 +763,7 @@ class PouchTerminal(
     @property
     def thickness(self) -> float:
         """Thickness in mm."""
-        return round(self._thickness * M_TO_MM, 2)
+        return np.round(self._thickness * M_TO_MM, 2)
 
     @property
     def thickness_range(self):
@@ -1034,24 +1037,24 @@ class PouchEncapsulation(_Container):
         """Get thickness of the encapsulation in mm."""
         if self._thickness is None:
             return None
-        return round(self._thickness * M_TO_MM, 2)
+        return np.round(self._thickness * M_TO_MM, 2)
     
     @property
     def volume(self) -> float:
         """Total volume in cm³."""
         if self._volume is None:
             return None
-        return round(self._volume * M_TO_CM**3, 2)
+        return np.round(self._volume * M_TO_CM**3, 2)
     
     @property
     def mass(self) -> float:
         """Total mass in g."""
-        return round(self._mass * KG_TO_G, 2)
+        return np.round(self._mass * KG_TO_G, 2)
 
     @property
     def cost(self) -> float:
         """Total cost in $."""
-        return round(self._cost, 2)
+        return np.round(self._cost, 2)
 
     @property
     def datum(self) -> Tuple[float, float, float]:
@@ -1100,7 +1103,7 @@ class PouchEncapsulation(_Container):
             if isinstance(obj, dict):
                 return {k: _convert_and_round_recursive(v) for k, v in obj.items()}
             else:
-                return round(obj * KG_TO_G, 2)
+                return np.round(obj * KG_TO_G, 2)
         
         return _convert_and_round_recursive(self._mass_breakdown)
 
@@ -1111,7 +1114,7 @@ class PouchEncapsulation(_Container):
             if isinstance(obj, dict):
                 return {k: _round_recursive(v) for k, v in obj.items()}
             else:
-                return round(obj, 2)
+                return np.round(obj, 2)
         
         return _round_recursive(self._cost_breakdown)
 

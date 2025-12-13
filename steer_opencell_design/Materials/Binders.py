@@ -5,6 +5,8 @@ from steer_core.DataManager import DataManager
 
 class Binder(_VolumedMaterialMixin, _Material):
 
+    _table_name = "binder_materials"
+
     def __init__(
         self, 
         name: str, 
@@ -32,29 +34,4 @@ class Binder(_VolumedMaterialMixin, _Material):
             mass=mass,
             **kwargs,
         )
-
-    @staticmethod
-    def from_database(name) -> "Binder":
-        """
-        Pull object from the database.
-
-        :param name: str: Name of the binder material.
-        :return: Binder: Instance of the class.
-        """
-        database = DataManager()
-
-        available_materials = database.get_unique_values("binder_materials", "name")
-
-        if name not in available_materials:
-            raise ValueError(
-                f"Material '{name}' not found in the database. Available materials: {available_materials}"
-            )
-
-        data = database.get_binder_materials(most_recent=True).query(
-            f"name == '{name}'"
-        )
-        string_rep = data["object"].iloc[0]
-        material = SerializerMixin.deserialize(string_rep)
-        return material
-
 

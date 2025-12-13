@@ -5,6 +5,7 @@ from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
+from steer_core.Mixins.Serializer import SerializerMixin
 
 from steer_core.Decorators.General import calculate_all_properties
 
@@ -12,13 +13,14 @@ from steer_opencell_design.Materials.Other import TapeMaterial
 
 from typing import Tuple
 from copy import deepcopy
-
+import numpy as np
 
 class Tape(
     CoordinateMixin, 
     ValidationMixin,
     DunderMixin,
     PlotterMixin,
+    SerializerMixin,
     ):
     def __init__(
         self,
@@ -112,31 +114,31 @@ class Tape(
         min = self._material._specific_cost_range[0] * self._material._density * self._thickness
         max = self._material._specific_cost_range[1] * self._material._density * self._thickness
         return (
-            round(min, 2), 
-            round(max, 2)
+            np.round(min, 2), 
+            np.round(max, 2)
         )
             
     @property
     def cost(self) -> float:
         if self._cost is None:
             return None
-        return round(self._cost, 2)
+        return np.round(self._cost, 2)
 
     @property
     def mass(self) -> float:
         if self._mass is None:
             return None
-        return round(self._mass * KG_TO_G, 2)
+        return np.round(self._mass * KG_TO_G, 2)
 
     @property
     def area(self) -> float:
         if self._area is None:
             return None
-        return round(self._area * M_TO_CM**2, 2)
+        return np.round(self._area * M_TO_CM**2, 2)
 
     @property
     def areal_cost(self) -> float:
-        return round(self._areal_cost, 2)
+        return np.round(self._areal_cost, 2)
 
     @property
     def datum(self) -> Tuple[float, float, float]:
@@ -151,7 +153,7 @@ class Tape(
     def length(self) -> float:
         if self._length is None:
             return None
-        return round(self._length * M_TO_MM, 2)
+        return np.round(self._length * M_TO_MM, 2)
     
     @property
     def length_range(self):
@@ -161,15 +163,15 @@ class Tape(
     def width(self) -> float:
         if self._width is None:
             return None
-        return round(self._width * M_TO_MM, 2)
+        return np.round(self._width * M_TO_MM, 2)
 
     @property
     def width_range(self):
 
         if hasattr(self, "_width_range"):
             return (
-                round(self._width_range[0] * M_TO_MM, 2),
-                round(self._width_range[1] * M_TO_MM, 2),
+                np.round(self._width_range[0] * M_TO_MM, 2),
+                np.round(self._width_range[1] * M_TO_MM, 2),
             )
         else:
             return (0, 500)
@@ -180,7 +182,7 @@ class Tape(
 
     @property
     def thickness(self):
-        return round(self._thickness * M_TO_UM, 2)
+        return np.round(self._thickness * M_TO_UM, 2)
 
     @property
     def thickness_range(self):

@@ -383,9 +383,9 @@ class _PrismaticComponent(
     @property
     def datum(self) -> Tuple[float, float, float]:
         return (
-            round(self._datum[0] * M_TO_MM, 2), 
-            round(self._datum[1] * M_TO_MM, 2), 
-            round(self._datum[2] * M_TO_MM, 2)
+            np.round(self._datum[0] * M_TO_MM, 2), 
+            np.round(self._datum[1] * M_TO_MM, 2), 
+            np.round(self._datum[2] * M_TO_MM, 2)
         )
 
     @property
@@ -397,45 +397,45 @@ class _PrismaticComponent(
         """Component width in mm, rounded to 2 decimal places. None if not set."""
         if self._width is None:
             return None
-        return round(self._width * M_TO_MM, 2)
+        return np.round(self._width * M_TO_MM, 2)
     
     @property
     def length(self) -> float:
         """Component length in mm, rounded to 2 decimal places. None if not set."""
         if self._length is None:
             return None
-        return round(self._length * M_TO_MM, 2)
+        return np.round(self._length * M_TO_MM, 2)
     
     @property
     def thickness(self) -> float:
         """Component thickness in mm, rounded to 2 decimal places."""
-        return round(self._thickness * M_TO_MM, 2)
+        return np.round(self._thickness * M_TO_MM, 2)
     
     @property
     def fill_factor(self) -> float:
         """Fill factor (0.0-1.0) for material calculations."""
-        return round(self._fill_factor, 2)
+        return np.round(self._fill_factor, 2)
     
     @property
     def mass(self) -> float:
         """Total mass in grams, accounting for fill factor. None if dimensions not set."""
         if self._mass is None:
             return None
-        return round(self._mass * KG_TO_G, 2)
+        return np.round(self._mass * KG_TO_G, 2)
     
     @property
     def cost(self) -> float:
         """Material cost in currency units. None if dimensions not set."""
         if self._cost is None:
             return None
-        return round(self._cost, 2)
+        return np.round(self._cost, 2)
     
     @property
     def volume(self) -> float:
         """Effective volume in mm³, accounting for fill factor. None if dimensions not set."""
         if self._volume is None:
             return None
-        return round(self._volume * M_TO_MM**3, 2)
+        return np.round(self._volume * M_TO_MM**3, 2)
     
     @property
     def rotated_x(self) -> bool:
@@ -1015,12 +1015,12 @@ class PrismaticCannister(
     @property
     def inner_width(self) -> float:
         """Inner width of the cannister in mm."""
-        return round(self._inner_width * M_TO_MM, 2)
+        return np.round(self._inner_width * M_TO_MM, 2)
     
     @property
     def inner_length(self) -> float:
         """Inner length of the cannister in mm."""
-        return round(self._inner_length * M_TO_MM, 2)
+        return np.round(self._inner_length * M_TO_MM, 2)
 
     @property
     def right_left_coordinates(self) -> pd.DataFrame:
@@ -1080,22 +1080,22 @@ class PrismaticCannister(
     @property
     def inner_height(self) -> float:
         """Inner height of the cannister in mm."""
-        return round(self._inner_height * M_TO_MM, 2)
+        return np.round(self._inner_height * M_TO_MM, 2)
 
     @property
     def cost(self) -> float:
         """Total cost in currency units."""
-        return round(self._cost, 2)
+        return np.round(self._cost, 2)
 
     @property
     def mass(self) -> float:
         """Total mass in grams."""
-        return round(self._mass * KG_TO_G, 2)
+        return np.round(self._mass * KG_TO_G, 2)
 
     @property
     def volume(self) -> float:
         """Total volume in mm³."""
-        return round(self._volume * M_TO_MM**3, 2)
+        return np.round(self._volume * M_TO_MM**3, 2)
 
     @property
     def name(self) -> str:
@@ -1104,9 +1104,9 @@ class PrismaticCannister(
     @property
     def datum(self) -> Tuple[float, float, float]:
         return (
-            round(self._datum[0] * M_TO_MM, 2), 
-            round(self._datum[1] * M_TO_MM, 2), 
-            round(self._datum[2] * M_TO_MM, 2)
+            np.round(self._datum[0] * M_TO_MM, 2), 
+            np.round(self._datum[1] * M_TO_MM, 2), 
+            np.round(self._datum[2] * M_TO_MM, 2)
         )
     
     @property
@@ -1116,22 +1116,22 @@ class PrismaticCannister(
     @property
     def width(self) -> float:
         """Outer width in mm."""
-        return round(self._width * M_TO_MM, 2)
+        return np.round(self._width * M_TO_MM, 2)
     
     @property
     def length(self) -> float:
         """Outer length in mm."""
-        return round(self._length * M_TO_MM, 2)
+        return np.round(self._length * M_TO_MM, 2)
     
     @property
     def height(self) -> float:
         """Height in mm."""
-        return round(self._height * M_TO_MM, 2)
+        return np.round(self._height * M_TO_MM, 2)
     
     @property
     def wall_thickness(self) -> float:
         """Wall thickness in mm."""
-        return round(self._wall_thickness * M_TO_MM, 2)
+        return np.round(self._wall_thickness * M_TO_MM, 2)
     
     @property
     def rotated_z(self) -> bool:
@@ -1650,25 +1650,25 @@ class PrismaticEncapsulation(_Container):
     @property
     def volume(self) -> float:
         """Total volume in mm³."""
-        return round(self._volume * M_TO_MM**3, 2)
+        return np.round(self._volume * M_TO_MM**3, 2)
 
     @property
     def internal_height(self) -> float:
         """Internal height available for cell contents in mm."""
-        return round(self._internal_height * M_TO_MM, 2)
+        return np.round(self._internal_height * M_TO_MM, 2)
     
     @property
     def datum(self) -> Tuple[float, float, float]:
         return (
-            round(self._datum[0] * M_TO_MM, 2), 
-            round(self._datum[1] * M_TO_MM, 2), 
-            round(self._datum[2] * M_TO_MM, 2)
+            np.round(self._datum[0] * M_TO_MM, 2), 
+            np.round(self._datum[1] * M_TO_MM, 2), 
+            np.round(self._datum[2] * M_TO_MM, 2)
         )
         
     @property
     def cost(self) -> float:
         """Total cost in currency units."""
-        return round(self._cost, 2)
+        return np.round(self._cost, 2)
 
     @property
     def name(self) -> str:
@@ -1702,7 +1702,7 @@ class PrismaticEncapsulation(_Container):
             if isinstance(obj, dict):
                 return {k: _round_recursive(v) for k, v in obj.items()}
             else:
-                return round(obj, 2)
+                return np.round(obj, 2)
 
         return _round_recursive(self._cost_breakdown)
 
@@ -1713,14 +1713,14 @@ class PrismaticEncapsulation(_Container):
             if isinstance(obj, dict):
                 return {k: _convert_and_round_recursive(v) for k, v in obj.items()}
             else:
-                return round(obj * KG_TO_G, 2)
+                return np.round(obj * KG_TO_G, 2)
 
         return _convert_and_round_recursive(self._mass_breakdown)
     
     @property
     def mass(self) -> float:
         """Total mass in grams."""
-        return round(self._mass * KG_TO_G, 2)
+        return np.round(self._mass * KG_TO_G, 2)
     
     @property
     def width(self) -> float:

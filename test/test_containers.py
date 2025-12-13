@@ -1,5 +1,6 @@
 import unittest
 import numpy as np
+from copy import deepcopy
 
 from steer_opencell_design.Components.Containers.Cylindrical import (
     CylindricalTerminalConnector,
@@ -50,6 +51,11 @@ class TestCylindricalTerminalConnector(unittest.TestCase):
         self.assertEqual(connector.radius, 5)
         self.assertEqual(connector.thickness, 0.05)
         self.assertEqual(connector.fill_factor, 0.8)
+
+    def test_serialization(self):
+        serialized = self.connector_large.serialize()
+        deserialized = CylindricalTerminalConnector.deserialize(serialized)
+        self.assertEqual(self.connector_large, deserialized)
 
     def test_plots(self):
 
@@ -368,6 +374,12 @@ class TestCylindricalLidAssembly(unittest.TestCase):
         self.assertEqual(lid.thickness, 50)
         self.assertEqual(lid.fill_factor, 0.8)
         self.assertEqual(lid.name, "Cylindrical Lid Assembly")
+
+    def test_serialization(self):
+        serialized = self.lid_large.serialize()
+        deserialized = CylindricalLidAssembly.deserialize(serialized)
+        test_case = self.lid_large == deserialized
+        self.assertTrue(test_case)
 
     def test_plots(self):
         """Test plotting functionality for different lid configurations"""
@@ -758,6 +770,17 @@ class TestCylindricalCannister(unittest.TestCase):
         self.assertEqual(can.inner_radius, 9.0)  # 10 - 1 = 9
         self.assertEqual(can.name, "Cylindrical Cannister")
 
+    def test_equal(self):
+        can_copy = deepcopy(self.can_standard)
+        condition = can_copy == self.can_standard
+        self.assertTrue(condition)
+
+    def test_serialization(self):
+        serialized = self.can_large.serialize()
+        deserialized = CylindricalCannister.deserialize(serialized)
+        test_case = self.can_large == deserialized
+        self.assertTrue(test_case)
+
     def test_initialization_edge_cases(self):
         """Test can initialization with edge case values"""
         material = PrismaticContainerMaterial.from_database("Aluminum")
@@ -1113,6 +1136,13 @@ class TestCylindricalEncapsulation(unittest.TestCase):
         self.assertEqual(self.encapsulation.cannister, self.cannister)
         self.assertEqual(self.encapsulation.name, "Cylindrical Encapsulation")
 
+    def test_serialization(self):
+        """Test serialization and deserialization of encapsulation"""
+        serialized = self.encapsulation.serialize()
+        deserialized = CylindricalEncapsulation.deserialize(serialized)
+        test_case = self.encapsulation == deserialized
+        self.assertTrue(test_case)
+
     def test_plots(self):
 
         fig1 = self.encapsulation.plot_mass_breakdown()
@@ -1402,6 +1432,14 @@ class TestLaminateSheet(unittest.TestCase):
         self.assertEqual(self.laminate_sheet.thickness, 50)
         self.assertEqual(self.laminate_sheet.width, 200)
         self.assertEqual(self.laminate_sheet.height, 300)
+
+    def test_serialization(self):
+        """Test serialization and deserialization of laminate sheet."""
+        serialized = self.laminate_sheet.serialize()
+        from steer_opencell_design.Components.Containers.Pouch import LaminateSheet
+        deserialized = LaminateSheet.deserialize(serialized)
+        test_case = self.laminate_sheet == deserialized
+        self.assertTrue(test_case)
         
     def test_initialization_without_dimensions(self):
         """Test that laminate sheet initializes correctly without width and length."""
@@ -1763,6 +1801,14 @@ class TestPouchTerminal(unittest.TestCase):
         self.assertEqual(self.terminal.length, 30)
         self.assertEqual(self.terminal.thickness, 1.0)
         self.assertEqual(self.terminal.datum, (0.0, 0.0, 0.0))
+
+    def test_serialization(self):
+        """Test serialization and deserialization of pouch terminal."""
+        serialized = self.terminal.serialize()
+        from steer_opencell_design.Components.Containers.Pouch import PouchTerminal
+        deserialized = PouchTerminal.deserialize(serialized)
+        test_case = self.terminal == deserialized
+        self.assertTrue(test_case)
 
     def test_width_property(self):
         """Test that width property returns correct value."""
@@ -2137,6 +2183,14 @@ class TestPouchEncapsulation(unittest.TestCase):
         self.assertEqual(self.encapsulation.name, "Test Encapsulation")
         self.assertEqual(self.encapsulation.width, 150)
         self.assertEqual(self.encapsulation.height, 200)
+
+    def test_serialization(self):
+        """Test serialization and deserialization of encapsulation."""
+        serialized = self.encapsulation.serialize()
+        from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
+        deserialized = PouchEncapsulation.deserialize(serialized)
+        test_case = self.encapsulation == deserialized
+        self.assertTrue(test_case)
 
     def test_initialization_without_dimensions(self):
         """Test that encapsulation initializes correctly without width and height."""
