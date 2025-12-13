@@ -125,12 +125,13 @@ class _Layup(
 
     def _calculate_voltage_limits(self) -> None:
         """Calculate upper and lower voltage limits for the operating window."""
-        self._calculate_upper_voltage_limit_range()
-        self._calculate_lower_voltage_limit_range()
-        self._maximum_operating_voltage = max(self._maximum_operating_voltage_range)
-        self._minimum_operating_voltage = min(self._minimum_operating_voltage_range)
-        self._operating_voltage_window = (self._minimum_operating_voltage, self._maximum_operating_voltage)
-        self._operating_reversible_areal_capacity = max(self._maximum_areal_reversible_capacity_range)
+        if hasattr(self, '_areal_capacity_curve') and self._areal_capacity_curve is not None:
+            self._calculate_upper_voltage_limit_range()
+            self._calculate_lower_voltage_limit_range()
+            self._maximum_operating_voltage = max(self._maximum_operating_voltage_range)
+            self._minimum_operating_voltage = min(self._minimum_operating_voltage_range)
+            self._operating_voltage_window = (self._minimum_operating_voltage, self._maximum_operating_voltage)
+            self._operating_reversible_areal_capacity = max(self._maximum_areal_reversible_capacity_range)
 
     def _calculate_lower_voltage_limit_range(self) -> None:
         """Calculate the minimum operating voltage range from discharge curve.
@@ -226,14 +227,18 @@ class _Layup(
             A tuple containing the n/p ratio and the combined half-cell curve for the full cell.
         """
         # Use views instead of copies for better performance
-        cathode_areal_curve = self._cathode._areal_capacity_curve
-        anode_areal_curve = self._anode._areal_capacity_curve
+        if hasattr(self._cathode, '_areal_capacity_curve') and self._cathode._areal_capacity_curve is not None and hasattr(self._anode, '_areal_capacity_curve') and self._anode._areal_capacity_curve is not None:
+            cathode_areal_curve = self._cathode._areal_capacity_curve
+            anode_areal_curve = self._anode._areal_capacity_curve
 
-        # Call the static helper method to compute the full-cell curve
-        self._np_ratio, self._areal_capacity_curve = self._compute_areal_full_cell_curve(cathode_areal_curve, anode_areal_curve)
+            # Call the static helper method to compute the full-cell curve
+            self._np_ratio, self._areal_capacity_curve = self._compute_areal_full_cell_curve(cathode_areal_curve, anode_areal_curve)
 
-        # Return n/p ratio and areal capacity curve
-        return self._np_ratio, self._areal_capacity_curve
+            # Return n/p ratio and areal capacity curve
+            return self._np_ratio, self._areal_capacity_curve
+        
+        else:
+            return self._np_ratio, self._areal_capacity_curve
 
     def _update_anode_ranges(self, cathode: Cathode):
         """Update anode current collector ranges based on cathode."""
@@ -516,8 +521,8 @@ class _Layup(
     def maximum_operating_voltage_range(self) -> Tuple[float, float]:
         """Maximum operating voltage range in volts."""
         return (
-            round(self._maximum_operating_voltage_range[0], VOLTAGE_PRECISION),
-            round(self._maximum_operating_voltage_range[1], VOLTAGE_PRECISION),
+            np.round(self._maximum_operating_voltage_range[0], VOLTAGE_PRECISION),
+            np.round(self._maximum_operating_voltage_range[1], VOLTAGE_PRECISION),
         )
     
     @property
@@ -525,22 +530,22 @@ class _Layup(
         """Maximum areal capacity range in mAh/cm²."""
         capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
         return (
-            round(self._maximum_areal_reversible_capacity_range[0] * capacity_conversion, AREAL_CAPACITY_PRECISION),
-            round(self._maximum_areal_reversible_capacity_range[1] * capacity_conversion, AREAL_CAPACITY_PRECISION),
+            np.round(self._maximum_areal_reversible_capacity_range[0] * capacity_conversion, AREAL_CAPACITY_PRECISION),
+            np.round(self._maximum_areal_reversible_capacity_range[1] * capacity_conversion, AREAL_CAPACITY_PRECISION),
         )
     
     @property
     def operating_reversible_areal_capacity(self) -> float:
         """Operating reversible areal capacity in mAh/cm²."""
         capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
-        return round(self._operating_reversible_areal_capacity * capacity_conversion, AREAL_CAPACITY_PRECISION)
+        return np.round(self._operating_reversible_areal_capacity * capacity_conversion, AREAL_CAPACITY_PRECISION)
     
     @property
     def minimum_operating_voltage_range(self) -> Tuple[float, float]:
         """Minimum operating voltage range in volts."""
         return (
-            round(self._minimum_operating_voltage_range[0], VOLTAGE_PRECISION),
-            round(self._minimum_operating_voltage_range[1], VOLTAGE_PRECISION),
+            np.round(self._minimum_operating_voltage_range[0], VOLTAGE_PRECISION),
+            np.round(self._minimum_operating_voltage_range[1], VOLTAGE_PRECISION),
         )
 
     @property
@@ -573,7 +578,7 @@ class _Layup(
         """
         Get the n/p ratio of the layup (anode to cathode capacity ratio).
         """
-        return round(self._np_ratio, 3)
+        return np.round(self._np_ratio, 3)
 
     @property
     def np_ratio_range(self) -> Tuple[float, float]:
@@ -585,6 +590,9 @@ class _Layup(
     @property
     def areal_capacity_curve(self) -> pd.DataFrame:
         """Get the areal capacity curve with proper units and formatting."""
+
+        if self._areal_capacity_curve is None:
+            return None
 
         # Pre-compute unit conversion factor
         capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
@@ -615,6 +623,9 @@ class _Layup(
     
     @property
     def areal_capacity_curve_trace(self) -> go.Scatter:
+
+        if self.areal_capacity_curve is None:
+            return None
 
         curve = self.areal_capacity_curve
 
@@ -653,19 +664,19 @@ class _Layup(
     def operating_voltage_window(self) -> Tuple[float, float]:
         """Operating voltage window (min, max) in volts."""
         return (
-            round(self._operating_voltage_window[0], VOLTAGE_PRECISION),
-            round(self._operating_voltage_window[1], VOLTAGE_PRECISION),
+            np.round(self._operating_voltage_window[0], VOLTAGE_PRECISION),
+            np.round(self._operating_voltage_window[1], VOLTAGE_PRECISION),
         )
     
     @property
     def maximum_operating_voltage(self) -> float:
         """Maximum operating voltage in volts."""
-        return round(self._operating_voltage_window[1], VOLTAGE_PRECISION)
+        return np.round(self._operating_voltage_window[1], VOLTAGE_PRECISION)
     
     @property
     def minimum_operating_voltage(self) -> float:
         """Minimum operating voltage in volts."""
-        return round(self._operating_voltage_window[0], VOLTAGE_PRECISION)
+        return np.round(self._operating_voltage_window[0], VOLTAGE_PRECISION)
 
     @datum.setter
     @calculate_coordinates

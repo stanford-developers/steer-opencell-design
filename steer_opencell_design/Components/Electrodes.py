@@ -358,6 +358,10 @@ class _Electrode(
         if porosity < 0:
             warnings.warn(f"Negative porosity calculated for {self.name}.", UserWarning)
 
+    def _clear_cached_data(self) -> None:
+        self._areal_capacity_curve = None
+        self._formulation._specific_capacity_curve = None
+
     # === VIEWS ===
 
     def get_right_left_view(self, set_z_zero: bool = False, **kwargs) -> pd.DataFrame:
@@ -759,6 +763,9 @@ class _Electrode(
     def areal_capacity_curve(self) -> pd.DataFrame:
         """Get the capacity curve with proper units and formatting."""
 
+        if self._areal_capacity_curve is None:
+            return None
+
         # Pre-compute unit conversion factor
         areal_capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
 
@@ -782,6 +789,9 @@ class _Electrode(
         """
         Get the areal capacity curve trace of the electrode.
         """
+        if self.areal_capacity_curve is None:
+            return None
+
         curve_df = self.areal_capacity_curve
 
         trace = go.Scatter(
@@ -839,7 +849,7 @@ class _Electrode(
 
         :return: Insulation thickness of the electrode in micrometers.
         """
-        return round(self._insulation_thickness * M_TO_UM, 2)
+        return np.round(self._insulation_thickness * M_TO_UM, 2)
 
     @property
     def insulation_thickness_range(self) -> Tuple[float, float]:
@@ -866,7 +876,7 @@ class _Electrode(
 
         :return: Coating thickness of the electrode in micrometers.
         """
-        return round(self._coating_thickness * M_TO_UM, 2)
+        return np.round(self._coating_thickness * M_TO_UM, 2)
 
     @property
     def coating_thickness_hard_range(self) -> Tuple[float, float]:
@@ -888,7 +898,7 @@ class _Electrode(
             if isinstance(obj, dict):
                 return {k: _round_recursive(v) for k, v in obj.items()}
             else:
-                return round(obj, 2)
+                return np.round(obj, 2)
 
         return _round_recursive(self._cost_breakdown)
 
@@ -904,7 +914,7 @@ class _Electrode(
             if isinstance(obj, dict):
                 return {k: _convert_and_round_recursive(v) for k, v in obj.items()}
             else:
-                return round(obj * KG_TO_G, 2)
+                return np.round(obj * KG_TO_G, 2)
 
         return _convert_and_round_recursive(self._mass_breakdown)
 
@@ -915,7 +925,7 @@ class _Electrode(
 
         :return: Porosity of the electrode.
         """
-        return round(self._porosity * 100, 2)
+        return np.round(self._porosity * 100, 2)
 
     @property
     def calender_density(self) -> float:
@@ -924,7 +934,7 @@ class _Electrode(
 
         :return: Calender density of the electrode.
         """
-        return round(self._calender_density * (KG_TO_G / M_TO_CM**3), 2)
+        return np.round(self._calender_density * (KG_TO_G / M_TO_CM**3), 2)
 
     @property
     def calender_density_range(self) -> Tuple[float, float]:
@@ -997,7 +1007,7 @@ class _Electrode(
 
         :return: Mass loading of the electrode.
         """
-        return round(self._mass_loading * (KG_TO_MG / M_TO_CM**2), 2)
+        return np.round(self._mass_loading * (KG_TO_MG / M_TO_CM**2), 2)
 
     @property
     def mass_loading_range(self) -> Tuple[float, float]:
@@ -1038,7 +1048,7 @@ class _Electrode(
 
         :return: Mass of the electrode.
         """
-        return round(self._mass * KG_TO_G, 2)
+        return np.round(self._mass * KG_TO_G, 2)
 
     @property
     def mass_range(self) -> Tuple[float, float]:
@@ -1046,7 +1056,7 @@ class _Electrode(
         hyp_max = 1
         max = hyp_max * (1 - np.exp(-0.5 / self._mass))
 
-        return (round(min * KG_TO_G, 2), round(max * KG_TO_G, 2))
+        return (round(min * KG_TO_G, 2), np.round(max * KG_TO_G, 2))
 
     @property
     def thickness(self) -> float:
@@ -1055,7 +1065,7 @@ class _Electrode(
 
         :return: Thickness of the electrode.
         """
-        return round(self._thickness * M_TO_UM, 1)
+        return np.round(self._thickness * M_TO_UM, 1)
 
     @property
     def thickness_range(self) -> Tuple[float, float]:
@@ -1071,7 +1081,7 @@ class _Electrode(
 
     @property
     def cost(self) -> float:
-        return round(self._cost, 2)
+        return np.round(self._cost, 2)
 
     @property
     def cost_range(self):
@@ -1282,7 +1292,7 @@ class Anode(_Electrode):
         :return: Top overhang of the anode in mm.
         """
         if hasattr(self, "_top_overhang"):
-            return round(self._top_overhang * M_TO_MM, 2)
+            return np.round(self._top_overhang * M_TO_MM, 2)
         else:
             return
 
@@ -1318,7 +1328,7 @@ class Anode(_Electrode):
         :return: Bottom overhang of the anode in mm.
         """
         if hasattr(self, "_bottom_overhang"):
-            return round(self._bottom_overhang * M_TO_MM, 2)
+            return np.round(self._bottom_overhang * M_TO_MM, 2)
         else:
             return
 

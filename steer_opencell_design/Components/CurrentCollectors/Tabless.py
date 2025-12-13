@@ -15,6 +15,7 @@ from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedC
 
 # import base functions
 from typing import Tuple, Optional
+import numpy as np
 
 
 class TablessCurrentCollector(NotchedCurrentCollector):
@@ -213,7 +214,7 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 
     @property
     def coated_width(self) -> float:
-        return round(self._coated_width * M_TO_MM, 2)
+        return np.round(self._coated_width * M_TO_MM, 2)
 
     @property
     def coated_width_range(self) -> Tuple[float, float]:
@@ -242,20 +243,20 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 
     @property
     def width(self) -> float:
-        return round((self._y_body_length + self._tab_height) * M_TO_MM, 2)
+        return np.round((self._y_body_length + self._tab_height) * M_TO_MM, 2)
 
     @property
     def width_range(self) -> Tuple[float, float]:
         if hasattr(self, "_y_body_length_range") and self._y_body_length_range is not None:
             min_width = self.y_body_length_range[0] + self.tab_height
             max_width = self.y_body_length_range[1] + self.tab_height
-            return (round(min_width, 2), round(max_width, 2))
+            return (round(min_width, 2), np.round(max_width, 2))
         else:
             return (0, 1000)
 
     @property
     def tab_height(self) -> float:
-        return round(self._tab_height * M_TO_MM, 2)
+        return np.round(self._tab_height * M_TO_MM, 2)
 
     @width.setter
     def width(self, width: float) -> None:

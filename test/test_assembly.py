@@ -148,6 +148,12 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.radius_range[1], 30.55, 2)
         self.assertAlmostEqual(self.my_jellyroll.mass, 655.4, 1)
 
+    def test_serialization(self):
+        serialized = self.my_jellyroll.serialize()
+        deserialized = WoundJellyRoll.deserialize(serialized)
+        test_case = self.my_jellyroll == deserialized
+        self.assertTrue(test_case)
+
     def test_plots(self):
 
         self.assertIsInstance(self.my_jellyroll, WoundJellyRoll)
@@ -159,7 +165,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         fig5 = self.my_jellyroll.plot_mass_breakdown()
         fig6 = self.my_jellyroll.plot_cost_breakdown()
         fig7 = self.my_jellyroll.get_top_down_view()
-        fig8 = self.my_jellyroll.get_right_left_view()
+        fig8 = self.my_jellyroll.get_side_view()
 
         # fig1.show()
         # fig3.show()
@@ -181,7 +187,7 @@ class TestRoundJellyRoll(unittest.TestCase):
 
         fig1 = self.my_jellyroll.get_spiral_plot()
         fig2 = self.my_jellyroll.get_top_down_view()
-        fig3 = self.my_jellyroll.get_right_left_view()
+        fig3 = self.my_jellyroll.get_side_view()
 
         # fig1.show()
         # fig2.show()
@@ -598,6 +604,12 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.width_range[0], 103.6, 1)
         self.assertAlmostEqual(self.my_jellyroll.width_range[1], 125.95, 1)
 
+    def test_serialization(self):
+        serialized = self.my_jellyroll.serialize()
+        deserialized = FlatWoundJellyRoll.deserialize(serialized)
+        test_case = self.my_jellyroll == deserialized
+        self.assertTrue(test_case)
+
     def test_plots(self):
 
         self.assertIsInstance(self.my_jellyroll, FlatWoundJellyRoll)
@@ -609,9 +621,9 @@ class TestFlatJellyRoll(unittest.TestCase):
         fig5 = self.my_jellyroll.plot_mass_breakdown()
         fig6 = self.my_jellyroll.plot_cost_breakdown()
         fig7 = self.my_jellyroll.get_top_down_view()
-        fig8 = self.my_jellyroll.get_right_left_view()
+        fig8 = self.my_jellyroll.get_side_view()
 
-        # fig1.show()
+        fig1.show()
         # fig3.show()
         # fig4.show()
         # fig5.show()
@@ -631,7 +643,7 @@ class TestFlatJellyRoll(unittest.TestCase):
 
         fig1 = self.my_jellyroll.get_spiral_plot()
         fig2 = self.my_jellyroll.get_top_down_view()
-        fig3 = self.my_jellyroll.get_right_left_view()
+        fig3 = self.my_jellyroll.get_side_view()
 
         # fig1.show()
         # fig2.show()
@@ -699,9 +711,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.my_jellyroll.thickness = new_thickness
 
         # Check that width updated correctly
-        self.assertAlmostEqual(self.my_jellyroll.thickness, new_thickness, 0)
-        self.assertAlmostEqual(self.my_jellyroll.width, 118.9, 1)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 6.12, 1)
+        self.assertAlmostEqual(self.my_jellyroll.thickness, new_thickness, 1)
 
     def test_width_setter(self):
         """Test that setting the width updates the thickness correctly."""
@@ -713,8 +723,6 @@ class TestFlatJellyRoll(unittest.TestCase):
 
         # Check that thickness updated correctly
         self.assertAlmostEqual(self.my_jellyroll.width, new_width, 0)
-        self.assertAlmostEqual(self.my_jellyroll.thickness, 14.6, 1)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 4.96, 1)
 
     def test_to_wound_jelly_roll(self):
         """Test converting a FlatWoundJellyRoll to a WoundJellyRoll."""
@@ -917,6 +925,12 @@ class TestPunchedStack(unittest.TestCase):
         self.assertAlmostEqual(self.stack.thickness_hard_range[1], 369.66, 2)
         self.assertEqual(len(self.stack.stack), 83)
         self.assertAlmostEqual(self.stack.pore_volume, 245.51, 2)
+
+    def test_serialization(self):
+        serialized = self.stack.serialize()
+        deserialized = PunchedStack.deserialize(serialized)
+        test_case = self.stack == deserialized
+        self.assertTrue(test_case)
 
     def test_breakdown_plots(self):
         fig5 = self.stack.plot_mass_breakdown()

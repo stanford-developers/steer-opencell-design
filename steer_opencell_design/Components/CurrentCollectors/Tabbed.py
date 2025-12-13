@@ -278,9 +278,9 @@ class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin):
     @property
     def datum(self) -> Tuple[float, float]:
         return (
-            round(self._datum[0] * M_TO_MM, 2),
-            round(self._datum[1] * M_TO_MM, 2),
-            round(self._datum[2] * M_TO_MM, 2),
+            np.round(self._datum[0] * M_TO_MM, 2),
+            np.round(self._datum[1] * M_TO_MM, 2),
+            np.round(self._datum[2] * M_TO_MM, 2),
         )
 
     @property
@@ -289,31 +289,31 @@ class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin):
 
     @property
     def width(self) -> float:
-        return round(self._width * M_TO_MM, 2)
+        return np.round(self._width * M_TO_MM, 2)
 
     @property
     def length(self) -> float:
-        return round(self._length * M_TO_MM, 2)
+        return np.round(self._length * M_TO_MM, 2)
 
     @property
     def thickness(self) -> float:
-        return round(self._thickness * M_TO_UM, 2)
+        return np.round(self._thickness * M_TO_UM, 2)
 
     @property
     def volume(self) -> float:
-        return round(self._volume * M_TO_CM**3, 2)
+        return np.round(self._volume * M_TO_CM**3, 2)
 
     @property
     def mass(self) -> float:
-        return round(self._mass * KG_TO_G, 2)
+        return np.round(self._mass * KG_TO_G, 2)
 
     @property
     def cost(self) -> float:
-        return round(self._cost, 2)
+        return np.round(self._cost, 2)
 
     @property
     def body_area(self) -> float:
-        return round(self._body_area * M_TO_MM**2, 2)
+        return np.round(self._body_area * M_TO_MM**2, 2)
 
     @datum.setter
     def datum(self, datum: Tuple[float, float, float]) -> None:
@@ -731,7 +731,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         Returns the width of the skip coat area in mm.
         """
-        return round(self._skip_coat_width * M_TO_MM, 2)
+        return np.round(self._skip_coat_width * M_TO_MM, 2)
 
     @property
     def skip_coat_width_range(self) -> Tuple[float, float]:
@@ -759,7 +759,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         Returns the overhang of the weld tab on the current collector in mm.
         """
-        return round(self._tab_overhang * M_TO_MM, 2)
+        return np.round(self._tab_overhang * M_TO_MM, 2)
 
     @property
     def tab_overhang_range(self) -> Tuple[float, float]:

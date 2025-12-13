@@ -54,6 +54,11 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
         self.assertEqual(self.cathode_formulation.density, 3.43)
         self.assertEqual(self.cathode_formulation.specific_cost, 11.29)
 
+    def test_serialization(self):
+        serialized = self.cathode_formulation.serialize()
+        deserialized = CathodeFormulation.deserialize(serialized)
+        self.assertEqual(self.cathode_formulation, deserialized)
+
     def test_mass_setter(self):
 
         self.cathode_formulation.mass = 0.45

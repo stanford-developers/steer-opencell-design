@@ -107,22 +107,35 @@ class _ElectrodeAssembly(
 
     def _calculate_capacity_curves(self):
         """Calculate full cell voltage curve of the electrode assembly."""
-        _capacity_curve = deepcopy(self._layup._areal_capacity_curve)
-        _capacity_curve[:, 0] = _capacity_curve[:, 0] * self._interfacial_area
-        self._capacity_curve = _capacity_curve
+        if hasattr(self._layup, "_areal_capacity_curve") and self._layup._areal_capacity_curve is not None:
+            _capacity_curve = deepcopy(self._layup._areal_capacity_curve)
+            _capacity_curve[:, 0] = _capacity_curve[:, 0] * self._interfacial_area
+            self._capacity_curve = _capacity_curve
 
-        # also calculate capacity curve for cathode
-        _cathode_capacity_curve = deepcopy(self._layup._cathode._areal_capacity_curve)
-        _cathode_capacity_curve[:, 0] = _cathode_capacity_curve[:, 0] * self._interfacial_area
-        self._cathode_capacity_curve = np.column_stack([_cathode_capacity_curve[:, 0], _cathode_capacity_curve[:,1], _cathode_capacity_curve[:,2]])
+        if hasattr(self._layup._cathode, "_areal_capacity_curve") and self._layup._cathode._areal_capacity_curve is not None:
+            # also calculate capacity curve for cathode
+            _cathode_capacity_curve = deepcopy(self._layup._cathode._areal_capacity_curve)
+            _cathode_capacity_curve[:, 0] = _cathode_capacity_curve[:, 0] * self._interfacial_area
+            self._cathode_capacity_curve = np.column_stack([_cathode_capacity_curve[:, 0], _cathode_capacity_curve[:,1], _cathode_capacity_curve[:,2]])
 
-        # also calculate capacity curve for anode
-        _anode_capacity_curve = deepcopy(self._layup._anode._areal_capacity_curve)
-        _anode_capacity_curve[:, 0] = _anode_capacity_curve[:, 0] * self._interfacial_area
-        self._anode_capacity_curve = np.column_stack([_anode_capacity_curve[:,0], _anode_capacity_curve[:,1], _anode_capacity_curve[:,2]])
+        if hasattr(self._layup._anode, "_areal_capacity_curve") and self._layup._anode._areal_capacity_curve is not None:
+            # also calculate capacity curve for anode
+            _anode_capacity_curve = deepcopy(self._layup._anode._areal_capacity_curve)
+            _anode_capacity_curve[:, 0] = _anode_capacity_curve[:, 0] * self._interfacial_area
+            self._anode_capacity_curve = np.column_stack([_anode_capacity_curve[:,0], _anode_capacity_curve[:,1], _anode_capacity_curve[:,2]])
 
         return self._capacity_curve, self._cathode_capacity_curve, self._anode_capacity_curve
     
+    def _clear_cached_data(self) -> None:
+        self._capacity_curve = None
+        self._cathode_capacity_curve = None
+        self._anode_capacity_curve = None
+        self._layup._areal_capacity_curve = None
+        self._layup.cathode._areal_capacity_curve = None
+        self._layup.anode._areal_capacity_curve = None
+        self._layup.cathode._formulation._specific_capacity_curve = None
+        self._layup.anode._formulation._specific_capacity_curve = None
+
     def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:
 
         fig = self.plot_breakdown_sunburst(
@@ -194,7 +207,7 @@ class _ElectrodeAssembly(
     @property
     def pore_volume(self) -> float:
         """Return the pore volume of the jelly roll assembly."""
-        return round(self._pore_volume * M_TO_CM**3, 2)
+        return np.round(self._pore_volume * M_TO_CM**3, 2)
 
     @property
     def name(self) -> str:
@@ -204,7 +217,7 @@ class _ElectrodeAssembly(
     @property
     def interfacial_area(self) -> float:
         """Return the interfacial area of the electrode assembly in cm²."""
-        return round(self._interfacial_area * M_TO_CM**2, 2)
+        return np.round(self._interfacial_area * M_TO_CM**2, 2)
 
     @property
     def layup(self) -> _Layup:
@@ -213,6 +226,9 @@ class _ElectrodeAssembly(
     
     @property
     def capacity_curve(self) -> pd.DataFrame:
+
+        if self._capacity_curve is None:
+            return None
 
         curve = self._capacity_curve.copy()
         direction = np.where(curve[:, DIRECTION_COL] == 1, "charge", "discharge")
@@ -227,6 +243,9 @@ class _ElectrodeAssembly(
     
     @property
     def capacity_curve_trace(self) -> go.Scatter:
+
+        if self._capacity_curve is None:
+            return None
 
         color = "#ff8c00"
 
@@ -243,6 +262,9 @@ class _ElectrodeAssembly(
     @property
     def anode_capacity_curve(self) -> pd.DataFrame:
 
+        if self._anode_capacity_curve is None:
+            return None
+
         curve = self._anode_capacity_curve.copy()
         direction = np.where(curve[:, DIRECTION_COL] == 1, "charge", "discharge")
         capacity = curve[:, CAPACITY_COL] * S_TO_H
@@ -257,6 +279,9 @@ class _ElectrodeAssembly(
     @property
     def anode_capacity_curve_trace(self) -> go.Scatter:
 
+        if self._anode_capacity_curve is None:
+            return None
+
         return go.Scatter(
             x=self.anode_capacity_curve["Capacity (Ah)"],
             y=self.anode_capacity_curve["Voltage (V)"],
@@ -269,6 +294,9 @@ class _ElectrodeAssembly(
 
     @property
     def cathode_capacity_curve(self) -> pd.DataFrame:
+
+        if self._cathode_capacity_curve is None:
+            return None
 
         curve = self._cathode_capacity_curve.copy()
         direction = np.where(curve[:, DIRECTION_COL] == 1, "charge", "discharge")
@@ -284,6 +312,9 @@ class _ElectrodeAssembly(
     @property
     def cathode_capacity_curve_trace(self) -> go.Scatter:
 
+        if self._cathode_capacity_curve is None:
+            return None
+
         return go.Scatter(
             x=self.cathode_capacity_curve["Capacity (Ah)"],
             y=self.cathode_capacity_curve["Voltage (V)"],
@@ -297,7 +328,7 @@ class _ElectrodeAssembly(
     @property
     def cost(self) -> float:
         """Return the cost of the electrode assembly in $."""
-        return round(self._cost, 2)
+        return np.round(self._cost, 2)
 
     @property
     def cost_breakdown(self) -> Dict[str, Any]:
@@ -311,14 +342,14 @@ class _ElectrodeAssembly(
             if isinstance(obj, dict):
                 return {k: _round_recursive(v) for k, v in obj.items()}
             else:
-                return round(obj, 2)
+                return np.round(obj, 2)
 
         return _round_recursive(self._cost_breakdown)
 
     @property
     def mass(self) -> float:
         """Return the mass of the electrode assembly in g."""
-        return round(self._mass * KG_TO_G, 2)
+        return np.round(self._mass * KG_TO_G, 2)
 
     @property
     def mass_breakdown(self) -> Dict[str, Any]:
@@ -331,7 +362,7 @@ class _ElectrodeAssembly(
             if isinstance(obj, dict):
                 return {k: _convert_and_round_recursive(v) for k, v in obj.items()}
             else:
-                return round(obj * KG_TO_G, 2)
+                return np.round(obj * KG_TO_G, 2)
 
         return _convert_and_round_recursive(self._mass_breakdown)
 

@@ -681,7 +681,7 @@ class SpiralCalculator:
         start_radius: float = None,
         straight_length: float = None,
         thickness: float = None,
-        points_per_turn: int = 100,
+        points_per_turn: int = 300,
         target_length: float = None
     ) -> np.ndarray:
         """
@@ -1387,6 +1387,166 @@ class SpiralCalculator:
             spiral[i, 2] = np.sqrt(new_x**2 + new_z**2)
 
         return spiral
+
+    @staticmethod
+    def rotate_spiral_to_minimize_thickness(
+        spiral_data,
+        x_col: int = X_COORD_COL,
+        z_col: int = Z_COORD_COL
+    ):
+        """Rotate spiral data in x-z plane to minimize overall thickness.
+
+        Uses Brent's method to find the rotation angle that minimizes the
+        vertical extent (thickness = max(z) - min(z)). The rotation is applied
+        in-place to the spiral data.
+
+        Parameters
+        ----------
+        spiral_data : Union[np.ndarray, Dict[str, np.ndarray]]
+            Either a single spiral array or a dictionary of spiral arrays.
+            Each array should have columns including x and z coordinates.
+        x_col : int, optional
+            Column index for x coordinates (default: X_COORD_COL)
+        z_col : int, optional
+            Column index for z coordinates (default: Z_COORD_COL)
+
+        Returns
+        -------
+        Tuple[Union[np.ndarray, Dict[str, np.ndarray]], float]
+            (rotated_spiral_data, optimal_angle) where optimal_angle is in radians
+
+        Notes
+        -----
+        - Rotation is performed about the centroid of all points.
+        - Optimization searches over [0, π) since thickness is symmetric about π.
+        - Modifies spiral_data in-place and returns it for convenience.
+        """
+        from scipy.optimize import minimize_scalar
+        
+        # Collect all x-z points, filtering out NaN values
+        if isinstance(spiral_data, dict):
+            arrays = [arr[:, [x_col, z_col]] for arr in spiral_data.values() if arr is not None and arr.size > 0]
+            if len(arrays) == 0:
+                return spiral_data, 0.0
+            points = np.vstack(arrays)
+        elif isinstance(spiral_data, np.ndarray):
+            if spiral_data.size == 0:
+                return spiral_data, 0.0
+            points = spiral_data[:, [x_col, z_col]]
+        else:
+            raise TypeError(f"spiral_data must be np.ndarray or dict, got {type(spiral_data)}")
+
+        # Filter out rows with NaN values for centroid calculation
+        valid_mask = ~(np.isnan(points[:, 0]) | np.isnan(points[:, 1]))
+        valid_points = points[valid_mask]
+        
+        if len(valid_points) == 0:
+            # All points are NaN, nothing to rotate
+            return spiral_data, 0.0
+
+        # Compute centroid from valid points only
+        centroid = valid_points.mean(axis=0)
+        valid_points_centered = valid_points - centroid
+
+        def compute_thickness_at_angle(angle: float) -> float:
+            """Compute thickness (z-extent) for a given rotation angle."""
+            c, s = np.cos(angle), np.sin(angle)
+            R = np.array([[c, -s], [s, c]])
+            rotated = valid_points_centered @ R.T
+            z_rotated = rotated[:, 1]
+            thickness = np.max(z_rotated) - np.min(z_rotated)
+            return thickness
+
+        # Use Brent's method (via minimize_scalar) to find angle that minimizes thickness
+        result = minimize_scalar(compute_thickness_at_angle, bounds=(0, np.pi), method='bounded')
+        optimal_angle = result.x
+
+        # Apply the optimal rotation to the spiral data
+        c, s = np.cos(optimal_angle), np.sin(optimal_angle)
+        R = np.array([[c, -s], [s, c]])
+
+        def rotate_inplace(arr: np.ndarray) -> None:
+            """Rotate x-z coordinates in array in-place, preserving NaN values."""
+            if arr is None or arr.size == 0:
+                return
+            
+            # Get x-z coordinates
+            xz = arr[:, [x_col, z_col]]
+            
+            # Identify valid (non-NaN) rows
+            valid_mask = ~(np.isnan(xz[:, 0]) | np.isnan(xz[:, 1]))
+            
+            if not np.any(valid_mask):
+                # All values are NaN, nothing to rotate
+                return
+            
+            # Only rotate valid points
+            xz_valid = xz[valid_mask]
+            xz_centered = xz_valid - centroid
+            xz_rot = xz_centered @ R.T + centroid
+            
+            # Update only the valid points, preserving NaN where they existed
+            arr[valid_mask, x_col] = xz_rot[:, 0]
+            arr[valid_mask, z_col] = xz_rot[:, 1]
+
+        if isinstance(spiral_data, dict):
+            for arr in spiral_data.values():
+                rotate_inplace(arr)
+        else:
+            rotate_inplace(spiral_data)
+
+        return spiral_data, optimal_angle
+
+    @staticmethod
+    def translate_spirals_xz(
+        spiral_data,
+        x_shift: float,
+        z_shift: float,
+        x_col: int = X_COORD_COL,
+        z_col: int = Z_COORD_COL
+    ):
+        """Translate spiral coordinates by specified amounts in x and z directions.
+        
+        This function applies a rigid body translation to spiral geometries.
+        Commonly used for centering spirals or aligning them to a coordinate system.
+        
+        Parameters
+        ----------
+        spiral_data : Union[np.ndarray, Dict[str, np.ndarray]]
+            Either a single spiral array or a dictionary of spiral arrays.
+            Each array should have columns including x and z coordinates.
+        x_shift : float
+            Translation distance in x-direction (meters)
+        z_shift : float
+            Translation distance in z-direction (meters)
+        x_col : int, optional
+            Column index for x coordinates (default: X_COORD_COL)
+        z_col : int, optional
+            Column index for z coordinates (default: Z_COORD_COL)
+            
+        Returns
+        -------
+        Union[np.ndarray, Dict[str, np.ndarray]]
+            Translated spiral data (modified in-place and returned)
+            
+        Notes
+        -----
+        - Modifies spiral_data in-place and returns it for convenience
+        - Works with both single arrays and dictionaries of arrays
+        """
+        if isinstance(spiral_data, dict):
+            for spiral in spiral_data.values():
+                if spiral is not None and spiral.size > 0:
+                    spiral[:, x_col] += x_shift
+                    spiral[:, z_col] += z_shift
+        elif isinstance(spiral_data, np.ndarray):
+            if spiral_data.size > 0:
+                spiral_data[:, x_col] += x_shift
+                spiral_data[:, z_col] += z_shift
+        else:
+            raise TypeError(f"spiral_data must be np.ndarray or dict, got {type(spiral_data)}")
+        
+        return spiral_data
     
 
 

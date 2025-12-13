@@ -523,7 +523,7 @@ class OverhangMixin:
         float
             Left overhang in mm. Positive values indicate anode extends beyond cathode.
         """
-        return round(self._anode_overhang_left * M_TO_MM, 2)
+        return np.round(self._anode_overhang_left * M_TO_MM, 2)
 
     @property
     def anode_overhang_right(self) -> float:
@@ -535,7 +535,7 @@ class OverhangMixin:
         float
             Right overhang in mm. Positive values indicate anode extends beyond cathode.
         """
-        return round(self._anode_overhang_right * M_TO_MM, 2)
+        return np.round(self._anode_overhang_right * M_TO_MM, 2)
 
     @property
     def anode_overhang_bottom(self) -> float:
@@ -547,7 +547,7 @@ class OverhangMixin:
         float
             Bottom overhang in mm. Positive values indicate anode extends beyond cathode.
         """
-        return round(self._anode_overhang_bottom * M_TO_MM, 2)
+        return np.round(self._anode_overhang_bottom * M_TO_MM, 2)
 
     @property
     def anode_overhang_top(self) -> float:
@@ -559,7 +559,7 @@ class OverhangMixin:
         float
             Top overhang in mm. Positive values indicate anode extends beyond cathode.
         """
-        return round(self._anode_overhang_top * M_TO_MM, 2)
+        return np.round(self._anode_overhang_top * M_TO_MM, 2)
 
     @property
     def anode_overhangs(self) -> dict:
@@ -716,7 +716,7 @@ class OverhangMixin:
         float
             Left overhang in mm. Positive values indicate separator extends beyond cathode.
         """
-        return round(self._bottom_separator_overhang_left * M_TO_MM, 3)
+        return np.round(self._bottom_separator_overhang_left * M_TO_MM, 3)
 
     @property
     def bottom_separator_overhang_right(self) -> float:
@@ -728,7 +728,7 @@ class OverhangMixin:
         float
             Right overhang in mm. Positive values indicate separator extends beyond cathode.
         """
-        return round(self._bottom_separator_overhang_right * M_TO_MM, 3)
+        return np.round(self._bottom_separator_overhang_right * M_TO_MM, 3)
 
     @property
     def bottom_separator_overhang_bottom(self) -> float:
@@ -740,7 +740,7 @@ class OverhangMixin:
         float
             Bottom overhang in mm. Positive values indicate separator extends beyond cathode.
         """
-        return round(self._bottom_separator_overhang_bottom * M_TO_MM, 3)
+        return np.round(self._bottom_separator_overhang_bottom * M_TO_MM, 3)
 
     @property
     def bottom_separator_overhang_top(self) -> float:
@@ -752,7 +752,7 @@ class OverhangMixin:
         float
             Top overhang in mm. Positive values indicate separator extends beyond cathode.
         """
-        return round(self._bottom_separator_overhang_top * M_TO_MM, 3)
+        return np.round(self._bottom_separator_overhang_top * M_TO_MM, 3)
 
     @property
     def bottom_separator_overhangs(self) -> dict:
@@ -919,7 +919,7 @@ class OverhangMixin:
         float
             Left overhang in mm. Positive values indicate separator extends beyond cathode.
         """
-        return round(self._top_separator_overhang_left * M_TO_MM, 3)
+        return np.round(self._top_separator_overhang_left * M_TO_MM, 3)
 
     @property
     def top_separator_overhang_right(self) -> float:
@@ -931,7 +931,7 @@ class OverhangMixin:
         float
             Right overhang in mm. Positive values indicate separator extends beyond cathode.
         """
-        return round(self._top_separator_overhang_right * M_TO_MM, 3)
+        return np.round(self._top_separator_overhang_right * M_TO_MM, 3)
 
     @property
     def top_separator_overhang_bottom(self) -> float:
@@ -943,7 +943,7 @@ class OverhangMixin:
         float
             Bottom overhang in mm. Positive values indicate separator extends beyond cathode.
         """
-        return round(self._top_separator_overhang_bottom * M_TO_MM, 3)
+        return np.round(self._top_separator_overhang_bottom * M_TO_MM, 3)
 
     @property
     def top_separator_overhang_top(self) -> float:
@@ -955,7 +955,7 @@ class OverhangMixin:
         float
             Top overhang in mm. Positive values indicate separator extends beyond cathode.
         """
-        return round(self._top_separator_overhang_top * M_TO_MM, 3)
+        return np.round(self._top_separator_overhang_top * M_TO_MM, 3)
 
     @property
     def top_separator_overhangs(self) -> dict:

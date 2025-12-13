@@ -4,6 +4,7 @@ from steer_core.Constants.Units import *
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
+from steer_core.Mixins.Serializer import SerializerMixin
 
 from steer_opencell_design.Materials.ActiveMaterials import _ActiveMaterial
 from steer_opencell_design.Materials.Binders import Binder
@@ -22,6 +23,7 @@ class _ElectrodeFormulation(
     ValidationMixin, 
     DunderMixin,
     PlotterMixin,
+    SerializerMixin,
     ):
 
     def __init__(
@@ -104,17 +106,23 @@ class _ElectrodeFormulation(
 
     def _calculate_capacity_curve(self) -> np.ndarray:
 
-        # get the half cell curve from the formulation
-        curve = self._specific_capacity_curve.copy()
+        if hasattr(self, "_specific_capacity_curve") and self._specific_capacity_curve is not None:
 
-        # calculate the capacity
-        capacity = curve[:, 0] * self._mass
+            # get the half cell curve from the formulation
+            curve = self._specific_capacity_curve.copy()
 
-        # assign the capacity curve
-        self._capacity_curve = np.column_stack((capacity, curve[:, 1], curve[:, 2]))
+            # calculate the capacity
+            capacity = curve[:, 0] * self._mass
 
-        # return the capacity curve
-        return self._capacity_curve
+            # assign the capacity curve
+            self._capacity_curve = np.column_stack((capacity, curve[:, 1], curve[:, 2]))
+
+            # return the capacity curve
+            return self._capacity_curve
+        
+        else:
+            self._capacity_curve = None
+            return self._capacity_curve
 
     def _calculate_breakdowns(self) -> None:
         self._calculate_mass_breakdown()
@@ -568,7 +576,7 @@ class _ElectrodeFormulation(
             if isinstance(obj, dict):
                 return {k: _round_recursive(v) for k, v in obj.items()}
             else:
-                return round(obj, 2)
+                return np.round(obj, 2)
 
         return _round_recursive(self._cost_breakdown)
 
@@ -586,7 +594,7 @@ class _ElectrodeFormulation(
             if isinstance(obj, dict):
                 return {k: _convert_and_round_recursive(v) for k, v in obj.items()}
             else:
-                return round(obj * KG_TO_G, 2)
+                return np.round(obj * KG_TO_G, 2)
 
         return _convert_and_round_recursive(self._mass_breakdown)
 
@@ -595,21 +603,21 @@ class _ElectrodeFormulation(
         if self._mass is None:
             return None
         else:
-            return round(self._mass * KG_TO_G, 2)
+            return np.round(self._mass * KG_TO_G, 2)
         
     @property
     def volume(self) -> Optional[float]:
         if self._volume is None:
             return None
         else:
-            return round(self._volume * M_TO_CM**3, 2)
+            return np.round(self._volume * M_TO_CM**3, 2)
 
     @property
     def cost(self) -> Optional[float]:
         if self._cost is None:
             return None
         else:
-            return round(self._cost, 2)
+            return np.round(self._cost, 2)
 
     @property
     def specific_capacity_curve_trace(self) -> go.Scatter:
@@ -916,7 +924,7 @@ class _ElectrodeFormulation(
 
         :return: float: maximum voltage of the half cell curves
         """
-        return round(self._voltage_cutoff, 3)
+        return np.round(self._voltage_cutoff, 3)
 
     @property
     def voltage_cutoff_range(self) -> tuple:
@@ -928,11 +936,11 @@ class _ElectrodeFormulation(
 
     @property
     def density(self) -> float:
-        return round(self._density * KG_TO_G / (M_TO_CM**3), 2)
+        return np.round(self._density * KG_TO_G / (M_TO_CM**3), 2)
 
     @property
     def specific_cost(self) -> float:
-        return round(self._specific_cost, 2)
+        return np.round(self._specific_cost, 2)
 
     @property
     def specific_volume(self) -> float:
@@ -941,7 +949,7 @@ class _ElectrodeFormulation(
 
         :return: Theoretical specific volume in cm³/g.
         """
-        return round(self._specific_volume * (M_TO_CM**3) / KG_TO_G, 2)
+        return np.round(self._specific_volume * (M_TO_CM**3) / KG_TO_G, 2)
 
     @property
     def voltage_operation_window(self) -> tuple:
@@ -971,6 +979,9 @@ class _ElectrodeFormulation(
     def specific_capacity_curve(self) -> pd.DataFrame:
         """Get the specific capacity curve with proper units and formatting."""
 
+        if self._specific_capacity_curve is None:
+            return None
+
         # Pre-compute unit conversion factor
         capacity_conversion = S_TO_H * A_TO_mA / KG_TO_G
 
@@ -993,8 +1004,8 @@ class _ElectrodeFormulation(
     def capacity_curve(self) -> pd.DataFrame:
         """Get the capacity curve with proper units and formatting."""
 
-        if not hasattr(self, '_specific_capacity_curve'):
-            return pd.DataFrame(columns=["Specific Capacity (mAh/g)", "Voltage (V)", "Direction"])
+        if self._specific_capacity_curve is None:
+            return None
 
         # Pre-compute unit conversion factor
         capacity_conversion = S_TO_H * A_TO_mA

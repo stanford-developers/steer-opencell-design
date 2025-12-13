@@ -336,6 +336,11 @@ class TestNotchedCurrentCollector3(unittest.TestCase):
         condition = copy_cc == self.current_collector
         self.assertTrue(condition)
 
+    def test_serialization(self):
+        serialized = self.current_collector.serialize()
+        deserialized = NotchedCurrentCollector.deserialize(serialized)
+        self.assertEqual(self.current_collector, deserialized)
+
     def test_current_collector(self):
         """
         Test figures

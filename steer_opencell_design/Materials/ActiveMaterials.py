@@ -1,4 +1,3 @@
-from steer_core.DataManager import DataManager
 from steer_core.Constants.Units import *
 from steer_core.Mixins.Data import DataMixin
 from steer_core.Mixins.Serializer import SerializerMixin
@@ -252,8 +251,8 @@ class _ActiveMaterial(
         :return: tuple: (minimum voltage, maximum voltage)
         """
         return (
-            round(float(self._voltage_operation_window[0]), 2),
-            round(float(self._voltage_operation_window[2]), 2),
+            np.round(float(self._voltage_operation_window[0]), 2),
+            np.round(float(self._voltage_operation_window[2]), 2),
         )
 
     @property
@@ -277,6 +276,9 @@ class _ActiveMaterial(
     @property
     def specific_capacity_curve(self) -> pd.DataFrame:
         """Get the specific capacity curve with proper units and formatting."""
+        if self._specific_capacity_curve is None:
+            return None
+
         # Pre-compute unit conversion factor
         capacity_conversion = S_TO_H * A_TO_mA / KG_TO_G
         
@@ -295,6 +297,9 @@ class _ActiveMaterial(
     def specific_capacity_curves(self) -> pd.DataFrame:
         """Get all specific capacity curves with proper units and formatting."""
         # Pre-compute unit conversion factor once
+        if self._specific_capacity_curves is None:
+            return None
+
         capacity_conversion = S_TO_H * A_TO_mA / KG_TO_G
         
         # Pre-allocate list with known size
@@ -324,6 +329,9 @@ class _ActiveMaterial(
     
     @property
     def specific_capacity_curves_traces(self) -> List[go.Scatter]:
+
+        if self._specific_capacity_curves is None:
+            return None
 
         data = self.specific_capacity_curves
         traces = []
@@ -550,6 +558,8 @@ class _ActiveMaterial(
 
 class CathodeMaterial(_ActiveMaterial):
 
+    _table_name = "cathode_materials"
+
     def __init__(
         self,
         name: str,
@@ -610,30 +620,6 @@ class CathodeMaterial(_ActiveMaterial):
             **kwargs,
         )
 
-    @staticmethod
-    def from_database(name) -> "CathodeMaterial":
-        """
-        Pull object from the database.
-
-        :param name: str: Name of the current collector material.
-        :return: CurrentCollectorMaterial: Instance of the class.
-        """
-        database = DataManager()
-
-        available_materials = database.get_unique_values("cathode_materials", "name")
-
-        if name not in available_materials:
-            raise ValueError(
-                f"Material '{name}' not found in the database. Available materials: {available_materials}"
-            )
-
-        data = database.get_cathode_materials(most_recent=True).query(
-            f"name == '{name}'"
-        )
-        string_rep = data["object"].iloc[0]
-        material = SerializerMixin.deserialize(string_rep)
-        return material
-
     @property
     def minimum_extrapolated_voltage(self) -> float:
         """
@@ -648,6 +634,8 @@ class CathodeMaterial(_ActiveMaterial):
 
 
 class AnodeMaterial(_ActiveMaterial):
+
+    _table_name = "anode_materials"
 
     def __init__(
         self,
@@ -708,26 +696,4 @@ class AnodeMaterial(_ActiveMaterial):
             mass=mass,
             **kwargs,
         )
-
-    @staticmethod
-    def from_database(name) -> "AnodeMaterial":
-        """
-        Pull object from the database.
-
-        :param name: str: Name of the current collector material.
-        :return: CurrentCollectorMaterial: Instance of the class.
-        """
-        database = DataManager()
-
-        available_materials = database.get_unique_values("anode_materials", "name")
-
-        if name not in available_materials:
-            raise ValueError(
-                f"Material '{name}' not found in the database. Available materials: {available_materials}"
-            )
-
-        data = database.get_anode_materials(most_recent=True).query(f"name == '{name}'")
-        string_rep = data["object"].iloc[0]
-        material = SerializerMixin.deserialize(string_rep)
-        return material
 
