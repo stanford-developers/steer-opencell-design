@@ -521,7 +521,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         self._build_component_spirals()
         self._build_extruded_component_spirals()
         self._center_spirals()
-        
+
     def _calculate_bulk_properties(self):
         """Calculate bulk properties including tape properties if tape is present.
         
@@ -542,6 +542,28 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         _cathode_pore_volume = self._layup._cathode._pore_volume
         _anode_pore_volume = self._layup._anode._pore_volume
         self._pore_volume = _cathode_pore_volume + _anode_pore_volume
+
+    def _get_center_point(self) -> Tuple[float, float, float]:
+        """Get the center point of the jelly roll assembly.
+        
+        Returns the datum of the jelly roll, which represents its center point.
+        
+        Returns
+        -------
+        Tuple[float, float, float]
+            (x, y, z) coordinates of the center point in millimeters
+        """
+        # get all spiral coordinates
+        all_spirals = np.vstack(list(self._component_spirals.values()))
+        all_spirals = all_spirals[~np.isnan(all_spirals[:, X_COORD_COL])]
+        x_center = (all_spirals[:, X_COORD_COL].max() + all_spirals[:, X_COORD_COL].min()) / 2
+        z_center = (all_spirals[:, Z_COORD_COL].max() + all_spirals[:, Z_COORD_COL].min()) / 2
+
+        # get all top down coordinates
+        all_top_down = np.vstack(list(self._component_top_down_coordinates.values()))
+        y_center = (all_top_down[:, 1].max() + all_top_down[:, 1].min()) / 2
+
+        return (x_center, y_center, z_center)
 
     def _calculate_interfacial_area(self) -> float:
         """Calculate the interfacial area between cathode and anode surfaces in a wound jelly roll.
@@ -805,28 +827,10 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         Tuple[np.ndarray, Dict[str, np.ndarray], Dict[str, np.ndarray]]
             Updated (spiral, component_spirals, extruded_spirals) after translation
         """
-
-        new_component_spirals = {}
-        for name, spiral in self._component_spirals.items():
-            new_spiral = spiral
-            new_spiral[:, X_COORD_COL] += x_shift
-            new_spiral[:, Z_COORD_COL] += z_shift
-            new_component_spirals[name] = new_spiral
-
-        new_extruded_spirals = {}
-        for name, spiral in self._extruded_spirals.items():
-            new_spiral = spiral
-            new_spiral[:, X_COORD_COL] += x_shift
-            new_spiral[:, Z_COORD_COL] += z_shift
-            new_extruded_spirals[name] = new_spiral
-
-        new_spiral = self._spiral
-        new_spiral[:, X_COORD_COL] += x_shift
-        new_spiral[:, Z_COORD_COL] += z_shift
-
-        self._spiral = new_spiral
-        self._component_spirals = new_component_spirals
-        self._extruded_spirals = new_extruded_spirals
+        # Use SpiralCalculator helper to translate all spirals
+        self._spiral = SpiralCalculator.translate_spirals_xz(self._spiral, x_shift, z_shift)
+        self._component_spirals = SpiralCalculator.translate_spirals_xz(self._component_spirals, x_shift, z_shift)
+        self._extruded_spirals = SpiralCalculator.translate_spirals_xz(self._extruded_spirals, x_shift, z_shift)
 
         return self._spiral, self._component_spirals, self._extruded_spirals
     
@@ -1055,28 +1059,15 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         
         # Get geometry-specific parameters
         tape_params = self._get_tape_geometry_parameters(spirals_x_z)
-        
+
         # Calculate the appropriate spiral type
-        tape_spiral = self._calculate_tape_spiral_geometry(tape_params, **kwargs)
+        tape_spiral = self._calculate_tape_spiral(tape_params, **kwargs)
 
-        if len(tape_spiral) > 5:
-            # Center tape around existing assembly
-            tape_spiral = self._center_tape_spiral(tape_spiral, tape_params['center'])
-            
-            # Build extruded tape spiral using appropriate method
-            extruded_tape_spiral = self._build_tape_extruded_spiral(tape_spiral)
-            
-            # Apply any geometry-specific pre-centering transforms
-            self._apply_tape_pre_centering_transforms(tape_params)
-
-            # Update the component and extruded spirals with the tape spiral
-            self._component_spirals['tape'] = tape_spiral
-            self._extruded_spirals['tape'] = extruded_tape_spiral['tape']
-            self._center_spirals()
+        # Build extruded tape spiral using appropriate method
+        extruded_tape_spiral = self._build_tape_extruded_spiral(tape_spiral)
         
-        else:
-            self._component_spirals.pop('tape', None)
-            self._extruded_spirals.pop('tape', None)
+        self._component_spirals['tape'] = tape_spiral
+        self._extruded_spirals['tape'] = extruded_tape_spiral['tape']
 
         # Update the geometry parameters after adding the tape spiral
         return self._component_spirals, self._extruded_spirals
@@ -1098,7 +1089,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         pass
 
     @abstractmethod 
-    def _calculate_tape_spiral_geometry(self, tape_params: Dict[str, Any], **kwargs) -> np.ndarray:
+    def _calculate_tape_spiral(self, tape_params: Dict[str, Any], **kwargs) -> np.ndarray:
         """Calculate the tape spiral using geometry-specific method.
         
         Parameters
@@ -1130,32 +1121,6 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             Dictionary with 'tape' key containing extruded spiral
         """
         pass
-
-    def _center_tape_spiral(self, tape_spiral: np.ndarray, assembly_center: np.ndarray) -> np.ndarray:
-        """Center tape spiral around the existing assembly (common implementation).
-        
-        Parameters
-        ----------
-        tape_spiral : np.ndarray
-            The tape spiral to center
-        assembly_center : np.ndarray
-            Center point of the existing assembly [x, z]
-            
-        Returns
-        -------
-        np.ndarray
-            Centered tape spiral
-        """
-        tape_xz = np.column_stack((tape_spiral[:, X_COORD_COL], tape_spiral[:, Z_COORD_COL]))
-        _, tape_center = self.get_radius_of_points(tape_xz)
-
-        tape_translation_x = assembly_center[0] - tape_center[0]
-        tape_translation_z = assembly_center[1] - tape_center[1]
-
-        tape_spiral[:, X_COORD_COL] += tape_translation_x
-        tape_spiral[:, Z_COORD_COL] += tape_translation_z
-        
-        return tape_spiral
 
     def _apply_tape_pre_centering_transforms(self, tape_params: Dict[str, Any]) -> None:
         """Apply any geometry-specific transforms before final centering.
@@ -1717,7 +1682,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
         return figure
 
-    def get_right_left_view(self, opacity: float = 0.5, **kwargs) -> go.Figure:
+    def get_side_view(self, opacity: float = 0.5, **kwargs) -> go.Figure:
         """Generate right-left side view of the jelly roll with all component layers.
         
         Parameters
@@ -1785,12 +1750,12 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
     @property
     def collector_tab_crumple_factor(self) -> float:
         """Return the collector tab crumple factor."""
-        return round(self._collector_tab_crumple_factor * 100, 0)
+        return np.round(self._collector_tab_crumple_factor * 100, 0)
 
     @property
     def additional_tape_wraps(self) -> float:
         """Return the number of additional tape wraps applied to the jelly roll."""
-        return round(self._additional_tape_wraps, 2)
+        return np.round(self._additional_tape_wraps, 2)
 
     @property
     def additional_tape_wraps_range(self) -> Tuple[float, float]:
@@ -1812,7 +1777,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             DataFrame containing roll properties with component names as index and turn counts as values.
         """
         # Create a formatted dictionary with rounded values
-        formatted_props = {key: round(value, 2) for key, value in self._roll_properties.items()}
+        formatted_props = {key: np.round(value, 2) for key, value in self._roll_properties.items()}
         
         # Convert to DataFrame with descriptive names
         df = pd.DataFrame.from_dict(formatted_props, orient='index', columns=['Turns'])
@@ -2848,13 +2813,9 @@ class WoundJellyRoll(_JellyRoll):
             Dictionary containing radius and center for round geometry
         """
         radius, center = self.get_radius_of_points(spirals_x_z)
-        return {
-            'start_radius': radius,
-            'center': center,
-            'geometry_type': 'round'
-        }
+        return {'start_radius': radius,'center': center}
 
-    def _calculate_tape_spiral_geometry(self, tape_params: Dict[str, Any], **kwargs) -> np.ndarray:
+    def _calculate_tape_spiral(self, tape_params: Dict[str, Any], **kwargs) -> np.ndarray:
         """Calculate tape spiral using round geometry.
         
         Parameters
@@ -3068,7 +3029,7 @@ class WoundJellyRoll(_JellyRoll):
         float
             Total height in millimeters, rounded to 2 decimal places
         """
-        return round(self._total_height * M_TO_MM, 2)
+        return np.round(self._total_height * M_TO_MM, 2)
 
     @property
     def radius(self) -> float:
@@ -3079,13 +3040,13 @@ class WoundJellyRoll(_JellyRoll):
         float
             Outer radius in millimeters, rounded to 2 decimal places
         """
-        return round(self._radius * M_TO_MM, 2)
+        return np.round(self._radius * M_TO_MM, 2)
 
     @property
     def radius_range(self) -> Tuple[float, float]:
         return (
-            round(self._radius_range[0] * M_TO_MM, 2),
-            round(self._radius_range[1] * M_TO_MM, 2)
+            np.round(self._radius_range[0] * M_TO_MM, 2),
+            np.round(self._radius_range[1] * M_TO_MM, 2)
         )
     
     @property
@@ -3100,7 +3061,7 @@ class WoundJellyRoll(_JellyRoll):
         min_radius = self.radius_range[0]
         max_radius = 200
 
-        return (round(min_radius, 2), round(max_radius, 2))
+        return (round(min_radius, 2), np.round(max_radius, 2))
 
     @property
     def diameter(self) -> float:
@@ -3111,7 +3072,7 @@ class WoundJellyRoll(_JellyRoll):
         float
             Outer diameter in millimeters, rounded to 2 decimal places
         """
-        return round(self._diameter * M_TO_MM, 2)
+        return np.round(self._diameter * M_TO_MM, 2)
     
     @property
     def diameter_range(self) -> Tuple[float, float]:
@@ -3126,7 +3087,7 @@ class WoundJellyRoll(_JellyRoll):
         min_diameter = radius_range[0] * 2
         max_diameter = radius_range[1] * 2
 
-        return (round(min_diameter, 2), round(max_diameter, 2))
+        return (round(min_diameter, 2), np.round(max_diameter, 2))
     
     @property
     def diameter_hard_range(self) -> Tuple[float, float]:
@@ -3141,7 +3102,7 @@ class WoundJellyRoll(_JellyRoll):
         min_diameter = radius_hard_range[0] * 2
         max_diameter = radius_hard_range[1] * 2
 
-        return (round(min_diameter, 2), round(max_diameter, 2))
+        return (round(min_diameter, 2), np.round(max_diameter, 2))
 
     @diameter.setter
     def diameter(self, target_diameter: float) -> None:
@@ -3294,6 +3255,11 @@ class FlatWoundJellyRoll(_JellyRoll):
         self._calculate_pressed_racetrack()
         return super()._calculate_all_properties(**kwargs)
 
+    def _calculate_roll(self, laminate_x_spacing=0.004, **kwargs):
+        super()._calculate_roll(laminate_x_spacing, **kwargs)
+        self._rotate_spirals_to_minimize_thickness()
+        self._center_spirals()
+
     def _get_tape_geometry_parameters(self, spirals_x_z: np.ndarray) -> Dict[str, Any]:
         """Get geometry parameters for racetrack tape calculation.
         
@@ -3308,17 +3274,20 @@ class FlatWoundJellyRoll(_JellyRoll):
             Dictionary containing thickness, center, and racetrack parameters
         """
         thickness = SpiralCalculator.get_thickness_of_racetrack(spirals_x_z)
+        start_radius = thickness / 2
+        width = SpiralCalculator.get_width_of_racetrack(spirals_x_z)
+        straight_length = width - thickness
         _, center = self.get_radius_of_points(spirals_x_z)
+        
         return {
-            'start_radius': thickness/2,
+            'start_radius': start_radius,
             'center': center,
             'thickness': thickness,
-            'straight_length': self._pressed_straight_length,
-            'pressed_radius': self._pressed_radius,
-            'geometry_type': 'racetrack'
+            'straight_length': straight_length,
+            'pressed_radius': self._pressed_radius
         }
 
-    def _calculate_tape_spiral_geometry(self, tape_params: Dict[str, Any], **kwargs) -> np.ndarray:
+    def _calculate_tape_spiral(self, tape_params: Dict[str, Any], **kwargs) -> np.ndarray:
         """Calculate tape spiral using racetrack geometry.
         
         Parameters
@@ -3341,6 +3310,7 @@ class FlatWoundJellyRoll(_JellyRoll):
                 thickness=self._tape._thickness,
                 **kwargs
             )
+        
         elif self._tape_length_driver == TapeDriver.TAPE_DRIVEN:
             return SpiralCalculator.calculate_simple_racetrack(
                 start_radius=tape_params['start_radius'],
@@ -3635,19 +3605,72 @@ class FlatWoundJellyRoll(_JellyRoll):
         spirals = [s for s in self._component_spirals.values()]
         spirals = np.concatenate(spirals, axis=0)
         spirals_x_z = np.column_stack((spirals[:, X_COORD_COL], spirals[:, Z_COORD_COL]))
+        spirals_x_z = spirals_x_z[~np.isnan(spirals_x_z).any(axis=1)]  # Remove NaN values if any
 
-        thickness = SpiralCalculator.get_thickness_of_racetrack(spirals_x_z)
-        _, center = self.get_radius_of_points(spirals_x_z)
+        max_z = np.max(spirals_x_z[:, 1])
+        min_z = np.min(spirals_x_z[:, 1])
+        max_x = np.max(spirals_x_z[:, 0])
+        min_x = np.min(spirals_x_z[:, 0])
 
-        center_x = center[0]
-        center_z = center[1]
+        # calculate shift so as to make max and mix values the same distance from center
+        center_x = (max_x + min_x) / 2
+        center_z = (max_z + min_z) / 2
 
         self._spiral, self._component_spirals, self._extruded_spirals = self._translate_spirals_xz(
             x_shift = -center_x,
-            z_shift = -center_z + thickness / 2
+            z_shift = -center_z
         )
 
         return self._spiral, self._component_spirals, self._extruded_spirals
+
+    def _rotate_spirals_to_minimize_thickness(self, use_extruded: bool = True) -> float:
+        """Rotate spirals in x-z plane to minimize overall thickness.
+
+        Uses Brent's method to find the rotation angle that minimizes the
+        vertical extent (thickness = max(z) - min(z)). The rotation is applied
+        in-place to:
+        - `self._spiral`
+        - `self._component_spirals`
+        - `self._extruded_spirals`
+
+        Parameters
+        ----------
+        use_extruded : bool, optional
+            If True, compute the rotation using all extruded component points
+            (more representative for thickness). If False, use component
+            centerline spirals. Default is True.
+
+        Returns
+        -------
+        float
+            Rotation angle in radians applied (counterclockwise, about centroid).
+
+        Notes
+        -----
+        - Rotation is performed about the centroid of the combined points.
+        - Optimization searches over [0, π) since thickness is symmetric about π.
+        """
+        # Choose which spiral set to use for optimization
+        if use_extruded and hasattr(self, '_extruded_spirals') and self._extruded_spirals:
+            spiral_dict = self._extruded_spirals
+        elif hasattr(self, '_component_spirals') and self._component_spirals:
+            spiral_dict = self._component_spirals
+        else:
+            return 0.0
+
+        # Collect all spiral dictionaries to rotate together
+        all_spirals = {}
+        if hasattr(self, '_spiral') and isinstance(self._spiral, np.ndarray):
+            all_spirals['_base'] = self._spiral
+        if hasattr(self, '_component_spirals') and isinstance(self._component_spirals, dict):
+            all_spirals.update({f'comp_{k}': v for k, v in self._component_spirals.items()})
+        if hasattr(self, '_extruded_spirals') and isinstance(self._extruded_spirals, dict):
+            all_spirals.update({f'ext_{k}': v for k, v in self._extruded_spirals.items()})
+
+        # Rotate all spirals using the helper function from SpiralCalculator
+        _, optimal_angle = SpiralCalculator.rotate_spiral_to_minimize_thickness(all_spirals)
+
+        return optimal_angle
     
     def _get_high_resolution_params(self) -> Dict[str, Any]:
         """Get high-resolution parameters for racetrack geometry.
@@ -3733,7 +3756,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         float
             Pressed mandrel radius in millimeters, rounded to 2 decimal places
         """
-        return round(self._pressed_radius * M_TO_MM, 2)
+        return np.round(self._pressed_radius * M_TO_MM, 2)
     
     @property
     def pressed_straight_length(self) -> float:
@@ -3744,7 +3767,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         float
             Pressed mandrel straight length in millimeters, rounded to 2 decimal places
         """
-        return round(self._pressed_straight_length * M_TO_MM, 2)
+        return np.round(self._pressed_straight_length * M_TO_MM, 2)
     
     @property
     def thickness(self) -> float:
@@ -3755,7 +3778,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         float
             Overall thickness in millimeters, rounded to 2 decimal places
         """
-        return round(self._thickness * M_TO_MM, 2)
+        return np.round(self._thickness * M_TO_MM, 2)
 
     @property
     def width(self) -> float:
@@ -3766,7 +3789,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         float
             Overall width in millimeters, rounded to 2 decimal places
         """
-        return round(self._width * M_TO_MM, 2)
+        return np.round(self._width * M_TO_MM, 2)
 
     @property
     def thickness_hard_range(self) -> Tuple[float, float]:
@@ -3786,8 +3809,8 @@ class FlatWoundJellyRoll(_JellyRoll):
             (min_thickness, max_thickness) in millimeters, rounded to 2 decimal places
         """
         return (
-            round(self._thickness_range[0] * M_TO_MM, 2),
-            round(self._thickness_range[1] * M_TO_MM, 2)
+            np.round(self._thickness_range[0] * M_TO_MM, 2),
+            np.round(self._thickness_range[1] * M_TO_MM, 2)
         )
     
     @property
@@ -3800,8 +3823,8 @@ class FlatWoundJellyRoll(_JellyRoll):
             (min_width, max_width) in millimeters, rounded to 2 decimal places
         """
         return (
-            round(self._width_range[0] * M_TO_MM, 2),
-            round(self._width_range[1] * M_TO_MM, 2)
+            np.round(self._width_range[0] * M_TO_MM, 2),
+            np.round(self._width_range[1] * M_TO_MM, 2)
         )
     
     @thickness.setter
@@ -3822,19 +3845,25 @@ class FlatWoundJellyRoll(_JellyRoll):
         ValueError
             If target thickness is invalid or optimization fails
         """
+
         def thickness_geometry_function(layup_copy):
             """Calculate thickness from layup copy."""
+
             spiral = SpiralCalculator.calculate_variable_thickness_racetrack(
                 laminate=layup_copy,
                 mandrel_radius=self._pressed_radius,
                 straight_length=self._pressed_straight_length
             )
+
             coords = spiral[:, [X_COORD_COL, Z_COORD_COL]]
-            actual_thickness = SpiralCalculator.get_thickness_of_racetrack(coords=coords)
-            # Add thickness at end of layup
-            thickness_at_end = layup_copy.get_thickness_at_x(x_position=layup_copy._total_length)
-            actual_thickness += thickness_at_end
-            return actual_thickness
+            coords, _ = SpiralCalculator.rotate_spiral_to_minimize_thickness(coords, 0, 1)
+            thickness = SpiralCalculator.get_thickness_of_racetrack(coords)
+            thickness += layup_copy.get_thickness_at_x(x_position=layup_copy._total_length) 
+            
+            if self._tape is not None:
+                thickness -= self._tape._thickness * 2 * self._additional_tape_wraps
+
+            return thickness
 
         self._optimize_layup_length_for_target(
             target_value=target_thickness,
@@ -3863,17 +3892,22 @@ class FlatWoundJellyRoll(_JellyRoll):
         """
         def width_geometry_function(layup_copy):
             """Calculate width from layup copy."""
+
             spiral = SpiralCalculator.calculate_variable_thickness_racetrack(
                 laminate=layup_copy,
                 mandrel_radius=self._pressed_radius,
                 straight_length=self._pressed_straight_length
             )
+
             coords = spiral[:, [X_COORD_COL, Z_COORD_COL]]
-            actual_width = SpiralCalculator.get_width_of_racetrack(coords=coords)
-            # Add thickness at end of layup
-            thickness_at_end = layup_copy.get_thickness_at_x(x_position=layup_copy._total_length)
-            actual_width += thickness_at_end
-            return actual_width
+            coords, _ = SpiralCalculator.rotate_spiral_to_minimize_thickness(coords, 0, 1)
+            width = SpiralCalculator.get_width_of_racetrack(coords=coords)
+            width += layup_copy.get_thickness_at_x(x_position=layup_copy._total_length) 
+
+            if self._tape is not None:
+                width -= self._tape._thickness * 2 * self._additional_tape_wraps
+
+            return width
 
         self._optimize_layup_length_for_target(
             target_value=target_width,

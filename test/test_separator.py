@@ -19,9 +19,14 @@ class TestSimpleSeparator(unittest.TestCase):
         self.separator = Separator(material=separator_material, thickness=25)
 
     def test_equality(self):
-        temp_separator = deepcopy(self.separator)
-        condition = self.separator == temp_separator
+        temp_separator = deepcopy(self.separator.material)
+        condition = self.separator.material == temp_separator
         self.assertTrue(condition)
+
+    def test_serialization(self):
+        serialized = self.separator.serialize()
+        deserialized = Separator.deserialize(serialized)
+        self.assertEqual(self.separator, deserialized)
 
 
 class TestSeparator(unittest.TestCase):
