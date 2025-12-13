@@ -5,10 +5,11 @@ from typing import Tuple
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+from scipy.optimize import brentq
 
 from steer_core.Constants.Units import *
 from steer_core.Decorators.Coordinates import calculate_volumes, calculate_coordinates
-from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
+from steer_core.Decorators.General import calculate_all_properties
 
 from steer_core.Mixins.Colors import ColorMixin
 from steer_core.Mixins.Coordinates import CoordinateMixin
@@ -19,12 +20,29 @@ from steer_core.Mixins.Plotter import PlotterMixin
 
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
 from steer_opencell_design.Components.Separators import Separator
+from steer_opencell_design.Constructions.Layups.OverhangUtils import OverhangMixin
+from steer_opencell_design.Constructions.Layups.ArealCapacityCurveUtils import ArealCapacityCurveMixin
+from steer_opencell_design.Utils.Decorators import calculate_electrochemical_properties
 
 
-class OverhangControlMode(Enum):
-    """Control modes for anode overhang adjustments."""
-    FIXED_COMPONENT = "fixed_component"
-    FIXED_OVERHANGS = "fixed_overhangs"
+# Module-level constants for overhang ranges and plotting parameters
+PLOT_PADDING_FACTOR = 0.05  # 5% padding for plot bounds
+PLOT_FALLBACK_BOUND = 100.0  # Fallback axis bounds in mm
+
+# Separator range extension constants for Laminate validation
+SEPARATOR_WIDTH_EXTENSION = 0.1  # Extension factor (10%) for separator width range
+SEPARATOR_LENGTH_EXTENSION = 1.0  # Extension factor (100%) for separator length range
+
+# Sampling resolution for flattened center line calculations
+DEFAULT_X_SPACING = 0.004  # Default x-axis sampling spacing in meters (4mm)
+
+# Thickness calculation fallback
+THICKNESS_FALLBACK = 0.0  # Return value when thickness cannot be determined
+
+# Electrochemical calculation constants
+MINIMUM_VOLTAGE_RANGE_FRACTION = 0.5
+VOLTAGE_PRECISION = 2
+AREAL_CAPACITY_PRECISION = 3
 
 
 class NPRatioControlMode(Enum):
@@ -40,7 +58,9 @@ class _Layup(
     SerializerMixin, 
     ColorMixin, 
     DunderMixin,
-    PlotterMixin
+    PlotterMixin,
+    ArealCapacityCurveMixin,
+    OverhangMixin,
 ):
     """
     Base class for layup structures containing common functionality for overhang calculations
@@ -72,12 +92,13 @@ class _Layup(
         name : str, optional
             Name of the layup (default: "Layup").
         """
+        super().__init__()
+
         self._update_properties = False
         self._flipped_x = False
         self._flipped_y = False
         self._flipped_z = False
 
-        self.overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
         self.np_ratio_control_mode = NPRatioControlMode.FIXED_ANODE
 
         self.cathode = cathode
@@ -89,17 +110,89 @@ class _Layup(
     def _calculate_all_properties(self):
         self._calculate_bulk_properties()
         self._calculate_coordinates()
-        self._calculate_full_cell_curves()
+        self._calculate_electrochemical_properties()
+        self._calculate_voltage_limits()
 
     def _calculate_bulk_properties(self):
         pass
 
     def _calculate_coordinates(self):
         self._set_z_positions()
-        self._calculate_anode_overhangs()
-        self._calculate_bottom_separator_overhangs()
-        self._calculate_top_separator_overhangs()
+        super()._calculate_coordinates()
 
+    def _calculate_electrochemical_properties(self):
+        self._calculate_areal_capacity_curves()
+
+    def _calculate_voltage_limits(self) -> None:
+        """Calculate upper and lower voltage limits for the operating window."""
+        if hasattr(self, '_areal_capacity_curve') and self._areal_capacity_curve is not None:
+            self._calculate_upper_voltage_limit_range()
+            self._calculate_lower_voltage_limit_range()
+            self._maximum_operating_voltage = max(self._maximum_operating_voltage_range)
+            self._minimum_operating_voltage = min(self._minimum_operating_voltage_range)
+            self._operating_voltage_window = (self._minimum_operating_voltage, self._maximum_operating_voltage)
+            self._operating_reversible_areal_capacity = max(self._maximum_areal_reversible_capacity_range)
+
+    def _calculate_lower_voltage_limit_range(self) -> None:
+        """Calculate the minimum operating voltage range from discharge curve.
+        
+        Sets the minimum voltage range as the bottom quartile of the discharge voltage range,
+        providing a safe operating window above the absolute minimum voltage.
+        """
+        # Extract discharge voltages directly using boolean indexing
+        discharge_mask = self._areal_capacity_curve[:, 2] == -1
+        discharge_voltages = self._areal_capacity_curve[discharge_mask, 1]
+
+        # Calculate min and max in one pass using numpy's aminmax (faster than separate calls)
+        _lower_voltage_minimum, voltage_max = discharge_voltages.min(), discharge_voltages.max()
+
+        # Calculate top limit directly
+        _lower_voltage_top_limit = _lower_voltage_minimum + (voltage_max - _lower_voltage_minimum) * MINIMUM_VOLTAGE_RANGE_FRACTION
+
+        # set the minimum operating voltage range
+        self._minimum_operating_voltage_range = (_lower_voltage_minimum, _lower_voltage_top_limit)
+
+    def _calculate_upper_voltage_limit_range(self) -> None:
+        """Calculate the maximum operating voltage range from cathode voltage cutoff range.
+        
+        Determines the upper voltage bounds by testing the cathode's voltage cutoff range
+        and observing the resulting maximum voltages in the capacity curve.
+        """
+        # Get voltage cutoff range bounds using numpy operations (faster than min/max)
+        _voltage_cutoff_range = self._cathode._formulation._voltage_operation_window
+        _formulation_min_voltage, _formulation_max_voltage = min(_voltage_cutoff_range), max(_voltage_cutoff_range)
+
+        # get the upper voltage max
+        _layup = deepcopy(self)
+        _layup._cathode._formulation.voltage_cutoff = _formulation_max_voltage
+        _layup._cathode.formulation = _layup._cathode._formulation
+        _, _areal_curve = self._compute_areal_full_cell_curve(
+            _layup._cathode._areal_capacity_curve,
+            _layup._anode._areal_capacity_curve,
+        )
+        _discharge_mask = _areal_curve[:, 2] == -1
+        _discharge_curve = _areal_curve[_discharge_mask]
+        _upper_voltage_max = _areal_curve[:, 1].max()
+        _upper_areal_reversible_capacity_max = _discharge_curve[:, 0].max() - _discharge_curve[:, 0].min()
+
+        # get the lower voltage min
+        _layup._cathode._formulation.voltage_cutoff = _formulation_min_voltage
+        _layup._cathode.formulation = _layup._cathode._formulation
+        _, _areal_curve = self._compute_areal_full_cell_curve(
+            _layup._cathode._areal_capacity_curve,
+            _layup._anode._areal_capacity_curve,
+        )
+        _discharge_mask = _areal_curve[:, 2] == -1
+        _discharge_curve = _areal_curve[_discharge_mask]
+        _upper_voltage_min = _areal_curve[:, 1].max()
+        _upper_areal_reversible_capacity_min = _discharge_curve[:, 0].max() - _discharge_curve[:, 0].min()
+
+        # Set the maximum and minimum operating voltage ranges
+        self._maximum_operating_voltage_range = (_upper_voltage_min, _upper_voltage_max)
+        self._maximum_areal_reversible_capacity_range = (_upper_areal_reversible_capacity_min, _upper_areal_reversible_capacity_max)
+
+        return self._maximum_operating_voltage_range, self._maximum_areal_reversible_capacity_range
+    
     def _set_z_positions(self):
 
         _bottom_separator_z = self._cathode._current_collector._datum[2] + self._cathode._thickness / 2 + self._bottom_separator._thickness / 2
@@ -124,288 +217,28 @@ class _Layup(
             _top_separator_z * M_TO_MM,
         )
 
-    def _calculate_anode_overhangs(self):
-        """Calculate anode overhangs relative to cathode.
-
-        Overhang sign convention:
-          left  = cathode_left - anode_left
-          right = anode_right - cathode_right
-          bottom= cathode_bottom - anode_bottom
-          top   = anode_top - cathode_top
-
-        Positive values mean the anode extends beyond the cathode in that direction.
-        Values stored in internal SI units (meters).
-        """
-        left, right, bottom, top = self._compute_electrode_overhangs(self._cathode, self._anode)
-
-        self._anode_overhang_left = left
-        self._anode_overhang_right = right
-        self._anode_overhang_bottom = bottom
-        self._anode_overhang_top = top
-
-    def _calculate_bottom_separator_overhangs(self):
-        """Calculate bottom separator overhangs relative to cathode.
-
-        Positive values mean the separator extends beyond the cathode in the given direction.
-        """
-        left, right, bottom, top = self._compute_separator_overhangs(self._cathode, self._bottom_separator)
-
-        self._bottom_separator_overhang_left = left
-        self._bottom_separator_overhang_right = right
-        self._bottom_separator_overhang_bottom = bottom
-        self._bottom_separator_overhang_top = top
-
-    def _calculate_top_separator_overhangs(self):
-        """Calculate top separator overhangs relative to cathode.
-
-        Positive values mean the separator extends beyond the cathode in the given direction.
-        """
-        left, right, bottom, top = self._compute_separator_overhangs(self._cathode, self._top_separator)
-        self._top_separator_overhang_left = left
-        self._top_separator_overhang_right = right
-        self._top_separator_overhang_bottom = bottom
-        self._top_separator_overhang_top = top
-
-    def _compute_electrode_overhangs(self, ref_electrode: Cathode, target_electrode: Anode) -> Tuple[float, float, float, float]:
-        """Return (left, right, bottom, top) overhangs for rectangular current collectors.
-
-        A positive component means target extends beyond reference in that direction.
-        """
-        # Reference edges
-        ref_left = ref_electrode._current_collector._datum[0] - ref_electrode._current_collector._x_body_length / 2
-        ref_right = ref_electrode._current_collector._datum[0] + ref_electrode._current_collector._x_body_length / 2
-        ref_bottom = ref_electrode._current_collector._datum[1] - ref_electrode._current_collector._y_body_length / 2
-        ref_top = ref_electrode._current_collector._datum[1] + ref_electrode._current_collector._y_body_length / 2
-
-        # Target edges
-        tgt_left = target_electrode._current_collector._datum[0] - target_electrode._current_collector._x_body_length / 2
-        tgt_right = target_electrode._current_collector._datum[0] + target_electrode._current_collector._x_body_length / 2
-        tgt_bottom = target_electrode._current_collector._datum[1] - target_electrode._current_collector._y_body_length / 2
-        tgt_top = target_electrode._current_collector._datum[1] + target_electrode._current_collector._y_body_length / 2
-
-        return ref_left - tgt_left, tgt_right - ref_right, ref_bottom - tgt_bottom, tgt_top - ref_top
-
-    def _compute_separator_overhangs(self, ref_electrode: Cathode, separator: Separator) -> Tuple[float, float, float, float]:
-        """Return (left, right, bottom, top) overhangs for polygon separator relative to electrode.
-
-        A positive component means separator extends beyond cathode in that direction.
-        """
-        ref_left = ref_electrode._current_collector._datum[0] - ref_electrode._current_collector._x_body_length / 2
-        ref_right = ref_electrode._current_collector._datum[0] + ref_electrode._current_collector._x_body_length / 2
-        ref_bottom = ref_electrode._current_collector._datum[1] - ref_electrode._current_collector._y_body_length / 2
-        ref_top = ref_electrode._current_collector._datum[1] + ref_electrode._current_collector._y_body_length / 2
-
-        sep_left = float(np.min(separator._coordinates[:, 0]))
-        sep_right = float(np.max(separator._coordinates[:, 0]))
-        sep_bottom = float(np.min(separator._coordinates[:, 1]))
-        sep_top = float(np.max(separator._coordinates[:, 1]))
-
-        return ref_left - sep_left, sep_right - ref_right, ref_bottom - sep_bottom, sep_top - ref_top
-
-    def _calculate_full_cell_curves(self) -> np.ndarray:
+    def _calculate_areal_capacity_curves(self) -> Tuple[float, np.ndarray]:
         """
         Calculate the half-cell curves for the cathode and anode.
 
         Returns
         -------
-        np.ndarray
-            The combined half-cell curve for the full cell.
+        Tuple[float, np.ndarray]
+            A tuple containing the n/p ratio and the combined half-cell curve for the full cell.
         """
-        cathode_half_cell = copy(self._cathode._half_cell_curve)
-        anode_half_cell = copy(self._anode._half_cell_curve)
+        # Use views instead of copies for better performance
+        if hasattr(self._cathode, '_areal_capacity_curve') and self._cathode._areal_capacity_curve is not None and hasattr(self._anode, '_areal_capacity_curve') and self._anode._areal_capacity_curve is not None:
+            cathode_areal_curve = self._cathode._areal_capacity_curve
+            anode_areal_curve = self._anode._areal_capacity_curve
 
-        max_cap_cathode = max(self._cathode._half_cell_curve[:, 4])
-        max_cap_anode = max(self._anode._half_cell_curve[:, 4])
-        self._np_ratio = max_cap_anode / max_cap_cathode
+            # Call the static helper method to compute the full-cell curve
+            self._np_ratio, self._areal_capacity_curve = self._compute_areal_full_cell_curve(cathode_areal_curve, anode_areal_curve)
 
-        # Split cathode curves by direction (column 2: 0=discharge, 1=charge)
-        cathode_charge = cathode_half_cell[cathode_half_cell[:, 2] == 1]
-        cathode_discharge = cathode_half_cell[cathode_half_cell[:, 2] == -1]
-
-        # Split anode curves by direction
-        anode_charge = anode_half_cell[anode_half_cell[:, 2] == 1]
-        anode_discharge = anode_half_cell[anode_half_cell[:, 2] == -1]
-
-        # Calculate valid x range (column 4 is areal capacity)
-        # For charge: find overlapping range (intersection)
-        charge_x_min = max(cathode_charge[:, 4].min(), anode_charge[:, 4].min())
-        charge_x_max = min(cathode_charge[:, 4].max(), anode_charge[:, 4].max())
-
-        # For discharge: find overlapping range (intersection)
-        discharge_x_min = max(cathode_discharge[:, 4].min(), anode_discharge[:, 4].min())
-        discharge_x_max = min(cathode_discharge[:, 4].max(), anode_discharge[:, 4].max())
-
-        # Create interpolation functions for voltage vs areal capacity
-
-        # Sort by areal capacity for interpolation
-        cathode_charge_sorted = cathode_charge[cathode_charge[:, 4].argsort()]
-        cathode_discharge_sorted = cathode_discharge[cathode_discharge[:, 4].argsort()]
-        anode_charge_sorted = anode_charge[anode_charge[:, 4].argsort()]
-        anode_discharge_sorted = anode_discharge[anode_discharge[:, 4].argsort()]
-
-        # Create common x arrays for interpolation
-        n_points = 100  # Number of points for smooth curves
-        charge_x_common = np.linspace(charge_x_min, charge_x_max, n_points)
-        discharge_x_common = np.linspace(discharge_x_min, discharge_x_max, n_points)
-
-        # Interpolate voltages using numpy.interp (voltage = column 1, areal capacity = column 4)
-        cathode_charge_voltage = np.interp(charge_x_common, cathode_charge_sorted[:, 4], cathode_charge_sorted[:, 1])
-        cathode_discharge_voltage = np.interp(
-            discharge_x_common,
-            cathode_discharge_sorted[:, 4],
-            cathode_discharge_sorted[:, 1],
-        )
-        anode_charge_voltage = np.interp(charge_x_common, anode_charge_sorted[:, 4], anode_charge_sorted[:, 1])
-        anode_discharge_voltage = np.interp(
-            discharge_x_common,
-            anode_discharge_sorted[:, 4],
-            anode_discharge_sorted[:, 1],
-        )
-
-        # Calculate full-cell voltages (cathode - anode)
-        charge_voltage_full = cathode_charge_voltage - anode_charge_voltage
-        discharge_voltage_full = cathode_discharge_voltage - anode_discharge_voltage
-
-        # Create full-cell arrays
-        # Charge curve: ascending x order (direction = 1)
-        charge_curve = np.column_stack(
-            [
-                charge_x_common,  # Column 0: areal capacity
-                charge_voltage_full,  # Column 1: voltage
-                np.ones(len(charge_x_common)),  # Column 2: direction (1 = charge)
-            ]
-        )
-
-        # Discharge curve: descending x order (direction = -1)
-        discharge_curve = np.column_stack(
-            [
-                discharge_x_common[::-1],  # Column 0: areal capacity (descending)
-                discharge_voltage_full[::-1],  # Column 1: voltage
-                -np.ones(len(discharge_x_common)),  # Column 2: direction (-1 = discharge)
-            ]
-        )
-
-        # Recombine: charge first (ascending), then discharge (descending)
-        self._full_cell_curve = np.vstack([charge_curve, discharge_curve])
-
-        return self._full_cell_curve
-
-    def _adjust_overhang_fixed_component(self, component: str, target_overhang: float, direction: str) -> None:
-        """
-        Adjust overhang by moving the component position (fixed component mode).
-
-        Parameters
-        ----------
-        component : str
-            Component name ('anode', 'bottom_separator', 'top_separator')
-        target_overhang : float
-            Target overhang value in mm
-        direction : str
-            Direction of overhang ('left', 'right', 'bottom', 'top')
-        """
-        current_overhang = getattr(self, f"{component}_overhang_{direction}")
-        overhang_difference = target_overhang - current_overhang
-
-        # Get the component object
-        component_obj = getattr(self, f"_{component}")
-
-        # get component datum
-        datum = component_obj.datum
-
-        if direction == "left":
-            datum = (datum[0] - overhang_difference, datum[1], datum[2])
-        elif direction == "right":
-            datum = (datum[0] + overhang_difference, datum[1], datum[2])
-        elif direction == "bottom":
-            datum = (datum[0], datum[1] - overhang_difference, datum[2])
-        elif direction == "top":
-            datum = (datum[0], datum[1] + overhang_difference, datum[2])
-
-        component_obj.datum = datum
-
-        # Special handling for ZFoldMonoLayer: when anode moves left/right, top separator should follow
-        if hasattr(self, "__class__") and self.__class__.__name__ == "ZFoldMonoLayer" and component == "anode" and direction in ["left", "right"]:
-
-            # Get the top separator and adjust its position by the same amount
-            top_separator_datum = self._top_separator.datum
-
-            if direction == "left":
-                top_separator_datum = (top_separator_datum[0] - overhang_difference, top_separator_datum[1], top_separator_datum[2])
-            elif direction == "right":
-                top_separator_datum = (top_separator_datum[0] + overhang_difference, top_separator_datum[1], top_separator_datum[2])
-
-            self._top_separator.datum = top_separator_datum
-
-    def _adjust_overhang_fixed_overhangs(self, component: str, target_overhang: float, direction: str) -> None:
-        """
-        Adjust overhang by extending the component dimensions (fixed overhangs mode).
-
-        Parameters
-        ----------
-        component : str
-            Component name ('anode', 'bottom_separator', 'top_separator')
-        target_overhang : float
-            Target overhang value in mm
-        direction : str
-            Direction of overhang ('left', 'right', 'bottom', 'top')
-        """
-        target_overhang = target_overhang * MM_TO_M
-        current_overhang = getattr(self, f"_{component}_overhang_{direction}")
-        overhang_difference = target_overhang - current_overhang
-
-        # Get the component object
-        component_obj = getattr(self, f"_{component}")
-
-        if component == "anode":
-            # Determine which dimension and position to adjust
-            if direction in ["left", "right"]:
-                self.anode.current_collector.x_body_length += overhang_difference * M_TO_MM
-                position_adjustment = (overhang_difference / 2) * M_TO_MM
-                if direction == "left":
-                    self.anode.current_collector.datum_x -= position_adjustment
-                else:  # right
-                    self.anode.current_collector.datum_x += position_adjustment
-            else:  # bottom or top
-                self.anode.current_collector.y_body_length += overhang_difference * M_TO_MM
-                position_adjustment = (overhang_difference / 2) * M_TO_MM
-                if direction == "bottom":
-                    self.anode.current_collector.datum_y -= position_adjustment
-                else:  # top
-                    self.anode.current_collector.datum_y += position_adjustment
-
-            # Trigger setters
-            self.anode.current_collector = self.anode.current_collector
-            self.anode = self.anode
-
-        elif isinstance(component_obj, Separator):
-            # Create mapping for dimension and position adjustments
-            position_adjustment = (overhang_difference / 2) * M_TO_MM
-
-            # Determine which dimension to adjust based on rotation and direction
-            is_horizontal = direction in ["left", "right"]
-            is_rotated = component_obj._rotated_xy
-
-            # Logic: if rotated, horizontal directions affect width, vertical affects length
-            # If not rotated, horizontal directions affect length, vertical affects width
-            if (is_horizontal and not is_rotated) or (not is_horizontal and is_rotated):
-                # Adjust length
-                component_obj.length += overhang_difference * M_TO_MM
-            else:
-                # Adjust width
-                component_obj.width += overhang_difference * M_TO_MM
-
-            # Adjust position
-            if direction == "left":
-                component_obj.datum_x -= position_adjustment
-            elif direction == "right":
-                component_obj.datum_x += position_adjustment
-            elif direction == "bottom":
-                component_obj.datum_y -= position_adjustment
-            else:  # top
-                component_obj.datum_y += position_adjustment
-
-            # Trigger setter
-            setattr(self, component, component_obj)
+            # Return n/p ratio and areal capacity curve
+            return self._np_ratio, self._areal_capacity_curve
+        
+        else:
+            return self._np_ratio, self._areal_capacity_curve
 
     def _update_anode_ranges(self, cathode: Cathode):
         """Update anode current collector ranges based on cathode."""
@@ -478,6 +311,31 @@ class _Layup(
             new_anode_current_collector = deepcopy(anode_cc)
             new_anode_current_collector.y_body_length = cathode_cc.y_body_length
             self.anode.current_collector = new_anode_current_collector
+
+    def _flip(self, axis: str) -> None:
+        """
+        Function to rotate the electrode around a specified axis by 180 degrees
+        around the current datum position.
+
+        Parameters
+        ----------
+        axis : str
+            The axis to rotate around. Must be 'x', 'y', or 'z'.
+        """
+        if axis not in ["x", "y", "z"]:
+            raise ValueError("Axis must be 'x', 'y', or 'z'.")
+
+        self._cathode._flip(axis)
+        self._anode._flip(axis)
+        self._bottom_separator._flip(axis)
+        self._top_separator._flip(axis)
+
+        if axis == "x":
+            self._flipped_x = not self._flipped_x
+        if axis == "y":
+            self._flipped_y = not self._flipped_y
+        if axis == "z":
+            self._flipped_z = not self._flipped_z
 
     def get_top_down_view(self, opacity: float = 0.5, **kwargs) -> go.Figure:
 
@@ -568,18 +426,18 @@ class _Layup(
             x_min, x_max = min(all_x), max(all_x)
             y_min, y_max = min(all_y), max(all_y)
 
-            # Add 5% padding
+            # Add padding
             x_range = x_max - x_min
             y_range = y_max - y_min
-            padding_x = x_range * 0.05
-            padding_y = y_range * 0.05
+            padding_x = x_range * PLOT_PADDING_FACTOR
+            padding_y = y_range * PLOT_PADDING_FACTOR
 
             x_bounds = [x_min - padding_x, x_max + padding_x]
             y_bounds = [y_min - padding_y, y_max + padding_y]
         else:
             # Fallback bounds
-            x_bounds = [-100, 100]
-            y_bounds = [-100, 100]
+            x_bounds = [-PLOT_FALLBACK_BOUND, PLOT_FALLBACK_BOUND]
+            y_bounds = [-PLOT_FALLBACK_BOUND, PLOT_FALLBACK_BOUND]
 
         # Final layout with fixed axis ranges
         fig.update_layout(
@@ -614,10 +472,14 @@ class _Layup(
         # Validate that half-cell data exists
         fig = go.Figure()
 
+        traces = [
+            self.cathode.areal_capacity_curve_trace,
+            self.anode.areal_capacity_curve_trace,
+            self.areal_capacity_curve_trace,
+        ]
+
         # add the traces
-        fig.add_trace(self.cathode.half_cell_curve_trace)
-        fig.add_trace(self.anode.half_cell_curve_trace)       
-        fig.add_trace(self.full_cell_curve_trace)
+        fig.add_traces(traces)
 
         # Enhanced layout with zero lines and faint grid
         fig.update_layout(
@@ -627,6 +489,7 @@ class _Layup(
             xaxis={**self.SCATTER_X_AXIS, "title": "Areal Capacity (mAh/cm²)"},
             yaxis={**self.SCATTER_Y_AXIS, "title": "Voltage (V)"},
             hovermode="closest",
+            **kwargs,
         )
 
         return fig
@@ -654,34 +517,36 @@ class _Layup(
         self._flip("x")
         return figure
 
-    #### ACTIONS ####
-
-    def _flip(self, axis: str) -> None:
-        """
-        Function to rotate the electrode around a specified axis by 180 degrees
-        around the current datum position.
-
-        Parameters
-        ----------
-        axis : str
-            The axis to rotate around. Must be 'x', 'y', or 'z'.
-        """
-        if axis not in ["x", "y", "z"]:
-            raise ValueError("Axis must be 'x', 'y', or 'z'.")
-
-        self._cathode._flip(axis)
-        self._anode._flip(axis)
-        self._bottom_separator._flip(axis)
-        self._top_separator._flip(axis)
-
-        if axis == "x":
-            self._flipped_x = not self._flipped_x
-        if axis == "y":
-            self._flipped_y = not self._flipped_y
-        if axis == "z":
-            self._flipped_z = not self._flipped_z
-
-    #### COMPONENT PROPERTY/SETTERS ####
+    @property
+    def maximum_operating_voltage_range(self) -> Tuple[float, float]:
+        """Maximum operating voltage range in volts."""
+        return (
+            np.round(self._maximum_operating_voltage_range[0], VOLTAGE_PRECISION),
+            np.round(self._maximum_operating_voltage_range[1], VOLTAGE_PRECISION),
+        )
+    
+    @property
+    def maximum_areal_reversible_capacity_range(self) -> Tuple[float, float]:
+        """Maximum areal capacity range in mAh/cm²."""
+        capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
+        return (
+            np.round(self._maximum_areal_reversible_capacity_range[0] * capacity_conversion, AREAL_CAPACITY_PRECISION),
+            np.round(self._maximum_areal_reversible_capacity_range[1] * capacity_conversion, AREAL_CAPACITY_PRECISION),
+        )
+    
+    @property
+    def operating_reversible_areal_capacity(self) -> float:
+        """Operating reversible areal capacity in mAh/cm²."""
+        capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
+        return np.round(self._operating_reversible_areal_capacity * capacity_conversion, AREAL_CAPACITY_PRECISION)
+    
+    @property
+    def minimum_operating_voltage_range(self) -> Tuple[float, float]:
+        """Minimum operating voltage range in volts."""
+        return (
+            np.round(self._minimum_operating_voltage_range[0], VOLTAGE_PRECISION),
+            np.round(self._minimum_operating_voltage_range[1], VOLTAGE_PRECISION),
+        )
 
     @property
     def datum(self) -> Tuple[float, float, float]:
@@ -713,7 +578,7 @@ class _Layup(
         """
         Get the n/p ratio of the layup (anode to cathode capacity ratio).
         """
-        return round(self._np_ratio, 3)
+        return np.round(self._np_ratio, 3)
 
     @property
     def np_ratio_range(self) -> Tuple[float, float]:
@@ -723,36 +588,54 @@ class _Layup(
         return 0, 1.5
 
     @property
-    def full_cell_curve(self) -> pd.DataFrame:
-        return (
-            pd.DataFrame(
-                self._full_cell_curve,
-                columns=["areal_capacity", "voltage", "direction"],
-            )
-            .assign(
-                direction=lambda x: np.where(x["direction"] == 1, "charge", "discharge"),
-                areal_capacity=lambda x: x["areal_capacity"] * (S_TO_H * A_TO_mA / M_TO_CM**2),
-            )
-            .rename(
-                columns={
-                    "voltage": "Voltage (V)",
-                    "direction": "Direction",
-                    "areal_capacity": "Areal Capacity (mAh/cm²)",
-                }
-            )
-            .round(4)
-        )
+    def areal_capacity_curve(self) -> pd.DataFrame:
+        """Get the areal capacity curve with proper units and formatting."""
+
+        if self._areal_capacity_curve is None:
+            return None
+
+        # Pre-compute unit conversion factor
+        capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
+
+        # split into charge and discharge
+        charge_mask = self._areal_capacity_curve[:, 2] == 1
+        discharge_mask = self._areal_capacity_curve[:, 2] == -1
+        _charge_curve = self._areal_capacity_curve[charge_mask]
+        _discharge_curve = self._areal_capacity_curve[discharge_mask]
+
+        # pad the end of the charge curve to the max capacity of the discharge curve
+        _charge_curve = np.vstack([_charge_curve, _charge_curve[-1, :]])
+        _discharge_curve = np.vstack([_discharge_curve[0, :], _discharge_curve])
+        _curve = np.vstack([_charge_curve, _discharge_curve])
+        _curve = _curve[np.isnan(_curve).sum(axis=1) == 0]
+
+        # calculate the columns 
+        areal_capacity = np.round(_curve[:, 0] * capacity_conversion, 4)
+        voltage = np.round(_curve[:, 1], 4)
+        direction = np.where(_curve[:, 2] == 1, "charge", "discharge")
+        
+        # Create DataFrame with converted values directly
+        return pd.DataFrame({
+            "Areal Capacity (mAh/cm²)": areal_capacity,
+            "Voltage (V)": voltage,
+            "Direction": direction,
+        })
     
     @property
-    def full_cell_curve_trace(self) -> go.Scatter:
+    def areal_capacity_curve_trace(self) -> go.Scatter:
+
+        if self.areal_capacity_curve is None:
+            return None
+
+        curve = self.areal_capacity_curve
 
         return go.Scatter(
-            x=self.full_cell_curve["Areal Capacity (mAh/cm²)"],
-            y=self.full_cell_curve["Voltage (V)"],
+            x=curve["Areal Capacity (mAh/cm²)"],
+            y=curve["Voltage (V)"],
             mode="lines",
             name=f"{self.name} Full-Cell",
-            line=dict(color= "#ff8c00", width=3),  # Slightly thicker for emphasis
-            customdata=self.full_cell_curve["Direction"],
+            line=dict(color= "#ff8c00", width=3, shape="spline"),
+            customdata=self.areal_capacity_curve["Direction"],
             hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
 
@@ -771,6 +654,29 @@ class _Layup(
     @property
     def top_separator(self):
         return self._top_separator
+
+    @property
+    def np_ratio_control_mode(self) -> NPRatioControlMode:
+        """Get the current N/P ratio control mode."""
+        return self._np_ratio_control_mode
+    
+    @property
+    def operating_voltage_window(self) -> Tuple[float, float]:
+        """Operating voltage window (min, max) in volts."""
+        return (
+            np.round(self._operating_voltage_window[0], VOLTAGE_PRECISION),
+            np.round(self._operating_voltage_window[1], VOLTAGE_PRECISION),
+        )
+    
+    @property
+    def maximum_operating_voltage(self) -> float:
+        """Maximum operating voltage in volts."""
+        return np.round(self._operating_voltage_window[1], VOLTAGE_PRECISION)
+    
+    @property
+    def minimum_operating_voltage(self) -> float:
+        """Minimum operating voltage in volts."""
+        return np.round(self._operating_voltage_window[0], VOLTAGE_PRECISION)
 
     @datum.setter
     @calculate_coordinates
@@ -834,7 +740,7 @@ class _Layup(
             self._update_anode_dimensions(cathode)
 
         # set the cathode to self
-        self._cathode = deepcopy(cathode)
+        self._cathode = cathode
 
     @bottom_separator.setter
     @calculate_volumes
@@ -927,7 +833,6 @@ class _Layup(
         self.validate_positive_float(np_ratio, "np_ratio")
 
         if self.np_ratio_control_mode == NPRatioControlMode.FIXED_CATHODE:
-            
             new_anode_mass_loading = (np_ratio / self._np_ratio) * self.anode._mass_loading
             self._anode.mass_loading = new_anode_mass_loading * (KG_TO_MG / M_TO_CM**2)
 
@@ -943,8 +848,8 @@ class _Layup(
             total_thickness = initial_anode_thickness + initial_cathode_thickness
 
             # Store the maximum capacity
-            _anode_max_cap = max(self._anode._half_cell_curve[:, 4])  # Ah/m²
-            _cathode_max_cap = max(self._cathode._half_cell_curve[:, 4])
+            _anode_max_cap = max(self._anode._areal_capacity_curve[:, 0])  # Ah/m²
+            _cathode_max_cap = max(self._cathode._areal_capacity_curve[:, 0])
 
             # get the capacity per thickness for each electrode
             _anode_cap_per_thickness = _anode_max_cap / initial_anode_thickness
@@ -964,713 +869,6 @@ class _Layup(
             self._anode.coating_thickness = new_anode_thickness
             self._cathode.coating_thickness = new_cathode_thickness
 
-
-    #### ANODE OVERHANG PROPERTY/SETTERS ####
-
-    @property
-    def anode_overhang_left(self) -> float:
-        """
-        Get the left overhang of the anode relative to the cathode in mm.
-
-        Returns
-        -------
-        float
-            Left overhang in mm. Positive values indicate anode extends beyond cathode.
-        """
-        return round(self._anode_overhang_left * M_TO_MM, 2)
-
-    @property
-    def anode_overhang_right(self) -> float:
-        """
-        Get the right overhang of the anode relative to the cathode in mm.
-
-        Returns
-        -------
-        float
-            Right overhang in mm. Positive values indicate anode extends beyond cathode.
-        """
-        return round(self._anode_overhang_right * M_TO_MM, 2)
-
-    @property
-    def anode_overhang_bottom(self) -> float:
-        """
-        Get the bottom overhang of the anode relative to the cathode in mm.
-
-        Returns
-        -------
-        float
-            Bottom overhang in mm. Positive values indicate anode extends beyond cathode.
-        """
-        return round(self._anode_overhang_bottom * M_TO_MM, 2)
-
-    @property
-    def anode_overhang_top(self) -> float:
-        """
-        Get the top overhang of the anode relative to the cathode in mm.
-
-        Returns
-        -------
-        float
-            Top overhang in mm. Positive values indicate anode extends beyond cathode.
-        """
-        return round(self._anode_overhang_top * M_TO_MM, 2)
-
-    @property
-    def anode_overhangs(self) -> dict:
-        """
-        Get all anode overhangs as a dictionary.
-
-        Returns
-        -------
-        dict
-            Dictionary with keys 'left', 'right', 'bottom', 'top' and overhang values in mm.
-        """
-        return {
-            "left": self.anode_overhang_left,
-            "right": self.anode_overhang_right,
-            "bottom": self.anode_overhang_bottom,
-            "top": self.anode_overhang_top,
-        }
-
-    @anode_overhang_left.setter
-    @calculate_coordinates
-    @calculate_bulk_properties
-    def anode_overhang_left(self, overhang: float) -> None:
-        """
-        Set the left overhang of the anode relative to the cathode.
-
-        Parameters
-        ----------
-        overhang : float
-            Target left overhang in mm. Positive values indicate anode extends beyond cathode.
-        """
-        self.validate_positive_float(overhang, "anode_overhang_left")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("anode", overhang, "left")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("anode", overhang, "left")
-
-    @anode_overhang_right.setter
-    @calculate_coordinates
-    @calculate_bulk_properties
-    def anode_overhang_right(self, overhang: float) -> None:
-        """
-        Set the right overhang of the anode relative to the cathode.
-
-        Parameters
-        ----------
-        overhang : float
-            Target right overhang in mm. Positive values indicate anode extends beyond cathode.
-        """
-        self.validate_positive_float(overhang, "anode_overhang_right")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("anode", overhang, "right")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("anode", overhang, "right")
-
-    @anode_overhang_bottom.setter
-    @calculate_coordinates
-    @calculate_bulk_properties
-    def anode_overhang_bottom(self, overhang: float) -> None:
-        """
-        Set the bottom overhang of the anode relative to the cathode.
-
-        Parameters
-        ----------
-        overhang : float
-            Target bottom overhang in mm. Positive values indicate anode extends beyond cathode.
-        """
-        self.validate_positive_float(overhang, "anode_overhang_bottom")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("anode", overhang, "bottom")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("anode", overhang, "bottom")
-
-    @anode_overhang_top.setter
-    @calculate_coordinates
-    @calculate_bulk_properties
-    def anode_overhang_top(self, overhang: float) -> None:
-        """
-        Set the top overhang of the anode relative to the cathode.
-
-        Parameters
-        ----------
-        overhang : float
-            Target top overhang in mm. Positive values indicate anode extends beyond cathode.
-        """
-        self.validate_positive_float(overhang, "anode_overhang_top")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("anode", overhang, "top")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("anode", overhang, "top")
-
-    #### ANODE OVERHANG RANGE PROPERTIES ####
-
-    @property
-    def anode_overhang_left_range(self) -> tuple:
-        """
-        Get the valid range for left anode overhang based on control mode.
-
-        Returns
-        -------
-        tuple
-            (min, max) overhang range in mm.
-            FIXED_OVERHANGS: (0, 20)
-            FIXED_COMPONENT: (0, left + right overhang total)
-        """
-        if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            return (0.0, 20.0)
-        else:  # FIXED_COMPONENT
-            return (0.0, self.anode_overhang_left + self.anode_overhang_right)
-
-    @property
-    def anode_overhang_right_range(self) -> tuple:
-        """
-        Get the valid range for right anode overhang based on control mode.
-
-        Returns
-        -------
-        tuple
-            (min, max) overhang range in mm.
-            FIXED_OVERHANGS: (0, 20)
-            FIXED_COMPONENT: (0, left + right overhang total)
-        """
-        if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            return (0.0, 20.0)
-        else:  # FIXED_COMPONENT
-            return (0.0, self.anode_overhang_left + self.anode_overhang_right)
-
-    @property
-    def anode_overhang_bottom_range(self) -> tuple:
-        """
-        Get the valid range for bottom anode overhang based on control mode.
-
-        Returns
-        -------
-        tuple
-            (min, max) overhang range in mm.
-            FIXED_OVERHANGS: (0, 20)
-            FIXED_COMPONENT: (0, bottom + top overhang total)
-        """
-        if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            return (0.0, 20.0)
-        else:  # FIXED_COMPONENT
-            return (0.0, self.anode_overhang_bottom + self.anode_overhang_top)
-
-    @property
-    def anode_overhang_top_range(self) -> tuple:
-        """
-        Get the valid range for top anode overhang based on control mode.
-
-        Returns
-        -------
-        tuple
-            (min, max) overhang range in mm.
-            FIXED_OVERHANGS: (0, 20)
-            FIXED_COMPONENT: (0, bottom + top overhang total)
-        """
-        if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            return (0.0, 20.0)
-        else:  # FIXED_COMPONENT
-            return (0.0, self.anode_overhang_bottom + self.anode_overhang_top)
-
-    #### BOTTOM SEPARATOR OVERHANG PROPERTY/SETTERS ####
-
-    @property
-    def bottom_separator_overhang_left(self) -> float:
-        """
-        Get the left overhang of the bottom separator relative to the cathode in mm.
-
-        Returns
-        -------
-        float
-            Left overhang in mm. Positive values indicate separator extends beyond cathode.
-        """
-        return round(self._bottom_separator_overhang_left * M_TO_MM, 3)
-
-    @property
-    def bottom_separator_overhang_right(self) -> float:
-        """
-        Get the right overhang of the bottom separator relative to the cathode in mm.
-
-        Returns
-        -------
-        float
-            Right overhang in mm. Positive values indicate separator extends beyond cathode.
-        """
-        return round(self._bottom_separator_overhang_right * M_TO_MM, 3)
-
-    @property
-    def bottom_separator_overhang_bottom(self) -> float:
-        """
-        Get the bottom overhang of the bottom separator relative to the cathode in mm.
-
-        Returns
-        -------
-        float
-            Bottom overhang in mm. Positive values indicate separator extends beyond cathode.
-        """
-        return round(self._bottom_separator_overhang_bottom * M_TO_MM, 3)
-
-    @property
-    def bottom_separator_overhang_top(self) -> float:
-        """
-        Get the top overhang of the bottom separator relative to the cathode in mm.
-
-        Returns
-        -------
-        float
-            Top overhang in mm. Positive values indicate separator extends beyond cathode.
-        """
-        return round(self._bottom_separator_overhang_top * M_TO_MM, 3)
-
-    @property
-    def bottom_separator_overhangs(self) -> dict:
-        """
-        Get all bottom separator overhangs as a dictionary.
-
-        Returns
-        -------
-        dict
-            Dictionary with keys 'left', 'right', 'bottom', 'top' and overhang values in mm.
-        """
-        return {
-            "left": self.bottom_separator_overhang_left,
-            "right": self.bottom_separator_overhang_right,
-            "bottom": self.bottom_separator_overhang_bottom,
-            "top": self.bottom_separator_overhang_top,
-        }
-
-    @bottom_separator_overhang_left.setter
-    @calculate_coordinates
-    @calculate_bulk_properties
-    def bottom_separator_overhang_left(self, overhang: float) -> None:
-        """
-        Set the left overhang of the bottom separator relative to the cathode.
-
-        Parameters
-        ----------
-        overhang : float
-            Target left overhang in mm. Positive values indicate separator extends beyond cathode.
-        """
-        self.validate_positive_float(overhang, "bottom_separator_overhang_left")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("bottom_separator", overhang, "left")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("bottom_separator", overhang, "left")
-
-    @bottom_separator_overhang_right.setter
-    @calculate_coordinates
-    @calculate_bulk_properties
-    def bottom_separator_overhang_right(self, overhang: float) -> None:
-        """
-        Set the right overhang of the bottom separator relative to the cathode.
-
-        Parameters
-        ----------
-        overhang : float
-            Target right overhang in mm. Positive values indicate separator extends beyond cathode.
-        """
-        self.validate_positive_float(overhang, "bottom_separator_overhang_right")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("bottom_separator", overhang, "right")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("bottom_separator", overhang, "right")
-
-    @bottom_separator_overhang_bottom.setter
-    @calculate_coordinates
-    @calculate_bulk_properties
-    def bottom_separator_overhang_bottom(self, overhang: float) -> None:
-        """
-        Set the bottom overhang of the bottom separator relative to the cathode.
-
-        Parameters
-        ----------
-        overhang : float
-            Target bottom overhang in mm. Positive values indicate separator extends beyond cathode.
-        """
-        self.validate_positive_float(overhang, "bottom_separator_overhang_bottom")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("bottom_separator", overhang, "bottom")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("bottom_separator", overhang, "bottom")
-
-    @bottom_separator_overhang_top.setter
-    @calculate_coordinates
-    @calculate_bulk_properties
-    def bottom_separator_overhang_top(self, overhang: float) -> None:
-        """
-        Set the top overhang of the bottom separator relative to the cathode.
-
-        Parameters
-        ----------
-        overhang : float
-            Target top overhang in mm. Positive values indicate separator extends beyond cathode.
-        """
-        self.validate_positive_float(overhang, "bottom_separator_overhang_top")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("bottom_separator", overhang, "top")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("bottom_separator", overhang, "top")
-
-    #### BOTTOM SEPARATOR OVERHANG RANGE PROPERTIES ####
-
-    @property
-    def bottom_separator_overhang_left_range(self) -> tuple:
-        """
-        Get the valid range for left bottom separator overhang based on control mode.
-
-        Returns
-        -------
-        tuple
-            (min, max) overhang range in mm.
-            FIXED_OVERHANGS: (0, 20)
-            FIXED_COMPONENT: (0, left + right overhang total)
-        """
-        from steer_opencell_design.Constructions.Layups.Laminate import Laminate
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            if type(self) == Laminate:
-                return (0.0, 500.0)
-            else:
-                return (0.0, 20.0)
-        else:  # FIXED_COMPONENT
-            min = 0
-            max = (self._bottom_separator_overhang_left + self._bottom_separator_overhang_right) * M_TO_MM
-            return (min, max)
-
-    @property
-    def bottom_separator_overhang_right_range(self) -> tuple:
-        """
-        Get the valid range for right bottom separator overhang based on control mode.
-
-        Returns
-        -------
-        tuple
-            (min, max) overhang range in mm.
-            FIXED_OVERHANGS: (0, 20)
-            FIXED_COMPONENT: (0, left + right overhang total)
-        """
-        from steer_opencell_design.Constructions.Layups.Laminate import Laminate
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            if type(self) == Laminate:
-                return (0.0, 500.0)
-            else:
-                return (0.0, 20.0)
-        else:  # FIXED_COMPONENT
-            min = 0
-            max = (self._bottom_separator_overhang_left + self._bottom_separator_overhang_right) * M_TO_MM
-            return (min, max)
-
-    @property
-    def bottom_separator_overhang_bottom_range(self) -> tuple:
-        """
-        Get the valid range for bottom bottom separator overhang based on control mode.
-
-        Returns
-        -------
-        tuple
-            (min, max) overhang range in mm.
-            FIXED_OVERHANGS: (0, 20)
-            FIXED_COMPONENT: (0, bottom + top overhang total)
-        """
-        if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            return (0.0, 20.0)
-        else:  # FIXED_COMPONENT
-            min = 0
-            max = (self._bottom_separator_overhang_bottom + self._bottom_separator_overhang_top) * M_TO_MM
-            return (min, max)
-
-    @property
-    def bottom_separator_overhang_top_range(self) -> tuple:
-        """
-        Get the valid range for top bottom separator overhang based on control mode.
-
-        Returns
-        -------
-        tuple
-            (min, max) overhang range in mm.
-            FIXED_OVERHANGS: (0, 20)
-            FIXED_COMPONENT: (0, bottom + top overhang total)
-        """
-        if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            return (0.0, 20.0)
-        else:  # FIXED_COMPONENT
-            min = 0
-            max = (self._bottom_separator_overhang_bottom + self._bottom_separator_overhang_top) * M_TO_MM
-            return (min, max)
-
-    #### TOP SEPARATOR OVERHANG PROPERTY/SETTERS ####
-
-    @property
-    def top_separator_overhang_left(self) -> float:
-        """
-        Get the left overhang of the top separator relative to the cathode in mm.
-
-        Returns
-        -------
-        float
-            Left overhang in mm. Positive values indicate separator extends beyond cathode.
-        """
-        return round(self._top_separator_overhang_left * M_TO_MM, 3)
-
-    @property
-    def top_separator_overhang_right(self) -> float:
-        """
-        Get the right overhang of the top separator relative to the cathode in mm.
-
-        Returns
-        -------
-        float
-            Right overhang in mm. Positive values indicate separator extends beyond cathode.
-        """
-        return round(self._top_separator_overhang_right * M_TO_MM, 3)
-
-    @property
-    def top_separator_overhang_bottom(self) -> float:
-        """
-        Get the bottom overhang of the top separator relative to the cathode in mm.
-
-        Returns
-        -------
-        float
-            Bottom overhang in mm. Positive values indicate separator extends beyond cathode.
-        """
-        return round(self._top_separator_overhang_bottom * M_TO_MM, 3)
-
-    @property
-    def top_separator_overhang_top(self) -> float:
-        """
-        Get the top overhang of the top separator relative to the cathode in mm.
-
-        Returns
-        -------
-        float
-            Top overhang in mm. Positive values indicate separator extends beyond cathode.
-        """
-        return round(self._top_separator_overhang_top * M_TO_MM, 3)
-
-    @property
-    def top_separator_overhangs(self) -> dict:
-        """
-        Get all top separator overhangs as a dictionary.
-
-        Returns
-        -------
-        dict
-            Dictionary with keys 'left', 'right', 'bottom', 'top' and overhang values in mm.
-        """
-        return {
-            "left": self.top_separator_overhang_left,
-            "right": self.top_separator_overhang_right,
-            "bottom": self.top_separator_overhang_bottom,
-            "top": self.top_separator_overhang_top,
-        }
-
-    @top_separator_overhang_left.setter
-    @calculate_coordinates
-    @calculate_bulk_properties
-    def top_separator_overhang_left(self, overhang: float) -> None:
-        """
-        Set the left overhang of the top separator relative to the cathode.
-
-        Parameters
-        ----------
-        overhang : float
-            Target left overhang in mm. Positive values indicate separator extends beyond cathode.
-        """
-        self.validate_positive_float(overhang, "top_separator_overhang_left")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("top_separator", overhang, "left")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("top_separator", overhang, "left")
-
-    @top_separator_overhang_right.setter
-    @calculate_coordinates
-    @calculate_bulk_properties
-    def top_separator_overhang_right(self, overhang: float) -> None:
-        """
-        Set the right overhang of the top separator relative to the cathode.
-
-        Parameters
-        ----------
-        overhang : float
-            Target right overhang in mm. Positive values indicate separator extends beyond cathode.
-        """
-        self.validate_positive_float(overhang, "top_separator_overhang_right")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("top_separator", overhang, "right")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("top_separator", overhang, "right")
-
-    @top_separator_overhang_bottom.setter
-    @calculate_coordinates
-    @calculate_bulk_properties
-    def top_separator_overhang_bottom(self, overhang: float) -> None:
-        """
-        Set the bottom overhang of the top separator relative to the cathode.
-
-        Parameters
-        ----------
-        overhang : float
-            Target bottom overhang in mm. Positive values indicate separator extends beyond cathode.
-        """
-        self.validate_positive_float(overhang, "top_separator_overhang_bottom")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("top_separator", overhang, "bottom")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("top_separator", overhang, "bottom")
-
-    @top_separator_overhang_top.setter
-    @calculate_coordinates
-    @calculate_bulk_properties
-    def top_separator_overhang_top(self, overhang: float) -> None:
-        """
-        Set the top overhang of the top separator relative to the cathode.
-
-        Parameters
-        ----------
-        overhang : float
-            Target top overhang in mm. Positive values indicate separator extends beyond cathode.
-        """
-        self.validate_positive_float(overhang, "top_separator_overhang_top")
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
-            self._adjust_overhang_fixed_component("top_separator", overhang, "top")
-        elif self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            self._adjust_overhang_fixed_overhangs("top_separator", overhang, "top")
-
-    #### TOP SEPARATOR OVERHANG RANGE PROPERTIES ####
-
-    @property
-    def top_separator_overhang_left_range(self) -> tuple:
-        """
-        Get the valid range for left top separator overhang based on control mode.
-
-        Returns
-        -------
-        tuple
-            (min, max) overhang range in mm.
-            FIXED_OVERHANGS: (0, 20)
-            FIXED_COMPONENT: (0, left + right overhang total)
-        """
-        from steer_opencell_design.Constructions.Layups.Laminate import Laminate
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            if type(self) == Laminate:
-                return (0.0, 500.0)
-            else:
-                return (0.0, 20.0)
-        else:  # FIXED_COMPONENT
-            return (
-                0.0,
-                self.top_separator_overhang_left + self.top_separator_overhang_right,
-            )
-
-    @property
-    def top_separator_overhang_right_range(self) -> tuple:
-        """
-        Get the valid range for right top separator overhang based on control mode.
-
-        Returns
-        -------
-        tuple
-            (min, max) overhang range in mm.
-            FIXED_OVERHANGS: (0, 20)
-            FIXED_COMPONENT: (0, left + right overhang total)
-        """
-        from steer_opencell_design.Constructions.Layups.Laminate import Laminate
-
-        if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            if type(self) == Laminate:
-                return (0.0, 500.0)
-            else:
-                return (0.0, 20.0)
-        else:  # FIXED_COMPONENT
-            return (
-                0.0,
-                self.top_separator_overhang_left + self.top_separator_overhang_right,
-            )
-
-    @property
-    def top_separator_overhang_bottom_range(self) -> tuple:
-        """
-        Get the valid range for bottom top separator overhang based on control mode.
-
-        Returns
-        -------
-        tuple
-            (min, max) overhang range in mm.
-            FIXED_OVERHANGS: (0, 20)
-            FIXED_COMPONENT: (0, bottom + top overhang total)
-        """
-        if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            return (0.0, 20.0)
-        else:  # FIXED_COMPONENT
-            return (
-                0.0,
-                self.top_separator_overhang_bottom + self.top_separator_overhang_top,
-            )
-
-    @property
-    def top_separator_overhang_top_range(self) -> tuple:
-        """
-        Get the valid range for top top separator overhang based on control mode.
-
-        Returns
-        -------
-        tuple
-            (min, max) overhang range in mm.
-            FIXED_OVERHANGS: (0, 20)
-            FIXED_COMPONENT: (0, bottom + top overhang total)
-        """
-        if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
-            return (0.0, 20.0)
-        else:  # FIXED_COMPONENT
-            return (
-                0.0,
-                self.top_separator_overhang_bottom + self.top_separator_overhang_top,
-            )
-
-    #### OVERHANG CONTROL MODE ####
-
-    @property
-    def overhang_control_mode(self) -> OverhangControlMode:
-        """Get the current overhang control mode."""
-        return self._overhang_control_mode
-
-    @overhang_control_mode.setter
-    def overhang_control_mode(self, mode: OverhangControlMode):
-
-        if isinstance(mode, OverhangControlMode):
-            self._overhang_control_mode = mode
-            return
-        
-        elif isinstance(mode, str):
-            for enum_member in OverhangControlMode:
-                if mode.lower().replace(" ", "_") == enum_member.value:
-                    self._overhang_control_mode = enum_member
-                    return
-
-    #### N/P RATIO CONTROL MODE ####
-
-    @property
-    def np_ratio_control_mode(self) -> NPRatioControlMode:
-        """Get the current N/P ratio control mode."""
-        return self._np_ratio_control_mode
-    
     @np_ratio_control_mode.setter
     def np_ratio_control_mode(self, mode: NPRatioControlMode):
 
@@ -1684,5 +882,197 @@ class _Layup(
                     self._np_ratio_control_mode = enum_member
                     return
 
+    @operating_voltage_window.setter
+    @calculate_electrochemical_properties
+    def operating_voltage_window(self, value: Tuple[float, float]) -> None:
+        """Set operating voltage window (min, max) in volts."""
+        old_update_state = self._update_properties
+        self._update_properties = False
+        self.minimum_operating_voltage = value[0]
+        self.maximum_operating_voltage = value[1]
+        self._operating_voltage_window = (self._minimum_operating_voltage, self._maximum_operating_voltage)
+        self._update_properties = old_update_state
 
+    @minimum_operating_voltage.setter
+    @calculate_electrochemical_properties
+    def minimum_operating_voltage(self, value: float) -> None:
+
+        range_min = min(self._minimum_operating_voltage_range)
+        range_max = max(self._minimum_operating_voltage_range)
+        
+        if value is None:
+            value = range_min
+
+        # validate positive float
+        self.validate_positive_float(value, "minimum_operating_voltage")
+        
+        # clamp to operating voltage range
+        if value < range_min:
+            self._minimum_operating_voltage = range_min
+        elif value > range_max:
+            self._minimum_operating_voltage = range_max
+        else:
+            self._minimum_operating_voltage = value
+
+        if self._update_properties:
+            self._operating_voltage_window = (
+                self._minimum_operating_voltage,
+                self._maximum_operating_voltage,
+            )
+
+    @maximum_operating_voltage.setter
+    @calculate_electrochemical_properties
+    def maximum_operating_voltage(self, value: float) -> None:
+
+        # get the minimum and maximum of the operating voltage range
+        range_min = min(self._maximum_operating_voltage_range)
+        range_max = max(self._maximum_operating_voltage_range)
+        
+        # if value is None, set to max of range
+        if value is None:
+            value = range_max
+
+        # validate positive float
+        self.validate_positive_float(value, "maximum_operating_voltage")
+        
+        # clamp values to range
+        self._maximum_operating_voltage = np.clip(value, range_min, range_max)
+
+        if self._update_properties:
+
+            self._operating_voltage_window = (
+                self._minimum_operating_voltage,
+                self._maximum_operating_voltage,
+            )
+
+        def voltage_objective(cutoff: float):
+            """Calculate difference between target and actual maximum voltage.
+        
+            Parameters
+            ----------
+            cutoff : float
+                Cathode formulation voltage cutoff to test.
+                
+            Returns
+            -------
+            float
+                Difference between achieved max voltage and target.
+            """
+            # get the cathode with modified cutoff
+            _cathode = deepcopy(self._cathode)
+            _cathode._formulation.voltage_cutoff = cutoff
+            _cathode.formulation = _cathode._formulation
+
+            # get the electrode curves
+            _cathode_areal_curve = _cathode._areal_capacity_curve
+            _anode_areal_curve = self._anode._areal_capacity_curve
+
+            # compute the full-cell curve
+            _, full_cell_curve = self._compute_areal_full_cell_curve(
+                _cathode_areal_curve, 
+                _anode_areal_curve
+            )
+
+            # get the max voltage of the full-cell curve
+            max_voltage = full_cell_curve[:, 1].max()
+
+            # calculate the difference
+            difference = max_voltage - self._maximum_operating_voltage
+
+            # return the difference from target
+            return difference
+        
+        # Find optimal cutoff using Brent's method
+        optimal_cathode_cutoff = brentq(
+            voltage_objective,
+            min(self._cathode._formulation._voltage_operation_window),
+            max(self._cathode._formulation._voltage_operation_window),
+            xtol=1e-5,
+            rtol=1e-5,
+        )
+
+        # set the cathode formulation voltage cutoff
+        self._cathode._formulation.voltage_cutoff = optimal_cathode_cutoff
+        self._cathode.formulation = self._cathode._formulation
+        self._cathode = self._cathode
+
+
+    @operating_reversible_areal_capacity.setter
+    @calculate_electrochemical_properties
+    def operating_reversible_areal_capacity(self, value: float) -> None:
+
+        # get the minimum and maximum of the operating voltage range
+        range_min = min(self._maximum_areal_reversible_capacity_range)
+        range_max = max(self._maximum_areal_reversible_capacity_range)
+        
+        # if value is None, set to max of range
+        if value is None:
+            value = range_max
+
+        # validate positive float
+        self.validate_positive_float(value, "operating_reversible_areal_capacity")
+        
+        # convert value to Ah/m²
+        capacity_conversion = M_TO_CM**2 / (S_TO_H * A_TO_mA)
+        value = value * capacity_conversion
+
+        # clamp values to range
+        self._operating_reversible_areal_capacity = np.clip(value, range_min, range_max)
+
+        def areal_capacity_objective(voltage_cutoff: float):
+            """Calculate difference between target and actual maximum voltage.
+        
+            Parameters
+            ----------
+            cutoff : float
+                Cathode formulation voltage cutoff to test.
+                
+            Returns
+            -------
+            float
+                Difference between achieved max voltage and target.
+            """
+            # get the cathode with modified cutoff
+            _cathode = deepcopy(self._cathode)
+            _cathode._formulation.voltage_cutoff = voltage_cutoff
+            _cathode.formulation = _cathode._formulation
+
+            # get the electrode curves
+            _cathode_areal_curve = _cathode._areal_capacity_curve
+            _anode_areal_curve = self._anode._areal_capacity_curve
+
+            # compute the full-cell curve
+            _, full_cell_curve = self._compute_areal_full_cell_curve(
+                _cathode_areal_curve, 
+                _anode_areal_curve
+            )
+
+            # get the discharge portion of the full-cell curve
+            discharge_mask = full_cell_curve[:, 2] == -1
+            discharge_curve = full_cell_curve[discharge_mask]
+
+            # get the max areal capacity of the discharge curve
+            max_capacity = discharge_curve[:, 0].max()
+            min_capacity = discharge_curve[:, 0].min()
+            reversible_capacity = max_capacity - min_capacity
+
+            # calculate the difference
+            difference = reversible_capacity - self._operating_reversible_areal_capacity
+
+            # return the difference from target
+            return difference
+        
+        # Find optimal cutoff using Brent's method
+        optimal_cathode_cutoff = brentq(
+            areal_capacity_objective,
+            min(self._cathode._formulation._voltage_operation_window),
+            max(self._cathode._formulation._voltage_operation_window),
+            xtol=1e-5,
+            rtol=1e-5,
+        )
+
+        # set the cathode formulation voltage cutoff
+        self._cathode._formulation.voltage_cutoff = optimal_cathode_cutoff
+        self._cathode.formulation = self._cathode._formulation
+        self._cathode = self._cathode
 

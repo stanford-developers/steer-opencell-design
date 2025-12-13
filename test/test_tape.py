@@ -235,22 +235,5 @@ class TestTapeBulkPropertyRecalculation(unittest.TestCase):
         self.assertIsNotNone(partial_tape.cost)
 
 
-class TestTapeCalculateTotalCost(unittest.TestCase):
-    """Test the calculate_total_cost utility method."""
-
-    def setUp(self):
-        """Set up test fixtures."""
-        tape_material = TapeMaterial.from_database(name="Kapton")
-        self.tape = Tape(material=tape_material, thickness=25)
-
-    def test_calculate_total_cost(self):
-        """Test calculate_total_cost method."""
-        area_cm2 = 100  # cm²
-        expected_cost = area_cm2 * self.tape.areal_cost
-        calculated_cost = self.tape.calculate_total_cost(area_cm2)
-        
-        self.assertAlmostEqual(calculated_cost, expected_cost, places=4)
-
-
 if __name__ == '__main__':
     unittest.main()

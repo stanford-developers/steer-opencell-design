@@ -382,7 +382,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         x_end = self._datum[0] + self._x_body_length / 2 - bare_right
 
         # Case 1: Insulation entirely above the body
-        if round(y_ins_start, 5) >= round(y_body_top, 5):
+        if np.round(y_ins_start, 5) >= np.round(y_body_top, 5):
             all_x = []
             all_y = []
 
@@ -413,7 +413,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
             y = np.array(all_y)
 
         # Case 2: Insulation entirely below the body
-        elif round(y_ins_end, 10) <= round(y_body_top, 10):
+        elif np.round(y_ins_end, 10) <= np.round(y_body_top, 10):
             x, y = self.build_square_array(
                 x_width=x_end - x_start,
                 y_width=self._insulation_width,
@@ -454,11 +454,11 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
     @property
     def tab_positions(self) -> list:
-        return [(round(start * M_TO_MM, 4), round(end * M_TO_MM, 4)) for start, end in self._tab_positions]
+        return [(round(start * M_TO_MM, 4), np.round(end * M_TO_MM, 4)) for start, end in self._tab_positions]
 
     @property
     def tab_spacing(self) -> float:
-        return round(self._tab_spacing * M_TO_MM, 2)
+        return np.round(self._tab_spacing * M_TO_MM, 2)
 
     @property
     def tab_spacing_range(self) -> Tuple[float, float]:
@@ -473,7 +473,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
     @property
     def tab_gap(self) -> float:
-        return round(self._tab_gap * M_TO_MM, 2)
+        return np.round(self._tab_gap * M_TO_MM, 2)
 
     @property
     def tab_gap_range(self) -> Tuple[float, float]:
@@ -494,7 +494,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         min = 0.01
         max = 0.5
 
-        return (round(min * M_TO_MM, 2), round(max * M_TO_MM, 2))
+        return (round(min * M_TO_MM, 2), np.round(max * M_TO_MM, 2))
 
     @property
     def tab_width_range(self) -> Tuple[float, float]:

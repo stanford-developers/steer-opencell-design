@@ -1,25 +1,26 @@
-from steer_core.DataManager import DataManager
 from steer_core.Constants.Units import *
 from steer_core.Mixins.Data import DataMixin
 from steer_core.Mixins.Serializer import SerializerMixin
+from steer_core.Mixins.Plotter import PlotterMixin
 
 from steer_materials.Base import _Material, _VolumedMaterialMixin
 
-from steer_opencell_design.Materials.HalfCellUtils import HalfCellMixin
+from steer_opencell_design.Materials.CapacityCurveUtils import CapacityCurveMixin
 
 import pandas as pd
 import numpy as np
-import plotly.express as px
+import plotly.graph_objects as go
 from plotly import graph_objects as go
 from typing import List, Tuple, Union, Optional, Type
 from copy import deepcopy
 
 
 class _ActiveMaterial(
-    _Material, 
     _VolumedMaterialMixin, 
+    _Material, 
     DataMixin,
-    HalfCellMixin
+    CapacityCurveMixin,
+    PlotterMixin
     ):
 
     def __init__(
@@ -28,12 +29,16 @@ class _ActiveMaterial(
         reference: str,
         specific_cost: float,
         density: float,
-        half_cell_curves: Union[List[pd.DataFrame], pd.DataFrame],
+        specific_capacity_curves: Union[List[pd.DataFrame], pd.DataFrame],
         color: Optional[str] = "#2c2c2c",
         voltage_cutoff: Optional[float] = None,
         extrapolation_window: Optional[float] = 0.4,
         reversible_capacity_scaling: Optional[float] = 1.0,
         irreversible_capacity_scaling: Optional[float] = 1.0,
+        *,
+        volume=None,
+        mass=None,
+        **kwargs,
     ) -> None:
         """
         Initialize an object that represents an active material.
@@ -48,7 +53,7 @@ class _ActiveMaterial(
             Specific cost of the material in $/kg.
         density : float
             Density of the material in g/cm^3.
-        half_cell_curves : Union[List[pd.DataFrame], pd.DataFrame]
+        specific_capacity_curves : Union[List[pd.DataFrame], pd.DataFrame]
             Half cell curves for the material, either as a list of pandas DataFrames or a single DataFrame.
         color : str
             Color of the material, used for plotting.
@@ -67,14 +72,17 @@ class _ActiveMaterial(
             name=name, 
             density=density, 
             specific_cost=specific_cost, 
-            color=color
+            color=color,
+            volume=volume,
+            mass=mass,
+            **kwargs,
         )
 
         self._update_properties = False
 
         self.reference = reference
         self.extrapolation_window = extrapolation_window
-        self.half_cell_curves = half_cell_curves
+        self.specific_capacity_curves = specific_capacity_curves
         self.voltage_cutoff = voltage_cutoff
         self.reversible_capacity_scaling = reversible_capacity_scaling
         self.irreversible_capacity_scaling = irreversible_capacity_scaling
@@ -82,7 +90,7 @@ class _ActiveMaterial(
         self._update_properties = True
 
     def _calculate_all_properties(self) -> None:
-        self._refresh_half_cell_curve()
+        self._refresh_specific_capacity_curve()
 
     def _get_default_curve_from_curves(self) -> None:
         """
@@ -90,22 +98,22 @@ class _ActiveMaterial(
 
         :return: pd.DataFrame: The default half cell curve.
         """
-        half_cell_curves = self._half_cell_curves.copy()
+        specific_capacity_curves = self._specific_capacity_curves.copy()
 
         # get the maximum specific capacity for each half cell curve
         maximum_specific_capacities = []
-        for hcc in half_cell_curves:
+        for hcc in specific_capacity_curves:
             maximum_specific_capacities.append(np.max(hcc[:, 0]))
 
         # get the index of the half cell curve with the maximum specific capacity
         max_index = np.argmax(maximum_specific_capacities)
 
         # get the half cell curve with the maximum specific capacity
-        self._half_cell_curve = self._half_cell_curves[max_index].copy()
+        self._specific_capacity_curve = self._specific_capacity_curves[max_index].copy()
 
         # get the voltage at maximum specific capacity
-        self._voltage_cutoff = self._half_cell_curve[
-            self._half_cell_curve[:, 0] == np.max(self._half_cell_curve[:, 0]), 1
+        self._voltage_cutoff = self._specific_capacity_curve[
+            self._specific_capacity_curve[:, 0] == np.max(self._specific_capacity_curve[:, 0]), 1
         ][0]
 
     def _get_maximum_operating_voltage(self) -> float:
@@ -114,7 +122,7 @@ class _ActiveMaterial(
         """
         max_voltages = []
 
-        for curve in self._half_cell_curves:
+        for curve in self._specific_capacity_curves:
             max_capacity_idx = np.argmax(curve[:, 0])
             voltage_at_max_capacity = curve[max_capacity_idx, 1]
             max_voltages.append(voltage_at_max_capacity)
@@ -127,7 +135,7 @@ class _ActiveMaterial(
         """
         max_voltages = []
 
-        for curve in self._half_cell_curves:
+        for curve in self._specific_capacity_curves:
             max_capacity_idx = np.argmax(curve[:, 0])
             voltage_at_max_capacity = curve[max_capacity_idx, 1]
             max_voltages.append(voltage_at_max_capacity)
@@ -158,18 +166,18 @@ class _ActiveMaterial(
                 self._maximum_operating_voltage,
             )
 
-    def _calculate_half_cell_curves_properties(self):
+    def _calculate_specific_capacity_curves_properties(self):
         self._get_maximum_operating_voltage()
         self._get_minimum_operating_voltage()
         self._get_operating_voltage_range()
 
-    def _refresh_half_cell_curve(self) -> None:
+    def _refresh_specific_capacity_curve(self) -> None:
         """Recalculate the working half-cell curve using the current cutoff."""
-        if not hasattr(self, "_half_cell_curves") or not self._half_cell_curves:
+        if not hasattr(self, "_specific_capacity_curves") or not self._specific_capacity_curves:
             return
 
         if not hasattr(self, "_voltage_operation_window"):
-            self._calculate_half_cell_curves_properties()
+            self._calculate_specific_capacity_curves_properties()
 
         voltage_cutoff = getattr(self, "_voltage_cutoff", None)
 
@@ -177,47 +185,50 @@ class _ActiveMaterial(
             self._get_default_curve_from_curves()
             return
 
-        self._half_cell_curve = self._calculate_half_cell_curve(
-            self._half_cell_curves,
+        self._specific_capacity_curve = self._calculate_specific_capacity_curve(
+            self._specific_capacity_curves,
             voltage_cutoff,
             self._voltage_operation_window,
             type(self),
         )
 
-    def plot_curves(self, **kwargs):
+    def plot_specific_capacity_curves(self, **kwargs):
 
-        fig = px.line(
-            self.half_cell_curves,
-            x="Specific Capacity (mAh/g)",
-            y="Voltage (V)",
-            color="Voltage at Maximum Capacity (V)",
-            line_shape="spline",
-        )
+        fig = go.Figure()
+        fig.add_traces(self.specific_capacity_curves_traces)
+        XAXIS = self.SCATTER_X_AXIS
+        XAXIS['title'] = 'Specific Capacity (mAh/g)'
+        YAXIS = self.SCATTER_Y_AXIS
+        YAXIS['title'] = 'Voltage (V)'
 
         fig.update_layout(
             title=kwargs.get("title", f"Capacity Curves"),
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             hovermode="closest",
+            xaxis=XAXIS,
+            yaxis=YAXIS,
             **kwargs,
         )
 
         return fig
 
-    def plot_half_cell_curve(self, **kwargs):
+    def plot_specific_capacity_curve(self, **kwargs):
 
-        fig = px.line(
-            self.half_cell_curve,
-            x="Specific Capacity (mAh/g)",
-            y="Voltage (V)",
-            line_shape="spline",
-        )
+        fig = go.Figure()
+        fig.add_trace(self.specific_capacity_curve_trace)
+        XAXIS = self.SCATTER_X_AXIS
+        XAXIS['title'] = 'Specific Capacity (mAh/g)'
+        YAXIS = self.SCATTER_Y_AXIS
+        YAXIS['title'] = 'Voltage (V)'
 
         fig.update_layout(
             title=kwargs.get("title", f"Half Cell Curve"),
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             hovermode="closest",
+            xaxis=XAXIS,
+            yaxis=YAXIS,
             **kwargs,
         )
 
@@ -240,8 +251,8 @@ class _ActiveMaterial(
         :return: tuple: (minimum voltage, maximum voltage)
         """
         return (
-            round(float(self._voltage_operation_window[0]), 2),
-            round(float(self._voltage_operation_window[2]), 2),
+            np.round(float(self._voltage_operation_window[0]), 2),
+            np.round(float(self._voltage_operation_window[2]), 2),
         )
 
     @property
@@ -261,65 +272,96 @@ class _ActiveMaterial(
         :return: str: Reference electrode for the material, e.g., 'Li/Li+'
         """
         return self._reference
+        
+    @property
+    def specific_capacity_curve(self) -> pd.DataFrame:
+        """Get the specific capacity curve with proper units and formatting."""
+        if self._specific_capacity_curve is None:
+            return None
+
+        # Pre-compute unit conversion factor
+        capacity_conversion = S_TO_H * A_TO_mA / KG_TO_G
+        
+        # Create DataFrame with converted values directly
+        return pd.DataFrame({
+            "Specific Capacity (mAh/g)": np.round(
+                self._specific_capacity_curve[:, 0] * capacity_conversion, 4
+            ),
+            "Voltage (V)": np.round(self._specific_capacity_curve[:, 1], 4),
+            "Direction": np.where(
+                self._specific_capacity_curve[:, 2] == 1, "charge", "discharge"
+            ),
+        })
 
     @property
-    def half_cell_curve(self) -> pd.DataFrame:
+    def specific_capacity_curves(self) -> pd.DataFrame:
+        """Get all specific capacity curves with proper units and formatting."""
+        # Pre-compute unit conversion factor once
+        if self._specific_capacity_curves is None:
+            return None
 
-        return (
-            pd.DataFrame(
-                self._half_cell_curve,
-                columns=["specific_capacity", "voltage", "direction"],
-            )
-            .assign(
-                direction=lambda x: np.where(
-                    x["direction"] == 1, "charge", "discharge"
-                ),
-                specific_capacity=lambda x: x["specific_capacity"]
-                * (S_TO_H * A_TO_mA / KG_TO_G),
-            )
-            .rename(
-                columns={
-                    "specific_capacity": "Specific Capacity (mAh/g)",
-                    "voltage": "Voltage (V)",
-                    "direction": "Direction",
-                }
-            )
-            .round(4)
-        )
-
-    @property
-    def half_cell_curves(self) -> pd.DataFrame:
-
+        capacity_conversion = S_TO_H * A_TO_mA / KG_TO_G
+        
+        # Pre-allocate list with known size
         data_list = []
+        
+        for curve in self._specific_capacity_curves:
 
-        for curve in self._half_cell_curves:
+            # Compute max voltage once
+            max_voltage = np.round(curve[:, 1].max(), 4)
+            
+            # Create arrays directly without intermediate steps
+            capacity = np.round(curve[:, 0] * capacity_conversion, 4)
+            voltage = np.round(curve[:, 1], 4)
+            direction = np.where(curve[:, 2] == 1, "charge", "discharge")
+            
+            # Create DataFrame with pre-computed arrays
+            df = pd.DataFrame({
+                "Specific Capacity (mAh/g)": capacity,
+                "Voltage (V)": voltage,
+                "Direction": direction,
+                "Voltage at Maximum Capacity (V)": max_voltage,
+            })
+            
+            data_list.append(df)
+        
+        return pd.concat(data_list, ignore_index=True)
+    
+    @property
+    def specific_capacity_curves_traces(self) -> List[go.Scatter]:
 
-            df = (
-                pd.DataFrame(
-                    curve, columns=["specific_capacity", "voltage", "direction"]
-                )
-                .assign(
-                    direction=lambda x: np.where(
-                        x["direction"] == 1, "charge", "discharge"
-                    ),
-                    specific_capacity=lambda x: x["specific_capacity"]
-                    * (S_TO_H * A_TO_mA / KG_TO_G),
-                    voltage_at_max_capacity=lambda x: x["voltage"].max(),
-                )
-                .rename(
-                    columns={
-                        "specific_capacity": "Specific Capacity (mAh/g)",
-                        "voltage": "Voltage (V)",
-                        "direction": "Direction",
-                        "voltage_at_max_capacity": "Voltage at Maximum Capacity (V)",
-                    }
-                )
-                .round(4)
+        if self._specific_capacity_curves is None:
+            return None
+
+        data = self.specific_capacity_curves
+        traces = []
+
+        for name, df in data.groupby("Voltage at Maximum Capacity (V)"):
+
+            trace = go.Scatter(
+                x=df["Specific Capacity (mAh/g)"],
+                y=df["Voltage (V)"],
+                name=f"{name} V",
+                line=dict(width=2),
+                mode="lines",
+                hovertemplate="<b>%{fullData.name}</b><br>" + "Capacity: %{x:.2f} mAh/g<br>" + "Voltage: %{y:.3f} V<br>" + "<i>Individual Material</i><extra></extra>",
             )
 
-            data_list.append(df)
+            traces.append(trace)
 
-        return pd.concat(data_list, ignore_index=True)
+        return traces
+    
+    @property
+    def specific_capacity_curve_trace(self) -> go.Scatter:
+
+        return go.Scatter(
+            x=self.specific_capacity_curve["Specific Capacity (mAh/g)"],
+            y=self.specific_capacity_curve["Voltage (V)"],
+            name=self.name,
+            line=dict(color=self._color, width=2),
+            mode="lines",
+            hovertemplate="<b>%{fullData.name}</b><br>" + "Capacity: %{x:.2f} mAh/g<br>" + "Voltage: %{y:.3f} V<br>" + "<i>Individual Material</i><extra></extra>",
+        )
 
     @property
     def irreversible_capacity_scaling(self) -> float:
@@ -346,11 +388,11 @@ class _ActiveMaterial(
         return 0, 2
 
     @property
-    def half_cell_curve_trace(self) -> go.Scatter:
+    def specific_capacity_curve_trace(self) -> go.Scatter:
 
         return go.Scatter(
-            x=self.half_cell_curve["Specific Capacity (mAh/g)"],
-            y=self.half_cell_curve["Voltage (V)"],
+            x=self.specific_capacity_curve["Specific Capacity (mAh/g)"],
+            y=self.specific_capacity_curve["Voltage (V)"],
             name=self.name,
             line=dict(color=self._color, width=2),
             mode="lines",
@@ -375,11 +417,11 @@ class _ActiveMaterial(
         # get the old scaling factor
         if hasattr(self, "_reversible_capacity_scaling") and self._reversible_capacity_scaling != 1.0:
             original_scaling = self._reversible_capacity_scaling
-            self._half_cell_curve = self._apply_reversible_capacity_scaling(self._half_cell_curve, 1 / original_scaling)
+            self._specific_capacity_curve = self._apply_reversible_capacity_scaling(self._specific_capacity_curve, 1 / original_scaling)
         else:
             original_scaling = 1.0
 
-        self._half_cell_curve = self._apply_reversible_capacity_scaling(self._half_cell_curve, scaling)
+        self._specific_capacity_curve = self._apply_reversible_capacity_scaling(self._specific_capacity_curve, scaling)
         self._reversible_capacity_scaling = scaling
 
     @voltage_cutoff.setter
@@ -412,10 +454,10 @@ class _ActiveMaterial(
             self.validate_positive_float(voltage, "Voltage cutoff")
             self._voltage_cutoff = voltage
             if not hasattr(self, "_voltage_operation_window"):
-                self._calculate_half_cell_curves_properties()
+                self._calculate_specific_capacity_curves_properties()
 
-            self._half_cell_curve = self._calculate_half_cell_curve(
-                self._half_cell_curves,
+            self._specific_capacity_curve = self._calculate_specific_capacity_curve(
+                self._specific_capacity_curves,
                 self._voltage_cutoff,
                 self._voltage_operation_window,
                 type(self),
@@ -425,8 +467,8 @@ class _ActiveMaterial(
                 hasattr(self, "_irreversible_capacity_scaling")
                 and self._irreversible_capacity_scaling != 1.0
             ):
-                self._half_cell_curve = self._apply_irreversible_capacity_scaling(
-                    self._half_cell_curve,
+                self._specific_capacity_curve = self._apply_irreversible_capacity_scaling(
+                    self._specific_capacity_curve,
                     self._irreversible_capacity_scaling,
                 )
 
@@ -434,8 +476,8 @@ class _ActiveMaterial(
                 hasattr(self, "_reversible_capacity_scaling")
                 and self._reversible_capacity_scaling != 1.0
             ):
-                self._half_cell_curve = self._apply_reversible_capacity_scaling(
-                    self._half_cell_curve,
+                self._specific_capacity_curve = self._apply_reversible_capacity_scaling(
+                    self._specific_capacity_curve,
                     self._reversible_capacity_scaling,
                 )
 
@@ -450,30 +492,30 @@ class _ActiveMaterial(
         
         if hasattr(self, "_irreversible_capacity_scaling") and self._irreversible_capacity_scaling != 1.0:
             original_scaling = self._irreversible_capacity_scaling
-            self._half_cell_curve = self._apply_irreversible_capacity_scaling(self._half_cell_curve, 1 / original_scaling)
+            self._specific_capacity_curve = self._apply_irreversible_capacity_scaling(self._specific_capacity_curve, 1 / original_scaling)
         else:
             original_scaling = 1.0
         
         # apply the new scaling factor
-        if hasattr(self, "_half_cell_curve"):
-            self._half_cell_curve = self._apply_irreversible_capacity_scaling(self._half_cell_curve, scaling)
+        if hasattr(self, "_specific_capacity_curve"):
+            self._specific_capacity_curve = self._apply_irreversible_capacity_scaling(self._specific_capacity_curve, scaling)
 
         self._irreversible_capacity_scaling = scaling
 
-    @half_cell_curves.setter
-    def half_cell_curves(
-        self, half_cell_curves: Union[List[pd.DataFrame], pd.DataFrame]
+    @specific_capacity_curves.setter
+    def specific_capacity_curves(
+        self, specific_capacity_curves: Union[List[pd.DataFrame], pd.DataFrame]
     ) -> None:
 
-        # Ensure half_cell_curves is a list
-        if not isinstance(half_cell_curves, List):
-            half_cell_curves = [half_cell_curves]
+        # Ensure specific_capacity_curves is a list
+        if not isinstance(specific_capacity_curves, List):
+            specific_capacity_curves = [specific_capacity_curves]
 
         # make a deep copy to avoid modifying the original data
-        half_cell_curves = deepcopy(half_cell_curves)
+        specific_capacity_curves = deepcopy(specific_capacity_curves)
 
         # Validate each dataframe
-        for df in half_cell_curves:
+        for df in specific_capacity_curves:
 
             self.validate_pandas_dataframe(
                 df,
@@ -482,7 +524,7 @@ class _ActiveMaterial(
             )
 
         # map the direction values to integers for faster processing
-        for df in half_cell_curves:
+        for df in specific_capacity_curves:
             df["direction"] = (
                 df["direction"]
                 .map({"charge": 1, "discharge": -1, "Charge": 1, "Discharge": -1})
@@ -491,19 +533,19 @@ class _ActiveMaterial(
         # Then convert to numpy arrays and process each curve individually
         array_list = [
             df[["specific_capacity", "voltage", "direction"]].to_numpy()
-            for df in half_cell_curves
+            for df in specific_capacity_curves
         ]
 
         processed_curves = [
-            self.process_half_cell_curves(curve_array.copy())
+            self.process_specific_capacity_curves(curve_array.copy())
             for curve_array in array_list
         ]
 
-        self._half_cell_curves = processed_curves
+        self._specific_capacity_curves = processed_curves
 
         # Store useful values for the half cell curves
-        self._calculate_half_cell_curves_properties()
-        self._refresh_half_cell_curve()
+        self._calculate_specific_capacity_curves_properties()
+        self._refresh_specific_capacity_curve()
 
     @extrapolation_window.setter
     def extrapolation_window(self, window: float):
@@ -511,10 +553,12 @@ class _ActiveMaterial(
         self._extrapolation_window = abs(float(window))
 
         if self._update_properties:
-            self._calculate_half_cell_curves_properties()
+            self._calculate_specific_capacity_curves_properties()
 
 
 class CathodeMaterial(_ActiveMaterial):
+
+    _table_name = "cathode_materials"
 
     def __init__(
         self,
@@ -522,12 +566,16 @@ class CathodeMaterial(_ActiveMaterial):
         reference: str,
         specific_cost: float,
         density: float,
-        half_cell_curves: Union[List[pd.DataFrame], pd.DataFrame],
+        specific_capacity_curves: Union[List[pd.DataFrame], pd.DataFrame],
         color: str = "#2c2c2c",
         voltage_cutoff: float = None,
         extrapolation_window: float = 0.4,
         reversible_capacity_scaling: float = 1.0,
         irreversible_capacity_scaling: float = 1.0,
+        *,
+        volume=None,
+        mass=None,
+        **kwargs,
     ):
         """
         Initialize an object that represents a cathode material.
@@ -542,7 +590,7 @@ class CathodeMaterial(_ActiveMaterial):
             Specific cost of the material in $/kg.
         density : float
             Density of the material in g/cm^3.
-        half_cell_curves : Union[List[pd.DataFrame], pd.DataFrame]
+        specific_capacity_curves : Union[List[pd.DataFrame], pd.DataFrame]
             Half cell curves for the material, either as a list of pandas DataFrames or a single DataFrame.
         voltage_cutoff : float
             The voltage cutoff for the half cell curves in V. This is the maximum voltage at which the half cell curve will be calculated.
@@ -561,37 +609,16 @@ class CathodeMaterial(_ActiveMaterial):
             reference=reference,
             specific_cost=specific_cost,
             density=density,
-            half_cell_curves=half_cell_curves,
+            specific_capacity_curves=specific_capacity_curves,
             color=color,
             extrapolation_window=extrapolation_window,
             voltage_cutoff=voltage_cutoff,
             reversible_capacity_scaling=reversible_capacity_scaling,
             irreversible_capacity_scaling=irreversible_capacity_scaling,
+            volume=volume,
+            mass=mass,
+            **kwargs,
         )
-
-    @staticmethod
-    def from_database(name) -> "CathodeMaterial":
-        """
-        Pull object from the database.
-
-        :param name: str: Name of the current collector material.
-        :return: CurrentCollectorMaterial: Instance of the class.
-        """
-        database = DataManager()
-
-        available_materials = database.get_unique_values("cathode_materials", "name")
-
-        if name not in available_materials:
-            raise ValueError(
-                f"Material '{name}' not found in the database. Available materials: {available_materials}"
-            )
-
-        data = database.get_cathode_materials(most_recent=True).query(
-            f"name == '{name}'"
-        )
-        string_rep = data["object"].iloc[0]
-        material = SerializerMixin.deserialize(string_rep)
-        return material
 
     @property
     def minimum_extrapolated_voltage(self) -> float:
@@ -608,18 +635,24 @@ class CathodeMaterial(_ActiveMaterial):
 
 class AnodeMaterial(_ActiveMaterial):
 
+    _table_name = "anode_materials"
+
     def __init__(
         self,
         name: str,
         reference: str,
         specific_cost: float,
         density: float,
-        half_cell_curves: Union[List[pd.DataFrame], pd.DataFrame],
+        specific_capacity_curves: Union[List[pd.DataFrame], pd.DataFrame],
         color: str = "#2c2c2c",
         extrapolation_window: float = 0.05,
         voltage_cutoff: float = None,
         reversible_capacity_scaling: float = 1.0,
         irreversible_capacity_scaling: float = 1.0,
+        *,
+        volume=None,
+        mass=None,
+        **kwargs,
     ):
         """
         Initialize an object that represents an anode material.
@@ -634,7 +667,7 @@ class AnodeMaterial(_ActiveMaterial):
             Specific cost of the material in $/kg.
         density : float
             Density of the material in g/cm^3.
-        half_cell_curves : Union[List[pd.DataFrame], pd.DataFrame]
+        specific_capacity_curves : Union[List[pd.DataFrame], pd.DataFrame]
             Half cell curves for the material, either as a list of pandas DataFrames or a single DataFrame.
         color : str
             Color of the material, used for plotting.
@@ -653,33 +686,14 @@ class AnodeMaterial(_ActiveMaterial):
             reference=reference,
             specific_cost=specific_cost,
             density=density,
-            half_cell_curves=half_cell_curves,
+            specific_capacity_curves=specific_capacity_curves,
             color=color,
             voltage_cutoff=voltage_cutoff,
             extrapolation_window=extrapolation_window,
             reversible_capacity_scaling=reversible_capacity_scaling,
             irreversible_capacity_scaling=irreversible_capacity_scaling,
+            volume=volume,
+            mass=mass,
+            **kwargs,
         )
-
-    @staticmethod
-    def from_database(name) -> "AnodeMaterial":
-        """
-        Pull object from the database.
-
-        :param name: str: Name of the current collector material.
-        :return: CurrentCollectorMaterial: Instance of the class.
-        """
-        database = DataManager()
-
-        available_materials = database.get_unique_values("anode_materials", "name")
-
-        if name not in available_materials:
-            raise ValueError(
-                f"Material '{name}' not found in the database. Available materials: {available_materials}"
-            )
-
-        data = database.get_anode_materials(most_recent=True).query(f"name == '{name}'")
-        string_rep = data["object"].iloc[0]
-        material = SerializerMixin.deserialize(string_rep)
-        return material
 

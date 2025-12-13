@@ -2,7 +2,7 @@ from copy import deepcopy
 import unittest
 import plotly.graph_objects as go
 
-from steer_opencell_design.Formulations.ElectrodeFormulations import (
+from steer_opencell_design.Materials.Formulations import (
     CathodeFormulation,
     AnodeFormulation,
 )
@@ -12,7 +12,8 @@ from steer_opencell_design.Components.CurrentCollectors.Tabless import TablessCu
 from steer_opencell_design.Components.CurrentCollectors.Punched import PunchedCurrentCollector
 
 from steer_opencell_design.Components.Separators import Separator
-from steer_opencell_design.Constructions.Layups.Base import OverhangControlMode, NPRatioControlMode
+from steer_opencell_design.Constructions.Layups.Base import NPRatioControlMode
+from steer_opencell_design.Constructions.Layups.OverhangUtils import OverhangControlMode
 from steer_opencell_design.Constructions.Layups.Laminate import Laminate
 from steer_opencell_design.Constructions.Layups.MonoLayers import MonoLayer, ZFoldMonoLayer, ElectrodeOrientation
 from steer_opencell_design.Materials.Other import CurrentCollectorMaterial, InsulationMaterial, SeparatorMaterial
@@ -127,6 +128,12 @@ class TestSimpleLaminate(unittest.TestCase):
         condition = self.layup == temp_layup
         self.assertTrue(condition)
 
+    def test_serialization(self):
+        serialized = self.layup.serialize()
+        deserialized = Laminate.deserialize(serialized)
+        test_case = self.layup == deserialized
+        self.assertTrue(test_case)
+
     def test_get_thickness_at_x(self):
         self.layup.calculate_flattened_center_lines()
         self.assertAlmostEqual(self.layup.get_thickness_at_x(0), 0.000181, places=6)
@@ -134,6 +141,48 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertAlmostEqual(self.layup.get_thickness_at_x(2), 0.000066, places=6)
         self.assertAlmostEqual(self.layup.get_thickness_at_x(3), 0.0000499, places=6)
         self.assertAlmostEqual(self.layup.get_thickness_at_x(15), 0, places=6)
+
+    def test_voltage_limits(self):
+        self.assertTrue(hasattr(self.layup, "_minimum_operating_voltage_range"))
+        self.assertTrue(hasattr(self.layup, "_maximum_operating_voltage_range"))
+        self.assertTrue(hasattr(self.layup, "minimum_operating_voltage_range"))
+        self.assertTrue(hasattr(self.layup, "maximum_operating_voltage_range"))
+        self.assertTrue(hasattr(self.layup, "operating_reversible_areal_capacity"))
+        self.assertTrue(hasattr(self.layup, "_operating_reversible_areal_capacity"))
+        self.assertTrue(hasattr(self.layup, "maximum_areal_reversible_capacity_range"))
+        self.assertTrue(hasattr(self.layup, "_maximum_areal_reversible_capacity_range"))
+        self.assertEqual(self.layup.minimum_operating_voltage_range, (2.27, 3.12))
+        self.assertEqual(self.layup.maximum_operating_voltage_range, (3.63, 4.03))
+        self.assertEqual(self.layup.operating_reversible_areal_capacity, 0.842)
+        self.assertEqual(self.layup.maximum_areal_reversible_capacity_range, (0.819, 0.842))
+
+    def test_voltage_maximum_setter(self):
+
+        self.layup.maximum_operating_voltage = 3.8
+        self.assertEqual(self.layup.maximum_operating_voltage, 3.8)
+        self.assertAlmostEqual(self.layup._areal_capacity_curve[:,1].max(), 3.8, places=4)
+        figure1 = self.layup.get_areal_capacity_plot()
+
+        self.layup.maximum_operating_voltage = 4.0
+        self.assertEqual(self.layup.maximum_operating_voltage, 4.0)
+        self.assertAlmostEqual(self.layup._areal_capacity_curve[:,1].max(), 4.0, places=4)
+        figure2 = self.layup.get_areal_capacity_plot()
+
+        self.layup.maximum_operating_voltage = 3.5
+        self.assertEqual(self.layup.maximum_operating_voltage, 3.63)
+        self.assertAlmostEqual(self.layup._areal_capacity_curve[:,1].max(), 3.63, places=2)
+        figure3 = self.layup.get_areal_capacity_plot()
+
+        # figure1.show()
+        # figure2.show()
+        # figure3.show()
+
+    def test_reversible_capacity_setter(self):
+
+        self.layup.operating_reversible_areal_capacity = 0.83
+        self.assertEqual(self.layup.operating_reversible_areal_capacity, 0.83)
+        figure1 = self.layup.get_areal_capacity_plot()
+        # figure1.show()
 
     def test_length_width_setter(self):
 
@@ -319,8 +368,8 @@ class TestSimpleLaminate(unittest.TestCase):
         initial_np_ratio = self.layup.np_ratio
         
         # Verify it's calculated correctly
-        anode_capacity = self.layup.anode._mass_loading * self.layup.anode._half_cell_curve[:, 4].max() / self.layup.anode._mass_loading
-        cathode_capacity = self.layup.cathode._mass_loading * self.layup.cathode._half_cell_curve[:, 4].max() / self.layup.cathode._mass_loading
+        anode_capacity = self.layup.anode._mass_loading * self.layup.anode._areal_capacity_curve[:, 0].max() / self.layup.anode._mass_loading
+        cathode_capacity = self.layup.cathode._mass_loading * self.layup.cathode._areal_capacity_curve[:, 0].max() / self.layup.cathode._mass_loading
         expected_np_ratio = anode_capacity / cathode_capacity
         
         self.assertAlmostEqual(initial_np_ratio, expected_np_ratio, places=2)
@@ -445,7 +494,7 @@ class TestSimpleLaminate(unittest.TestCase):
         """Test that layup properties are properly updated after N/P ratio changes."""
         # Store initial properties
         initial_thickness = self.layup.anode.thickness + self.layup.cathode.thickness
-        initial_capacity_curve = self.layup.full_cell_curve.copy()
+        initial_capacity_curve = self.layup.areal_capacity_curve.copy()
         
         # Change N/P ratio
         self.layup.np_ratio_control_mode = NPRatioControlMode.FIXED_CATHODE
@@ -453,7 +502,7 @@ class TestSimpleLaminate(unittest.TestCase):
         
         # Check that properties were updated
         new_thickness = self.layup.anode.thickness + self.layup.cathode.thickness
-        new_capacity_curve = self.layup.full_cell_curve
+        new_capacity_curve = self.layup.areal_capacity_curve
 
         # Thickness should change if anode mass loading changed
         self.assertNotEqual(initial_thickness, new_thickness)

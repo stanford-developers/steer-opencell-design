@@ -1,3 +1,4 @@
+from copy import deepcopy
 from steer_opencell_design.Components.Containers.Base import _Container
 from steer_opencell_design.Materials.Other import PrismaticContainerMaterial
 from steer_core.Constants.Units import *
@@ -110,9 +111,14 @@ class _CylindricalComponent(
             self._cost = None
             return
             
-        self._volume = np.pi * (self._radius) ** 2 * (self._thickness) * self._fill_factor
-        self._mass = self._volume * self._material._density
-        self._cost = self._mass * self._material._specific_cost
+        _volume = np.pi * (self._radius) ** 2 * (self._thickness) * self._fill_factor
+        _mass = _volume * self._material._density
+        mass = _mass * KG_TO_G
+        self._material.mass = mass
+
+        self._mass = self._material._mass
+        self._volume = self._material._volume
+        self._cost = self._material._cost
 
     def _calculate_coordinates(self):
         """Calculate 3D coordinates if radius is available."""
@@ -273,9 +279,9 @@ class _CylindricalComponent(
     @property
     def datum(self) -> Tuple[float, float, float]:
         return (
-            round(self._datum[0] * M_TO_MM, 2), 
-            round(self._datum[1] * M_TO_MM, 2), 
-            round(self._datum[2] * M_TO_MM, 2)
+            np.round(self._datum[0] * M_TO_MM, 2), 
+            np.round(self._datum[1] * M_TO_MM, 2), 
+            np.round(self._datum[2] * M_TO_MM, 2)
         )
 
     @property
@@ -287,38 +293,38 @@ class _CylindricalComponent(
         """Component radius in mm, rounded to 2 decimal places. None if not set."""
         if self._radius is None:
             return None
-        return round(self._radius * M_TO_MM, 2)
+        return np.round(self._radius * M_TO_MM, 2)
     
     @property
     def thickness(self) -> float:
         """Component thickness in mm, rounded to 2 decimal places."""
-        return round(self._thickness * M_TO_MM, 2)
+        return np.round(self._thickness * M_TO_MM, 2)
     
     @property
     def fill_factor(self) -> float:
         """Fill factor (0.0-1.0) for material calculations."""
-        return round(self._fill_factor, 2)
+        return np.round(self._fill_factor, 2)
     
     @property
     def mass(self) -> float:
         """Total mass in grams, accounting for fill factor. None if radius not set."""
         if self._mass is None:
             return None
-        return round(self._mass * KG_TO_G, 2)
+        return np.round(self._mass * KG_TO_G, 2)
     
     @property
     def cost(self) -> float:
         """Material cost in currency units. None if radius not set."""
         if self._cost is None:
             return None
-        return round(self._cost, 2)
+        return np.round(self._cost, 2)
     
     @property
     def volume(self) -> float:
         """Effective volume in mm³, accounting for fill factor. None if radius not set."""
         if self._volume is None:
             return None
-        return round(self._volume * M_TO_MM**3, 2)
+        return np.round(self._volume * M_TO_MM**3, 2)
     
     @name.setter
     def name(self, name: str) -> None:
@@ -335,7 +341,7 @@ class _CylindricalComponent(
     @calculate_bulk_properties
     def material(self, material: PrismaticContainerMaterial) -> None:
         self.validate_type(material, PrismaticContainerMaterial, "Material")
-        self._material = material
+        self._material = deepcopy(material)
 
     @radius.setter
     def radius(self, radius: float) -> None:
@@ -646,7 +652,8 @@ class CylindricalCannister(
     CoordinateMixin, 
     SerializerMixin,
     ValidationMixin,
-    PlotterMixin
+    PlotterMixin,
+    DunderMixin
 ):
     """A cylindrical can with concentric circular walls.
     
@@ -733,14 +740,20 @@ class CylindricalCannister(
         _inner_volume = np.pi * self._inner_radius**2 * _wall_height
         _wall_volume = _outer_volume - _inner_volume
         _base_volume = np.pi * self._outer_radius**2 * self._wall_thickness
-        self._volume = _wall_volume + _base_volume
-        self._mass = self._volume * self._material._density
+        _volume = _wall_volume + _base_volume
+        _mass = _volume * self._material._density
+        mass = _mass * KG_TO_G
+        self._material.mass = mass
 
-        # get the cost
-        self._cost = self._mass * self._material._specific_cost
+        # set the properties
+        self._mass = self._material._mass
+        self._cost = self._material._cost
 
         # get other dimensions
         self._inner_height = self._height - self._wall_thickness
+
+        # get the volume
+        self._volume = self._height * np.pi * (self._outer_radius**2)
 
     def _calculate_coordinates(self):
         self._get_top_down_cross_section_coordinates()
@@ -792,13 +805,13 @@ class CylindricalCannister(
         
     def _get_top_down_cross_section_coordinates(self):
         """Calculate the top-down view coordinates for the can."""
-        x_outer, z_outer = self.build_circle_array(self._datum[0], self._datum[1], self._outer_radius)
+        x_outer, z_outer = self.build_circle_array(self._datum[0], self._datum[2], self._outer_radius)
         x_outer = np.append(x_outer, x_outer[-1])
         x_outer = np.append(x_outer[0], x_outer)
         z_outer = np.append(z_outer, z_outer[-1])
         z_outer = np.append(z_outer[0], z_outer)
 
-        x_inner, z_inner = self.build_circle_array(self._datum[0], self._datum[1], self._inner_radius, anticlockwise=False)
+        x_inner, z_inner = self.build_circle_array(self._datum[0], self._datum[2], self._inner_radius, anticlockwise=False)
         x_inner = np.append(x_inner[0], x_inner)
         x_inner = np.append(x_inner, x_inner[-1])
         z_inner = np.append(z_inner[0], z_inner)
@@ -839,12 +852,12 @@ class CylindricalCannister(
     @property
     def inner_diameter(self) -> float:
         """Inner diameter of the can in mm, rounded to 2 decimal places."""
-        return round(self._inner_diameter * M_TO_MM, 2)
+        return np.round(self._inner_diameter * M_TO_MM, 2)
     
     @property
     def outer_diameter(self) -> float:
         """Outer diameter of the can in mm, rounded to 2 decimal places."""
-        return round(self._outer_diameter * M_TO_MM, 2)
+        return np.round(self._outer_diameter * M_TO_MM, 2)
 
     @property
     def side_cross_section_coordinates(self) -> pd.DataFrame:
@@ -883,7 +896,7 @@ class CylindricalCannister(
 
         return pd.DataFrame(
             np.column_stack((x, y)),
-            columns=["x", "y"]
+            columns=["x", "z"]
         )
 
     @property
@@ -894,7 +907,7 @@ class CylindricalCannister(
 
         return go.Scatter(
             x=coordinates["x"],
-            y=coordinates["y"],
+            y=coordinates["z"],
             mode="lines",
             name=self.name,
             line=dict(color="black", width=0.5, shape="spline"),
@@ -907,27 +920,27 @@ class CylindricalCannister(
     @property
     def inner_height(self) -> float:
         """Inner height of the can in mm, rounded to 2 decimal places."""
-        return round(self._inner_height * M_TO_MM, 2)
+        return np.round(self._inner_height * M_TO_MM, 2)
 
     @property
     def cost(self) -> float:
         """Total cost of the can in currency units, rounded to 2 decimal places."""
-        return round(self._cost, 2)
+        return np.round(self._cost, 2)
 
     @property
     def mass(self) -> float:
         """Total mass of the can in grams, rounded to 2 decimal places."""
-        return round(self._mass * KG_TO_G, 2)
+        return np.round(self._mass * KG_TO_G, 2)
 
     @property
     def volume(self) -> float:
         """Total volume of the can in mm³, rounded to 2 decimal places."""
-        return round(self._volume * M_TO_MM**3, 2)
+        return np.round(self._volume * M_TO_MM**3, 2)
 
     @property
     def inner_radius(self) -> float:
         """Inner radius of the can in mm, rounded to 2 decimal places."""
-        return round(self._inner_radius * M_TO_MM, 2)
+        return np.round(self._inner_radius * M_TO_MM, 2)
 
     @property
     def name(self) -> str:
@@ -936,9 +949,9 @@ class CylindricalCannister(
     @property
     def datum(self) -> Tuple[float, float, float]:
         return (
-            round(self._datum[0] * M_TO_MM, 2), 
-            round(self._datum[1] * M_TO_MM, 2), 
-            round(self._datum[2] * M_TO_MM, 2)
+            np.round(self._datum[0] * M_TO_MM, 2), 
+            np.round(self._datum[1] * M_TO_MM, 2), 
+            np.round(self._datum[2] * M_TO_MM, 2)
         )
     
     @property
@@ -948,17 +961,17 @@ class CylindricalCannister(
     @property
     def outer_radius(self) -> float:
         """Outer radius of the can in mm, rounded to 2 decimal places."""
-        return round(self._outer_radius * M_TO_MM, 2)
+        return np.round(self._outer_radius * M_TO_MM, 2)
     
     @property
     def height(self) -> float:
         """Height of the can in mm, rounded to 2 decimal places."""
-        return round(self._height * M_TO_MM, 2)
+        return np.round(self._height * M_TO_MM, 2)
     
     @property
     def wall_thickness(self) -> float:
         """Wall thickness of the can in mm, rounded to 2 decimal places."""
-        return round(self._wall_thickness * M_TO_MM, 2)
+        return np.round(self._wall_thickness * M_TO_MM, 2)
     
     @name.setter
     def name(self, name: str) -> None:
@@ -975,7 +988,7 @@ class CylindricalCannister(
     @calculate_bulk_properties
     def material(self, material: PrismaticContainerMaterial) -> None:
         self.validate_type(material, PrismaticContainerMaterial, "Material")
-        self._material = material
+        self._material = deepcopy(material)
 
     @outer_radius.setter
     @calculate_all_properties
@@ -1054,7 +1067,7 @@ class CylindricalEncapsulation(_Container):
         
         self._lid_assembly.datum = (
             self._datum[0] * M_TO_MM,
-            (self._datum[1]+ self._cannister._height - self._lid_assembly._thickness / 2) * M_TO_MM ,
+            (self._datum[1] + self._cannister._height - self._lid_assembly._thickness / 2) * M_TO_MM ,
             self._datum[2] * M_TO_MM
         )
 
@@ -1070,6 +1083,11 @@ class CylindricalEncapsulation(_Container):
             self._datum[2] * M_TO_MM
         )
 
+        _max_anode_side_coords = self._anode_terminal_connector._coordinates[:, 1].max()
+        _min_cathode_side_coords = self._cathode_terminal_connector._coordinates[:, 1].min()
+        _midpoint = (_max_anode_side_coords + _min_cathode_side_coords) / 2
+        self._mid_y_point = _midpoint
+
     def _calculate_bulk_properties(self):
 
         self._lid_assembly.radius = self._cannister._inner_radius * M_TO_MM
@@ -1083,39 +1101,41 @@ class CylindricalEncapsulation(_Container):
             self._cathode_terminal_connector._thickness
         )
 
+        self._volume = self._cannister._volume
+
         self._calculate_mass()
         self._calculate_cost()
 
     def _calculate_mass(self):
 
         self._mass = (
-            self._cathode_terminal_connector._mass +
-            self._anode_terminal_connector._mass +
-            self._lid_assembly._mass +
-            self._cannister._mass
+            self._cathode_terminal_connector._material._mass +
+            self._anode_terminal_connector._material._mass +
+            self._lid_assembly._material._mass +
+            self._cannister._material._mass
         )
 
         self._mass_breakdown = {
-            "Cathode Terminal Connector": self._cathode_terminal_connector._mass,
-            "Anode Terminal Connector": self._anode_terminal_connector._mass,
-            "Lid Assembly": self._lid_assembly._mass,
-            "Cannister": self._cannister._mass
+            "Cathode Terminal Connector": self._cathode_terminal_connector._material._mass,
+            "Anode Terminal Connector": self._anode_terminal_connector._material._mass,
+            "Lid Assembly": self._lid_assembly._material._mass,
+            "Cannister": self._cannister._material._mass
         }
 
     def _calculate_cost(self):
 
         self._cost = (
-            self._cathode_terminal_connector._cost +
-            self._anode_terminal_connector._cost +
-            self._lid_assembly._cost +
-            self._cannister._cost
+            self._cathode_terminal_connector._material._cost +
+            self._anode_terminal_connector._material._cost +
+            self._lid_assembly._material._cost +
+            self._cannister._material._cost
         )
 
         self._cost_breakdown = {
-            "Cathode Terminal Connector": self._cathode_terminal_connector._cost,
-            "Anode Terminal Connector": self._anode_terminal_connector._cost,
-            "Lid Assembly": self._lid_assembly._cost,
-            "Cannister": self._cannister._cost
+            "Cathode Terminal Connector": self._cathode_terminal_connector._material._cost,
+            "Anode Terminal Connector": self._anode_terminal_connector._material._cost,
+            "Lid Assembly": self._lid_assembly._material._cost,
+            "Cannister": self._cannister._material._cost
         }
 
     def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:
@@ -1164,15 +1184,19 @@ class CylindricalEncapsulation(_Container):
         return figure
     
     @property
+    def volume(self) -> float:
+        return np.round(self._volume * M_TO_MM**3, 2)
+
+    @property
     def internal_height(self) -> float:
-        return round(self._internal_height * M_TO_MM, 2)
+        return np.round(self._internal_height * M_TO_MM, 2)
     
     @property
     def datum(self) -> Tuple[float, float, float]:
         return (
-            round(self._datum[0] * M_TO_MM, 2), 
-            round(self._datum[1] * M_TO_MM, 2), 
-            round(self._datum[2] * M_TO_MM, 2)
+            np.round(self._datum[0] * M_TO_MM, 2), 
+            np.round(self._datum[1] * M_TO_MM, 2), 
+            np.round(self._datum[2] * M_TO_MM, 2)
         )
         
     @property
@@ -1212,7 +1236,7 @@ class CylindricalEncapsulation(_Container):
             if isinstance(obj, dict):
                 return {k: _round_recursive(v) for k, v in obj.items()}
             else:
-                return round(obj, 2)
+                return np.round(obj, 2)
 
         return _round_recursive(self._cost_breakdown)
 
@@ -1228,7 +1252,7 @@ class CylindricalEncapsulation(_Container):
             if isinstance(obj, dict):
                 return {k: _convert_and_round_recursive(v) for k, v in obj.items()}
             else:
-                return round(obj * KG_TO_G, 2)
+                return np.round(obj * KG_TO_G, 2)
 
         return _convert_and_round_recursive(self._mass_breakdown)
     
@@ -1256,9 +1280,16 @@ class CylindricalEncapsulation(_Container):
     
     @datum.setter
     @calculate_coordinates
-    def datum(self, datum: Tuple[float, float, float]) -> None:
-        self.validate_datum(datum)
-        self._datum = tuple(coord * MM_TO_M for coord in datum)
+    def datum(self, value: Tuple[float, float, float]) -> None:
+
+        # validate input
+        self.validate_datum(value)
+
+        # set datum to self
+        self._datum = tuple(coord * MM_TO_M for coord in value)
+
+        # set the datum to the cannister
+        self._cannister.datum = value
 
     @cathode_terminal_connector.setter
     @calculate_all_properties

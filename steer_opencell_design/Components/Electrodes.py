@@ -1,10 +1,10 @@
+from functools import wraps
 from steer_core.Decorators.Coordinates import calculate_coordinates, calculate_volumes
 
 from steer_core.Decorators.General import (
     calculate_all_properties,
     calculate_bulk_properties,
 )
-from steer_opencell_design.Utils.Decorators import calculate_half_cell_curve
 
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Coordinates import CoordinateMixin
@@ -14,7 +14,7 @@ from steer_core.Mixins.Dunder import DunderMixin
 
 from steer_core.Constants.Units import *
 
-from steer_opencell_design.Formulations.ElectrodeFormulations import (
+from steer_opencell_design.Materials.Formulations import (
     CathodeFormulation,
     AnodeFormulation,
     _ElectrodeFormulation,
@@ -25,7 +25,6 @@ from steer_opencell_design.Materials.Other import InsulationMaterial
 
 import pandas as pd
 import numpy as np
-import plotly.express as px
 import plotly.graph_objects as go
 import warnings
 
@@ -39,6 +38,20 @@ class ElectrodeControlMode(Enum):
     MAINTAIN_CALENDER_DENSITY = "maintain_calender_density"  # Keep calender density constant (current behavior)
     MAINTAIN_MASS_LOADING = "maintain_mass_loading"  # Keep mass loading constant
     MAINTAIN_COATING_THICKNESS = "maintain_coating_thickness"  # Keep coating thickness constant
+
+
+def calculate_areal_capacity_curve(func):
+    """
+    Decorator to recalculate half-cell curve properties after a method call.
+    This is useful for methods that modify the half-cell curve data.
+    """
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        result = func(self, *args, **kwargs)
+        if hasattr(self, '_update_properties') and self._update_properties:
+            self._calculate_areal_capacity_curve()
+        return result
+    return wrapper
 
 
 class _Electrode(
@@ -193,21 +206,19 @@ class _Electrode(
     def _calculate_all_properties(self) -> None:
         self._calculate_coating_thickness(self._mass_loading, self._calender_density)
         self._calculate_bulk_properties()
-        self._calculate_half_cell_curve()
+        self._calculate_areal_capacity_curve()
         self._calculate_coordinates()
 
-    def _calculate_half_cell_curve(self) -> None:
-        # get the half cell curve from the formulation
-        curve = self._formulation._half_cell_curve.copy()
+    def _calculate_areal_capacity_curve(self) -> None:
 
-        # calculate the capacity
-        capacity = curve[:, 0] * self._coating_mass
+        # get the half cell curve from the formulation
+        curve = self._formulation._capacity_curve.copy()
 
         # calculate the areal capacity
-        areal_capacity = capacity / self._current_collector._coated_area
+        areal_capacity = curve[:, 0] / self._current_collector._coated_area
 
         # set
-        self._half_cell_curve = np.column_stack([curve, capacity, areal_capacity])
+        self._areal_capacity_curve = np.column_stack([areal_capacity, curve[:, 1], curve[:, 2]])
 
     def _calculate_bulk_properties(self) -> None:
         self._calculate_porosity()
@@ -269,23 +280,27 @@ class _Electrode(
         """
         Calculate the mass properties of the electrode.
         """
-        # calculate the mass of the coating
-        self._coating_mass = self._current_collector._coated_area * self._mass_loading
+        # calculate mass of the coating
+        _coated_mass = self._current_collector._coated_area * self._mass_loading
+        coated_mass = _coated_mass * KG_TO_G
+        self._formulation.mass = coated_mass
 
         # calculate the total mass
-        self._mass = self._coating_mass + self._current_collector._mass
+        self._mass = self._formulation._mass + self._current_collector._mass
 
         # calculate the mass breakdown
         self._mass_breakdown = {
-            self._formulation.name: {k: float(v * self._minimum_coating_volume) for k, v in self._formulation._density_breakdown.items()},
-            self._current_collector.name: self._current_collector._mass,
+            "Coating": self._formulation._mass_breakdown,
+            "Current Collector": self._current_collector._mass,
         }
 
         # insulation mass
         if hasattr(self, "_insulation_material") and self._insulation_material is not None:
             _insulator_mass = self._current_collector._insulation_area * self._insulation_material._density * self._insulation_thickness
-            self._mass += _insulator_mass
-            self._mass_breakdown[self._insulation_material.name] = _insulator_mass
+            insulator_mass = _insulator_mass * KG_TO_G
+            self._insulation_material.mass = insulator_mass
+            self._mass += self._insulation_material._mass
+            self._mass_breakdown["Electrical Insulation"] = self._insulation_material._mass
 
         return self._mass, self._mass_breakdown
 
@@ -293,23 +308,19 @@ class _Electrode(
         """
         Calculate the cost properties of the electrode.
         """
-        # calculate the coating cost
-        _coating_cost = self._coating_mass * self._formulation._specific_cost
-
         # calculate the total cost
-        self._cost = _coating_cost + self._current_collector._cost
+        self._cost = self._formulation._cost + self._current_collector._cost
 
         # calculate the cost breakdown
         self._cost_breakdown = {
-            self._formulation.name: {k: float(v * self._coating_mass) for k, v in self._formulation._specific_cost_breakdown.items()},
-            self._current_collector.name: self._current_collector._cost,
+            "Coating": self._formulation._cost_breakdown,
+            "Current Collector": self._current_collector._cost,
         }
 
         # insulation cost
         if hasattr(self, "_insulation_material") and self._insulation_material is not None:
-            _insulator_cost = self._current_collector._insulation_area * self._insulation_material._specific_cost * self._insulation_thickness
-            self._cost += _insulator_cost
-            self._cost_breakdown[self._insulation_material.name] = _insulator_cost
+            self._cost += self._insulation_material._cost
+            self._cost_breakdown["Electrical Insulation"] = self._insulation_material._cost
 
         return self._cost, self._cost_breakdown
 
@@ -347,6 +358,10 @@ class _Electrode(
         if porosity < 0:
             warnings.warn(f"Negative porosity calculated for {self.name}.", UserWarning)
 
+    def _clear_cached_data(self) -> None:
+        self._areal_capacity_curve = None
+        self._formulation._specific_capacity_curve = None
+
     # === VIEWS ===
 
     def get_right_left_view(self, set_z_zero: bool = False, **kwargs) -> pd.DataFrame:
@@ -379,32 +394,6 @@ class _Electrode(
         )
 
         return figure
-
-    def plot_half_cell_curve(self, areal: bool = True, **kwargs) -> None:
-        """
-        Plot the half cell curve of the electrode.
-
-        Parameters
-        ----------
-        areal : bool, optional
-            If True, plot the areal capacity instead of the specific capacity (default is False).
-        """
-        x_col = "Capacity (Ah)" if not areal else "Areal Capacity (mAh/cm²)"
-
-        fig = px.line(
-            self.half_cell_curve,
-            y="Voltage (V)",
-            x=x_col,
-            line_shape="spline",
-            template="presentation",
-            **kwargs,
-        )
-
-        fig.update_traces(
-            line=dict(color=self._formulation._color),
-        )
-
-        return fig
 
     def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:
 
@@ -516,6 +505,28 @@ class _Electrode(
     
     def get_b_side_center_line(self) -> np.ndarray:
         return self.get_xz_center_line(self._b_side_coating_coordinates)
+
+    def plot_areal_capacity_curve(self, **kwargs) -> go.Figure:
+        """
+        Plot the areal capacity curve of the electrode.
+        """
+        figure = go.Figure()
+        figure.add_trace(self.areal_capacity_curve_trace)
+
+        XAXIS = self.SCATTER_X_AXIS
+        XAXIS['title'] = "Areal Capacity (mAh/cm²)"
+        YAXIS = self.SCATTER_Y_AXIS
+        YAXIS['title'] = "Voltage (V)"
+
+        figure.update_layout(
+            xaxis=XAXIS,
+            yaxis=YAXIS,
+            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
+            **kwargs,
+        )
+
+        return figure
 
     @property
     def right_left_a_side_insulation_trace(self) -> pd.DataFrame:
@@ -715,6 +726,11 @@ class _Electrode(
 
         return insulation_area_trace
 
+    @property
+    def voltage_cutoff(self) -> float:
+        """Get the voltage cutoff of the electrode."""
+        return self._formulation.voltage_cutoff
+
     # === ACTIONS ===
 
     @calculate_coordinates
@@ -742,6 +758,53 @@ class _Electrode(
             self._flipped_z = not self._flipped_z
 
     # === PROPERTIES ===
+
+    @property
+    def areal_capacity_curve(self) -> pd.DataFrame:
+        """Get the capacity curve with proper units and formatting."""
+
+        if self._areal_capacity_curve is None:
+            return None
+
+        # Pre-compute unit conversion factor
+        areal_capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
+
+        # original curve
+        curve = self._areal_capacity_curve
+        
+        # compute the columns
+        areal_capacity = np.round(curve[:, 0] * areal_capacity_conversion, 4)
+        voltage = np.round(curve[:, 1], 4)
+        direction = np.where(curve[:, 2] == 1, "charge", "discharge")
+
+        # Create DataFrame with converted values directly
+        return pd.DataFrame({
+            "Areal Capacity (mAh/cm²)": areal_capacity,
+            "Voltage (V)": voltage,
+            "Direction": direction,
+        })
+    
+    @property
+    def areal_capacity_curve_trace(self) -> go.Figure:
+        """
+        Get the areal capacity curve trace of the electrode.
+        """
+        if self.areal_capacity_curve is None:
+            return None
+
+        curve_df = self.areal_capacity_curve
+
+        trace = go.Scatter(
+            x=curve_df["Areal Capacity (mAh/cm²)"],
+            y=curve_df["Voltage (V)"],
+            mode="lines",
+            name=f"{self.name} Areal Capacity Curve",
+            line=dict(color=self._formulation._color, shape="spline"),
+            marker=dict(size=6),
+            hovertemplate="Areal Capacity: %{x} mAh/cm²<br>Voltage: %{y} V<br><extra></extra>",
+        )
+
+        return trace
 
     @property
     def _datum(self) -> Tuple[float, float, float]:
@@ -774,7 +837,7 @@ class _Electrode(
         return {
             "Cost": f"$ {self.cost}",
             "Mass": f"{self.mass} g",
-            "Coating mass": f"{self.coating_mass} g",
+            "Coating mass": f"{self._formulation.mass} g",
             "Total thickness": f"{self.thickness} um",
             "Coating thickness": f"{self.coating_thickness} um",
         }
@@ -786,7 +849,7 @@ class _Electrode(
 
         :return: Insulation thickness of the electrode in micrometers.
         """
-        return round(self._insulation_thickness * M_TO_UM, 2)
+        return np.round(self._insulation_thickness * M_TO_UM, 2)
 
     @property
     def insulation_thickness_range(self) -> Tuple[float, float]:
@@ -813,7 +876,7 @@ class _Electrode(
 
         :return: Coating thickness of the electrode in micrometers.
         """
-        return round(self._coating_thickness * M_TO_UM, 2)
+        return np.round(self._coating_thickness * M_TO_UM, 2)
 
     @property
     def coating_thickness_hard_range(self) -> Tuple[float, float]:
@@ -835,7 +898,7 @@ class _Electrode(
             if isinstance(obj, dict):
                 return {k: _round_recursive(v) for k, v in obj.items()}
             else:
-                return round(obj, 2)
+                return np.round(obj, 2)
 
         return _round_recursive(self._cost_breakdown)
 
@@ -851,53 +914,9 @@ class _Electrode(
             if isinstance(obj, dict):
                 return {k: _convert_and_round_recursive(v) for k, v in obj.items()}
             else:
-                return round(obj * KG_TO_G, 2)
+                return np.round(obj * KG_TO_G, 2)
 
         return _convert_and_round_recursive(self._mass_breakdown)
-
-    @property
-    def half_cell_curve(self) -> pd.DataFrame:
-        return (
-            pd.DataFrame(
-                self._half_cell_curve,
-                columns=[
-                    "specific_capacity",
-                    "voltage",
-                    "direction",
-                    "capacity",
-                    "areal_capacity",
-                ],
-            )
-            .assign(
-                direction=lambda x: np.where(x["direction"] == 1, "charge", "discharge"),
-                specific_capacity=lambda x: x["specific_capacity"] * (S_TO_H * A_TO_mA / KG_TO_G),
-                capacity=lambda x: x["capacity"] * (S_TO_H),
-                areal_capacity=lambda x: x["areal_capacity"] * (S_TO_H * A_TO_mA / M_TO_CM**2),
-            )
-            .filter(items=["capacity", "voltage", "direction", "areal_capacity"])
-            .rename(
-                columns={
-                    "capacity": "Capacity (Ah)",
-                    "voltage": "Voltage (V)",
-                    "direction": "Direction",
-                    "areal_capacity": "Areal Capacity (mAh/cm²)",
-                }
-            )
-            .round(4)
-        )
-    
-    @property
-    def half_cell_curve_trace(self) -> go.Scatter:
-                
-        return go.Scatter(
-            x=self.half_cell_curve["Areal Capacity (mAh/cm²)"],
-            y=self.half_cell_curve["Voltage (V)"],
-            mode="lines",
-            name=f"{self.name} Half-Cell",
-            line=dict(color=self.formulation.color, width=2.5),
-            customdata=self.half_cell_curve["Direction"],
-            hovertemplate="<b>{self.name}</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
-        )
 
     @property
     def porosity(self) -> float:
@@ -906,7 +925,7 @@ class _Electrode(
 
         :return: Porosity of the electrode.
         """
-        return round(self._porosity * 100, 2)
+        return np.round(self._porosity * 100, 2)
 
     @property
     def calender_density(self) -> float:
@@ -915,7 +934,7 @@ class _Electrode(
 
         :return: Calender density of the electrode.
         """
-        return round(self._calender_density * (KG_TO_G / M_TO_CM**3), 2)
+        return np.round(self._calender_density * (KG_TO_G / M_TO_CM**3), 2)
 
     @property
     def calender_density_range(self) -> Tuple[float, float]:
@@ -988,7 +1007,7 @@ class _Electrode(
 
         :return: Mass loading of the electrode.
         """
-        return round(self._mass_loading * (KG_TO_MG / M_TO_CM**2), 2)
+        return np.round(self._mass_loading * (KG_TO_MG / M_TO_CM**2), 2)
 
     @property
     def mass_loading_range(self) -> Tuple[float, float]:
@@ -1023,22 +1042,13 @@ class _Electrode(
         return self._name
 
     @property
-    def coating_mass(self) -> float:
-        """
-        Get the coating mass of the electrode.
-
-        :return: Coating mass of the electrode.
-        """
-        return round(self._coating_mass * KG_TO_G, 2)
-
-    @property
     def mass(self) -> float:
         """
         Get the mass of the electrode.
 
         :return: Mass of the electrode.
         """
-        return round(self._mass * KG_TO_G, 2)
+        return np.round(self._mass * KG_TO_G, 2)
 
     @property
     def mass_range(self) -> Tuple[float, float]:
@@ -1046,7 +1056,7 @@ class _Electrode(
         hyp_max = 1
         max = hyp_max * (1 - np.exp(-0.5 / self._mass))
 
-        return (round(min * KG_TO_G, 2), round(max * KG_TO_G, 2))
+        return (round(min * KG_TO_G, 2), np.round(max * KG_TO_G, 2))
 
     @property
     def thickness(self) -> float:
@@ -1055,7 +1065,7 @@ class _Electrode(
 
         :return: Thickness of the electrode.
         """
-        return round(self._thickness * M_TO_UM, 1)
+        return np.round(self._thickness * M_TO_UM, 1)
 
     @property
     def thickness_range(self) -> Tuple[float, float]:
@@ -1071,7 +1081,7 @@ class _Electrode(
 
     @property
     def cost(self) -> float:
-        return round(self._cost, 2)
+        return np.round(self._cost, 2)
 
     @property
     def cost_range(self):
@@ -1105,6 +1115,12 @@ class _Electrode(
         return (10, 80)
 
     # === SETTERS ===
+
+    @voltage_cutoff.setter
+    @calculate_areal_capacity_curve
+    def voltage_cutoff(self, voltage_cutoff: float):
+        self.validate_positive_float(voltage_cutoff, "voltage cutoff")
+        self._formulation.voltage_cutoff = voltage_cutoff
 
     @datum_x.setter
     def datum_x(self, x: float) -> None:
@@ -1176,7 +1192,7 @@ class _Electrode(
         if self._current_collector.insulation_area == 0 and insulation_material is not None:
             raise ValueError("Insulation material cannot be provided if the current collector does not have an insulation area")
 
-        self._insulation_material = insulation_material
+        self._insulation_material = deepcopy(insulation_material)
 
     @insulation_thickness.setter
     @calculate_volumes
@@ -1276,7 +1292,7 @@ class Anode(_Electrode):
         :return: Top overhang of the anode in mm.
         """
         if hasattr(self, "_top_overhang"):
-            return round(self._top_overhang * M_TO_MM, 2)
+            return np.round(self._top_overhang * M_TO_MM, 2)
         else:
             return
 
@@ -1312,7 +1328,7 @@ class Anode(_Electrode):
         :return: Bottom overhang of the anode in mm.
         """
         if hasattr(self, "_bottom_overhang"):
-            return round(self._bottom_overhang * M_TO_MM, 2)
+            return np.round(self._bottom_overhang * M_TO_MM, 2)
         else:
             return
 

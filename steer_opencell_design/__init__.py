@@ -1,4 +1,4 @@
-__version__ = "0.4.9"
+__version__ = "1.0.0"
 
 # import materials
 from .Materials.ActiveMaterials import CathodeMaterial, AnodeMaterial
@@ -7,21 +7,22 @@ from .Materials.ConductiveAdditives import ConductiveAdditive
 from .Materials.Electrolytes import Electrolyte
 from .Materials.Other import TapeMaterial, SeparatorMaterial, CurrentCollectorMaterial, PrismaticContainerMaterial, LaminateMaterial, InsulationMaterial
 
+# import formulations
+from .Materials.Formulations import AnodeFormulation, CathodeFormulation
+
 # import current collectors
 from .Components.CurrentCollectors.Notched import NotchedCurrentCollector
 from .Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector, WeldTab
 from .Components.CurrentCollectors.Punched import PunchedCurrentCollector
 from .Components.CurrentCollectors.Tabless import TablessCurrentCollector
 
-# improt formulations
-from .Formulations.ElectrodeFormulations import AnodeFormulation, CathodeFormulation
-
 # import electrodes
 from .Components.Electrodes import Cathode, Anode
 from .Components.Separators import Separator
 
 # import layups
-from .Constructions.Layups.Base import OverhangControlMode, NPRatioControlMode
+from .Constructions.Layups.Base import NPRatioControlMode
+from .Constructions.Layups.OverhangUtils import OverhangControlMode
 from .Constructions.Layups.Laminate import Laminate
 from .Constructions.Layups.MonoLayers import ZFoldMonoLayer, MonoLayer
 
@@ -33,7 +34,11 @@ from .Constructions.ElectrodeAssemblies.WindingEquipment import RoundMandrel, Fl
 
 # import containers
 from .Components.Containers.Cylindrical import CylindricalCannister, CylindricalEncapsulation, CylindricalLidAssembly, CylindricalTerminalConnector
+from .Components.Containers.Pouch import PouchEncapsulation, LaminateSheet, PouchTerminal
+from .Components.Containers.Prismatic import PrismaticCannister, PrismaticEncapsulation, PrismaticLidAssembly, PrismaticTerminalConnector
 
 # import cells
 from .Constructions.Cells.CylindricalCell import CylindricalCell
+from .Constructions.Cells.PrismaticCell import PrismaticCell
+from .Constructions.Cells.PouchCell import PouchCell
 

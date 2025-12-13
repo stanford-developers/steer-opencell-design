@@ -1,29 +1,29 @@
-from steer_core.Decorators.General import calculate_all_properties
+from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
 from steer_core.Constants.Units import *
 
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
+from steer_core.Mixins.Serializer import SerializerMixin
 
 from steer_opencell_design.Materials.ActiveMaterials import _ActiveMaterial
 from steer_opencell_design.Materials.Binders import Binder
 from steer_opencell_design.Materials.ConductiveAdditives import ConductiveAdditive
-
-from steer_opencell_design.Utils.Decorators import calculate_half_cell_curve
-
-from steer_materials.Base import _VolumedMaterialMixin, _Material
+from steer_opencell_design.Materials.CapacityCurveUtils import calculate_specific_capacity_curve, calculate_capacity_curve
 
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from typing import Dict, Optional, Any
 import warnings
+from collections import Counter
 
 
 class _ElectrodeFormulation(
     ValidationMixin, 
     DunderMixin,
     PlotterMixin,
+    SerializerMixin,
     ):
 
     def __init__(
@@ -33,6 +33,10 @@ class _ElectrodeFormulation(
         conductive_additives: Optional[Dict[ConductiveAdditive, float]] = {},
         voltage_cutoff: Optional[float] = None,
         name: Optional[str] = "Electrode Formulation",
+        *,
+        mass: float = None,
+        volume: float = None,
+        **kwargs,
     ):
         """
         Initialize an object that represents an electrode formulation.
@@ -50,6 +54,10 @@ class _ElectrodeFormulation(
             the maximum voltage from the active materials' voltage cutoff range.
         name : Optional[str]
             Name of the electrode formulation. Defaults to 'Electrode Formulation'.
+        mass : float
+            Total mass of the electrode formulation. Defaults to None.
+        volume : float
+            Total volume of the electrode formulation. Defaults to None.
         """
         self._update_properties = False
 
@@ -59,6 +67,17 @@ class _ElectrodeFormulation(
         self.voltage_cutoff = voltage_cutoff
         self.name = name
 
+        self._mass = None
+        self._volume = None
+        self._cost = None
+        self._cost_breakdown = {}
+        self._mass_breakdown = {}
+
+        if volume is not None:
+            self.volume = volume
+        if mass is not None:
+            self.mass = mass
+
         self._check_formulation()
         self._calculate_all_properties()
 
@@ -67,43 +86,68 @@ class _ElectrodeFormulation(
         Retrieve the properties of the electrode formulation.
         This method is called to ensure that all properties are calculated and available.
         """
-        self._get_bulk_properties()
-        self._get_breakdowns()
+        self._calculate_material_properties()
         self._check_formulation()
 
         self._get_voltage_operation_window()
-        self._calculate_half_cell_curve()
+        self._calculate_specific_capacity_curve()
 
-    def _get_breakdowns(self) -> None:
-        """
-        Retrieve the breakdowns of the electrode formulation.
-        This method is called to ensure that all breakdowns are calculated and available.
-        """
-        self._get_density_breakdown()
-        self._get_specific_cost_breakdown()
+        if hasattr(self, '_mass') and self._mass is not None:
+            self._calculate_bulk_properties()
 
-    def _get_bulk_properties(self) -> None:
+    def _calculate_material_properties(self) -> None:
         self._calculate_density()
         self._calculate_specific_cost()
-        self._get_color()
+        self._calculate_color()
 
-    def _calculate_density(self) -> float:
+    def _calculate_bulk_properties(self) -> None:
+        self._calculate_breakdowns()
+        self._calculate_capacity_curve()
+
+    def _calculate_capacity_curve(self) -> np.ndarray:
+
+        if hasattr(self, "_specific_capacity_curve") and self._specific_capacity_curve is not None:
+
+            # get the half cell curve from the formulation
+            curve = self._specific_capacity_curve.copy()
+
+            # calculate the capacity
+            capacity = curve[:, 0] * self._mass
+
+            # assign the capacity curve
+            self._capacity_curve = np.column_stack((capacity, curve[:, 1], curve[:, 2]))
+
+            # return the capacity curve
+            return self._capacity_curve
+        
+        else:
+            self._capacity_curve = None
+            return self._capacity_curve
+
+    def _calculate_breakdowns(self) -> None:
+        self._calculate_mass_breakdown()
+        self._calculate_cost_breakdown()
+
+    def _calculate_density(self) -> tuple[float, float]:
         """
-        Calculate the density of the electrode formulation.
-
-        :return: The density of the electrode formulation in kg/m³.
+        Calculate density using volume additivity assumption.
+        For a mixture: 1/ρ_mix = Σ(w_i / ρ_i) where w_i are mass fractions.
+        
+        Returns
+        -------
+        tuple[float, float]
+            (density in kg/m³, specific_volume in m³/kg)
         """
-
-        def extract_material_data(material_dict):
-            return [(material._density, fraction) for material, fraction in material_dict.items()]
-
-        # Collect (density, mass_fraction) pairs from all sources
-        components = extract_material_data(self._active_materials) + extract_material_data(self._binders) + extract_material_data(self._conductive_additives)
-
-        # Weighted average density
-        self._density = sum(d * mf for d, mf in components)
-        self._specific_volume = 1 / self._density
-        return self._density, self._specific_volume
+        # Collect (density, mass_fraction) pairs
+        components = [(material._density, fraction) for material, fraction in self._iter_all_materials()]
+        
+        # Calculate specific volume: V_mix/m_mix = Σ(w_i / ρ_i)
+        specific_volume = sum(fraction / density for density, fraction in components)
+        density = 1.0 / specific_volume
+        
+        self._density = density
+        self._specific_volume = specific_volume
+        return density, specific_volume
 
     def _calculate_specific_cost(self) -> float:
         """
@@ -111,16 +155,12 @@ class _ElectrodeFormulation(
 
         :return: The specific cost of the electrode formulation in $/kg.
         """
-
-        def extract_cost_data(material_dict):
-            return [(material._specific_cost, fraction) for material, fraction in material_dict.items()]
-
-        components = extract_cost_data(self._active_materials) + extract_cost_data(self._binders) + extract_cost_data(self._conductive_additives)
+        components = [(material._specific_cost, fraction) for material, fraction in self._iter_all_materials()]
 
         self._specific_cost = sum(cost * mf for cost, mf in components)
         return self._specific_cost
 
-    def _get_color(self) -> str:
+    def _calculate_color(self) -> str:
         """
         Calculate the average HTML color of the electrode formulation,
         weighted by the mass fraction of each component.
@@ -135,11 +175,8 @@ class _ElectrodeFormulation(
         def rgb_to_hex(rgb: tuple) -> str:
             return "#{:02x}{:02x}{:02x}".format(*map(lambda x: int(round(x)), rgb))
 
-        def extract_color_data(material_dict):
-            return [(hex_to_rgb(material._color), fraction) for material, fraction in material_dict.items()]
-
         # Gather all (rgb, fraction) pairs
-        components = extract_color_data(self._active_materials) + extract_color_data(self._binders) + extract_color_data(self._conductive_additives)
+        components = [(hex_to_rgb(material._color), fraction) for material, fraction in self._iter_all_materials()]
 
         # Weighted average of RGB channels
         total_r = sum(rgb[0] * f for rgb, f in components)
@@ -149,6 +186,7 @@ class _ElectrodeFormulation(
         avg_rgb = (total_r, total_g, total_b)
 
         self._color = rgb_to_hex(avg_rgb)
+        return self._color
 
     def _get_voltage_operation_window(self) -> None:
         """
@@ -168,6 +206,8 @@ class _ElectrodeFormulation(
                 common_end = max(ends)
 
             self._voltage_operation_window = (common_start, common_end)
+
+        return self._voltage_operation_window
 
     def _validate_and_set_voltage_cutoff(self) -> None:
         """
@@ -206,7 +246,7 @@ class _ElectrodeFormulation(
         """
         total_fraction = sum(self._active_materials.values()) + sum(self._binders.values()) + sum(self._conductive_additives.values())
 
-        if not (0.999 <= total_fraction <= 1.001):
+        if not (0.99 <= total_fraction <= 1.01):
             warnings.warn(
                 f"The total mass percentages of the formulation should sum to 100%. Current sum: {round(total_fraction * 100, 1)}%",
                 UserWarning,
@@ -217,54 +257,17 @@ class _ElectrodeFormulation(
         self._check_unique_names(self._conductive_additives, "conductive additives")
 
     def _check_unique_names(self, components: Dict, component_type: str) -> None:
-        """
-        Validate that the components have unique names.
 
-        :param components: Dictionary of components to validate.
-        :param component_type: Type of components being validated (for error messages).
-        """
-        names = [component.name for component in components.keys()]
-
-        if len(names) != len(set(names)):
+        names = [comp.name for comp in components.keys()]
+        duplicates = [name for name, count in Counter(names).items() if count > 1]
+        if duplicates:
             warnings.warn(
-                f"Duplicate names found in {component_type} of your {type(self)}. Each component should have a unique name.",
-                UserWarning,
+                f"Duplicate names found in {component_type}: {duplicates}. "
+                f"Each component should have a unique name.",
+                UserWarning
             )
 
-    def _get_specific_cost_breakdown(self) -> None:
-        active_material_specific_costs = [c._specific_cost for c in self._active_materials.keys()]
-
-        active_material_costs = {key.name: value * self._active_materials[key] for key, value in zip(self._active_materials.keys(), active_material_specific_costs)}
-
-        binder_specific_costs = [c._specific_cost for c in self._binders.keys()]
-        binder_costs = {key.name: value * self._binders[key] for key, value in zip(self._binders.keys(), binder_specific_costs)} if self._binders else {}
-
-        conductive_additive_costs = [c._specific_cost for c in self._conductive_additives.keys()]
-        conductive_additive_costs = {key.name: value * self._conductive_additives[key] for key, value in zip(self._conductive_additives.keys(), conductive_additive_costs)} if self._conductive_additives else {}
-
-        self._specific_cost_breakdown = active_material_costs | binder_costs | conductive_additive_costs
-
-    def _get_density_breakdown(self) -> Dict[str, float]:
-        """
-        Calculate the density breakdown of the electrode formulation.
-
-        :return: A dictionary with the density contribution of each component.
-        """
-        active_material_densities = [c._density for c in self._active_materials.keys()]
-
-        active_material_density_breakdown = {key.name: value * self._active_materials[key] for key, value in zip(self._active_materials.keys(), active_material_densities)}
-
-        binder_densities = [c._density for c in self._binders.keys()]
-
-        binder_density_breakdown = {key.name: value * self._binders[key] for key, value in zip(self._binders.keys(), binder_densities)} if self._binders else {}
-
-        conductive_additive_densities = [c._density for c in self._conductive_additives.keys()]
-
-        conductive_additive_density_breakdown = {key.name: value * self._conductive_additives[key] for key, value in zip(self._conductive_additives.keys(), conductive_additive_densities)} if self._conductive_additives else {}
-
-        self._density_breakdown = active_material_density_breakdown | binder_density_breakdown | conductive_additive_density_breakdown
-
-    def _calculate_half_cell_curve(self) -> None:
+    def _calculate_specific_capacity_curve(self) -> None:
         """
         Calculate the half-cell curve for the cathode formulation based on the active materials
         and their weight fractions, treating charge and discharge curves separately.
@@ -294,9 +297,9 @@ class _ElectrodeFormulation(
         if len(self._active_materials) == 1:
             material = next(iter(self._active_materials))
             weight_frac = self._active_materials[material]
-            curve = material._half_cell_curve.copy()
+            curve = material._specific_capacity_curve.copy()
             curve[:, 0] *= weight_frac
-            self._half_cell_curve = curve
+            self._specific_capacity_curve = curve
             return
 
         # Determine common charge/discharge voltage ranges
@@ -306,8 +309,8 @@ class _ElectrodeFormulation(
             v_ends = []
 
             for material in self._active_materials:
-                direction_mask = material._half_cell_curve[:, 2] == direction_value
-                direction_curve = material._half_cell_curve[direction_mask]
+                direction_mask = material._specific_capacity_curve[:, 2] == direction_value
+                direction_curve = material._specific_capacity_curve[direction_mask]
 
                 if len(direction_curve) > 0:
                     voltages = direction_curve[:, 1]
@@ -334,7 +337,7 @@ class _ElectrodeFormulation(
 
         # Interpolate each material's contribution and weight by mass fraction
         for material, weight_frac in self._active_materials.items():
-            curve = material._half_cell_curve.copy()
+            curve = material._specific_capacity_curve.copy()
             curve[:, 0] *= weight_frac
 
             charge_curve = curve[curve[:, 2] == 1]
@@ -391,10 +394,10 @@ class _ElectrodeFormulation(
             curves_to_stack.append(discharge_df)
 
         if curves_to_stack:
-            self._half_cell_curve = np.vstack(curves_to_stack)
+            self._specific_capacity_curve = np.vstack(curves_to_stack)
         else:
             # Fallback empty curve
-            self._half_cell_curve = np.array([]).reshape(0, 3)
+            self._specific_capacity_curve = np.array([]).reshape(0, 3)
 
     def _handle_voltage_cutoff_compatibility(self) -> None:
         """
@@ -459,7 +462,69 @@ class _ElectrodeFormulation(
             for material in self._active_materials.keys():
                 material.voltage_cutoff = self._voltage_cutoff
 
-    def plot_half_cell_curve(self, add_materials: bool = False, show_direction: bool = True, **kwargs) -> go.Figure:
+    def _calculate_mass_breakdown(self) -> dict:
+
+        # calculate mass breakdown
+        self._mass_breakdown = {}
+        for material in self._active_materials.keys():
+            self._mass_breakdown[material.name] = material._mass
+        for material in self._binders.keys():
+            self._mass_breakdown[material.name] = material._mass
+        for material in self._conductive_additives.keys():
+            self._mass_breakdown[material.name] = material._mass
+
+        return self._mass_breakdown
+    
+    def _calculate_cost_breakdown(self) -> dict:
+
+        # calculate cost breakdown
+        self._cost_breakdown = {}
+
+        for material in self._active_materials.keys():
+            self._cost_breakdown[material.name] = material._cost
+        for material in self._binders.keys():
+            self._cost_breakdown[material.name] = material._cost
+        for material in self._conductive_additives.keys():
+            self._cost_breakdown[material.name] = material._cost
+
+        return self._cost_breakdown
+
+    def _iter_all_materials(self):
+        """Yield (material, fraction) pairs for all components."""
+        yield from self._active_materials.items()
+        yield from self._binders.items()
+        yield from self._conductive_additives.items()
+
+    def _set_component_weight(self, material_dict: dict, index: int, weight: float, component_type: str):
+        """
+        Helper method to set the weight of a component at a specific index.
+        
+        Parameters
+        ----------
+        material_dict : dict
+            The dictionary of materials (e.g., _active_materials, _binders)
+        index : int
+            The 0-based index of the component to modify
+        weight : float
+            Weight percentage (0-100) for the component
+        component_type : str
+            Type name for error messages (e.g., "active material", "binder")
+        """
+        materials_list = list(material_dict.items())
+        
+        if len(materials_list) <= index:
+            raise ValueError(
+                f"Cannot set {component_type} {index + 1} weight: "
+                f"formulation has {'no' if not materials_list else 'fewer than ' + str(index + 1)} {component_type}s"
+            )
+        
+        self.validate_percentage(weight, f"{component_type.title()} {index + 1} weight")
+        
+        # Update the weight fraction
+        target_material = materials_list[index][0]
+        material_dict[target_material] = weight / 100
+
+    def plot_specific_capacity_curve(self, add_materials: bool = False, **kwargs) -> go.Figure:
         """
         Plot the half-cell curve for the formulation.
 
@@ -467,8 +532,6 @@ class _ElectrodeFormulation(
         ----------
         add_materials : bool, optional
             Whether to add individual material curves. Default is False.
-        show_direction : bool, optional
-            Whether to show charge/discharge direction markers. Default is True.
         **kwargs : dict
             Additional arguments to pass to the plotly figure layout.
 
@@ -480,12 +543,12 @@ class _ElectrodeFormulation(
         figure = go.Figure()
 
         # Add main formulation curve as a single continuous line
-        figure.add_trace(self.half_cell_curve_trace)
+        figure.add_trace(self.specific_capacity_curve_trace)
 
         # Add individual material curves if requested
         if add_materials:
             for material in self._active_materials.keys():
-                figure.add_trace(material.half_cell_curve_trace)
+                figure.add_trace(material.specific_capacity_curve_trace)
 
         # Enhanced layout with better defaults
         figure.update_layout(
@@ -500,16 +563,73 @@ class _ElectrodeFormulation(
         return figure
 
     @property
-    def half_cell_curve_trace(self) -> go.Scatter:
+    def cost_breakdown(self) -> Dict[str, Any]:
+        """
+        Get the cost breakdown of the electrode.
+
+        :return: Dictionary containing the cost breakdown.
+        """
+        if not hasattr(self, '_cost'):
+            return {}
+
+        def _round_recursive(obj):
+            if isinstance(obj, dict):
+                return {k: _round_recursive(v) for k, v in obj.items()}
+            else:
+                return np.round(obj, 2)
+
+        return _round_recursive(self._cost_breakdown)
+
+    @property
+    def mass_breakdown(self) -> Dict[str, Any]:
+        """
+        Get the mass breakdown of the electrode.
+
+        :return: Dictionary containing the mass breakdown.
+        """
+        if not hasattr(self, '_mass'):
+            return {}
+
+        def _convert_and_round_recursive(obj):
+            if isinstance(obj, dict):
+                return {k: _convert_and_round_recursive(v) for k, v in obj.items()}
+            else:
+                return np.round(obj * KG_TO_G, 2)
+
+        return _convert_and_round_recursive(self._mass_breakdown)
+
+    @property
+    def mass(self) -> Optional[float]:
+        if self._mass is None:
+            return None
+        else:
+            return np.round(self._mass * KG_TO_G, 2)
+        
+    @property
+    def volume(self) -> Optional[float]:
+        if self._volume is None:
+            return None
+        else:
+            return np.round(self._volume * M_TO_CM**3, 2)
+
+    @property
+    def cost(self) -> Optional[float]:
+        if self._cost is None:
+            return None
+        else:
+            return np.round(self._cost, 2)
+
+    @property
+    def specific_capacity_curve_trace(self) -> go.Scatter:
 
         return go.Scatter(
-            x=self.half_cell_curve["Specific Capacity (mAh/g)"],
-            y=self.half_cell_curve["Voltage (V)"],
+            x=self.specific_capacity_curve["Specific Capacity (mAh/g)"],
+            y=self.specific_capacity_curve["Voltage (V)"],
             name=self.name,
             line=dict(color=self._color, width=3, shape="spline"),
             mode="lines",
             hovertemplate="<b>%{fullData.name}</b><br>" + "Capacity: %{x:.2f} mAh/g<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
-            customdata=self.half_cell_curve["Direction"],
+            customdata=self.specific_capacity_curve["Direction"],
             showlegend=True,
         )
 
@@ -804,7 +924,7 @@ class _ElectrodeFormulation(
 
         :return: float: maximum voltage of the half cell curves
         """
-        return round(self._voltage_cutoff, 3)
+        return np.round(self._voltage_cutoff, 3)
 
     @property
     def voltage_cutoff_range(self) -> tuple:
@@ -815,24 +935,12 @@ class _ElectrodeFormulation(
         return self.voltage_cutoff_range
 
     @property
-    def voltage_cutoff_hard_range(self) -> tuple:
-        return self.voltage_operation_window
-
-    @property
     def density(self) -> float:
-        return round(self._density * KG_TO_G / (M_TO_CM**3), 2)
+        return np.round(self._density * KG_TO_G / (M_TO_CM**3), 2)
 
     @property
     def specific_cost(self) -> float:
-        return round(self._specific_cost, 2)
-
-    @property
-    def specific_cost_breakdown(self) -> Dict[str, float]:
-        return {key: round(value, 4) for key, value in self._specific_cost_breakdown.items()}
-
-    @property
-    def density_breakdown(self) -> Dict[str, float]:
-        return {key: round(value * KG_TO_G / (M_TO_CM**3), 4) for key, value in self._density_breakdown.items()}
+        return np.round(self._specific_cost, 2)
 
     @property
     def specific_volume(self) -> float:
@@ -841,7 +949,7 @@ class _ElectrodeFormulation(
 
         :return: Theoretical specific volume in cm³/g.
         """
-        return round(self._specific_volume * (M_TO_CM**3) / KG_TO_G, 2)
+        return np.round(self._specific_volume * (M_TO_CM**3) / KG_TO_G, 2)
 
     @property
     def voltage_operation_window(self) -> tuple:
@@ -868,26 +976,55 @@ class _ElectrodeFormulation(
             return (rounded_max, rounded_min)
 
     @property
-    def half_cell_curve(self) -> pd.DataFrame:
-        return (
-            pd.DataFrame(
-                self._half_cell_curve,
-                columns=["specific_capacity", "voltage", "direction"],
-            )
-            .assign(
-                direction=lambda x: np.where(x["direction"] == 1, "charge", "discharge"),
-                specific_capacity=lambda x: x["specific_capacity"] * (S_TO_H * A_TO_mA / KG_TO_G),
-            )
-            .rename(
-                columns={
-                    "specific_capacity": "Specific Capacity (mAh/g)",
-                    "voltage": "Voltage (V)",
-                    "direction": "Direction",
-                }
-            )
-            .round(4)
-        )
+    def specific_capacity_curve(self) -> pd.DataFrame:
+        """Get the specific capacity curve with proper units and formatting."""
 
+        if self._specific_capacity_curve is None:
+            return None
+
+        # Pre-compute unit conversion factor
+        capacity_conversion = S_TO_H * A_TO_mA / KG_TO_G
+
+        # original curve
+        curve = self._specific_capacity_curve.copy()
+        
+        # compute the columns
+        specific_capacity = np.round(curve[:, 0] * capacity_conversion, 4)
+        voltage = np.round(curve[:, 1], 4)
+        direction = np.where(curve[:, 2] == 1, "charge", "discharge")
+
+        # Create DataFrame with converted values directly
+        return pd.DataFrame({
+            "Specific Capacity (mAh/g)": specific_capacity,
+            "Voltage (V)": voltage,
+            "Direction": direction,
+        })
+    
+    @property
+    def capacity_curve(self) -> pd.DataFrame:
+        """Get the capacity curve with proper units and formatting."""
+
+        if self._specific_capacity_curve is None:
+            return None
+
+        # Pre-compute unit conversion factor
+        capacity_conversion = S_TO_H * A_TO_mA
+
+        # original curve
+        curve = self._specific_capacity_curve.copy()
+        
+        # compute the columns
+        capacity = np.round(curve[:, 0] * capacity_conversion, 4)
+        voltage = np.round(curve[:, 1], 4)
+        direction = np.where(curve[:, 2] == 1, "charge", "discharge")
+
+        # Create DataFrame with converted values directly
+        return pd.DataFrame({
+            "Capacity (mAh)": capacity,
+            "Voltage (V)": voltage,
+            "Direction": direction,
+        })
+    
     @property
     def color(self) -> str:
         return self._color
@@ -904,6 +1041,38 @@ class _ElectrodeFormulation(
             "Density": f"{self.density} g/cm³",
             "Specific Volume": f"{self.specific_volume} cm³/g",
         }
+
+    @mass.setter
+    @calculate_bulk_properties
+    def mass(self, mass: Optional[float] = None):
+
+        # validate input
+        self.validate_positive_float(mass, "Mass")
+
+        # calculate self properties
+        self._mass = mass * G_TO_KG
+        self._volume = self._mass / self._density
+        self._cost = self._mass * self._specific_cost
+
+        # assign masses to materials
+        for material, fraction in self._iter_all_materials():
+            material.mass = self._mass * KG_TO_G * fraction
+            
+    @volume.setter
+    @calculate_bulk_properties
+    def volume(self, volume: Optional[float] = None):
+
+        # validate input
+        self.validate_positive_float(volume, "Volume")
+
+        # calculate self properties
+        self._volume = volume * (CM_TO_M**3)
+        self._mass = self._volume * self._density
+        self._cost = self._mass * self._specific_cost
+
+        # assign masses to materials
+        for material, fraction in self._iter_all_materials():
+            material.mass = self._mass * KG_TO_G * fraction
 
     @name.setter
     def name(self, name: str):
@@ -1134,14 +1303,7 @@ class _ElectrodeFormulation(
         if not self._active_materials:
             raise ValueError("No active materials found in the formulation")
         
-        self.validate_percentage(weight, "Active material 1 weight")
-        
-        # Get current materials
-        materials_list = list(self._active_materials.items())
-        first_material = materials_list[0][0]
-        
-        # Update the weight fraction
-        self._active_materials[first_material] = weight / 100
+        self._set_component_weight(self._active_materials, 0, weight, "active material")
 
     @active_material_2_weight.setter
     @calculate_all_properties
@@ -1155,16 +1317,7 @@ class _ElectrodeFormulation(
         weight : float
             Weight percentage (0-100) for the second active material
         """
-        materials_list = list(self._active_materials.items())
-        
-        if len(materials_list) < 2:
-            raise ValueError("Cannot set active_material_2_weight: formulation has fewer than 2 active materials")
-        
-        self.validate_percentage(weight, "Active material 2 weight")
-        
-        # Update the weight fraction
-        second_material = materials_list[1][0]
-        self._active_materials[second_material] = weight / 100
+        self._set_component_weight(self._active_materials, 1, weight, "active material")
 
     @active_material_3_weight.setter
     @calculate_all_properties
@@ -1178,16 +1331,7 @@ class _ElectrodeFormulation(
         weight : float
             Weight percentage (0-100) for the third active material
         """
-        materials_list = list(self._active_materials.items())
-        
-        if len(materials_list) < 3:
-            raise ValueError("Cannot set active_material_3_weight: formulation has fewer than 3 active materials")
-        
-        self.validate_percentage(weight, "Active material 3 weight")
-        
-        # Update the weight fraction
-        third_material = materials_list[2][0]
-        self._active_materials[third_material] = weight / 100
+        self._set_component_weight(self._active_materials, 2, weight, "active material")
 
     @binder_1.setter
     @calculate_all_properties
@@ -1288,16 +1432,7 @@ class _ElectrodeFormulation(
         weight : float
             Weight percentage (0-100) for the first binder
         """
-        binders_list = list(self._binders.items())
-        
-        if len(binders_list) < 1:
-            raise ValueError("Cannot set binder_1_weight: formulation has no binders")
-        
-        self.validate_percentage(weight, "Binder 1 weight")
-        
-        # Update the weight fraction
-        first_material = binders_list[0][0]
-        self._binders[first_material] = weight / 100
+        self._set_component_weight(self._binders, 0, weight, "binder")
 
     @binder_2_weight.setter
     @calculate_all_properties
@@ -1311,16 +1446,7 @@ class _ElectrodeFormulation(
         weight : float
             Weight percentage (0-100) for the second binder
         """
-        binders_list = list(self._binders.items())
-        
-        if len(binders_list) < 2:
-            raise ValueError("Cannot set binder_2_weight: formulation has fewer than 2 binders")
-        
-        self.validate_percentage(weight, "Binder 2 weight")
-        
-        # Update the weight fraction
-        second_material = binders_list[1][0]
-        self._binders[second_material] = weight / 100
+        self._set_component_weight(self._binders, 1, weight, "binder")
 
     @conductive_additive_1.setter
     @calculate_all_properties
@@ -1395,16 +1521,7 @@ class _ElectrodeFormulation(
         weight : float
             Weight percentage (0-100) for the first conductive additive
         """
-        additives_list = list(self._conductive_additives.items())
-        
-        if len(additives_list) < 1:
-            raise ValueError("Cannot set conductive_additive_1_weight: formulation has no conductive additives")
-        
-        self.validate_percentage(weight, "Conductive additive 1 weight")
-        
-        # Update the weight fraction
-        first_material = additives_list[0][0]
-        self._conductive_additives[first_material] = weight / 100
+        self._set_component_weight(self._conductive_additives, 0, weight, "conductive additive")
 
     @conductive_additive_2_weight.setter
     @calculate_all_properties
@@ -1418,19 +1535,11 @@ class _ElectrodeFormulation(
         weight : float
             Weight percentage (0-100) for the second conductive additive
         """
-        additives_list = list(self._conductive_additives.items())
-        
-        if len(additives_list) < 2:
-            raise ValueError("Cannot set conductive_additive_2_weight: formulation has fewer than 2 conductive additives")
-        
-        self.validate_percentage(weight, "Conductive additive 2 weight")
-        
-        # Update the weight fraction
-        second_material = additives_list[1][0]
-        self._conductive_additives[second_material] = weight / 100
+        self._set_component_weight(self._conductive_additives, 1, weight, "conductive additive")
 
     @voltage_cutoff.setter
-    @calculate_half_cell_curve
+    @calculate_capacity_curve
+    @calculate_specific_capacity_curve
     def voltage_cutoff(self, voltage: float):
         """
         Set the voltage cutoff for the half cell curves with validation.

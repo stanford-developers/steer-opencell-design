@@ -264,7 +264,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
             x, y = self.build_square_array(x=x0, y=y0, x_width=self._tab_width, y_width=self._insulation_width)
 
-        elif round(_y_insulation_end, 10) <= round(self._datum[1] + self._y_body_length / 2, 10):
+        elif np.round(_y_insulation_end, 10) <= np.round(self._datum[1] + self._y_body_length / 2, 10):
             x0 = self._datum[0] - self._x_body_length / 2
             y0 = _y_insulation_start
 
@@ -321,8 +321,8 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         if hasattr(self, "_x_body_length_range") and self._x_body_length_range is not None:
 
             return (
-                round(self._x_body_length_range[0] * M_TO_MM, 2),
-                round(self._x_body_length_range[1] * M_TO_MM, 2),
+                np.round(self._x_body_length_range[0] * M_TO_MM, 2),
+                np.round(self._x_body_length_range[1] * M_TO_MM, 2),
             )
 
         else:
@@ -332,8 +332,8 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
     def y_body_length_range(self) -> Tuple[float, float]:
         if hasattr(self, "_y_body_length_range") and self._y_body_length_range is not None:
             return (
-                round(self._y_body_length_range[0] * M_TO_MM, 2),
-                round(self._y_body_length_range[1] * M_TO_MM, 2),
+                np.round(self._y_body_length_range[0] * M_TO_MM, 2),
+                np.round(self._y_body_length_range[1] * M_TO_MM, 2),
             )
         else:
             return (10, 500)
@@ -344,7 +344,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         hyp_max = 0.1
         max = hyp_max * (1 - np.exp(-0.5 / self._mass))
 
-        return (round(min * KG_TO_G, 2), round(max * KG_TO_G, 2))
+        return (round(min * KG_TO_G, 2), np.round(max * KG_TO_G, 2))
 
     @property
     def width(self) -> float:
@@ -371,7 +371,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         min = 0.01
         max = self._x_body_length - 0.01
 
-        return (round(min * M_TO_MM, 2), round(max * M_TO_MM, 2))
+        return (round(min * M_TO_MM, 2), np.round(max * M_TO_MM, 2))
 
     @property
     def tab_width_range(self) -> Tuple[float, float]:
@@ -379,7 +379,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
     @property
     def tab_position(self) -> float:
-        return round(self._tab_position * M_TO_MM, 1)
+        return np.round(self._tab_position * M_TO_MM, 1)
 
     @tab_position.setter
     def tab_position(self, tab_position: float) -> None:

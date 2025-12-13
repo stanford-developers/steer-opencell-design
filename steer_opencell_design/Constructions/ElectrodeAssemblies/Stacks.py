@@ -49,12 +49,33 @@ class _Stack(_ElectrodeAssembly):
     def _calculate_geometry_parameters(self) -> None:
         """Calculate geometry parameters - placeholder for implementation."""
         self._thickness = sum(component._thickness for component in self._stack.values())
+
+    def _calculate_datum(self): 
+
+        _x_datums = [c._datum[0] for c in self._stack.values()]
+        _y_datums = [c._datum[1] for c in self._stack.values()]
+        _z_datums = [c._datum[2] for c in self._stack.values()]
+
+        _datum = (
+            np.mean(_x_datums),
+            np.mean(_y_datums),
+            np.mean(_z_datums)
+        )
+
+        if not hasattr(self, '_datum') or self._datum == None:
+            self._datum = _datum
+        else:
+            _old_datum = self._datum
+            old_datum = tuple(d * M_TO_MM for d in _old_datum)
+            self._datum = _datum
+            self.datum = old_datum  # triggers the setter to reposition components
     
     def _calculate_all_properties(self) -> None:
         """Calculate all properties including stack configuration."""
         self._calculate_stack()
         super()._calculate_all_properties()
         self._calculate_geometry_parameters()
+        self._calculate_datum()
 
     def _calculate_stack(self) -> Dict[int, Any]:
         
@@ -200,6 +221,58 @@ class _Stack(_ElectrodeAssembly):
 
         self._pore_volume = _cathode_pore_volume + _anode_pore_volume
 
+    def _get_center_point(self) -> Tuple[float, float, float]:
+        """Get the center point of the stack assembly.
+        
+        Calculates the geometric center by finding the bounding box of all
+        current collectors and separators.
+        
+        Returns
+        -------
+        Tuple[float, float, float]
+            (x, y, z) coordinates of the center point in millimeters
+        """
+        cathodes = [c for c in self._stack.values() if isinstance(c, Cathode)]
+        anodes = [a for a in self._stack.values() if isinstance(a, Anode)]
+        current_collectors = [c._current_collector for c in cathodes + anodes]
+        separators = [s for s in self._stack.values() if isinstance(s, Separator)]
+
+        # Get the overall coordinates
+        _cc_coordinates = np.vstack([cc._body_coordinates for cc in current_collectors])
+        _separator_coordinates = np.vstack([s._coordinates for s in separators])
+        _all_coordinates = np.vstack([_cc_coordinates, _separator_coordinates])
+
+        # Get the bounding box
+        _max_x = _all_coordinates[:, 0].max()
+        _min_x = _all_coordinates[:, 0].min()
+        _max_y = _all_coordinates[:, 1].max()
+        _min_y = _all_coordinates[:, 1].min()
+        _max_z = _all_coordinates[:, 2].max()
+        _min_z = _all_coordinates[:, 2].min()
+
+        # Get the midpoints
+        _mid_x = (_max_x + _min_x) / 2
+        _mid_y = (_max_y + _min_y) / 2
+        _mid_z = (_max_z + _min_z) / 2
+
+        return (_mid_x, _mid_y, _mid_z)
+    
+    def _clip_current_collector_tabs(self, _clipped_length: float) -> None:
+        """Clip current collector tabs to specified length."""
+        
+        # clip current collector tabs on cathode
+        self._layup._cathode._current_collector.tab_height = _clipped_length * M_TO_MM
+        self._layup._cathode.current_collector = self._layup._cathode._current_collector
+        self._layup.cathode = self._layup._cathode
+        
+        # clip current collector tabs on anode
+        self._layup._anode._current_collector.tab_height = _clipped_length * M_TO_MM
+        self._layup._anode.current_collector = self._layup._anode._current_collector
+        self._layup.anode = self._layup._anode
+        
+        # set the new layup to self
+        self.layup = self._layup
+
     def get_side_view(self, **kwargs):
         """
         Generate an optimized side view of the stack with grouped component traces.
@@ -236,7 +309,8 @@ class _Stack(_ElectrodeAssembly):
                 0.1, 
                 color_func, 
                 unit_conversion_factor=M_TO_MM,
-                order_clockwise='yz'
+                order_clockwise='yz',
+                gl=True
             )
             traces.append(trace)
         
@@ -245,14 +319,17 @@ class _Stack(_ElectrodeAssembly):
         
         # Apply layout
         figure.update_layout(
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Y_AXIS,
+            xaxis=self.SCHEMATIC_Y_AXIS,
+            yaxis=self.SCHEMATIC_Z_AXIS,
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
         )
         
         return figure
+
+    def get_top_down_view(self, **kwargs):
+        return self._layup.get_top_down_view(**kwargs)
 
     @staticmethod
     def add_layer(stack: Dict[int, Any], component: Any, z_datum: float) -> Tuple[float, Dict[int, Any]]:
@@ -283,6 +360,10 @@ class _Stack(_ElectrodeAssembly):
             
         stack_size = len(stack)
         new_component = deepcopy(component)
+
+        # if electrode then clear its cached data
+        if type(new_component) in [Cathode, Anode]:
+            new_component._clear_cached_data()
 
         # Calculate new z-datum based on component thickness
         component_half_thickness = new_component._thickness * M_TO_MM / 2
@@ -351,7 +432,7 @@ class _Stack(_ElectrodeAssembly):
     @property
     def n_layers(self) -> int:
         """Return the number of layers in the stack."""
-        return round(self._n_layers, 0)
+        return np.round(self._n_layers, 0)
     
     @property
     def n_layers_range(self) -> Tuple[int, int]:
@@ -366,7 +447,7 @@ class _Stack(_ElectrodeAssembly):
     @property
     def thickness(self) -> float:
         """Return the total thickness of the stack in mm."""
-        return round(self._thickness * M_TO_MM, 2)
+        return np.round(self._thickness * M_TO_MM, 2)
     
     @property
     def thickness_range(self) -> Tuple[float, float]:
@@ -427,6 +508,45 @@ class _Stack(_ElectrodeAssembly):
     @property
     def layup(self) -> ZFoldMonoLayer | MonoLayer:
         return self._layup
+
+    @property
+    def datum(self) -> Tuple[float, float, float]:
+        """Get the datum position in mm."""
+        return tuple(round(coord * M_TO_MM, 2) for coord in self._datum)
+
+    @datum.setter
+    def datum(self, value: Tuple[float, float, float]):
+
+        # Validate input
+        self.validate_datum(value)
+
+        # value in m
+        _value = tuple(coord * MM_TO_M for coord in value)
+
+        # get the translation vector
+        _translation_vector = (
+            _value[0] - self._datum[0],
+            _value[1] - self._datum[1],
+            _value[2] - self._datum[2],
+        )
+
+        # go through each component and apply the translation
+        for component in self._stack.values():
+            component.datum = (
+                (component._datum[0] + _translation_vector[0]) * M_TO_MM,
+                (component._datum[1] + _translation_vector[1]) * M_TO_MM,
+                (component._datum[2] + _translation_vector[2]) * M_TO_MM,
+            )
+
+        # translate the layup
+        self._layup.datum = (
+            (self._layup._cathode._datum[0] + _translation_vector[0]) * M_TO_MM,
+            (self._layup._cathode._datum[1] + _translation_vector[1]) * M_TO_MM,
+            (self._layup._cathode._datum[2] + _translation_vector[2]) * M_TO_MM,
+        )
+
+        # update the stack datum
+        self._datum = _value
 
     @n_layers.setter
     @calculate_all_properties
