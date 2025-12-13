@@ -1,11 +1,8 @@
 import unittest
+import warnings
 from copy import deepcopy
 
-from steer_opencell_design.Formulations.ElectrodeFormulations import (
-    CathodeFormulation,
-    AnodeFormulation,
-)
-
+from steer_opencell_design.Materials.Formulations import CathodeFormulation, AnodeFormulation
 from steer_opencell_design.Materials.ActiveMaterials import CathodeMaterial, AnodeMaterial
 from steer_opencell_design.Materials.Binders import Binder
 from steer_opencell_design.Materials.ConductiveAdditives import ConductiveAdditive
@@ -54,31 +51,133 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
         self.assertEqual(len(self.cathode_formulation._conductive_additives), 2)
         self.assertEqual(self.cathode_formulation._name, "Cathode Formulation")
         self.assertEqual(self.cathode_formulation.name, "Cathode Formulation")
-        self.assertEqual(self.cathode_formulation.density, 3.76)
+        self.assertEqual(self.cathode_formulation.density, 3.43)
         self.assertEqual(self.cathode_formulation.specific_cost, 11.29)
+
+    def test_serialization(self):
+        serialized = self.cathode_formulation.serialize()
+        deserialized = CathodeFormulation.deserialize(serialized)
+        self.assertEqual(self.cathode_formulation, deserialized)
+
+    def test_mass_setter(self):
+
+        self.cathode_formulation.mass = 0.45
+
+        self.assertEqual(self.cathode_formulation.mass, 0.45)
+        self.assertEqual(self.cathode_formulation.cost, 0.01)
+        self.assertEqual(self.cathode_formulation.volume, 0.13)
+
+        material_masses = 0
+        for material in self.cathode_formulation.active_materials.keys():
+            material_masses += material._mass
+        for material in self.cathode_formulation.binders.keys():
+            material_masses += material._mass
+        for material in self.cathode_formulation.conductive_additives.keys():
+            material_masses += material._mass
+        self.assertAlmostEqual(material_masses, self.cathode_formulation._mass, 10)
+
+        material_costs = 0
+        for material in self.cathode_formulation.active_materials.keys():
+            material_costs += material._cost
+        for material in self.cathode_formulation.binders.keys():
+            material_costs += material._cost
+        for material in self.cathode_formulation.conductive_additives.keys():
+            material_costs += material._cost
+        self.assertAlmostEqual(material_costs, self.cathode_formulation._cost, 10)
+
+        material_volumes = 0
+        for material in self.cathode_formulation.active_materials.keys():
+            material_volumes += material._volume
+        for material in self.cathode_formulation.binders.keys():
+            material_volumes += material._volume
+        for material in self.cathode_formulation.conductive_additives.keys():
+            material_volumes += material._volume
+        self.assertAlmostEqual(material_volumes, self.cathode_formulation._volume, 10)
+
         self.assertEqual(
-            round(sum(self.cathode_formulation.specific_cost_breakdown.values()), 2),
-            self.cathode_formulation.specific_cost,
+            self.cathode_formulation.mass_breakdown,
+            {
+                "NaNiMn P2-O3 Composite": 0.41,
+                "PVDF": 0.01,
+                "CMC": 0.01,
+                "Super P": 0.01,
+                "Graphite": 0.01,
+            },
         )
+
         self.assertEqual(
-            round(sum(self.cathode_formulation.density_breakdown.values()), 2),
-            self.cathode_formulation.density,
+            self.cathode_formulation.cost_breakdown,
+            {
+                "NaNiMn P2-O3 Composite": 0.0,
+                "PVDF": 0.0,
+                "CMC": 0.0,
+                "Super P": 0.0,
+                "Graphite": 0.0,
+            },
         )
+
+        def sum_nested_dict(data):
+            """Recursively sum all numeric values in a nested dictionary"""
+            total = 0
+            for key, value in data.items():
+                if isinstance(value, dict):
+                    total += sum_nested_dict(value)  # Recursive call for nested dict
+                elif isinstance(value, (int, float)):
+                    total += value
+            return total
+
+        self.assertAlmostEqual(self.cathode_formulation._cost, sum_nested_dict(self.cathode_formulation._cost_breakdown), 5)
+        self.assertAlmostEqual(self.cathode_formulation._mass, sum_nested_dict(self.cathode_formulation._mass_breakdown), 5)
+
+    def test_volume_setter(self):
+
+        self.cathode_formulation.volume = 0.2
+
+        self.assertEqual(self.cathode_formulation.volume, 0.2)
+        self.assertEqual(self.cathode_formulation.mass, 0.69)
+        self.assertEqual(self.cathode_formulation.cost, 0.01)
+
+        material_masses = 0
+        for material in self.cathode_formulation.active_materials.keys():
+            material_masses += material._mass
+        for material in self.cathode_formulation.binders.keys():
+            material_masses += material._mass
+        for material in self.cathode_formulation.conductive_additives.keys():
+            material_masses += material._mass
+        self.assertAlmostEqual(material_masses, self.cathode_formulation._mass, 10)
+
+        material_costs = 0
+        for material in self.cathode_formulation.active_materials.keys():
+            material_costs += material._cost
+        for material in self.cathode_formulation.binders.keys():
+            material_costs += material._cost
+        for material in self.cathode_formulation.conductive_additives.keys():
+            material_costs += material._cost
+        self.assertAlmostEqual(material_costs, self.cathode_formulation._cost, 10)
+
+        material_volumes = 0
+        for material in self.cathode_formulation.active_materials.keys():
+            material_volumes += material._volume
+        for material in self.cathode_formulation.binders.keys():
+            material_volumes += material._volume
+        for material in self.cathode_formulation.conductive_additives.keys():
+            material_volumes += material._volume
+        self.assertAlmostEqual(material_volumes, self.cathode_formulation._volume, 10)
 
     def test_voltage_cutoff(self):
         self.cathode_formulation.voltage_cutoff = 4.2
-        figure = self.cathode_formulation.plot_half_cell_curve(add_materials=True)
+        figure = self.cathode_formulation.plot_specific_capacity_curve(add_materials=True)
 
         self.assertEqual(
-            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[10],
+            self.cathode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[10],
             12.8,
         )
         self.assertEqual(
-            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[20],
+            self.cathode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[20],
             25.7,
         )
         self.assertEqual(
-            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[80],
+            self.cathode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[80],
             102.8,
         )
 
@@ -140,18 +239,10 @@ class TestMultiCathodeFormulation(unittest.TestCase):
         self.assertEqual(len(self.cathode_formulation._conductive_additives), 2)
         self.assertEqual(self.cathode_formulation._name, "Cathode Formulation")
         self.assertEqual(self.cathode_formulation.name, "Cathode Formulation")
-        self.assertEqual(self.cathode_formulation.density, 3.55)
+        self.assertEqual(self.cathode_formulation.density, 3.37)
         self.assertEqual(self.cathode_formulation.specific_cost, 8.37)
-        self.assertEqual(
-            round(sum(self.cathode_formulation.specific_cost_breakdown.values()), 2),
-            self.cathode_formulation.specific_cost,
-        )
-        self.assertEqual(
-            round(sum(self.cathode_formulation.density_breakdown.values()), 2),
-            self.cathode_formulation.density,
-        )
 
-        figure = self.cathode_formulation.plot_half_cell_curve(add_materials=True)
+        figure = self.cathode_formulation.plot_specific_capacity_curve(add_materials=True)
 
         # figure.show()
 
@@ -161,19 +252,21 @@ class TestMultiCathodeFormulation(unittest.TestCase):
         self.assertTrue(condition)
 
     def test_voltage_cutoff(self):
+
         self.cathode_formulation.voltage_cutoff = 4.09
-        figure = self.cathode_formulation.plot_half_cell_curve(add_materials=True)
+        
+        figure = self.cathode_formulation.plot_specific_capacity_curve(add_materials=True)
 
         self.assertEqual(
-            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[10],
+            self.cathode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[10],
             0.2,
         )
         self.assertEqual(
-            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[20],
+            self.cathode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[20],
             0.2,
         )
         self.assertEqual(
-            self.cathode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[80],
+            self.cathode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[80],
             134.4,
         )
 
@@ -183,10 +276,10 @@ class TestMultiCathodeFormulation(unittest.TestCase):
         self.cathode_formulation.active_materials = {self.cathode_active_material1: 90}
         self.cathode_formulation.voltage_cutoff = 4.09
 
-        self.assertEqual(self.cathode_formulation.density, 3.43)
+        self.assertEqual(self.cathode_formulation.density, 3.3)
         self.assertEqual(self.cathode_formulation.specific_cost, 6.47)
 
-        figure = self.cathode_formulation.plot_half_cell_curve(add_materials=True)
+        figure = self.cathode_formulation.plot_specific_capacity_curve(add_materials=True)
         # figure.show()
 
 
@@ -224,40 +317,32 @@ class TestSimpleAnodeFormulation(unittest.TestCase):
         self.assertEqual(len(self.anode_formulation._conductive_additives), 1)
         self.assertEqual(self.anode_formulation._name, "Anode Formulation")
         self.assertEqual(self.anode_formulation.name, "Anode Formulation")
-        self.assertEqual(self.anode_formulation.density, 1.54)
+        self.assertEqual(self.anode_formulation.density, 1.53)
         self.assertEqual(self.anode_formulation.specific_cost, 13.67)
-        self.assertEqual(
-            round(sum(self.anode_formulation.specific_cost_breakdown.values()), 2),
-            self.anode_formulation.specific_cost,
-        )
-        self.assertEqual(
-            round(sum(self.anode_formulation.density_breakdown.values()), 2),
-            self.anode_formulation.density,
-        )
 
-        figure = self.anode_formulation.plot_half_cell_curve(add_materials=True)
+        figure = self.anode_formulation.plot_specific_capacity_curve(add_materials=True)
         # figure.show()
 
-    def test_plot_half_cell_curve(self):
+    def test_plot_specific_capacity_curve(self):
         self.anode_formulation.voltage_cutoff = 0.0
-        figure = self.anode_formulation.plot_half_cell_curve(add_materials=True)
+        figure = self.anode_formulation.plot_specific_capacity_curve(add_materials=True)
 
         self.assertEqual(
-            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[10],
+            self.anode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[10],
             0,
         )
         self.assertEqual(
-            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[20],
+            self.anode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[20],
             1.8,
         )
         self.assertEqual(
-            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[80],
+            self.anode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[80],
             262.1,
         )
         # figure.show()
 
-    def test_anode_half_Cell_curve_set(self):
-        figure = self.anode_formulation2.plot_half_cell_curve(add_materials=True)
+    def test_anode_specific_capacity_curve_set(self):
+        figure = self.anode_formulation2.plot_specific_capacity_curve(add_materials=True)
         # figure.show()
 
 
@@ -281,30 +366,22 @@ class TestDualAnodeFormulation(unittest.TestCase):
         self.assertEqual(len(self.anode_formulation._conductive_additives), 1)
         self.assertEqual(self.anode_formulation._name, "Anode Formulation")
         self.assertEqual(self.anode_formulation.name, "Anode Formulation")
-        self.assertEqual(self.anode_formulation.density, 1.55)
+        self.assertEqual(self.anode_formulation.density, 1.54)
         self.assertEqual(self.anode_formulation.specific_cost, 7.87)
-        self.assertEqual(
-            round(sum(self.anode_formulation.specific_cost_breakdown.values()), 2),
-            self.anode_formulation.specific_cost,
-        )
-        self.assertEqual(
-            round(sum(self.anode_formulation.density_breakdown.values()), 2),
-            self.anode_formulation.density,
-        )
 
-    def test_plot_half_cell_curve(self):
-        figure = self.anode_formulation.plot_half_cell_curve(add_materials=True)
+    def test_plot_specific_capacity_curve(self):
+        figure = self.anode_formulation.plot_specific_capacity_curve(add_materials=True)
 
         self.assertEqual(
-            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[10],
+            self.anode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[10],
             0.4,
         )
         self.assertEqual(
-            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[20],
+            self.anode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[20],
             0.5,
         )
         self.assertEqual(
-            self.anode_formulation.half_cell_curve["Specific Capacity (mAh/g)"].round(1).iloc[80],
+            self.anode_formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].round(1).iloc[80],
             76.3,
         )
 
@@ -439,7 +516,9 @@ class TestActiveMaterialPropertiesAndSetters(unittest.TestCase):
         """Test that setting active_material_1 to None removes the first active material."""
         f = CathodeFormulation({self.mat1: 60, self.mat2: 40})
         
-        f.active_material_1 = None
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.active_material_1 = None
         
         # Should only have the second material now, which becomes the first
         self.assertEqual(f.active_material_1, self.mat2)
@@ -452,7 +531,9 @@ class TestActiveMaterialPropertiesAndSetters(unittest.TestCase):
         """Test that setting active_material_2 to None removes the second active material."""
         f = CathodeFormulation({self.mat1: 60, self.mat2: 30, self.mat3: 10})
         
-        f.active_material_2 = None
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.active_material_2 = None
         
         # Should have first and third materials, third becomes second
         self.assertEqual(f.active_material_1, self.mat1)
@@ -466,7 +547,9 @@ class TestActiveMaterialPropertiesAndSetters(unittest.TestCase):
         """Test that setting active_material_3 to None removes the third active material."""
         f = CathodeFormulation({self.mat1: 60, self.mat2: 30, self.mat3: 10})
         
-        f.active_material_3 = None
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.active_material_3 = None
         
         # Should only have first two materials
         self.assertEqual(f.active_material_1, self.mat1)
@@ -507,7 +590,9 @@ class TestActiveMaterialWeightPropertiesAndSetters(unittest.TestCase):
         """Test active_material_1_weight setter updates the weight percentage."""
         f = CathodeFormulation({self.mat1: 60, self.mat2: 40})
         
-        f.active_material_1_weight = 70.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.active_material_1_weight = 70.0
         
         self.assertEqual(f.active_material_1_weight, 70.0)
         self.assertEqual(f._active_materials[self.mat1], 0.7)
@@ -528,7 +613,9 @@ class TestActiveMaterialWeightPropertiesAndSetters(unittest.TestCase):
         """Test active_material_2_weight setter updates the weight percentage."""
         f = CathodeFormulation({self.mat1: 60, self.mat2: 40})
         
-        f.active_material_2_weight = 30.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.active_material_2_weight = 30.0
         
         self.assertEqual(f.active_material_2_weight, 30.0)
         self.assertEqual(f._active_materials[self.mat2], 0.3)
@@ -558,7 +645,9 @@ class TestActiveMaterialWeightPropertiesAndSetters(unittest.TestCase):
         """Test active_material_3_weight setter updates the weight percentage."""
         f = CathodeFormulation({self.mat1: 60, self.mat2: 30, self.mat3: 10})
         
-        f.active_material_3_weight = 15.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.active_material_3_weight = 15.0
         
         self.assertEqual(f.active_material_3_weight, 15.0)
         self.assertEqual(f._active_materials[self.mat3], 0.15)
@@ -591,7 +680,9 @@ class TestActiveMaterialWeightPropertiesAndSetters(unittest.TestCase):
         """Test that weight can be set to zero."""
         f = CathodeFormulation({self.mat1: 60, self.mat2: 40})
         
-        f.active_material_2_weight = 0.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.active_material_2_weight = 0.0
         
         self.assertEqual(f.active_material_2_weight, 0.0)
         self.assertEqual(f._active_materials[self.mat2], 0.0)
@@ -719,7 +810,9 @@ class TestBinderPropertiesAndSetters(unittest.TestCase):
         """Test that setting binder_1 to None removes the first binder."""
         f = CathodeFormulation({self.mat1: 95}, binders={self.binder1: 3, self.binder2: 2})
         
-        f.binder_1 = None
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.binder_1 = None
         
         # Should only have the second binder now, which becomes the first
         self.assertEqual(f.binder_1, self.binder2)
@@ -732,7 +825,9 @@ class TestBinderPropertiesAndSetters(unittest.TestCase):
         """Test that setting binder_2 to None removes the second binder."""
         f = CathodeFormulation({self.mat1: 95}, binders={self.binder1: 3, self.binder2: 2})
         
-        f.binder_2 = None
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.binder_2 = None
         
         # Should only have the first binder
         self.assertEqual(f.binder_1, self.binder1)
@@ -784,7 +879,9 @@ class TestBinderWeightPropertiesAndSetters(unittest.TestCase):
         """Test binder_1_weight setter updates the weight percentage."""
         f = CathodeFormulation({self.mat1: 95}, binders={self.binder1: 3, self.binder2: 2})
         
-        f.binder_1_weight = 5.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.binder_1_weight = 5.0
         
         self.assertEqual(f.binder_1_weight, 5.0)
         self.assertEqual(f._binders[self.binder1], 0.05)
@@ -814,7 +911,9 @@ class TestBinderWeightPropertiesAndSetters(unittest.TestCase):
         """Test binder_2_weight setter updates the weight percentage."""
         f = CathodeFormulation({self.mat1: 95}, binders={self.binder1: 3, self.binder2: 2})
         
-        f.binder_2_weight = 4.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.binder_2_weight = 4.0
         
         self.assertEqual(f.binder_2_weight, 4.0)
         self.assertEqual(f._binders[self.binder2], 0.04)
@@ -846,7 +945,9 @@ class TestBinderWeightPropertiesAndSetters(unittest.TestCase):
         """Test that binder weight can be set to zero."""
         f = CathodeFormulation({self.mat1: 95}, binders={self.binder1: 3, self.binder2: 2})
         
-        f.binder_2_weight = 0.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.binder_2_weight = 0.0
         
         self.assertEqual(f.binder_2_weight, 0.0)
         self.assertEqual(f._binders[self.binder2], 0.0)
@@ -1002,7 +1103,9 @@ class TestConductiveAdditiveWeightPropertiesAndSetters(unittest.TestCase):
         """Test conductive_additive_1_weight setter updates the weight percentage."""
         f = CathodeFormulation({self.mat1: 95}, conductive_additives={self.additive1: 3, self.additive2: 2})
         
-        f.conductive_additive_1_weight = 5.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.conductive_additive_1_weight = 5.0
         
         self.assertEqual(f.conductive_additive_1_weight, 5.0)
         self.assertEqual(f._conductive_additives[self.additive1], 0.05)
@@ -1032,7 +1135,9 @@ class TestConductiveAdditiveWeightPropertiesAndSetters(unittest.TestCase):
         """Test conductive_additive_2_weight setter updates the weight percentage."""
         f = CathodeFormulation({self.mat1: 95}, conductive_additives={self.additive1: 3, self.additive2: 2})
         
-        f.conductive_additive_2_weight = 4.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.conductive_additive_2_weight = 4.0
         
         self.assertEqual(f.conductive_additive_2_weight, 4.0)
         self.assertEqual(f._conductive_additives[self.additive2], 0.04)
@@ -1064,7 +1169,9 @@ class TestConductiveAdditiveWeightPropertiesAndSetters(unittest.TestCase):
         """Test that conductive additive weight can be set to zero."""
         f = CathodeFormulation({self.mat1: 95}, conductive_additives={self.additive1: 3, self.additive2: 2})
         
-        f.conductive_additive_2_weight = 0.0
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.conductive_additive_2_weight = 0.0
         
         self.assertEqual(f.conductive_additive_2_weight, 0.0)
         self.assertEqual(f._conductive_additives[self.additive2], 0.0)

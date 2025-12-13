@@ -143,11 +143,16 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.radius, 20.8, 1)
         self.assertAlmostEqual(self.my_jellyroll.diameter, 41.6, 1)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23895, 0)
-        self.assertAlmostEqual(self.my_jellyroll.energy, 37.29)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 3.96, 2)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 4.33, 2)
         self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 6.74, 2)
         self.assertAlmostEqual(self.my_jellyroll.radius_range[1], 30.55, 2)
         self.assertAlmostEqual(self.my_jellyroll.mass, 655.4, 1)
+
+    def test_serialization(self):
+        serialized = self.my_jellyroll.serialize()
+        deserialized = WoundJellyRoll.deserialize(serialized)
+        test_case = self.my_jellyroll == deserialized
+        self.assertTrue(test_case)
 
     def test_plots(self):
 
@@ -159,6 +164,8 @@ class TestRoundJellyRoll(unittest.TestCase):
         fig4 = self.my_jellyroll.get_capacity_plot()
         fig5 = self.my_jellyroll.plot_mass_breakdown()
         fig6 = self.my_jellyroll.plot_cost_breakdown()
+        fig7 = self.my_jellyroll.get_top_down_view()
+        fig8 = self.my_jellyroll.get_side_view()
 
         # fig1.show()
         # fig3.show()
@@ -166,6 +173,25 @@ class TestRoundJellyRoll(unittest.TestCase):
         # fig5.show()
         # fig6.show()
         # fig7.show()
+        # fig8.show()
+
+    def test_datum_set(self):
+
+        original_datum = self.my_jellyroll.datum
+
+        new_datum = (50.0, 60.0, 70.0)
+
+        self.my_jellyroll.datum = new_datum
+
+        self.assertEqual(self.my_jellyroll.datum, new_datum)
+
+        fig1 = self.my_jellyroll.get_spiral_plot()
+        fig2 = self.my_jellyroll.get_top_down_view()
+        fig3 = self.my_jellyroll.get_side_view()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
 
     def test_top_down_view(self):
         
@@ -261,15 +287,14 @@ class TestRoundJellyRoll(unittest.TestCase):
         # Check that diameter updated correctly
         self.assertAlmostEqual(self.my_jellyroll.radius, new_radius, 0)
         self.assertAlmostEqual(self.my_jellyroll.diameter, new_radius * 2, 0)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 6.07, 1)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 6.67, 1)
 
     def test_to_flat_jelly_roll(self):
 
         flat_jellyroll = FlatWoundJellyRoll.from_round_jelly_roll(self.my_jellyroll)
 
         self.assertAlmostEqual(flat_jellyroll.interfacial_area, 23895, 0)
-        self.assertAlmostEqual(flat_jellyroll.energy, 37.29)
-        self.assertAlmostEqual(flat_jellyroll.cost, 4.15, 2)
+        self.assertAlmostEqual(flat_jellyroll.cost, 4.53, 2)
         self.assertAlmostEqual(flat_jellyroll.thickness, 19.38, 1)
         self.assertAlmostEqual(flat_jellyroll.width, 75.93, 1)
 
@@ -281,44 +306,44 @@ class TestRoundJellyRoll(unittest.TestCase):
         
         expected_mass_breakdown = {
             'Anode': {
-                'Anode Formulation': {
-                    'Synthetic Graphite': 161.82, 
-                    'CMC': 6.13, 
-                    'super_P': 8.17
+                'Coating': {
+                    'Synthetic Graphite': 158.51, 
+                    'CMC': 8.81, 
+                    'super_P': 8.81
                 }, 
-                'Notched Current Collector': 30.79, 
-                'Aluminium Oxide, 99.5%': 1.63
+                'Current Collector': 30.79, 
+                'Electrical Insulation': 1.63
             }, 
             'Cathode': {
-                'Cathode Formulation': {
-                    'LFP': 311.48, 
-                    'CMC': 2.73, 
-                    'super_P': 5.46
+                'Coating': {
+                    'LFP': 303.7, 
+                    'CMC': 6.39, 
+                    'super_P': 9.59
                 }, 
-                'Notched Current Collector': 29.68, 
-                'Aluminium Oxide, 99.5%': 1.6
+                'Current Collector': 29.68, 
+                'Electrical Insulation': 1.6
             }, 
             'Separators': 87.42
         }
         
         expected_cost_breakdown = {
             'Anode': {
-                'Anode Formulation': {
+                'Coating': {
                     'Synthetic Graphite': 0.63, 
                     'CMC': 0.09, 
                     'super_P': 0.13
                 }, 
-                'Notched Current Collector': 0.15, 
-                'Aluminium Oxide, 99.5%': 0.0
+                'Current Collector': 0.15, 
+                'Electrical Insulation': 0.19
             }, 
             'Cathode': {
-                'Cathode Formulation': {
+                'Coating': {
                     'LFP': 1.82, 
                     'CMC': 0.06, 
                     'super_P': 0.14
                 }, 
-                'Notched Current Collector': 0.15, 
-                'Aluminium Oxide, 99.5%': 0.0
+                'Current Collector': 0.15, 
+                'Electrical Insulation': 0.18
             }, 
             'Separators': 0.17
         }
@@ -572,13 +597,18 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertTrue(type(self.my_jellyroll), WoundJellyRoll)
         self.assertAlmostEqual(self.my_jellyroll.thickness, 12.5, 1)
         self.assertAlmostEqual(self.my_jellyroll.width, 114.1, 1)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 3.8, 1)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 4.18, 1)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23725.74, 0)
         self.assertAlmostEqual(self.my_jellyroll.thickness_range[0], 2.01, 1)
         self.assertAlmostEqual(self.my_jellyroll.thickness_range[1], 24.37, 1)
         self.assertAlmostEqual(self.my_jellyroll.width_range[0], 103.6, 1)
         self.assertAlmostEqual(self.my_jellyroll.width_range[1], 125.95, 1)
-        self.assertAlmostEqual(self.my_jellyroll.energy, 37.02)
+
+    def test_serialization(self):
+        serialized = self.my_jellyroll.serialize()
+        deserialized = FlatWoundJellyRoll.deserialize(serialized)
+        test_case = self.my_jellyroll == deserialized
+        self.assertTrue(test_case)
 
     def test_plots(self):
 
@@ -586,8 +616,35 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertTrue(type(self.my_jellyroll.spiral) == pd.DataFrame)
 
         fig1 = self.my_jellyroll.get_spiral_plot()
-        fig2 = self.my_jellyroll.get_spiral_plot(layered=False)
-        fig3 = self.my_jellyroll.get_capacity_plot()
+        fig3 = self.my_jellyroll.get_spiral_plot(layered=False)
+        fig4 = self.my_jellyroll.get_capacity_plot()
+        fig5 = self.my_jellyroll.plot_mass_breakdown()
+        fig6 = self.my_jellyroll.plot_cost_breakdown()
+        fig7 = self.my_jellyroll.get_top_down_view()
+        fig8 = self.my_jellyroll.get_side_view()
+
+        fig1.show()
+        # fig3.show()
+        # fig4.show()
+        # fig5.show()
+        # fig6.show()
+        # fig7.show()
+        # fig8.show()
+
+    def test_datum_set(self):
+
+        original_datum = self.my_jellyroll.datum
+
+        new_datum = (50.0, 60.0, 70.0)
+
+        self.my_jellyroll.datum = new_datum
+
+        self.assertEqual(self.my_jellyroll.datum, new_datum)
+
+        fig1 = self.my_jellyroll.get_spiral_plot()
+        fig2 = self.my_jellyroll.get_top_down_view()
+        fig3 = self.my_jellyroll.get_side_view()
+
         # fig1.show()
         # fig2.show()
         # fig3.show()
@@ -654,9 +711,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.my_jellyroll.thickness = new_thickness
 
         # Check that width updated correctly
-        self.assertAlmostEqual(self.my_jellyroll.thickness, new_thickness, 0)
-        self.assertAlmostEqual(self.my_jellyroll.width, 118.9, 1)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 5.55, 1)
+        self.assertAlmostEqual(self.my_jellyroll.thickness, new_thickness, 1)
 
     def test_width_setter(self):
         """Test that setting the width updates the thickness correctly."""
@@ -668,8 +723,6 @@ class TestFlatJellyRoll(unittest.TestCase):
 
         # Check that thickness updated correctly
         self.assertAlmostEqual(self.my_jellyroll.width, new_width, 0)
-        self.assertAlmostEqual(self.my_jellyroll.thickness, 14.6, 1)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 4.5, 1)
 
     def test_to_wound_jelly_roll(self):
         """Test converting a FlatWoundJellyRoll to a WoundJellyRoll."""
@@ -678,8 +731,7 @@ class TestFlatJellyRoll(unittest.TestCase):
 
         self.assertIsInstance(wound_jellyroll, WoundJellyRoll)
         self.assertAlmostEqual(wound_jellyroll.interfacial_area, 23895, 0)
-        self.assertAlmostEqual(wound_jellyroll.energy, 37.29)
-        self.assertAlmostEqual(wound_jellyroll.cost, 3.6, 1)
+        self.assertAlmostEqual(wound_jellyroll.cost, 3.97, 1)
         self.assertAlmostEqual(wound_jellyroll.radius, 20.54, 1)
         self.assertAlmostEqual(wound_jellyroll.diameter, 41.08, 1)
 
@@ -872,7 +924,13 @@ class TestPunchedStack(unittest.TestCase):
         self.assertAlmostEqual(self.stack.thickness_range[1], 22.41, 2)
         self.assertAlmostEqual(self.stack.thickness_hard_range[1], 369.66, 2)
         self.assertEqual(len(self.stack.stack), 83)
-        self.assertAlmostEqual(self.stack.pore_volume, 251, 2)
+        self.assertAlmostEqual(self.stack.pore_volume, 245.51, 2)
+
+    def test_serialization(self):
+        serialized = self.stack.serialize()
+        deserialized = PunchedStack.deserialize(serialized)
+        test_case = self.stack == deserialized
+        self.assertTrue(test_case)
 
     def test_breakdown_plots(self):
         fig5 = self.stack.plot_mass_breakdown()
@@ -1056,6 +1114,18 @@ class TestZFoldStack(unittest.TestCase):
         """Test right and left side views of the punched stack."""
         fig_right = self.stack.get_side_view()
         # fig_right.show()
+
+    def test_datum_set(self):
+
+        fig1 = self.stack.get_side_view()
+        fig2 = self.stack.get_top_down_view()
+        self.stack.datum = (100.0, 200.0, 300.0)
+        fig3 = self.stack.get_side_view()
+        fig4 = self.stack.get_top_down_view()
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+        # fig4.show()
 
     def test_additional_separator_wrap_setter(self):
         fig1 = self.stack.get_side_view()

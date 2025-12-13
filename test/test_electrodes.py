@@ -2,14 +2,8 @@ from copy import deepcopy
 import unittest
 import plotly.graph_objects as go
 
-from steer_opencell_design.Formulations.ElectrodeFormulations import (
-    CathodeFormulation,
-    AnodeFormulation,
-)
-from steer_opencell_design.Components.Electrodes import (
-    Cathode,
-    Anode,
-)
+from steer_opencell_design.Materials.Formulations import CathodeFormulation, AnodeFormulation
+from steer_opencell_design.Components.Electrodes import Cathode, Anode
 
 from steer_opencell_design.Components.CurrentCollectors.Notched import NotchedCurrentCollector
 from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector, WeldTab
@@ -23,6 +17,7 @@ from steer_opencell_design.Materials.ConductiveAdditives import ConductiveAdditi
 
 
 class TestAnodeNoInsulation(unittest.TestCase):
+    
     def setUp(self):
         current_collector_material = CurrentCollectorMaterial.from_database("Aluminum")
         conductive_additive = ConductiveAdditive.from_database("Super P")
@@ -53,6 +48,17 @@ class TestAnodeNoInsulation(unittest.TestCase):
 
     def test_electrodes(self):
         self.assertTrue(isinstance(self.anode, Anode))
+
+    def test_serialization(self):
+        serialized = self.anode.serialize()
+        deserialized = Anode.deserialize(serialized)
+        test_case = self.anode == deserialized
+        self.assertTrue(test_case)
+
+    def test_equality(self):
+        temp_electrode = deepcopy(self.anode)
+        condition = temp_electrode == self.anode
+        self.assertTrue(condition)
 
     def test_datum_shift_updates_coordinates(self):
         """Changing the electrode datum should translate top-down coating coordinates by the same delta.
@@ -169,30 +175,30 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         self.assertEqual(
             self.cathode.mass_breakdown,
             {
-                "Cathode Formulation": {
-                    "NaNiMn P2-O3 Composite": 16.7,
-                    "PVDF": 0.23,
-                    "CMC": 0.13,
-                    "Super P": 0.25,
-                    "Graphite": 0.19,
+                "Coating": {
+                    "NaNiMn P2-O3 Composite": 15.74,
+                    "PVDF": 0.52,
+                    "CMC": 0.35,
+                    "Super P": 0.52,
+                    "Graphite": 0.35,
                 },
-                "Punched Current Collector": 2.77,
-                "Aluminium Oxide, 95%": 0.41,
+                "Current Collector": 2.77,
+                "Electrical Insulation": 0.41,
             },
         )
 
         self.assertEqual(
             self.cathode.cost_breakdown,
             {
-                "Cathode Formulation": {
+                "Coating": {
                     "NaNiMn P2-O3 Composite": 0.17,
                     "PVDF": 0.01,
                     "CMC": 0.0,
                     "Super P": 0.01,
                     "Graphite": 0.0,
                 },
-                "Punched Current Collector": 0.03,
-                "Aluminium Oxide, 95%": 0.0,
+                "Current Collector": 0.03,
+                "Electrical Insulation": 0.01,
             },
         )
 
@@ -212,7 +218,7 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         self.assertEqual(self.cathode.calender_density, 2.60)
         self.assertEqual(self.cathode.mass_loading, 10.68)
         self.assertEqual(self.cathode.insulation_thickness, 25)
-        self.assertEqual(self.cathode.coating_mass, 17.49)
+        self.assertEqual(self.cathode.formulation.mass, 17.49)
         self.assertEqual(self.cathode.coating_thickness, 41.08)
         self.assertEqual(self.cathode.mass, 20.67)
 
@@ -224,7 +230,9 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
 
     def test_half_cell_curve(self):
         self.cathode.voltage_cutoff = 4.0
-        figure = self.cathode.plot_half_cell_curve(areal=True)
+        voltage = self.cathode.formulation._capacity_curve[:, 1].max()
+        self.assertEqual(voltage, 4.0)
+        figure = self.cathode.plot_areal_capacity_curve()
         # figure.show()
 
     def test_views(self):
@@ -405,28 +413,28 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
         self.assertTrue(
             self.cathode.mass_breakdown,
             {
-                "cathode_formulation": {
-                    "LFP": 103.43,
-                    "NMC811": 57.63,
-                    "PVDF": 1.53,
-                    "Super P": 2.57,
+                "Formulation": {
+                    "LFP": 110.66,
+                    "NMC811": 46.25,
+                    "PVDF": 3.3,
+                    "Super P": 4.96,
                 },
-                "notched_current_collector": 106.21,
-                "aluminium_oxide_99.5%": 1.6,
+                "Current Collector": 98.51,
+                "Electrical Insulation": 1.6,
             },
         )
 
         self.assertTrue(
             self.cathode.cost_breakdown,
             {
-                "cathode_formulation": {
+                "Formulation": {
                     "LFP": 0.66,
                     "NMC811": 1.16,
-                    "PVDF": 0.31,
+                    "PVDF": 0.04,
                     "Super P": 0.07,
                 },
-                "notched_current_collector": 0.64,
-                "aluminium_oxide_99.5%": 0.0,
+                "Current Collector": 1.78,
+                "Electrical Insulation": 0.18,
             },
         )
 
@@ -444,8 +452,8 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
         self.assertAlmostEqual(self.cathode._mass, sum_nested_dict(self.cathode._mass_breakdown), 5)
 
     def test_half_cell_curve(self):
-        figure1 = self.cathode.plot_half_cell_curve(areal=False)
-        figure2 = self.cathode.plot_half_cell_curve(areal=True)
+        figure1 = self.cathode.plot_areal_capacity_curve()
+        figure2 = self.cathode.plot_areal_capacity_curve()
         # figure1.show()
         # figure2.show()
 
@@ -504,24 +512,24 @@ class testAnodeTabWelded(unittest.TestCase):
         self.assertEqual(
             self.anode.mass_breakdown,
             {
-                "Anode Formulation": {
-                    "Synthetic Graphite": 97.73,
-                    "CMC": 0.77,
-                    "Super P": 0.96,
+                "Coating": {
+                    "Synthetic Graphite": 89.51,
+                    "CMC": 4.97,
+                    "Super P": 4.97,
                 },
-                "Tab Welded Current Collector": 44.19,
+                "Current Collector": 43.6,
             },
         )
 
         self.assertEqual(
             self.anode.cost_breakdown,
             {
-                "Anode Formulation": {
+                "Coating": {
                     "Synthetic Graphite": 0.22,
                     "CMC": 0.01,
                     "Super P": 0.07,
                 },
-                "Tab Welded Current Collector": 0.81,
+                "Current Collector": 0.79,
             },
         )
 
@@ -544,11 +552,8 @@ class testAnodeTabWelded(unittest.TestCase):
         self.assertTrue(condition)
 
     def test_half_cell_curve(self):
-        figure1 = self.anode.plot_half_cell_curve(areal=False)
-        figure2 = self.anode.plot_half_cell_curve(areal=True)
-
+        figure1 = self.anode.plot_areal_capacity_curve()
         # figure1.show()
-        # figure2.show()
 
     def test_views(self):
         figure1 = self.anode.get_a_side_view()
@@ -749,6 +754,42 @@ class TestElectrodeControlModes(unittest.TestCase):
 
         # Mass loading should remain constant (within tolerance)
         self.assertAlmostEqual(self.cathode.mass_loading, initial_mass_loading, places=5)
+
+    def test_areal_capacity_curve_scales_with_mass_loading(self):
+        """Test that areal capacity curve scales proportionally when mass_loading changes."""
+        # Get initial areal capacity curve
+        initial_mass_loading = self.cathode.mass_loading
+        initial_curve = self.cathode.areal_capacity_curve
+        initial_max_capacity = initial_curve["Areal Capacity (mAh/cm²)"].max()
+        
+        # Change mass loading by a known factor
+        scaling_factor = 1.5
+        new_mass_loading = initial_mass_loading * scaling_factor
+        self.cathode.mass_loading = new_mass_loading
+        
+        # Get new areal capacity curve
+        new_curve = self.cathode.areal_capacity_curve
+        new_max_capacity = new_curve["Areal Capacity (mAh/cm²)"].max()
+        
+        # Assert that max capacity scaled proportionally
+        expected_max_capacity = initial_max_capacity * scaling_factor
+        self.assertAlmostEqual(new_max_capacity, expected_max_capacity, places=2)
+        
+        # Assert that the number of points in the curve remains the same
+        self.assertEqual(len(initial_curve), len(new_curve))
+        
+        # Assert that voltage values remain unchanged
+        self.assertTrue((initial_curve["Voltage (V)"] == new_curve["Voltage (V)"]).all())
+        
+        # Assert that all capacity values scaled by the same factor
+        capacity_ratio = new_curve["Areal Capacity (mAh/cm²)"] / initial_curve["Areal Capacity (mAh/cm²)"]
+        self.assertTrue((capacity_ratio - scaling_factor).abs().max() < 0.01)
+
+
+
+
+
+
 
 
 

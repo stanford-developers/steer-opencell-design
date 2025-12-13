@@ -1,3 +1,4 @@
+from copy import deepcopy
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Serializer import SerializerMixin
@@ -166,12 +167,12 @@ class _Mandrel(
 
         else:
             self.validate_type(value, CurrentCollectorMaterial, "material")
-            self._material = value
+            self._material = deepcopy(value)
 
     @property
     def length(self) -> float:
         """Return the mandrel length in mm."""
-        return round(self._length * M_TO_MM, 2)
+        return np.round(self._length * M_TO_MM, 2)
 
     @property
     def datum(self) -> Tuple[float, float, float]:
@@ -179,9 +180,9 @@ class _Mandrel(
         Get the datum of the current collector.
         """
         return (
-            round(self._datum[0] * M_TO_MM, 2),
-            round(self._datum[1] * M_TO_MM, 2),
-            round(self._datum[2] * M_TO_MM, 2),
+            np.round(self._datum[0] * M_TO_MM, 2),
+            np.round(self._datum[1] * M_TO_MM, 2),
+            np.round(self._datum[2] * M_TO_MM, 2),
         )
     
     @datum.setter
@@ -189,15 +190,15 @@ class _Mandrel(
     def datum(self, value: Tuple[float, float, float]):
         
         self._datum = (
-            round(value[0] * MM_TO_M, 6),
-            round(value[1] * MM_TO_M, 6),
-            round(value[2] * MM_TO_M, 6),
+            np.round(value[0] * MM_TO_M, 6),
+            np.round(value[1] * MM_TO_M, 6),
+            np.round(value[2] * MM_TO_M, 6),
         )
 
     @length.setter
     @calculate_coordinates
     def length(self, value: float):
-        self._length = round(value * MM_TO_M, 6)
+        self._length = np.round(value * MM_TO_M, 6)
 
 
 class RoundMandrel(_Mandrel):
@@ -269,7 +270,7 @@ class RoundMandrel(_Mandrel):
     @property
     def radius(self) -> float:
         """Return the mandrel radius in mm."""
-        return round(self._radius * M_TO_MM, 2)
+        return np.round(self._radius * M_TO_MM, 2)
 
     @property
     def radius_range(self) -> Tuple[float, float]:
@@ -279,7 +280,7 @@ class RoundMandrel(_Mandrel):
     @property
     def diameter(self) -> float:
         """Return the mandrel diameter in mm."""
-        return round(self._diameter * M_TO_MM, 2)
+        return np.round(self._diameter * M_TO_MM, 2)
 
     @property
     def diameter_range(self) -> Tuple[float, float]:
@@ -293,7 +294,7 @@ class RoundMandrel(_Mandrel):
     @diameter.setter
     @calculate_all_properties
     def diameter(self, value: float):
-        self._diameter = round(value * MM_TO_M, 6)
+        self._diameter = np.round(value * MM_TO_M, 6)
 
 
 class FlatMandrel(_Mandrel):
@@ -387,17 +388,17 @@ class FlatMandrel(_Mandrel):
     @property
     def radius(self) -> float:
         """Return the mandrel radius (half of height) in mm."""
-        return round(self._radius * M_TO_MM, 2)
+        return np.round(self._radius * M_TO_MM, 2)
 
     @property
     def straight_length(self) -> float:
         """Return the straight segment length in mm."""
-        return round(self._straight_length * M_TO_MM, 2)
+        return np.round(self._straight_length * M_TO_MM, 2)
 
     @property
     def width(self) -> float:
         """Return the mandrel width in mm."""
-        return round(self._width * M_TO_MM, 2)
+        return np.round(self._width * M_TO_MM, 2)
 
     @property
     def width_range(self) -> Tuple[float, float]:
@@ -407,7 +408,7 @@ class FlatMandrel(_Mandrel):
     @property
     def height(self) -> float:
         """Return the mandrel height in mm."""
-        return round(self._height * M_TO_MM, 2)
+        return np.round(self._height * M_TO_MM, 2)
     
     @property
     def height_range(self) -> Tuple[float, float]:
@@ -418,13 +419,13 @@ class FlatMandrel(_Mandrel):
     @calculate_all_properties
     def width(self, value: float):
         self.validate_positive_float(value, "width")
-        self._width = round(value * MM_TO_M, 6)
+        self._width = np.round(value * MM_TO_M, 6)
 
     @height.setter
     @calculate_all_properties
     def height(self, value: float):
         self.validate_positive_float(value, "height")
-        self._height = round(value * MM_TO_M, 6)
+        self._height = np.round(value * MM_TO_M, 6)
 
     @radius.setter
     @calculate_all_properties

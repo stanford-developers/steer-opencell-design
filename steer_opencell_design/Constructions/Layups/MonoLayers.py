@@ -1,10 +1,6 @@
 from copy import copy, deepcopy
 from enum import Enum
-from typing import Tuple
-
 import numpy as np
-import pandas as pd
-import plotly.graph_objects as go
 
 from steer_core.Constants.Units import *
 from steer_core.Decorators.Coordinates import calculate_coordinates
@@ -77,6 +73,10 @@ class MonoLayer(_Layup):
         # Recalculate properties now that separator is set
         self._calculate_all_properties()
         self._update_properties = True
+
+        # set voltage operating limits
+        self._minimum_operating_voltage = min(self._minimum_operating_voltage_range)
+        self._maximum_operating_voltage = max(self._maximum_operating_voltage_range)
 
     def _calculate_all_properties(self):
 
@@ -176,7 +176,7 @@ class MonoLayer(_Layup):
     
     @property
     def width(self) -> float:
-        return round(self._width * M_TO_MM, 2)
+        return np.round(self._width * M_TO_MM, 2)
 
     @property
     def width_range(self) -> tuple:
@@ -188,7 +188,7 @@ class MonoLayer(_Layup):
 
     @property
     def height(self) -> float:
-        return round(self._height * M_TO_MM, 2)
+        return np.round(self._height * M_TO_MM, 2)
 
     @property
     def height_range(self) -> tuple:
@@ -487,11 +487,11 @@ class ZFoldMonoLayer(MonoLayer):
 
     @property
     def width(self) -> float:
-        return round(self._width * M_TO_MM, 2)
+        return np.round(self._width * M_TO_MM, 2)
 
     @property
     def height(self) -> float:
-        return round(self._height * M_TO_MM, 2)
+        return np.round(self._height * M_TO_MM, 2)
 
     @property
     def separator(self) -> Separator:

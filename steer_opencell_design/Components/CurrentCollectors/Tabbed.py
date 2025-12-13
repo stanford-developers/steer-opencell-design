@@ -154,8 +154,11 @@ class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin):
         Calculate the bulk properties of the tab.
         """
         self._volume = self._body_area * self._thickness
-        self._mass = self._volume * self._material._density
-        self._cost = self._mass * self._material._specific_cost
+        volume = self._volume * M_TO_CM**3
+        self._material.volume = volume
+
+        self._mass = self._material._mass
+        self._cost = self._material._cost
 
     def _calculate_coordinates(self) -> None:
         """
@@ -275,9 +278,9 @@ class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin):
     @property
     def datum(self) -> Tuple[float, float]:
         return (
-            round(self._datum[0] * M_TO_MM, 2),
-            round(self._datum[1] * M_TO_MM, 2),
-            round(self._datum[2] * M_TO_MM, 2),
+            np.round(self._datum[0] * M_TO_MM, 2),
+            np.round(self._datum[1] * M_TO_MM, 2),
+            np.round(self._datum[2] * M_TO_MM, 2),
         )
 
     @property
@@ -286,31 +289,31 @@ class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin):
 
     @property
     def width(self) -> float:
-        return round(self._width * M_TO_MM, 2)
+        return np.round(self._width * M_TO_MM, 2)
 
     @property
     def length(self) -> float:
-        return round(self._length * M_TO_MM, 2)
+        return np.round(self._length * M_TO_MM, 2)
 
     @property
     def thickness(self) -> float:
-        return round(self._thickness * M_TO_UM, 2)
+        return np.round(self._thickness * M_TO_UM, 2)
 
     @property
     def volume(self) -> float:
-        return round(self._volume * M_TO_CM**3, 2)
+        return np.round(self._volume * M_TO_CM**3, 2)
 
     @property
     def mass(self) -> float:
-        return round(self._mass * KG_TO_G, 2)
+        return np.round(self._mass * KG_TO_G, 2)
 
     @property
     def cost(self) -> float:
-        return round(self._cost, 2)
+        return np.round(self._cost, 2)
 
     @property
     def body_area(self) -> float:
-        return round(self._body_area * M_TO_MM**2, 2)
+        return np.round(self._body_area * M_TO_MM**2, 2)
 
     @datum.setter
     def datum(self, datum: Tuple[float, float, float]) -> None:
@@ -338,7 +341,7 @@ class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin):
     @calculate_all_properties
     def material(self, material: CurrentCollectorMaterial) -> None:
         self.validate_type(material, CurrentCollectorMaterial, "material")
-        self._material = material
+        self._material = deepcopy(material)
 
     @width.setter
     @calculate_all_properties
@@ -608,9 +611,13 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         super()._calculate_all_properties()
 
     def _calculate_bulk_properties(self) -> None:
-        self._volume = self._body_area / 2 * self._thickness + sum([t._volume for t in self._weld_tabs])
-        self._mass = self._volume * self._material._density + sum([t._mass for t in self._weld_tabs])
-        self._cost = self._mass * self._material._specific_cost + sum([t._cost for t in self._weld_tabs])
+
+        self._volume = self._body_area / 2 * self._thickness
+        volume = self._volume * M_TO_CM**3
+        self._material.volume = volume
+
+        self._mass = self._material._mass + sum([t._mass for t in self._weld_tabs])
+        self._cost = self._material._cost + sum([t._cost for t in self._weld_tabs])
 
     def _calculate_weld_tab_properties(self) -> None:
         # copy the weld tabs and set their datums
@@ -724,7 +731,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         Returns the width of the skip coat area in mm.
         """
-        return round(self._skip_coat_width * M_TO_MM, 2)
+        return np.round(self._skip_coat_width * M_TO_MM, 2)
 
     @property
     def skip_coat_width_range(self) -> Tuple[float, float]:
@@ -752,7 +759,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         Returns the overhang of the weld tab on the current collector in mm.
         """
-        return round(self._tab_overhang * M_TO_MM, 2)
+        return np.round(self._tab_overhang * M_TO_MM, 2)
 
     @property
     def tab_overhang_range(self) -> Tuple[float, float]:

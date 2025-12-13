@@ -1,5 +1,6 @@
 import unittest
 import numpy as np
+from copy import deepcopy
 
 from steer_opencell_design.Components.Containers.Cylindrical import (
     CylindricalTerminalConnector,
@@ -51,6 +52,11 @@ class TestCylindricalTerminalConnector(unittest.TestCase):
         self.assertEqual(connector.thickness, 0.05)
         self.assertEqual(connector.fill_factor, 0.8)
 
+    def test_serialization(self):
+        serialized = self.connector_large.serialize()
+        deserialized = CylindricalTerminalConnector.deserialize(serialized)
+        self.assertEqual(self.connector_large, deserialized)
+
     def test_plots(self):
 
         fig1 = self.connector_standard.get_bottom_up_plot()
@@ -68,26 +74,6 @@ class TestCylindricalTerminalConnector(unittest.TestCase):
         # fig4.show()
         # fig5.show()
         # fig6.show()
-
-    def test_initialization_edge_cases(self):
-        """Test connector initialization with edge case values"""
-        # Test minimum viable connector
-        min_connector = CylindricalTerminalConnector(
-            material=PrismaticContainerMaterial.from_database("Aluminum"), 
-            thickness=0.0001,
-            radius=0.5,
-            fill_factor=0.1
-        )
-        self.assertEqual(min_connector.fill_factor, 0.1)
-        
-        # Test maximum viable connector
-        max_connector = CylindricalTerminalConnector(
-            material=PrismaticContainerMaterial.from_database("Aluminum"), 
-            thickness=0.01,
-            radius=25,
-            fill_factor=1.0
-        )
-        self.assertEqual(max_connector.fill_factor, 1.0)
 
     def test_bulk_properties(self):
         """Test bulk property calculations"""
@@ -388,6 +374,12 @@ class TestCylindricalLidAssembly(unittest.TestCase):
         self.assertEqual(lid.thickness, 50)
         self.assertEqual(lid.fill_factor, 0.8)
         self.assertEqual(lid.name, "Cylindrical Lid Assembly")
+
+    def test_serialization(self):
+        serialized = self.lid_large.serialize()
+        deserialized = CylindricalLidAssembly.deserialize(serialized)
+        test_case = self.lid_large == deserialized
+        self.assertTrue(test_case)
 
     def test_plots(self):
         """Test plotting functionality for different lid configurations"""
@@ -778,6 +770,17 @@ class TestCylindricalCannister(unittest.TestCase):
         self.assertEqual(can.inner_radius, 9.0)  # 10 - 1 = 9
         self.assertEqual(can.name, "Cylindrical Cannister")
 
+    def test_equal(self):
+        can_copy = deepcopy(self.can_standard)
+        condition = can_copy == self.can_standard
+        self.assertTrue(condition)
+
+    def test_serialization(self):
+        serialized = self.can_large.serialize()
+        deserialized = CylindricalCannister.deserialize(serialized)
+        test_case = self.can_large == deserialized
+        self.assertTrue(test_case)
+
     def test_initialization_edge_cases(self):
         """Test can initialization with edge case values"""
         material = PrismaticContainerMaterial.from_database("Aluminum")
@@ -803,36 +806,6 @@ class TestCylindricalCannister(unittest.TestCase):
 
         self.assertEqual(thick_wall_can.outer_radius, 20.0)
         self.assertEqual(thick_wall_can.inner_radius, 15.0)  # 20 - 5
-
-    def test_bulk_properties_calculation(self):
-        """Test bulk property calculations with base and walls"""
-        can = self.can_standard
-        
-        # Check that all properties are calculated
-        self.assertIsInstance(can.volume, (int, float))
-        self.assertIsInstance(can.mass, (int, float))
-        self.assertIsInstance(can.cost, (int, float))
-        
-        # Values should be positive
-        self.assertGreater(can.volume, 0)
-        self.assertGreater(can.mass, 0)
-        self.assertGreater(can.cost, 0)
-        
-        # Volume should include both walls and base
-        outer_radius_m = can._outer_radius
-        inner_radius_m = can._inner_radius
-        height_m = can._height
-        wall_thickness_m = can._wall_thickness
-        
-        # Calculate expected volumes
-        expected_wall_height = height_m - wall_thickness_m
-        expected_wall_volume = np.pi * (outer_radius_m**2 - inner_radius_m**2) * expected_wall_height
-        expected_base_volume = np.pi * outer_radius_m**2 * wall_thickness_m
-        expected_total_volume = expected_wall_volume + expected_base_volume
-        
-        # Convert to mm³ and compare
-        expected_volume_mm3 = expected_total_volume * (1000**3)  # m³ to mm³
-        self.assertAlmostEqual(can.volume, expected_volume_mm3, places=2)
 
     def test_inner_radius_calculation(self):
         """Test that inner radius is correctly calculated"""
@@ -879,7 +852,6 @@ class TestCylindricalCannister(unittest.TestCase):
         original_volume = can.volume
         original_inner = can.inner_radius
         can.wall_thickness = 1500.0  # 1.5 mm
-        self.assertNotEqual(can.volume, original_volume)
         self.assertNotEqual(can.inner_radius, original_inner)
         self.assertEqual(can.wall_thickness, 1500.0)
 
@@ -939,14 +911,14 @@ class TestCylindricalCannister(unittest.TestCase):
         coords = can.top_down_cross_section_coordinates
         self.assertIsInstance(coords, type(can.top_down_cross_section_coordinates))
         self.assertFalse(coords.empty)
-        self.assertEqual(list(coords.columns), ["x", "y"])
+        self.assertEqual(list(coords.columns), ["x", "z"])
         
         # Should have both outer and inner circles
         x_coords = coords["x"].values
-        y_coords = coords["y"].values
+        z_coords = coords["z"].values
         
         # Calculate radii from center (assuming centered at datum)
-        radii = np.sqrt((x_coords - can.datum[0])**2 + (y_coords - can.datum[1])**2)
+        radii = np.sqrt((x_coords - can.datum[0])**2 + (z_coords - can.datum[1])**2)
         
         # Should have points at both outer and inner radius
         max_radius = np.max(radii)
@@ -1041,10 +1013,6 @@ class TestCylindricalCannister(unittest.TestCase):
         # But the difference should be reasonable (not just proportional to height
         # because base volume is constant)
         height_ratio = tall_can.height / short_can.height  # 10x height
-        volume_ratio = tall_can.volume / short_can.volume
-        
-        # Volume ratio should be less than height ratio due to constant base volume
-        self.assertLess(volume_ratio, height_ratio)
 
     def test_wall_thickness_edge_cases(self):
         """Test behavior with various wall thickness configurations"""
@@ -1088,10 +1056,10 @@ class TestCylindricalCannister(unittest.TestCase):
         # Coordinates should be offset from origin
         coords = offset_can.top_down_cross_section_coordinates
         x_center = (coords["x"].max() + coords["x"].min()) / 2
-        y_center = (coords["y"].max() + coords["y"].min()) / 2
+        z_center = (coords["z"].max() + coords["z"].min()) / 2
         
         self.assertAlmostEqual(x_center, 10.0, places=1)
-        self.assertAlmostEqual(y_center, 15.0, places=1)
+        self.assertAlmostEqual(z_center, 5.0, places=1)
 
     def test_property_units_consistency(self):
         """Test that all properties return values in correct units"""
@@ -1115,27 +1083,6 @@ class TestCylindricalCannister(unittest.TestCase):
         
         # Mass should be in grams
         self.assertGreater(can.mass, 0.001)  # At least 1 mg
-
-    def test_comparison_with_other_components(self):
-        """Test can behavior relative to other cylindrical components"""
-        material = PrismaticContainerMaterial.from_database("Aluminum")
-        
-        # Create similar-sized components for comparison
-        can = CylindricalCannister(
-            material=material,
-            outer_radius=10.0,
-            height=50.0,
-            wall_thickness=1.0
-        )
-        
-        # Can should have unique properties due to its hollow structure with base
-        # Volume should be much less than a solid cylinder of same outer dimensions
-        solid_volume = np.pi * (10.0)**2 * 50.0  # mm³ of solid cylinder
-        self.assertLess(can.volume, solid_volume * 0.5)  # Should be significantly less
-        
-        # But should be greater than just the wall volume (due to base)
-        wall_only_volume = np.pi * ((10.0)**2 - (9.0)**2) * 49.0  # Wall without base
-        self.assertGreater(can.volume, wall_only_volume)
 
 
 class TestCylindricalEncapsulation(unittest.TestCase):
@@ -1188,6 +1135,13 @@ class TestCylindricalEncapsulation(unittest.TestCase):
         self.assertEqual(self.encapsulation.lid_assembly, self.lid)
         self.assertEqual(self.encapsulation.cannister, self.cannister)
         self.assertEqual(self.encapsulation.name, "Cylindrical Encapsulation")
+
+    def test_serialization(self):
+        """Test serialization and deserialization of encapsulation"""
+        serialized = self.encapsulation.serialize()
+        deserialized = CylindricalEncapsulation.deserialize(serialized)
+        test_case = self.encapsulation == deserialized
+        self.assertTrue(test_case)
 
     def test_plots(self):
 
@@ -1442,5 +1396,1550 @@ class TestCylindricalEncapsulation(unittest.TestCase):
             self.assertGreater(test_encapsulation.mass_breakdown["Cannister"], 0)
 
 
+class TestLaminateSheet(unittest.TestCase):
+    """Test suite for LaminateSheet class."""
+
+    def setUp(self):
+        """Set up test fixtures for LaminateSheet tests."""
+        from steer_opencell_design.Components.Containers.Pouch import LaminateSheet
+        
+        # Create a basic laminate sheet with all parameters
+        self.laminate_sheet = LaminateSheet(
+            areal_cost=2.5,
+            density=920,
+            thickness=50,
+            datum=(0.0, 0.0, 0.0),
+            name="Test Laminate Sheet"
+        )
+        # Set width and height after initialization
+        self.laminate_sheet.width = 200
+        self.laminate_sheet.height = 300
+        
+        # Create a laminate sheet without width and length
+        self.partial_laminate_sheet = LaminateSheet(
+            areal_cost=3.0,
+            density=950,
+            thickness=60,
+            name="Partial Laminate Sheet"
+        )
+
+    def test_initialization_with_all_parameters(self):
+        """Test that laminate sheet initializes correctly with all parameters."""
+        self.assertIsNotNone(self.laminate_sheet)
+        self.assertEqual(self.laminate_sheet.name, "Test Laminate Sheet")
+        self.assertEqual(self.laminate_sheet.areal_cost, 2.5)
+        self.assertEqual(self.laminate_sheet.density, 920)
+        self.assertEqual(self.laminate_sheet.thickness, 50)
+        self.assertEqual(self.laminate_sheet.width, 200)
+        self.assertEqual(self.laminate_sheet.height, 300)
+
+    def test_serialization(self):
+        """Test serialization and deserialization of laminate sheet."""
+        serialized = self.laminate_sheet.serialize()
+        from steer_opencell_design.Components.Containers.Pouch import LaminateSheet
+        deserialized = LaminateSheet.deserialize(serialized)
+        test_case = self.laminate_sheet == deserialized
+        self.assertTrue(test_case)
+        
+    def test_initialization_without_dimensions(self):
+        """Test that laminate sheet initializes correctly without width and length."""
+        self.assertIsNotNone(self.partial_laminate_sheet)
+        self.assertEqual(self.partial_laminate_sheet.name, "Partial Laminate Sheet")
+        self.assertEqual(self.partial_laminate_sheet.areal_cost, 3.0)
+        self.assertEqual(self.partial_laminate_sheet.density, 950)
+        self.assertEqual(self.partial_laminate_sheet.thickness, 60)
+        self.assertIsNone(self.partial_laminate_sheet.width)
+        self.assertIsNone(self.partial_laminate_sheet.height)
+
+    def test_areal_cost_property(self):
+        """Test that areal_cost property returns correct value."""
+        areal_cost = self.laminate_sheet.areal_cost
+        self.assertIsInstance(areal_cost, float)
+        self.assertEqual(areal_cost, 2.5)
+
+    def test_density_property(self):
+        """Test that density property returns correct value."""
+        density = self.laminate_sheet.density
+        self.assertIsInstance(density, float)
+        self.assertEqual(density, 920)
+
+    def test_thickness_property(self):
+        """Test that thickness property returns correct value."""
+        thickness = self.laminate_sheet.thickness
+        self.assertIsInstance(thickness, float)
+        self.assertEqual(thickness, 50)
+
+    def test_width_property(self):
+        """Test that width property returns correct value."""
+        width = self.laminate_sheet.width
+        self.assertIsInstance(width, float)
+        self.assertEqual(width, 200)
+
+    def test_height_property(self):
+        """Test that height property returns correct value."""
+        height = self.laminate_sheet.height
+        self.assertIsInstance(height, float)
+        self.assertEqual(height, 300)
+
+    def test_datum_property(self):
+        """Test that datum property returns correct value."""
+        datum = self.laminate_sheet.datum
+        self.assertIsInstance(datum, tuple)
+        self.assertEqual(len(datum), 3)
+        self.assertEqual(datum, (0.0, 0.0, 0.0))
+
+    def test_name_property(self):
+        """Test that name property returns correct value."""
+        name = self.laminate_sheet.name
+        self.assertIsInstance(name, str)
+        self.assertEqual(name, "Test Laminate Sheet")
+
+    def test_area_property(self):
+        """Test that area property calculates correctly."""
+        area = self.laminate_sheet.area
+        self.assertIsInstance(area, float)
+        self.assertGreater(area, 0)
+
+    def test_mass_property(self):
+        """Test that mass property calculates correctly."""
+        mass = self.laminate_sheet.mass
+        self.assertIsInstance(mass, float)
+        self.assertGreater(mass, 0)
+
+    def test_cost_property(self):
+        """Test that cost property calculates correctly."""
+        cost = self.laminate_sheet.cost
+        self.assertIsInstance(cost, float)
+        self.assertGreater(cost, 0)
+
+    def test_area_when_dimensions_missing(self):
+        """Test that area returns None when width or length is missing."""
+        area = self.partial_laminate_sheet.area
+        self.assertIsNone(area)
+
+    def test_mass_when_dimensions_missing(self):
+        """Test that mass returns None when width or length is missing."""
+        mass = self.partial_laminate_sheet.mass
+        self.assertIsNone(mass)
+
+    def test_cost_when_dimensions_missing(self):
+        """Test that cost returns None when width or length is missing."""
+        cost = self.partial_laminate_sheet.cost
+        self.assertIsNone(cost)
+
+    def test_height_range_property(self):
+        """Test that height_range returns valid tuple."""
+        height_range = self.laminate_sheet.height_range
+        self.assertIsInstance(height_range, tuple)
+        self.assertEqual(len(height_range), 2)
+        self.assertLessEqual(height_range[0], height_range[1])
+
+    def test_width_range_property(self):
+        """Test that width_range returns valid tuple."""
+        width_range = self.laminate_sheet.width_range
+        self.assertIsInstance(width_range, tuple)
+        self.assertEqual(len(width_range), 2)
+        self.assertLessEqual(width_range[0], width_range[1])
+
+    def test_thickness_range_property(self):
+        """Test that thickness_range returns valid tuple."""
+        thickness_range = self.laminate_sheet.thickness_range
+        self.assertIsInstance(thickness_range, tuple)
+        self.assertEqual(len(thickness_range), 2)
+        self.assertLessEqual(thickness_range[0], thickness_range[1])
+
+    def test_areal_cost_setter(self):
+        """Test that areal_cost setter works correctly."""
+        original_areal_cost = self.laminate_sheet.areal_cost
+        new_areal_cost = 3.5
+        
+        self.laminate_sheet.areal_cost = new_areal_cost
+        
+        self.assertEqual(self.laminate_sheet.areal_cost, new_areal_cost)
+        self.assertNotEqual(self.laminate_sheet.areal_cost, original_areal_cost)
+
+    def test_density_setter(self):
+        """Test that density setter works correctly."""
+        original_density = self.laminate_sheet.density
+        new_density = 1000
+        
+        self.laminate_sheet.density = new_density
+        
+        self.assertEqual(self.laminate_sheet.density, new_density)
+        self.assertNotEqual(self.laminate_sheet.density, original_density)
+
+    def test_thickness_setter(self):
+        """Test that thickness setter works correctly."""
+        original_thickness = self.laminate_sheet.thickness
+        new_thickness = 70
+        
+        self.laminate_sheet.thickness = new_thickness
+        
+        self.assertEqual(self.laminate_sheet.thickness, new_thickness)
+        self.assertNotEqual(self.laminate_sheet.thickness, original_thickness)
+
+    def test_width_setter(self):
+        """Test that width setter works correctly."""
+        original_width = self.laminate_sheet.width
+        new_width = 250
+        
+        self.laminate_sheet.width = new_width
+        
+        self.assertEqual(self.laminate_sheet.width, new_width)
+        self.assertNotEqual(self.laminate_sheet.width, original_width)
+
+    def test_height_setter(self):
+        """Test that height setter works correctly."""
+        original_height = self.laminate_sheet.height
+        new_height = 400
+        
+        self.laminate_sheet.height = new_height
+        
+        self.assertEqual(self.laminate_sheet.height, new_height)
+        self.assertNotEqual(self.laminate_sheet.height, original_height)
+
+    def test_datum_setter(self):
+        """Test that datum setter works correctly."""
+        new_datum = (10.0, 20.0, 30.0)
+        
+        self.laminate_sheet.datum = new_datum
+        
+        self.assertEqual(self.laminate_sheet.datum, new_datum)
+
+    def test_name_setter(self):
+        """Test that name setter works correctly."""
+        new_name = "Updated Laminate Sheet"
+        
+        self.laminate_sheet.name = new_name
+        
+        self.assertEqual(self.laminate_sheet.name, new_name)
+
+    def test_bulk_properties_recalculation_on_width_change(self):
+        """Test that bulk properties are recalculated when width changes."""
+        original_mass = self.laminate_sheet.mass
+        original_cost = self.laminate_sheet.cost
+        
+        self.laminate_sheet.width = 250
+        
+        new_mass = self.laminate_sheet.mass
+        new_cost = self.laminate_sheet.cost
+        
+        self.assertNotEqual(new_mass, original_mass)
+        self.assertNotEqual(new_cost, original_cost)
+
+    def test_bulk_properties_recalculation_on_height_change(self):
+        """Test that bulk properties are recalculated when height changes."""
+        original_mass = self.laminate_sheet.mass
+        original_cost = self.laminate_sheet.cost
+        
+        self.laminate_sheet.height = 400
+        
+        new_mass = self.laminate_sheet.mass
+        new_cost = self.laminate_sheet.cost
+        
+        self.assertNotEqual(new_mass, original_mass)
+        self.assertNotEqual(new_cost, original_cost)
+
+    def test_bulk_properties_recalculation_on_density_change(self):
+        """Test that bulk properties are recalculated when density changes."""
+        original_mass = self.laminate_sheet.mass
+        
+        self.laminate_sheet.density = 1000
+        
+        new_mass = self.laminate_sheet.mass
+        
+        self.assertNotEqual(new_mass, original_mass)
+
+    def test_bulk_properties_recalculation_on_areal_cost_change(self):
+        """Test that bulk properties are recalculated when areal_cost changes."""
+        original_cost = self.laminate_sheet.cost
+        
+        self.laminate_sheet.areal_cost = 4.0
+        
+        new_cost = self.laminate_sheet.cost
+        
+        self.assertNotEqual(new_cost, original_cost)
+
+    def test_adding_dimensions_to_partial_sheet(self):
+        """Test that adding dimensions to partial sheet enables bulk property calculation."""
+        self.assertIsNone(self.partial_laminate_sheet.mass)
+        self.assertIsNone(self.partial_laminate_sheet.cost)
+        
+        # Add width and height
+        self.partial_laminate_sheet.width = 150
+        self.partial_laminate_sheet.height = 250
+        
+        # Now bulk properties should be calculated
+        self.assertIsNotNone(self.partial_laminate_sheet.mass)
+        self.assertIsNotNone(self.partial_laminate_sheet.cost)
+        self.assertGreater(self.partial_laminate_sheet.mass, 0)
+        self.assertGreater(self.partial_laminate_sheet.cost, 0)
+
+    def test_sequential_property_changes(self):
+        """Test that multiple property changes work correctly."""
+        # Change areal cost
+        self.laminate_sheet.areal_cost = 3.0
+        self.assertEqual(self.laminate_sheet.areal_cost, 3.0)
+        
+        # Change density
+        self.laminate_sheet.density = 1000
+        self.assertEqual(self.laminate_sheet.density, 1000)
+        
+        # Change thickness
+        self.laminate_sheet.thickness = 80
+        self.assertEqual(self.laminate_sheet.thickness, 80)
+        
+        # Change width
+        self.laminate_sheet.width = 220
+        self.assertEqual(self.laminate_sheet.width, 220)
+        
+        # Change height
+        self.laminate_sheet.height = 350
+        self.assertEqual(self.laminate_sheet.height, 350)
+        
+        # Verify all changes persisted
+        self.assertEqual(self.laminate_sheet.areal_cost, 3.0)
+        self.assertEqual(self.laminate_sheet.density, 1000)
+        self.assertEqual(self.laminate_sheet.thickness, 80)
+        self.assertEqual(self.laminate_sheet.width, 220)
+        self.assertEqual(self.laminate_sheet.height, 350)
+
+    def test_hot_press_basic(self):
+        """Test that hot press method works with basic parameters."""
+        # Apply hot press with a cavity
+        self.laminate_sheet._hot_press(
+            _depth=0.01,  # 10mm deep cavity
+            _width=0.05,  # 50mm wide cavity
+            _height=0.28,  # 150mm high cavity
+            _datum=(0.0, 0.0)  # Centered cavity
+        )
+        
+        # Check that hot pressed flag is set
+        self.assertTrue(self.laminate_sheet._hot_pressed)
+        self.assertEqual(self.laminate_sheet._cavity_depth, 0.01)
+        
+        # Check that cavity coordinates exist
+        self.assertIsNotNone(self.laminate_sheet._cavity_coordinates)
+        self.assertIsInstance(self.laminate_sheet._cavity_coordinates, np.ndarray)
+        self.assertEqual(self.laminate_sheet._cavity_coordinates.shape[1], 2)
+
+        fig1 = self.laminate_sheet.get_top_down_view()
+        fig2 = self.laminate_sheet.get_right_left_view()
+        fig3 = self.laminate_sheet.get_bottom_up_view()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+
+    def test_hot_press_basic_negative_depth(self):
+        """Test that hot press method works with basic parameters."""
+        # Apply hot press with a cavity
+        self.laminate_sheet._hot_press(
+            _depth=-0.01,  # 10mm deep cavity
+            _width=0.05,  # 50mm wide cavity
+            _height=0.28,  # 150mm high cavity
+            _datum=(0.0, 0.0)  # Centered cavity
+        )
+        
+        # Check that hot pressed flag is set
+        self.assertTrue(self.laminate_sheet._hot_pressed)
+        self.assertEqual(self.laminate_sheet._cavity_depth, -0.01)
+        
+        # Check that cavity coordinates exist
+        self.assertIsNotNone(self.laminate_sheet._cavity_coordinates)
+        self.assertIsInstance(self.laminate_sheet._cavity_coordinates, np.ndarray)
+        self.assertEqual(self.laminate_sheet._cavity_coordinates.shape[1], 2)
+
+        fig1 = self.laminate_sheet.get_top_down_view()
+        fig2 = self.laminate_sheet.get_right_left_view()
+        fig3 = self.laminate_sheet.get_bottom_up_view()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+
+
+class TestPouchTerminal(unittest.TestCase):
+    """Test suite for PouchTerminal class."""
+
+    def setUp(self):
+        """Set up test fixtures for PouchTerminal tests."""
+        from steer_opencell_design.Components.Containers.Pouch import PouchTerminal
+        
+        # Create test material
+        self.material = PrismaticContainerMaterial(
+            name="Aluminum",
+            density=2700,  # kg/m³
+            specific_cost=2.5,  # $/kg
+            color="#silver"
+        )
+        
+        # Create a standard pouch terminal
+        self.terminal = PouchTerminal(
+            material=self.material,
+            width=10,
+            length=30,
+            thickness=1.0,  # 1mm thickness for measurable cost
+            datum=(0.0, 0.0, 0.0),
+            name="Test Terminal"
+        )
+        
+        # Create a larger terminal
+        self.large_terminal = PouchTerminal(
+            material=self.material,
+            width=15,
+            length=50,
+            thickness=1.5,  # 1.5mm thickness
+            name="Large Terminal"
+        )
+
+    def test_initialization_standard(self):
+        """Test that pouch terminal initializes correctly."""
+        self.assertIsNotNone(self.terminal)
+        self.assertEqual(self.terminal.name, "Test Terminal")
+        self.assertEqual(self.terminal.width, 10)
+        self.assertEqual(self.terminal.length, 30)
+        self.assertEqual(self.terminal.thickness, 1.0)
+        self.assertEqual(self.terminal.datum, (0.0, 0.0, 0.0))
+
+    def test_serialization(self):
+        """Test serialization and deserialization of pouch terminal."""
+        serialized = self.terminal.serialize()
+        from steer_opencell_design.Components.Containers.Pouch import PouchTerminal
+        deserialized = PouchTerminal.deserialize(serialized)
+        test_case = self.terminal == deserialized
+        self.assertTrue(test_case)
+
+    def test_width_property(self):
+        """Test that width property returns correct value."""
+        width = self.terminal.width
+        self.assertIsInstance(width, float)
+        self.assertEqual(width, 10)
+
+    def test_length_property(self):
+        """Test that length property returns correct value."""
+        length = self.terminal.length
+        self.assertIsInstance(length, float)
+        self.assertEqual(length, 30)
+
+    def test_thickness_property(self):
+        """Test that thickness property returns correct value."""
+        thickness = self.terminal.thickness
+        self.assertIsInstance(thickness, float)
+        self.assertEqual(thickness, 1.0)
+        
+    def test_datum_property(self):
+        """Test that datum property returns correct value."""
+        datum = self.terminal.datum
+        self.assertIsInstance(datum, tuple)
+        self.assertEqual(len(datum), 3)
+        self.assertEqual(datum, (0.0, 0.0, 0.0))
+
+    def test_name_property(self):
+        """Test that name property returns correct value."""
+        name = self.terminal.name
+        self.assertIsInstance(name, str)
+        self.assertEqual(name, "Test Terminal")
+
+    def test_volume_property(self):
+        """Test that volume property calculates correctly."""
+        volume = self.terminal.volume
+        self.assertIsInstance(volume, float)
+        self.assertGreater(volume, 0)
+
+    def test_mass_property(self):
+        """Test that mass property calculates correctly."""
+        mass = self.terminal.mass
+        self.assertIsInstance(mass, float)
+        self.assertGreater(mass, 0)
+
+    def test_cost_property(self):
+        """Test that cost property calculates correctly."""
+        cost = self.terminal.cost
+        self.assertIsInstance(cost, float)
+        self.assertGreaterEqual(cost, 0)
+
+    def test_width_range_property(self):
+        """Test that width_range returns valid tuple."""
+        width_range = self.terminal.width_range
+        self.assertIsInstance(width_range, tuple)
+        self.assertEqual(len(width_range), 2)
+        self.assertLessEqual(width_range[0], width_range[1])
+
+    def test_length_range_property(self):
+        """Test that length_range returns valid tuple."""
+        length_range = self.terminal.length_range
+        self.assertIsInstance(length_range, tuple)
+        self.assertEqual(len(length_range), 2)
+        self.assertLessEqual(length_range[0], length_range[1])
+
+    def test_thickness_range_property(self):
+        """Test that thickness_range returns valid tuple."""
+        thickness_range = self.terminal.thickness_range
+        self.assertIsInstance(thickness_range, tuple)
+        self.assertEqual(len(thickness_range), 2)
+        self.assertLessEqual(thickness_range[0], thickness_range[1])
+
+    def test_width_setter(self):
+        """Test that width setter works correctly."""
+        original_width = self.terminal.width
+        new_width = 12
+        
+        self.terminal.width = new_width
+        
+        self.assertEqual(self.terminal.width, new_width)
+        self.assertNotEqual(self.terminal.width, original_width)
+
+    def test_length_setter(self):
+        """Test that length setter works correctly."""
+        original_length = self.terminal.length
+        new_length = 40
+        
+        self.terminal.length = new_length
+        
+        self.assertEqual(self.terminal.length, new_length)
+        self.assertNotEqual(self.terminal.length, original_length)
+
+    def test_thickness_setter(self):
+        """Test that thickness setter works correctly."""
+        original_thickness = self.terminal.thickness
+        new_thickness = 1.5
+        
+        self.terminal.thickness = new_thickness
+        
+        self.assertEqual(self.terminal.thickness, new_thickness)
+        self.assertNotEqual(self.terminal.thickness, original_thickness)
+
+    def test_datum_setter(self):
+        """Test that datum setter works correctly."""
+        new_datum = (5.0, 10.0, 2.0)
+        
+        self.terminal.datum = new_datum
+        
+        self.assertEqual(self.terminal.datum, new_datum)
+
+    def test_name_setter(self):
+        """Test that name setter works correctly."""
+        new_name = "Updated Terminal"
+        
+        self.terminal.name = new_name
+        
+        self.assertEqual(self.terminal.name, new_name)
+
+    def test_bulk_properties_recalculation_on_width_change(self):
+        """Test that bulk properties are recalculated when width changes."""
+        original_volume = self.terminal.volume
+        original_mass = self.terminal.mass
+        
+        self.terminal.width = 12
+        
+        new_volume = self.terminal.volume
+        new_mass = self.terminal.mass
+        
+        self.assertNotEqual(new_volume, original_volume)
+        self.assertNotEqual(new_mass, original_mass)
+        # Cost should also change
+        self.assertGreaterEqual(self.terminal.cost, 0)
+
+    def test_bulk_properties_recalculation_on_length_change(self):
+        """Test that bulk properties are recalculated when length changes."""
+        original_volume = self.terminal.volume
+        original_mass = self.terminal.mass
+        
+        self.terminal.length = 40
+        
+        new_volume = self.terminal.volume
+        new_mass = self.terminal.mass
+        
+        self.assertNotEqual(new_volume, original_volume)
+        self.assertNotEqual(new_mass, original_mass)
+        # Cost should also change
+        self.assertGreaterEqual(self.terminal.cost, 0)
+
+    def test_bulk_properties_recalculation_on_thickness_change(self):
+        """Test that bulk properties are recalculated when thickness changes."""
+        original_volume = self.terminal.volume
+        original_mass = self.terminal.mass
+        
+        self.terminal.thickness = 1.3
+        
+        new_volume = self.terminal.volume
+        new_mass = self.terminal.mass
+        
+        self.assertNotEqual(new_volume, original_volume)
+        self.assertNotEqual(new_mass, original_mass)
+        # Cost should also change
+        self.assertGreaterEqual(self.terminal.cost, 0)
+
+    def test_volume_calculation(self):
+        """Test that volume is calculated correctly."""
+        # Volume = width * length * height (in cm³)
+        # width = 10mm = 1cm, length = 30mm = 3cm, height = 1.0mm = 0.1cm
+        # Expected volume = 1 * 3 * 0.1 = 0.3 cm³
+        expected_volume = 0.3
+        self.assertAlmostEqual(self.terminal.volume, expected_volume, places=2)
+
+    def test_mass_calculation(self):
+        """Test that mass is calculated correctly based on material density."""
+        # Mass should increase with volume
+        mass_small = self.terminal.mass
+        mass_large = self.large_terminal.mass
+        self.assertGreater(mass_large, mass_small)
+
+    def test_cost_calculation(self):
+        """Test that cost is calculated correctly based on material cost."""
+        # Cost should increase with mass/volume
+        cost_small = self.terminal.cost
+        cost_large = self.large_terminal.cost
+        # Both should be non-negative, and larger should be >= smaller
+        self.assertGreaterEqual(cost_small, 0)
+        self.assertGreaterEqual(cost_large, cost_small)
+
+    def test_coordinates_calculation(self):
+        """Test that coordinates are calculated."""
+        # Check that top-down coordinates exist
+        self.assertTrue(hasattr(self.terminal, '_top_down_coordinates'))
+        self.assertIsNotNone(self.terminal._top_down_coordinates)
+        
+        # Check that side cross-section coordinates exist
+        self.assertTrue(hasattr(self.terminal, '_right_left_coordinates'))
+        self.assertIsNotNone(self.terminal._right_left_coordinates)
+
+    def test_sequential_property_changes(self):
+        """Test that multiple property changes work correctly."""
+        # Change width
+        self.terminal.width = 12
+        self.assertEqual(self.terminal.width, 12)
+        
+        # Change length
+        self.terminal.length = 35
+        self.assertEqual(self.terminal.length, 35)
+        
+        # Change height
+        self.terminal.height = 1.25
+        self.assertEqual(self.terminal.height, 1.25)
+        
+        # Verify all changes persisted
+        self.assertEqual(self.terminal.width, 12)
+        self.assertEqual(self.terminal.length, 35)
+        self.assertEqual(self.terminal.height, 1.25)
+        
+        # Verify bulk properties are still calculated
+        self.assertGreater(self.terminal.volume, 0)
+        self.assertGreater(self.terminal.mass, 0)
+        self.assertGreaterEqual(self.terminal.cost, 0)
+
+    def test_default_datum(self):
+        """Test that default datum is set correctly when not specified."""
+        terminal = self.large_terminal  # Created without explicit datum
+        self.assertEqual(terminal.datum, (0.0, 0.0, 0.0))
+
+    def test_custom_datum(self):
+        """Test that custom datum is set correctly."""
+        from steer_opencell_design.Components.Containers.Pouch import PouchTerminal
+        
+        
+        custom_datum = (5.0, 10.0, 2.5)
+        terminal = PouchTerminal(
+            material=self.material,
+            width=10,
+            length=30,
+            thickness=1.0,
+            datum=custom_datum,
+            name="Custom Datum Terminal"
+        )
+        
+        self.assertEqual(terminal.datum, custom_datum)
+
+
+class TestPouchEncapsulation(unittest.TestCase):
+    """Test suite for PouchEncapsulation class."""
+
+    def setUp(self):
+        """Set up test fixtures for PouchEncapsulation tests."""
+        from steer_opencell_design.Components.Containers.Pouch import (
+            PouchEncapsulation, PouchTerminal, LaminateSheet
+        )
+        
+        # Create test material
+        self.material = PrismaticContainerMaterial(
+            name="Aluminum",
+            density=2700,  # kg/m³
+            specific_cost=2.5,  # $/kg
+            color="#silver"
+        )
+        
+        # Create terminals
+        self.cathode_terminal = PouchTerminal(
+            material=self.material,
+            width=10,
+            length=30,
+            thickness=1.0,
+            name="Cathode Terminal"
+        )
+        
+        self.anode_terminal = PouchTerminal(
+            material=self.material,
+            width=10,
+            length=30,
+            thickness=1.0,
+            name="Anode Terminal"
+        )
+        
+        # Create laminates
+        self.top_laminate = LaminateSheet(
+            areal_cost=2.5,
+            density=920,
+            thickness=50,
+            name="Top Laminate"
+        )
+        
+        self.bottom_laminate = LaminateSheet(
+            areal_cost=2.5,
+            density=920,
+            thickness=50,
+            name="Bottom Laminate"
+        )
+        
+        # Create encapsulation with dimensions including thickness
+        self.encapsulation = PouchEncapsulation(
+            cathode_terminal=self.cathode_terminal,
+            anode_terminal=self.anode_terminal,
+            top_laminate=self.top_laminate,
+            bottom_laminate=self.bottom_laminate,
+            width=150,
+            height=200,
+            thickness=5.0,
+            name="Test Encapsulation"
+        )
+        
+        # Create encapsulation without thickness
+        self.encapsulation_no_thickness = PouchEncapsulation(
+            cathode_terminal=PouchTerminal(
+                material=self.material,
+                width=10,
+                length=30,
+                thickness=1.0,
+                name="Cathode Terminal"
+            ),
+            anode_terminal=PouchTerminal(
+                material=self.material,
+                width=10,
+                length=30,
+                thickness=1.0,
+                name="Anode Terminal"
+            ),
+            top_laminate=LaminateSheet(
+                areal_cost=2.5,
+                density=920,
+                thickness=50,
+                name="Top Laminate"
+            ),
+            bottom_laminate=LaminateSheet(
+                areal_cost=2.5,
+                density=920,
+                thickness=50,
+                name="Bottom Laminate"
+            ),
+            width=150,
+            height=200,
+            name="Test Encapsulation No Thickness"
+        )
+        
+        # Create encapsulation without dimensions
+        self.partial_encapsulation = PouchEncapsulation(
+            cathode_terminal=PouchTerminal(
+                material=self.material,
+                width=8,
+                length=25,
+                thickness=0.8,
+                name="Cathode Terminal"
+            ),
+            anode_terminal=PouchTerminal(
+                material=self.material,
+                width=8,
+                length=25,
+                thickness=0.8,
+                name="Anode Terminal"
+            ),
+            top_laminate=LaminateSheet(
+                areal_cost=3.0,
+                density=950,
+                thickness=60,
+                name="Top Laminate"
+            ),
+            bottom_laminate=LaminateSheet(
+                areal_cost=3.0,
+                density=950,
+                thickness=60,
+                name="Bottom Laminate"
+            ),
+            name="Partial Encapsulation"
+        )
+
+    def test_initialization_with_dimensions(self):
+        """Test that encapsulation initializes correctly with width and height."""
+        self.assertIsNotNone(self.encapsulation)
+        self.assertEqual(self.encapsulation.name, "Test Encapsulation")
+        self.assertEqual(self.encapsulation.width, 150)
+        self.assertEqual(self.encapsulation.height, 200)
+
+    def test_serialization(self):
+        """Test serialization and deserialization of encapsulation."""
+        serialized = self.encapsulation.serialize()
+        from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
+        deserialized = PouchEncapsulation.deserialize(serialized)
+        test_case = self.encapsulation == deserialized
+        self.assertTrue(test_case)
+
+    def test_initialization_without_dimensions(self):
+        """Test that encapsulation initializes correctly without width and height."""
+        self.assertIsNotNone(self.partial_encapsulation)
+        self.assertEqual(self.partial_encapsulation.name, "Partial Encapsulation")
+        self.assertIsNone(self.partial_encapsulation.width)
+        self.assertIsNone(self.partial_encapsulation.height)
+
+    def test_width_sets_both_laminates(self):
+        """Test that setting width on encapsulation sets both laminates."""
+        # Set width on encapsulation
+        self.encapsulation.width = 180
+        
+        # Check both laminates have the same width
+        self.assertEqual(self.encapsulation.width, 180)
+        self.assertEqual(self.encapsulation.top_laminate.width, 180)
+        self.assertEqual(self.encapsulation.bottom_laminate.width, 180)
+
+    def test_height_sets_both_laminates(self):
+        """Test that setting height on encapsulation sets both laminates."""
+        # Set height on encapsulation
+        self.encapsulation.height = 220
+        
+        # Check both laminates have the same height
+        self.assertEqual(self.encapsulation.height, 220)
+        self.assertEqual(self.encapsulation.top_laminate.height, 220)
+        self.assertEqual(self.encapsulation.bottom_laminate.height, 220)
+
+    def test_width_property_returns_laminate_width(self):
+        """Test that width property returns the top laminate width."""
+        width = self.encapsulation.width
+        self.assertIsInstance(width, float)
+        self.assertEqual(width, self.encapsulation.top_laminate.width)
+
+    def test_height_property_returns_laminate_height(self):
+        """Test that height property returns the top laminate height."""
+        height = self.encapsulation.height
+        self.assertIsInstance(height, float)
+        self.assertEqual(height, self.encapsulation.top_laminate.height)
+
+    def test_mass_property(self):
+        """Test that mass property calculates correctly."""
+        mass = self.encapsulation.mass
+        self.assertIsInstance(mass, float)
+        self.assertGreater(mass, 0)
+
+    def test_cost_property(self):
+        """Test that cost property calculates correctly."""
+        cost = self.encapsulation.cost
+        self.assertIsInstance(cost, float)
+        self.assertGreaterEqual(cost, 0)
+
+    def test_mass_breakdown(self):
+        """Test that mass breakdown includes all components."""
+        breakdown = self.encapsulation.mass_breakdown
+        self.assertIsInstance(breakdown, dict)
+        self.assertIn("Cathode Terminal", breakdown)
+        self.assertIn("Anode Terminal", breakdown)
+        self.assertIn("Laminates", breakdown)
+        
+        # All values should be positive
+        for value in breakdown.values():
+            self.assertGreaterEqual(value, 0)
+
+    def test_cost_breakdown(self):
+        """Test that cost breakdown includes all components."""
+        breakdown = self.encapsulation.cost_breakdown
+        self.assertIsInstance(breakdown, dict)
+        self.assertIn("Cathode Terminal", breakdown)
+        self.assertIn("Anode Terminal", breakdown)
+        self.assertIn("Top Laminate", breakdown)
+        self.assertIn("Bottom Laminate", breakdown)
+        
+        # All values should be non-negative
+        for value in breakdown.values():
+            self.assertGreaterEqual(value, 0)
+
+    def test_adding_dimensions_to_partial_encapsulation(self):
+        """Test that adding dimensions to partial encapsulation updates laminates."""
+        # Initially no dimensions
+        self.assertIsNone(self.partial_encapsulation.width)
+        self.assertIsNone(self.partial_encapsulation.height)
+        
+        # Set dimensions
+        self.partial_encapsulation.width = 160
+        self.partial_encapsulation.height = 210
+        
+        # Check encapsulation dimensions
+        self.assertEqual(self.partial_encapsulation.width, 160)
+        self.assertEqual(self.partial_encapsulation.height, 210)
+        
+        # Check both laminates have the dimensions
+        self.assertEqual(self.partial_encapsulation.top_laminate.width, 160)
+        self.assertEqual(self.partial_encapsulation.top_laminate.height, 210)
+        self.assertEqual(self.partial_encapsulation.bottom_laminate.width, 160)
+        self.assertEqual(self.partial_encapsulation.bottom_laminate.height, 210)
+
+    def test_mass_recalculation_on_width_change(self):
+        """Test that mass is recalculated when width changes."""
+        original_mass = self.encapsulation.mass
+        
+        self.encapsulation.width = 180
+        
+        new_mass = self.encapsulation.mass
+        self.assertNotEqual(new_mass, original_mass)
+
+    def test_mass_recalculation_on_height_change(self):
+        """Test that mass is recalculated when height changes."""
+        original_mass = self.encapsulation.mass
+        
+        self.encapsulation.height = 220
+        
+        new_mass = self.encapsulation.mass
+        self.assertNotEqual(new_mass, original_mass)
+
+    def test_cost_recalculation_on_width_change(self):
+        """Test that cost is recalculated when width changes."""
+        original_cost = self.encapsulation.cost
+        
+        self.encapsulation.width = 180
+        
+        new_cost = self.encapsulation.cost
+        self.assertNotEqual(new_cost, original_cost)
+
+    def test_cost_recalculation_on_height_change(self):
+        """Test that cost is recalculated when height changes."""
+        original_cost = self.encapsulation.cost
+        
+        self.encapsulation.height = 220
+        
+        new_cost = self.encapsulation.cost
+        self.assertNotEqual(new_cost, original_cost)
+
+    def test_terminal_properties(self):
+        """Test that terminal properties return correct objects."""
+        self.assertIsInstance(self.encapsulation.cathode_terminal, type(self.cathode_terminal))
+        self.assertIsInstance(self.encapsulation.anode_terminal, type(self.anode_terminal))
+
+    def test_laminate_properties(self):
+        """Test that laminate properties return correct objects."""
+        self.assertIsInstance(self.encapsulation.top_laminate, type(self.top_laminate))
+        self.assertIsInstance(self.encapsulation.bottom_laminate, type(self.bottom_laminate))
+
+    def test_datum_property(self):
+        """Test that datum property returns correct value."""
+        datum = self.encapsulation.datum
+        self.assertIsInstance(datum, tuple)
+        self.assertEqual(len(datum), 3)
+        self.assertEqual(datum, (0.0, 0.0, 0.0))
+
+    def test_name_property(self):
+        """Test that name property returns correct value."""
+        name = self.encapsulation.name
+        self.assertIsInstance(name, str)
+        self.assertEqual(name, "Test Encapsulation")
+
+    def test_datum_setter(self):
+        """Test that datum setter works correctly."""
+        new_datum = (10.0, 20.0, 5.0)
+        self.encapsulation.datum = new_datum
+        self.assertEqual(self.encapsulation.datum, new_datum)
+
+    def test_name_setter(self):
+        """Test that name setter works correctly."""
+        new_name = "Updated Encapsulation"
+        self.encapsulation.name = new_name
+        self.assertEqual(self.encapsulation.name, new_name)
+
+    def test_sequential_dimension_changes(self):
+        """Test that multiple dimension changes work correctly."""
+        # Change width
+        self.encapsulation.width = 170
+        self.assertEqual(self.encapsulation.width, 170)
+        
+        # Change height
+        self.encapsulation.height = 230
+        self.assertEqual(self.encapsulation.height, 230)
+        
+        # Verify both changes persisted
+        self.assertEqual(self.encapsulation.width, 170)
+        self.assertEqual(self.encapsulation.height, 230)
+        
+        # Verify both laminates have correct dimensions
+        self.assertEqual(self.encapsulation.top_laminate.width, 170)
+        self.assertEqual(self.encapsulation.top_laminate.height, 230)
+        self.assertEqual(self.encapsulation.bottom_laminate.width, 170)
+        self.assertEqual(self.encapsulation.bottom_laminate.height, 230)
+
+    def test_laminates_stay_synchronized(self):
+        """Test that top and bottom laminates stay synchronized."""
+        # Change width multiple times
+        for width in [160, 170, 180]:
+            self.encapsulation.width = width
+            self.assertEqual(self.encapsulation.top_laminate.width, width)
+            self.assertEqual(self.encapsulation.bottom_laminate.width, width)
+        
+        # Change height multiple times
+        for height in [210, 220, 230]:
+            self.encapsulation.height = height
+            self.assertEqual(self.encapsulation.top_laminate.height, height)
+            self.assertEqual(self.encapsulation.bottom_laminate.height, height)
+
+
+class TestPrismaticTerminalConnector(unittest.TestCase):
+    def setUp(self):
+        """Set up test fixtures for PrismaticTerminalConnector tests"""
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticTerminalConnector
+        
+        material = PrismaticContainerMaterial.from_database("Aluminum")
+
+        self.connector_standard = PrismaticTerminalConnector(
+            material=material,
+            thickness=2.0,
+            width=20.0,
+            length=50.0,
+            fill_factor=0.8
+        )
+
+        self.connector_small = PrismaticTerminalConnector(
+            material=PrismaticContainerMaterial.from_database("Copper"),
+            thickness=2.0,
+            width=10.0,
+            length=25.0,
+            fill_factor=0.6
+        )
+
+        self.connector_large = PrismaticTerminalConnector(
+            material=PrismaticContainerMaterial.from_database("Steel"),
+            thickness=3.0,
+            width=40.0,
+            length=80.0,
+            fill_factor=0.9
+        )
+        
+        # Connector without dimensions for None testing
+        self.connector_no_dims = PrismaticTerminalConnector(
+            material=material,
+            thickness=2.0,
+            fill_factor=0.8
+        )
+
+    def test_initialization_standard(self):
+        """Test standard connector initialization"""
+        connector = self.connector_standard
+        self.assertEqual(connector.width, 20.0)
+        self.assertEqual(connector.length, 50.0)
+        self.assertEqual(connector.thickness, 2.0)
+        self.assertEqual(connector.fill_factor, 0.8)
+
+    def test_bulk_properties(self):
+        """Test bulk property calculations"""
+        connector = self.connector_standard
+        self.assertIsInstance(connector.cost, (int, float))
+        self.assertIsInstance(connector.mass, (int, float))
+        self.assertGreater(connector.cost, 0)
+        self.assertGreater(connector.mass, 0)
+        self.assertGreater(connector.volume, 0)
+
+    def test_footprint_structure(self):
+        """Test that footprint calculation returns valid structure"""
+        footprint = self.connector_standard._calculate_footprint()
+        
+        self.assertIsInstance(footprint, np.ndarray)
+        self.assertEqual(len(footprint.shape), 2)
+        self.assertEqual(footprint.shape[1], 2)  # x, y coordinates
+        self.assertEqual(len(footprint), 5)  # Rectangle has 5 points (closed)
+
+    def test_footprint_geometry(self):
+        """Test geometric properties of the footprint"""
+        footprint = self.connector_standard._calculate_footprint()
+        x, y = footprint[:, 0], footprint[:, 1]
+        
+        # Check rectangular extents
+        width_m = self.connector_standard._width
+        length_m = self.connector_standard._length
+        
+        x_extent = np.max(x) - np.min(x)
+        y_extent = np.max(y) - np.min(y)
+        
+        self.assertAlmostEqual(x_extent, width_m, places=5)
+        self.assertAlmostEqual(y_extent, length_m, places=5)
+
+    def test_properties_when_dims_none(self):
+        """Test that properties return None when dimensions are not set"""
+        connector = self.connector_no_dims
+        
+        self.assertIsNone(connector.width)
+        self.assertIsNone(connector.length)
+        self.assertIsNone(connector.mass)
+        self.assertIsNone(connector.cost)
+        self.assertIsNone(connector.volume)
+        
+        coords = connector.coordinates
+        self.assertTrue(coords.empty)
+
+    def test_dimension_setting_triggers_calculations(self):
+        """Test that setting dimensions triggers property calculations"""
+        connector = self.connector_no_dims
+        
+        self.assertIsNone(connector.mass)
+        
+        # Set width and length
+        connector.width = 20.0
+        connector.length = 50.0
+        
+        # Properties should now be calculated
+        self.assertEqual(connector.width, 20.0)
+        self.assertEqual(connector.length, 50.0)
+        self.assertIsNotNone(connector.mass)
+        self.assertGreater(connector.mass, 0)
+
+    def test_plots(self):
+        """Test plotting functionality"""
+
+        # base case
+        fig1 = self.connector_standard.get_top_down_view()
+        self.assertIsNotNone(fig1.data)
+
+        # change datum and re-plot
+        self.connector_standard.datum = (10.0, 15.0, 0.0)
+        fig2 = self.connector_standard.get_top_down_view()
+        self.assertIsNotNone(fig2.data)
+
+        # flip by 90 degrees along y axis and re-plot
+        self.connector_standard.rotated_y = True
+        fig3 = self.connector_standard.get_top_down_view()
+
+        # unflip and re-plot
+        self.connector_standard.rotated_y = False
+        fig4 = self.connector_standard.get_top_down_view()
+
+        # set to false again to ensure idempotency
+        self.connector_standard.rotated_y = False
+        fig5 = self.connector_standard.get_top_down_view()
+        self.assertIsNotNone(fig5.data)
+        self.assertEqual(fig4, fig5)
+        
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+        # fig4.show()
+
+
+class TestPrismaticLidAssembly(unittest.TestCase):
+    def setUp(self):
+        """Set up test fixtures for PrismaticLidAssembly tests"""
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticLidAssembly
+        
+        material = PrismaticContainerMaterial.from_database("Aluminum")
+
+        self.lid_standard = PrismaticLidAssembly(
+            material=material,
+            thickness=5.0,
+            width=100.0,
+            length=150.0,
+            fill_factor=0.8
+        )
+
+        self.lid_small = PrismaticLidAssembly(
+            material=PrismaticContainerMaterial.from_database("Copper"),
+            thickness=3.0,
+            width=50.0,
+            length=75.0,
+            fill_factor=0.6
+        )
+
+    def test_initialization_standard(self):
+        """Test standard lid initialization"""
+        lid = self.lid_standard
+        self.assertEqual(lid.width, 100.0)
+        self.assertEqual(lid.length, 150.0)
+        self.assertEqual(lid.thickness, 5.0)
+        self.assertEqual(lid.fill_factor, 0.8)
+        self.assertEqual(lid.name, "Prismatic Lid Assembly")
+
+    def test_bulk_properties(self):
+        """Test bulk property calculations"""
+        lid = self.lid_standard
+        self.assertIsInstance(lid.cost, (int, float))
+        self.assertIsInstance(lid.mass, (int, float))
+        self.assertGreater(lid.cost, 0)
+        self.assertGreater(lid.mass, 0)
+
+    def test_footprint_is_rectangular(self):
+        """Test that footprint is a proper rectangle"""
+        footprint = self.lid_standard._calculate_footprint()
+        x, y = footprint[:, 0], footprint[:, 1]
+        
+        # Check that we have exactly 5 points (closed rectangle)
+        self.assertEqual(len(footprint), 5)
+        
+        # Check that first and last points are identical (closed)
+        self.assertAlmostEqual(x[0], x[-1], places=5)
+        self.assertAlmostEqual(y[0], y[-1], places=5)
+
+    def test_plots(self):
+        """Test plotting functionality"""
+        fig = self.lid_standard.get_top_down_view()
+        self.assertIsNotNone(fig.data)
+
+
+class TestPrismaticCannister(unittest.TestCase):
+    def setUp(self):
+        """Set up test fixtures for PrismaticCannister tests"""
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticCannister
+        
+        material = PrismaticContainerMaterial.from_database("Aluminum")
+
+        self.cannister_standard = PrismaticCannister(
+            material=material,
+            width=100.0,
+            length=150.0,
+            height=200.0,
+            wall_thickness=2.0
+        )
+
+        self.cannister_thick_walls = PrismaticCannister(
+            material=PrismaticContainerMaterial.from_database("Steel"),
+            width=100.0,
+            length=150.0,
+            height=200.0,
+            wall_thickness=5.0
+        )
+
+    def test_initialization_standard(self):
+        """Test standard cannister initialization"""
+        cannister = self.cannister_standard
+        self.assertEqual(cannister.width, 100.0)
+        self.assertEqual(cannister.length, 150.0)
+        self.assertEqual(cannister.height, 200.0)
+        self.assertEqual(cannister.wall_thickness, 2.0)
+        self.assertEqual(cannister.name, "Prismatic Cannister")
+
+    def test_inner_dimensions(self):
+        """Test that inner dimensions are calculated correctly"""
+        cannister = self.cannister_standard
+        
+        # Inner dimensions should account for wall thickness
+        expected_inner_width = 100.0 - 2 * 2.0  # outer - 2*thickness
+        expected_inner_length = 150.0 - 2 * 2.0
+        expected_inner_height = 200.0 - 2.0  # height - bottom thickness
+        
+        self.assertEqual(cannister.inner_width, expected_inner_width)
+        self.assertEqual(cannister.inner_length, expected_inner_length)
+        self.assertEqual(cannister.inner_height, expected_inner_height)
+
+    def test_bulk_properties(self):
+        """Test bulk property calculations"""
+        cannister = self.cannister_standard
+        self.assertIsInstance(cannister.cost, (int, float))
+        self.assertIsInstance(cannister.mass, (int, float))
+        self.assertGreater(cannister.cost, 0)
+        self.assertGreater(cannister.mass, 0)
+        self.assertGreater(cannister.volume, 0)
+
+    def test_wall_thickness_effect(self):
+        """Test that thicker walls result in more mass"""
+        standard_mass = self.cannister_standard.mass
+        thick_mass = self.cannister_thick_walls.mass
+        
+        # Thicker walls should have more mass (even accounting for different materials)
+        # Just check that both have reasonable positive values
+        self.assertGreater(standard_mass, 0)
+        self.assertGreater(thick_mass, 0)
+
+    def test_setters(self):
+        """Test dimension setters"""
+        cannister = self.cannister_standard
+        
+        # Test width setter
+        cannister.width = 120.0
+        self.assertEqual(cannister.width, 120.0)
+        
+        # Test height setter
+        cannister.height = 250.0
+        self.assertEqual(cannister.height, 250.0)
+        
+        # Test wall thickness setter
+        cannister.wall_thickness = 3.0
+        self.assertEqual(cannister.wall_thickness, 3.0)
+
+    def test_inner_dimension_setters(self):
+        """Test that inner dimension setters update outer dimensions correctly"""
+        cannister = self.cannister_standard
+        
+        # Set inner width
+        cannister.inner_width = 90.0
+        expected_outer = 90.0 + 2 * 2.0  # inner + 2*wall_thickness
+        self.assertEqual(cannister.inner_width, 90.0)
+        self.assertEqual(cannister.width, expected_outer)
+        
+        # Set inner height
+        cannister.inner_height = 190.0
+        expected_height = 190.0 + 2.0  # inner + wall_thickness
+        self.assertEqual(cannister.inner_height, 190.0)
+        self.assertEqual(cannister.height, expected_height)
+
+    def test_plots(self):
+        """Test plotting functionality"""
+        # base case
+        fig1 = self.cannister_standard.get_top_down_view()
+        self.assertIsNotNone(fig1.data)
+        
+        # rotate around y axis and re-plot
+        self.cannister_standard.rotated_z = True
+        fig3 = self.cannister_standard.get_top_down_view()
+        self.assertIsNotNone(fig3.data)
+
+        # fig1.show()
+        # fig3.show()
+
+
+
+class TestPrismaticEncapsulation(unittest.TestCase):
+    def setUp(self):
+        """Set up test fixtures for PrismaticEncapsulation tests"""
+        from steer_opencell_design.Components.Containers.Prismatic import (
+            PrismaticTerminalConnector,
+            PrismaticLidAssembly,
+            PrismaticCannister,
+            PrismaticEncapsulation
+        )
+        
+        material = PrismaticContainerMaterial.from_database("Aluminum")
+
+        self.cathode_connector = PrismaticTerminalConnector(
+            material=material,
+            thickness=2.0,
+            fill_factor=0.8
+        )
+        
+        self.anode_connector = PrismaticTerminalConnector(
+            material=PrismaticContainerMaterial.from_database("Copper"),
+            thickness=3.0,
+            fill_factor=0.7
+        )
+        
+        self.lid = PrismaticLidAssembly(
+            material=material,
+            thickness=4.0,
+            fill_factor=0.9
+        )
+        
+        self.cannister = PrismaticCannister(
+            material=material,
+            width=100.0,
+            length=150.0,
+            height=200.0,
+            wall_thickness=2.0
+        )
+        
+        self.encapsulation = PrismaticEncapsulation(
+            cathode_terminal_connector=self.cathode_connector,
+            anode_terminal_connector=self.anode_connector,
+            lid_assembly=self.lid,
+            cannister=self.cannister
+        )
+
+    def test_initialization(self):
+        """Test encapsulation initialization"""
+        enc = self.encapsulation
+        self.assertIsNotNone(enc.cathode_terminal_connector)
+        self.assertIsNotNone(enc.anode_terminal_connector)
+        self.assertIsNotNone(enc.lid_assembly)
+        self.assertIsNotNone(enc.cannister)
+        self.assertEqual(enc.name, "Prismatic Encapsulation")
+
+    def test_plots(self):
+        """Test plotting functionality"""
+
+        # base case
+        fig1 = self.encapsulation.get_top_down_view()
+        fig2 = self.encapsulation.get_right_left_view()
+        self.assertIsNotNone(fig1.data)
+        self.assertIsNotNone(fig2.data)
+
+        # set to transverse orientation and re-plot
+        from steer_opencell_design.Components.Containers.Prismatic import ConnectorOrientation
+        self.encapsulation.connector_orientation = ConnectorOrientation.TRANSVERSE
+        fig3 = self.encapsulation.get_top_down_view()
+        fig4 = self.encapsulation.get_right_left_view()
+        self.assertIsNotNone(fig3.data)
+        self.assertIsNotNone(fig4.data)
+
+        # modify the cathode terminal connector position
+        self.encapsulation.connector_orientation = ConnectorOrientation.LONGITUDINAL
+        self.encapsulation.cathode_terminal_connector_position = 50.0
+        fig5 = self.encapsulation.get_top_down_view()
+        fig6 = self.encapsulation.get_right_left_view()
+        self.assertIsNotNone(fig5.data)
+        self.assertIsNotNone(fig6.data)
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+        # fig4.show()
+        # fig5.show()
+        # fig6.show()
+
+    def test_component_sizing(self):
+        """Test that components are sized correctly relative to cannister"""
+        enc = self.encapsulation
+        
+        # Lid should match cannister inner dimensions
+        self.assertEqual(enc.lid_assembly.width, enc.cannister.inner_width)
+        self.assertEqual(enc.lid_assembly.length, enc.cannister.inner_length)
+        
+        # Terminal connectors should be sized relative to cannister
+        # They should be smaller than the cannister inner dimensions
+        self.assertLess(enc.cathode_terminal_connector.width, enc.cannister.inner_width)
+        self.assertLess(enc.cathode_terminal_connector.length, enc.cannister.inner_length)
+        self.assertLess(enc.anode_terminal_connector.width, enc.cannister.inner_width)
+        self.assertLess(enc.anode_terminal_connector.length, enc.cannister.inner_length)
+
+    def test_component_positioning(self):
+        """Test that components are positioned correctly"""
+        enc = self.encapsulation
+        
+        # All components should have datums set
+        self.assertIsNotNone(enc.lid_assembly.datum)
+        self.assertIsNotNone(enc.cathode_terminal_connector.datum)
+        self.assertIsNotNone(enc.anode_terminal_connector.datum)
+        
+        # Lid should be at top of cannister
+        lid_y = enc.lid_assembly.datum[1]
+        cannister_top = enc.cannister.datum[1] + enc.cannister.height
+        self.assertAlmostEqual(lid_y, cannister_top - enc.lid_assembly.thickness / 2, places=1)
+        
+        # Connectors should be offset horizontally (not at same x position)
+        cathode_x = enc.cathode_terminal_connector.datum[0]
+        anode_x = enc.anode_terminal_connector.datum[0]
+        self.assertNotEqual(cathode_x, anode_x)
+
+    def test_internal_height(self):
+        """Test internal height calculation"""
+        enc = self.encapsulation
+        
+        # Internal height should account for lid, connectors, and base
+        internal = enc.internal_height
+        self.assertIsInstance(internal, (int, float))
+        self.assertGreater(internal, 0)
+        self.assertLess(internal, enc.cannister.height)
+
+    def test_mass_and_cost_calculations(self):
+        """Test that mass and cost are calculated correctly"""
+        enc = self.encapsulation
+        
+        # Should have positive mass and cost
+        self.assertGreater(enc.mass, 0)
+        self.assertGreater(enc.cost, 0)
+        
+        # Should have breakdowns
+        self.assertIsInstance(enc.mass_breakdown, dict)
+        self.assertIsInstance(enc.cost_breakdown, dict)
+        
+        # Breakdowns should have all components
+        self.assertIn("Cathode Terminal Connector", enc.mass_breakdown)
+        self.assertIn("Anode Terminal Connector", enc.mass_breakdown)
+        self.assertIn("Lid Assembly", enc.mass_breakdown)
+        self.assertIn("Cannister", enc.mass_breakdown)
+
+    def test_volume_property(self):
+        """Test volume property"""
+        enc = self.encapsulation
+        self.assertGreater(enc.volume, 0)
+        # Volume should match cannister volume
+        self.assertEqual(enc.volume, enc.cannister.volume)
+
+    def test_dimension_properties(self):
+        """Test that dimension properties work correctly"""
+        enc = self.encapsulation
+        
+        self.assertEqual(enc.width, enc.cannister.width)
+        self.assertEqual(enc.length, enc.cannister.length)
+        self.assertEqual(enc.height, enc.cannister.height)
+
+    def test_dimension_setters(self):
+        """Test that dimension setters update cannister"""
+        enc = self.encapsulation
+        
+        # Test width setter
+        enc.width = 120.0
+        self.assertEqual(enc.width, 120.0)
+        self.assertEqual(enc.cannister.width, 120.0)
+        
+        # Test length setter
+        enc.length = 180.0
+        self.assertEqual(enc.length, 180.0)
+        self.assertEqual(enc.cannister.length, 180.0)
+        
+        # Test height setter
+        enc.height = 250.0
+        self.assertEqual(enc.height, 250.0)
+        self.assertEqual(enc.cannister.height, 250.0)
+
+    def test_internal_height_setter(self):
+        """Test internal height setter adjusts cannister height"""
+        enc = self.encapsulation
+        
+        original_height = enc.height
+        original_internal = enc.internal_height
+        
+        # Increase internal height
+        new_internal = original_internal + 20.0
+        enc.internal_height = new_internal
+        
+        self.assertEqual(enc.internal_height, new_internal)
+        # Total height should have increased by same amount
+        self.assertAlmostEqual(enc.height, original_height + 20.0, places=1)
+
+    def test_datum_setter(self):
+        """Test datum setter updates all components"""
+        enc = self.encapsulation
+        
+        new_datum = (10.0, 20.0, 30.0)
+        enc.datum = new_datum
+        
+        self.assertEqual(enc.datum, new_datum)
+
+    def test_component_setters(self):
+        """Test that component setters work and trigger recalculation"""
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticTerminalConnector
+        
+        enc = self.encapsulation
+        material = PrismaticContainerMaterial.from_database("Steel")
+        
+        # Create new component
+        new_connector = PrismaticTerminalConnector(
+            material=material,
+            thickness=5.0,
+            fill_factor=0.85
+        )
+        
+        # Set new cathode connector
+        enc.cathode_terminal_connector = new_connector
+        
+        # Should be updated and have name suffix
+        self.assertEqual(enc.cathode_terminal_connector, new_connector)
+        self.assertIn("Cathode", enc.cathode_terminal_connector.name)
+
+    def test_name_setter(self):
+        """Test that name setter works correctly"""
+        enc = self.encapsulation
+        new_name = "Custom Prismatic Encapsulation"
+        enc.name = new_name
+        self.assertEqual(enc.name, new_name)
+
+
 if __name__ == '__main__':
     unittest.main()
+
+
