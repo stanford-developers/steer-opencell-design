@@ -623,7 +623,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         fig7 = self.my_jellyroll.get_top_down_view()
         fig8 = self.my_jellyroll.get_side_view()
 
-        fig1.show()
+        # fig1.show()
         # fig3.show()
         # fig4.show()
         # fig5.show()

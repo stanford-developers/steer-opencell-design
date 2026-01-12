@@ -944,6 +944,9 @@ class _Electrode(
         min_calender_density = ((1 - max_porosity) / self._formulation._specific_volume) * (KG_TO_G / M_TO_CM**3)
         max_calender_density = ((1 - min_porosity) / self._formulation._specific_volume) * (KG_TO_G / M_TO_CM**3)
 
+        min_calender_density = np.round(min_calender_density, 2)
+        max_calender_density = np.round(max_calender_density, 2)
+
         return (min_calender_density, max_calender_density)
 
     @property
@@ -1012,15 +1015,15 @@ class _Electrode(
     @property
     def mass_loading_range(self) -> Tuple[float, float]:
         return (
-            self.calender_density_range[0] * self.coating_thickness_range[0] * UM_TO_CM * G_TO_mG,
-            self.calender_density_range[1] * self.coating_thickness_range[1] * UM_TO_CM * G_TO_mG,
+            np.round(self.calender_density_range[0] * self.coating_thickness_range[0] * UM_TO_CM * G_TO_mG, 2),
+            np.round(self.calender_density_range[1] * self.coating_thickness_range[1] * UM_TO_CM * G_TO_mG, 2),
         )
 
     @property
     def mass_loading_hard_range(self) -> Tuple[float, float]:
         return (
-            self.calender_density_hard_range[0] * self.coating_thickness_hard_range[0] * UM_TO_CM * G_TO_mG,
-            self.calender_density_hard_range[1] * self.coating_thickness_hard_range[1] * UM_TO_CM * G_TO_mG,
+            np.round(self.calender_density_hard_range[0] * self.coating_thickness_hard_range[0] * UM_TO_CM * G_TO_mG, 2),
+            np.round(self.calender_density_hard_range[1] * self.coating_thickness_hard_range[1] * UM_TO_CM * G_TO_mG, 2),
         )
 
     @property

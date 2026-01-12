@@ -151,10 +151,10 @@ class CylindricalCell(_Cell):
             )
 
         # Radius validation
-        if assembly._radius > encapsulation._cannister._inner_radius:
+        if assembly._radius > encapsulation._canister._inner_radius:
             warnings.warn(
                 f"Assembly radius ({assembly.radius} mm) exceeds "
-                f"encapsulation internal radius ({encapsulation._cannister.inner_radius} mm). "
+                f"encapsulation internal radius ({encapsulation._canister.inner_radius} mm). "
                 "Please ensure compatibility."
             )
 
@@ -233,7 +233,7 @@ class CylindricalCell(_Cell):
 
         spiral_plot = self._reference_electrode_assembly.get_spiral_plot()
         spiral_traces = spiral_plot['data']
-        encapsulation_trace = self._encapsulation._cannister.top_down_cross_section_trace
+        encapsulation_trace = self._encapsulation._canister.top_down_cross_section_trace
         traces = spiral_traces + (encapsulation_trace,)
 
         figure = go.Figure(data=traces)

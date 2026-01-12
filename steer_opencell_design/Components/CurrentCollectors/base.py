@@ -374,6 +374,7 @@ class _CurrentCollector(
         vector = np.array(vector)
 
         # translate body coordinates coordinates
+        self._body_coordinates = self._body_coordinates.copy()
         self._body_coordinates += vector
 
         # translate a side coated coordinates
@@ -394,8 +395,10 @@ class _CurrentCollector(
 
         # translate insulation coordinates if they exist
         if hasattr(self, "_a_side_insulation_coordinates") and self._a_side_insulation_coordinates is not None:
+            self._a_side_insulation_coordinates = self._a_side_insulation_coordinates.copy()
             self._a_side_insulation_coordinates += vector
         if hasattr(self, "_b_side_insulation_coordinates") and self._b_side_insulation_coordinates is not None:
+            self._b_side_insulation_coordinates = self._b_side_insulation_coordinates.copy()
             self._b_side_insulation_coordinates += vector
 
         # translate the tabs if they exist
@@ -1438,7 +1441,8 @@ class _TapeCurrentCollector(_CurrentCollector):
             a_side_total_bare_length = sum(self.bare_lengths_a_side) if hasattr(self, "_bare_lengths_a_side") else 0
             b_side_total_bare_length = sum(self.bare_lengths_b_side) if hasattr(self, "_bare_lengths_b_side") else 0
             min_length = max(a_side_total_bare_length + 10, b_side_total_bare_length + 200, 300)
-            return (min_length, 5000)
+
+            return (min_length, 10000)
 
     @property
     def y_body_length_range(self) -> Tuple[float, float]:

@@ -144,7 +144,7 @@ class TestCylindricalCell(unittest.TestCase):
             fill_factor=0.9
         )
         
-        cannister = CylindricalCannister(
+        canister = CylindricalCanister(
             material=aluminum,
             outer_radius=21.4,  # mm
             height=330,  # mm
@@ -163,7 +163,7 @@ class TestCylindricalCell(unittest.TestCase):
             cathode_terminal_connector=cathode_connector,
             anode_terminal_connector=anode_connector,
             lid_assembly=lid,
-            cannister=cannister
+            canister=canister
         )
 
         self.cell = CylindricalCell(
@@ -178,7 +178,7 @@ class TestCylindricalCell(unittest.TestCase):
         self.cathode_connector = cathode_connector
         self.anode_connector = anode_connector
         self.lid = lid
-        self.cannister = cannister
+        self.canister = canister
 
     def test_basics(self):
         self.assertIsInstance(self.cell, CylindricalCell)
@@ -335,14 +335,14 @@ class TestCylindricalCell(unittest.TestCase):
     def test_encapsulation_setter(self):
         """Test setting encapsulation triggers recalculation."""
         # Create new encapsulation with different dimensions
-        new_cannister = deepcopy(self.cannister)
-        new_cannister._length = 72  # Longer cannister
+        new_canister = deepcopy(self.canister)
+        new_canister._length = 72  # Longer canister
         
         new_encapsulation = CylindricalEncapsulation(
             cathode_terminal_connector=self.cathode_connector,
             anode_terminal_connector=self.anode_connector,
             lid_assembly=self.lid,
-            cannister=new_cannister
+            canister=new_canister
         )
         
         original_mass = self.cell.mass
@@ -350,7 +350,7 @@ class TestCylindricalCell(unittest.TestCase):
         # Set new encapsulation
         self.cell.encapsulation = new_encapsulation
         
-        # Check that mass changed (different cannister mass)
+        # Check that mass changed (different canister mass)
         self.assertIsNotNone(self.cell.mass)
         
         # Verify encapsulation was updated
@@ -1049,6 +1049,17 @@ class TestStackedPouchCellTemp(unittest.TestCase):
         # fig4.show()
         # fig5.show()
 
+    def test_reference_chemistry(self):
+        cell_chemistry = self.cell.reference_chemistry
+        self.assertEqual(cell_chemistry, "Li/Li+")
+
+    def test_form_factor(self):
+        form_factor = self.cell.form_factor
+        self.assertEqual(form_factor, "Pouch Cell")
+
+    def test_internal_construction(self):
+        internal_construction = self.cell.internal_construction
+        self.assertEqual(internal_construction, "ZFold Stack")
 
 
 class TestStackedPrismaticCell(unittest.TestCase):
@@ -1155,7 +1166,7 @@ class TestStackedPrismaticCell(unittest.TestCase):
             fill_factor=0.8
         )
 
-        cannister = ocd.PrismaticCannister(
+        canister = ocd.PrismaticCanister(
             material=prismatic_material,
             wall_thickness=1,
             length=85,
@@ -1181,7 +1192,7 @@ class TestStackedPrismaticCell(unittest.TestCase):
             cathode_terminal_connector=cathode_connector_terminal,
             anode_terminal_connector=anode_connector_terminal,
             lid_assembly=lid,
-            cannister=cannister
+            canister=canister
         )
 
         self.cell = ocd.PrismaticCell(
@@ -1369,6 +1380,24 @@ class TestStackedPrismaticCell(unittest.TestCase):
         self.assertIsNotNone(self.cell.cost)
         self.assertGreater(self.cell.reversible_capacity, 0)
 
+    def test_encapsulation_parameter_setters(self):
+
+        fig1 = self.cell.get_side_view()
+
+        self.cell.encapsulation.canister.height = 600
+        self.cell.encapsulation.canister = self.cell.encapsulation.canister
+        self.cell.encapsulation = self.cell.encapsulation
+        fig2 = self.cell.get_side_view()
+
+        self.cell.encapsulation.canister.length = 160
+        self.cell.encapsulation.canister = self.cell.encapsulation.canister
+        self.cell.encapsulation = self.cell.encapsulation
+        fig3 = self.cell.get_side_view()
+
+        # fig1.show(renderer="browser")
+        # fig2.show(renderer="browser")
+        # fig3.show(renderer="browser")
+
 
 class TestFlatJellyRollPrismatic(unittest.TestCase):
 
@@ -1504,7 +1533,7 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
             thickness=8,
         )
 
-        cannister = ocd.PrismaticCannister(
+        canister = ocd.PrismaticCanister(
             material=prismatic_material,
             width=138,
             length=74,
@@ -1513,7 +1542,7 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
         )
 
         encapsulation = ocd.PrismaticEncapsulation(
-            cannister=cannister,
+            canister=canister,
             cathode_terminal_connector=cathode_terminal_connector,
             anode_terminal_connector=anode_terminal_connector,
             lid_assembly=lid_assembly,
