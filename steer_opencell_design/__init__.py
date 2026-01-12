@@ -33,12 +33,18 @@ from .Constructions.ElectrodeAssemblies.Stacks import ZFoldStack, PunchedStack
 from .Constructions.ElectrodeAssemblies.WindingEquipment import RoundMandrel, FlatMandrel
 
 # import containers
-from .Components.Containers.Cylindrical import CylindricalCannister, CylindricalEncapsulation, CylindricalLidAssembly, CylindricalTerminalConnector
+from .Components.Containers.Cylindrical import CylindricalCanister, CylindricalEncapsulation, CylindricalLidAssembly, CylindricalTerminalConnector
 from .Components.Containers.Pouch import PouchEncapsulation, LaminateSheet, PouchTerminal
-from .Components.Containers.Prismatic import PrismaticCannister, PrismaticEncapsulation, PrismaticLidAssembly, PrismaticTerminalConnector
+from .Components.Containers.Prismatic import PrismaticCanister, PrismaticEncapsulation, PrismaticLidAssembly, PrismaticTerminalConnector
 
 # import cells
 from .Constructions.Cells.CylindricalCell import CylindricalCell
 from .Constructions.Cells.PrismaticCell import PrismaticCell
 from .Constructions.Cells.PouchCell import PouchCell
+
+
+
+
+
+
 

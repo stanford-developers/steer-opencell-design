@@ -373,6 +373,14 @@ class LaminateSheet(
         return np.round(self._areal_cost, 2)
 
     @property
+    def areal_cost_range(self):
+        return (0, 0.1)
+    
+    @property
+    def areal_cost_hard_range(self):
+        return (0, 1)
+
+    @property
     def datum(self) -> Tuple[float, float, float]:
         """Get the datum position in mm."""
         return tuple(np.round(coord * M_TO_MM, 2) for coord in self._datum)
@@ -412,6 +420,10 @@ class LaminateSheet(
     def density(self) -> float:
         """Density in kg/m³."""
         return np.round(self._density, 2)
+    
+    @property
+    def density_range(self):
+        return (0, 5)
 
     @property
     def thickness(self):
