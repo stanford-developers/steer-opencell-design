@@ -208,6 +208,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         cathode_is_tab_welded = isinstance(
             self._layup._cathode._current_collector, TabWeldedCurrentCollector
         )
+
         anode_is_tab_welded = isinstance(
             self._layup._anode._current_collector, TabWeldedCurrentCollector
         )
@@ -226,6 +227,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         
         # Calculate coordinates for standard components
         for spiral_key, coords_attr_path in component_configs:
+
             self._calculate_component_top_down_coords(
                 spiral_key, 
                 coords_attr_path,
@@ -240,6 +242,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         # Calculate tab coordinates if tab welded
         if cathode_is_tab_welded:
             self._calculate_tab_top_down_coords('cathode')
+
         if anode_is_tab_welded:
             self._calculate_tab_top_down_coords('anode')
 
@@ -328,7 +331,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         tab_min_y = tab_coords_clean[:, 1].min()
         
         # Apply crumple factor adjustment
-        tab_overhang = current_collector.tab_overhang
+        tab_overhang = current_collector._tab_overhang
         crumple_adjustment = tab_overhang * self._collector_tab_crumple_factor
         
         if electrode_type == 'cathode':
@@ -341,6 +344,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         
         # Build rectangular coordinates centered on x-axis
         x, y = self.build_square_array(-tab_width / 2, tab_min_y, tab_width, tab_height)
+
         self._component_top_down_coordinates[f'{electrode_type}_tab'] = np.column_stack((x, y))
 
     def _calculate_right_left_coordinates(self) -> None:
@@ -1533,14 +1537,19 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         float
             Maximum Y coordinate of cathode current collector body minus tab (meters)
         """
-        cathode_tab_deduction = (
-            self._layup._cathode._current_collector._tab_height * 
-            self._collector_tab_crumple_factor
-        )
-        return (
-            self._layup._cathode._current_collector._body_coordinates[:, 1].max() - 
-            cathode_tab_deduction
-        )
+        from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector 
+
+        if type(self._layup._cathode._current_collector) == TabWeldedCurrentCollector:
+            cathode_tab_deduction = self._layup._cathode._current_collector._tab_overhang
+        else:
+            cathode_tab_deduction = (
+                self._layup._cathode._current_collector._tab_height * 
+                self._collector_tab_crumple_factor
+            )
+
+        max_y = self._layup._cathode._current_collector._body_coordinates[:, 1].max()
+
+        return max_y - cathode_tab_deduction
 
     def _get_anode_tab_y_position(self) -> float:
         """Get anode current collector tab Y position.
@@ -1550,14 +1559,19 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         float
             Minimum Y coordinate of anode current collector body plus tab (meters)
         """
-        anode_tab_deduction = (
-            self._layup._anode._current_collector._tab_height * 
-            self._collector_tab_crumple_factor
-        )
-        return (
-            self._layup._anode._current_collector._body_coordinates[:, 1].min() + 
-            anode_tab_deduction
-        )
+        from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector
+
+        if type(self._layup._anode._current_collector) == TabWeldedCurrentCollector:
+            anode_tab_deduction = self._layup._anode._current_collector._tab_overhang
+        else:
+            anode_tab_deduction = (
+                self._layup._anode._current_collector._tab_height * 
+                self._collector_tab_crumple_factor
+            )
+
+        min_y = self._layup._anode._current_collector._body_coordinates[:, 1].min()
+
+        return min_y + anode_tab_deduction
 
     def get_spiral_plot(self, layered: bool = True,**kwargs: Any) -> go.Figure:
         """Generate interactive spiral plot using Plotly.
@@ -2172,11 +2186,15 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
     @property
     def cathode_tab_top_down_trace(self) -> go.Scatter:
         """Get cathode tab trace for top-down view."""
+
         if 'cathode_tab' not in self._component_top_down_coordinates:
             return None
+        
         if not isinstance(self._layup._cathode._current_collector, TabWeldedCurrentCollector):
             return None
+        
         coords = self._component_top_down_coordinates['cathode_tab']
+        
         return go.Scatter(
             x=coords[:, 0] * M_TO_MM,
             y=coords[:, 1] * M_TO_MM,

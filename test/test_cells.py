@@ -1,8 +1,7 @@
 import unittest
 from copy import deepcopy
-
-from steer_opencell_design import *
 import steer_opencell_design as ocd
+
 
 class TestCylindricalCell(unittest.TestCase):
     
@@ -12,22 +11,22 @@ class TestCylindricalCell(unittest.TestCase):
         # make a basic cathode
         ########################
 
-        material = CathodeMaterial.from_database("LFP")
+        material = ocd.CathodeMaterial.from_database("LFP")
         material.specific_cost = 6
         material.density = 3.6
 
-        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
-        binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+        conductive_additive = ocd.ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = ocd.Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
 
-        formulation = CathodeFormulation(
+        formulation = ocd.CathodeFormulation(
             active_materials={material: 95},
             binders={binder: 2},
             conductive_additives={conductive_additive: 3},
         )
 
-        current_collector_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
+        current_collector_material = ocd.CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
 
-        current_collector = NotchedCurrentCollector(
+        current_collector = ocd.NotchedCurrentCollector(
             material=current_collector_material,
             length=4500,
             width=300,
@@ -39,9 +38,9 @@ class TestCylindricalCell(unittest.TestCase):
             coated_tab_height=2,
         )
 
-        insulation = InsulationMaterial.from_database("Aluminium Oxide, 99.5%")
+        insulation = ocd.InsulationMaterial.from_database("Aluminium Oxide, 99.5%")
 
-        cathode = Cathode(
+        cathode = ocd.Cathode(
             formulation=formulation,
             mass_loading=12,
             current_collector=current_collector,
@@ -50,17 +49,17 @@ class TestCylindricalCell(unittest.TestCase):
             insulation_thickness=10,
         )
 
-        material = AnodeMaterial.from_database("Synthetic Graphite")
+        material = ocd.AnodeMaterial.from_database("Synthetic Graphite")
         material.specific_cost = 4
         material.density = 2.2
 
-        formulation = AnodeFormulation(
+        formulation = ocd.AnodeFormulation(
             active_materials={material: 90},
             binders={binder: 5},
             conductive_additives={conductive_additive: 5},
         )
 
-        current_collector = NotchedCurrentCollector(
+        current_collector = ocd.NotchedCurrentCollector(
             material=current_collector_material,
             length=4500,
             width=306,
@@ -74,7 +73,7 @@ class TestCylindricalCell(unittest.TestCase):
             bare_lengths_b_side=(150, 250),
         )
 
-        anode = Anode(
+        anode = ocd.Anode(
             formulation=formulation,
             mass_loading=7.2,
             current_collector=current_collector,
@@ -83,7 +82,7 @@ class TestCylindricalCell(unittest.TestCase):
             insulation_thickness=10,
         )
 
-        separator_material = SeparatorMaterial(
+        separator_material = ocd.SeparatorMaterial(
             name="Polyethylene",
             specific_cost=2,
             density=0.94,
@@ -91,67 +90,67 @@ class TestCylindricalCell(unittest.TestCase):
             porosity=45,
         )
 
-        top_separator = Separator(material=separator_material, thickness=25, width=310, length=5000)
+        top_separator = ocd.Separator(material=separator_material, thickness=25, width=310, length=5000)
 
-        bottom_separator = Separator(material=separator_material, thickness=25, width=310, length=7000)
+        bottom_separator = ocd.Separator(material=separator_material, thickness=25, width=310, length=7000)
 
-        layup = Laminate(
+        layup = ocd.Laminate(
             anode=anode,
             cathode=cathode,
             top_separator=top_separator,
             bottom_separator=bottom_separator,
         )
 
-        mandrel = RoundMandrel(
+        mandrel = ocd.RoundMandrel(
             diameter=5, 
             length=350,
         )
 
-        tape_material = TapeMaterial.from_database("Kapton")
+        tape_material = ocd.TapeMaterial.from_database("Kapton")
         tape_material.density = 1.42
         tape_material.specific_cost = 70
 
-        tape = Tape(
+        tape = ocd.Tape(
             material = tape_material,
             thickness=30
         )
 
-        my_jellyroll = WoundJellyRoll(
+        my_jellyroll = ocd.WoundJellyRoll(
             laminate=layup,
             mandrel=mandrel,
             tape=tape,
             additional_tape_wraps=5,
         )
         
-        aluminum = PrismaticContainerMaterial.from_database("Aluminum")
-        copper = PrismaticContainerMaterial.from_database("Copper")
+        aluminum = ocd.PrismaticContainerMaterial.from_database("Aluminum")
+        copper = ocd.PrismaticContainerMaterial.from_database("Copper")
 
-        cathode_connector = CylindricalTerminalConnector(
+        cathode_connector = ocd.CylindricalTerminalConnector(
             material=aluminum,
             thickness=2,
             fill_factor=0.8
         )
         
-        anode_connector = CylindricalTerminalConnector(
+        anode_connector = ocd.CylindricalTerminalConnector(
             material=copper,
             thickness=3,  # μm
             fill_factor=0.7
         )
         
-        lid = CylindricalLidAssembly(
+        lid = ocd.CylindricalLidAssembly(
             material=aluminum,
             thickness=4.0,  # mm
             fill_factor=0.9
         )
         
-        canister = CylindricalCanister(
+        canister = ocd.CylindricalCanister(
             material=aluminum,
             outer_radius=21.4,  # mm
             height=330,  # mm
             wall_thickness=0.5  
         )
 
-        electrolyte = Electrolyte(
+        electrolyte = ocd.Electrolyte(
             name="1M LiPF6 in EC:DMC (1:1)",
             density=1.2,
             specific_cost=15.0,
@@ -159,14 +158,14 @@ class TestCylindricalCell(unittest.TestCase):
         )
         
         # Create encapsulation
-        encapsulation = CylindricalEncapsulation(
+        encapsulation = ocd.CylindricalEncapsulation(
             cathode_terminal_connector=cathode_connector,
             anode_terminal_connector=anode_connector,
             lid_assembly=lid,
             canister=canister
         )
 
-        self.cell = CylindricalCell(
+        self.cell = ocd.CylindricalCell(
             reference_electrode_assembly=my_jellyroll,
             encapsulation=encapsulation,
             electrolyte=electrolyte,
@@ -181,7 +180,7 @@ class TestCylindricalCell(unittest.TestCase):
         self.canister = canister
 
     def test_basics(self):
-        self.assertIsInstance(self.cell, CylindricalCell)
+        self.assertIsInstance(self.cell, ocd.CylindricalCell)
         self.assertEqual(self.cell.energy, 124.09)
         self.assertEqual(self.cell.mass, 910.08)
         self.assertEqual(self.cell.specific_energy, 136.35)
@@ -338,7 +337,7 @@ class TestCylindricalCell(unittest.TestCase):
         new_canister = deepcopy(self.canister)
         new_canister._length = 72  # Longer canister
         
-        new_encapsulation = CylindricalEncapsulation(
+        new_encapsulation = ocd.CylindricalEncapsulation(
             cathode_terminal_connector=self.cathode_connector,
             anode_terminal_connector=self.anode_connector,
             lid_assembly=self.lid,
@@ -359,7 +358,7 @@ class TestCylindricalCell(unittest.TestCase):
     def test_electrolyte_setter(self):
         """Test setting electrolyte updates cell properties."""
         # Create new electrolyte with different properties
-        new_electrolyte = Electrolyte(
+        new_electrolyte = ocd.Electrolyte(
             name="New Electrolyte",
             specific_cost=25,  # More expensive
             density=1.3,
@@ -444,14 +443,14 @@ class TestCylindricalCell(unittest.TestCase):
 
     def test_formulation_setter(self):
 
-        material = CathodeMaterial.from_database("NMC811")
+        material = ocd.CathodeMaterial.from_database("NMC811")
         material.specific_cost = 25
         material.density = 4.8
 
-        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
-        binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+        conductive_additive = ocd.ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = ocd.Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
 
-        formulation = CathodeFormulation(
+        formulation = ocd.CathodeFormulation(
             active_materials={material: 95},
             binders={binder: 2},
             conductive_additives={conductive_additive: 3},
@@ -467,26 +466,221 @@ class TestCylindricalCell(unittest.TestCase):
         # fig1.show()
 
 
+class TestCylindricalCellTabbed(unittest.TestCase):
+    
+    def setUp(self):
+
+        ########################
+        # make a basic cathode
+        ########################
+
+        material = ocd.CathodeMaterial.from_database("LFP")
+        material.specific_cost = 6
+        material.density = 3.6
+
+        conductive_additive = ocd.ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = ocd.Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+
+        formulation = ocd.CathodeFormulation(
+            active_materials={material: 95},
+            binders={binder: 2},
+            conductive_additives={conductive_additive: 3},
+        )
+
+        current_collector_material = ocd.CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
+
+        tab = ocd.WeldTab(material=current_collector_material, width=20, length=120, thickness=12)
+
+        current_collector = ocd.TabWeldedCurrentCollector(
+            material=current_collector_material,
+            weld_tab=tab,
+            length=4500,
+            width=300,
+            thickness=8,
+            skip_coat_width=30,
+            tab_overhang=20,
+            weld_tab_positions=[500, 1500, 2500, 3500],
+        )
+
+        cathode = ocd.Cathode(
+            formulation=formulation,
+            mass_loading=12,
+            current_collector=current_collector,
+            calender_density=2.60
+        )
+
+        material = ocd.AnodeMaterial.from_database("Synthetic Graphite")
+        material.specific_cost = 4
+        material.density = 2.2
+
+        formulation = ocd.AnodeFormulation(
+            active_materials={material: 90},
+            binders={binder: 5},
+            conductive_additives={conductive_additive: 5},
+        )
+
+        current_collector = ocd.TabWeldedCurrentCollector(
+            material=current_collector_material,
+            weld_tab=tab,
+            length=4500,
+            width=300,
+            thickness=8,
+            skip_coat_width=30,
+            tab_overhang=20,
+            weld_tab_positions=[1000, 2000, 3000, 4000],
+        )
+
+        anode = ocd.Anode(
+            formulation=formulation,
+            mass_loading=7.2,
+            current_collector=current_collector,
+            calender_density=1.1
+        )
+
+        separator_material = ocd.SeparatorMaterial(
+            name="Polyethylene",
+            specific_cost=2,
+            density=0.94,
+            color="#FDFDB7",
+            porosity=45,
+        )
+
+        top_separator = ocd.Separator(material=separator_material, thickness=25, width=310, length=5000)
+
+        bottom_separator = ocd.Separator(material=separator_material, thickness=25, width=310, length=7000)
+
+        layup = ocd.Laminate(
+            anode=anode,
+            cathode=cathode,
+            top_separator=top_separator,
+            bottom_separator=bottom_separator,
+        )
+
+        mandrel = ocd.RoundMandrel(
+            diameter=5, 
+            length=350,
+        )
+
+        tape_material = ocd.TapeMaterial.from_database("Kapton")
+        tape_material.density = 1.42
+        tape_material.specific_cost = 70
+
+        tape = ocd.Tape(
+            material = tape_material,
+            thickness=30
+        )
+
+        my_jellyroll = ocd.WoundJellyRoll(
+            laminate=layup,
+            mandrel=mandrel,
+            tape=tape,
+            additional_tape_wraps=5,
+            collector_tab_crumple_factor=70
+        )
+        
+        aluminum = ocd.PrismaticContainerMaterial.from_database("Aluminum")
+        copper = ocd.PrismaticContainerMaterial.from_database("Copper")
+
+        cathode_connector = ocd.CylindricalTerminalConnector(
+            material=aluminum,
+            thickness=2,
+            fill_factor=0.8
+        )
+        
+        anode_connector = ocd.CylindricalTerminalConnector(
+            material=copper,
+            thickness=3,  # μm
+            fill_factor=0.7
+        )
+        
+        lid = ocd.CylindricalLidAssembly(
+            material=aluminum,
+            thickness=4.0,  # mm
+            fill_factor=0.9
+        )
+        
+        canister = ocd.CylindricalCanister(
+            material=aluminum,
+            outer_radius=21.4,  # mm
+            height=322,  # mm
+            wall_thickness=0.5  
+        )
+
+        electrolyte = ocd.Electrolyte(
+            name="1M LiPF6 in EC:DMC (1:1)",
+            density=1.2,
+            specific_cost=15.0,
+            color="#00FF00"
+        )
+        
+        # Create encapsulation
+        encapsulation = ocd.CylindricalEncapsulation(
+            cathode_terminal_connector=cathode_connector,
+            anode_terminal_connector=anode_connector,
+            lid_assembly=lid,
+            canister=canister
+        )
+
+        self.cell = ocd.CylindricalCell(
+            reference_electrode_assembly=my_jellyroll,
+            encapsulation=encapsulation,
+            electrolyte=electrolyte,
+            electrolyte_overfill=0.2,
+        )
+        
+        # Store components for tests
+        self.jellyroll = my_jellyroll
+        self.cathode_connector = cathode_connector
+        self.anode_connector = anode_connector
+        self.lid = lid
+        self.canister = canister
+
+    def test_plots(self):
+
+        fig1 = self.cell.get_top_down_view()
+        fig2 = self.cell.get_cross_section()
+        fig3 = self.cell._reference_electrode_assembly._layup.get_top_down_view()
+        fig4 = self.cell._reference_electrode_assembly.get_top_down_view()
+
+        self.assertIsNotNone(fig1)
+        self.assertIsNotNone(fig2)
+        self.assertIsNotNone(fig3)
+        self.assertIsNotNone(fig4)
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+        # fig4.show()
+
+    def test_basics(self):
+        self.assertIsInstance(self.cell, ocd.CylindricalCell)
+        self.assertEqual(self.cell.energy, 132.3)
+        self.assertEqual(self.cell.mass, 920.95)
+        self.assertEqual(self.cell.specific_energy, 143.66)
+        self.assertEqual(self.cell.volumetric_energy, 285.58)
+        self.assertEqual(self.cell.cost_per_energy, 58.59)
+
+
 class TestStackedPouchCell(unittest.TestCase):
     
     def setUp(self):
         # Replicate MonoLayer setup similar to TestSimpleMonoLayer in test_layups
-        cathode_active = CathodeMaterial.from_database("LFP")
+        cathode_active = ocd.CathodeMaterial.from_database("LFP")
         cathode_active.specific_cost = 6
         cathode_active.density = 3.6
 
-        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
-        binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+        conductive_additive = ocd.ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = ocd.Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
 
-        cathode_formulation = CathodeFormulation(
+        cathode_formulation = ocd.CathodeFormulation(
             active_materials={cathode_active: 95},
             binders={binder: 2},
             conductive_additives={conductive_additive: 3},
         )
 
-        cathode_cc_material = CurrentCollectorMaterial(name="Copper", specific_cost=5, density=2.7, color="#FFAE00")
+        cathode_cc_material = ocd.CurrentCollectorMaterial(name="Copper", specific_cost=5, density=2.7, color="#FFAE00")
 
-        cathode_cc = PunchedCurrentCollector(
+        cathode_cc = ocd.PunchedCurrentCollector(
             material=cathode_cc_material,
             width=300,
             height=800,
@@ -496,26 +690,26 @@ class TestStackedPouchCell(unittest.TestCase):
             tab_position=50,
         )
 
-        cathode = Cathode(
+        cathode = ocd.Cathode(
             formulation=cathode_formulation,
             mass_loading=28.2,
             current_collector=cathode_cc,
             calender_density=2.60,
         )
 
-        anode_active = AnodeMaterial.from_database("Synthetic Graphite")
+        anode_active = ocd.AnodeMaterial.from_database("Synthetic Graphite")
         anode_active.specific_cost = 4
         anode_active.density = 2.2
 
-        anode_formulation = AnodeFormulation(
+        anode_formulation = ocd.AnodeFormulation(
             active_materials={anode_active: 90},
             binders={binder: 5},
             conductive_additives={conductive_additive: 5},
         )
 
-        cc_material = CurrentCollectorMaterial(name="Aluminium", specific_cost=5, density=2.7, color="#717171")
+        cc_material = ocd.CurrentCollectorMaterial(name="Aluminium", specific_cost=5, density=2.7, color="#717171")
 
-        anode_cc = PunchedCurrentCollector(
+        anode_cc = ocd.PunchedCurrentCollector(
             material=cc_material,
             width=300,
             height=800,
@@ -525,7 +719,7 @@ class TestStackedPouchCell(unittest.TestCase):
             tab_position=250,
         )
 
-        anode = Anode(
+        anode = ocd.Anode(
             formulation=anode_formulation,
             mass_loading=20.68,
             current_collector=anode_cc,
@@ -533,7 +727,7 @@ class TestStackedPouchCell(unittest.TestCase):
             insulation_thickness=10,
         )
 
-        separator_material = SeparatorMaterial(
+        separator_material = ocd.SeparatorMaterial(
             name="Polyethylene",
             specific_cost=2,
             density=0.94,
@@ -541,9 +735,9 @@ class TestStackedPouchCell(unittest.TestCase):
             porosity=45,
         )
 
-        separator = Separator(material=separator_material, thickness=25, width=310, length=326)
+        separator = ocd.Separator(material=separator_material, thickness=25, width=310, length=326)
 
-        monolayer = MonoLayer(
+        monolayer = ocd.MonoLayer(
             anode=anode,
             cathode=cathode,
             separator=separator,
@@ -551,38 +745,38 @@ class TestStackedPouchCell(unittest.TestCase):
         )
 
         # default stack for reuse in tests
-        stack = PunchedStack(
+        stack = ocd.PunchedStack(
             layup=monolayer, 
             n_layers=20
         )
 
-        top_laminate_sheet = LaminateSheet(
+        top_laminate_sheet = ocd.LaminateSheet(
             areal_cost=10,
             thickness=150,
             density=1500,
         )
 
-        bottom_laminate_sheet = LaminateSheet(
+        bottom_laminate_sheet = ocd.LaminateSheet(
             areal_cost=10,
             thickness=150,
             density=1500,
         )
 
-        cathode_terminal = PouchTerminal(
+        cathode_terminal = ocd.PouchTerminal(
             material=cc_material,
             thickness=2,
             width=50,
             length=40,
         )
 
-        anode_terminal = PouchTerminal(
+        anode_terminal = ocd.PouchTerminal(
             material=cc_material,
             thickness=2,
             width=50,
             length=40,
         )
 
-        encapsulation = PouchEncapsulation(
+        encapsulation = ocd.PouchEncapsulation(
             top_laminate=top_laminate_sheet,
             bottom_laminate=bottom_laminate_sheet,
             cathode_terminal=cathode_terminal,
@@ -591,14 +785,14 @@ class TestStackedPouchCell(unittest.TestCase):
             height=340,
         )
 
-        electrolyte = Electrolyte(
+        electrolyte = ocd.Electrolyte(
             name="1M LiPF6 in EC:DMC (1:1)",
             density=1.2,
             specific_cost=5.0,
             color="#00FF00"
         )
 
-        self.cell = PouchCell(
+        self.cell = ocd.PouchCell(
             reference_electrode_assembly=stack,
             n_electrode_assembly=2,
             encapsulation=encapsulation,
@@ -608,9 +802,9 @@ class TestStackedPouchCell(unittest.TestCase):
         )
 
     def test_basics(self):
-        self.assertIsInstance(self.cell, PouchCell)
+        self.assertIsInstance(self.cell, ocd.PouchCell)
         self.assertAlmostEqual(self.cell.energy, 2282.76, 1)
-        self.assertAlmostEqual(self.cell.mass, 14008.36, 0)
+        self.assertAlmostEqual(self.cell.mass, 129677.71, 0)
         self.assertAlmostEqual(self.cell.cost, 79.82, 1)
 
     def test_serialization(self):
@@ -768,7 +962,7 @@ class TestStackedPouchCell(unittest.TestCase):
 
     def test_electrolyte_setter(self):
         """Test setting electrolyte updates cell properties."""
-        new_electrolyte = Electrolyte(
+        new_electrolyte = ocd.Electrolyte(
             name="New Electrolyte",
             specific_cost=10,
             density=1.3,
@@ -1292,7 +1486,7 @@ class TestStackedPrismaticCell(unittest.TestCase):
 
     def test_electrolyte_setter(self):
         """Test setting electrolyte updates cell properties."""
-        new_electrolyte = Electrolyte(
+        new_electrolyte = ocd.Electrolyte(
             name="New Electrolyte",
             specific_cost=10,
             density=1.3,

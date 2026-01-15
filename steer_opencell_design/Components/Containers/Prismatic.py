@@ -1934,16 +1934,24 @@ class PrismaticEncapsulation(_Container):
     @calculate_all_properties
     def cathode_terminal_connector(self, connector: PrismaticTerminalConnector) -> None:
         """Set cathode terminal connector."""
+
         self.validate_type(connector, PrismaticTerminalConnector, "Cathode Terminal Connector")
-        connector.name = f"{connector.name} (Cathode)"
+
+        if 'cathode' not in connector.name.lower():
+            connector.name = f"{connector.name} (Cathode)"
+
         self._cathode_terminal_connector = connector
 
     @anode_terminal_connector.setter
     @calculate_all_properties
     def anode_terminal_connector(self, connector: PrismaticTerminalConnector) -> None:
         """Set anode terminal connector."""
+
         self.validate_type(connector, PrismaticTerminalConnector, "Anode Terminal Connector")
-        connector.name = f"{connector.name} (Anode)"
+
+        if 'anode' not in connector.name.lower():
+            connector.name = f"{connector.name} (Anode)"
+            
         self._anode_terminal_connector = connector
 
     @lid_assembly.setter
