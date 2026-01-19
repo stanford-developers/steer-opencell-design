@@ -11,6 +11,7 @@ from steer_opencell_design.Components.Containers.Cylindrical import (
 
 from steer_opencell_design.Materials.Other import PrismaticContainerMaterial
 
+
 class TestCylindricalTerminalConnector(unittest.TestCase):
     def setUp(self):
 
@@ -3011,6 +3012,86 @@ class TestPrismaticEncapsulation(unittest.TestCase):
 
         # fig1.show()
         # fig2.show()
+
+
+class TestFlexFrameEncapsulation(unittest.TestCase):
+
+    def setUp(self):
+
+        from steer_opencell_design.Components.Containers.Flexframe import FlexFrame, FlexFrameEncapsulation
+        from steer_opencell_design.Materials.Other import FlexFrameMaterial
+
+        material = FlexFrameMaterial(
+            name="PEEK",
+            density=1.3,
+            specific_cost=12
+        )
+
+        self.frame = FlexFrame(
+            material=material,
+            width=65,
+            height=84,
+            border_thickness=2,
+            cutout_height=76,
+            thickness=4.4
+        )
+
+        from steer_opencell_design.Components.Containers.Pouch import LaminateSheet
+        from steer_opencell_design.Components.Containers.Pouch import PouchTerminal
+        from steer_opencell_design.Materials.Other import PrismaticContainerMaterial
+
+        terminal_material = PrismaticContainerMaterial.from_database("Aluminum")
+
+        cathode_terminal = PouchTerminal(
+            material=terminal_material,
+            thickness=0.5,
+            width=10,
+            length=10
+        )
+
+        anode_terminal = PouchTerminal(
+            material=terminal_material,
+            thickness=0.5,
+            width=10,
+            length=10
+        )
+
+        laminate = LaminateSheet(
+            areal_cost=0.02,
+            density=1.4,
+            thickness=200
+        )
+
+        self.encapsulation = FlexFrameEncapsulation(
+            flex_frame=self.frame,
+            cathode_terminal=cathode_terminal,
+            anode_terminal=anode_terminal,
+            laminate_sheet=laminate
+        )
+
+    def test_basics(self):
+        self.assertEqual(self.frame.width, 65)
+        self.assertEqual(self.frame.height, 84)
+        self.assertEqual(self.frame.border_thickness, 2)
+        self.assertEqual(self.frame.cutout_height, 76)
+        self.assertEqual(self.frame.thickness, 4.4)
+        self.assertEqual(self.frame.mass, 4.71)
+        self.assertEqual(self.frame.cost, 0.06)
+
+        self.assertEqual(self.encapsulation.width, 65.4)
+        self.assertEqual(self.encapsulation.height, 84.4)
+        self.assertEqual(self.encapsulation.mass, 8.4)
+        self.assertEqual(self.encapsulation.cost, 0.06)
+
+    def test_plots(self):
+        fig1 = self.frame.get_top_down_view()
+        self.assertIsNotNone(fig1.data)
+
+        fig2 = self.encapsulation.get_top_down_view()
+        self.assertIsNotNone(fig2.data)
+
+        # fig1.show()
+        fig2.show()
 
 
 if __name__ == '__main__':
