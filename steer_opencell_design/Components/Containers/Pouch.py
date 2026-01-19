@@ -570,6 +570,7 @@ class LaminateSheet(
         self._density = float(density) * G_TO_KG / CM_TO_M**3
 
     @datum.setter
+    @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]) -> None:
         """Set the datum position in mm."""
         self.validate_datum(datum)

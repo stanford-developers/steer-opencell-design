@@ -5,7 +5,7 @@ from .Materials.ActiveMaterials import CathodeMaterial, AnodeMaterial
 from .Materials.Binders import Binder
 from .Materials.ConductiveAdditives import ConductiveAdditive
 from .Materials.Electrolytes import Electrolyte
-from .Materials.Other import TapeMaterial, SeparatorMaterial, CurrentCollectorMaterial, PrismaticContainerMaterial, LaminateMaterial, InsulationMaterial
+from .Materials.Other import TapeMaterial, SeparatorMaterial, CurrentCollectorMaterial, PrismaticContainerMaterial, LaminateMaterial, InsulationMaterial, FlexFrameMaterial
 
 # import formulations
 from .Materials.Formulations import AnodeFormulation, CathodeFormulation
@@ -36,11 +36,13 @@ from .Constructions.ElectrodeAssemblies.WindingEquipment import RoundMandrel, Fl
 from .Components.Containers.Cylindrical import CylindricalCanister, CylindricalEncapsulation, CylindricalLidAssembly, CylindricalTerminalConnector
 from .Components.Containers.Pouch import PouchEncapsulation, LaminateSheet, PouchTerminal
 from .Components.Containers.Prismatic import PrismaticCanister, PrismaticEncapsulation, PrismaticLidAssembly, PrismaticTerminalConnector
+from .Components.Containers.Flexframe import FlexFrame, FlexFrameEncapsulation
 
 # import cells
 from .Constructions.Cells.CylindricalCell import CylindricalCell
 from .Constructions.Cells.PrismaticCell import PrismaticCell
 from .Constructions.Cells.PouchCell import PouchCell
+from .Constructions.Cells.FlexFrameCell import FlexFrameCell
 
 
 

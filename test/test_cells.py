@@ -1,6 +1,8 @@
 import unittest
 from copy import deepcopy
 import steer_opencell_design as ocd
+from steer_opencell_design.Components.Containers.Flexframe import FlexFrameEncapsulation
+from steer_opencell_design.Components.Containers.Pouch import PouchTerminal
 
 
 class TestCylindricalCell(unittest.TestCase):
@@ -664,6 +666,7 @@ class TestCylindricalCellTabbed(unittest.TestCase):
 class TestStackedPouchCell(unittest.TestCase):
     
     def setUp(self):
+        
         # Replicate MonoLayer setup similar to TestSimpleMonoLayer in test_layups
         cathode_active = ocd.CathodeMaterial.from_database("LFP")
         cathode_active.specific_cost = 6
@@ -1075,185 +1078,6 @@ class TestStackedPouchCell(unittest.TestCase):
         self.assertIsNotNone(self.cell.mass)
         self.assertIsNotNone(self.cell.cost)
         self.assertGreater(self.cell.reversible_capacity, 0)
-
-
-class TestStackedPouchCellTemp(unittest.TestCase):
-    
-    def setUp(self):
-
-        import steer_opencell_design as ocd
-
-        conductive_additive = ocd.ConductiveAdditive.from_database("Super P")
-        binder = ocd.Binder.from_database("PVDF")
-        insulation = ocd.InsulationMaterial.from_database("Aluminium Oxide, 95%")
-        separator_material = ocd.SeparatorMaterial.from_database('Polyethylene')
-        tape_material = ocd.TapeMaterial.from_database("Kapton")
-        prismatic_material = ocd.PrismaticContainerMaterial.from_database("Steel")
-
-        cathode_current_collector_material = ocd.CurrentCollectorMaterial.from_database('Aluminum')
-
-        cathode_current_collector=ocd.PunchedCurrentCollector(
-            material=cathode_current_collector_material,
-            width=300,
-            height=280,
-            tab_height=30,
-            tab_position=70,
-            tab_width=80,
-            thickness=10,
-            insulation_width=2
-        )
-
-        cathode_active_material = ocd.CathodeMaterial.from_database("NMC811")
-
-        cathode_formulation = ocd.CathodeFormulation(
-            active_materials={cathode_active_material: 95},
-            binders={binder: 2.5},
-            conductive_additives={conductive_additive: 2.5}
-        )
-
-        my_cathode = ocd.Cathode(
-            formulation=cathode_formulation,
-            current_collector=cathode_current_collector,
-            calender_density=3.1,
-            mass_loading=14,
-            insulation_material=insulation,
-            insulation_thickness=3
-        )
-
-        # Create the anode
-
-        cathode_current_collector_material = ocd.CurrentCollectorMaterial.from_database("Copper")
-
-        anode_current_collector = ocd.PunchedCurrentCollector(
-            material=cathode_current_collector_material,
-            width=300,
-            height=280,
-            tab_height=30,
-            tab_position=230,
-            tab_width=80,
-            thickness=10
-        )
-
-        anode_active_material = ocd.AnodeMaterial.from_database("Synthetic Graphite")
-
-        anode_formulation = ocd.AnodeFormulation(
-            active_materials={anode_active_material: 95},
-            binders={binder: 2.5},
-            conductive_additives={conductive_additive: 2.5}
-        )
-
-        my_anode = ocd.Anode(
-            formulation=anode_formulation,
-            current_collector=anode_current_collector,
-            calender_density=1.1,
-            mass_loading=9
-        )
-
-        # create the layup 
-
-        separator = ocd.Separator(
-            material=separator_material, 
-            thickness=12,
-            width=280,
-            length=300
-        )
-
-        my_layup = ocd.ZFoldMonoLayer(
-            cathode=my_cathode,
-            anode=my_anode,
-            separator=separator,
-        )
-
-        # create the stack assembly
-
-        my_stack = ocd.ZFoldStack(
-            layup=my_layup,
-            n_layers=40,
-            additional_separator_wraps=3
-        )
-
-        # make the electrolyte
-
-        my_electrolyte = ocd.Electrolyte(
-            name="1M NaPF6 in EC:PC:DMC (1:1:1 wt%)",
-            density=1.2,
-            specific_cost=10,
-            color="#FF9D00"
-        )
-
-        top_laminate = ocd.LaminateSheet(
-            areal_cost=0.06,
-            density=1.4,
-            thickness=80
-        )
-
-        bottom_laminate = ocd.LaminateSheet(
-            areal_cost=0.06,
-            density=1.4,
-            thickness=80
-        )
-
-        cathode_terminal_connector = ocd.PouchTerminal(
-            material=prismatic_material,
-            width=50,
-            length=10,
-            thickness=1
-        )
-
-        anode_terminal_connector = ocd.PouchTerminal(
-            material=prismatic_material,
-            width=50,
-            length=10,
-            thickness=1
-        )
-
-        encapsulation = ocd.PouchEncapsulation(
-            top_laminate=top_laminate,
-            bottom_laminate=bottom_laminate,
-            cathode_terminal=cathode_terminal_connector,
-            anode_terminal=anode_terminal_connector
-        )
-
-        self.cell = ocd.PouchCell(
-            reference_electrode_assembly=my_stack,
-            electrolyte=my_electrolyte,
-            electrolyte_overfill=0.1,
-            encapsulation=encapsulation,
-            n_electrode_assembly=1,
-            clipped_tab_length=10
-        )
-
-    def test_plots(self):
-
-        fig1 = self.cell.plot_mass_breakdown()
-        fig2 = self.cell.plot_cost_breakdown()
-        fig3 = self.cell.get_capacity_plot()
-        fig4 = self.cell.get_side_view()
-        fig5 = self.cell.get_top_down_view(opacity=0.6)
-
-        self.assertIsNotNone(fig1)
-        self.assertIsNotNone(fig2)
-        self.assertIsNotNone(fig3)
-        self.assertIsNotNone(fig4)
-        self.assertIsNotNone(fig5)
-
-        # fig1.show()
-        # fig2.show()
-        # fig3.show()
-        # fig4.show()
-        # fig5.show()
-
-    def test_reference_chemistry(self):
-        cell_chemistry = self.cell.reference_chemistry
-        self.assertEqual(cell_chemistry, "Li/Li+")
-
-    def test_form_factor(self):
-        form_factor = self.cell.form_factor
-        self.assertEqual(form_factor, "Pouch Cell")
-
-    def test_internal_construction(self):
-        internal_construction = self.cell.internal_construction
-        self.assertEqual(internal_construction, "ZFold Stack")
 
 
 class TestStackedPrismaticCell(unittest.TestCase):
@@ -1765,6 +1589,299 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
         # fig4.show()
 
 
+class TestFlexFrameCell(unittest.TestCase):
+
+    def setUp(self):
+
+        from steer_core.Constants.Units import UM_TO_MM
+
+        ####################
+        # Parameters Setup #
+        ####################
+
+        CELL_WIDTH = 65.4      # mm
+        CELL_HEIGHT = 84.5     # mm
+        CELL_THICKNESS = 4.6   # mm
+
+        LAMINATE_THICKNESS = 200  # microns
+
+        FLEXFRAME_WIDTH = CELL_WIDTH - (LAMINATE_THICKNESS * UM_TO_MM * 2)          # mm
+        FLEXFRAME_HEIGHT = CELL_HEIGHT - (LAMINATE_THICKNESS * UM_TO_MM * 2)        # mm
+        FLEXFRAME_THICKNESS = CELL_THICKNESS - (LAMINATE_THICKNESS * UM_TO_MM * 2)  # mm
+        FLEXFRAME_BORDER_THICKNESS = 2                                              # mm
+        FLEXFRAME_TOP_BORDER_THICKNESS = 10                                         # mm
+        FLEXFRAME_CUTOUT_HEIGHT = FLEXFRAME_HEIGHT - FLEXFRAME_TOP_BORDER_THICKNESS # mm
+
+        PEEK_DENSITY = 1.3       # g/cm3
+        PEEK_SPECIFIC_COST = 12  # $/kg
+
+        TERMINAL_THICKNESS = 0.5  # mm
+        TERMINAL_WIDTH = 10       # mm
+        TERMINAL_LENGTH = 10      # mm
+
+        LAMINATE_AREAL_COST = 0.02  # $/cm2
+        LAMINATE_DENSITY = 1.4      # g/cm3
+        LAMINATE_THICKNESS = 200    # microns
+
+        STACK_WIDTH = FLEXFRAME_WIDTH - 2 * FLEXFRAME_BORDER_THICKNESS          # mm
+        STACK_HEIGHT = FLEXFRAME_CUTOUT_HEIGHT                                  # mm
+        ELECTROLYTE_TO_ANODE_OVERHGANG = 1                                      # mm
+        ANODE_TO_CATHODE_OVERHANG = 1                                           # mm
+
+        ANODE_WIDTH = STACK_WIDTH - 2 * ELECTROLYTE_TO_ANODE_OVERHGANG          # mm
+        ANODE_HEIGHT = STACK_HEIGHT - 2 * ELECTROLYTE_TO_ANODE_OVERHGANG        # mm
+        CATHODE_WIDTH = ANODE_WIDTH - 2 * ANODE_TO_CATHODE_OVERHANG             # mm
+        CATHODE_HEIGHT = ANODE_HEIGHT - 2 * ANODE_TO_CATHODE_OVERHANG           # mm
+        STACK_THICKNESS = FLEXFRAME_THICKNESS                                   # mm
+        TAB_HEIGHT = 8                                                          # mm
+        CATHODE_TAB_POSITION = CATHODE_WIDTH / 4                                # mm
+        ANODE_TAB_POSITION = ANODE_WIDTH * 3 / 4                                # mm
+        TAB_WIDTH = 16                                                          # mm
+
+        CATHODE_CURRENT_COLLECTOR_THICKNESS = 12                                # mm
+        ANODE_CURRENT_COLLECTOR_THICKNESS = 8                                   # mm
+
+        ACTIVE_MATERIAL_FRACTION = 95
+        BINDER_FRACTION = 2.5
+        CONDUCTIVE_ADDITIVE_FRACTION = 2.5
+
+        CATHODE_CALENDER_DENSITY = 3.1      # g/cm3
+        CATHODE_MASS_LOADING = 30           # mg/cm2
+        LITHIUM_MASS_LOADING = 2.1          # mg/cm2
+
+        LLZO_THICKNESS = 50               # microns
+
+        ALUMINUM_DENSITY = 2.7            # g/cm3
+        COPPER_DENSITY = 8.96             # g/cm3
+        NMC_DENSITY = 4.75 / 1.08         # g/cm3 adjusted for delithiation
+        BINDER_DENSITY = 1.78             # g/cm3
+        CONDUCTIVE_ADDITIVE_DENSITY = 2.0 # g/cm3
+        LITHIUM_DENSITY = 0.534           # g/cm3
+        LLZO_DENSITY = 5.1                # g/cm3
+        CATHOLYTE_DENSITY = 1.3           # g/cm3
+
+        ALUMINUM_SPECIFIC_COST = 5.0              # $/kg
+        COPPER_SPECIFIC_COST = 9.0                # $/kg
+        NMC_SPECIFIC_COST = 25.0 * 1.08           # $/kg adjusted for delithiation
+        BINDER_SPECIFIC_COST = 10.0               # $/kg
+        CONDUCTIVE_ADDITIVE_SPECIFIC_COST = 15.0  # $/kg
+        LITHIUM_SPECIFIC_COST = 0                 # $/kg
+        LLZO_SPECIFIC_COST = 50.0                 # $/kg
+        CATHOLYTE_SPECIFIC_COST = 20.0            # $/kg
+
+        #####################################
+        # Make the flex frame encapsulation #
+        #####################################
+
+        material = ocd.FlexFrameMaterial(
+            name="PEEK",
+            density=PEEK_DENSITY,
+            specific_cost=PEEK_SPECIFIC_COST
+        )
+
+        frame = ocd.FlexFrame(
+            material=material,
+            width=FLEXFRAME_WIDTH,
+            height=FLEXFRAME_HEIGHT,
+            border_thickness=FLEXFRAME_BORDER_THICKNESS,
+            cutout_height=FLEXFRAME_CUTOUT_HEIGHT,
+            thickness=FLEXFRAME_THICKNESS
+        )
+
+        terminal_material = ocd.PrismaticContainerMaterial.from_database("Aluminum")
+
+        cathode_terminal = ocd.PouchTerminal(
+            material=terminal_material,
+            thickness=TERMINAL_THICKNESS,
+            width=TERMINAL_WIDTH,
+            length=TERMINAL_LENGTH
+        )
+
+        anode_terminal = ocd.PouchTerminal(
+            material=terminal_material,
+            thickness=TERMINAL_THICKNESS,
+            width=TERMINAL_WIDTH,
+            length=TERMINAL_LENGTH
+        )
+
+        laminate = ocd.LaminateSheet(
+            areal_cost=LAMINATE_AREAL_COST,
+            density=LAMINATE_DENSITY,
+            thickness=LAMINATE_THICKNESS
+        )
+
+        encapsulation = ocd.FlexFrameEncapsulation(
+            flex_frame=frame,
+            cathode_terminal=cathode_terminal,
+            anode_terminal=anode_terminal,
+            laminate_sheet=laminate
+        )
+
+        ####################
+        # Make the cathode #
+        ####################
+
+        cathode_current_collector_material = ocd.CurrentCollectorMaterial.from_database('Aluminum')
+        cathode_current_collector_material.density = ALUMINUM_DENSITY
+        cathode_current_collector_material.specific_cost = ALUMINUM_SPECIFIC_COST
+
+        cathode_current_collector=ocd.PunchedCurrentCollector(
+            material=cathode_current_collector_material,
+            width=CATHODE_WIDTH,
+            height=CATHODE_HEIGHT,
+            tab_height=TAB_HEIGHT,
+            tab_position=CATHODE_TAB_POSITION,
+            tab_width=TAB_WIDTH,
+            thickness=CATHODE_CURRENT_COLLECTOR_THICKNESS
+        )
+
+        cathode_active_material = ocd.CathodeMaterial.from_database("NMC811")
+        cathode_active_material.density = NMC_DENSITY
+        cathode_active_material.specific_cost = NMC_SPECIFIC_COST
+
+        binder = ocd.Binder.from_database("PVDF")
+        binder.density = BINDER_DENSITY
+        binder.specific_cost = BINDER_SPECIFIC_COST
+
+        conductive_additive = ocd.ConductiveAdditive.from_database("Super P")
+        conductive_additive.density = CONDUCTIVE_ADDITIVE_DENSITY
+        conductive_additive.specific_cost = CONDUCTIVE_ADDITIVE_SPECIFIC_COST
+
+        cathode_formulation = ocd.CathodeFormulation(
+            active_materials={cathode_active_material: ACTIVE_MATERIAL_FRACTION},
+            binders={binder: BINDER_FRACTION},
+            conductive_additives={conductive_additive: CONDUCTIVE_ADDITIVE_FRACTION}
+        )
+
+        cathode = ocd.Cathode(
+            formulation=cathode_formulation,
+            current_collector=cathode_current_collector,
+            calender_density=CATHODE_CALENDER_DENSITY,
+            mass_loading=CATHODE_MASS_LOADING,
+        )
+
+        ##################
+        # Make the anode #
+        ##################
+
+        # create anode active material
+        import pandas as pd
+
+        spec_cap = [0, 5000, 5000, 0]
+        voltage = [0, 0.001, 0.001, 0]
+        direction = ['charge', 'charge', 'discharge', 'discharge']
+
+        half_cell_curve = pd.DataFrame({
+            'specific_capacity': spec_cap,
+            'voltage': voltage,
+            'direction': direction
+        })
+
+        lithium_metal_anode_material = ocd.AnodeMaterial(
+            name="Lithium Metal",
+            specific_capacity_curves=half_cell_curve,
+            density=LITHIUM_DENSITY,
+            specific_cost=LITHIUM_SPECIFIC_COST,
+            reference="Li/Li+",
+            color="#C9C9C9"
+        )
+
+        anode_current_collector_material = ocd.CurrentCollectorMaterial.from_database('Copper')
+        anode_current_collector_material.density = COPPER_DENSITY
+        anode_current_collector_material.specific_cost = COPPER_SPECIFIC_COST
+
+        anode_current_collector = ocd.PunchedCurrentCollector(
+            material=anode_current_collector_material,
+            width=ANODE_WIDTH,
+            height=ANODE_HEIGHT,
+            tab_height=TAB_HEIGHT,
+            tab_position=ANODE_TAB_POSITION,
+            tab_width=TAB_WIDTH,
+            thickness=ANODE_CURRENT_COLLECTOR_THICKNESS
+        )
+
+        anode_formulation = ocd.AnodeFormulation(
+            active_materials={lithium_metal_anode_material: 100},
+        )
+
+        anode = ocd.Anode(
+            formulation=anode_formulation,
+            current_collector=anode_current_collector,
+            calender_density=LITHIUM_DENSITY,
+            mass_loading=LITHIUM_MASS_LOADING
+        )
+
+        ####################################
+        # Create the electrolyte/separator #
+        ####################################
+
+        separator_material = ocd.SeparatorMaterial(
+            porosity=0,
+            density=LLZO_DENSITY,
+            specific_cost=LLZO_SPECIFIC_COST,
+            name="LLZO",
+            color="#D8D6D0"
+        )
+
+        separator = ocd.Separator(
+            material=separator_material, 
+            thickness=LLZO_THICKNESS,
+            width=STACK_WIDTH,
+            length=STACK_HEIGHT,
+        )
+
+        ####################
+        # Create the stack #
+        ####################
+
+        layup = ocd.MonoLayer(
+            cathode=cathode,
+            anode=anode,
+            separator=separator,
+        )
+
+        stack = ocd.PunchedStack(
+            layup=layup,
+            n_layers=1
+        )
+
+        stack.thickness = STACK_THICKNESS
+
+        ########################
+        # Create the catholyte #
+        ########################
+
+        catholyte = ocd.Electrolyte(
+            name="gel catholyte",
+            density=CATHOLYTE_DENSITY,
+            specific_cost=CATHOLYTE_SPECIFIC_COST,
+            color="#FFBE55"
+        )
+
+        #################
+        # Make the cell #
+        #################
+
+        self.cell = ocd.FlexFrameCell(
+            electrode_assembly=stack,
+            encapsulation=encapsulation,
+            catholyte=catholyte,
+            clipped_tab_length=8
+        )
+
+    def test_basics(self):
+        self.assertTrue(type(self.cell) is ocd.FlexFrameCell)
+        self.assertEqual(self.cell.cost, 2.05)
+        self.assertEqual(self.cell.mass, 67.43)
+        self.assertEqual(self.cell.energy, 17.64)
+
+    def test_plots(self):
+        fig1 = self.cell.get_top_down_view()
+        fig2 = self.cell.electrode_assembly.get_side_view()
+        self.assertIsNotNone(fig1)
+        self.assertIsNotNone(fig2)
+        fig1.show()
+        fig2.show()
 
 
 if __name__ == "__main__":
