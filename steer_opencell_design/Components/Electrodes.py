@@ -360,7 +360,7 @@ class _Electrode(
 
     def _clear_cached_data(self) -> None:
         self._areal_capacity_curve = None
-        self._formulation._specific_capacity_curve = None
+        self._formulation._clear_cached_data()
 
     # === VIEWS ===
 

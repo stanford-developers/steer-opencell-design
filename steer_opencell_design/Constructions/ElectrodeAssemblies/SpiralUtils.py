@@ -671,9 +671,43 @@ class SpiralCalculator:
                 full_turns = (-theta_racetrack) // TWO_PI + 1
                 turn_count += full_turns
                 theta_racetrack = theta_racetrack + full_turns * TWO_PI
-        
+
         # Convert to numpy array
-        return np.array(positions)
+        spiral_array = np.array(positions)
+        
+        # Downsample straight sections to reduce point count
+        # Calculate curvature at each point to identify straight vs curved sections
+        curvatures = np.array([
+            SpiralCalculator.racetrack_curvature(
+                spiral_array[i, 0],  # theta
+                spiral_array[i, 2],  # radius
+                straight_length
+            ) for i in range(len(spiral_array))
+        ])
+        
+        # Identify curved sections (curvature > threshold)
+        curvature_threshold = 1e-6  # Small threshold for numerical stability
+        is_curved = curvatures > curvature_threshold
+        
+        # Build mask for points to keep
+        # Always keep: first point, last point, all curved points, and every Nth straight point
+        downsample_factor = 5  # Keep every 5th point on straight sections
+        keep_mask = np.zeros(len(spiral_array), dtype=bool)
+        keep_mask[0] = True   # Always keep first point
+        keep_mask[-1] = True  # Always keep last point
+        keep_mask[is_curved] = True  # Keep all curved section points
+        
+        # For straight sections, keep every Nth point
+        straight_indices = np.where(~is_curved)[0]
+        if len(straight_indices) > 0:
+            # Keep every downsample_factor-th point in straight sections
+            keep_straight = straight_indices[::downsample_factor]
+            keep_mask[keep_straight] = True
+        
+        # Apply downsampling
+        downsampled_spiral = spiral_array[keep_mask]
+        
+        return downsampled_spiral
 
     @staticmethod
     def calculate_simple_racetrack(

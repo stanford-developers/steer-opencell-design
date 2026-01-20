@@ -127,14 +127,18 @@ class _ElectrodeAssembly(
         return self._capacity_curve, self._cathode_capacity_curve, self._anode_capacity_curve
     
     def _clear_cached_data(self) -> None:
+
         self._capacity_curve = None
         self._cathode_capacity_curve = None
         self._anode_capacity_curve = None
+
         self._layup._areal_capacity_curve = None
+
         self._layup.cathode._areal_capacity_curve = None
         self._layup.anode._areal_capacity_curve = None
-        self._layup.cathode._formulation._specific_capacity_curve = None
-        self._layup.anode._formulation._specific_capacity_curve = None
+        
+        self._layup.cathode._formulation._clear_cached_data()
+        self._layup.anode._formulation._clear_cached_data()
 
     def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:
 
