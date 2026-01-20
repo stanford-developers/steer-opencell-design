@@ -81,6 +81,16 @@ class _ElectrodeFormulation(
         self._check_formulation()
         self._calculate_all_properties()
 
+    def _clear_cached_data(self) -> None:
+        
+        # clear the specific capacity curve cache
+        self._specific_capacity_curve = None
+
+        # clear the _specific_capacity_curve cache of all active materials
+        for material in self._active_materials.keys():
+            material._specific_capacity_curve = None
+            material._specific_capacity_curves = None
+
     def _calculate_all_properties(self) -> None:
         """
         Retrieve the properties of the electrode formulation.
