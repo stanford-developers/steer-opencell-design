@@ -1,4 +1,4 @@
-__version__ = "1.0.5"
+__version__ = "1.0.6"
 
 # import materials
 from .Materials.ActiveMaterials import CathodeMaterial, AnodeMaterial

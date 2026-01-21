@@ -12,6 +12,8 @@ from steer_core.Decorators.General import calculate_bulk_properties, calculate_a
 from steer_opencell_design.Components.CurrentCollectors.Base import _TapeCurrentCollector
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
 from steer_opencell_design.Components.Separators import Separator
+from steer_opencell_design.Constructions.Layups.MonoLayers import ElectrodeOrientation
+
 from steer_opencell_design.Constructions.Layups.Base import (
     _Layup,
     SEPARATOR_WIDTH_EXTENSION,
@@ -29,6 +31,7 @@ class Laminate(_Layup):
         bottom_separator: Separator,
         anode: Anode,
         top_separator: Separator,
+        electrode_orientation: ElectrodeOrientation = ElectrodeOrientation.TRANSVERSE,
         name: str = "Layup",
     ):
         
@@ -42,6 +45,7 @@ class Laminate(_Layup):
             bottom_separator=bottom_separator,
             anode=anode,
             top_separator=top_separator,
+            electrode_orientation=electrode_orientation,
             name=name,
         )
 

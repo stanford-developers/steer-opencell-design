@@ -276,6 +276,7 @@ class PrismaticCell(_Cell):
         # Ensure encapsulation connector orientation matches electrode orientation
         from steer_opencell_design.Constructions.Layups.MonoLayers import ElectrodeOrientation
         from steer_opencell_design.Components.Containers.Prismatic import ConnectorOrientation
+        
         if self._update_properties:
             if self._reference_electrode_assembly._layup._electrode_orientation == ElectrodeOrientation.LONGITUDINAL:
                 if self._encapsulation._connector_orientation != ConnectorOrientation.LONGITUDINAL:
@@ -291,7 +292,7 @@ class PrismaticCell(_Cell):
         
         Parameters
         ----------
-        value : PouchEncapsulation
+        value : PrismaticEncapsulation
             New encapsulation to set
         """
         self.validate_type(value, PrismaticEncapsulation, "encapsulation")
