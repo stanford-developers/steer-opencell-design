@@ -3091,7 +3091,7 @@ class TestFlexFrameEncapsulation(unittest.TestCase):
         self.assertIsNotNone(fig2.data)
 
         # fig1.show()
-        fig2.show()
+        # fig2.show()
 
 
 if __name__ == '__main__':

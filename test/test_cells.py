@@ -378,7 +378,7 @@ class TestCylindricalCell(unittest.TestCase):
         
         # Verify electrolyte was updated
         self.assertEqual(self.cell.electrolyte, new_electrolyte)
-        
+
     def test_electrolyte_overfill_setter(self):
         """Test setting electrolyte overfill updates electrolyte mass."""
         original_overfill = self.cell.electrolyte_overfill
@@ -1588,6 +1588,22 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
         # fig3.show()
         # fig4.show()
 
+    def test_separator_material_setter(self):
+
+        new_separator_material = ocd.SeparatorMaterial(
+            name="Cellulose",
+            specific_cost=1,
+            density=0.8,
+            color="#FDFDB7",
+            porosity=30,
+        )
+
+        self.cell.reference_electrode_assembly.layup.top_separator.material = new_separator_material
+        self.cell.reference_electrode_assembly.layup.bottom_separator.material = new_separator_material
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+
+        self.assertEqual(self.cell.reference_electrode_assembly.layup.top_separator.material.name, "Cellulose")
 
 class TestFlexFrameCell(unittest.TestCase):
 
@@ -1880,8 +1896,8 @@ class TestFlexFrameCell(unittest.TestCase):
         fig2 = self.cell.electrode_assembly.get_side_view()
         self.assertIsNotNone(fig1)
         self.assertIsNotNone(fig2)
-        fig1.show()
-        fig2.show()
+        # fig1.show()
+        # fig2.show()
 
 
 if __name__ == "__main__":

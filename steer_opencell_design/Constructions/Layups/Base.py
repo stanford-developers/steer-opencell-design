@@ -52,6 +52,12 @@ class NPRatioControlMode(Enum):
     FIXED_THICKNESS = "fixed_thickness"
 
 
+class ElectrodeOrientation(Enum):
+    """Orientation options for electrode layups."""
+    TRANSVERSE = "transverse"
+    LONGITUDINAL = "longitudinal"
+
+
 class _Layup(
     CoordinateMixin, 
     ValidationMixin, 
@@ -78,6 +84,7 @@ class _Layup(
         bottom_separator: Separator,
         anode: Anode,
         top_separator: Separator,
+        electrode_orientation: ElectrodeOrientation = ElectrodeOrientation.LONGITUDINAL,
         name: str = "Layup",
     ):
         """
@@ -89,6 +96,8 @@ class _Layup(
             The anode component of the layup.
         cathode : Cathode
             The cathode component of the layup.
+        electrode_orientation : ElectrodeOrientation
+            The orientation of the electrode (default: ElectrodeOrientation.LONGITUDINAL).
         name : str, optional
             Name of the layup (default: "Layup").
         """
@@ -105,6 +114,7 @@ class _Layup(
         self.bottom_separator = bottom_separator
         self.anode = anode
         self.top_separator = top_separator
+        self.electrode_orientation = electrode_orientation
         self.name = name
 
     def _calculate_all_properties(self):
@@ -661,6 +671,18 @@ class _Layup(
         return self._np_ratio_control_mode
     
     @property
+    def electrode_orientation(self) -> ElectrodeOrientation:
+        """
+        Get the electrode orientation.
+
+        Returns
+        -------
+        ElectrodeOrientation
+            The orientation of the electrode.
+        """
+        return self._electrode_orientation
+    
+    @property
     def operating_voltage_window(self) -> Tuple[float, float]:
         """Operating voltage window (min, max) in volts."""
         return (
@@ -1076,3 +1098,35 @@ class _Layup(
         self._cathode.formulation = self._cathode._formulation
         self._cathode = self._cathode
 
+    @electrode_orientation.setter
+    def electrode_orientation(self, electrode_orientation: ElectrodeOrientation) -> None:
+        """
+        Set the electrode orientation of the layup.
+
+        When electrode_orientation is ElectrodeOrientation.TRANSVERSE, ensures the anode tab comes out the bottom
+        by flipping the anode if it's not already flipped in the y direction.
+
+        Parameters
+        ----------
+        electrode_orientation : ElectrodeOrientation
+            The orientation of the electrode.
+        """
+        if isinstance(electrode_orientation, ElectrodeOrientation):
+            self._electrode_orientation = electrode_orientation
+
+        elif isinstance(electrode_orientation, str):
+            for enum_member in ElectrodeOrientation:
+                if electrode_orientation.lower().replace(" ", "_") == enum_member.value:
+                    self._electrode_orientation = enum_member
+
+        else:
+            # validate the type
+            self.validate_type(electrode_orientation, ElectrodeOrientation, "electrode_orientation")
+
+        # if electrode_orientation is ElectrodeOrientation.TRANSVERSE, check and adjust anode orientation
+        if self._electrode_orientation == ElectrodeOrientation.TRANSVERSE:
+            if not self._anode._flipped_y:
+                self._anode._flip("y")
+        elif self._electrode_orientation == ElectrodeOrientation.LONGITUDINAL:
+            if self._anode._flipped_y:
+                self._anode._flip("y")

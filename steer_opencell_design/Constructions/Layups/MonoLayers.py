@@ -9,13 +9,7 @@ from steer_core.Decorators.General import calculate_bulk_properties
 from steer_opencell_design.Components.CurrentCollectors.Punched import PunchedCurrentCollector
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
 from steer_opencell_design.Components.Separators import Separator
-from steer_opencell_design.Constructions.Layups.Base import _Layup
-
-
-class ElectrodeOrientation(Enum):
-    """Orientation options for electrode layups."""
-    TRANSVERSE = "transverse"
-    LONGITUDINAL = "longitudinal"
+from steer_opencell_design.Constructions.Layups.Base import _Layup, ElectrodeOrientation
 
 
 class MonoLayer(_Layup):
@@ -64,11 +58,11 @@ class MonoLayer(_Layup):
             bottom_separator=deepcopy(separator),
             anode=anode,
             top_separator=deepcopy(separator),
+            electrode_orientation=electrode_orientation,
             name=name,
         )
 
         # Add MonoLayer-specific components and properties
-        self.electrode_orientation = electrode_orientation
 
         # Recalculate properties now that separator is set
         self._calculate_all_properties()
@@ -198,11 +192,6 @@ class MonoLayer(_Layup):
     def height_hard_range(self) -> tuple:
         return self.cathode.current_collector.height_hard_range
 
-    @property
-    def electrode_orientation(self) -> ElectrodeOrientation:
-        """Get the electrode orientation of the monolayer."""
-        return self._electrode_orientation
-    
     # === Unified separator API ===
 
     @property
@@ -294,39 +283,6 @@ class MonoLayer(_Layup):
     def separator_overhang_bottom(self, overhang: float) -> None:
         self.bottom_separator_overhang_bottom = overhang
         self.top_separator_overhang_bottom = overhang
-
-    @electrode_orientation.setter
-    def electrode_orientation(self, electrode_orientation: ElectrodeOrientation) -> None:
-        """
-        Set the electrode orientation of the monolayer.
-
-        When electrode_orientation is ElectrodeOrientation.TRANSVERSE, ensures the anode tab comes out the bottom
-        by flipping the anode if it's not already flipped in the y direction.
-
-        Parameters
-        ----------
-        electrode_orientation : ElectrodeOrientation
-            The orientation of the electrode.
-        """
-        if isinstance(electrode_orientation, ElectrodeOrientation):
-            self._electrode_orientation = electrode_orientation
-
-        elif isinstance(electrode_orientation, str):
-            for enum_member in ElectrodeOrientation:
-                if electrode_orientation.lower().replace(" ", "_") == enum_member.value:
-                    self._electrode_orientation = enum_member
-
-        else:
-            # validate the type
-            self.validate_type(electrode_orientation, ElectrodeOrientation, "electrode_orientation")
-
-        # if electrode_orientation is ElectrodeOrientation.TRANSVERSE, check and adjust anode orientation
-        if self._electrode_orientation == ElectrodeOrientation.TRANSVERSE:
-            if not self._anode._flipped_y:
-                self._anode._flip("y")
-        elif self._electrode_orientation == ElectrodeOrientation.LONGITUDINAL:
-            if self._anode._flipped_y:
-                self._anode._flip("y")
 
     @width.setter 
     @calculate_coordinates
