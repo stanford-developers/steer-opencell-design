@@ -428,7 +428,7 @@ class _Cell(
         # calculate energyin W * s
         _discharge_curve = self._capacity_curve[self._capacity_curve[:, 2] == -1]
         _discharge_curve = _discharge_curve[np.argsort(_discharge_curve[:, 0])]
-        _area_under_curve = np.trapz(_discharge_curve[:, 1], _discharge_curve[:, 0])
+        _area_under_curve = np.trapezoid(_discharge_curve[:, 1], _discharge_curve[:, 0])
         self._energy = _area_under_curve
 
         # get gravimetric energy

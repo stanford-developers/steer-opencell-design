@@ -316,14 +316,38 @@ class PouchCell(_Cell):
         return np.round(self._side_seal_thickness * M_TO_MM, 2)
     
     @property
+    def side_seal_thickness_range(self) -> Tuple[float, float]:
+        return (0.1, 20.0)
+    
+    @property
+    def side_seal_thickness_hard_range(self) -> Tuple[float, float]:
+        return (0.1, 50.0)
+    
+    @property
     def top_seal_thickness(self) -> float:
         """Get top seal thickness."""
         return np.round(self._top_seal_thickness * M_TO_MM, 2)
     
     @property
+    def top_seal_thickness_range(self) -> Tuple[float, float]:
+        return (0.1, 20.0)
+    
+    @property
+    def top_seal_thickness_hard_range(self) -> Tuple[float, float]:
+        return (0.1, 50.0)
+    
+    @property
     def bottom_seal_thickness(self) -> float:
         """Get bottom seal thickness."""
         return np.round(self._bottom_seal_thickness * M_TO_MM, 2)
+    
+    @property
+    def bottom_seal_thickness_range(self) -> Tuple[float, float]:
+        return (0.1, 20.0)
+    
+    @property
+    def bottom_seal_thickness_hard_range(self) -> Tuple[float, float]:
+        return (0.1, 50.0)
 
     @property
     def reference_electrode_assembly(self) -> ZFoldStack | PunchedStack:
