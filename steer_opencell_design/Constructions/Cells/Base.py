@@ -825,7 +825,7 @@ class _Cell(
             name=f"Full-Cell",
             line=dict(color=color, width=3, shape='spline'),  # Slightly thicker for emphasis
             customdata=self.capacity_curve["Direction"],
-            hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
+            hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} mAh<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
     
     @property
@@ -838,7 +838,7 @@ class _Cell(
             name=f"{self._reference_electrode_assembly._layup._anode.name} Half-Cell",
             line=dict(color=self._reference_electrode_assembly._layup._anode.formulation.color, width=2, shape='spline'),
             customdata=self.anode_capacity_curve["Direction"],
-            hovertemplate="<b>Anode</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
+            hovertemplate="<b>Anode</b><br>" + "Capacity: %{x:.2f} mAh<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
     
     @property
@@ -851,7 +851,7 @@ class _Cell(
             name=f"{self._reference_electrode_assembly._layup._cathode.name} Half-Cell",
             line=dict(color=self._reference_electrode_assembly._layup._cathode.formulation.color, width=2, shape='spline'),
             customdata=self.cathode_capacity_curve["Direction"],
-            hovertemplate="<b>Cathode</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
+            hovertemplate="<b>Cathode</b><br>" + "Capacity: %{x:.2f} mAh<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
 
     @property
@@ -869,6 +869,7 @@ class _Cell(
             line=dict(color=color, width=1),
             fillcolor='rgba(255, 140, 0, 0.2)',
             fill='tozeroy',
+            hovertemplate="<b>Integrated Capacity Area</b><br>" + "Capacity: %{x:.2f} mAh<br>" + "Voltage: %{y:.3f} V<extra></extra>",
         )
 
     @property
