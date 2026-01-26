@@ -164,7 +164,7 @@ class TestLFPSingleCurve(unittest.TestCase):
         self.assertEqual(self.material.voltage_cutoff_range, (3.7, 4.1))
 
         figure1 = self.material.plot_specific_capacity_curve()
-        figure2 = self.material.plot_specific_capacity_curves()
+        figure2 = self.material.plot_underlying_specific_capacity_curves()
 
         # figure1.show()
         # figure2.show()

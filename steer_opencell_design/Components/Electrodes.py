@@ -469,32 +469,41 @@ class _Electrode(
         # Remove insulation traces if they exist
         figure.data = [trace for trace in figure.data if "Insulation" not in trace.name]
 
+        # covert traces from mm to um
+        for trace in figure.data:
+            trace.x = [x * MM_TO_UM for x in trace.x]
+            trace.y = [y * MM_TO_UM for y in trace.y]
+
         # Get datum coordinates in mm (for plotting)
         datum_y = self.datum[1]  # y-coordinate of datum
 
-        # Get total thickness in mm (electrode thickness includes coating on both sides + current collector)
-        total_thickness_mm = self.thickness * UM_TO_MM
-        
         # Apply locked scaling based on thickness ranges
-        if total_thickness_mm <= 0.4:
-            # Lock from -0.2 to +0.2
+        if self.thickness <= 0.4:
             y_range = [datum_y - 0.2, datum_y + 0.2]
-        elif total_thickness_mm <= 0.8:
-            # Lock from -0.4 to +0.4
+        elif self.thickness <= 0.8:
             y_range = [datum_y - 0.4, datum_y + 0.4]
-        elif total_thickness_mm <= 1.2:
-            # Lock from -0.6 to +0.6
+        elif self.thickness <= 1.2:
             y_range = [datum_y - 0.6, datum_y + 0.6]
         else:
-            # Free scaling - calculate zoom range (1.5x the thickness)
-            zoom_range = total_thickness_mm * 1.5
+            zoom_range = self.thickness * 1.5
             half_range = zoom_range / 2
             y_range = [datum_y - half_range, datum_y + half_range]
 
+        Y_AXIS = self.SCHEMATIC_Y_AXIS
+        Y_AXIS['title'] = "Thickness (µm)"
+        Y_AXIS['range'] = y_range
+
+        X_AXIS = {
+            "range": y_range,
+            "title": "",
+            "showticklabels": False,
+            "ticks": "",
+        }
+
         # Update layout to zoom in and lock aspect ratio
         figure.update_layout(
-            xaxis={**self.SCHEMATIC_X_AXIS, "range": y_range},
-            yaxis={**self.SCHEMATIC_Y_AXIS, "range": y_range},
+            xaxis=X_AXIS,
+            yaxis=Y_AXIS,
             legend=self.BOTTOM_LEGEND
         )
 
