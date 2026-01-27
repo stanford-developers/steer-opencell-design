@@ -1519,7 +1519,7 @@ class _TapeCurrentCollector(_CurrentCollector):
         """
         Get the length range in mm.
         """
-        return (100, 10000)
+        return (250, 10000)
 
     @property
     def width(self) -> float:

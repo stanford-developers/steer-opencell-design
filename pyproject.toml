@@ -19,7 +19,7 @@ classifiers = [
 dependencies = [
     "steer-core==0.1.38",
     "steer-materials==0.1.23",
-    "steer-opencell-data==0.0.10",
+    "steer-opencell-data==0.0.11",
     "shapely==2.1.1",
 ]
 

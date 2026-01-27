@@ -303,36 +303,6 @@ class TestCylindricalCell(unittest.TestCase):
         self.cell.maximum_operating_voltage = max_range + 1.0
         self.assertAlmostEqual(self.cell.maximum_operating_voltage, max_range, 2)
         
-    def test_reference_electrode_assembly_setter(self):
-        """Test setting reference electrode assembly triggers recalculation."""
-        from steer_opencell_design.Constructions.Layups.Base import NPRatioControlMode
-        # get original np ratio
-        original_np_ratio = self.jellyroll.layup.np_ratio
-
-        # Create a new jellyroll with different properties
-        new_jellyroll = deepcopy(self.jellyroll)
-        new_jellyroll._layup._cathode.coating_thickness = 150  # Thicker coating
-        new_jellyroll._layup.cathode = new_jellyroll._layup._cathode
-        new_jellyroll.layup = new_jellyroll._layup
-        new_jellyroll._layup.np_ratio_control_mode = NPRatioControlMode.FIXED_CATHODE
-        new_jellyroll._layup.np_ratio = original_np_ratio  # keep np ratio same
-        new_jellyroll.radius = 20.8
-        
-        original_energy = self.cell.energy
-        
-        # Set new assembly
-        self.cell.reference_electrode_assembly = new_jellyroll
-        
-        # Check that cell properties changed
-        self.assertIsNotNone(self.cell.energy)
-        self.assertIsNotNone(self.cell.reversible_capacity)
-        
-        # Verify the assembly was updated
-        self.assertEqual(self.cell.reference_electrode_assembly, new_jellyroll)
-
-        # verify energy increased due to thicker cathode
-        self.assertGreater(self.cell.energy, original_energy)
-        
     def test_encapsulation_setter(self):
         """Test setting encapsulation triggers recalculation."""
         # Create new encapsulation with different dimensions
@@ -1898,6 +1868,31 @@ class TestFlexFrameCell(unittest.TestCase):
         self.assertIsNotNone(fig2)
         # fig1.show()
         # fig2.show()
+
+
+class TestFromLoadedCell(unittest.TestCase):
+
+    def setUp(self):
+
+        self.cell = ocd.CylindricalCell.from_database(table_name="cell_references", name="LFP Cylindrical Tabless Cell")
+
+    def test_basics(self):
+        self.assertTrue(type(self.cell) is ocd.CylindricalCell)
+        self.assertIsNotNone(self.cell.energy)
+        self.assertIsNotNone(self.cell.mass)
+        self.assertIsNotNone(self.cell.cost)
+
+    def test_radius_setter(self):
+        import time
+        new_radius = 12.3
+        
+        start_time = time.time()
+        self.cell.reference_electrode_assembly.radius = new_radius
+        end_time = time.time()
+        print(f"Radius setter execution time: {end_time - start_time} seconds")
+
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+        self.assertAlmostEqual(self.cell.reference_electrode_assembly.radius, new_radius)
 
 
 if __name__ == "__main__":

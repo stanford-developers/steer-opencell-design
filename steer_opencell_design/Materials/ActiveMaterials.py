@@ -192,7 +192,7 @@ class _ActiveMaterial(
             type(self),
         )
 
-    def plot_specific_capacity_curves(self, **kwargs):
+    def plot_underlying_specific_capacity_curves(self, **kwargs):
 
         fig = go.Figure()
         fig.add_traces(self.specific_capacity_curves_traces)
