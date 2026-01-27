@@ -1190,79 +1190,6 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         """
         pass
 
-    def _optimize_layup_length_for_target(
-        self,
-        target_value: float,
-        parameter_name: str,
-        geometry_function: callable,
-        hard_range: Tuple[float, float],
-        unit_conversion: float = MM_TO_M
-    ) -> None:
-        """Generic optimization framework for setting dimensional targets.
-        
-        Uses Brent's method to find the optimal layup length that achieves
-        the target dimensional value through geometry optimization.
-        
-        Parameters
-        ----------
-        target_value : float
-            Target dimensional value (in mm)
-        parameter_name : str
-            Name of parameter for error messages
-        geometry_function : callable
-            Function that calculates actual dimension from layup copy
-        hard_range : Tuple[float, float]
-            Valid range for the parameter (min, max) in mm
-        unit_conversion : float
-            Conversion factor from mm to meters
-            
-        Raises
-        ------
-        ValueError
-            If target value is invalid or optimization fails
-        """
-        # Validate input
-        self.validate_positive_float(target_value, parameter_name)
-        
-        # Check if value is within hard range
-        if not (hard_range[0] <= target_value <= hard_range[1]):
-            raise ValueError(
-                f"target_{parameter_name} {target_value} mm is outside of hard range "
-                f"{hard_range[0]} mm to {hard_range[1]} mm"
-            )
-        
-        # Convert target to meters
-        target_value_m = target_value * unit_conversion
-        
-        def objective_function(length: float) -> float:
-            """Objective function: difference between actual and target."""
-            # Create copy of layup to avoid modifying original during optimization
-            layup_copy = deepcopy(self._layup)
-            layup_copy.length = length * M_TO_MM
-            layup = self.position_layup_on_mandrel(layup_copy, self._mandrel)
-            layup.calculate_flattened_center_lines()
-            
-            # Calculate actual dimension using provided geometry function
-            actual_value = geometry_function(layup_copy)
-            
-            return actual_value - target_value_m
-        
-        min_length = self._layup.length_range[0] * MM_TO_M
-        max_length = self._layup.length_hard_range[1] * MM_TO_M
-        
-        # Use Brent's method for robust root finding
-        optimal_length = brentq(
-            objective_function,
-            min_length,
-            max_length,
-            xtol=1e-6,    # High precision in length
-            rtol=1e-6,    # Relative tolerance
-            maxiter=100   # Maximum iterations
-        )
-        
-        # Set the optimized length
-        self._layup.length = optimal_length * M_TO_MM
-
     def _calculate_roll_properties(self) -> Dict[str, float]:
         """Calculate roll properties with optimized performance and error handling.
         
@@ -3163,22 +3090,30 @@ class WoundJellyRoll(_JellyRoll):
         ValueError
             If target radius is invalid or optimization fails
         """
-        def radius_geometry_function(layup_copy):
-            """Calculate radius from layup copy."""
-            spiral = SpiralCalculator.calculate_variable_thickness_spiral(layup_copy, self._mandrel._radius)
-            coords = spiral[:, [X_COORD_COL, Z_COORD_COL]]
-            actual_radius, _ = self.get_radius_of_points(coords=coords)
-            # Add thickness at end of layup
-            thickness_at_end = layup_copy.get_thickness_at_x(x_position=layup_copy._total_length)
-            actual_radius += thickness_at_end
-            return actual_radius
+        # Validate input
+        self.validate_positive_float(target_radius, "radius")
+        
+        def objective_function(length: float) -> float:
+            """Objective function: difference between actual and target."""
+            # Create copy of layup to avoid modifying original during optimization
+            assembly_copy = deepcopy(self)
+            assembly_copy._layup.length = length
+            assembly_copy.layup = assembly_copy._layup
+            return assembly_copy.radius - target_radius
 
-        self._optimize_layup_length_for_target(
-            target_value=target_radius,
-            parameter_name="radius",
-            geometry_function=radius_geometry_function,
-            hard_range=self.radius_hard_range
+        # Use Brent's method for robust root finding
+        optimal_length = brentq(
+            objective_function,
+            self._layup.length_range[0],
+            self._layup.length_hard_range[1],
+            xtol=1e-3,    
+            rtol=1e-3,    
+            maxiter=20 
         )
+        
+        # Set the optimized length
+        self._layup.length = optimal_length
+        self.layup = self._layup
 
 
 class FlatWoundJellyRoll(_JellyRoll):
@@ -3863,32 +3798,30 @@ class FlatWoundJellyRoll(_JellyRoll):
         ValueError
             If target thickness is invalid or optimization fails
         """
+        # Validate input
+        self.validate_positive_float(target_thickness, "thickness")
+        
+        def objective_function(length: float) -> float:
+            """Objective function: difference between actual and target."""
+            # Create copy of layup to avoid modifying original during optimization
+            assembly_copy = deepcopy(self)
+            assembly_copy._layup.length = length
+            assembly_copy.layup = assembly_copy._layup
+            return assembly_copy.thickness - target_thickness
 
-        def thickness_geometry_function(layup_copy):
-            """Calculate thickness from layup copy."""
-
-            spiral = SpiralCalculator.calculate_variable_thickness_racetrack(
-                laminate=layup_copy,
-                mandrel_radius=self._pressed_radius,
-                straight_length=self._pressed_straight_length
-            )
-
-            coords = spiral[:, [X_COORD_COL, Z_COORD_COL]]
-            coords, _ = SpiralCalculator.rotate_spiral_to_minimize_thickness(coords, 0, 1)
-            thickness = SpiralCalculator.get_thickness_of_racetrack(coords)
-            thickness += layup_copy.get_thickness_at_x(x_position=layup_copy._total_length) 
-            
-            if self._tape is not None:
-                thickness -= self._tape._thickness * 2 * self._additional_tape_wraps
-
-            return thickness
-
-        self._optimize_layup_length_for_target(
-            target_value=target_thickness,
-            parameter_name="thickness",
-            geometry_function=thickness_geometry_function,
-            hard_range=self.thickness_hard_range
+        # Use Brent's method for robust root finding
+        optimal_length = brentq(
+            objective_function,
+            self._layup.length_range[0],
+            self._layup.length_hard_range[1],
+            xtol=1e-3,    
+            rtol=1e-3,    
+            maxiter=20 
         )
+        
+        # Set the optimized length
+        self._layup.length = optimal_length
+        self.layup = self._layup
 
     @width.setter
     @calculate_all_properties
@@ -3908,29 +3841,28 @@ class FlatWoundJellyRoll(_JellyRoll):
         ValueError
             If target width is invalid or optimization fails
         """
-        def width_geometry_function(layup_copy):
-            """Calculate width from layup copy."""
+        # Validate input
+        self.validate_positive_float(target_width, "width")
+        
+        def objective_function(length: float) -> float:
+            """Objective function: difference between actual and target."""
+            # Create copy of layup to avoid modifying original during optimization
+            assembly_copy = deepcopy(self)
+            assembly_copy._layup.length = length
+            assembly_copy.layup = assembly_copy._layup
+            return assembly_copy.width - target_width
 
-            spiral = SpiralCalculator.calculate_variable_thickness_racetrack(
-                laminate=layup_copy,
-                mandrel_radius=self._pressed_radius,
-                straight_length=self._pressed_straight_length
-            )
-
-            coords = spiral[:, [X_COORD_COL, Z_COORD_COL]]
-            coords, _ = SpiralCalculator.rotate_spiral_to_minimize_thickness(coords, 0, 1)
-            width = SpiralCalculator.get_width_of_racetrack(coords=coords)
-            width += layup_copy.get_thickness_at_x(x_position=layup_copy._total_length) 
-
-            if self._tape is not None:
-                width -= self._tape._thickness * 2 * self._additional_tape_wraps
-
-            return width
-
-        self._optimize_layup_length_for_target(
-            target_value=target_width,
-            parameter_name="width", 
-            geometry_function=width_geometry_function,
-            hard_range=self.width_hard_range
+        # Use Brent's method for robust root finding
+        optimal_length = brentq(
+            objective_function,
+            self._layup.length_range[0],
+            self._layup.length_hard_range[1],
+            xtol=1e-3,    
+            rtol=1e-3,    
+            maxiter=20 
         )
+        
+        # Set the optimized length
+        self._layup.length = optimal_length
+        self.layup = self._layup
  
