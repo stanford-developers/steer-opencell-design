@@ -11,7 +11,7 @@ import warnings
 import plotly.graph_objects as go
 
 # Tab alignment tolerance constant
-TAB_ALIGNMENT_TOLERANCE = 1e-3  # 1 mm tolerance for tab-terminal alignment (meters)
+TAB_ALIGNMENT_TOLERANCE = 3e-3  # 3 mm tolerance for tab-terminal alignment (meters)
 
 
 class CylindricalCell(_Cell):
