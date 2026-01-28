@@ -243,8 +243,8 @@ class Laminate(_Layup):
         float
             The length of the laminate in meters.
         """
-        anode_length = self._anode._current_collector._x_body_length
-        cathode_length = self._cathode._current_collector._x_body_length
+        anode_length = self._anode._current_collector._x_foil_length
+        cathode_length = self._cathode._current_collector._x_foil_length
 
         # The laminate length is determined by the shorter of the two electrodes
         laminate_length = min(anode_length, cathode_length)
@@ -262,8 +262,8 @@ class Laminate(_Layup):
         float
             The width of the laminate in meters.
         """
-        anode_width = self._anode._current_collector._y_body_length
-        cathode_width = self._cathode._current_collector._y_body_length
+        anode_width = self._anode._current_collector._y_foil_length
+        cathode_width = self._cathode._current_collector._y_foil_length
 
         # The laminate width is determined by the narrower of the two electrodes
         laminate_width = min(anode_width, cathode_width)
@@ -283,10 +283,10 @@ class Laminate(_Layup):
         # Collect all coordinate arrays
         coordinate_arrays = [
             self._bottom_separator._coordinates,
-            self._anode._current_collector._body_coordinates,
+            self._anode._current_collector._foil_coordinates,
             self._anode._a_side_coating_coordinates,
             self._anode._b_side_coating_coordinates,
-            self._cathode._current_collector._body_coordinates,
+            self._cathode._current_collector._foil_coordinates,
             self._cathode._a_side_coating_coordinates,
             self._cathode._b_side_coating_coordinates,
             self._top_separator._coordinates

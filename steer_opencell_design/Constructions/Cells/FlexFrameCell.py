@@ -133,18 +133,18 @@ class FlexFrameCell(_Cell):
         # cathode get the tab position
         _current_collector = self._electrode_assemblies[0]._layup._cathode._current_collector
         _terminal = self._encapsulation._cathode_terminal
-        _cathode_connector_position_x = _current_collector._tab_position - _current_collector._x_body_length / 2
-        _cathode_connector_position_y = _current_collector._datum[1] + _current_collector._y_body_length / 2 + self._clipped_tab_length + _terminal._length / 2
+        _cathode_connector_position_x = _current_collector._tab_position - _current_collector._x_foil_length / 2
+        _cathode_connector_position_y = _current_collector._datum[1] + _current_collector._y_foil_length / 2 + self._clipped_tab_length + _terminal._length / 2
 
         _current_collector = self._electrode_assemblies[0]._layup._anode._current_collector
         _terminal = self._encapsulation._anode_terminal
-        _anode_connector_position_x = _current_collector._tab_position - _current_collector._x_body_length / 2
+        _anode_connector_position_x = _current_collector._tab_position - _current_collector._x_foil_length / 2
         _anode_connector_position_y = _current_collector._datum[1]
 
         if self._reference_electrode_assembly._layup._electrode_orientation == ElectrodeOrientation.TRANSVERSE:
-            _anode_connector_position_y -= _current_collector._y_body_length / 2 + self._clipped_tab_length + _terminal._length / 2
+            _anode_connector_position_y -= _current_collector._y_foil_length / 2 + self._clipped_tab_length + _terminal._length / 2
         else:
-            _anode_connector_position_y += _current_collector._y_body_length / 2 + self._clipped_tab_length + _terminal._length / 2
+            _anode_connector_position_y += _current_collector._y_foil_length / 2 + self._clipped_tab_length + _terminal._length / 2
 
         # get average z position of assemblies
         assembly_z_datums = [assembly._datum[2] for assembly in self._electrode_assemblies]

@@ -266,10 +266,10 @@ class _Layup(
         
         if separator._rotated_xy:
             # When rotated, width maps to x-direction, length to y-direction
-            required_width = reference_electrode.current_collector.x_body_length + thickness_buffer
-            required_length = reference_electrode.current_collector.y_body_length + thickness_buffer
+            required_width = reference_electrode.current_collector.x_foil_length + thickness_buffer
+            required_length = reference_electrode.current_collector.y_foil_length + thickness_buffer
             
-            if separator._width < reference_electrode.current_collector._x_body_length:
+            if separator._width < reference_electrode.current_collector._x_foil_length:
                 new_separator = deepcopy(separator)
                 new_separator.width = required_width
                 if separator_name == "bottom":
@@ -277,7 +277,7 @@ class _Layup(
                 else:
                     self._top_separator = new_separator
                 
-            if separator._length < reference_electrode.current_collector._y_body_length:
+            if separator._length < reference_electrode.current_collector._y_foil_length:
                 new_separator = deepcopy(separator)
                 new_separator.length = required_length
                 if separator_name == "bottom":
@@ -286,10 +286,10 @@ class _Layup(
                     self._top_separator = new_separator
         else:
             # When not rotated, length maps to x-direction, width to y-direction
-            required_length = reference_electrode.current_collector.x_body_length + thickness_buffer
-            required_width = reference_electrode.current_collector.y_body_length + thickness_buffer
+            required_length = reference_electrode.current_collector.x_foil_length + thickness_buffer
+            required_width = reference_electrode.current_collector.y_foil_length + thickness_buffer
             
-            if separator._length < reference_electrode.current_collector._x_body_length:
+            if separator._length < reference_electrode.current_collector._x_foil_length:
                 new_separator = deepcopy(separator)
                 new_separator.length = required_length
                 if separator_name == "bottom":
@@ -297,7 +297,7 @@ class _Layup(
                 else:
                     self._top_separator = new_separator
                 
-            if separator._width < reference_electrode.current_collector._y_body_length:
+            if separator._width < reference_electrode.current_collector._y_foil_length:
                 new_separator = deepcopy(separator)
                 new_separator.width = required_width
                 if separator_name == "bottom":
@@ -310,16 +310,16 @@ class _Layup(
         anode_cc = self.anode.current_collector
         cathode_cc = cathode.current_collector
         
-        # Check if x_body_length needs updating
-        if anode_cc._x_body_length < cathode_cc._x_body_length:
+        # Check if x_foil_length needs updating
+        if anode_cc._x_foil_length < cathode_cc._x_foil_length:
             new_anode_current_collector = deepcopy(anode_cc)
-            new_anode_current_collector.x_body_length = cathode_cc.x_body_length
+            new_anode_current_collector.x_foil_length = cathode_cc.x_foil_length
             self.anode.current_collector = new_anode_current_collector
             
-        # Check if y_body_length needs updating
-        if anode_cc._y_body_length < cathode_cc._y_body_length:
+        # Check if y_foil_length needs updating
+        if anode_cc._y_foil_length < cathode_cc._y_foil_length:
             new_anode_current_collector = deepcopy(anode_cc)
-            new_anode_current_collector.y_body_length = cathode_cc.y_body_length
+            new_anode_current_collector.y_foil_length = cathode_cc.y_foil_length
             self.anode.current_collector = new_anode_current_collector
 
     def _flip(self, axis: str) -> None:
@@ -800,6 +800,15 @@ class _Layup(
 
         # make a deep copy of the anode
         anode = deepcopy(anode)
+
+        # if the anode has a larger minimum length range, then set that to the cathode
+        cathode_min_length = self.cathode.current_collector.length_range[0] * MM_TO_M
+        anode_min_length = anode.current_collector.length_range[0] * MM_TO_M
+        new_cathode_min_length = max(cathode_min_length, anode_min_length)
+        self.cathode.current_collector._x_foil_length_range = (
+            new_cathode_min_length,
+            self.cathode.current_collector.length_range[1] * MM_TO_M,
+        )
 
         # set the ranges on the anode current collector based on the cathode current collector
         anode.current_collector.set_ranges_from_reference(self.cathode.current_collector)

@@ -238,7 +238,7 @@ class _Stack(_ElectrodeAssembly):
         separators = [s for s in self._stack.values() if isinstance(s, Separator)]
 
         # Get the overall coordinates
-        _cc_coordinates = np.vstack([cc._body_coordinates for cc in current_collectors])
+        _cc_coordinates = np.vstack([cc._foil_coordinates for cc in current_collectors])
         _separator_coordinates = np.vstack([s._coordinates for s in separators])
         _all_coordinates = np.vstack([_cc_coordinates, _separator_coordinates])
 
@@ -292,10 +292,10 @@ class _Stack(_ElectrodeAssembly):
         # Define trace configurations for cleaner code
         trace_configs = [
             (cathodes, '_a_side_coating_coordinates', "Cathode A Side", lambda c: c._formulation._color),
-            (cathodes, '_current_collector._body_coordinates', "Cathode Current Collector", lambda c: c._current_collector._material._color),
+            (cathodes, '_current_collector._foil_coordinates', "Cathode Current Collector", lambda c: c._current_collector._material._color),
             (cathodes, '_b_side_coating_coordinates', "Cathode B Side", lambda c: c._formulation._color),
             (anodes, '_a_side_coating_coordinates', "Anode A Side", lambda a: a._formulation._color),
-            (anodes, '_current_collector._body_coordinates', "Anode Current Collector", lambda a: a._current_collector._material._color),
+            (anodes, '_current_collector._foil_coordinates', "Anode Current Collector", lambda a: a._current_collector._material._color),
             (anodes, '_b_side_coating_coordinates', "Anode B Side", lambda a: a._formulation._color),
             (separators, '_coordinates', "Separator", lambda s: s._material._color),
         ]

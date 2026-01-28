@@ -268,8 +268,8 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         figure1 = self.cathode.get_top_down_view()
 
         new_datum = (
-            self.cathode._current_collector.x_body_length,
-            self.cathode._current_collector.y_body_length,
+            self.cathode._current_collector.x_foil_length,
+            self.cathode._current_collector.y_foil_length,
             self.cathode._thickness * 1e3,
         )
 

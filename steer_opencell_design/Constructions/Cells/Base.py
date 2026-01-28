@@ -87,8 +87,8 @@ class _Cell(
         self._calculate_cost_properties()
 
     def _calculate_electrochemical_properties(self) -> None:
-        self._calculate_operating_voltage_window()
         self._calculate_curves()
+        self._calculate_operating_voltage_window()
         self._calculate_upper_voltage_limit_range()
         self._calculate_lower_voltage_limit_range()
         self._calculate_reversible_capacity()

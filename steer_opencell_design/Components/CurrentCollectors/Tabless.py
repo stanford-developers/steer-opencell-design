@@ -165,9 +165,9 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         """
         new_current_collector = cls(
             material=notched.material,
-            length=notched.x_body_length,
-            width=notched.y_body_length + notched.tab_height,
-            coated_width=notched.y_body_length,
+            length=notched.x_foil_length,
+            width=notched.y_foil_length + notched.tab_height,
+            coated_width=notched.y_foil_length,
             thickness=notched.thickness,
             bare_lengths_a_side=notched.bare_lengths_a_side,
             bare_lengths_b_side=notched.bare_lengths_b_side,
@@ -192,9 +192,9 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         """
         new_current_collector = cls(
             material=tab_welded.material,
-            length=tab_welded.x_body_length,
-            width=tab_welded.y_body_length,
-            coated_width=tab_welded.y_body_length - 10,
+            length=tab_welded.x_foil_length,
+            width=tab_welded.y_foil_length,
+            coated_width=tab_welded.y_foil_length - 10,
             thickness=tab_welded.thickness,
             bare_lengths_a_side=tab_welded.bare_lengths_a_side,
             bare_lengths_b_side=tab_welded.bare_lengths_b_side,
@@ -221,8 +221,8 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         """
         Get the coated width range in mm.
         """
-        if hasattr(self, "_y_body_length_range") and self._y_body_length_range is not None:
-            min = self.y_body_length_range[0]
+        if hasattr(self, "_y_foil_length_range") and self._y_foil_length_range is not None:
+            min = self.y_foil_length_range[0]
         else:
             min = self.width - self.tab_height_range[1]
 
@@ -243,13 +243,13 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 
     @property
     def width(self) -> float:
-        return np.round((self._y_body_length + self._tab_height) * M_TO_MM, 2)
+        return np.round((self._y_foil_length + self._tab_height) * M_TO_MM, 2)
 
     @property
     def width_range(self) -> Tuple[float, float]:
-        if hasattr(self, "_y_body_length_range") and self._y_body_length_range is not None:
-            min_width = self.y_body_length_range[0] + self.tab_height
-            max_width = self.y_body_length_range[1] + self.tab_height
+        if hasattr(self, "_y_foil_length_range") and self._y_foil_length_range is not None:
+            min_width = self.y_foil_length_range[0] + self.tab_height
+            max_width = self.y_foil_length_range[1] + self.tab_height
             return (round(min_width, 2), np.round(max_width, 2))
         else:
             return (0, 1000)
@@ -264,10 +264,10 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 
         new_y_length = width - self.tab_height
         self._coated_width = new_y_length * MM_TO_M
-        self.y_body_length = new_y_length
+        self.y_foil_length = new_y_length
 
         # Automatically adjust coated_width if it's now too large
-        _max_coated_width = self._y_body_length
+        _max_coated_width = self._y_foil_length
 
         if self._coated_width > _max_coated_width:
             self.coated_width = _max_coated_width * M_TO_MM
@@ -290,9 +290,9 @@ class TablessCurrentCollector(NotchedCurrentCollector):
         if new_tab_height < 0:
             raise ValueError(f"Coated width {coated_width} mm is too large. Maximum allowed is {current_total_width} mm.")
 
-        # Update tab height and y_body_length
+        # Update tab height and y_foil_length
         self._tab_height = new_tab_height * MM_TO_M
-        self._y_body_length = self._coated_width  # y_body_length equals coated_width
+        self._y_foil_length = self._coated_width  # y_foil_length equals coated_width
 
     @tab_height.setter
     @calculate_all_properties

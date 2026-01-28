@@ -632,6 +632,30 @@ class TestCylindricalCellTabbed(unittest.TestCase):
         self.assertEqual(self.cell.volumetric_energy, 285.58)
         self.assertEqual(self.cell.cost_per_energy, 58.59)
 
+    def test_set_nmc(self):
+    
+        self.assertEqual(self.cell.maximum_operating_voltage, 4.03)
+        self.assertEqual(self.cell.minimum_operating_voltage, 2.27)
+        self.assertEqual(self.cell.reversible_capacity, 41.46)
+        self.assertEqual(self.cell.irreversible_capacity, 4.03)
+
+        fig1 = self.cell.get_capacity_plot()
+        self.assertIsNotNone(fig1)
+
+        # new material
+        new_material = ocd.CathodeMaterial.from_database("NMC811")
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1 = new_material
+        self.cell.reference_electrode_assembly.layup.cathode.formulation = self.cell.reference_electrode_assembly.layup.cathode.formulation
+        self.cell.reference_electrode_assembly.layup.cathode = self.cell.reference_electrode_assembly.layup.cathode
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly 
+
+        fig2 = self.cell.get_capacity_plot()
+        self.assertIsNotNone(fig2)
+
+        fig1.show()
+        fig2.show()
+
 
 class TestStackedPouchCell(unittest.TestCase):
     
@@ -1553,10 +1577,39 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
     def test_plots(self):
         fig1 = self.cell.get_top_down_view()
         fig2 = self.cell.get_side_view()
+        fig3 = self.cell.get_capacity_plot()
         # fig1.show()
         # fig2.show()
         # fig3.show()
-        # fig4.show()
+
+    def test_active_material_cutoff_voltage_setter(self):
+
+        self.assertEqual(self.cell.irreversible_capacity, 13.83)
+        self.assertEqual(self.cell.reversible_capacity, 58.82)
+        self.assertEqual(self.cell.minimum_operating_voltage, 2.0)
+        self.assertEqual(self.cell.maximum_operating_voltage, 3.96)
+
+        fig1 = self.cell.get_capacity_plot()
+        self.assertIsNotNone(fig1)
+
+        # change the active material
+        new_active_material = ocd.CathodeMaterial.from_database("NFM111 (Vendor C)")
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_materials = {new_active_material: 95}
+        self.cell.reference_electrode_assembly.layup.cathode.formulation = self.cell.reference_electrode_assembly.layup.cathode.formulation
+        self.cell.reference_electrode_assembly.layup.cathode = self.cell.reference_electrode_assembly.layup.cathode
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+
+        fig2 = self.cell.get_capacity_plot()
+        self.assertIsNotNone(fig2)
+
+        self.assertEqual(self.cell.irreversible_capacity, 6.68)
+        self.assertEqual(self.cell.reversible_capacity, 63.55)
+        self.assertEqual(self.cell.minimum_operating_voltage, 0.58)
+        self.assertEqual(self.cell.maximum_operating_voltage, 3.96)
+        
+        # fig1.show()
+        # fig2.show()
 
     def test_separator_material_setter(self):
 
@@ -1574,6 +1627,7 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
         self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
 
         self.assertEqual(self.cell.reference_electrode_assembly.layup.top_separator.material.name, "Cellulose")
+
 
 class TestFlexFrameCell(unittest.TestCase):
 
@@ -1893,6 +1947,11 @@ class TestFromLoadedCell(unittest.TestCase):
 
         self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
         self.assertAlmostEqual(self.cell.reference_electrode_assembly.radius, new_radius)
+
+    def test_plot(self):
+        fig1 = self.cell.get_cross_section()
+        self.assertIsNotNone(fig1)
+        # fig1.show()
 
 
 if __name__ == "__main__":

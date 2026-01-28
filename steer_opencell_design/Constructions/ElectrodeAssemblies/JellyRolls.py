@@ -216,11 +216,11 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         # Component configuration: (spiral_key, coords_attr_path)
         component_configs = [
             ('cathode_b_side_coating', '_cathode._b_side_coating_coordinates'),
-            ('cathode_current_collector', '_cathode._current_collector._body_coordinates'),
+            ('cathode_current_collector', '_cathode._current_collector._foil_coordinates'),
             ('cathode_a_side_coating', '_cathode._a_side_coating_coordinates'),
             ('bottom_separator', '_bottom_separator._coordinates'),
             ('anode_b_side_coating', '_anode._b_side_coating_coordinates'),
-            ('anode_current_collector', '_anode._current_collector._body_coordinates'),
+            ('anode_current_collector', '_anode._current_collector._foil_coordinates'),
             ('anode_a_side_coating', '_anode._a_side_coating_coordinates'),
             ('top_separator', '_top_separator._coordinates'),
         ]
@@ -260,7 +260,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         spiral_key : str
             Key to identify component in spiral dictionaries
         coords_attr_path : str
-            Dot-separated path to component coordinates (e.g., '_anode._current_collector._body_coordinates')
+            Dot-separated path to component coordinates (e.g., '_anode._current_collector._foil_coordinates')
         cathode_is_tab_welded : bool
             Whether cathode uses tab-welded current collector
         anode_is_tab_welded : bool
@@ -320,7 +320,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         # Get current collector and tab coordinates
         electrode = getattr(self._layup, f'_{electrode_type}')
         current_collector = electrode._current_collector
-        tab_coords = current_collector._weld_tabs[0]._body_coordinates
+        tab_coords = current_collector._weld_tabs[0]._foil_coordinates
         
         # Clean NaN values
         tab_coords_clean = tab_coords[~np.isnan(tab_coords[:, 0])]
@@ -375,11 +375,11 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         # Component configuration: (spiral_key, coords_attr_path)
         component_configs = [
             ('cathode_b_side_coating', '_cathode._b_side_coating_coordinates'),
-            ('cathode_current_collector', '_cathode._current_collector._body_coordinates'),
+            ('cathode_current_collector', '_cathode._current_collector._foil_coordinates'),
             ('cathode_a_side_coating', '_cathode._a_side_coating_coordinates'),
             ('bottom_separator', '_bottom_separator._coordinates'),
             ('anode_b_side_coating', '_anode._b_side_coating_coordinates'),
-            ('anode_current_collector', '_anode._current_collector._body_coordinates'),
+            ('anode_current_collector', '_anode._current_collector._foil_coordinates'),
             ('anode_a_side_coating', '_anode._a_side_coating_coordinates'),
             ('top_separator', '_top_separator._coordinates'),
         ]
@@ -417,7 +417,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         spiral_key : str
             Key to identify component in spiral dictionaries
         coords_attr_path : str
-            Dot-separated path to component coordinates (e.g., '_anode._current_collector._body_coordinates')
+            Dot-separated path to component coordinates (e.g., '_anode._current_collector._foil_coordinates')
         cathode_is_tab_welded : bool
             Whether cathode uses tab-welded current collector
         anode_is_tab_welded : bool
@@ -477,7 +477,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         # Get current collector and tab coordinates
         electrode = getattr(self._layup, f'_{electrode_type}')
         current_collector = electrode._current_collector
-        tab_coords = current_collector._weld_tabs[0]._body_coordinates
+        tab_coords = current_collector._weld_tabs[0]._foil_coordinates
         
         # Clean NaN values
         tab_coords_clean = tab_coords[~np.isnan(tab_coords[:, 0])]
@@ -940,8 +940,8 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         
         # get the min x of the layup
         coords = [
-            layup._anode._current_collector._body_coordinates[:,0],
-            layup._cathode._current_collector._body_coordinates[:,0],
+            layup._anode._current_collector._foil_coordinates[:,0],
+            layup._cathode._current_collector._foil_coordinates[:,0],
             layup._bottom_separator._coordinates[:,0],
             layup._top_separator._coordinates[:,0]
         ]
@@ -1462,7 +1462,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         Returns
         -------
         float
-            Maximum Y coordinate of cathode current collector body minus tab (meters)
+            Maximum Y coordinate of cathode current collector foil minus tab (meters)
         """
         from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector 
 
@@ -1474,7 +1474,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
                 self._collector_tab_crumple_factor
             )
 
-        max_y = self._layup._cathode._current_collector._body_coordinates[:, 1].max()
+        max_y = self._layup._cathode._current_collector._foil_coordinates[:, 1].max()
 
         return max_y - cathode_tab_deduction
 
@@ -1484,7 +1484,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         Returns
         -------
         float
-            Minimum Y coordinate of anode current collector body plus tab (meters)
+            Minimum Y coordinate of anode current collector foil plus tab (meters)
         """
         from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector
 
@@ -1496,7 +1496,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
                 self._collector_tab_crumple_factor
             )
 
-        min_y = self._layup._anode._current_collector._body_coordinates[:, 1].min()
+        min_y = self._layup._anode._current_collector._foil_coordinates[:, 1].min()
 
         return min_y + anode_tab_deduction
 
@@ -2497,9 +2497,9 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         # validate type
         self.validate_type(value, Tape, "tape")
     
-        # set the tape width to at least the current collector y-body length
-        if value._width is None or value._width < self._layup._anode._current_collector._y_body_length:
-            value.width = self._layup._anode._current_collector._y_body_length * M_TO_MM
+        # set the tape width to at least the current collector y-foil length
+        if value._width is None or value._width < self._layup._anode._current_collector._y_foil_length:
+            value.width = self._layup._anode._current_collector._y_foil_length * M_TO_MM
 
         # Set the tape width range to match the layup width
         value._set_width_range(self)

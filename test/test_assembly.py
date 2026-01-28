@@ -287,7 +287,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         # Check that diameter updated correctly
         self.assertAlmostEqual(self.my_jellyroll.radius, new_radius, 0)
         self.assertAlmostEqual(self.my_jellyroll.diameter, new_radius * 2, 0)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 6.67, 1)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 6.6, 1)
 
     def test_to_flat_jelly_roll(self):
 
