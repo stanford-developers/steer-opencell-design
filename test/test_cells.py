@@ -653,8 +653,8 @@ class TestCylindricalCellTabbed(unittest.TestCase):
         fig2 = self.cell.get_capacity_plot()
         self.assertIsNotNone(fig2)
 
-        fig1.show()
-        fig2.show()
+        # fig1.show()
+        # fig2.show()
 
 
 class TestStackedPouchCell(unittest.TestCase):
