@@ -133,18 +133,18 @@ class PouchCell(_Cell):
         # cathode get the tab position
         _current_collector = self._electrode_assemblies[0]._layup._cathode._current_collector
         _terminal = self._encapsulation._cathode_terminal
-        _cathode_connector_position_x = _current_collector._tab_position - _current_collector._x_body_length / 2
-        _cathode_connector_position_y = _current_collector._datum[1] + _current_collector._y_body_length / 2 + self._clipped_tab_length + _terminal._length / 2
+        _cathode_connector_position_x = _current_collector._tab_position - _current_collector._x_foil_length / 2
+        _cathode_connector_position_y = _current_collector._datum[1] + _current_collector._y_foil_length / 2 + self._clipped_tab_length + _terminal._length / 2
 
         _current_collector = self._electrode_assemblies[0]._layup._anode._current_collector
         _terminal = self._encapsulation._anode_terminal
-        _anode_connector_position_x = _current_collector._tab_position - _current_collector._x_body_length / 2
+        _anode_connector_position_x = _current_collector._tab_position - _current_collector._x_foil_length / 2
         _anode_connector_position_y = _current_collector._datum[1]
 
         if self._reference_electrode_assembly._layup._electrode_orientation == ElectrodeOrientation.TRANSVERSE:
-            _anode_connector_position_y -= _current_collector._y_body_length / 2 + self._clipped_tab_length + _terminal._length / 2
+            _anode_connector_position_y -= _current_collector._y_foil_length / 2 + self._clipped_tab_length + _terminal._length / 2
         else:
-            _anode_connector_position_y += _current_collector._y_body_length / 2 + self._clipped_tab_length + _terminal._length / 2
+            _anode_connector_position_y += _current_collector._y_foil_length / 2 + self._clipped_tab_length + _terminal._length / 2
 
         # get average z position of assemblies
         assembly_z_datums = [assembly._datum[2] for assembly in self._electrode_assemblies]
@@ -202,14 +202,14 @@ class PouchCell(_Cell):
         
         Determines the required width, height, and thickness of the encapsulation
         based on the electrode assembly dimensions plus seal thicknesses. Height is
-        calculated from the current collector body extents, width includes side
+        calculated from the current collector foil extents, width includes side
         seals, and thickness accounts for the stack and laminate thicknesses.
         """
         top_assembly = self._electrode_assemblies[0]
         cathodes = [c for c in top_assembly._stack.values() if isinstance(c, Cathode)]
         anodes = [a for a in top_assembly._stack.values() if isinstance(a, Anode)]
-        max_y = cathodes[0]._current_collector._body_coordinates[:, 1].max()
-        min_y = anodes[0]._current_collector._body_coordinates[:, 1].min()
+        max_y = cathodes[0]._current_collector._foil_coordinates[:, 1].max()
+        min_y = anodes[0]._current_collector._foil_coordinates[:, 1].min()
         _encapsulation_height = max_y - min_y + self._top_seal_thickness + self._bottom_seal_thickness
 
         ref_assembly = self._reference_electrode_assembly

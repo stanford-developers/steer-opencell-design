@@ -116,8 +116,8 @@ class MonoLayer(_Layup):
             A new MonoLayer instance with the same properties as the input ZFoldMonoLayer.
         """
         bottom_separator = deepcopy(zfold_monolayer._bottom_separator)
-        bottom_separator.width = zfold_monolayer.anode.current_collector.x_body_length + 4
-        bottom_separator.length = zfold_monolayer.anode.current_collector.y_body_length + 4
+        bottom_separator.width = zfold_monolayer.anode.current_collector.x_foil_length + 4
+        bottom_separator.length = zfold_monolayer.anode.current_collector.y_foil_length + 4
         
         return cls(
             cathode=deepcopy(zfold_monolayer.cathode),
@@ -139,8 +139,8 @@ class MonoLayer(_Layup):
         float
             The height of the laminate in meters.
         """
-        anode_height = self._anode._current_collector._y_body_length
-        cathode_height = self._cathode._current_collector._y_body_length
+        anode_height = self._anode._current_collector._y_foil_length
+        cathode_height = self._cathode._current_collector._y_foil_length
 
         # The laminate height is determined by the longer of the two electrodes
         monolayer_height = max(anode_height, cathode_height)
@@ -158,8 +158,8 @@ class MonoLayer(_Layup):
         float
             The width of the laminate in meters.
         """
-        anode_width = self._anode._current_collector._x_body_length
-        cathode_width = self._cathode._current_collector._x_body_length
+        anode_width = self._anode._current_collector._x_foil_length
+        cathode_width = self._cathode._current_collector._x_foil_length
 
         # The laminate width is determined by the wider of the two electrodes
         monolayer_width = max(anode_width, cathode_width)
@@ -377,13 +377,13 @@ class ZFoldMonoLayer(MonoLayer):
         bottom_separator = deepcopy(separator)
         top_separator = deepcopy(separator)
 
-        # Set lengths using electrode WIDTHs (x_body_length) + 2*thickness
+        # Set lengths using electrode WIDTHs (x_foil_length) + 2*thickness
         bottom_separator.length = (
-            (cathode.current_collector._x_body_length + 2 * self._canonical_separator._thickness) * M_TO_MM
+            (cathode.current_collector._x_foil_length + 2 * self._canonical_separator._thickness) * M_TO_MM
         )
 
         top_separator.length = (
-            (anode.current_collector._x_body_length + 2 * self._canonical_separator._thickness) * M_TO_MM
+            (anode.current_collector._x_foil_length + 2 * self._canonical_separator._thickness) * M_TO_MM
         )
 
         # Call base _Layup initializer directly (skip MonoLayer rotation logic)
@@ -433,12 +433,12 @@ class ZFoldMonoLayer(MonoLayer):
         """Enforce Z-fold separator geometry constraints."""
         # Bottom separator length
         self._bottom_separator.length = (
-            (self.cathode.current_collector._x_body_length + 2 * self._canonical_separator._thickness) * M_TO_MM
+            (self.cathode.current_collector._x_foil_length + 2 * self._canonical_separator._thickness) * M_TO_MM
         )
 
         # Top separator length
         self._top_separator.length = (
-            (self.anode.current_collector._x_body_length + 2 * self._canonical_separator._thickness) * M_TO_MM
+            (self.anode.current_collector._x_foil_length + 2 * self._canonical_separator._thickness) * M_TO_MM
         )
 
     @property

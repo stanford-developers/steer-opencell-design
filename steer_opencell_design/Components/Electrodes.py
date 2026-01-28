@@ -376,7 +376,7 @@ class _Electrode(
             electrode = self
 
         figure = electrode._current_collector.get_right_left_view(**kwargs)
-        figure.data = [trace for trace in figure.data if trace.name == "Body" or trace.name == "Tab"]
+        figure.data = [trace for trace in figure.data if trace.name == "Foil" or trace.name == "Tab"]
         figure.add_trace(electrode.right_left_a_side_coating_trace)
         figure.add_trace(electrode.right_left_b_side_coating_trace)
 
@@ -420,7 +420,7 @@ class _Electrode(
     def get_top_down_view(self, **kwargs) -> go.Figure:
         
         figure = self.current_collector.get_top_down_view(**kwargs)
-        figure.data = [trace for trace in figure.data if trace.name == "Body" or trace.name == "Tab"]
+        figure.data = [trace for trace in figure.data if trace.name == "Foil" or trace.name == "Tab"]
 
         # Get the traces to add
         coating_trace = self.top_down_coating_trace

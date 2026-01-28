@@ -105,8 +105,8 @@ class Tape(
     def _set_width_range(self, jellyroll, length_multiplier: float = 1.1):
 
         self._width_range = (
-            jellyroll._layup._anode._current_collector._y_body_length, 
-            jellyroll._layup._anode._current_collector._y_body_length * length_multiplier
+            jellyroll._layup._anode._current_collector._y_foil_length, 
+            jellyroll._layup._anode._current_collector._y_foil_length * length_multiplier
         )
 
     @property

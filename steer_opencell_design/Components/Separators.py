@@ -156,17 +156,17 @@ class Separator(
     def _set_width_range(self, electrode: _Electrode, extended_range: float):
 
         if not self._rotated_xy:
-            self._width_range = (electrode._current_collector._y_body_length, electrode._current_collector._y_body_length + extended_range)
+            self._width_range = (electrode._current_collector._y_foil_length, electrode._current_collector._y_foil_length + extended_range)
             
         elif self._rotated_xy:
-            self._width_range = (electrode._current_collector._x_body_length, electrode._current_collector._x_body_length + extended_range)
+            self._width_range = (electrode._current_collector._x_foil_length, electrode._current_collector._x_foil_length + extended_range)
 
     def _set_length_range(self, electrode: _Electrode, extended_range: float):
 
         if not self._rotated_xy:
-            self._length_range = (electrode._current_collector._x_body_length, electrode._current_collector._x_body_length + extended_range)
+            self._length_range = (electrode._current_collector._x_foil_length, electrode._current_collector._x_foil_length + extended_range)
         elif self._rotated_xy:
-            self._length_range = (electrode._current_collector._y_body_length, electrode._current_collector._y_body_length + extended_range)
+            self._length_range = (electrode._current_collector._y_foil_length, electrode._current_collector._y_foil_length + extended_range)
 
     def _flip(self, axis: str, bool_update: bool = True) -> None:
         """

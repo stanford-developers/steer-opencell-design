@@ -102,7 +102,7 @@ class OverhangMixin:
     
     When using FIXED_COMPONENT mode, the component's datum position is
     adjusted. When using FIXED_OVERHANGS mode, the component's dimensions
-    (x_body_length, y_body_length for electrodes; width, length for separators)
+    (x_foil_length, y_foil_length for electrodes; width, length for separators)
     are adjusted.
     
     Special handling exists for ZFoldMonoLayer: when the anode moves
@@ -119,7 +119,7 @@ class OverhangMixin:
     >>> # Switch to FIXED_OVERHANGS mode
     >>> layup.overhang_control_mode = OverhangControlMode.FIXED_OVERHANGS
     >>> layup.anode_overhang_right = 3.0  # Extends anode width
-    >>> print(layup.anode.current_collector.x_body_length)
+    >>> print(layup.anode.current_collector.x_foil_length)
     152.0  # Width increased
     """
 
@@ -236,19 +236,19 @@ class OverhangMixin:
         Notes
         -----
         This method assumes rectangular current collectors with uniform dimensions.
-        Edge positions are calculated from the datum (center point) and body lengths.
+        Edge positions are calculated from the datum (center point) and foil lengths.
         """
         # Reference edges
-        ref_left = ref_electrode._current_collector._datum[0] - ref_electrode._current_collector._x_body_length / 2
-        ref_right = ref_electrode._current_collector._datum[0] + ref_electrode._current_collector._x_body_length / 2
-        ref_bottom = ref_electrode._current_collector._datum[1] - ref_electrode._current_collector._y_body_length / 2
-        ref_top = ref_electrode._current_collector._datum[1] + ref_electrode._current_collector._y_body_length / 2
+        ref_left = ref_electrode._current_collector._datum[0] - ref_electrode._current_collector._x_foil_length / 2
+        ref_right = ref_electrode._current_collector._datum[0] + ref_electrode._current_collector._x_foil_length / 2
+        ref_bottom = ref_electrode._current_collector._datum[1] - ref_electrode._current_collector._y_foil_length / 2
+        ref_top = ref_electrode._current_collector._datum[1] + ref_electrode._current_collector._y_foil_length / 2
 
         # Target edges
-        tgt_left = target_electrode._current_collector._datum[0] - target_electrode._current_collector._x_body_length / 2
-        tgt_right = target_electrode._current_collector._datum[0] + target_electrode._current_collector._x_body_length / 2
-        tgt_bottom = target_electrode._current_collector._datum[1] - target_electrode._current_collector._y_body_length / 2
-        tgt_top = target_electrode._current_collector._datum[1] + target_electrode._current_collector._y_body_length / 2
+        tgt_left = target_electrode._current_collector._datum[0] - target_electrode._current_collector._x_foil_length / 2
+        tgt_right = target_electrode._current_collector._datum[0] + target_electrode._current_collector._x_foil_length / 2
+        tgt_bottom = target_electrode._current_collector._datum[1] - target_electrode._current_collector._y_foil_length / 2
+        tgt_top = target_electrode._current_collector._datum[1] + target_electrode._current_collector._y_foil_length / 2
 
         return ref_left - tgt_left, tgt_right - ref_right, ref_bottom - tgt_bottom, tgt_top - ref_top
 
@@ -272,12 +272,12 @@ class OverhangMixin:
         -----
         This method handles polygon separators by finding the min/max coordinates
         from the separator's coordinate array, unlike rectangular electrodes which
-        use datum and body length calculations.
+        use datum and foil length calculations.
         """
-        ref_left = ref_electrode._current_collector._datum[0] - ref_electrode._current_collector._x_body_length / 2
-        ref_right = ref_electrode._current_collector._datum[0] + ref_electrode._current_collector._x_body_length / 2
-        ref_bottom = ref_electrode._current_collector._datum[1] - ref_electrode._current_collector._y_body_length / 2
-        ref_top = ref_electrode._current_collector._datum[1] + ref_electrode._current_collector._y_body_length / 2
+        ref_left = ref_electrode._current_collector._datum[0] - ref_electrode._current_collector._x_foil_length / 2
+        ref_right = ref_electrode._current_collector._datum[0] + ref_electrode._current_collector._x_foil_length / 2
+        ref_bottom = ref_electrode._current_collector._datum[1] - ref_electrode._current_collector._y_foil_length / 2
+        ref_top = ref_electrode._current_collector._datum[1] + ref_electrode._current_collector._y_foil_length / 2
 
         sep_left = float(np.min(separator._coordinates[:, 0]))
         sep_right = float(np.max(separator._coordinates[:, 0]))
@@ -390,8 +390,8 @@ class OverhangMixin:
         component dimensions are adjusted to achieve the target overhang.
         
         For anodes:
-            - Adjusts x_body_length for left/right directions
-            - Adjusts y_body_length for bottom/top directions
+            - Adjusts x_foil_length for left/right directions
+            - Adjusts y_foil_length for bottom/top directions
             - Centers the component by adjusting datum by half the dimension change
         
         For separators:
@@ -413,14 +413,14 @@ class OverhangMixin:
         if component == "anode":
             # Determine which dimension and position to adjust
             if direction in ["left", "right"]:
-                self.anode.current_collector.x_body_length += overhang_difference * M_TO_MM
+                self.anode.current_collector.x_foil_length += overhang_difference * M_TO_MM
                 position_adjustment = (overhang_difference / 2) * M_TO_MM
                 if direction == "left":
                     self.anode.current_collector.datum_x -= position_adjustment
                 else:  # right
                     self.anode.current_collector.datum_x += position_adjustment
             else:  # bottom or top
-                self.anode.current_collector.y_body_length += overhang_difference * M_TO_MM
+                self.anode.current_collector.y_foil_length += overhang_difference * M_TO_MM
                 position_adjustment = (overhang_difference / 2) * M_TO_MM
                 if direction == "bottom":
                     self.anode.current_collector.datum_y -= position_adjustment
