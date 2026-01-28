@@ -23,6 +23,7 @@ from steer_opencell_design.Components.Separators import Separator
 from steer_opencell_design.Constructions.Layups.OverhangUtils import OverhangMixin
 from steer_opencell_design.Constructions.Layups.ArealCapacityCurveUtils import ArealCapacityCurveMixin
 from steer_opencell_design.Utils.Decorators import calculate_electrochemical_properties
+from steer_opencell_design.Components.CurrentCollectors.Base import _TapeCurrentCollector
 
 
 # Module-level constants for overhang ranges and plotting parameters
@@ -138,7 +139,6 @@ class _Layup(
         if hasattr(self, '_areal_capacity_curve') and self._areal_capacity_curve is not None:
             self._calculate_upper_voltage_limit_range()
             self._calculate_lower_voltage_limit_range()
-            self._maximum_operating_voltage = max(self._maximum_operating_voltage_range)
             self._minimum_operating_voltage = min(self._minimum_operating_voltage_range)
             self._operating_voltage_window = (self._minimum_operating_voltage, self._maximum_operating_voltage)
             self._operating_reversible_areal_capacity = max(self._maximum_areal_reversible_capacity_range)
@@ -162,46 +162,73 @@ class _Layup(
         # set the minimum operating voltage range
         self._minimum_operating_voltage_range = (_lower_voltage_minimum, _lower_voltage_top_limit)
 
+    def _compute_voltage_and_capacity_at_cutoff(self, layup, voltage_cutoff: float) -> Tuple[float, float]:
+        """Helper method to compute max voltage and reversible capacity at a given voltage cutoff.
+        
+        Parameters
+        ----------
+        layup : _Layup
+            Layup copy to modify
+        voltage_cutoff : float
+            Cathode voltage cutoff to apply
+            
+        Returns
+        -------
+        Tuple[float, float]
+            Maximum voltage and reversible areal capacity at the given cutoff
+        """
+        layup._cathode._formulation.voltage_cutoff = voltage_cutoff
+        layup._cathode.formulation = layup._cathode._formulation
+        
+        _, areal_curve = self._compute_areal_full_cell_curve(
+            layup._cathode._areal_capacity_curve,
+            layup._anode._areal_capacity_curve,
+        )
+        
+        discharge_mask = areal_curve[:, 2] == -1
+        discharge_curve = areal_curve[discharge_mask]
+        
+        max_voltage = areal_curve[:, 1].max()
+        reversible_capacity = discharge_curve[:, 0].max() - discharge_curve[:, 0].min()
+        
+        return max_voltage, reversible_capacity
+
     def _calculate_upper_voltage_limit_range(self) -> None:
         """Calculate the maximum operating voltage range from cathode voltage cutoff range.
         
         Determines the upper voltage bounds by testing the cathode's voltage cutoff range
         and observing the resulting maximum voltages in the capacity curve.
         """
-        # Get voltage cutoff range bounds using numpy operations (faster than min/max)
+        # Get voltage cutoff range bounds
         _voltage_cutoff_range = self._cathode._formulation._voltage_operation_window
         _formulation_min_voltage, _formulation_max_voltage = min(_voltage_cutoff_range), max(_voltage_cutoff_range)
 
-        # get the upper voltage max
+        # Create a single layup copy for all calculations
         _layup = deepcopy(self)
-        _layup._cathode._formulation.voltage_cutoff = _formulation_max_voltage
-        _layup._cathode.formulation = _layup._cathode._formulation
-        _, _areal_curve = self._compute_areal_full_cell_curve(
-            _layup._cathode._areal_capacity_curve,
-            _layup._anode._areal_capacity_curve,
-        )
-        _discharge_mask = _areal_curve[:, 2] == -1
-        _discharge_curve = _areal_curve[_discharge_mask]
-        _upper_voltage_max = _areal_curve[:, 1].max()
-        _upper_areal_reversible_capacity_max = _discharge_curve[:, 0].max() - _discharge_curve[:, 0].min()
 
-        # get the lower voltage min
-        _layup._cathode._formulation.voltage_cutoff = _formulation_min_voltage
-        _layup._cathode.formulation = _layup._cathode._formulation
-        _, _areal_curve = self._compute_areal_full_cell_curve(
-            _layup._cathode._areal_capacity_curve,
-            _layup._anode._areal_capacity_curve,
+        # Get the current layup cutoff voltage
+        _voltage_cutoff, _ = self._compute_voltage_and_capacity_at_cutoff(_layup, _layup._cathode._formulation.voltage_cutoff)
+
+        # Get upper voltage max (at maximum formulation voltage)
+        _upper_voltage_max, _upper_areal_reversible_capacity_max = self._compute_voltage_and_capacity_at_cutoff(
+            _layup, _formulation_max_voltage
         )
-        _discharge_mask = _areal_curve[:, 2] == -1
-        _discharge_curve = _areal_curve[_discharge_mask]
-        _upper_voltage_min = _areal_curve[:, 1].max()
-        _upper_areal_reversible_capacity_min = _discharge_curve[:, 0].max() - _discharge_curve[:, 0].min()
+
+        # Get lower voltage min (at minimum formulation voltage)
+        _upper_voltage_min, _upper_areal_reversible_capacity_min = self._compute_voltage_and_capacity_at_cutoff(
+            _layup, _formulation_min_voltage
+        )
 
         # Set the maximum and minimum operating voltage ranges
+        self._maximum_operating_voltage = _voltage_cutoff
         self._maximum_operating_voltage_range = (_upper_voltage_min, _upper_voltage_max)
         self._maximum_areal_reversible_capacity_range = (_upper_areal_reversible_capacity_min, _upper_areal_reversible_capacity_max)
 
-        return self._maximum_operating_voltage_range, self._maximum_areal_reversible_capacity_range
+        return (
+            self._maximum_operating_voltage,
+            self._maximum_operating_voltage_range, 
+            self._maximum_areal_reversible_capacity_range
+        )
     
     def _set_z_positions(self):
 
@@ -801,14 +828,15 @@ class _Layup(
         # make a deep copy of the anode
         anode = deepcopy(anode)
 
-        # if the anode has a larger minimum length range, then set that to the cathode
-        cathode_min_length = self.cathode.current_collector.length_range[0] * MM_TO_M
-        anode_min_length = anode.current_collector.length_range[0] * MM_TO_M
-        new_cathode_min_length = max(cathode_min_length, anode_min_length)
-        self.cathode.current_collector._x_foil_length_range = (
-            new_cathode_min_length,
-            self.cathode.current_collector.length_range[1] * MM_TO_M,
-        )
+        if isinstance(self.cathode.current_collector, _TapeCurrentCollector) and isinstance(anode.current_collector, _TapeCurrentCollector):
+            # if the anode has a larger minimum length range, then set that to the cathode
+            cathode_min_length = self.cathode.current_collector.length_range[0] * MM_TO_M
+            anode_min_length = anode.current_collector.length_range[0] * MM_TO_M
+            new_cathode_min_length = max(cathode_min_length, anode_min_length)
+            self.cathode.current_collector._x_foil_length_range = (
+                new_cathode_min_length,
+                self.cathode.current_collector.length_range[1] * MM_TO_M,
+            )
 
         # set the ranges on the anode current collector based on the cathode current collector
         anode.current_collector.set_ranges_from_reference(self.cathode.current_collector)

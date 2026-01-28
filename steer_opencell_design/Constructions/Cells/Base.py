@@ -501,12 +501,15 @@ class _Cell(
         # Add all traces at once for better performance
         fig.add_traces(traces)
 
+        # get maximum voltage for y axis
+        x_max = max(self._reference_electrode_assembly._layup._cathode._formulation._voltage_operation_window)
+
         # Layout styling
         fig.update_layout(
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             xaxis={**self.SCATTER_X_AXIS, "title": "Capacity (Ah)"},
-            yaxis={**self.SCATTER_Y_AXIS, "title": "Voltage (V)"},
+            yaxis={**self.SCATTER_Y_AXIS, "title": "Voltage (V)", "range": [0, x_max]},
             hovermode="closest",
             **kwargs
         )

@@ -144,7 +144,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.diameter, 41.6, 1)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23895, 0)
         self.assertAlmostEqual(self.my_jellyroll.cost, 4.33, 2)
-        self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 6.74, 2)
+        self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 8.73, 2)
         self.assertAlmostEqual(self.my_jellyroll.radius_range[1], 30.55, 2)
         self.assertAlmostEqual(self.my_jellyroll.mass, 655.4, 1)
 
@@ -599,9 +599,9 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.width, 114.1, 1)
         self.assertAlmostEqual(self.my_jellyroll.cost, 4.18, 1)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23725.74, 0)
-        self.assertAlmostEqual(self.my_jellyroll.thickness_range[0], 2.01, 1)
+        self.assertAlmostEqual(self.my_jellyroll.thickness_range[0], 2.91, 1)
         self.assertAlmostEqual(self.my_jellyroll.thickness_range[1], 24.37, 1)
-        self.assertAlmostEqual(self.my_jellyroll.width_range[0], 103.6, 1)
+        self.assertAlmostEqual(self.my_jellyroll.width_range[0], 104.48, 1)
         self.assertAlmostEqual(self.my_jellyroll.width_range[1], 125.95, 1)
 
     def test_serialization(self):
