@@ -1410,6 +1410,22 @@ class TestStackedPrismaticCell(unittest.TestCase):
         # fig2.show(renderer="browser")
         # fig3.show(renderer="browser")
 
+    def test_assembly_orientation_setter(self):
+
+        fig1 = self.cell.get_top_down_view()
+
+        self.cell.reference_electrode_assembly.layup.electrode_orientation = 'transverse'
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+
+        fig2 = self.cell.get_top_down_view()
+        
+        self.assertIsNotNone(fig1)
+        self.assertIsNotNone(fig2)
+
+        fig1.show()
+        fig2.show()
+
 
 class TestFlatJellyRollPrismatic(unittest.TestCase):
 
