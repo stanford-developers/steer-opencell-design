@@ -882,6 +882,10 @@ class PrismaticCanister(
         """Calculate coordinate representations."""
         self._get_top_down_coordinates()
         self._get_right_left_coordinates()
+        
+        # Reapply rotation if active
+        if self._rotated_z:
+            self._rotate_z()
 
     def _get_top_down_coordinates(self):
         """Calculate the right-left view coordinates showing U-shaped profile."""
@@ -973,34 +977,36 @@ class PrismaticCanister(
             x_coords = np.array([y1, y8, y3, y2, y5, y4, y7, y6, y1])
             y_coords = np.array([z1, z8, z3, z2, z5, z4, z7, z6, z1])
         else:
-            # Rectangular hollow profile when rotated - showing wall thickness
+            # Rectangular hollow profile when rotated - showing wall thickness in y-z plane
+            # When rotated around z-axis, the right-left view (y-z plane) still shows:
+            # y-axis = height, z-axis = length (rotation around z doesn't change this view)
             half_width = self._width / 2
             half_length = self._length / 2
             
-            # Outer rectangle corners
-            x_outer_left = self._datum[0] - half_width
-            x_outer_right = self._datum[0] + half_width
-            y_outer_bottom = self._datum[1] - half_length
-            y_outer_top = self._datum[1] + half_length
+            # Outer rectangle corners (y-axis shows height, z-axis shows length)
+            y_outer_bottom = self._datum[1] - half_width
+            y_outer_top = self._datum[1] + half_width
+            z_outer_left = self._datum[2] - half_length
+            z_outer_right = self._datum[2] + half_length
             
             # Inner rectangle corners (accounting for wall thickness on all sides)
-            x_inner_left = x_outer_left + self._wall_thickness
-            x_inner_right = x_outer_right - self._wall_thickness
             y_inner_bottom = y_outer_bottom + self._wall_thickness
             y_inner_top = y_outer_top - self._wall_thickness
+            z_inner_left = z_outer_left + self._wall_thickness
+            z_inner_right = z_outer_right - self._wall_thickness
             
             # Create hollow rectangular frame (outer path, then inner path to create hole)
             # Outer rectangle (clockwise)
             x_coords = np.array([
-                x_outer_left, x_outer_right, x_outer_right, x_outer_left, x_outer_left,
+                y_outer_bottom, y_outer_top, y_outer_top, y_outer_bottom, y_outer_bottom,
                 # Inner rectangle (counter-clockwise to create hole)
-                x_inner_left, x_inner_left, x_inner_right, x_inner_right, x_inner_left,
+                y_inner_bottom, y_inner_bottom, y_inner_top, y_inner_top, y_inner_bottom,
             ])
             
             y_coords = np.array([
-                y_outer_bottom, y_outer_bottom, y_outer_top, y_outer_top, y_outer_bottom,
+                z_outer_left, z_outer_left, z_outer_right, z_outer_right, z_outer_left,
                 # Inner rectangle (counter-clockwise to create hole)
-                y_inner_bottom, y_inner_top, y_inner_top, y_inner_bottom, y_inner_bottom,
+                z_inner_left, z_inner_right, z_inner_right, z_inner_left, z_inner_left,
             ])
         
         self._right_left_coordinates = np.column_stack((x_coords, y_coords))
@@ -1849,6 +1855,7 @@ class PrismaticEncapsulation(_Container):
                 )
         else:
             self.validate_type(orientation, ConnectorOrientation, "Connector Orientation")
+            
         self._connector_orientation = orientation
     
     @cathode_terminal_connector_position.setter

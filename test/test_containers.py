@@ -2603,6 +2603,7 @@ class TestPrismaticLidAssembly(unittest.TestCase):
 
 
 class TestPrismaticCanister(unittest.TestCase):
+
     def setUp(self):
         """Set up test fixtures for PrismaticCanister tests"""
         from steer_opencell_design.Components.Containers.Prismatic import PrismaticCanister
@@ -2728,8 +2729,21 @@ class TestPrismaticCanister(unittest.TestCase):
         self.assertIsNotNone(fig2.data)
         self.assertEqual(canister.datum, (0, -97, 0))
 
+        # rotate canister
+        canister.rotated_z = True
+        fig3 = canister.get_top_down_view()
+        self.assertIsNotNone(fig3.data)
+
+        canister.height = 300.0
+        self.assertEqual(canister.height, 300.0)
+        fig4 = canister.get_top_down_view()
+        self.assertIsNotNone(fig4.data)
+
         # fig1.show()
         # fig2.show()
+
+        # fig3.show()
+        # fig4.show()
 
     def test_inner_dimension_setters(self):
         """Test that inner dimension setters update outer dimensions correctly"""
@@ -2764,6 +2778,7 @@ class TestPrismaticCanister(unittest.TestCase):
 
 class TestPrismaticEncapsulation(unittest.TestCase):
     def setUp(self):
+
         """Set up test fixtures for PrismaticEncapsulation tests"""
         from steer_opencell_design.Components.Containers.Prismatic import (
             PrismaticTerminalConnector,
@@ -2999,19 +3014,56 @@ class TestPrismaticEncapsulation(unittest.TestCase):
     def test_modify_canister_dimensions(self):
         """Test that modifying canister dimensions updates encapsulation"""
         enc = self.encapsulation
-        fig1 = enc.get_right_left_view()
+        fig1 = enc.canister.get_top_down_view()
+        fig2 = enc.get_top_down_view()
         self.assertIsNotNone(fig1.data)
         
         # Modify canister dimensions
         enc.canister.height = 300.0
+        fig3 = enc.canister.get_top_down_view()
         enc.canister = enc.canister
+        fig4 = enc.get_top_down_view()
         self.assertEqual(enc.height, 300.0)
-
-        fig2 = enc.get_right_left_view()
-        self.assertIsNotNone(fig2.data)
 
         # fig1.show()
         # fig2.show()
+        # fig3.show()
+        # fig4.show()
+
+    def test_modify_canister_dimensions_transverse(self):
+        """Test that modifying canister dimensions updates encapsulation"""
+        enc = self.encapsulation
+        fig1 = enc.get_top_down_view()
+
+        enc.connector_orientation = 'transverse'
+        fig2 = enc.get_top_down_view()
+
+        enc.canister.height = 300.0
+        fig3 = enc.canister.get_top_down_view()
+        enc.canister = enc.canister
+        fig4 = enc.get_top_down_view()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+        # fig4.show()
+
+    def test_modify_connector_orientation(self):
+        """Test that modifying connector orientation updates encapsulation"""
+        enc = self.encapsulation
+        fig1 = enc.get_right_left_view()
+
+        # change datum
+        enc.datum = (100, 200, 300)
+        fig2 = enc.get_right_left_view()
+
+        # set to transverse orientation and re-plot
+        enc.connector_orientation = 'transverse'
+        fig3 = enc.get_right_left_view()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
 
 
 class TestFlexFrameEncapsulation(unittest.TestCase):

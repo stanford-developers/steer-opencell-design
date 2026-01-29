@@ -24,6 +24,7 @@ from steer_opencell_design.Constructions.Layups.OverhangUtils import OverhangMix
 from steer_opencell_design.Constructions.Layups.ArealCapacityCurveUtils import ArealCapacityCurveMixin
 from steer_opencell_design.Utils.Decorators import calculate_electrochemical_properties
 from steer_opencell_design.Components.CurrentCollectors.Base import _TapeCurrentCollector
+from steer_opencell_design.Components.CurrentCollectors.Punched import PunchedCurrentCollector
 
 
 # Module-level constants for overhang ranges and plotting parameters
@@ -1162,8 +1163,11 @@ class _Layup(
 
         # if electrode_orientation is ElectrodeOrientation.TRANSVERSE, check and adjust anode orientation
         if self._electrode_orientation == ElectrodeOrientation.TRANSVERSE:
-            if not self._anode._flipped_y:
-                self._anode._flip("y")
+            if not self._cathode._flipped_y:
+                self._cathode._flip("y")
+                self._cathode._flip("x")
         elif self._electrode_orientation == ElectrodeOrientation.LONGITUDINAL:
-            if self._anode._flipped_y:
-                self._anode._flip("y")
+            if self._cathode._flipped_y:
+                self._cathode._flip("y")
+                self._cathode._flip("x")
+

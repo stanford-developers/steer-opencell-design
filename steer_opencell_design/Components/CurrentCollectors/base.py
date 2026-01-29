@@ -1446,7 +1446,7 @@ class _TapeCurrentCollector(_CurrentCollector):
             )
 
         else:
-            min_length = self._calculate_total_length_with_skip_coating() * M_TO_MM + 200
+            min_length = self._calculate_total_length_with_skip_coating() * M_TO_MM
             return (np.round(min_length, 2), 10000)
 
     @property

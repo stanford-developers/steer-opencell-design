@@ -280,10 +280,25 @@ class PrismaticCell(_Cell):
         if self._update_properties:
             if self._reference_electrode_assembly._layup._electrode_orientation == ElectrodeOrientation.LONGITUDINAL:
                 if self._encapsulation._connector_orientation != ConnectorOrientation.LONGITUDINAL:
-                    self._encapsulation._connector_orientation = ConnectorOrientation.LONGITUDINAL
+                    self._encapsulation.connector_orientation = ConnectorOrientation.LONGITUDINAL
+
+                    # Swap height and length to match orientation change
+                    _original_height = self._encapsulation._canister._height
+                    _original_width = self._encapsulation._canister._width
+                    self._encapsulation._canister.height = _original_width * M_TO_MM
+                    self._encapsulation._canister.width = _original_height * M_TO_MM
+                    self._encapsulation.canister = self._encapsulation.canister
+
             elif self._reference_electrode_assembly._layup._electrode_orientation == ElectrodeOrientation.TRANSVERSE:
                 if self._encapsulation._connector_orientation != ConnectorOrientation.TRANSVERSE:
-                    self._encapsulation._connector_orientation = ConnectorOrientation.TRANSVERSE
+                    self._encapsulation.connector_orientation = ConnectorOrientation.TRANSVERSE
+                    
+                    # Swap height and length to match orientation change
+                    _original_height = self._encapsulation._canister._height
+                    _original_width = self._encapsulation._canister._width
+                    self._encapsulation._canister.height = _original_width * M_TO_MM
+                    self._encapsulation._canister.width = _original_height * M_TO_MM
+                    self._encapsulation.canister = self._encapsulation.canister
 
     @encapsulation.setter
     @calculate_all_properties
