@@ -10,11 +10,8 @@ import plotly.graph_objects as go
 
 # Core STEER imports
 from steer_core.Constants.Units import *
-from steer_core.Decorators.General import (
-    calculate_all_properties,
-    calculate_bulk_properties,
-)
-from steer_core.Decorators.Coordinates import calculate_areas
+from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
+from steer_core.Decorators.Coordinates import calculate_areas, calculate_coordinates
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
@@ -1447,7 +1444,7 @@ class _TapeCurrentCollector(_CurrentCollector):
 
         else:
             min_length = self._calculate_total_length_with_skip_coating() * M_TO_MM
-            return (np.round(min_length, 2), 10000)
+            return (np.round(min_length, 2) + 200, 10000)
 
     @property
     def y_foil_length_range(self) -> Tuple[float, float]:
