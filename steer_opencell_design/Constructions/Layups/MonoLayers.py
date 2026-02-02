@@ -393,6 +393,7 @@ class ZFoldMonoLayer(MonoLayer):
             anode=anode,
             top_separator=top_separator,
             name=name,
+            electrode_orientation=electrode_orientation,
         )
 
         # Electrode orientation behavior same as MonoLayer

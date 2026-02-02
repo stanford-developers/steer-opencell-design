@@ -1163,13 +1163,17 @@ class _Layup(
 
         # if electrode_orientation is ElectrodeOrientation.TRANSVERSE, check and adjust anode orientation
         if self._electrode_orientation == ElectrodeOrientation.TRANSVERSE:
-            if not self._cathode._flipped_y:
-                self._cathode._flip("y")
-                # self._cathode._flip("y")
-                # self._cathode._flip("x")
-        elif self._electrode_orientation == ElectrodeOrientation.LONGITUDINAL:
+            if not self._anode._flipped_y:
+                self._anode._flip("y")
             if self._cathode._flipped_y:
                 self._cathode._flip("y")
-                # self._cathode._flip("y")
-                # self._cathode._flip("x")
+        elif self._electrode_orientation == ElectrodeOrientation.LONGITUDINAL:
+            if self._anode._flipped_y:
+                self._anode._flip("y")
+            if self._cathode._flipped_y:
+                self._cathode._flip("y")
+
+        if hasattr(self._anode._current_collector, "_tab_position"):
+            _distance_from_end = self._anode._current_collector._x_foil_length - self._anode._current_collector._tab_position
+            self._anode._current_collector.tab_position = _distance_from_end * M_TO_MM
 
