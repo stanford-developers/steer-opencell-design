@@ -255,8 +255,8 @@ class TestSimpleLaminate(unittest.TestCase):
 
         fig6 = self.layup.get_down_top_view()
 
-        # fig1.show()
-        # fig2.show()
+        fig1.show()
+        fig2.show()
         # fig3.show()
         # fig4.show()
         # fig5.show()

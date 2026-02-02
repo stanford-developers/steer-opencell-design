@@ -1423,8 +1423,8 @@ class TestStackedPrismaticCell(unittest.TestCase):
         self.assertIsNotNone(fig1)
         self.assertIsNotNone(fig2)
 
-        fig1.show()
-        fig2.show()
+        # fig1.show()
+        # fig2.show()
 
 
 class TestFlatJellyRollPrismatic(unittest.TestCase):

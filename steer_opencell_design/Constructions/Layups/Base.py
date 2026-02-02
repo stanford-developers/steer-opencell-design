@@ -86,7 +86,7 @@ class _Layup(
         bottom_separator: Separator,
         anode: Anode,
         top_separator: Separator,
-        electrode_orientation: ElectrodeOrientation = ElectrodeOrientation.LONGITUDINAL,
+        electrode_orientation: ElectrodeOrientation,
         name: str = "Layup",
     ):
         """
@@ -99,7 +99,7 @@ class _Layup(
         cathode : Cathode
             The cathode component of the layup.
         electrode_orientation : ElectrodeOrientation
-            The orientation of the electrode (default: ElectrodeOrientation.LONGITUDINAL).
+            The orientation of the electrode (default: ElectrodeOrientation.TRANSVERSE).
         name : str, optional
             Name of the layup (default: "Layup").
         """
@@ -1165,9 +1165,11 @@ class _Layup(
         if self._electrode_orientation == ElectrodeOrientation.TRANSVERSE:
             if not self._cathode._flipped_y:
                 self._cathode._flip("y")
-                self._cathode._flip("x")
+                # self._cathode._flip("y")
+                # self._cathode._flip("x")
         elif self._electrode_orientation == ElectrodeOrientation.LONGITUDINAL:
             if self._cathode._flipped_y:
                 self._cathode._flip("y")
-                self._cathode._flip("x")
+                # self._cathode._flip("y")
+                # self._cathode._flip("x")
 
