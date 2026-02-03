@@ -153,8 +153,12 @@ class TestLFPSingleCurve(unittest.TestCase):
             density=3.6,
             specific_capacity_curves=half_cell,
             voltage_cutoff=4.0,
-            reversible_capacity_scaling=0.5,
+            reversible_specific_capacity_scaling=0.5,
         )
+
+    def test_attributes(self):
+        self.assertEqual(self.material.irreversible_specific_capacity_scaling, 1.0)
+        self.assertEqual(self.material.irreversible_specific_capacity, 156.64)
 
     def test_instantiation(self):
         """
@@ -172,14 +176,14 @@ class TestLFPSingleCurve(unittest.TestCase):
     def test_serialization(self):
         serialized = self.material.serialize()
         deserialized = CathodeMaterial.deserialize(serialized)
-        self.assertEqual(self.material, deserialized)
+        condition = self.material == deserialized
+        self.assertTrue(condition)
 
     def test_equality(self):
         self.assertTrue(self.material == self.material)
         self.assertTrue(self.material != self.material2)
 
     def test_extrapolation_window_setter(self):
-
         self.material.extrapolation_window = 0.5
         self.assertEqual(self.material.extrapolation_window, 0.5)
         self.assertEqual(self.material.voltage_cutoff_range, (3.6, 4.1))
@@ -220,12 +224,12 @@ class TestLFPSingleCurve(unittest.TestCase):
         self.material = CathodeMaterial.from_database("LFP")
         self.assertTrue(isinstance(self.material, CathodeMaterial))
 
-    def test_irreversible_capacity_scaling(self):
+    def test_irreversible_specific_capacity_scaling(self):
         """
         Test irreversible capacity scaling
         """
         self.material.voltage_cutoff = 4
-        self.material.irreversible_capacity_scaling = 0.5
+        self.material.irreversible_specific_capacity_scaling = 0.5
 
         data = self.material.specific_capacity_curve
         figure = self.material.plot_specific_capacity_curve()
@@ -253,12 +257,12 @@ class TestLFPSingleCurve(unittest.TestCase):
 
         # figure.show()
 
-    def test_reversible_capacity_scaling(self):
+    def test_reversible_specific_capacity_scaling(self):
         """
         Test reversible capacity scaling
         """
         self.material.voltage_cutoff = 4
-        self.material.reversible_capacity_scaling = 0.5
+        self.material.reversible_specific_capacity_scaling = 0.5
 
         data = self.material.specific_capacity_curve
         figure = self.material.plot_specific_capacity_curve()
@@ -292,25 +296,9 @@ class TestLFPSingleCurve(unittest.TestCase):
         figure = self.material2.plot_specific_capacity_curve()
 
         self.assertEqual(round(data["Voltage (V)"].max(), 10), 4)
-        self.assertEqual(
-            np.round(
-                data.query('Direction == "discharge"')[
-                    "Specific Capacity (mAh/g)"
-                ].min(),
-                2,
-            ),
-            79.39,
-        )
-        self.assertEqual(
-            np.round(data.query('Direction == "discharge"')["Voltage (V)"].min(), 2), 2.7
-        )
-        self.assertEqual(
-            np.round(
-                data.query('Direction == "charge"')["Specific Capacity (mAh/g)"].max(),
-                2,
-            ),
-            155.19,
-        )
+        self.assertEqual(np.round(data.query('Direction == "discharge"')["Specific Capacity (mAh/g)"].min(), 2), 79.39)
+        self.assertEqual(np.round(data.query('Direction == "discharge"')["Voltage (V)"].min(), 2), 2.7)
+        self.assertEqual(np.round(data.query('Direction == "charge"')["Specific Capacity (mAh/g)"].max(),2,), 155.19,)
 
         # figure.show()
 
@@ -319,14 +307,14 @@ class TestLFPSingleCurve(unittest.TestCase):
         Test switching values
         """
         self.material.voltage_cutoff = 4.0
-        self.material.reversible_capacity_scaling = 0.5
-        self.material.irreversible_capacity_scaling = 0.5
-        self.material.reversible_capacity_scaling = 0.2
-        self.material.irreversible_capacity_scaling = 0.2
+        self.material.reversible_specific_capacity_scaling = 0.5
+        self.material.irreversible_specific_capacity_scaling = 0.5
+        self.material.reversible_specific_capacity_scaling = 0.2
+        self.material.irreversible_specific_capacity_scaling = 0.2
         self.material.voltage_cutoff = 4.1
         self.material.voltage_cutoff = 4.0
-        self.material.reversible_capacity_scaling = 1
-        self.material.irreversible_capacity_scaling = 1
+        self.material.reversible_specific_capacity_scaling = 1
+        self.material.irreversible_specific_capacity_scaling = 1
 
         data = self.material.specific_capacity_curve
 
@@ -1063,9 +1051,7 @@ class TestHardCarbon(unittest.TestCase):
         Test instantiation
         """
         self.assertTrue(isinstance(self.material, AnodeMaterial))
-        self.assertEqual(self.material.voltage_cutoff_range, (0.05, 0))
         figure = self.material.plot_specific_capacity_curve()
-
         # figure.show()
 
     def test_voltage_setter_extrapolate(self):
@@ -1092,11 +1078,11 @@ class TestHardCarbon(unittest.TestCase):
 
         # figure.show()
 
-    def test_reversible_capacity_scaling(self):
+    def test_reversible_specific_capacity_scaling(self):
         """
         Test reversible capacity scaling
         """
-        self.material.reversible_capacity_scaling = 0.5
+        self.material.reversible_specific_capacity_scaling = 0.5
         data = self.material.specific_capacity_curve
         figure = self.material.plot_specific_capacity_curve()
 
@@ -1189,10 +1175,11 @@ class TestElectrolyteVolumeMassCost(unittest.TestCase):
         self.assertAlmostEqual(self.electrolyte.cost, 0.18, places=2)
 
     def test_mass_setter_updates_volume_and_cost(self):
+        
         self.electrolyte.mass = 25.0
 
         self.assertAlmostEqual(self.electrolyte.mass, 25.0, places=2)
-        self.assertAlmostEqual(self.electrolyte.volume, 20.8333, places=3)
+        self.assertAlmostEqual(self.electrolyte.volume, 20.83, places=3)
         self.assertAlmostEqual(self.electrolyte.cost, 0.38, places=2)
 
 

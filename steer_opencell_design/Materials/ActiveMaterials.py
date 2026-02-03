@@ -2,6 +2,7 @@ from steer_core.Constants.Units import *
 from steer_core.Mixins.Data import DataMixin
 from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Mixins.Plotter import PlotterMixin
+from steer_core.Decorators.General import calculate_all_properties
 
 from steer_materials.Base import _Material, _VolumedMaterialMixin
 
@@ -31,10 +32,9 @@ class _ActiveMaterial(
         density: float,
         specific_capacity_curves: Union[List[pd.DataFrame], pd.DataFrame],
         color: Optional[str] = "#2c2c2c",
-        voltage_cutoff: Optional[float] = None,
         extrapolation_window: Optional[float] = 0.4,
-        reversible_capacity_scaling: Optional[float] = 1.0,
-        irreversible_capacity_scaling: Optional[float] = 1.0,
+        reversible_specific_capacity_scaling: Optional[float] = 1.0,
+        irreversible_specific_capacity_scaling: Optional[float] = 1.0,
         *,
         volume=None,
         mass=None,
@@ -63,9 +63,9 @@ class _ActiveMaterial(
         extrapolation_window : Optional[float]
             The extrapolation window in V. This is the amount of voltage below the maximum voltage (for CathodeMaterial) or above the minimum voltage (for AnodeMaterial)
             of the half cell curves that will be used for extrapolation. This allows for estimation of voltage profiles over a voltage window
-        reversible_capacity_scaling : Optional[float]
+        reversible_specific_capacity_scaling : Optional[float]
             Scaling factor for the reversible capacity of the material. Default is 1.0 (no scaling).
-        irreversible_capacity_scaling : Optional[float]
+        irreversible_specific_capacity_scaling : Optional[float]
             Scaling factor for the irreversible capacity of the material. Default is 1.0 (no scaling).
         """
         super().__init__(
@@ -83,14 +83,47 @@ class _ActiveMaterial(
         self.reference = reference
         self.extrapolation_window = extrapolation_window
         self.specific_capacity_curves = specific_capacity_curves
-        self.voltage_cutoff = voltage_cutoff
-        self.reversible_capacity_scaling = reversible_capacity_scaling
-        self.irreversible_capacity_scaling = irreversible_capacity_scaling
-
-        self._update_properties = True
+        self.reversible_specific_capacity_scaling = reversible_specific_capacity_scaling
+        self.irreversible_specific_capacity_scaling = irreversible_specific_capacity_scaling
 
     def _calculate_all_properties(self) -> None:
+
         self._refresh_specific_capacity_curve()
+
+        if self._update_properties == False:
+            self._calculate_specific_capacity_ranges()
+
+    def _calculate_specific_capacity_ranges(self) -> None:
+
+        _minimum_curve = self._apply_irreversible_specific_capacity_scaling(
+            self._specific_capacity_curve, self.irreversible_specific_capacity_scaling_range[0]
+        )
+
+        _maximum_curve = self._apply_irreversible_specific_capacity_scaling(
+            self._specific_capacity_curve, self.irreversible_specific_capacity_scaling_range[1]
+        )
+
+        self._irreversible_specific_capacity_range = (
+            _minimum_curve[:, 0].max(),
+            _maximum_curve[:, 0].max(),
+        )
+
+        _minimum_curve = self._apply_reversible_specific_capacity_scaling(
+            self._specific_capacity_curve, self.reversible_specific_capacity_scaling_range[0]
+        )
+
+        _maximum_curve = self._apply_reversible_specific_capacity_scaling(
+            self._specific_capacity_curve, self.reversible_specific_capacity_scaling_range[1]
+        )
+
+        discharge_mask = self._specific_capacity_curve[:, 2] == -1
+
+        self._reversible_specific_capacity_range = (
+            _minimum_curve[:, 0].max() - _minimum_curve[discharge_mask, 0].min(),
+            _maximum_curve[:, 0].max() - _maximum_curve[discharge_mask, 0].min(),
+        )
+
+        return self._irreversible_specific_capacity_range, self._reversible_specific_capacity_range
 
     def _get_default_curve_from_curves(self) -> None:
         """
@@ -167,29 +200,39 @@ class _ActiveMaterial(
             )
 
     def _calculate_specific_capacity_curves_properties(self):
+
         self._get_maximum_operating_voltage()
         self._get_minimum_operating_voltage()
         self._get_operating_voltage_range()
 
+        if not hasattr(self, '_voltage_cutoff') or self._voltage_cutoff is None:
+            self._voltage_cutoff = self._voltage_operation_window[1]
+
     def _refresh_specific_capacity_curve(self) -> None:
         """Recalculate the working half-cell curve using the current cutoff."""
-        if not hasattr(self, "_specific_capacity_curves") or not self._specific_capacity_curves:
-            return
 
-        if not hasattr(self, "_voltage_operation_window"):
-            self._calculate_specific_capacity_curves_properties()
+        # calculate properties from the underlying data
+        self._calculate_specific_capacity_curves_properties()
 
-        voltage_cutoff = getattr(self, "_voltage_cutoff", None)
-
-        if voltage_cutoff is None:
-            self._get_default_curve_from_curves()
-            return
-
+        # get the curve from the underlying curves data
         self._specific_capacity_curve = self._calculate_specific_capacity_curve(
             self._specific_capacity_curves,
-            voltage_cutoff,
+            self._voltage_cutoff,
             self._voltage_operation_window,
             type(self),
+        )
+
+        # apply irreversible scaling
+        if self._irreversible_specific_capacity_scaling != 1.0:
+            self._specific_capacity_curve = self._apply_irreversible_specific_capacity_scaling(self._specific_capacity_curve, self._irreversible_specific_capacity_scaling)
+
+        # apply reversible scaling
+        if self._reversible_specific_capacity_scaling != 1.0:
+            self._specific_capacity_curve = self._apply_reversible_specific_capacity_scaling(self._specific_capacity_curve, self._reversible_specific_capacity_scaling)
+
+        # calculate capacity properties
+        self._irreversible_specific_capacity, self._reversible_specific_capacity = self._calculate_capacity_curve_properties(
+            self._specific_capacity_curve
         )
 
     def plot_underlying_specific_capacity_curves(self, **kwargs):
@@ -364,28 +407,64 @@ class _ActiveMaterial(
         )
 
     @property
-    def irreversible_capacity_scaling(self) -> float:
-        return self._irreversible_capacity_scaling
+    def irreversible_specific_capacity_scaling(self) -> float:
+        return np.round(self._irreversible_specific_capacity_scaling, 2)
 
     @property
-    def irreversible_capacity_scaling_range(self) -> Tuple:
-        return 0.8, 1.1
+    def irreversible_specific_capacity_scaling_range(self) -> Tuple:
+        return 0.8, 1.3
 
     @property
-    def irreversible_capacity_scaling_hard_range(self) -> Tuple:
+    def irreversible_specific_capacity_scaling_hard_range(self) -> Tuple:
         return 0, 2
 
     @property
-    def reversible_capacity_scaling(self) -> float:
-        return self._reversible_capacity_scaling
+    def reversible_specific_capacity_scaling(self) -> float:
+        return np.round(self._reversible_specific_capacity_scaling, 2)
 
     @property
-    def reversible_capacity_scaling_range(self) -> Tuple:
-        return 0.8, 1.1
+    def reversible_specific_capacity_scaling_range(self) -> Tuple:
+        return 0.8, 1.3
 
     @property
-    def reversible_capacity_scaling_hard_range(self) -> Tuple:
+    def reversible_specific_capacity_scaling_hard_range(self) -> Tuple:
         return 0, 2
+
+    @property
+    def irreversible_specific_capacity(self) -> float:
+        """Get the irreversible specific capacity in mAh/g."""
+        return np.round(self._irreversible_specific_capacity * (S_TO_H * A_TO_mA / KG_TO_G), 2)
+    
+    @property
+    def irreversible_specific_capacity_range(self) -> Tuple[float, float]:
+        """Get the irreversible specific capacity range in mAh/g."""
+        return (
+            np.round(self._irreversible_specific_capacity_range[0] * (S_TO_H * A_TO_mA / KG_TO_G), 2),
+            np.round(self._irreversible_specific_capacity_range[1] * (S_TO_H * A_TO_mA / KG_TO_G), 2),
+        )
+    
+    @property
+    def irreversible_specific_capacity_hard_range(self) -> Tuple[float, float]:
+        """Get the irreversible specific capacity hard range in mAh/g."""
+        return (0, 6000)
+
+    @property
+    def reversible_specific_capacity(self) -> float:
+        """Get the reversible specific capacity in mAh/g."""
+        return np.round(self._reversible_specific_capacity * (S_TO_H * A_TO_mA / KG_TO_G), 2)
+    
+    @property
+    def reversible_specific_capacity_range(self) -> Tuple[float, float]:
+        """Get the reversible specific capacity range in mAh/g."""
+        return (
+            np.round(self._reversible_specific_capacity_range[0] * (S_TO_H * A_TO_mA / KG_TO_G), 2),
+            np.round(self._reversible_specific_capacity_range[1] * (S_TO_H * A_TO_mA / KG_TO_G), 2),
+        )
+    
+    @property
+    def reversible_specific_capacity_hard_range(self) -> Tuple[float, float]:
+        """Get the reversible specific capacity hard range in mAh/g."""
+        return (0, 6000)
 
     @property
     def specific_capacity_curve_trace(self) -> go.Scatter:
@@ -399,13 +478,49 @@ class _ActiveMaterial(
             hovertemplate="<b>%{fullData.name}</b><br>" + "Capacity: %{x:.2f} mAh/g<br>" + "Voltage: %{y:.3f} V<br>" + "<i>Individual Material</i><extra></extra>",
         )
 
+    @irreversible_specific_capacity.setter
+    def irreversible_specific_capacity(self, capacity: float):
+        
+        # validate input
+        self.validate_positive_float(capacity, "Irreversible specific capacity")
+
+        # convert to SI units
+        target_capacity = capacity * (mA_TO_A * H_TO_S / G_TO_KG)
+
+        # Get the base capacity (when scaling = 1.0)
+        base_capacity = self._irreversible_specific_capacity / self._irreversible_specific_capacity_scaling
+
+        # Calculate new scaling factor to achieve target capacity
+        new_scaling = target_capacity / base_capacity
+
+        # apply the scaling factor
+        self.irreversible_specific_capacity_scaling = new_scaling
+
+    @reversible_specific_capacity.setter
+    def reversible_specific_capacity(self, capacity: float):
+        # validate input
+        self.validate_positive_float(capacity, "Reversible specific capacity")
+
+        # convert to SI units
+        target_capacity = capacity * (mA_TO_A * H_TO_S / G_TO_KG)
+
+        # Get the base capacity (when scaling = 1.0)
+        base_capacity = self._reversible_specific_capacity / self._reversible_specific_capacity_scaling
+
+        # Calculate new scaling factor to achieve target capacity
+        new_scaling = target_capacity / base_capacity
+
+        # apply the scaling factor
+        self.reversible_specific_capacity_scaling = new_scaling
+
     @reference.setter
     def reference(self, reference: str):
         self.validate_electrochemical_reference(reference)
         self._reference = reference
 
-    @reversible_capacity_scaling.setter
-    def reversible_capacity_scaling(self, scaling: float):
+    @reversible_specific_capacity_scaling.setter
+    @calculate_all_properties
+    def reversible_specific_capacity_scaling(self, scaling: float):
         """
         Set the reversible capacity scaling factor.
 
@@ -414,17 +529,11 @@ class _ActiveMaterial(
         # validate input
         self.validate_positive_float(scaling, "Reversible capacity scaling")
 
-        # get the old scaling factor
-        if hasattr(self, "_reversible_capacity_scaling") and self._reversible_capacity_scaling != 1.0:
-            original_scaling = self._reversible_capacity_scaling
-            self._specific_capacity_curve = self._apply_reversible_capacity_scaling(self._specific_capacity_curve, 1 / original_scaling)
-        else:
-            original_scaling = 1.0
-
-        self._specific_capacity_curve = self._apply_reversible_capacity_scaling(self._specific_capacity_curve, scaling)
-        self._reversible_capacity_scaling = scaling
+        # apply the scaling factor
+        self._reversible_specific_capacity_scaling = scaling
 
     @voltage_cutoff.setter
+    @calculate_all_properties
     def voltage_cutoff(self, voltage: float) -> None:
         """
         Set the voltage cutoff for the half cell curves.
@@ -447,65 +556,30 @@ class _ActiveMaterial(
         """
         # Check if the voltage is None, which means we want to use the default curve
         if voltage is None:
-            self._get_default_curve_from_curves()
-
-        # calculate the half cell curve based on the voltage cutoff and the available data
+            self._voltage_cutoff = None
+            return
         else:
             self.validate_positive_float(voltage, "Voltage cutoff")
             self._voltage_cutoff = voltage
-            if not hasattr(self, "_voltage_operation_window"):
-                self._calculate_specific_capacity_curves_properties()
-
-            self._specific_capacity_curve = self._calculate_specific_capacity_curve(
-                self._specific_capacity_curves,
-                self._voltage_cutoff,
-                self._voltage_operation_window,
-                type(self),
-            )
-
-            if (
-                hasattr(self, "_irreversible_capacity_scaling")
-                and self._irreversible_capacity_scaling != 1.0
-            ):
-                self._specific_capacity_curve = self._apply_irreversible_capacity_scaling(
-                    self._specific_capacity_curve,
-                    self._irreversible_capacity_scaling,
-                )
-
-            if (
-                hasattr(self, "_reversible_capacity_scaling")
-                and self._reversible_capacity_scaling != 1.0
-            ):
-                self._specific_capacity_curve = self._apply_reversible_capacity_scaling(
-                    self._specific_capacity_curve,
-                    self._reversible_capacity_scaling,
-                )
-
-    @irreversible_capacity_scaling.setter
-    def irreversible_capacity_scaling(self, scaling: float):
+            return 
+        
+    @irreversible_specific_capacity_scaling.setter
+    @calculate_all_properties
+    def irreversible_specific_capacity_scaling(self, scaling: float):
         """
         Set the irreversible capacity scaling factor.
 
         :param scaling: float: scaling factor for irreversible capacity
         """
+        # validate input
         self.validate_positive_float(scaling, "Irreversible capacity scaling")
-        
-        if hasattr(self, "_irreversible_capacity_scaling") and self._irreversible_capacity_scaling != 1.0:
-            original_scaling = self._irreversible_capacity_scaling
-            self._specific_capacity_curve = self._apply_irreversible_capacity_scaling(self._specific_capacity_curve, 1 / original_scaling)
-        else:
-            original_scaling = 1.0
-        
-        # apply the new scaling factor
-        if hasattr(self, "_specific_capacity_curve"):
-            self._specific_capacity_curve = self._apply_irreversible_capacity_scaling(self._specific_capacity_curve, scaling)
 
-        self._irreversible_capacity_scaling = scaling
+        # apply the scaling factor
+        self._irreversible_specific_capacity_scaling = scaling
 
     @specific_capacity_curves.setter
-    def specific_capacity_curves(
-        self, specific_capacity_curves: Union[List[pd.DataFrame], pd.DataFrame]
-    ) -> None:
+    @calculate_all_properties
+    def specific_capacity_curves(self, specific_capacity_curves: Union[List[pd.DataFrame], pd.DataFrame]) -> None:
 
         # Ensure specific_capacity_curves is a list
         if not isinstance(specific_capacity_curves, List):
@@ -543,17 +617,15 @@ class _ActiveMaterial(
 
         self._specific_capacity_curves = processed_curves
 
-        # Store useful values for the half cell curves
-        self._calculate_specific_capacity_curves_properties()
-        self._refresh_specific_capacity_curve()
-
     @extrapolation_window.setter
+    @calculate_all_properties
     def extrapolation_window(self, window: float):
-        self.validate_positive_float(window, "Extrapolation window")
-        self._extrapolation_window = abs(float(window))
 
-        if self._update_properties:
-            self._calculate_specific_capacity_curves_properties()
+        # validate input
+        self.validate_positive_float(window, "Extrapolation window")
+
+        # set the extrapolation window
+        self._extrapolation_window = abs(float(window))
 
 
 class CathodeMaterial(_ActiveMaterial):
@@ -570,8 +642,8 @@ class CathodeMaterial(_ActiveMaterial):
         color: str = "#2c2c2c",
         voltage_cutoff: float = None,
         extrapolation_window: float = 0.4,
-        reversible_capacity_scaling: float = 1.0,
-        irreversible_capacity_scaling: float = 1.0,
+        reversible_specific_capacity_scaling: float = 1.0,
+        irreversible_specific_capacity_scaling: float = 1.0,
         *,
         volume=None,
         mass=None,
@@ -599,9 +671,9 @@ class CathodeMaterial(_ActiveMaterial):
             This is useful for cathode materials where the voltage can go below 0V, e.g., for Li-ion batteries.
         color : str
             Color of the material, used for plotting.
-        reversible_capacity_scaling : float
+        reversible_specific_capacity_scaling : float
             Scaling factor for the reversible capacity of the material. Default is 1.0 (no scaling).
-        irreversible_capacity_scaling : float
+        irreversible_specific_capacity_scaling : float
             Scaling factor for the irreversible capacity of the material. Default is 1.0 (no scaling).
         """
         super().__init__(
@@ -612,13 +684,16 @@ class CathodeMaterial(_ActiveMaterial):
             specific_capacity_curves=specific_capacity_curves,
             color=color,
             extrapolation_window=extrapolation_window,
-            voltage_cutoff=voltage_cutoff,
-            reversible_capacity_scaling=reversible_capacity_scaling,
-            irreversible_capacity_scaling=irreversible_capacity_scaling,
+            reversible_specific_capacity_scaling=reversible_specific_capacity_scaling,
+            irreversible_specific_capacity_scaling=irreversible_specific_capacity_scaling,
             volume=volume,
             mass=mass,
             **kwargs,
         )
+
+        self.voltage_cutoff = voltage_cutoff
+        self._calculate_all_properties()
+        self._update_properties = True
 
     @property
     def minimum_extrapolated_voltage(self) -> float:
@@ -646,9 +721,8 @@ class AnodeMaterial(_ActiveMaterial):
         specific_capacity_curves: Union[List[pd.DataFrame], pd.DataFrame],
         color: str = "#2c2c2c",
         extrapolation_window: float = 0.05,
-        voltage_cutoff: float = None,
-        reversible_capacity_scaling: float = 1.0,
-        irreversible_capacity_scaling: float = 1.0,
+        reversible_specific_capacity_scaling: float = 1.0,
+        irreversible_specific_capacity_scaling: float = 1.0,
         *,
         volume=None,
         mass=None,
@@ -676,9 +750,9 @@ class AnodeMaterial(_ActiveMaterial):
         extrapolation_window : float
             The positive voltage extrapolation window in V. This is the amount of voltage above the maximum voltage of the half cell curves that will be used for extrapolation.
             This is useful for anode materials where the voltage can go above 0V, e.g., for Li-ion batteries.
-        reversible_capacity_scaling : float
+        reversible_specific_capacity_scaling : float
             Scaling factor for the reversible capacity of the material. Default is 1.0 (no scaling).
-        irreversible_capacity_scaling : float
+        irreversible_specific_capacity_scaling : float
             Scaling factor for the irreversible capacity of the material. Default is 1.0 (no scaling).
         """
         super().__init__(
@@ -688,12 +762,15 @@ class AnodeMaterial(_ActiveMaterial):
             density=density,
             specific_capacity_curves=specific_capacity_curves,
             color=color,
-            voltage_cutoff=voltage_cutoff,
             extrapolation_window=extrapolation_window,
-            reversible_capacity_scaling=reversible_capacity_scaling,
-            irreversible_capacity_scaling=irreversible_capacity_scaling,
+            reversible_specific_capacity_scaling=reversible_specific_capacity_scaling,
+            irreversible_specific_capacity_scaling=irreversible_specific_capacity_scaling,
             volume=volume,
             mass=mass,
             **kwargs,
         )
+
+        self._calculate_all_properties()
+        self._update_properties = True
+
 

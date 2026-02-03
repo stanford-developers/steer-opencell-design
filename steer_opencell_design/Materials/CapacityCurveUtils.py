@@ -172,7 +172,7 @@ class CapacityCurveMixin:
         return curve
     
     @staticmethod
-    def _apply_reversible_capacity_scaling(curve: np.ndarray, scaling: float) -> np.ndarray:
+    def _apply_reversible_specific_capacity_scaling(curve: np.ndarray, scaling: float) -> np.ndarray:
         """Scale only the reversible capacity portion of the discharge curve.
 
         Parameters
@@ -205,7 +205,7 @@ class CapacityCurveMixin:
         return result
 
     @staticmethod
-    def _apply_irreversible_capacity_scaling(curve: np.ndarray, scaling: float) -> np.ndarray:
+    def _apply_irreversible_specific_capacity_scaling(curve: np.ndarray, scaling: float) -> np.ndarray:
         """Uniformly scale capacity columns to model irreversible loss.
 
         Parameters
@@ -633,4 +633,15 @@ class CapacityCurveMixin:
 
         return specific_capacity_curve
 
+    @staticmethod
+    def _calculate_capacity_curve_properties(specific_capacity_curve):
 
+        # get the irreversible capacity as the maximum capacity of the curve
+        _irreverible_capacity = specific_capacity_curve[:, 0].max()
+
+        # get the reversible capacity as the maximum capacity of the discharge curve
+        _discharge_mask = specific_capacity_curve[:, 2] == -1
+        _reversible_capacity = _irreverible_capacity - specific_capacity_curve[_discharge_mask, 0].min()
+
+        # return both capacities
+        return _irreverible_capacity, _reversible_capacity
