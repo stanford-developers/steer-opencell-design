@@ -365,6 +365,17 @@ class Separator(
     @property
     def areal_cost(self) -> float:
         return np.round(self._areal_cost, 2)
+    
+    @property
+    def areal_cost_range(self) -> Tuple[float, float]:
+        _specific_cost_minimum = self.material._specific_cost_range[0]
+        _specific_cost_maximum = self.material._specific_cost_range[1]
+        _areal_cost_minimum = _specific_cost_minimum * self.material._density * self._thickness
+        _areal_cost_maximum = _specific_cost_maximum * self.material._density * self._thickness
+        return (
+            np.round(_areal_cost_minimum, 2),
+            np.round(_areal_cost_maximum, 2),
+        )
 
     @property
     def pore_volume(self) -> float:
@@ -448,6 +459,7 @@ class Separator(
         self.validate_positive_float(areal_cost, "Areal Cost")
         new_material_specific_cost = areal_cost / (self.material._density * self._thickness)  # $/kg
         self._material.specific_cost = new_material_specific_cost
+        self.material = self._material 
 
     @name.setter
     def name(self, name: str) -> None:
