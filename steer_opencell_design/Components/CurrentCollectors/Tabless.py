@@ -252,7 +252,7 @@ class TablessCurrentCollector(NotchedCurrentCollector):
             max_width = self.y_foil_length_range[1] + self.tab_height
             return (round(min_width, 2), np.round(max_width, 2))
         else:
-            return (0, 1000)
+            return (0, 300)
 
     @property
     def tab_height(self) -> float:

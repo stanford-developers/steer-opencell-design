@@ -13,6 +13,9 @@ import plotly.graph_objects as go
 # Tab alignment tolerance constant
 TAB_ALIGNMENT_TOLERANCE = 3e-3  # 3 mm tolerance for tab-terminal alignment (meters)
 
+# Dimension fit tolerance constant
+DIMENSION_FIT_TOLERANCE = 1e-3  # 1 mm tolerance for assembly-encapsulation fit (meters)
+
 
 class CylindricalCell(_Cell):
 
@@ -143,7 +146,7 @@ class CylindricalCell(_Cell):
             Encapsulation to validate against
         """
         # Height validation
-        if assembly._total_height > encapsulation._internal_height:
+        if assembly._total_height > encapsulation._internal_height + DIMENSION_FIT_TOLERANCE:
             warnings.warn(
                 f"Assembly height ({assembly.total_height} mm) exceeds "
                 f"encapsulation internal height ({encapsulation.internal_height} mm). "
@@ -151,7 +154,7 @@ class CylindricalCell(_Cell):
             )
 
         # Radius validation
-        if assembly._radius > encapsulation._canister._inner_radius:
+        if assembly._radius > encapsulation._canister._inner_radius + DIMENSION_FIT_TOLERANCE:
             warnings.warn(
                 f"Assembly radius ({assembly.radius} mm) exceeds "
                 f"encapsulation internal radius ({encapsulation._canister.inner_radius} mm). "
@@ -197,6 +200,18 @@ class CylindricalCell(_Cell):
             Encapsulation to validate
         """
         self._validate_assembly_encapsulation_fit(self._reference_electrode_assembly, encapsulation)
+
+    def fit_assembly_radius_to_canister(self) -> None:
+        target_radius = self._encapsulation._canister.inner_radius
+        self._reference_electrode_assembly.radius = target_radius
+        self.reference_electrode_assembly = self._reference_electrode_assembly
+        return self
+    
+    def fit_assembly_height_to_canister(self) -> None:
+        target_height = self._encapsulation.internal_height
+        self._reference_electrode_assembly.height = target_height
+        self.reference_electrode_assembly = self._reference_electrode_assembly
+        return self
 
     def get_top_down_view(self, **kwargs) -> go.Figure:
         """Generate top down view plot showing encapsulation and jelly roll cross-section.

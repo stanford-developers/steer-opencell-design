@@ -808,6 +808,26 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         else: 
             raise ValueError(f"Invalid tape length driver: {self._tape_length_driver}")
 
+    def _calculate_total_height(self) -> Tuple[float, float, float]:
+        """Calculate the total height of the jelly roll from component coordinates.
+        
+        Analyzes all component top-down coordinates to determine the minimum and
+        maximum Y positions, calculates the midpoint, and computes the total height.
+        
+        Returns
+        -------
+        Tuple[float, float, float]
+            (total_height, min_y_point, max_y_point) all in meters
+        """
+        y_coords = [c[:, 1] for c in self._component_top_down_coordinates.values()]
+        min_vals = [np.min(y) for y in y_coords]
+        max_vals = [np.max(y) for y in y_coords]
+        self._min_y_point = min(min_vals)
+        self._max_y_point = max(max_vals)
+        self._mid_y_point = (self._min_y_point + self._max_y_point) / 2
+        self._total_height = self._max_y_point - self._min_y_point
+        return self._total_height, self._min_y_point, self._max_y_point
+
     def _translate_spirals_xz(
             self, 
             x_shift: float, 
@@ -1178,6 +1198,8 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         
         # Recalculate with high-resolution parameters
         self._calculate_all_properties(**default_params)
+
+        return self
 
     @abstractmethod
     def _get_high_resolution_params(self) -> Dict[str, Any]:
@@ -1676,6 +1698,15 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
         return figure
+
+    @property
+    def height(self) -> float:
+        """Return the overall height of the jelly roll assembly in millimeters."""
+        return self.total_height
+    
+    @property
+    def height_range(self) -> Tuple[float, float]:
+        return self.layup.width_range
 
     @property
     def tape_length_driver(self) -> TapeDriver:
@@ -2564,6 +2595,43 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         if hasattr(self, '_tape') and self._tape is not None:
             self._tape._set_width_range(self)
 
+    @height.setter
+    @calculate_all_properties
+    def height(self, value: float) -> None:
+        """Set the total height by adjusting the layup width.
+        
+        Parameters
+        ----------
+        value : float
+            Desired total height in millimeters
+            
+        Notes
+        -----
+        This setter calculates the difference between the desired total height
+        and the current total height, then adjusts the layup width accordingly.
+        """
+        # Convert value from mm to meters
+        _target_total_height = value * MM_TO_M
+        
+        # Get current total height
+        _current_total_height = self._total_height
+        
+        # Calculate the difference
+        _height_difference = _target_total_height - _current_total_height
+        
+        # Adjust layup width (which affects total height)
+        _current_layup_width = self._layup._width
+        _new_layup_width = _current_layup_width + _height_difference
+        
+        # Set the new layup width
+        self.layup.width = _new_layup_width * M_TO_MM
+
+        # Adjust tape width by same amount
+        if self._tape is not None:
+            _current_tape_width = self._tape._width
+            _new_tape_width = _current_tape_width + _height_difference
+            self.tape.width = _new_tape_width * M_TO_MM
+
 
 class WoundJellyRoll(_JellyRoll):
     """Wound jelly roll electrode assembly for cylindrical cells.
@@ -2659,16 +2727,6 @@ class WoundJellyRoll(_JellyRoll):
         self._calculate_total_height()
 
         return self._radius, self._diameter, self._radius_range
-
-    def _calculate_total_height(self) -> float:
-        y_coords = [c[:, 1] for c in self._component_top_down_coordinates.values()]
-        min_vals = [np.min(y) for y in y_coords]
-        max_vals = [np.max(y) for y in y_coords]
-        self._min_y_point = min(min_vals)
-        self._max_y_point = max(max_vals)
-        self._mid_y_point = (self._min_y_point + self._max_y_point) / 2
-        self._total_height = self._max_y_point - self._min_y_point
-        return self._total_height, self._min_y_point, self._max_y_point
 
     def _calculate_radius_range(self) -> Tuple[float, float]:
         """Calculate the valid range of radii for this jelly roll configuration.
