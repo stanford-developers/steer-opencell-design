@@ -174,7 +174,7 @@ class Tape(
                 np.round(self._width_range[1] * M_TO_MM, 2),
             )
         else:
-            return (0, 500)
+            return (0, 300)
 
     @property
     def material(self) -> TapeMaterial:

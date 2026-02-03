@@ -1454,7 +1454,7 @@ class _TapeCurrentCollector(_CurrentCollector):
                 np.round(self._y_foil_length_range[1] * M_TO_MM, 2),
             )
         else:
-            return (10, 1000)
+            return (10, 300)
 
     @property
     def bare_lengths_a_side(self) -> Tuple[float, float]:
