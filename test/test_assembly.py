@@ -607,8 +607,7 @@ class TestFlatJellyRoll(unittest.TestCase):
     def test_serialization(self):
         serialized = self.my_jellyroll.serialize()
         deserialized = FlatWoundJellyRoll.deserialize(serialized)
-        test_case = self.my_jellyroll == deserialized
-        self.assertTrue(test_case)
+        self.assertEqual(self.my_jellyroll, deserialized)
 
     def test_plots(self):
 

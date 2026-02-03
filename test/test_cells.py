@@ -171,7 +171,7 @@ class TestCylindricalCell(unittest.TestCase):
             reference_electrode_assembly=my_jellyroll,
             encapsulation=encapsulation,
             electrolyte=electrolyte,
-            electrolyte_overfill=0.2,
+            electrolyte_overfill=20,
         )
         
         # Store components for tests
@@ -355,7 +355,7 @@ class TestCylindricalCell(unittest.TestCase):
         original_mass = self.cell.mass
         
         # Increase overfill
-        new_overfill = 0.5  # 50% overfill instead of 20%
+        new_overfill = 50 
         self.cell.electrolyte_overfill = new_overfill
         
         # Check that mass increased (more electrolyte)
@@ -376,12 +376,12 @@ class TestCylindricalCell(unittest.TestCase):
         """Test that multiple setter calls maintain consistency."""
         # Change multiple properties
         self.cell.operating_voltage_window = (2.69, 3.9)
-        self.cell.electrolyte_overfill = 0.3
+        self.cell.electrolyte_overfill = 30
         self.cell.name = "Modified Cell"
         
         # Verify all properties are consistent
         self.assertEqual(self.cell.operating_voltage_window, (2.69, 3.9))
-        self.assertEqual(self.cell.electrolyte_overfill, 0.3)
+        self.assertEqual(self.cell.electrolyte_overfill, 30)
         self.assertEqual(self.cell.name, "Modified Cell")
         
         # Verify calculated properties are still valid
@@ -597,7 +597,7 @@ class TestCylindricalCellTabbed(unittest.TestCase):
             reference_electrode_assembly=my_jellyroll,
             encapsulation=encapsulation,
             electrolyte=electrolyte,
-            electrolyte_overfill=0.2,
+            electrolyte_overfill=20,
         )
         
         # Store components for tests
@@ -794,7 +794,7 @@ class TestStackedPouchCell(unittest.TestCase):
             n_electrode_assembly=2,
             encapsulation=encapsulation,
             electrolyte=electrolyte,
-            electrolyte_overfill=0.2,
+            electrolyte_overfill=20,
             clipped_tab_length=10
         )
 
@@ -980,11 +980,11 @@ class TestStackedPouchCell(unittest.TestCase):
         original_mass = self.cell.mass
         
         # Increase overfill
-        self.cell.electrolyte_overfill = 0.5
+        self.cell.electrolyte_overfill = 50
         
         # Check that mass increased
         self.assertGreater(self.cell.mass, original_mass)
-        self.assertEqual(self.cell.electrolyte_overfill, 0.5)
+        self.assertEqual(self.cell.electrolyte_overfill, 50)
 
     def test_n_electrode_assembly_setter(self):
         """Test setting number of electrode assemblies."""
@@ -1212,7 +1212,7 @@ class TestStackedPrismaticCell(unittest.TestCase):
             n_electrode_assembly=6,
             encapsulation=encapsulation,
             electrolyte=electrolyte,
-            electrolyte_overfill=0.2,
+            electrolyte_overfill=20,
             clipped_tab_length=7
         )
 
@@ -1325,11 +1325,11 @@ class TestStackedPrismaticCell(unittest.TestCase):
         original_mass = self.cell.mass
         
         # Increase overfill
-        self.cell.electrolyte_overfill = 0.5
+        self.cell.electrolyte_overfill = 50
         
         # Check that mass increased
         self.assertGreater(self.cell.mass, original_mass)
-        self.assertEqual(self.cell.electrolyte_overfill, 0.5)
+        self.assertEqual(self.cell.electrolyte_overfill, 50)
 
     def test_n_electrode_assembly_setter(self):
         """Test setting number of electrode assemblies."""
@@ -1580,7 +1580,7 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
         self.cell = ocd.PrismaticCell(
             reference_electrode_assembly=jellyroll,
             electrolyte=electrolyte,
-            electrolyte_overfill=0.1,
+            electrolyte_overfill=10,
             encapsulation=encapsulation,
             n_electrode_assembly=4,
             operating_voltage_window=(2, 3.96),

@@ -25,7 +25,7 @@ class CylindricalCell(_Cell):
         encapsulation: CylindricalEncapsulation,
         electrolyte: Electrolyte,
         operating_voltage_window: Tuple[float, float] = (None, None),
-        electrolyte_overfill: float = 0.2,
+        electrolyte_overfill: float = 20,
         name: str = "Cylindrical Cell",
     ):
         """Create a cylindrical cell with wound jelly roll electrode assembly.
@@ -41,7 +41,7 @@ class CylindricalCell(_Cell):
         operating_voltage_window : Tuple[float, float]
             Operating voltage window (min_voltage, max_voltage) in volts
         electrolyte_overfill : float, optional
-            Fractional overfill beyond pore volume (default: 0.2 = 20%)
+            Fractional overfill beyond pore volume (default: 20%)
         name : str, optional
             Display name for the cell (default: "Cylindrical Cell")
         n_electrode_assembly : int, optional
