@@ -503,6 +503,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
     @tab_spacing.setter
     @calculate_all_properties
     def tab_spacing(self, tab_spacing: float) -> None:
+        
         self.validate_positive_float(tab_spacing, "tab_spacing")
 
         self._tab_spacing = float(tab_spacing) * MM_TO_M

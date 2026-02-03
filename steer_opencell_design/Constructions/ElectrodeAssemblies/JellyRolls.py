@@ -2405,6 +2405,17 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         """
         return tuple(round(d * M_TO_MM, 2) for d in self._datum)
     
+    @property
+    def total_height(self) -> float:
+        """Return the total height of the wound jelly roll in mm.
+        
+        Returns
+        -------
+        float
+            Total height in millimeters, rounded to 2 decimal places
+        """
+        return np.round(self._total_height * M_TO_MM, 2)
+
     @datum.setter
     def datum(self, value: Tuple[float, float, float]) -> None:
         
@@ -3024,17 +3035,6 @@ class WoundJellyRoll(_JellyRoll):
         return wound_jelly_roll
 
     @property
-    def total_height(self) -> float:
-        """Return the total height of the wound jelly roll in mm.
-        
-        Returns
-        -------
-        float
-            Total height in millimeters, rounded to 2 decimal places
-        """
-        return np.round(self._total_height * M_TO_MM, 2)
-
-    @property
     def radius(self) -> float:
         """Return the outer radius of the wound jelly roll in mm.
         
@@ -3405,6 +3405,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         self._thickness = SpiralCalculator.get_thickness_of_racetrack(combined_coords)
         self._width = SpiralCalculator.get_width_of_racetrack(combined_coords)
         self._calculate_thickness_width_range()
+        self._calculate_total_height()
 
         return self._thickness, self._width
 

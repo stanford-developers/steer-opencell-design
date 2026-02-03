@@ -116,9 +116,19 @@ class _Cell(
 
     def _calculate_electrolyte_properties(self) -> None:
         """Calculate electrolyte volume based on pore volume and overfill."""
-        _pore_volume = sum([ea._pore_volume for ea in self._electrode_assemblies])
-        _electrolyte_volume = _pore_volume * (1 + self.electrolyte_overfill)
-        electrolyte_volume = _electrolyte_volume * M_TO_CM**3
+        # Calculate total pore volume from all electrode assemblies
+        self._pore_volume = sum([ea._pore_volume for ea in self._electrode_assemblies])
+
+        # Set electrolyte ranges based on pore volume
+        self._electrolyte._set_ranges_from_pore_volume(self._pore_volume)
+
+        # Calculate electrolyte volume with overfill
+        _electrolyte_volume = self._pore_volume * (1 + self._electrolyte_overfill)
+
+        # Set electrolyte volume
+        electrolyte_volume = _electrolyte_volume * M_TO_CM ** 3
+
+        # Assign volume to electrolyte
         self._electrolyte.volume = electrolyte_volume
 
     def _make_assemblies(self) -> list[_ElectrodeAssembly]:
@@ -603,7 +613,11 @@ class _Cell(
 
     @property
     def electrolyte_overfill(self) -> float:
-        return self._electrolyte_overfill
+        return np.round(self._electrolyte_overfill * FRACTION_TO_PERCENT, MASS_PRECISION)
+    
+    @property
+    def electrolyte_overfill_range(self) -> Tuple[float, float]:
+        return (0.0, 100.0)
 
     @property
     def name(self) -> str:
@@ -1123,14 +1137,22 @@ class _Cell(
     @electrolyte.setter
     @calculate_all_properties
     def electrolyte(self, value: Electrolyte) -> None:
+
+        # validate type
         self.validate_type(value, Electrolyte, "electrolyte")
+
+        # check if it has a volume
+        if self._update_properties and hasattr(value, "_volume") and value._volume is not None and value._volume > 0:
+            self._electrolyte_overfill = (value._volume / self._pore_volume) - 1
+
+        # assign
         self._electrolyte = value
 
     @electrolyte_overfill.setter
     @calculate_all_properties
     def electrolyte_overfill(self, value: float) -> None:
         self.validate_percentage(value, "electrolyte_overfill")
-        self._electrolyte_overfill = value
+        self._electrolyte_overfill = value * PERCENT_TO_FRACTION
 
     @name.setter
     def name(self, value: str) -> None:

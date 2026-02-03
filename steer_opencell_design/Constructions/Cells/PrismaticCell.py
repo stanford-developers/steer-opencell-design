@@ -43,7 +43,7 @@ class PrismaticCell(_Cell):
         electrolyte: Electrolyte,
         operating_voltage_window: Tuple[float, float] = (None, None),
         clipped_tab_length: float = None,
-        electrolyte_overfill: float = 0.2,
+        electrolyte_overfill: float = 20,
         name: str = "Prismatic Cell",
     ):
         """Create a prismatic cell with wound jelly roll or stacked electrode assembly.

@@ -48,7 +48,7 @@ class PouchCell(_Cell):
         top_seal_thickness: float = 5,
         bottom_seal_thickness: float = 5,
         clipped_tab_length: float = None,
-        electrolyte_overfill: float = 0.2,
+        electrolyte_overfill: float = 20,
         name: str = "Pouch Cell",
     ):
         """Create a pouch cell with stacked electrode assembly.
