@@ -1171,6 +1171,8 @@ class _ElectrodeFormulation(
                 for material, fraction in materials_list[1:]:
                     new_active_materials[material] = fraction
                 self._active_materials = new_active_materials
+                # Handle voltage cutoff compatibility with remaining materials
+                self._handle_voltage_cutoff_compatibility()
             return
             
         # Validate the input
@@ -1218,6 +1220,8 @@ class _ElectrodeFormulation(
                 for material, fraction in materials_list[2:]:
                     new_active_materials[material] = fraction
                 self._active_materials = new_active_materials
+                # Handle voltage cutoff compatibility with remaining materials
+                self._handle_voltage_cutoff_compatibility()
             return
             
         # Validate the input
@@ -1264,6 +1268,8 @@ class _ElectrodeFormulation(
                 for material, fraction in materials_list[3:]:
                     new_active_materials[material] = fraction
                 self._active_materials = new_active_materials
+                # Handle voltage cutoff compatibility with remaining materials
+                self._handle_voltage_cutoff_compatibility()
             return
             
         # Validate the input

@@ -519,6 +519,54 @@ class TestCylindricalCell(unittest.TestCase):
         fig1 = self.cell.get_capacity_plot()
         # fig1.show()
 
+    def test_voltage_operating_range_after_active_material_removal(self):
+
+        fig1 = self.cell.get_capacity_plot()
+
+        # step 1 - set the active material as nmc
+        nmc = ocd.CathodeMaterial.from_database("NMC811")
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1 = nmc
+        self.cell.reference_electrode_assembly.layup.cathode.formulation = self.cell.reference_electrode_assembly.layup.cathode.formulation
+        self.cell.reference_electrode_assembly.layup.cathode.calender_density = 3.6
+        self.cell.reference_electrode_assembly.layup.cathode = self.cell.reference_electrode_assembly.layup.cathode
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+        self.cell.maximum_operating_voltage = 4.2
+        self.assertEqual(self.cell.maximum_operating_voltage, 4.2)
+        self.assertEqual(self.cell.maximum_operating_voltage_range[1], 4.22)
+
+        fig2 = self.cell.get_capacity_plot()
+
+        # step 2 - add lfp
+        lfp = ocd.CathodeMaterial.from_database("LFP")
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_2 = lfp
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_2_weight = 20
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1_weight = 75
+        self.cell.reference_electrode_assembly.layup.cathode.formulation = self.cell.reference_electrode_assembly.layup.cathode.formulation
+        self.cell.reference_electrode_assembly.layup.cathode = self.cell.reference_electrode_assembly.layup.cathode
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+        self.assertEqual(self.cell.maximum_operating_voltage, 4.04)
+        self.assertEqual(self.cell.maximum_operating_voltage_range[1], 4.04)
+
+        fig3 = self.cell.get_capacity_plot()
+
+        # step 3 - remove the lfp
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_2 = None
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1_weight = 95
+        self.cell.reference_electrode_assembly.layup.cathode.formulation = self.cell.reference_electrode_assembly.layup.cathode.formulation
+        self.cell.reference_electrode_assembly.layup.cathode = self.cell.reference_electrode_assembly.layup.cathode
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+        self.assertEqual(self.cell.maximum_operating_voltage, 4.04)
+        self.assertEqual(self.cell.maximum_operating_voltage_range[1], 4.22)
+
+        fig4 = self.cell.get_capacity_plot()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+        # fig4.show()
 
 
 class TestCylindricalCellTabbed(unittest.TestCase):
