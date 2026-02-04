@@ -3,8 +3,6 @@ from steer_core.Constants.Universal import PI
 from steer_core.Constants.Units import *
 import numpy as np
 import pandas as pd
-from shapely.geometry import Polygon, Point
-from shapely import minimum_bounding_circle
 
 from steer_core.Mixins.Coordinates import CoordinateMixin
 

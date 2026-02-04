@@ -19,8 +19,6 @@ from steer_opencell_design.Constructions.ElectrodeAssemblies.SpiralUtils import 
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Tape import Tape
 from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector
 
-import time
-
 
 # Constants for array column indices
 THETA_COL = 0
@@ -1491,7 +1489,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector 
 
         if type(self._layup._cathode._current_collector) == TabWeldedCurrentCollector:
-            cathode_tab_deduction = self._layup._cathode._current_collector._tab_overhang
+            cathode_tab_deduction =  - self._layup._cathode._current_collector._tab_overhang
         else:
             cathode_tab_deduction = (
                 self._layup._cathode._current_collector._tab_height * 
@@ -1513,7 +1511,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector
 
         if type(self._layup._anode._current_collector) == TabWeldedCurrentCollector:
-            anode_tab_deduction = self._layup._anode._current_collector._tab_overhang
+            anode_tab_deduction = - self._layup._anode._current_collector._tab_overhang
         else:
             anode_tab_deduction = (
                 self._layup._anode._current_collector._tab_height * 
