@@ -140,9 +140,29 @@ class _Layup(
         if hasattr(self, '_areal_capacity_curve') and self._areal_capacity_curve is not None:
             self._calculate_upper_voltage_limit_range()
             self._calculate_lower_voltage_limit_range()
-            self._minimum_operating_voltage = min(self._minimum_operating_voltage_range)
-            self._operating_voltage_window = (self._minimum_operating_voltage, self._maximum_operating_voltage)
-            self._operating_reversible_areal_capacity = max(self._maximum_areal_reversible_capacity_range)
+            
+            # Only set default values if they haven't been explicitly set, otherwise clamp to new ranges
+            if not hasattr(self, '_minimum_operating_voltage') or self._minimum_operating_voltage is None:
+                self._minimum_operating_voltage = min(self._minimum_operating_voltage_range)
+            else:
+                # Clamp existing value to new range
+                range_min = min(self._minimum_operating_voltage_range)
+                range_max = max(self._minimum_operating_voltage_range)
+                self._minimum_operating_voltage = np.clip(self._minimum_operating_voltage, range_min, range_max)
+            
+            if not hasattr(self, '_operating_voltage_window') or self._operating_voltage_window is None:
+                self._operating_voltage_window = (self._minimum_operating_voltage, self._maximum_operating_voltage)
+            else:
+                # Update with potentially clamped values
+                self._operating_voltage_window = (self._minimum_operating_voltage, self._maximum_operating_voltage)
+            
+            if not hasattr(self, '_operating_reversible_areal_capacity') or self._operating_reversible_areal_capacity is None:
+                self._operating_reversible_areal_capacity = max(self._maximum_areal_reversible_capacity_range)
+            else:
+                # Clamp existing value to new range
+                range_min = min(self._maximum_areal_reversible_capacity_range)
+                range_max = max(self._maximum_areal_reversible_capacity_range)
+                self._operating_reversible_areal_capacity = np.clip(self._operating_reversible_areal_capacity, range_min, range_max)
 
     def _calculate_lower_voltage_limit_range(self) -> None:
         """Calculate the minimum operating voltage range from discharge curve.
@@ -829,15 +849,8 @@ class _Layup(
         # make a deep copy of the anode
         anode = deepcopy(anode)
 
-        if isinstance(self.cathode.current_collector, _TapeCurrentCollector) and isinstance(anode.current_collector, _TapeCurrentCollector):
-            # if the anode has a larger minimum length range, then set that to the cathode
-            cathode_min_length = self.cathode.current_collector.length_range[0] * MM_TO_M
-            anode_min_length = anode.current_collector.length_range[0] * MM_TO_M
-            new_cathode_min_length = max(cathode_min_length, anode_min_length)
-            self.cathode.current_collector._x_foil_length_range = (
-                new_cathode_min_length,
-                self.cathode.current_collector.length_range[1] * MM_TO_M,
-            )
+        if isinstance(anode.current_collector, _TapeCurrentCollector):
+            self.cathode.current_collector.set_ranges_from_reference_bare_lengths(anode)
 
         # set the ranges on the anode current collector based on the cathode current collector
         anode.current_collector.set_ranges_from_reference(self.cathode.current_collector)

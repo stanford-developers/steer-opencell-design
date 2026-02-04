@@ -389,7 +389,40 @@ class TestCylindricalCell(unittest.TestCase):
         self.assertIsNotNone(self.cell.mass)
         self.assertIsNotNone(self.cell.cost)
         self.assertGreater(self.cell.reversible_capacity, 0)
+
+    def test_operating_voltage_window_consistency(self):
+
+        new_window = (2.69, 3.6)
+        self.cell.operating_voltage_window = new_window
+        self.assertEqual(self.cell.operating_voltage_window, new_window)
+
+        original_layup_window = self.cell.reference_electrode_assembly.layup.operating_voltage_window
+        self.assertEqual(original_layup_window, new_window)
+
+        # now change a material
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.density = 5
+        self.assertEqual(self.cell.operating_voltage_window, new_window)
+        self.assertEqual(self.cell.reference_electrode_assembly.layup.operating_voltage_window, new_window)
+
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1 = self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1
+        self.assertEqual(self.cell.operating_voltage_window, new_window)
+        self.assertEqual(self.cell.reference_electrode_assembly.layup.operating_voltage_window, new_window)
+        self.cell.reference_electrode_assembly.layup.cathode.formulation = self.cell.reference_electrode_assembly.layup.cathode.formulation
+        self.assertEqual(self.cell.operating_voltage_window, new_window)
+        self.assertEqual(self.cell.reference_electrode_assembly.layup.operating_voltage_window, new_window)
+
+        self.cell.reference_electrode_assembly.layup.cathode = self.cell.reference_electrode_assembly.layup.cathode
+        self.assertEqual(self.cell.operating_voltage_window, new_window)
+        self.assertEqual(self.cell.reference_electrode_assembly.layup.operating_voltage_window, new_window)
+
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.assertEqual(self.cell.operating_voltage_window, new_window)
+        self.assertEqual(self.cell.reference_electrode_assembly.layup.operating_voltage_window, new_window)
         
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+        self.assertEqual(self.cell.operating_voltage_window, new_window)
+        self.assertEqual(self.cell.reference_electrode_assembly.layup.operating_voltage_window, new_window)
+
     def test_setter_type_validation(self):
         """Test that setters validate input types."""
         # Test invalid type for reference_electrode_assembly
@@ -413,7 +446,9 @@ class TestCylindricalCell(unittest.TestCase):
         self.cell.maximum_operating_voltage = None
         self.assertIsNotNone(self.cell.maximum_operating_voltage)
 
-    def test_formulation_setter(self):
+    def test_cathode_formulation_setter(self):
+
+        original_layup_length_range = self.cell.reference_electrode_assembly.layup.length_range
 
         material = ocd.CathodeMaterial.from_database("NMC811")
         material.specific_cost = 25
@@ -434,8 +469,55 @@ class TestCylindricalCell(unittest.TestCase):
         self.cell._reference_electrode_assembly.layup = self.cell._reference_electrode_assembly._layup
         self.cell.reference_electrode_assembly = self.cell._reference_electrode_assembly
 
+        self.assertEqual(
+            self.cell.reference_electrode_assembly.layup.length_range[0],
+            original_layup_length_range[0],
+        )
+
+        self.assertEqual(
+            self.cell.reference_electrode_assembly.layup.length_range[1],
+            original_layup_length_range[1],
+        )
+
         fig1 = self.cell.get_capacity_plot()
         # fig1.show()
+
+    def test_anode_formulation_setter(self):
+
+        original_layup_length_range = self.cell.reference_electrode_assembly.layup.length_range
+
+        material = ocd.AnodeMaterial.from_database("Synthetic Graphite")
+        material.specific_cost = 4
+        material.density = 2.2
+
+        conductive_additive = ocd.ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = ocd.Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+
+        formulation = ocd.AnodeFormulation(
+            active_materials={material: 90},
+            binders={binder: 5},
+            conductive_additives={conductive_additive: 5},
+        )
+
+        self.cell._reference_electrode_assembly._layup._anode.formulation = formulation
+        self.cell._reference_electrode_assembly._layup._anode.mass_loading = 10
+        self.cell._reference_electrode_assembly._layup.anode = self.cell._reference_electrode_assembly._layup._anode
+        self.cell._reference_electrode_assembly.layup = self.cell._reference_electrode_assembly._layup
+        self.cell.reference_electrode_assembly = self.cell._reference_electrode_assembly
+
+        self.assertEqual(
+            self.cell.reference_electrode_assembly.layup.length_range[0],
+            original_layup_length_range[0],
+        )
+
+        self.assertEqual(
+            self.cell.reference_electrode_assembly.layup.length_range[1],
+            original_layup_length_range[1],
+        )
+
+        fig1 = self.cell.get_capacity_plot()
+        # fig1.show()
+
 
 
 class TestCylindricalCellTabbed(unittest.TestCase):
@@ -1619,9 +1701,9 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
         fig2 = self.cell.get_capacity_plot()
         self.assertIsNotNone(fig2)
 
-        self.assertEqual(self.cell.irreversible_capacity, 6.68)
-        self.assertEqual(self.cell.reversible_capacity, 63.55)
-        self.assertEqual(self.cell.minimum_operating_voltage, 0.58)
+        self.assertEqual(self.cell.irreversible_capacity, 15.25)
+        self.assertEqual(self.cell.reversible_capacity, 54.98)
+        self.assertEqual(self.cell.minimum_operating_voltage, 2)
         self.assertEqual(self.cell.maximum_operating_voltage, 3.96)
         
         # fig1.show()

@@ -266,6 +266,8 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         anode_is_tab_welded : bool
             Whether anode uses tab-welded current collector
         """
+
+        
         # Get spiral diameter
         spiral = self._extruded_spirals.get(spiral_key)
         spiral_clean = spiral[~np.isnan(spiral[:, RADIUS_COL])]
