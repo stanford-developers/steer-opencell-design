@@ -503,6 +503,7 @@ class TestCylindricalCell(unittest.TestCase):
         self.cell._reference_electrode_assembly._layup._anode.mass_loading = 10
         self.cell._reference_electrode_assembly._layup.anode = self.cell._reference_electrode_assembly._layup._anode
         self.cell._reference_electrode_assembly.layup = self.cell._reference_electrode_assembly._layup
+        self.cell.reference_electrode_assembly.radius = 20.9
         self.cell.reference_electrode_assembly = self.cell._reference_electrode_assembly
 
         self.assertEqual(

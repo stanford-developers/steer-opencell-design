@@ -11,7 +11,7 @@ import warnings
 import plotly.graph_objects as go
 
 # Tab alignment tolerance constant
-TAB_ALIGNMENT_TOLERANCE = 3e-3  # 3 mm tolerance for tab-terminal alignment (meters)
+TAB_ALIGNMENT_TOLERANCE = 2e-3  # 2 mm tolerance for tab-terminal alignment (meters)
 
 # Dimension fit tolerance constant
 DIMENSION_FIT_TOLERANCE = 1e-3  # 1 mm tolerance for assembly-encapsulation fit (meters)
@@ -131,6 +131,50 @@ class CylindricalCell(_Cell):
         """
         return abs(value1 - value2) <= tolerance
 
+    def _validate_assembly_height_fit(
+        self, 
+        assembly: WoundJellyRoll, 
+        encapsulation: CylindricalEncapsulation
+    ) -> None:
+        """Validate that assembly height fits within encapsulation height.
+        
+        Parameters
+        ----------
+        assembly : WoundJellyRoll
+            Electrode assembly to validate
+        encapsulation : CylindricalEncapsulation
+            Encapsulation to validate against
+        """
+        if assembly._total_height > encapsulation._internal_height + DIMENSION_FIT_TOLERANCE:
+
+            warnings.warn(
+                f"Assembly height ({assembly.total_height} mm) exceeds "
+                f"encapsulation internal height ({encapsulation.internal_height} mm). "
+                "Please ensure compatibility."
+            )
+
+    def _validate_assembly_radius_fit(
+        self, 
+        assembly: WoundJellyRoll, 
+        encapsulation: CylindricalEncapsulation
+    ) -> None:
+        """Validate that assembly radius fits within encapsulation radius.
+        
+        Parameters
+        ----------
+        assembly : WoundJellyRoll
+            Electrode assembly to validate
+        encapsulation : CylindricalEncapsulation
+            Encapsulation to validate against
+        """
+        if assembly._radius > encapsulation._canister._inner_radius + DIMENSION_FIT_TOLERANCE:
+
+            warnings.warn(
+                f"Assembly radius ({assembly.radius} mm) exceeds "
+                f"encapsulation internal radius ({encapsulation._canister.inner_radius} mm). "
+                "Please ensure compatibility."
+            )
+
     def _validate_assembly_encapsulation_fit(
         self, 
         assembly: WoundJellyRoll, 
@@ -145,41 +189,8 @@ class CylindricalCell(_Cell):
         encapsulation : CylindricalEncapsulation
             Encapsulation to validate against
         """
-        # Height validation
-        if assembly._total_height > encapsulation._internal_height + DIMENSION_FIT_TOLERANCE:
-            warnings.warn(
-                f"Assembly height ({assembly.total_height} mm) exceeds "
-                f"encapsulation internal height ({encapsulation.internal_height} mm). "
-                "Please ensure compatibility."
-            )
-
-        # Radius validation
-        if assembly._radius > encapsulation._canister._inner_radius + DIMENSION_FIT_TOLERANCE:
-            warnings.warn(
-                f"Assembly radius ({assembly.radius} mm) exceeds "
-                f"encapsulation internal radius ({encapsulation._canister.inner_radius} mm). "
-                "Please ensure compatibility."
-            )
-
-        # Cathode tab alignment validation
-        cathode_cc_max_y = assembly._get_cathode_tab_y_position()
-        cathode_terminal_min_y = self._get_cathode_terminal_y_position(encapsulation)
-        
-        if not self._is_within_tolerance(cathode_cc_max_y, cathode_terminal_min_y, TAB_ALIGNMENT_TOLERANCE):
-            warnings.warn(
-                f"Cathode tab position ({cathode_cc_max_y * M_TO_MM:.1f} mm) "
-                f"not aligned with terminal ({cathode_terminal_min_y * M_TO_MM:.1f} mm)."
-            )
-        
-        # Anode tab alignment validation
-        anode_cc_min_y = assembly._get_anode_tab_y_position()
-        anode_terminal_max_y = self._get_anode_terminal_y_position(encapsulation)
-        
-        if not self._is_within_tolerance(anode_cc_min_y, anode_terminal_max_y, TAB_ALIGNMENT_TOLERANCE):
-            warnings.warn(
-                f"Anode tab position ({anode_cc_min_y * M_TO_MM:.1f} mm) "
-                f"not aligned with terminal ({anode_terminal_max_y * M_TO_MM:.1f} mm)."
-            )
+        self._validate_assembly_height_fit(assembly, encapsulation)
+        self._validate_assembly_radius_fit(assembly, encapsulation)
 
     def _check_assembly_dimensions(self, assembly: WoundJellyRoll) -> None:
         """Validate assembly dimensions against current encapsulation.

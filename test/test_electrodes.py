@@ -499,7 +499,7 @@ class testAnodeTabWelded(unittest.TestCase):
             formulation=formulation,
             mass_loading=10.68,
             current_collector=current_collector,
-            calender_density=2.60,
+            calender_density=1.60,
         )
 
         self.anode.voltage_cutoff = 0.02
