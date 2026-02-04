@@ -499,6 +499,27 @@ class _CurrentCollector(
             reference._y_foil_length * length_multiplier,
         )
 
+    def set_ranges_from_reference_bare_lengths(self, reference: "_TapeCurrentCollector") -> None:
+        """
+        Set the bare length ranges based on a reference current collector.
+
+        Parameters:
+        ----------
+        reference: CurrentCollector
+            The reference current collector to derive bare length ranges from.
+        """
+        _left_a_side_bare_length = reference._current_collector._bare_lengths_a_side[0]
+        _right_a_side_bare_length = reference._current_collector._bare_lengths_a_side[1]
+        _left_b_side_bare_length = reference._current_collector._bare_lengths_b_side[0]
+        _right_b_side_bare_length = reference._current_collector._bare_lengths_b_side[1]
+        _max_left = max(_left_a_side_bare_length, _left_b_side_bare_length)
+        _max_right = max(_right_a_side_bare_length, _right_b_side_bare_length)
+        _minimum_length = _max_right + _max_left + 0.2
+        self._x_foil_length_range = (
+            _minimum_length,
+            self.x_foil_length_range[1] * MM_TO_M
+        )
+
     @abstractmethod
     def _get_coated_area_coordinates(self, side: str = "a") -> np.ndarray:
         """
