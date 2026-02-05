@@ -612,6 +612,14 @@ class _Cell(
         return self._electrolyte
 
     @property
+    def n_electrode_assembly_range(self) -> Tuple[int, int]:
+        return (1, 6)
+    
+    @property
+    def n_electrode_assembly_hard_range(self) -> Tuple[int, int]:
+        return (1, 20)
+
+    @property
     def electrolyte_overfill(self) -> float:
         return np.round(self._electrolyte_overfill * FRACTION_TO_PERCENT, MASS_PRECISION)
     
@@ -1131,7 +1139,7 @@ class _Cell(
     @n_electrode_assembly.setter
     @calculate_all_properties
     def n_electrode_assembly(self, value: int) -> None:
-        self.validate_positive_int(value, "n_electrode_assembly")
+        value = np.round(value)
         self._n_electrode_assembly = value
 
     @electrolyte.setter

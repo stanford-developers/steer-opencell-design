@@ -388,10 +388,10 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         self._tab_position = float(tab_position) * MM_TO_M
 
         if self._tab_position - self._tab_width / 2 < 0:
-            raise ValueError("Tab position cannot be less than half the tab width.")
+            self._tab_position = self._tab_width / 2
 
         if self._tab_position + self._tab_width / 2 > self.x_foil_length:
-            raise ValueError("Tab position plus half the tab width cannot be greater than the length of the current collector.")
+            self._tab_position = self.x_foil_length - self._tab_width / 2
 
         if self._update_properties:
             self._calculate_coordinates()
