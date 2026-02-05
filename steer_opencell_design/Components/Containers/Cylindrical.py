@@ -1528,8 +1528,19 @@ class CylindricalEncapsulation(_Container):
     @radius.setter
     @calculate_all_properties
     def radius(self, radius: float) -> None:
+
+        # Validate the radius value
         self.validate_positive_float(radius, "Radius")
+
+        # get the ratio of canister to terminal connector radius
+        cathode_terminal_ratio = self._cathode_terminal_connector._radius / self._canister._inner_radius
+        anode_terminal_ratio = self._anode_terminal_connector._radius / self._canister._inner_radius
+        
+        # Update the radius of the canister
         self._canister.outer_radius = radius
+        self._cathode_terminal_connector._radius = cathode_terminal_ratio * radius
+        self._anode_terminal_connector._radius = anode_terminal_ratio * radius
+
 
     @diameter.setter
     def diameter(self, diameter: float) -> None:
