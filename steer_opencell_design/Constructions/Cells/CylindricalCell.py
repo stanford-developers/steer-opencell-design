@@ -275,6 +275,57 @@ class CylindricalCell(_Cell):
         return figure
         
     @property
+    def radius(self) -> float:
+        assembly_radius = self._reference_electrode_assembly.radius
+        encapsulation_radius = self._encapsulation.radius
+        max_radius = max(assembly_radius, encapsulation_radius)
+        return max_radius
+    
+    @property
+    def radius_range(self) -> Tuple[float, float]:
+        assembly_radius_range = self._reference_electrode_assembly.radius_range
+        encapsulation_radius_range = self._encapsulation.radius_range
+        min_radius = max(assembly_radius_range[0], encapsulation_radius_range[0])
+        max_radius = min(assembly_radius_range[1], encapsulation_radius_range[1])
+        return (min_radius, max_radius)
+    
+    @property
+    def radius_hard_range(self) -> Tuple[float, float]:
+        return (0, 500)
+    
+    @property
+    def diameter(self) -> float:
+        return self.radius * 2
+    
+    @property
+    def diameter_range(self) -> Tuple[float, float]:
+        radius_range = self.radius_range
+        return (radius_range[0] * 2, radius_range[1] * 2)
+    
+    @property
+    def diameter_hard_range(self) -> Tuple[float, float]:
+        return (0, 1000)
+
+    @property
+    def height(self) -> float:
+        assembly_height = self._reference_electrode_assembly.height
+        encapsulation_height = self._encapsulation.canister.height
+        max_height = max(assembly_height, encapsulation_height)
+        return max_height
+    
+    @property
+    def height_range(self) -> Tuple[float, float]:
+        assembly_height_range = self._reference_electrode_assembly.height_range
+        encapsulation_height_range = self._encapsulation.canister.height_range
+        min_height = max(assembly_height_range[0], encapsulation_height_range[0])
+        max_height = min(assembly_height_range[1], encapsulation_height_range[1])
+        return (min_height, max_height)
+    
+    @property
+    def height_hard_range(self) -> Tuple[float, float]:
+        return (0, 1000)
+
+    @property
     def reference_electrode_assembly(self) -> WoundJellyRoll:
         return self._reference_electrode_assembly
     
@@ -285,6 +336,27 @@ class CylindricalCell(_Cell):
     @property
     def n_electrode_assembly(self) -> int:
         return 1
+
+    @radius.setter
+    def radius(self, value: float) -> None:
+        current_radius = self.radius
+        radius_diff = value - current_radius
+        self._reference_electrode_assembly.radius = self._reference_electrode_assembly.radius + radius_diff
+        self._encapsulation.radius = self._encapsulation.radius + radius_diff
+        self.reference_electrode_assembly = self.reference_electrode_assembly
+
+    @diameter.setter
+    def diameter(self, value: float) -> None:
+        self.validate_positive_float(value, "Diameter")
+        self.radius = value / 2
+
+    @height.setter
+    def height(self, value: float) -> None:
+        current_height = self.height
+        height_diff = value - current_height
+        self._reference_electrode_assembly.height = self._reference_electrode_assembly.height + height_diff
+        self._encapsulation.height = self._encapsulation.height + height_diff
+        self.reference_electrode_assembly = self.reference_electrode_assembly
 
     @reference_electrode_assembly.setter
     @calculate_all_properties
