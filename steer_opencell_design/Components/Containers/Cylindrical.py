@@ -1541,7 +1541,6 @@ class CylindricalEncapsulation(_Container):
         self._cathode_terminal_connector._radius = cathode_terminal_ratio * radius
         self._anode_terminal_connector._radius = anode_terminal_ratio * radius
 
-
     @diameter.setter
     def diameter(self, diameter: float) -> None:
         self.radius = diameter / 2

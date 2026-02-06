@@ -1139,7 +1139,7 @@ class _Cell(
     @n_electrode_assembly.setter
     @calculate_all_properties
     def n_electrode_assembly(self, value: int) -> None:
-        value = np.round(value)
+        value = int(np.round(value))
         self._n_electrode_assembly = value
 
     @electrolyte.setter

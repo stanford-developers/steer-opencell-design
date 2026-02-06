@@ -48,7 +48,7 @@ HEIGHT_HARD_MIN = 5.0
 HEIGHT_HARD_MAX = 500.0
 
 INTERNAL_HEIGHT_RANGE_MIN = 5.0
-INTERNAL_HEIGHT_RANGE_MAX = 250.0
+INTERNAL_HEIGHT_RANGE_MAX = 500
 
 WALL_THICKNESS_RANGE_MIN = 0.1
 WALL_THICKNESS_RANGE_MAX = 3.0
@@ -1580,12 +1580,23 @@ class PrismaticEncapsulation(_Container):
 
         if self._cathode_terminal_connector._width is None:
             self._cathode_terminal_connector.width = connector_width * M_TO_MM
+        elif self._canister._inner_length < self._cathode_terminal_connector._length:
+            self._cathode_terminal_connector.length = self._canister._inner_length * M_TO_MM
+
         if self._cathode_terminal_connector._length is None:
             self._cathode_terminal_connector.length = connector_length * M_TO_MM
+        elif self._canister._inner_length < self._cathode_terminal_connector._length:
+            self._cathode_terminal_connector.length = self._canister._inner_length * M_TO_MM
+
         if self._anode_terminal_connector._width is None:
             self._anode_terminal_connector.width = connector_width * M_TO_MM
+        elif self._canister._inner_length < self._anode_terminal_connector._length:
+            self._anode_terminal_connector.length = self._canister._inner_length * M_TO_MM
+
         if self._anode_terminal_connector._length is None:
             self._anode_terminal_connector.length = connector_length * M_TO_MM
+        elif self._canister._inner_length < self._anode_terminal_connector._length:
+            self._anode_terminal_connector.length = self._canister._inner_length * M_TO_MM
     
     def _calculate_internal_dimensions(self):
         """Calculate internal dimensions available for cell contents."""
@@ -1820,6 +1831,11 @@ class PrismaticEncapsulation(_Container):
         return self._canister.length
     
     @property
+    def length_range(self) -> Tuple[float, float]:
+        """Valid outer length range of the encapsulation in mm, rounded to 2 decimal places."""
+        return (LENGTH_RANGE_MIN, LENGTH_RANGE_MAX)
+    
+    @property
     def height(self) -> float:
         """Total height of the encapsulation in mm."""
         return self._canister.height
@@ -1972,7 +1988,11 @@ class PrismaticEncapsulation(_Container):
     @calculate_all_properties
     def canister(self, canister: PrismaticCanister) -> None:
         """Set canister."""
+
+        # Validate type
         self.validate_type(canister, PrismaticCanister, "Canister")
+
+        # set internal canister value
         self._canister = canister
 
     @width.setter
@@ -1986,8 +2006,20 @@ class PrismaticEncapsulation(_Container):
     @calculate_all_properties
     def length(self, length: float) -> None:
         """Set outer length of the encapsulation."""
+
+        # Validate input
         self.validate_positive_float(length, "Length")
+
+        # get the ratio of canister length and connector length to maintain when adjusting length
+        cathode_length_ratio = self._cathode_terminal_connector._length / self._canister._length
+        anode_length_ratio = self._anode_terminal_connector._length / self._canister._length
+
+        # set the length of the canister
         self._canister.length = length
+
+        # adjust the length of the connectors to maintain the same ratio
+        self._cathode_terminal_connector.length = self._canister._length * cathode_length_ratio * M_TO_MM
+        self._anode_terminal_connector.length = self._canister._length * anode_length_ratio * M_TO_MM
 
     @height.setter
     @calculate_all_properties
