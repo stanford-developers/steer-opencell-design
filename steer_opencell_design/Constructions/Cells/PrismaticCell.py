@@ -281,8 +281,14 @@ class PrismaticCell(_Cell):
 
     @property
     def height(self) -> float:
+        from steer_opencell_design.Constructions.Layups.Laminate import Laminate
 
-        _layup_height = self._reference_electrode_assembly._layup._height
+        # Laminate uses _width for y-dimension, MonoLayer uses _height
+        layup = self._reference_electrode_assembly._layup
+        if isinstance(layup, Laminate):
+            _layup_height = layup._width
+        else:
+            _layup_height = layup._height
         
         if self._encapsulation._connector_orientation == ConnectorOrientation.LONGITUDINAL:
             _canister_height = self._encapsulation._canister._height
@@ -295,9 +301,14 @@ class PrismaticCell(_Cell):
     
     @property
     def height_range(self) -> Tuple[float, float]:
+        from steer_opencell_design.Constructions.Layups.Laminate import Laminate
         
-        # get the height range of the layup
-        layup_height_range = self._reference_electrode_assembly.layup.height_range
+        # Laminate uses width_range for y-dimension, MonoLayer uses height_range
+        layup = self._reference_electrode_assembly.layup
+        if isinstance(layup, Laminate):
+            layup_height_range = layup.width_range
+        else:
+            layup_height_range = layup.height_range
 
         if self._encapsulation._connector_orientation == ConnectorOrientation.LONGITUDINAL:
             additional_height = self._encapsulation._canister._wall_thickness * 2 * M_TO_MM
@@ -314,9 +325,14 @@ class PrismaticCell(_Cell):
     
     @property
     def height_hard_range(self) -> Tuple[float, float]:
+        from steer_opencell_design.Constructions.Layups.Laminate import Laminate
         
-        # get the height range of the layup
-        layup_height_range = self._reference_electrode_assembly.layup.height_hard_range
+        # Laminate uses width_hard_range for y-dimension, MonoLayer uses height_hard_range
+        layup = self._reference_electrode_assembly.layup
+        if isinstance(layup, Laminate):
+            layup_height_range = layup.width_hard_range
+        else:
+            layup_height_range = layup.height_hard_range
 
         if self._encapsulation._connector_orientation == ConnectorOrientation.LONGITUDINAL:
             additional_height = self._encapsulation._canister._wall_thickness * 2 * M_TO_MM
@@ -511,7 +527,7 @@ class PrismaticCell(_Cell):
         value = int(np.round(value))
         
         if self._update_properties:
-            
+
             # ratio between new and old number of assemblies
             ratio = value / self._n_electrode_assembly
 

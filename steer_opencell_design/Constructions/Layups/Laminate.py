@@ -382,6 +382,7 @@ class Laminate(_Layup):
     @property
     def width_hard_range(self) -> tuple:
         return self._cathode._current_collector.width_hard_range
+
     @property
     def total_length(self) -> float:
         """Return the total length of the layup in mm."""
