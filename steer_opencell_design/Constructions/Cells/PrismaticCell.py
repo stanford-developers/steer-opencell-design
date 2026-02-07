@@ -1,6 +1,6 @@
 from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation, ConnectorOrientation
 from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import FlatWoundJellyRoll
-from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import ZFoldStack, PunchedStack
+from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import ZFoldStack, PunchedStack, _Stack
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
 from steer_opencell_design.Constructions.Cells.Base import _Cell
 
@@ -389,6 +389,7 @@ class PrismaticCell(_Cell):
         return self._encapsulation
 
     @length.setter
+    @calculate_all_properties
     def length(self, value: float) -> None:
 
         # validate input
@@ -397,17 +398,27 @@ class PrismaticCell(_Cell):
         # get the length difference
         current_length = self.length
         length_difference = value - current_length
-
-        # get the length difference per assembly
         length_difference_per_assembly = length_difference / self._n_electrode_assembly
+
+        # record width values incase the width needs to be updated to maintain fit with flat wound jelly rolls
+        if type(self._reference_electrode_assembly) == FlatWoundJellyRoll:
+            assembly_width = self._reference_electrode_assembly.width
 
         # update the reference electrode assembly thickness
         new_thickness = self._reference_electrode_assembly.thickness + length_difference_per_assembly
         self._reference_electrode_assembly.thickness = new_thickness
         self._encapsulation.length = value
-        self.reference_electrode_assembly = self._reference_electrode_assembly
+        self._reference_electrode_assembly = self._reference_electrode_assembly
+
+        # if the reference electrode assembly is a flat wound jelly roll, also update the encapsulation width or height to maintain fit with the new assembly thickness
+        if type(self._reference_electrode_assembly) == FlatWoundJellyRoll:
+            new_assembly_width = self._reference_electrode_assembly.width
+            width_difference = new_assembly_width - assembly_width
+            if width_difference > 1e-4:
+                self._encapsulation.height += width_difference
 
     @width.setter
+    @calculate_all_properties
     def width(self, value: float) -> None:
 
         # validate input
@@ -417,9 +428,21 @@ class PrismaticCell(_Cell):
         current_width = self.width
         width_difference = value - current_width
 
-        # update the reference electrode assembly width
-        new_layup_width = self._reference_electrode_assembly.layup.width + width_difference
-        self._reference_electrode_assembly.layup.width = new_layup_width
+        if isinstance(self._reference_electrode_assembly, _Stack):
+
+            # update the reference electrode assembly width
+            new_layup_width = self._reference_electrode_assembly.layup.width + width_difference
+            self._reference_electrode_assembly.layup.width = new_layup_width
+            self._reference_electrode_assembly.layup = self._reference_electrode_assembly.layup
+
+        elif type(self._reference_electrode_assembly) == FlatWoundJellyRoll:
+        
+            _original_assembly_thickness = self._reference_electrode_assembly._thickness
+            new_assembly_width = self._reference_electrode_assembly.width + width_difference
+            self._reference_electrode_assembly.width = new_assembly_width
+            _new_assembly_thickness = self._reference_electrode_assembly._thickness
+            encapsulation_length_difference = (_new_assembly_thickness - _original_assembly_thickness) * self._n_electrode_assembly * M_TO_MM
+            self._encapsulation.length += encapsulation_length_difference
 
         # update the encapsulation width or height depending on connector orientation
         if self._encapsulation._connector_orientation == ConnectorOrientation.LONGITUDINAL:
@@ -428,8 +451,6 @@ class PrismaticCell(_Cell):
         elif self._encapsulation._connector_orientation == ConnectorOrientation.TRANSVERSE:
             new_canister_height = self._encapsulation.height + width_difference
             self._encapsulation.height = new_canister_height
-        
-        self.reference_electrode_assembly = self._reference_electrode_assembly
 
     @clipped_tab_length.setter
     @calculate_encapsulation_properties
@@ -528,11 +549,11 @@ class PrismaticCell(_Cell):
         
         if self._update_properties:
 
-            # ratio between new and old number of assemblies
-            ratio = value / self._n_electrode_assembly
+            # difference in number of assemblies
+            assembly_difference = value - self._n_electrode_assembly
 
-            # modify encapsulation length by the same ratio to maintain fit
-            new_length = self._encapsulation.length * ratio
+            # modify encapsulation length by the same amount to maintain fit
+            new_length = self._encapsulation.length + assembly_difference * self._reference_electrode_assembly._thickness * M_TO_MM
             self._encapsulation.length = new_length
 
         # update the reference electrode assembly thickness by the same ratio to maintain fit

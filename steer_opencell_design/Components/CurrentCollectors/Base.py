@@ -738,6 +738,7 @@ class _CurrentCollector(
 
     @property
     def top_down_insulation_area_trace(self) -> go.Scatter:
+        
         side = self.top_side
         insulation_area_coordinates = self.a_side_insulation_coordinates if side == "a" else self.b_side_insulation_coordinates
 
