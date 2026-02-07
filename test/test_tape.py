@@ -68,6 +68,7 @@ class TestTapeWithDimensions(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures with dimensioned tape."""
         tape_material = TapeMaterial.from_database(name="Kapton")
+
         self.tape = Tape(
             material=tape_material, 
             thickness=25, 

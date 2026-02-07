@@ -2776,7 +2776,7 @@ class WoundJellyRoll(_JellyRoll):
 
         # get the radius maximum bound
         big_layup = deepcopy(self._layup)
-        big_layup.length = big_layup.length_hard_range[1]
+        big_layup.length = big_layup.length_range[1]
         big_layup = self.position_layup_on_mandrel(big_layup, self._mandrel)
         big_layup.calculate_flattened_center_lines()
         big_spiral = SpiralCalculator.calculate_variable_thickness_spiral(big_layup, self._mandrel._radius)
@@ -3451,7 +3451,7 @@ class FlatWoundJellyRoll(_JellyRoll):
 
         # get the thickness maximum bound
         big_layup = deepcopy(self._layup)
-        big_layup.length = big_layup.length_hard_range[1]
+        big_layup.length = big_layup.length_range[1]
         big_layup = self.position_layup_on_mandrel(big_layup, self._mandrel)
         big_layup.calculate_flattened_center_lines()
         big_pressed_racetrack = SpiralCalculator.calculate_variable_thickness_racetrack(big_layup, radius, straight_length)

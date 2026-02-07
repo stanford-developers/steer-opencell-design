@@ -15,6 +15,7 @@ from typing import Tuple
 from copy import deepcopy
 import numpy as np
 
+
 class Tape(
     CoordinateMixin, 
     ValidationMixin,
@@ -22,6 +23,7 @@ class Tape(
     PlotterMixin,
     SerializerMixin,
     ):
+
     def __init__(
         self,
         material: TapeMaterial,
@@ -229,3 +231,4 @@ class Tape(
     def thickness(self, thickness: float) -> None:
         self.validate_positive_float(thickness, "Thickness")
         self._thickness = float(thickness) * UM_TO_M
+

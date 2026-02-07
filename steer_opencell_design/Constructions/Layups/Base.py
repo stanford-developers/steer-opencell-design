@@ -541,7 +541,7 @@ class _Layup(
 
         # Enhanced layout with zero lines and faint grid
         fig.update_layout(
-            title=kwargs.get("title", f"Areal Capacity Curves"),
+            title=kwargs.get("title", f"Areal Capacity Curves (N/P: {self.np_ratio})"),
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             xaxis={**self.SCATTER_X_AXIS, "title": "Areal Capacity (mAh/cm²)"},

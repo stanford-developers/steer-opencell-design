@@ -2010,16 +2010,31 @@ class PrismaticEncapsulation(_Container):
         # Validate input
         self.validate_positive_float(length, "Length")
 
-        # get the ratio of canister length and connector length to maintain when adjusting length
-        cathode_length_ratio = self._cathode_terminal_connector._length / self._canister._length
-        anode_length_ratio = self._anode_terminal_connector._length / self._canister._length
+        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
 
-        # set the length of the canister
-        self._canister.length = length
+            # get the ratio of canister length and connector length to maintain when adjusting length
+            cathode_length_ratio = self._cathode_terminal_connector._length / self._canister._length
+            anode_length_ratio = self._anode_terminal_connector._length / self._canister._length
 
-        # adjust the length of the connectors to maintain the same ratio
-        self._cathode_terminal_connector.length = self._canister._length * cathode_length_ratio * M_TO_MM
-        self._anode_terminal_connector.length = self._canister._length * anode_length_ratio * M_TO_MM
+            # set the length of the canister
+            self._canister.length = length
+
+            # adjust the length of the connectors to maintain the same ratio
+            self._cathode_terminal_connector.length = self._canister._length * cathode_length_ratio * M_TO_MM
+            self._anode_terminal_connector.length = self._canister._length * anode_length_ratio * M_TO_MM
+
+        elif self._connector_orientation == ConnectorOrientation.TRANSVERSE:
+            
+            # get the ratio of canister length and connector length to maintain when adjusting length
+            cathode_length_ratio = self._cathode_terminal_connector._width / self._canister._length
+            anode_length_ratio = self._anode_terminal_connector._width / self._canister._length
+
+            # set the length of the canister
+            self._canister.length = length
+
+            # adjust the length of the connectors to maintain the same ratio
+            self._cathode_terminal_connector.width = self._canister._length * cathode_length_ratio * M_TO_MM
+            self._anode_terminal_connector.width = self._canister._length * anode_length_ratio * M_TO_MM
 
     @height.setter
     @calculate_all_properties
