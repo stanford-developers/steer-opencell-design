@@ -370,6 +370,113 @@ class _ActiveMaterial(
 
         return fig
 
+    def plot_specific_capacity_curve_interactive(self, n_steps: int = 20, **kwargs):
+        """Return a Plotly figure with a slider to explore voltage cutoff values.
+
+        Parameters
+        ----------
+        n_steps : int
+            Number of discrete voltage steps to pre-compute across the valid
+            voltage cutoff range. Default is 20.
+        **kwargs
+            Additional keyword arguments passed to ``fig.update_layout``.
+
+        Returns
+        -------
+        go.Figure
+            A Plotly figure with a slider controlling which pre-computed curve
+            is displayed.
+        """
+        # Use the raw operation window bounds and apply ceil/floor to ensure
+        # generated voltages stay strictly within the valid range
+        v_min = np.ceil(float(self._voltage_operation_window[0]) * 10000) / 10000
+        v_max = np.floor(float(self._voltage_operation_window[2]) * 10000) / 10000
+        voltages = np.round(np.linspace(v_min, v_max, n_steps), 4)
+        capacity_conversion = S_TO_H * A_TO_mA / KG_TO_G
+
+        # Pre-compute a curve for each voltage step and track axis ranges
+        frames = []
+        all_x_values = []
+        all_y_values = []
+        
+        for v in voltages:
+            curve = self._calculate_specific_capacity_curve(
+                self._specific_capacity_curves,
+                float(v),
+                self._voltage_operation_window,
+                type(self),
+            )
+            x = np.round(curve[:, 0] * capacity_conversion, 4)
+            y = np.round(curve[:, 1], 4)
+            
+            # Track ranges across all frames
+            all_x_values.extend(x)
+            all_y_values.extend(y)
+            
+            frames.append(go.Frame(
+                data=[go.Scatter(
+                    x=x,
+                    y=y,
+                    mode="lines",
+                    line=dict(color=self._color, width=2),
+                    hovertemplate=(
+                        "<b>%{fullData.name}</b><br>"
+                        "Capacity: %{x:.2f} mAh/g<br>"
+                        "Voltage: %{y:.3f} V<br>"
+                        "<extra></extra>"
+                    ),
+                )],
+                name=str(v),
+            ))
+        
+        # Calculate axis ranges that encompass all curves
+        x_min, x_max = min(all_x_values), max(all_x_values)
+        y_min, y_max = min(all_y_values), max(all_y_values)
+        # Add 5% padding
+        x_padding = (x_max - x_min) * 0.05
+        y_padding = (y_max - y_min) * 0.05
+
+        # Initial trace uses the last frame's data (maximum voltage cutoff)
+        fig = go.Figure(data=frames[-1].data, frames=frames)
+
+        # Build slider steps
+        slider_steps = [
+            dict(
+                args=[[str(v)], {"frame": {"duration": 0, "redraw": True}, "mode": "immediate"}],
+                label=str(v),
+                method="animate",
+            )
+            for v in voltages
+        ]
+
+        sliders = [dict(
+            active=len(voltages) - 1,  # Default to maximum voltage cutoff
+            currentvalue={"prefix": "Voltage Cutoff: ", "suffix": " V"},
+            pad={"t": 50},
+            steps=slider_steps,
+        )]
+
+        XAXIS = self.SCATTER_X_AXIS.copy()
+        XAXIS['title'] = 'Specific Capacity (mAh/g)'
+        XAXIS['range'] = [x_min - x_padding, x_max + x_padding]  # type: ignore[assignment]
+        
+        YAXIS = self.SCATTER_Y_AXIS.copy()
+        YAXIS['title'] = 'Voltage (V)'
+        YAXIS['range'] = [y_min - y_padding, y_max + y_padding]  # type: ignore[assignment]
+
+        fig.update_layout(
+            title=kwargs.pop("title", f"{self.name} - Interactive Voltage Cutoff"),
+            paper_bgcolor=kwargs.pop("paper_bgcolor", "white"),
+            plot_bgcolor=kwargs.pop("plot_bgcolor", "white"),
+            hovermode="closest",
+            xaxis=XAXIS,
+            yaxis=YAXIS,
+            sliders=sliders,
+            **kwargs,
+        )
+
+        return fig
+
     @property
     def voltage_cutoff(self) -> Optional[float]:
         """
@@ -479,7 +586,7 @@ class _ActiveMaterial(
                 x=df["Specific Capacity (mAh/g)"],
                 y=df["Voltage (V)"],
                 name=f"{name} V",
-                line=dict(width=2),
+                line=dict(color=self._color, width=2),
                 mode="lines",
                 hovertemplate="<b>%{fullData.name}</b><br>" + "Capacity: %{x:.2f} mAh/g<br>" + "Voltage: %{y:.3f} V<br>" + "<i>Individual Material</i><extra></extra>",
             )
