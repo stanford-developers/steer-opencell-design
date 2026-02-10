@@ -2,8 +2,9 @@ import unittest
 from io import StringIO
 import pandas as pd
 import numpy as np
+import base64
 
-from steer_opencell_design.Materials.ActiveMaterials import CathodeMaterial, AnodeMaterial
+from steer_opencell_design.Materials.ActiveMaterials import CathodeMaterial, AnodeMaterial, _ActiveMaterial
 from steer_opencell_design.Materials.Binders import Binder
 from steer_opencell_design.Materials.ConductiveAdditives import ConductiveAdditive
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
@@ -1181,6 +1182,135 @@ class TestElectrolyteVolumeMassCost(unittest.TestCase):
         self.assertAlmostEqual(self.electrolyte.mass, 25.0, places=2)
         self.assertAlmostEqual(self.electrolyte.volume, 20.83, places=3)
         self.assertAlmostEqual(self.electrolyte.cost, 0.38, places=2)
+
+
+class TestFromAppCsv(unittest.TestCase):
+    """Test the _from_app_csv classmethod for loading capacity curves from dcc.Upload content."""
+
+    def setUp(self):
+        """Create a base64-encoded CSV string mimicking dcc.Upload output."""
+        # CSV with expected column headers
+        self.csv_content = """Specific Capacity (mAh/g),Voltage (V),Direction (Charge/Discharge)
+            0.227,3.354,Charge
+            0.454,3.490,Charge
+            0.908,3.508,Charge
+            1.816,3.502,Charge
+            156.640,4.100,Charge
+            0.227,4.071,Discharge
+            0.454,3.685,Discharge
+            0.681,3.502,Discharge
+            1.135,3.466,Discharge
+            151.872,2.696,Discharge
+        """
+        # Encode as base64 with data URL prefix (as dcc.Upload provides)
+        encoded = base64.b64encode(self.csv_content.encode("utf-8")).decode("utf-8")
+        self.upload_content = f"data:text/csv;base64,{encoded}"
+
+    def test_from_app_csv_single_file(self):
+        """Test creating a CathodeMaterial from a single CSV upload."""
+        material = CathodeMaterial._from_app_csv(
+            contents=self.upload_content,
+            name="Test LFP",
+            reference="Li/Li+",
+            specific_cost=6.0,
+            density=3.6,
+        )
+
+        self.assertIsInstance(material, CathodeMaterial)
+        self.assertEqual(material.name, "Test LFP")
+        self.assertEqual(material.reference, "Li/Li+")
+        self.assertEqual(material.specific_cost, 6.0)
+        self.assertEqual(material.density, 3.6)
+
+    def test_from_app_csv_multiple_files(self):
+        """Test creating a CathodeMaterial from multiple CSV uploads."""
+        # Create a second CSV with slightly different data
+        csv_content_2 = """Specific Capacity (mAh/g),Voltage (V),Direction (Charge/Discharge)
+            0.300,3.400,Charge
+            1.000,3.550,Charge
+            150.000,4.050,Charge
+            0.300,4.000,Discharge
+            1.000,3.600,Discharge
+            145.000,2.750,Discharge
+        """
+        encoded_2 = base64.b64encode(csv_content_2.encode("utf-8")).decode("utf-8")
+        upload_content_2 = f"data:text/csv;base64,{encoded_2}"
+
+        material = CathodeMaterial._from_app_csv(
+            contents=[self.upload_content, upload_content_2],
+            name="Test LFP Multi",
+            reference="Li/Li+",
+            specific_cost=6.0,
+            density=3.6,
+        )
+
+        self.assertIsInstance(material, CathodeMaterial)
+        self.assertEqual(material.name, "Test LFP Multi")
+
+    def test_from_app_csv_with_kwargs(self):
+        """Test that kwargs are passed through to the constructor."""
+        material = CathodeMaterial._from_app_csv(
+            contents=self.upload_content,
+            name="Test LFP",
+            reference="Li/Li+",
+            specific_cost=6.0,
+            density=3.6,
+            color="#ff0000",
+            extrapolation_window=0.5,
+            voltage_cutoff=4.0,
+        )
+
+        self.assertEqual(material.color, "#ff0000")
+        self.assertEqual(material.extrapolation_window, 0.5)
+        self.assertEqual(material.voltage_cutoff, 4.0)
+
+    def test_from_app_csv_anode_material(self):
+        """Test that _from_app_csv works with AnodeMaterial subclass."""
+        # Anode-style CSV (lower voltages)
+        anode_csv = """Specific Capacity (mAh/g),Voltage (V),Direction (Charge/Discharge)
+0.1,0.8,Charge
+5.0,0.2,Charge
+350.0,0.01,Charge
+0.1,0.05,Discharge
+5.0,0.15,Discharge
+340.0,0.9,Discharge
+"""
+        encoded = base64.b64encode(anode_csv.encode("utf-8")).decode("utf-8")
+        upload_content = f"data:text/csv;base64,{encoded}"
+
+        material = AnodeMaterial._from_app_csv(
+            contents=upload_content,
+            name="Test Graphite",
+            reference="Li/Li+",
+            specific_cost=10.0,
+            density=2.2,
+        )
+
+        self.assertIsInstance(material, AnodeMaterial)
+        self.assertEqual(material.name, "Test Graphite")
+
+    def test_from_app_csv_case_insensitive_direction(self):
+        """Test that direction column handles case variations."""
+        csv_mixed_case = """Specific Capacity (mAh/g),Voltage (V),Direction (Charge/Discharge)
+0.227,3.354,CHARGE
+0.454,3.490,charge
+156.640,4.100,Charge
+0.227,4.071,DISCHARGE
+0.454,3.685,discharge
+151.872,2.696,Discharge
+"""
+        encoded = base64.b64encode(csv_mixed_case.encode("utf-8")).decode("utf-8")
+        upload_content = f"data:text/csv;base64,{encoded}"
+
+        # Should not raise an error
+        material = CathodeMaterial._from_app_csv(
+            contents=upload_content,
+            name="Test LFP",
+            reference="Li/Li+",
+            specific_cost=6.0,
+            density=3.6,
+        )
+        self.assertIsInstance(material, CathodeMaterial)
 
 
 if __name__ == "__main__":

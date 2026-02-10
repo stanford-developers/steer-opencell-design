@@ -46,6 +46,7 @@ ENERGY_CONVERSION_FACTOR = S_TO_H
 VOLUMETRIC_ENERGY_CONVERSION = S_TO_H / M_TO_DM**3
 NORMALISED_COST_CONVERSION = 1 / (ENERGY_CONVERSION_FACTOR * W_TO_KW)
 
+
 class _Cell(
     ABC,
     DunderMixin,
@@ -1232,5 +1233,18 @@ class _Cell(
 
         self._minimum_operating_voltage = value
         self._operating_voltage_window = (value, self._maximum_operating_voltage)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
