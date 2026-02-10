@@ -86,22 +86,22 @@ class _ElectrodeAssembly(
         pass
 
     @abstractmethod
-    def _calculate_mass_properties(self):
+    def _calculate_mass_properties(self) -> None:
         """Calculate mass properties of the electrode assembly."""
         pass
 
     @abstractmethod
-    def _calculate_cost_properties(self):
+    def _calculate_cost_properties(self) -> None:
         """Calculate cost properties of the electrode assembly."""
         pass
 
     @abstractmethod
-    def _calculate_geometry_parameters(self):
+    def _calculate_geometry_parameters(self) -> None:
         """Calculate geometry parameters of the electrode assembly."""
         pass
 
     @abstractmethod
-    def _calculate_interfacial_area(self):
+    def _calculate_interfacial_area(self) -> None:
         """Calculate the interfacial area between anode and cathode."""
         pass
 

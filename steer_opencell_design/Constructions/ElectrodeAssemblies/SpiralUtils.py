@@ -75,18 +75,44 @@ class SpiralCalculator:
         total_length = laminate._total_length
         r0 = start_radius
             
-        # Build interpolation grid for thickness
+        # Build interpolation grid for thickness (vectorized)
         # Heuristic: finer where dtheta small or mandrel small
         base_dl = max(dtheta * r0 / 8.0, 0.00025)
         n_grid = min(6000, max(400, int(total_length / base_dl) + 2))
         x_grid = np.linspace(0.0, total_length, n_grid)
-        t_grid = np.array([laminate.get_thickness_at_x(x) for x in x_grid], dtype=float)
+
+        # Vectorized thickness grid: inline the laminate interpolation
+        # instead of calling get_thickness_at_x() in a Python loop
+        surface_xs = laminate._top_surface[:, 0]
+        surface_zs = laminate._top_surface[:, 1]
+        baseline_z = getattr(laminate, "_baseline_z", None)
+        if baseline_z is None and hasattr(laminate, "_flattened_center_lines"):
+            fcl = laminate._flattened_center_lines
+            if "baseline" in fcl and len(fcl["baseline"]) > 0:
+                baseline_z = fcl["baseline"][0, 1]
+            else:
+                baseline_z = 0.0
+        top_z = np.interp(x_grid, surface_xs, surface_zs)
+        t_grid = np.maximum(top_z - baseline_z, 0.0).astype(float)
+
         t_min, t_max = float(t_grid.min()), float(t_grid.max())
 
+        # Fast uniform-grid interpolation using direct index math
+        # (x_grid is uniform so we can compute the index directly)
+        _t_grid = t_grid  # local reference for closure
+        _n_grid_m1 = n_grid - 1
+        _dx_inv = _n_grid_m1 / total_length if total_length > 0 else 0.0
+        _t0 = float(t_grid[0])
+        _t_last = float(t_grid[-1])
+
         def thickness_at(x):
-            if x <= 0: return t_grid[0]
-            if x >= total_length: return t_grid[-1]
-            return float(np.interp(x, x_grid, t_grid))
+            if x <= 0.0: return _t0
+            if x >= total_length: return _t_last
+            idx_f = x * _dx_inv
+            idx = int(idx_f)
+            if idx >= _n_grid_m1: return _t_last
+            frac = idx_f - idx
+            return _t_grid[idx] + frac * (_t_grid[idx + 1] - _t_grid[idx])
 
         # Adaptive RK4 integration (θ decreases)
         # State: (r, x); derivatives w.r.t θ
@@ -614,6 +640,40 @@ class SpiralCalculator:
 
         total_length = laminate._total_length  # meters
 
+        # Build fast thickness interpolator (vectorized, avoids per-step Python method calls)
+        surface_xs = laminate._top_surface[:, 0]
+        surface_zs = laminate._top_surface[:, 1]
+        baseline_z = getattr(laminate, "_baseline_z", None)
+        if baseline_z is None and hasattr(laminate, "_flattened_center_lines"):
+            fcl = laminate._flattened_center_lines
+            if "baseline" in fcl and len(fcl["baseline"]) > 0:
+                baseline_z = fcl["baseline"][0, 1]
+            else:
+                baseline_z = 0.0
+
+        n_t_grid = max(400, int(total_length / max(ds_target, 1e-6)) + 2)
+        n_t_grid = min(6000, n_t_grid)
+        t_x_grid = np.linspace(0.0, total_length, n_t_grid)
+        t_z_interp = np.interp(t_x_grid, surface_xs, surface_zs)
+        t_grid = np.maximum(t_z_interp - baseline_z, 0.0).astype(float)
+        _n_grid_m1 = n_t_grid - 1
+        _dx_inv = _n_grid_m1 / total_length if total_length > 0 else 0.0
+        _t0 = float(t_grid[0])
+        _t_last = float(t_grid[-1])
+
+        def thickness_at_fast(x):
+            if x <= 0.0: return _t0
+            if x >= total_length: return _t_last
+            idx_f = x * _dx_inv
+            idx = int(idx_f)
+            if idx >= _n_grid_m1: return _t_last
+            frac = idx_f - idx
+            return t_grid[idx] + frac * (t_grid[idx + 1] - t_grid[idx])
+
+        # Local references for speed in tight loop
+        _racetrack_position = SpiralCalculator.racetrack_position
+        _racetrack_curvature = SpiralCalculator.racetrack_curvature
+
         # Initialize arrays for spiral path
         positions = []
         x_unwrapped = 0.0
@@ -624,22 +684,20 @@ class SpiralCalculator:
         theta_racetrack = TWO_PI
         
         while x_unwrapped < total_length:
-            # Get thickness at current unwrapped position
-            thickness = laminate.get_thickness_at_x(x_unwrapped)
+            # Get thickness at current unwrapped position (fast interpolation)
+            thickness = thickness_at_fast(x_unwrapped)
             current_radius = mandrel_radius + accumulated_thickness
             
             # Calculate position on current racetrack
-            x_pos, z_pos = SpiralCalculator.racetrack_position(theta_racetrack, current_radius, straight_length)
+            x_pos, z_pos = _racetrack_position(theta_racetrack, current_radius, straight_length)
             
             # Calculate normalized theta for clockwise motion (starting from 2π, decreasing)
-            # Total turns traveled = (initial_theta - current_theta) / (2π) + full_turns_completed
             theta_traveled = (TWO_PI - theta_racetrack) + turn_count * TWO_PI
             total_turns = theta_traveled / TWO_PI
-            normalized_theta = theta_traveled  # Represents cumulative angle traveled clockwise
             
             # Store position data
             positions.append([
-                normalized_theta, # Normalized theta representing cumulative angle traveled clockwise
+                theta_traveled,   # Normalized theta representing cumulative angle traveled clockwise
                 x_unwrapped,      # Cumulative unwrapped length
                 current_radius,   # Distance from center to current layer
                 x_pos,           # Cartesian x coordinate
@@ -648,7 +706,7 @@ class SpiralCalculator:
             ])
             
             # Calculate step size based on local curvature and thickness
-            curvature = SpiralCalculator.racetrack_curvature(theta_racetrack, current_radius, straight_length)
+            curvature = _racetrack_curvature(theta_racetrack, current_radius, straight_length)
             if curvature > 0:
                 # On curved sections, limit step by curvature
                 ds_max = min(ds_target, 0.1 / curvature)
@@ -659,7 +717,6 @@ class SpiralCalculator:
             ds_actual = min(ds_max, total_length - x_unwrapped)
             
             # Calculate how much thickness to add based on this step
-            # Thickness accumulation rate depends on perimeter
             perimeter_current = TWO_PI * current_radius + 2 * straight_length
             dtheta = ds_actual * TWO_PI / perimeter_current
             
@@ -680,39 +737,37 @@ class SpiralCalculator:
         # Convert to numpy array
         spiral_array = np.array(positions)
         
-        # Downsample straight sections to reduce point count
-        # Calculate curvature at each point to identify straight vs curved sections
-        curvatures = np.array([
-            SpiralCalculator.racetrack_curvature(
-                spiral_array[i, 0],  # theta
-                spiral_array[i, 2],  # radius
-                straight_length
-            ) for i in range(len(spiral_array))
-        ])
+        # Vectorized downsampling: determine curved vs straight from theta values
+        # instead of calling racetrack_curvature() per point in a Python loop
+        thetas_col = spiral_array[:, 0]  # cumulative theta
+        radii_col = spiral_array[:, 2]
         
-        # Identify curved sections (curvature > threshold)
-        curvature_threshold = 1e-6  # Small threshold for numerical stability
-        is_curved = curvatures > curvature_threshold
+        # Normalize theta to [0, 2π) for each point
+        thetas_mod = thetas_col % TWO_PI
+        semi_arc_fractions = np.pi * radii_col
+        total_perimeters = 2.0 * semi_arc_fractions + 2.0 * straight_length
+        arc_lengths = (thetas_mod / TWO_PI) * total_perimeters
+        
+        # Point is on curved section when arc_length is in [0, semi_arc] or [semi_arc+straight, 2*semi_arc+straight]
+        is_curved = (
+            (arc_lengths <= semi_arc_fractions) |
+            ((semi_arc_fractions + straight_length <= arc_lengths) & 
+             (arc_lengths <= 2.0 * semi_arc_fractions + straight_length))
+        )
         
         # Build mask for points to keep
-        # Always keep: first point, last point, all curved points, and every Nth straight point
-        downsample_factor = 5  # Keep every 5th point on straight sections
+        downsample_factor = 5
         keep_mask = np.zeros(len(spiral_array), dtype=bool)
-        keep_mask[0] = True   # Always keep first point
-        keep_mask[-1] = True  # Always keep last point
-        keep_mask[is_curved] = True  # Keep all curved section points
+        keep_mask[0] = True
+        keep_mask[-1] = True
+        keep_mask[is_curved] = True
         
         # For straight sections, keep every Nth point
         straight_indices = np.where(~is_curved)[0]
         if len(straight_indices) > 0:
-            # Keep every downsample_factor-th point in straight sections
-            keep_straight = straight_indices[::downsample_factor]
-            keep_mask[keep_straight] = True
+            keep_mask[straight_indices[::downsample_factor]] = True
         
-        # Apply downsampling
-        downsampled_spiral = spiral_array[keep_mask]
-        
-        return downsampled_spiral
+        return spiral_array[keep_mask]
 
     @staticmethod
     def calculate_simple_racetrack(
