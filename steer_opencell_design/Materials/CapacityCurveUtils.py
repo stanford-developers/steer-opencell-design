@@ -470,7 +470,7 @@ class CapacityCurveMixin:
         
     @staticmethod
     def _truncate_and_shift_curves(
-        specific_capacity_curves: List[np.array],
+        specific_capacity_curves: List[np.ndarray],
         voltage_cutoff: float,
         material_type: Type
         ) -> np.ndarray:
@@ -560,7 +560,7 @@ class CapacityCurveMixin:
     
     @staticmethod
     def _calculate_specific_capacity_curve(
-        specific_capacity_curves: List[np.array],
+        specific_capacity_curves: List[np.ndarray],
         voltage_cutoff: float,
         voltage_operation_window: tuple[float, float, float],
         material_type: Type,

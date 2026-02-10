@@ -14,6 +14,8 @@ import plotly.graph_objects as go
 from plotly import graph_objects as go
 from typing import List, Tuple, Union, Optional, Type
 from copy import deepcopy
+import base64
+from io import StringIO
 
 
 class _ActiveMaterial(
@@ -86,6 +88,84 @@ class _ActiveMaterial(
         self.reversible_specific_capacity_scaling = reversible_specific_capacity_scaling
         self.irreversible_specific_capacity_scaling = irreversible_specific_capacity_scaling
 
+    @classmethod
+    def _from_app_csv(
+        cls,
+        contents: Union[str, List[str]],
+        name: str,
+        reference: str,
+        specific_cost: float,
+        density: float,
+        **kwargs,
+    ) -> "_ActiveMaterial":
+        """
+        Create an ActiveMaterial instance from base64-encoded CSV content(s) uploaded via a Dash dcc.Upload component.
+
+        Parameters
+        ----------
+        contents : Union[str, List[str]]
+            Base64-encoded CSV string(s) from dcc.Upload. Format: "data:text/csv;base64,<encoded_data>".
+            Can be a single string or a list of strings for multiple capacity curves.
+        name : str
+            Name of the material.
+        reference : str
+            Reference electrode for the material, e.g., 'Li/Li+'.
+        specific_cost : float
+            Specific cost of the material in $/kg.
+        density : float
+            Density of the material in g/cm^3.
+        **kwargs
+            Additional keyword arguments passed to the constructor (e.g., color, extrapolation_window,
+            reversible_specific_capacity_scaling, irreversible_specific_capacity_scaling).
+
+        Returns
+        -------
+        _ActiveMaterial
+            A new instance of the class (or subclass) with parsed capacity curves.
+
+        Notes
+        -----
+        The CSV file(s) must have the following column headers:
+            - "Specific Capacity (mAh/g)"
+            - "Voltage (V)"
+            - "Direction (Charge/Discharge)"
+
+        The "Direction (Charge/Discharge)" column should contain "Charge" or "Discharge" values.
+        """
+        column_mapping = {
+            "Specific Capacity (mAh/g)": "specific_capacity",
+            "Voltage (V)": "voltage",
+            "Direction (Charge/Discharge)": "direction",
+        }
+
+        def parse_single_csv(content: str) -> pd.DataFrame:
+            # Split content type prefix from base64 data
+            _, content_string = content.split(",")
+            # Decode base64 to bytes, then to string
+            decoded = base64.b64decode(content_string).decode("utf-8")
+            # Read CSV from string
+            df = pd.read_csv(StringIO(decoded))
+            # Rename columns to expected format
+            df = df.rename(columns=column_mapping)
+            # Normalize direction values to lowercase
+            df["direction"] = df["direction"].str.lower()
+            return df
+
+        # Handle single or multiple uploads
+        if isinstance(contents, str):
+            curves = [parse_single_csv(contents)]
+        else:
+            curves = [parse_single_csv(c) for c in contents]
+
+        return cls(
+            name=name,
+            reference=reference,
+            specific_cost=specific_cost,
+            density=density,
+            specific_capacity_curves=curves,
+            **kwargs,
+        )
+
     def _calculate_all_properties(self) -> None:
 
         self._refresh_specific_capacity_curve()
@@ -93,7 +173,7 @@ class _ActiveMaterial(
         if self._update_properties == False:
             self._calculate_specific_capacity_ranges()
 
-    def _calculate_specific_capacity_ranges(self) -> None:
+    def _calculate_specific_capacity_ranges(self) -> Tuple[Tuple[float, float], Tuple[float, float]]:
 
         _minimum_curve = self._apply_irreversible_specific_capacity_scaling(
             self._specific_capacity_curve, self.irreversible_specific_capacity_scaling_range[0]
@@ -162,6 +242,8 @@ class _ActiveMaterial(
 
         self._maximum_operating_voltage = np.max(max_voltages)
 
+        return self._maximum_operating_voltage
+
     def _get_minimum_operating_voltage(self) -> float:
         """
         Function to get the minimum operating voltage of the half cell curves without extrapolation.
@@ -175,7 +257,9 @@ class _ActiveMaterial(
 
         self._minimum_operating_voltage = np.min(max_voltages)
 
-    def _get_operating_voltage_range(self) -> tuple:
+        return self._minimum_operating_voltage
+
+    def _get_operating_voltage_range(self) -> Tuple[float, float, float]:
         """
         Function to get the operating voltage range of the half cell curves.
 
@@ -199,6 +283,8 @@ class _ActiveMaterial(
                 self._maximum_operating_voltage,
             )
 
+        return self._voltage_operation_window
+
     def _calculate_specific_capacity_curves_properties(self):
 
         self._get_maximum_operating_voltage()
@@ -213,6 +299,11 @@ class _ActiveMaterial(
 
         # calculate properties from the underlying data
         self._calculate_specific_capacity_curves_properties()
+
+        # Type narrowing: voltage_cutoff should be set after calculating properties
+        assert self._voltage_cutoff is not None, "voltage_cutoff should be set after calculating properties"
+        assert self._irreversible_specific_capacity_scaling is not None, "irreversible_specific_capacity_scaling should not be None"
+        assert self._reversible_specific_capacity_scaling is not None, "reversible_specific_capacity_scaling should not be None"
 
         # get the curve from the underlying curves data
         self._specific_capacity_curve = self._calculate_specific_capacity_curve(
@@ -280,7 +371,7 @@ class _ActiveMaterial(
         return fig
 
     @property
-    def voltage_cutoff(self) -> float:
+    def voltage_cutoff(self) -> Optional[float]:
         """
         Get the maximum voltage of the half cell curves.
         """
@@ -299,7 +390,7 @@ class _ActiveMaterial(
         )
 
     @property
-    def extrapolation_window(self) -> float:
+    def extrapolation_window(self) -> Optional[float]:
         """
         Get the extrapolation window for the half cell curves.
 
@@ -317,7 +408,7 @@ class _ActiveMaterial(
         return self._reference
         
     @property
-    def specific_capacity_curve(self) -> pd.DataFrame:
+    def specific_capacity_curve(self) -> Optional[pd.DataFrame]:
         """Get the specific capacity curve with proper units and formatting."""
         if self._specific_capacity_curve is None:
             return None
@@ -337,7 +428,7 @@ class _ActiveMaterial(
         })
 
     @property
-    def specific_capacity_curves(self) -> pd.DataFrame:
+    def specific_capacity_curves(self) -> Optional[pd.DataFrame]:
         """Get all specific capacity curves with proper units and formatting."""
         # Pre-compute unit conversion factor once
         if self._specific_capacity_curves is None:
@@ -371,12 +462,15 @@ class _ActiveMaterial(
         return pd.concat(data_list, ignore_index=True)
     
     @property
-    def specific_capacity_curves_traces(self) -> List[go.Scatter]:
+    def specific_capacity_curves_traces(self) -> Optional[List[go.Scatter]]:
 
         if self._specific_capacity_curves is None:
             return None
 
         data = self.specific_capacity_curves
+        if data is None:
+            return None
+        
         traces = []
 
         for name, df in data.groupby("Voltage at Maximum Capacity (V)"):
@@ -395,11 +489,14 @@ class _ActiveMaterial(
         return traces
     
     @property
-    def specific_capacity_curve_trace(self) -> go.Scatter:
-
+    def specific_capacity_curve_trace(self) -> Optional[go.Scatter]:
+        curve = self.specific_capacity_curve
+        if curve is None:
+            return None
+            
         return go.Scatter(
-            x=self.specific_capacity_curve["Specific Capacity (mAh/g)"],
-            y=self.specific_capacity_curve["Voltage (V)"],
+            x=curve["Specific Capacity (mAh/g)"],
+            y=curve["Voltage (V)"],
             name=self.name,
             line=dict(color=self._color, width=2),
             mode="lines",
@@ -408,6 +505,8 @@ class _ActiveMaterial(
 
     @property
     def irreversible_specific_capacity_scaling(self) -> float:
+        if self._irreversible_specific_capacity_scaling is None:
+            return 1.0
         return np.round(self._irreversible_specific_capacity_scaling, 2)
 
     @property
@@ -420,6 +519,8 @@ class _ActiveMaterial(
 
     @property
     def reversible_specific_capacity_scaling(self) -> float:
+        if self._reversible_specific_capacity_scaling is None:
+            return 1.0
         return np.round(self._reversible_specific_capacity_scaling, 2)
 
     @property
@@ -466,18 +567,6 @@ class _ActiveMaterial(
         """Get the reversible specific capacity hard range in mAh/g."""
         return (0, 6000)
 
-    @property
-    def specific_capacity_curve_trace(self) -> go.Scatter:
-
-        return go.Scatter(
-            x=self.specific_capacity_curve["Specific Capacity (mAh/g)"],
-            y=self.specific_capacity_curve["Voltage (V)"],
-            name=self.name,
-            line=dict(color=self._color, width=2),
-            mode="lines",
-            hovertemplate="<b>%{fullData.name}</b><br>" + "Capacity: %{x:.2f} mAh/g<br>" + "Voltage: %{y:.3f} V<br>" + "<i>Individual Material</i><extra></extra>",
-        )
-
     @irreversible_specific_capacity.setter
     def irreversible_specific_capacity(self, capacity: float):
         
@@ -520,12 +609,16 @@ class _ActiveMaterial(
 
     @reversible_specific_capacity_scaling.setter
     @calculate_all_properties
-    def reversible_specific_capacity_scaling(self, scaling: float):
+    def reversible_specific_capacity_scaling(self, scaling: Optional[float]):
         """
         Set the reversible capacity scaling factor.
 
         :param scaling: float: scaling factor for reversible capacity
         """
+        if scaling is None:
+            self._reversible_specific_capacity_scaling = None
+            return
+
         # validate input
         self.validate_positive_float(scaling, "Reversible capacity scaling")
 
@@ -534,7 +627,7 @@ class _ActiveMaterial(
 
     @voltage_cutoff.setter
     @calculate_all_properties
-    def voltage_cutoff(self, voltage: float) -> None:
+    def voltage_cutoff(self, voltage: Optional[float]) -> None:
         """
         Set the voltage cutoff for the half cell curves.
 
@@ -558,6 +651,7 @@ class _ActiveMaterial(
         if voltage is None:
             self._voltage_cutoff = None
             return
+            
         else:
             self.validate_positive_float(voltage, "Voltage cutoff")
             self._voltage_cutoff = voltage
@@ -565,12 +659,16 @@ class _ActiveMaterial(
         
     @irreversible_specific_capacity_scaling.setter
     @calculate_all_properties
-    def irreversible_specific_capacity_scaling(self, scaling: float):
+    def irreversible_specific_capacity_scaling(self, scaling: Optional[float]):
         """
         Set the irreversible capacity scaling factor.
 
         :param scaling: float: scaling factor for irreversible capacity
         """
+        if scaling is None:
+            self._irreversible_specific_capacity_scaling = None
+            return
+        
         # validate input
         self.validate_positive_float(scaling, "Irreversible capacity scaling")
 
@@ -601,7 +699,7 @@ class _ActiveMaterial(
         for df in specific_capacity_curves:
             df["direction"] = (
                 df["direction"]
-                .map({"charge": 1, "discharge": -1, "Charge": 1, "Discharge": -1})
+                .map({"charge": 1, "discharge": -1, "Charge": 1, "Discharge": -1})  # type: ignore[arg-type]
             )
 
         # Then convert to numpy arrays and process each curve individually
@@ -619,7 +717,11 @@ class _ActiveMaterial(
 
     @extrapolation_window.setter
     @calculate_all_properties
-    def extrapolation_window(self, window: float):
+    def extrapolation_window(self, window: Optional[float]):
+
+        if window is None:
+            self._extrapolation_window = None
+            return
 
         # validate input
         self.validate_positive_float(window, "Extrapolation window")
@@ -640,7 +742,7 @@ class CathodeMaterial(_ActiveMaterial):
         density: float,
         specific_capacity_curves: Union[List[pd.DataFrame], pd.DataFrame],
         color: str = "#2c2c2c",
-        voltage_cutoff: float = None,
+        voltage_cutoff: Optional[float] = None,
         extrapolation_window: float = 0.4,
         reversible_specific_capacity_scaling: float = 1.0,
         irreversible_specific_capacity_scaling: float = 1.0,
@@ -696,14 +798,14 @@ class CathodeMaterial(_ActiveMaterial):
         self._update_properties = True
 
     @property
-    def minimum_extrapolated_voltage(self) -> float:
+    def minimum_extrapolated_voltage(self) -> Optional[float]:
         """
         Get the minimum extrapolated voltage for the half cell curves.
 
         :return: float: minimum extrapolated voltage of the half cell curves
         """
         try:
-            return float(round(self._minimum_extrapolated_voltage, 2))
+            return float(round(self._minimum_extrapolated_voltage, 2))  # type: ignore[attr-defined]
         except Exception:
             return None
 
