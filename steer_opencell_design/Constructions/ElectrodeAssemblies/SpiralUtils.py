@@ -1,8 +1,9 @@
-from steer_opencell_design.Constructions.Layups import Laminate
+from steer_opencell_design.Constructions.Layups.Laminate import Laminate
 from steer_core.Constants.Universal import PI
 from steer_core.Constants.Units import *
 import numpy as np
 import pandas as pd
+from typing import Optional
 
 from steer_core.Mixins.Coordinates import CoordinateMixin
 
@@ -25,11 +26,11 @@ class SpiralCalculator:
 
     @staticmethod
     def calculate_variable_thickness_spiral(
-        laminate: Laminate, 
-        start_radius: float, 
-        dtheta: float = None,
+        laminate: Laminate,
+        start_radius: float,
+        dtheta: Optional[float] = None,
         **kwargs
-        ) -> np.ndarray:
+    ) -> np.ndarray:
         """Integrate a variable-thickness Archimedean-like spiral (clockwise) with adaptive RK4.
 
         Governing relations (parametrized by θ, clockwise so θ decreases from π/2):
@@ -68,7 +69,9 @@ class SpiralCalculator:
         # Handle dtheta parameter from kwargs if not explicitly provided
         if dtheta is None:
             dtheta = kwargs.get('dtheta', 0.5)
-        
+        assert dtheta is not None, "dtheta must be set from kwargs or argument"
+        dtheta = float(dtheta)
+
         total_length = laminate._total_length
         r0 = start_radius
             
@@ -396,7 +399,7 @@ class SpiralCalculator:
         return extruded_spirals
 
     @staticmethod
-    def _extrude_single_spiral(spiral, thickness) -> np.array:
+    def _extrude_single_spiral(spiral, thickness) -> np.ndarray:
 
         half_thickness = thickness / 2.0
         outer_spiral = spiral.copy()
@@ -430,11 +433,11 @@ class SpiralCalculator:
 
     @staticmethod
     def calculate_simple_spiral(
-        n_turns: float = None,
-        start_radius: float = None, 
-        thickness: float = None,
+        n_turns: Optional[float] = None,
+        start_radius: Optional[float] = None,
+        thickness: Optional[float] = None,
         points_per_turn: int = 100,
-        target_length: float = None
+        target_length: Optional[float] = None
     ) -> np.ndarray:
         """
         Calculate a simple uniform-thickness Archimedean spiral.
@@ -477,7 +480,8 @@ class SpiralCalculator:
         
         if start_radius is None or thickness is None:
             raise ValueError("start_radius and thickness are required parameters.")
-        
+        assert start_radius is not None and thickness is not None
+
         # Determine n_turns based on input
         if target_length is not None:
             # Rough overestimate: assume average radius is start_radius + some thickness buildup
@@ -485,7 +489,8 @@ class SpiralCalculator:
             avg_radius_estimate = start_radius + thickness * 2  # Conservative estimate
             rough_turns_estimate = target_length / (TWO_PI * avg_radius_estimate)
             n_turns = rough_turns_estimate * 1.5  # 50% overestimate for safety
-        
+        assert n_turns is not None, "n_turns must be set by here"
+
         # Calculate total angular span (clockwise, starting from π/2)
         total_angle = n_turns * TWO_PI
         n_points = int(n_turns * points_per_turn) + 1
@@ -569,12 +574,12 @@ class SpiralCalculator:
 
     @staticmethod
     def calculate_variable_thickness_racetrack(
-            laminate: Laminate,
-            mandrel_radius: float, 
-            straight_length: float, 
-            ds_target: float = None,
-            **kwargs
-        ) -> np.ndarray:
+        laminate: Laminate,
+        mandrel_radius: float,
+        straight_length: float,
+        ds_target: Optional[float] = None,
+        **kwargs
+    ) -> np.ndarray:
         """Calculate spiral path for given mandrel geometry parameters (clockwise direction).
         
         The racetrack consists of:
@@ -604,7 +609,9 @@ class SpiralCalculator:
         # Handle ds_target parameter from kwargs if not explicitly provided
         if ds_target is None:
             ds_target = kwargs.get('ds_target', 0.5e-3)
-        
+        assert ds_target is not None, "ds_target must be set from kwargs or argument"
+        ds_target = float(ds_target)
+
         total_length = laminate._total_length  # meters
 
         # Initialize arrays for spiral path
@@ -709,12 +716,12 @@ class SpiralCalculator:
 
     @staticmethod
     def calculate_simple_racetrack(
-        n_turns: float = None,
-        start_radius: float = None,
-        straight_length: float = None,
-        thickness: float = None,
+        n_turns: Optional[float] = None,
+        start_radius: Optional[float] = None,
+        straight_length: Optional[float] = None,
+        thickness: Optional[float] = None,
         points_per_turn: int = 300,
-        target_length: float = None
+        target_length: Optional[float] = None
     ) -> np.ndarray:
         """
         Calculate a simple uniform-thickness racetrack spiral.
@@ -759,7 +766,8 @@ class SpiralCalculator:
         
         if start_radius is None or straight_length is None or thickness is None:
             raise ValueError("start_radius, straight_length, and thickness are required parameters.")
-        
+        assert start_radius is not None and straight_length is not None and thickness is not None
+
         # Determine n_turns based on input
         if target_length is not None:
             # Estimate based on average perimeter
@@ -767,10 +775,11 @@ class SpiralCalculator:
             # For safety, use 50% more turns than the rough estimate
             rough_turns_estimate = target_length / avg_perimeter
             n_turns = rough_turns_estimate * 1.5  # 50% overestimate for safety
-        
+        assert n_turns is not None, "n_turns must be set by here"
+
         # Calculate total perimeter for one complete turn at start radius
         perimeter_start = TWO_PI * start_radius + 2 * straight_length
-        
+
         # Generate parametric coordinates
         n_points = int(n_turns * points_per_turn) + 1
         
@@ -1030,7 +1039,7 @@ class SpiralCalculator:
         return extruded_spirals
 
     @staticmethod
-    def _extrude_single_racetrack(spiral, thickness, mandrel_radius, straight_length) -> np.array:
+    def _extrude_single_racetrack(spiral, thickness, mandrel_radius, straight_length) -> np.ndarray:
 
         half_thickness = thickness / 2.0
         
@@ -1491,7 +1500,7 @@ class SpiralCalculator:
 
         # Use Brent's method (via minimize_scalar) to find angle that minimizes thickness
         result = minimize_scalar(compute_thickness_at_angle, bounds=(0, np.pi), method='bounded')
-        optimal_angle = result.x
+        optimal_angle = float(result.x)  # type: ignore[union-attr]
 
         # Apply the optimal rotation to the spiral data
         c, s = np.cos(optimal_angle), np.sin(optimal_angle)
