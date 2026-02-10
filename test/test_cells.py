@@ -1,4 +1,5 @@
 import unittest
+import warnings
 from copy import deepcopy
 import steer_opencell_design as ocd
 from steer_opencell_design.Components.Containers.Flexframe import FlexFrameEncapsulation
@@ -520,6 +521,7 @@ class TestCylindricalCell(unittest.TestCase):
         # fig1.show()
 
     def test_voltage_operating_range_after_active_material_removal(self):
+        warnings.filterwarnings('ignore')
 
         fig1 = self.cell.get_capacity_plot()
 
