@@ -17,9 +17,9 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "steer-core==0.1.41",
-    "steer-materials==0.1.26",
-    "steer-opencell-data==0.0.17",
+    "steer-core==0.1.42",
+    "steer-materials==0.1.27",
+    "steer-opencell-data==0.0.18",
 ]
 
 [project.urls]
