@@ -571,6 +571,65 @@ class TestCylindricalCell(unittest.TestCase):
         # fig3.show()
         # fig4.show()
 
+    def test_cathode_blend_energy_change(self):
+        warnings.filterwarnings('ignore')
+        
+        """Test that cell energy changes when adding and removing a second cathode active material."""
+        
+        # Capture baseline energy (cell starts with 95% LFP cathode from setUp)
+        baseline_energy = self.cell.energy
+        self.assertIsNotNone(baseline_energy)
+
+        fig1 = self.cell.get_capacity_plot()
+        
+        # Load second cathode material
+        nmc811 = ocd.CathodeMaterial.from_database("NMC811")
+        nmc811.extrapolation_window = 0.5
+        
+        # Add second active material at 20%, reduce first material by 20%
+        formulation = self.cell.reference_electrode_assembly.layup.cathode.formulation
+        formulation.active_material_2 = nmc811
+        formulation.active_material_2_weight = 20
+        formulation.active_material_1_weight = 75  # 95 - 20 = 75
+        
+        # Propagate changes through hierarchy
+        self.cell.reference_electrode_assembly.layup.cathode.formulation = formulation
+        self.cell.reference_electrode_assembly.layup.cathode = self.cell.reference_electrode_assembly.layup.cathode
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+        
+        # Verify energy changed with blended cathode
+        blended_energy = self.cell.energy
+        self.assertNotEqual(blended_energy, baseline_energy, 
+                            "Energy should change when adding second active material")
+        
+        fig2 = self.cell.get_capacity_plot()
+
+        # Remove second material by setting it to None
+        formulation.active_material_2 = None
+        formulation.active_material_1_weight = 95  # Restore original weight
+        
+        # Propagate changes through hierarchy again
+        self.cell.reference_electrode_assembly.layup.cathode.formulation = formulation
+        self.cell.reference_electrode_assembly.layup.cathode = self.cell.reference_electrode_assembly.layup.cathode
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+        
+        # Verify energy changed back (differs from blended state)
+        restored_energy = self.cell.energy
+        self.assertNotEqual(restored_energy, blended_energy,
+                            "Energy should change when removing second active material")
+        
+        # Verify energy approximately returns to baseline
+        self.assertAlmostEqual(restored_energy, baseline_energy, places=1,
+                               msg="Energy should return close to baseline after removing second material")
+
+        fig3 = self.cell.get_capacity_plot()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+
 
 class TestCylindricalCellTabbed(unittest.TestCase):
     
