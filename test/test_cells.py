@@ -4,6 +4,7 @@ from copy import deepcopy
 import steer_opencell_design as ocd
 from steer_opencell_design.Components.Containers.Flexframe import FlexFrameEncapsulation
 from steer_opencell_design.Components.Containers.Pouch import PouchTerminal
+from steer_core.Mixins.Serializer import SerializerMixin
 
 
 class TestCylindricalCell(unittest.TestCase):
@@ -1205,6 +1206,53 @@ class TestStackedPouchCell(unittest.TestCase):
         self.assertIsNotNone(self.cell.mass)
         self.assertIsNotNone(self.cell.cost)
         self.assertGreater(self.cell.reversible_capacity, 0)
+
+    def test_add_anode_material_adjust_weights_and_serialize(self):
+        """
+        Test adding a second active material to anode formulation at cell level,
+        adjusting weights, and serialization/deserialization.
+        """
+        warnings.filterwarnings('ignore')
+        
+        # Create a second anode active material
+        anode_active_2 = ocd.AnodeMaterial.from_database("Hard Carbon (Vendor A)")
+        anode_active_2.specific_cost = 8
+        anode_active_2.density = 1.5
+        
+        # Add second active material to the anode formulation
+        self.cell.reference_electrode_assembly.layup.anode.formulation.active_material_2 = anode_active_2
+        
+        # Adjust weights: set material 2 to 10%, reduce material 1 by 10%
+        self.cell.reference_electrode_assembly.layup.anode.formulation.active_material_2_weight = 10
+        original_weight = self.cell.reference_electrode_assembly.layup.anode.formulation.active_material_1_weight
+        self.cell.reference_electrode_assembly.layup.anode.formulation.active_material_1_weight = original_weight - 10
+        
+        # Propagate changes up the hierarchy
+        self.cell.reference_electrode_assembly.layup.anode.formulation = self.cell.reference_electrode_assembly.layup.anode.formulation
+        self.cell.reference_electrode_assembly.layup.anode = self.cell.reference_electrode_assembly.layup.anode
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+        
+        # Verify the weights are correct
+        self.assertEqual(self.cell.reference_electrode_assembly.layup.anode.formulation.active_material_1_weight, 80)
+        self.assertEqual(self.cell.reference_electrode_assembly.layup.anode.formulation.active_material_2_weight, 10)
+        self.assertEqual(len(self.cell.reference_electrode_assembly.layup.anode.formulation._active_materials), 2)
+        
+        # Serialize the cell
+        serialized = self.cell.serialize()
+        
+        # Deserialize using SerializerMixin.deserialize()
+        deserialized = SerializerMixin.deserialize(serialized)
+        
+        # Verify the deserialized cell has correct structure
+        self.assertIsInstance(deserialized, ocd.PouchCell)
+        self.assertEqual(deserialized.reference_electrode_assembly.layup.anode.formulation.active_material_1_weight, 80)
+        self.assertEqual(deserialized.reference_electrode_assembly.layup.anode.formulation.active_material_2_weight, 10)
+        self.assertEqual(len(deserialized.reference_electrode_assembly.layup.anode.formulation._active_materials), 2)
+        
+        # Verify energy and mass are preserved
+        self.assertAlmostEqual(deserialized.energy, self.cell.energy, 2)
+        self.assertAlmostEqual(deserialized.mass, self.cell.mass, 2)
 
 
 class TestStackedPrismaticCell(unittest.TestCase):
