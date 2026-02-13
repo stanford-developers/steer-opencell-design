@@ -19,8 +19,6 @@ from steer_opencell_design.Constructions.ElectrodeAssemblies.SpiralUtils import 
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Tape import Tape
 from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector
 
-import time
-
 
 # Constants for array column indices
 THETA_COL = 0
@@ -111,7 +109,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             self, 
             laminate: Laminate,
             mandrel: Union[FlatMandrel, RoundMandrel],
-            tape: Tape = None,
+            tape: Optional[Tape] = None,
             additional_tape_wraps: float = 0,
             collector_tab_crumple_factor: float = 50,
             name: str = "Jelly Roll"
@@ -143,6 +141,14 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         if not isinstance(laminate, Laminate):
             raise TypeError(f"laminate must be Laminate, got {type(laminate)}")
         
+        # Type annotations for instance attributes
+        self._spiral: np.ndarray = np.array([])
+        self._component_spirals: Dict[str, np.ndarray] = {}
+        self._extruded_spirals: Dict[str, np.ndarray] = {}
+        self._tape: Optional[Tape] = None
+        self._component_top_down_coordinates: Dict[str, np.ndarray] = {}
+        self._component_right_left_coordinates: Dict[str, np.ndarray] = {}
+
         # controls
         self._tape_length_driver = TapeDriver.JELLY_ROLL_DRIVEN
             
@@ -152,7 +158,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         self.collector_tab_crumple_factor = collector_tab_crumple_factor
         self.tape = tape
 
-        self._datum = (0.0, 0.0, 0.0)
+        self._datum: Tuple[float, float, float] = (0.0, 0.0, 0.0)
 
     def _calculate_all_properties(self, laminate_x_spacing=0.004, **kwargs) -> None:
         """Calculate all properties of the jelly roll electrode assembly.
@@ -208,6 +214,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         cathode_is_tab_welded = isinstance(
             self._layup._cathode._current_collector, TabWeldedCurrentCollector
         )
+
         anode_is_tab_welded = isinstance(
             self._layup._anode._current_collector, TabWeldedCurrentCollector
         )
@@ -215,17 +222,18 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         # Component configuration: (spiral_key, coords_attr_path)
         component_configs = [
             ('cathode_b_side_coating', '_cathode._b_side_coating_coordinates'),
-            ('cathode_current_collector', '_cathode._current_collector._body_coordinates'),
+            ('cathode_current_collector', '_cathode._current_collector._foil_coordinates'),
             ('cathode_a_side_coating', '_cathode._a_side_coating_coordinates'),
             ('bottom_separator', '_bottom_separator._coordinates'),
             ('anode_b_side_coating', '_anode._b_side_coating_coordinates'),
-            ('anode_current_collector', '_anode._current_collector._body_coordinates'),
+            ('anode_current_collector', '_anode._current_collector._foil_coordinates'),
             ('anode_a_side_coating', '_anode._a_side_coating_coordinates'),
             ('top_separator', '_top_separator._coordinates'),
         ]
         
         # Calculate coordinates for standard components
         for spiral_key, coords_attr_path in component_configs:
+
             self._calculate_component_top_down_coords(
                 spiral_key, 
                 coords_attr_path,
@@ -240,6 +248,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         # Calculate tab coordinates if tab welded
         if cathode_is_tab_welded:
             self._calculate_tab_top_down_coords('cathode')
+
         if anode_is_tab_welded:
             self._calculate_tab_top_down_coords('anode')
 
@@ -257,12 +266,13 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         spiral_key : str
             Key to identify component in spiral dictionaries
         coords_attr_path : str
-            Dot-separated path to component coordinates (e.g., '_anode._current_collector._body_coordinates')
+            Dot-separated path to component coordinates (e.g., '_anode._current_collector._foil_coordinates')
         cathode_is_tab_welded : bool
             Whether cathode uses tab-welded current collector
         anode_is_tab_welded : bool
             Whether anode uses tab-welded current collector
         """
+        
         # Get spiral diameter
         spiral = self._extruded_spirals.get(spiral_key)
         spiral_clean = spiral[~np.isnan(spiral[:, RADIUS_COL])]
@@ -317,7 +327,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         # Get current collector and tab coordinates
         electrode = getattr(self._layup, f'_{electrode_type}')
         current_collector = electrode._current_collector
-        tab_coords = current_collector._weld_tabs[0]._body_coordinates
+        tab_coords = current_collector._weld_tabs[0]._foil_coordinates
         
         # Clean NaN values
         tab_coords_clean = tab_coords[~np.isnan(tab_coords[:, 0])]
@@ -328,7 +338,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         tab_min_y = tab_coords_clean[:, 1].min()
         
         # Apply crumple factor adjustment
-        tab_overhang = current_collector.tab_overhang
+        tab_overhang = current_collector._tab_overhang
         crumple_adjustment = tab_overhang * self._collector_tab_crumple_factor
         
         if electrode_type == 'cathode':
@@ -341,6 +351,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         
         # Build rectangular coordinates centered on x-axis
         x, y = self.build_square_array(-tab_width / 2, tab_min_y, tab_width, tab_height)
+
         self._component_top_down_coordinates[f'{electrode_type}_tab'] = np.column_stack((x, y))
 
     def _calculate_right_left_coordinates(self) -> None:
@@ -371,11 +382,11 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         # Component configuration: (spiral_key, coords_attr_path)
         component_configs = [
             ('cathode_b_side_coating', '_cathode._b_side_coating_coordinates'),
-            ('cathode_current_collector', '_cathode._current_collector._body_coordinates'),
+            ('cathode_current_collector', '_cathode._current_collector._foil_coordinates'),
             ('cathode_a_side_coating', '_cathode._a_side_coating_coordinates'),
             ('bottom_separator', '_bottom_separator._coordinates'),
             ('anode_b_side_coating', '_anode._b_side_coating_coordinates'),
-            ('anode_current_collector', '_anode._current_collector._body_coordinates'),
+            ('anode_current_collector', '_anode._current_collector._foil_coordinates'),
             ('anode_a_side_coating', '_anode._a_side_coating_coordinates'),
             ('top_separator', '_top_separator._coordinates'),
         ]
@@ -413,7 +424,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         spiral_key : str
             Key to identify component in spiral dictionaries
         coords_attr_path : str
-            Dot-separated path to component coordinates (e.g., '_anode._current_collector._body_coordinates')
+            Dot-separated path to component coordinates (e.g., '_anode._current_collector._foil_coordinates')
         cathode_is_tab_welded : bool
             Whether cathode uses tab-welded current collector
         anode_is_tab_welded : bool
@@ -473,7 +484,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         # Get current collector and tab coordinates
         electrode = getattr(self._layup, f'_{electrode_type}')
         current_collector = electrode._current_collector
-        tab_coords = current_collector._weld_tabs[0]._body_coordinates
+        tab_coords = current_collector._weld_tabs[0]._foil_coordinates
         
         # Clean NaN values
         tab_coords_clean = tab_coords[~np.isnan(tab_coords[:, 0])]
@@ -565,7 +576,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
         return (x_center, y_center, z_center)
 
-    def _calculate_interfacial_area(self) -> float:
+    def _calculate_interfacial_area(self) -> None:
         """Calculate the interfacial area between cathode and anode surfaces in a wound jelly roll.
         
         Computes two interfacial surfaces:
@@ -597,8 +608,6 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
         
         self._interfacial_area = inner_area + outer_area
-
-        return self._interfacial_area
             
     def _get_electrode_coordinates(self, electrode_type: str) -> Dict[str, np.ndarray]:
         """Extract electrode coating coordinates.
@@ -804,6 +813,26 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         else: 
             raise ValueError(f"Invalid tape length driver: {self._tape_length_driver}")
 
+    def _calculate_total_height(self) -> Tuple[float, float, float]:
+        """Calculate the total height of the jelly roll from component coordinates.
+        
+        Analyzes all component top-down coordinates to determine the minimum and
+        maximum Y positions, calculates the midpoint, and computes the total height.
+        
+        Returns
+        -------
+        Tuple[float, float, float]
+            (total_height, min_y_point, max_y_point) all in meters
+        """
+        y_coords = [c[:, 1] for c in self._component_top_down_coordinates.values()]
+        min_vals = [np.min(y) for y in y_coords]
+        max_vals = [np.max(y) for y in y_coords]
+        self._min_y_point = min(min_vals)
+        self._max_y_point = max(max_vals)
+        self._mid_y_point = (self._min_y_point + self._max_y_point) / 2
+        self._total_height = self._max_y_point - self._min_y_point
+        return self._total_height, self._min_y_point, self._max_y_point
+
     def _translate_spirals_xz(
             self, 
             x_shift: float, 
@@ -936,8 +965,8 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         
         # get the min x of the layup
         coords = [
-            layup._anode._current_collector._body_coordinates[:,0],
-            layup._cathode._current_collector._body_coordinates[:,0],
+            layup._anode._current_collector._foil_coordinates[:,0],
+            layup._cathode._current_collector._foil_coordinates[:,0],
             layup._bottom_separator._coordinates[:,0],
             layup._top_separator._coordinates[:,0]
         ]
@@ -966,7 +995,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         return layup
 
     @abstractmethod
-    def _calculate_variable_thickness_spiral(self, dtheta) -> np.ndarray:
+    def _calculate_variable_thickness_spiral(self, **kwargs) -> np.ndarray:
         """Calculate the base spiral with variable thickness.
         
         This method must be implemented by subclasses to define the specific
@@ -1008,7 +1037,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         pass
 
     @abstractmethod
-    def _calculate_geometry_parameters(self) -> Union[Tuple[float, float], Tuple[float, float, float]]:
+    def _calculate_geometry_parameters(self) -> None:
         """Calculate geometry-specific parameters (radius, thickness, etc.).
         
         This method must be implemented by subclasses to calculate the characteristic
@@ -1143,7 +1172,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         """
         pass
 
-    def calculate_high_resolution_roll(self, **kwargs) -> None:
+    def calculate_high_resolution_roll(self, **kwargs) -> '_JellyRoll':
         """Generate high-resolution geometry for detailed analysis.
         
         Recalculates the jelly roll using finer spacing parameters for
@@ -1175,6 +1204,8 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         # Recalculate with high-resolution parameters
         self._calculate_all_properties(**default_params)
 
+        return self
+
     @abstractmethod
     def _get_high_resolution_params(self) -> Dict[str, Any]:
         """Get geometry-specific high-resolution parameters.
@@ -1185,79 +1216,6 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             Dictionary containing geometry-specific high-resolution parameters
         """
         pass
-
-    def _optimize_layup_length_for_target(
-        self,
-        target_value: float,
-        parameter_name: str,
-        geometry_function: callable,
-        hard_range: Tuple[float, float],
-        unit_conversion: float = MM_TO_M
-    ) -> None:
-        """Generic optimization framework for setting dimensional targets.
-        
-        Uses Brent's method to find the optimal layup length that achieves
-        the target dimensional value through geometry optimization.
-        
-        Parameters
-        ----------
-        target_value : float
-            Target dimensional value (in mm)
-        parameter_name : str
-            Name of parameter for error messages
-        geometry_function : callable
-            Function that calculates actual dimension from layup copy
-        hard_range : Tuple[float, float]
-            Valid range for the parameter (min, max) in mm
-        unit_conversion : float
-            Conversion factor from mm to meters
-            
-        Raises
-        ------
-        ValueError
-            If target value is invalid or optimization fails
-        """
-        # Validate input
-        self.validate_positive_float(target_value, parameter_name)
-        
-        # Check if value is within hard range
-        if not (hard_range[0] <= target_value <= hard_range[1]):
-            raise ValueError(
-                f"target_{parameter_name} {target_value} mm is outside of hard range "
-                f"{hard_range[0]} mm to {hard_range[1]} mm"
-            )
-        
-        # Convert target to meters
-        target_value_m = target_value * unit_conversion
-        
-        def objective_function(length: float) -> float:
-            """Objective function: difference between actual and target."""
-            # Create copy of layup to avoid modifying original during optimization
-            layup_copy = deepcopy(self._layup)
-            layup_copy.length = length * M_TO_MM
-            layup = self.position_layup_on_mandrel(layup_copy, self._mandrel)
-            layup.calculate_flattened_center_lines()
-            
-            # Calculate actual dimension using provided geometry function
-            actual_value = geometry_function(layup_copy)
-            
-            return actual_value - target_value_m
-        
-        min_length = self._layup.length_range[0] * MM_TO_M
-        max_length = self._layup.length_hard_range[1] * MM_TO_M
-        
-        # Use Brent's method for robust root finding
-        optimal_length = brentq(
-            objective_function,
-            min_length,
-            max_length,
-            xtol=1e-6,    # High precision in length
-            rtol=1e-6,    # Relative tolerance
-            maxiter=100   # Maximum iterations
-        )
-        
-        # Set the optimized length
-        self._layup.length = optimal_length * M_TO_MM
 
     def _calculate_roll_properties(self) -> Dict[str, float]:
         """Calculate roll properties with optimized performance and error handling.
@@ -1346,7 +1304,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
         return self._roll_properties
 
-    def _calculate_mass_properties(self) -> float:
+    def _calculate_mass_properties(self) -> None:
         """Calculate total mass and mass breakdown of the jelly roll assembly.
         
         Returns
@@ -1361,7 +1319,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         """
         separators = [self._layup._bottom_separator, self._layup._top_separator]
 
-        self._mass = self._layup._anode._mass + self._layup._cathode._mass + sum(s._mass for s in separators)
+        self._mass = self._layup._anode._mass + self._layup._cathode._mass + sum(s._mass for s in separators if s._mass is not None)
 
         self._mass_breakdown = {
             "Anode": self._layup._anode._mass_breakdown,
@@ -1375,7 +1333,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
         return self._mass
 
-    def _calculate_cost_properties(self) -> float:
+    def _calculate_cost_properties(self) -> None:
         """Calculate total cost and cost breakdown of the jelly roll assembly.
         
         Returns
@@ -1390,7 +1348,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         """
         separators = [self._layup._bottom_separator, self._layup._top_separator]
 
-        self._cost = self._layup._anode._cost + self._layup._cathode._cost + sum(s._cost for s in separators)
+        self._cost = self._layup._anode._cost + self._layup._cathode._cost + sum(s._cost for s in separators if s._cost is not None)
 
         self._cost_breakdown = {
             "Anode": self._layup._anode._cost_breakdown,
@@ -1404,7 +1362,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
         return self._cost
 
-    def _format_spiral_trace(self, property_name: str, color: str, name: str, line_width: int = 0) -> go.Scatter:
+    def _format_spiral_trace(self, property_name: str, color: str, name: str, line_width: int = 0) -> Optional[go.Scatter]:
         """Format spiral data into Plotly scatter trace.
         
         Parameters
@@ -1467,7 +1425,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
         return trace
     
-    def _format_extruded_spiral_trace(self, property_name: str, color: str, name: str) -> go.Scatter:
+    def _format_extruded_spiral_trace(self, property_name: str, color: str, name: str) -> Optional[go.Scatter]:
         """Format extruded spiral data into filled Plotly scatter trace.
         
         Parameters
@@ -1531,16 +1489,21 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         Returns
         -------
         float
-            Maximum Y coordinate of cathode current collector body minus tab (meters)
+            Maximum Y coordinate of cathode current collector foil minus tab (meters)
         """
-        cathode_tab_deduction = (
-            self._layup._cathode._current_collector._tab_height * 
-            self._collector_tab_crumple_factor
-        )
-        return (
-            self._layup._cathode._current_collector._body_coordinates[:, 1].max() - 
-            cathode_tab_deduction
-        )
+        from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector 
+
+        if type(self._layup._cathode._current_collector) == TabWeldedCurrentCollector:
+            cathode_tab_deduction =  - self._layup._cathode._current_collector._tab_overhang
+        else:
+            cathode_tab_deduction = (
+                self._layup._cathode._current_collector._tab_height *
+                self._collector_tab_crumple_factor
+            )
+
+        max_y = self._layup._cathode._current_collector._foil_coordinates[:, 1].max()
+
+        return max_y - cathode_tab_deduction
 
     def _get_anode_tab_y_position(self) -> float:
         """Get anode current collector tab Y position.
@@ -1548,16 +1511,21 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         Returns
         -------
         float
-            Minimum Y coordinate of anode current collector body plus tab (meters)
+            Minimum Y coordinate of anode current collector foil plus tab (meters)
         """
-        anode_tab_deduction = (
-            self._layup._anode._current_collector._tab_height * 
-            self._collector_tab_crumple_factor
-        )
-        return (
-            self._layup._anode._current_collector._body_coordinates[:, 1].min() + 
-            anode_tab_deduction
-        )
+        from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector
+
+        if type(self._layup._anode._current_collector) == TabWeldedCurrentCollector:
+            anode_tab_deduction = - self._layup._anode._current_collector._tab_overhang
+        else:
+            anode_tab_deduction = (
+                self._layup._anode._current_collector._tab_height *
+                self._collector_tab_crumple_factor
+            )
+
+        min_y = self._layup._anode._current_collector._foil_coordinates[:, 1].min()
+
+        return min_y + anode_tab_deduction
 
     def get_spiral_plot(self, layered: bool = True,**kwargs: Any) -> go.Figure:
         """Generate interactive spiral plot using Plotly.
@@ -1737,6 +1705,15 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         return figure
 
     @property
+    def height(self) -> float:
+        """Return the overall height of the jelly roll assembly in millimeters."""
+        return self.total_height
+    
+    @property
+    def height_range(self) -> Tuple[float, float]:
+        return self.layup.width_range
+
+    @property
     def tape_length_driver(self) -> TapeDriver:
         """Get the current tape length driver mode.
         
@@ -1763,7 +1740,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         return (0.0, 10.0)
 
     @property
-    def tape(self) -> Tape:
+    def tape(self) -> Optional[Tape]:
         """Return the tape used for the jelly roll assembly."""
         return self._tape
 
@@ -1827,7 +1804,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         return SpiralCalculator.format_np_spiral_for_df(spiral)
 
     @property
-    def spiral_trace(self) -> go.Scatter:
+    def spiral_trace(self) -> Optional[go.Scatter]:
         return self._format_spiral_trace("spiral", "black", "Spiral", 1)
 
     @property
@@ -1954,79 +1931,79 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         return SpiralCalculator.format_np_spiral_for_df(cbsc_extruded_spiral)
 
     @property
-    def top_separator_spiral_trace(self) -> go.Scatter:
+    def top_separator_spiral_trace(self) -> Optional[go.Scatter]:
         return self._format_spiral_trace("top_separator_spiral", self._layup.top_separator.material._color, f"Top Separator")
     
     @property
-    def tape_spiral_trace(self) -> go.Scatter:
+    def tape_spiral_trace(self) -> Optional[go.Scatter]:
         return self._format_spiral_trace("tape_spiral", self._tape._material._color, f"Tape")
 
     @property
-    def bottom_separator_spiral_trace(self) -> go.Scatter:
+    def bottom_separator_spiral_trace(self) -> Optional[go.Scatter]:
         return self._format_spiral_trace("bottom_separator_spiral", self._layup.bottom_separator.material._color, f"Bottom Separator")
     
     @property
-    def anode_a_side_coating_spiral_trace(self) -> go.Scatter:
+    def anode_a_side_coating_spiral_trace(self) -> Optional[go.Scatter]:
         return self._format_spiral_trace("anode_a_side_coating_spiral", self._layup._anode.formulation._color, f"Anode a-side Coating")
     
     @property
-    def anode_current_collector_spiral_trace(self) -> go.Scatter:
+    def anode_current_collector_spiral_trace(self) -> Optional[go.Scatter]:
         return self._format_spiral_trace("anode_current_collector_spiral", self._layup._anode.current_collector.material._color, f"Anode Current Collector")
     
     @property
-    def anode_b_side_coating_spiral_trace(self) -> go.Scatter:
+    def anode_b_side_coating_spiral_trace(self) -> Optional[go.Scatter]:
         return self._format_spiral_trace("anode_b_side_coating_spiral", self._layup._anode.formulation._color, f"Anode b-side Coating")
     
     @property
-    def cathode_a_side_coating_spiral_trace(self) -> go.Scatter:
+    def cathode_a_side_coating_spiral_trace(self) -> Optional[go.Scatter]:
         return self._format_spiral_trace("cathode_a_side_coating_spiral", self._layup._cathode.formulation._color, f"Cathode a-side Coating")
 
     @property
-    def cathode_current_collector_spiral_trace(self) -> go.Scatter:
+    def cathode_current_collector_spiral_trace(self) -> Optional[go.Scatter]:
         return self._format_spiral_trace("cathode_current_collector_spiral", self._layup._cathode.current_collector.material._color, f"Cathode Current Collector")
     
     @property
-    def cathode_b_side_coating_spiral_trace(self) -> go.Scatter:
+    def cathode_b_side_coating_spiral_trace(self) -> Optional[go.Scatter]:
         return self._format_spiral_trace("cathode_b_side_coating_spiral", self._layup._cathode.formulation._color, f"Cathode b-side Coating")
     
     @property
-    def tape_extruded_spiral_trace(self) -> go.Scatter:
+    def tape_extruded_spiral_trace(self) -> Optional[go.Scatter]:
         return self._format_extruded_spiral_trace("tape_extruded_spiral", self._tape._material._color, f"Tape")
 
     @property
-    def top_separator_extruded_spiral_trace(self) -> go.Scatter:
+    def top_separator_extruded_spiral_trace(self) -> Optional[go.Scatter]:
         return self._format_extruded_spiral_trace("top_separator_extruded_spiral", self._layup.top_separator.material._color, f"Top Separator")
 
     @property
-    def bottom_separator_extruded_spiral_trace(self) -> go.Scatter:
+    def bottom_separator_extruded_spiral_trace(self) -> Optional[go.Scatter]:
         return self._format_extruded_spiral_trace("bottom_separator_extruded_spiral", self._layup.bottom_separator.material._color, f"Bottom Separator")
 
     @property
-    def anode_a_side_coating_extruded_spiral_trace(self) -> go.Scatter:
+    def anode_a_side_coating_extruded_spiral_trace(self) -> Optional[go.Scatter]:
         return self._format_extruded_spiral_trace("anode_a_side_coating_extruded_spiral", self._layup._anode._formulation._color, f"Anode a-side Coating")
 
     @property
-    def anode_current_collector_extruded_spiral_trace(self) -> go.Scatter:
+    def anode_current_collector_extruded_spiral_trace(self) -> Optional[go.Scatter]:
         return self._format_extruded_spiral_trace("anode_current_collector_extruded_spiral", self._layup._anode.current_collector.material._color, f"Anode Current Collector")   
 
     @property
-    def anode_b_side_coating_extruded_spiral_trace(self) -> go.Scatter:
+    def anode_b_side_coating_extruded_spiral_trace(self) -> Optional[go.Scatter]:
         return self._format_extruded_spiral_trace("anode_b_side_coating_extruded_spiral", self._layup._anode.formulation._color, f"Anode b-side Coating")
 
     @property
-    def cathode_a_side_coating_extruded_spiral_trace(self) -> go.Scatter:
+    def cathode_a_side_coating_extruded_spiral_trace(self) -> Optional[go.Scatter]:
         return self._format_extruded_spiral_trace("cathode_a_side_coating_extruded_spiral", self._layup._cathode.formulation._color, f"Cathode a-side Coating")
     
     @property
-    def cathode_current_collector_extruded_spiral_trace(self) -> go.Scatter:
+    def cathode_current_collector_extruded_spiral_trace(self) -> Optional[go.Scatter]:
         return self._format_extruded_spiral_trace("cathode_current_collector_extruded_spiral", self._layup._cathode.current_collector.material._color, f"Cathode Current Collector")
     
     @property
-    def cathode_b_side_coating_extruded_spiral_trace(self) -> go.Scatter:
+    def cathode_b_side_coating_extruded_spiral_trace(self) -> Optional[go.Scatter]:
         return self._format_extruded_spiral_trace("cathode_b_side_coating_extruded_spiral", self._layup._cathode.formulation._color, f"Cathode b-side Coating")
 
     @property
-    def cathode_b_side_coating_top_down_trace(self) -> go.Scatter:
+    def cathode_b_side_coating_top_down_trace(self) -> Optional[go.Scatter]:
         """Get cathode b-side coating trace for top-down view."""
         if 'cathode_b_side_coating' not in self._component_top_down_coordinates:
             return None
@@ -2042,7 +2019,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def cathode_current_collector_top_down_trace(self) -> go.Scatter:
+    def cathode_current_collector_top_down_trace(self) -> Optional[go.Scatter]:
         """Get cathode current collector trace for top-down view."""
         if 'cathode_current_collector' not in self._component_top_down_coordinates:
             return None
@@ -2058,7 +2035,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def cathode_a_side_coating_top_down_trace(self) -> go.Scatter:
+    def cathode_a_side_coating_top_down_trace(self) -> Optional[go.Scatter]:
         """Get cathode a-side coating trace for top-down view."""
         if 'cathode_a_side_coating' not in self._component_top_down_coordinates:
             return None
@@ -2074,7 +2051,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def bottom_separator_top_down_trace(self) -> go.Scatter:
+    def bottom_separator_top_down_trace(self) -> Optional[go.Scatter]:
         """Get bottom separator trace for top-down view."""
         if 'bottom_separator' not in self._component_top_down_coordinates:
             return None
@@ -2090,7 +2067,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def anode_b_side_coating_top_down_trace(self) -> go.Scatter:
+    def anode_b_side_coating_top_down_trace(self) -> Optional[go.Scatter]:
         """Get anode b-side coating trace for top-down view."""
         if 'anode_b_side_coating' not in self._component_top_down_coordinates:
             return None
@@ -2106,7 +2083,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def anode_current_collector_top_down_trace(self) -> go.Scatter:
+    def anode_current_collector_top_down_trace(self) -> Optional[go.Scatter]:
         """Get anode current collector trace for top-down view."""
         if 'anode_current_collector' not in self._component_top_down_coordinates:
             return None
@@ -2122,7 +2099,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def anode_a_side_coating_top_down_trace(self) -> go.Scatter:
+    def anode_a_side_coating_top_down_trace(self) -> Optional[go.Scatter]:
         """Get anode a-side coating trace for top-down view."""
         if 'anode_a_side_coating' not in self._component_top_down_coordinates:
             return None
@@ -2138,7 +2115,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def top_separator_top_down_trace(self) -> go.Scatter:
+    def top_separator_top_down_trace(self) -> Optional[go.Scatter]:
         """Get top separator trace for top-down view."""
         if 'top_separator' not in self._component_top_down_coordinates:
             return None
@@ -2154,7 +2131,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def tape_top_down_trace(self) -> go.Scatter:
+    def tape_top_down_trace(self) -> Optional[go.Scatter]:
         """Get tape trace for top-down view."""
         if 'tape' not in self._component_top_down_coordinates:
             return None
@@ -2170,13 +2147,17 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def cathode_tab_top_down_trace(self) -> go.Scatter:
+    def cathode_tab_top_down_trace(self) -> Optional[go.Scatter]:
         """Get cathode tab trace for top-down view."""
+
         if 'cathode_tab' not in self._component_top_down_coordinates:
             return None
+        
         if not isinstance(self._layup._cathode._current_collector, TabWeldedCurrentCollector):
             return None
+        
         coords = self._component_top_down_coordinates['cathode_tab']
+        
         return go.Scatter(
             x=coords[:, 0] * M_TO_MM,
             y=coords[:, 1] * M_TO_MM,
@@ -2188,7 +2169,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def anode_tab_top_down_trace(self) -> go.Scatter:
+    def anode_tab_top_down_trace(self) -> Optional[go.Scatter]:
         """Get anode tab trace for top-down view."""
         if 'anode_tab' not in self._component_top_down_coordinates:
             return None
@@ -2206,7 +2187,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def cathode_b_side_coating_right_left_trace(self) -> go.Scatter:
+    def cathode_b_side_coating_right_left_trace(self) -> Optional[go.Scatter]:
         """Get cathode b-side coating trace for right-left view."""
         if 'cathode_b_side_coating' not in self._component_right_left_coordinates:
             return None
@@ -2222,7 +2203,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def cathode_current_collector_right_left_trace(self) -> go.Scatter:
+    def cathode_current_collector_right_left_trace(self) -> Optional[go.Scatter]:
         """Get cathode current collector trace for right-left view."""
         if 'cathode_current_collector' not in self._component_right_left_coordinates:
             return None
@@ -2238,7 +2219,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def cathode_a_side_coating_right_left_trace(self) -> go.Scatter:
+    def cathode_a_side_coating_right_left_trace(self) -> Optional[go.Scatter]:
         """Get cathode a-side coating trace for right-left view."""
         if 'cathode_a_side_coating' not in self._component_right_left_coordinates:
             return None
@@ -2254,7 +2235,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def bottom_separator_right_left_trace(self) -> go.Scatter:
+    def bottom_separator_right_left_trace(self) -> Optional[go.Scatter]:
         """Get bottom separator trace for right-left view."""
         if 'bottom_separator' not in self._component_right_left_coordinates:
             return None
@@ -2270,7 +2251,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def anode_b_side_coating_right_left_trace(self) -> go.Scatter:
+    def anode_b_side_coating_right_left_trace(self) -> Optional[go.Scatter]:
         """Get anode b-side coating trace for right-left view."""
         if 'anode_b_side_coating' not in self._component_right_left_coordinates:
             return None
@@ -2286,7 +2267,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def anode_current_collector_right_left_trace(self) -> go.Scatter:
+    def anode_current_collector_right_left_trace(self) -> Optional[go.Scatter]:
         """Get anode current collector trace for right-left view."""
         if 'anode_current_collector' not in self._component_right_left_coordinates:
             return None
@@ -2302,7 +2283,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def anode_a_side_coating_right_left_trace(self) -> go.Scatter:
+    def anode_a_side_coating_right_left_trace(self) -> Optional[go.Scatter]:
         """Get anode a-side coating trace for right-left view."""
         if 'anode_a_side_coating' not in self._component_right_left_coordinates:
             return None
@@ -2318,7 +2299,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def top_separator_right_left_trace(self) -> go.Scatter:
+    def top_separator_right_left_trace(self) -> Optional[go.Scatter]:
         """Get top separator trace for right-left view."""
         if 'top_separator' not in self._component_right_left_coordinates:
             return None
@@ -2334,7 +2315,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def tape_right_left_trace(self) -> go.Scatter:
+    def tape_right_left_trace(self) -> Optional[go.Scatter]:
         """Get tape trace for right-left view."""
         if 'tape' not in self._component_right_left_coordinates:
             return None
@@ -2350,7 +2331,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def cathode_tab_right_left_trace(self) -> go.Scatter:
+    def cathode_tab_right_left_trace(self) -> Optional[go.Scatter]:
         """Get cathode tab trace for right-left view."""
         if 'cathode_tab' not in self._component_right_left_coordinates:
             return None
@@ -2368,7 +2349,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         )
 
     @property
-    def anode_tab_right_left_trace(self) -> go.Scatter:
+    def anode_tab_right_left_trace(self) -> Optional[go.Scatter]:
         """Get anode tab trace for right-left view."""
         if 'anode_tab' not in self._component_right_left_coordinates:
             return None
@@ -2429,6 +2410,17 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         """
         return tuple(round(d * M_TO_MM, 2) for d in self._datum)
     
+    @property
+    def total_height(self) -> float:
+        """Return the total height of the wound jelly roll in mm.
+        
+        Returns
+        -------
+        float
+            Total height in millimeters, rounded to 2 decimal places
+        """
+        return np.round(self._total_height * M_TO_MM, 2)
+
     @datum.setter
     def datum(self, value: Tuple[float, float, float]) -> None:
         
@@ -2532,7 +2524,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
     @tape.setter
     @calculate_bulk_properties
     @calculate_tape_properties
-    def tape(self, value: Tape) -> None:
+    def tape(self, value: Optional[Tape]) -> None:
         """Set the tape and recalculate properties.
         
         Parameters
@@ -2552,9 +2544,9 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         # validate type
         self.validate_type(value, Tape, "tape")
     
-        # set the tape width to at least the current collector y-body length
-        if value._width is None or value._width < self._layup._anode._current_collector._y_body_length:
-            value.width = self._layup._anode._current_collector._y_body_length * M_TO_MM
+        # set the tape width to at least the current collector y-foil length
+        if value._width is None or value._width < self._layup._anode._current_collector._y_foil_length:
+            value.width = self._layup._anode._current_collector._y_foil_length * M_TO_MM
 
         # Set the tape width range to match the layup width
         value._set_width_range(self)
@@ -2619,6 +2611,43 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         if hasattr(self, '_tape') and self._tape is not None:
             self._tape._set_width_range(self)
 
+    @height.setter
+    @calculate_all_properties
+    def height(self, value: float) -> None:
+        """Set the total height by adjusting the layup width.
+        
+        Parameters
+        ----------
+        value : float
+            Desired total height in millimeters
+            
+        Notes
+        -----
+        This setter calculates the difference between the desired total height
+        and the current total height, then adjusts the layup width accordingly.
+        """
+        # Convert value from mm to meters
+        _target_total_height = value * MM_TO_M
+        
+        # Get current total height
+        _current_total_height = self._total_height
+        
+        # Calculate the difference
+        _height_difference = _target_total_height - _current_total_height
+        
+        # Adjust layup width (which affects total height)
+        _current_layup_width = self._layup._width
+        _new_layup_width = _current_layup_width + _height_difference
+        
+        # Set the new layup width
+        self.layup.width = _new_layup_width * M_TO_MM
+
+        # Adjust tape width by same amount
+        if self._tape is not None:
+            _current_tape_width = self._tape._width
+            _new_tape_width = _current_tape_width + _height_difference
+            self.tape.width = _new_tape_width * M_TO_MM
+
 
 class WoundJellyRoll(_JellyRoll):
     """Wound jelly roll electrode assembly for cylindrical cells.
@@ -2654,7 +2683,7 @@ class WoundJellyRoll(_JellyRoll):
             self, 
             laminate: Laminate,
             mandrel: RoundMandrel,
-            tape: Tape = None,
+            tape: Optional[Tape] = None,
             additional_tape_wraps: float = 0,
             collector_tab_crumple_factor: float = 50.0,
             name: str = "Wound Jelly Roll"
@@ -2687,7 +2716,7 @@ class WoundJellyRoll(_JellyRoll):
         self._calculate_all_properties()
         self._update_properties = True
 
-    def _calculate_geometry_parameters(self) -> Tuple[float, float]:
+    def _calculate_geometry_parameters(self) -> None:
         """Calculate outer radius and diameter of the wound jelly roll.
         
         Determines the minimum bounding circle for all component spirals to find
@@ -2712,18 +2741,6 @@ class WoundJellyRoll(_JellyRoll):
         self._diameter = self._radius * 2
         self._calculate_radius_range()
         self._calculate_total_height()
-
-        return self._radius, self._diameter, self._radius_range
-
-    def _calculate_total_height(self) -> float:
-        y_coords = [c[:, 1] for c in self._component_top_down_coordinates.values()]
-        min_vals = [np.min(y) for y in y_coords]
-        max_vals = [np.max(y) for y in y_coords]
-        self._min_y_point = min(min_vals)
-        self._max_y_point = max(max_vals)
-        self._mid_y_point = (self._min_y_point + self._max_y_point) / 2
-        self._total_height = self._max_y_point - self._min_y_point
-        return self._total_height, self._min_y_point, self._max_y_point
 
     def _calculate_radius_range(self) -> Tuple[float, float]:
         """Calculate the valid range of radii for this jelly roll configuration.
@@ -2762,7 +2779,7 @@ class WoundJellyRoll(_JellyRoll):
 
         # get the radius maximum bound
         big_layup = deepcopy(self._layup)
-        big_layup.length = big_layup.length_hard_range[1]
+        big_layup.length = big_layup.length_range[1]
         big_layup = self.position_layup_on_mandrel(big_layup, self._mandrel)
         big_layup.calculate_flattened_center_lines()
         big_spiral = SpiralCalculator.calculate_variable_thickness_spiral(big_layup, self._mandrel._radius)
@@ -2958,8 +2975,6 @@ class WoundJellyRoll(_JellyRoll):
             z_shift = -center_z
         )
 
-        return self._spiral, self._component_spirals, self._extruded_spirals
-
     @classmethod
     def from_flat_wound_jelly_roll(
             cls,
@@ -3003,7 +3018,7 @@ class WoundJellyRoll(_JellyRoll):
         # Use the flat mandrel's radius (height/2) as the round mandrel's radius
         # and preserve the length and material properties
         round_mandrel = RoundMandrel(
-            diameter=flat_mandrel.height,  # Use height as diameter to maintain radius
+            diameter=flat_mandrel.height,
             length=flat_mandrel.length,
             datum=flat_mandrel.datum,
             material=flat_mandrel.material
@@ -3019,17 +3034,6 @@ class WoundJellyRoll(_JellyRoll):
         )
         
         return wound_jelly_roll
-
-    @property
-    def total_height(self) -> float:
-        """Return the total height of the wound jelly roll in mm.
-        
-        Returns
-        -------
-        float
-            Total height in millimeters, rounded to 2 decimal places
-        """
-        return np.round(self._total_height * M_TO_MM, 2)
 
     @property
     def radius(self) -> float:
@@ -3133,7 +3137,8 @@ class WoundJellyRoll(_JellyRoll):
         """Set radius by optimizing layup length to achieve target radius.
         
         Uses Brent's method for robust root finding to determine the layup length
-        that produces the desired radius.
+        that produces the desired radius. Lightweight objective avoids full pipeline
+        recalculation during optimization iterations.
         
         Parameters
         ----------
@@ -3145,22 +3150,38 @@ class WoundJellyRoll(_JellyRoll):
         ValueError
             If target radius is invalid or optimization fails
         """
-        def radius_geometry_function(layup_copy):
-            """Calculate radius from layup copy."""
-            spiral = SpiralCalculator.calculate_variable_thickness_spiral(layup_copy, self._mandrel._radius)
-            coords = spiral[:, [X_COORD_COL, Z_COORD_COL]]
-            actual_radius, _ = self.get_radius_of_points(coords=coords)
-            # Add thickness at end of layup
-            thickness_at_end = layup_copy.get_thickness_at_x(x_position=layup_copy._total_length)
-            actual_radius += thickness_at_end
-            return actual_radius
+        # Validate input
+        self.validate_positive_float(target_radius, "radius")
 
-        self._optimize_layup_length_for_target(
-            target_value=target_radius,
-            parameter_name="radius",
-            geometry_function=radius_geometry_function,
-            hard_range=self.radius_hard_range
+        def objective_function(length: float) -> float:
+            """Lightweight objective: shallow-copy assembly, run geometry
+            pipeline (spiral + components + extrusion + tape), skip downstream
+            properties (mass, cost, view coordinates)."""
+            assembly_copy = copy(self)
+            assembly_copy._layup = deepcopy(self._layup)
+            assembly_copy._layup.length = length
+            assembly_copy._layup = self.position_layup_on_mandrel(
+                assembly_copy._layup, assembly_copy._mandrel
+            )
+            assembly_copy._calculate_roll()
+            if assembly_copy._tape is not None and assembly_copy._additional_tape_wraps > 0:
+                assembly_copy._calculate_tape_roll()
+            assembly_copy._calculate_geometry_parameters()
+            return assembly_copy.radius - target_radius
+
+        # Use Brent's method for robust root finding
+        optimal_length = brentq(
+            objective_function,
+            self._layup.length_range[0],
+            self._layup.length_hard_range[1],
+            xtol=1e-3,    
+            rtol=1e-3,
+            maxiter=20 
         )
+        
+        # Set the optimized length and run full pipeline once
+        self._layup.length = optimal_length
+        self.layup = self._layup
 
 
 class FlatWoundJellyRoll(_JellyRoll):
@@ -3201,7 +3222,7 @@ class FlatWoundJellyRoll(_JellyRoll):
             self, 
             laminate: Laminate,
             mandrel: FlatMandrel,
-            tape: Tape = None,
+            tape: Optional[Tape] = None,
             additional_tape_wraps: float = 0,
             collector_tab_crumple_factor: float = 50.0,
             name: str = "Flat Wound Jelly Roll"
@@ -3235,7 +3256,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         self._calculate_all_properties()
         self._update_properties = True
 
-    def _calculate_all_properties(self, **kwargs) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
+    def _calculate_all_properties(self, **kwargs) -> None:
         """Calculate all properties with hot-pressing simulation.
         
         Extends the base calculation to first simulate the hot-pressing process
@@ -3364,7 +3385,7 @@ class FlatWoundJellyRoll(_JellyRoll):
             z_shift = -center_z + thickness / 2
         )
 
-    def _calculate_geometry_parameters(self) -> Tuple[float, float]:
+    def _calculate_geometry_parameters(self) -> None:
         """Calculate overall thickness and width of the flat wound jelly roll.
         
         Determines the bounding box dimensions by analyzing all component spirals
@@ -3394,8 +3415,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         self._thickness = SpiralCalculator.get_thickness_of_racetrack(combined_coords)
         self._width = SpiralCalculator.get_width_of_racetrack(combined_coords)
         self._calculate_thickness_width_range()
-
-        return self._thickness, self._width
+        self._calculate_total_height()
 
     def _calculate_thickness_width_range(self) -> Tuple[Tuple[float, float], Tuple[float, float]]:
         """Calculate the valid ranges of thickness and width for this jelly roll.
@@ -3439,7 +3459,7 @@ class FlatWoundJellyRoll(_JellyRoll):
 
         # get the thickness maximum bound
         big_layup = deepcopy(self._layup)
-        big_layup.length = big_layup.length_hard_range[1]
+        big_layup.length = big_layup.length_range[1]
         big_layup = self.position_layup_on_mandrel(big_layup, self._mandrel)
         big_layup.calculate_flattened_center_lines()
         big_pressed_racetrack = SpiralCalculator.calculate_variable_thickness_racetrack(big_layup, radius, straight_length)
@@ -3621,8 +3641,6 @@ class FlatWoundJellyRoll(_JellyRoll):
             z_shift = -center_z
         )
 
-        return self._spiral, self._component_spirals, self._extruded_spirals
-
     def _rotate_spirals_to_minimize_thickness(self, use_extruded: bool = True) -> float:
         """Rotate spirals in x-z plane to minimize overall thickness.
 
@@ -3726,11 +3744,11 @@ class FlatWoundJellyRoll(_JellyRoll):
         
         # Use the round mandrel's diameter as the flat mandrel's height to maintain radius
         # Set a default straight length (can be adjusted based on requirements)
-        default_straight_length = round_mandrel.diameter * 10  # Default: 2x diameter for reasonable aspect ratio
+        default_straight_length = round_mandrel.diameter * 10
         
         flat_mandrel = FlatMandrel(
-            height=round_mandrel.diameter,  # Use diameter as height to maintain radius
-            width=round_mandrel.diameter + default_straight_length,  # Width = height + straight section
+            height=round_mandrel.diameter,
+            width=round_mandrel.diameter + default_straight_length,
             length=round_mandrel.length,
             datum=round_mandrel.datum,
             material=round_mandrel.material
@@ -3833,7 +3851,8 @@ class FlatWoundJellyRoll(_JellyRoll):
         """Set thickness by optimizing layup length to achieve target thickness.
         
         Uses Brent's method for robust root finding to determine the layup length
-        that produces the desired thickness.
+        that produces the desired thickness. Lightweight objective avoids full pipeline
+        recalculation during optimization iterations.
         
         Parameters
         ----------
@@ -3845,32 +3864,38 @@ class FlatWoundJellyRoll(_JellyRoll):
         ValueError
             If target thickness is invalid or optimization fails
         """
-
-        def thickness_geometry_function(layup_copy):
-            """Calculate thickness from layup copy."""
-
-            spiral = SpiralCalculator.calculate_variable_thickness_racetrack(
-                laminate=layup_copy,
-                mandrel_radius=self._pressed_radius,
-                straight_length=self._pressed_straight_length
+        # Validate input
+        self.validate_positive_float(target_thickness, "thickness")
+        
+        def objective_function(length: float) -> float:
+            """Lightweight objective: shallow-copy assembly, run geometry
+            pipeline (spiral + components + extrusion + rotation + tape), skip
+            downstream properties (mass, cost, view coordinates)."""
+            assembly_copy = copy(self)
+            assembly_copy._layup = deepcopy(self._layup)
+            assembly_copy._layup.length = length
+            assembly_copy._layup = self.position_layup_on_mandrel(
+                assembly_copy._layup, assembly_copy._mandrel
             )
+            assembly_copy._calculate_roll()
+            if assembly_copy._tape is not None and assembly_copy._additional_tape_wraps > 0:
+                assembly_copy._calculate_tape_roll()
+            assembly_copy._calculate_geometry_parameters()
+            return assembly_copy.thickness - target_thickness
 
-            coords = spiral[:, [X_COORD_COL, Z_COORD_COL]]
-            coords, _ = SpiralCalculator.rotate_spiral_to_minimize_thickness(coords, 0, 1)
-            thickness = SpiralCalculator.get_thickness_of_racetrack(coords)
-            thickness += layup_copy.get_thickness_at_x(x_position=layup_copy._total_length) 
-            
-            if self._tape is not None:
-                thickness -= self._tape._thickness * 2 * self._additional_tape_wraps
-
-            return thickness
-
-        self._optimize_layup_length_for_target(
-            target_value=target_thickness,
-            parameter_name="thickness",
-            geometry_function=thickness_geometry_function,
-            hard_range=self.thickness_hard_range
+        # Use Brent's method for robust root finding
+        optimal_length = brentq(
+            objective_function,
+            self._layup.length_range[0],
+            self._layup.length_hard_range[1],
+            xtol=1e-3,    
+            rtol=1e-3,
+            maxiter=20 
         )
+        
+        # Set the optimized length and run full pipeline once
+        self._layup.length = optimal_length
+        self.layup = self._layup
 
     @width.setter
     @calculate_all_properties
@@ -3878,7 +3903,8 @@ class FlatWoundJellyRoll(_JellyRoll):
         """Set width by optimizing layup length to achieve target width.
         
         Uses Brent's method for robust root finding to determine the layup length
-        that produces the desired width.
+        that produces the desired width. Lightweight objective avoids full pipeline
+        recalculation during optimization iterations.
         
         Parameters
         ----------
@@ -3890,29 +3916,36 @@ class FlatWoundJellyRoll(_JellyRoll):
         ValueError
             If target width is invalid or optimization fails
         """
-        def width_geometry_function(layup_copy):
-            """Calculate width from layup copy."""
-
-            spiral = SpiralCalculator.calculate_variable_thickness_racetrack(
-                laminate=layup_copy,
-                mandrel_radius=self._pressed_radius,
-                straight_length=self._pressed_straight_length
+        # Validate input
+        self.validate_positive_float(target_width, "width")
+        
+        def objective_function(length: float) -> float:
+            """Lightweight objective: shallow-copy assembly, run geometry
+            pipeline (spiral + components + extrusion + rotation + tape), skip
+            downstream properties (mass, cost, view coordinates)."""
+            assembly_copy = copy(self)
+            assembly_copy._layup = deepcopy(self._layup)
+            assembly_copy._layup.length = length
+            assembly_copy._layup = self.position_layup_on_mandrel(
+                assembly_copy._layup, assembly_copy._mandrel
             )
+            assembly_copy._calculate_roll()
+            if assembly_copy._tape is not None and assembly_copy._additional_tape_wraps > 0:
+                assembly_copy._calculate_tape_roll()
+            assembly_copy._calculate_geometry_parameters()
+            return assembly_copy.width - target_width
 
-            coords = spiral[:, [X_COORD_COL, Z_COORD_COL]]
-            coords, _ = SpiralCalculator.rotate_spiral_to_minimize_thickness(coords, 0, 1)
-            width = SpiralCalculator.get_width_of_racetrack(coords=coords)
-            width += layup_copy.get_thickness_at_x(x_position=layup_copy._total_length) 
-
-            if self._tape is not None:
-                width -= self._tape._thickness * 2 * self._additional_tape_wraps
-
-            return width
-
-        self._optimize_layup_length_for_target(
-            target_value=target_width,
-            parameter_name="width", 
-            geometry_function=width_geometry_function,
-            hard_range=self.width_hard_range
+        # Use Brent's method for robust root finding
+        optimal_length = brentq(
+            objective_function,
+            self._layup.length_range[0],
+            self._layup.length_hard_range[1],
+            xtol=1e-3,    
+            rtol=1e-3,
+            maxiter=20 
         )
+        
+        # Set the optimized length and run full pipeline once
+        self._layup.length = optimal_length
+        self.layup = self._layup
  

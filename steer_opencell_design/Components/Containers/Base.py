@@ -1,3 +1,5 @@
+"""Abstract base class for battery cell container components."""
+
 from abc import ABC, abstractmethod
 
 from steer_core import (
@@ -18,6 +20,11 @@ class _Container(
     DunderMixin,
     PlotterMixin,
 ):
+    """Abstract base class for cell containers (canisters, encapsulations).
+
+    Defines the interface for property calculation, coordinate generation,
+    and mass/cost computation that all container types must implement.
+    """
 
     def __init__(
             self,

@@ -1,3 +1,5 @@
+"""Punched current collector with integral tabs for stacked cells."""
+
 # import core units
 from steer_core.Constants.Units import *
 
@@ -17,7 +19,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
     Simple rectangular current collector with a single integrated tab.
 
     The punched current collector is the most common and straightforward
-    collector design, featuring a rectangular body with a single tab
+    collector design, featuring a rectangular foil with a single tab
     extending from one edge. This design is widely used in
     prismatic and pouch cell formats due to its simplicity,
     manufacturing efficiency, and reliable electrical performance.
@@ -41,10 +43,10 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         Material composition defining electrical and mechanical properties
         Common materials: aluminum foil (cathode), copper foil (anode)
     width : float
-        Total width of the collector body in mm
+        Total width of the collector foil in mm
         Typical range: 50-300 mm depending on cell capacity
     height : float
-        Total height of the collector body in mm
+        Total height of the collector foil in mm
         Typical range: 50-500 mm depending on cell format
     thickness : float
         Material thickness in micrometers (μm)
@@ -54,7 +56,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         Typical range: 10-50 mm based on current requirements
         Should be optimized for current density and welding requirements
     tab_height : float
-        Extension height of the tab beyond the body in mm
+        Extension height of the tab beyond the foil in mm
         Typical range: 5-25 mm for manufacturing and assembly accessibility
     tab_position : float
         Horizontal position of the tab center from the left edge in mm
@@ -74,18 +76,18 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
     Attributes
     ----------
-    body_area : float
-        Surface area of the rectangular body excluding tab (mm²)
+    foil_area : float
+        Surface area of the rectangular foil excluding tab (mm²)
     tab_area : float
         Surface area of the tab extension (mm²)
     total_area : float
-        Combined surface area of body and tab (mm²)
+        Combined surface area of foil and tab (mm²)
     coated_area : float
         Area available for active material coating (mm²)
     current_density : float
         Current density through the tab connection (A/mm²)
     resistance : float
-        Electrical resistance from body center to tab (Ω)
+        Electrical resistance from foil center to tab (Ω)
 
     Methods
     -------
@@ -161,9 +163,9 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         material: CurrentCollectorMaterial
             Material of the current collector.
         width: float
-            Length of the current collector in mm.
-        height: float
             Width of the current collector in mm.
+        height: float
+            Height of the current collector in mm.
         tab_width: float
             Width of the tab in mm.
         tab_height: float
@@ -183,8 +185,8 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         """
         super().__init__(
             material=material,
-            x_body_length=width,
-            y_body_length=height,
+            x_foil_length=width,
+            y_foil_length=height,
             tab_width=tab_width,
             tab_height=tab_height,
             coated_tab_height=coated_tab_height,
@@ -209,8 +211,8 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         Each row is a (x, y) coordinate.
         """
         # Cache attribute access
-        x_len = self._x_body_length
-        y_len = self._y_body_length
+        x_len = self._x_foil_length
+        y_len = self._y_foil_length
         tab_pos = self._tab_position
         tab_width = self._tab_width
         datum_x, datum_y, _ = self._datum
@@ -246,7 +248,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         """
         Returns a NumPy array representing the insulation area.
         The shape depends on whether the insulation is entirely above, below,
-        or straddling the body length. Output columns are ['x', 'y', 'z', 'side'].
+        or straddling the foil length. Output columns are ['x', 'y', 'z', 'side'].
         """
         if self._insulation_width == 0:
             return np.empty((0, 3))
@@ -254,36 +256,36 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         if side not in ["a", "b"]:
             raise ValueError("Side must be 'a' or 'b'.")
 
-        _y_insulation_start = self._datum[1] + self._y_body_length / 2 + self._coated_tab_height - self._insulation_width
+        _y_insulation_start = self._datum[1] + self._y_foil_length / 2 + self._coated_tab_height - self._insulation_width
         _y_insulation_end = _y_insulation_start + self._insulation_width
 
         # Determine which case applies
-        if _y_insulation_start > self._datum[1] + self._y_body_length / 2:
-            x0 = self._datum[0] - self._x_body_length / 2 + self._tab_position - self._tab_width / 2
+        if _y_insulation_start > self._datum[1] + self._y_foil_length / 2:
+            x0 = self._datum[0] - self._x_foil_length / 2 + self._tab_position - self._tab_width / 2
             y0 = _y_insulation_start
 
             x, y = self.build_square_array(x=x0, y=y0, x_width=self._tab_width, y_width=self._insulation_width)
 
-        elif np.round(_y_insulation_end, 10) <= np.round(self._datum[1] + self._y_body_length / 2, 10):
-            x0 = self._datum[0] - self._x_body_length / 2
+        elif np.round(_y_insulation_end, 10) <= np.round(self._datum[1] + self._y_foil_length / 2, 10):
+            x0 = self._datum[0] - self._x_foil_length / 2
             y0 = _y_insulation_start
 
-            x, y = self.build_square_array(x=x0, y=y0, x_width=self._x_body_length, y_width=self._insulation_width)
+            x, y = self.build_square_array(x=x0, y=y0, x_width=self._x_foil_length, y_width=self._insulation_width)
 
         else:
-            notch_height = _y_insulation_end - (self._datum[1] + self._y_body_length / 2)
-            y_depth = (self._datum[1] + self._y_body_length / 2) - _y_insulation_start
-            y_start = self._y_body_length + self._coated_tab_height - self._insulation_width
+            notch_height = _y_insulation_end - (self._datum[1] + self._y_foil_length / 2)
+            y_depth = (self._datum[1] + self._y_foil_length / 2) - _y_insulation_start
+            y_start = self._y_foil_length + self._coated_tab_height - self._insulation_width
 
             x, y = self._get_footprint(notch_height=notch_height, y_depth=y_depth, y_start=y_start)
 
-        # Get z-coordinate from body coordinates for this side
-        idx = np.where(self._body_coordinates_side == side)[0]
+        # Get z-coordinate from foil coordinates for this side
+        idx = np.where(self._foil_coordinates_side == side)[0]
 
         if len(idx) == 0:
-            raise ValueError(f"No body coordinates found for side '{side}'")
+            raise ValueError(f"No foil coordinates found for side '{side}'")
 
-        z_val = self._body_coordinates[idx[0], 2]
+        z_val = self._foil_coordinates[idx[0], 2]
 
         # Create z and side columns
         z = np.full_like(x, z_val)
@@ -297,7 +299,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         """
         # Keep datum as the center of rotation - don't move it to origin
         # Rotate coordinates around the current datum position
-        self._body_coordinates = self.rotate_coordinates(self._body_coordinates, "z", -90, center=self._datum)
+        self._foil_coordinates = self.rotate_coordinates(self._foil_coordinates, "z", -90, center=self._datum)
         self._a_side_coated_coordinates = self.rotate_coordinates(self._a_side_coated_coordinates, "z", -90, center=self._datum)
         self._b_side_coated_coordinates = self.rotate_coordinates(self._b_side_coated_coordinates, "z", -90, center=self._datum)
 
@@ -308,7 +310,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
         if hasattr(self, "_weld_tabs"):
             for tab in self._weld_tabs:
-                tab._body_coordinates = self.rotate_coordinates(tab._body_coordinates, "z", -90, center=self._datum)
+                tab._foil_coordinates = self.rotate_coordinates(tab._foil_coordinates, "z", -90, center=self._datum)
                 tab_datum_array = np.array([[tab._datum[0], tab._datum[1], tab._datum[2]]])
                 rotated_datum = self.rotate_coordinates(tab_datum_array, "z", -90, center=self._datum)
                 tab._datum = tuple(rotated_datum[0])
@@ -316,24 +318,24 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         return self
 
     @property
-    def x_body_length_range(self) -> Tuple[float, float]:
+    def x_foil_length_range(self) -> Tuple[float, float]:
 
-        if hasattr(self, "_x_body_length_range") and self._x_body_length_range is not None:
+        if hasattr(self, "_x_foil_length_range") and self._x_foil_length_range is not None:
 
             return (
-                np.round(self._x_body_length_range[0] * M_TO_MM, 2),
-                np.round(self._x_body_length_range[1] * M_TO_MM, 2),
+                np.round(self._x_foil_length_range[0] * M_TO_MM, 2),
+                np.round(self._x_foil_length_range[1] * M_TO_MM, 2),
             )
 
         else:
             return (10, 500)
 
     @property
-    def y_body_length_range(self) -> Tuple[float, float]:
-        if hasattr(self, "_y_body_length_range") and self._y_body_length_range is not None:
+    def y_foil_length_range(self) -> Tuple[float, float]:
+        if hasattr(self, "_y_foil_length_range") and self._y_foil_length_range is not None:
             return (
-                np.round(self._y_body_length_range[0] * M_TO_MM, 2),
-                np.round(self._y_body_length_range[1] * M_TO_MM, 2),
+                np.round(self._y_foil_length_range[0] * M_TO_MM, 2),
+                np.round(self._y_foil_length_range[1] * M_TO_MM, 2),
             )
         else:
             return (10, 500)
@@ -348,19 +350,19 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
     @property
     def width(self) -> float:
-        return self.x_body_length
+        return self.x_foil_length
 
     @property
     def width_range(self) -> Tuple[float, float]:
-        return self.x_body_length_range
+        return self.x_foil_length_range
 
     @property
     def height(self) -> float:
-        return self.y_body_length
+        return self.y_foil_length
 
     @property
     def height_range(self) -> Tuple[float, float]:
-        return self.y_body_length_range
+        return self.y_foil_length_range
 
     @property
     def height_hard_range(self) -> Tuple[float, float]:
@@ -369,7 +371,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
     @property
     def tab_width_hard_range(self) -> Tuple[float, float]:
         min = 0.01
-        max = self._x_body_length - 0.01
+        max = self._x_foil_length - 0.01
 
         return (round(min * M_TO_MM, 2), np.round(max * M_TO_MM, 2))
 
@@ -388,10 +390,10 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         self._tab_position = float(tab_position) * MM_TO_M
 
         if self._tab_position - self._tab_width / 2 < 0:
-            raise ValueError("Tab position cannot be less than half the tab width.")
+            self._tab_position = self._tab_width / 2
 
-        if self._tab_position + self._tab_width / 2 > self.x_body_length:
-            raise ValueError("Tab position plus half the tab width cannot be greater than the length of the current collector.")
+        if self._tab_position + self._tab_width / 2 > self.x_foil_length:
+            self._tab_position = self.x_foil_length - self._tab_width / 2
 
         if self._update_properties:
             self._calculate_coordinates()
@@ -399,10 +401,10 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
     @width.setter
     def width(self, width: float) -> None:
         self.validate_positive_float(width, "width")
-        self.x_body_length = width
+        self.x_foil_length = width
 
     @height.setter
     def height(self, height: float) -> None:
         self.validate_positive_float(height, "height")
-        self.y_body_length = height
+        self.y_foil_length = height
 

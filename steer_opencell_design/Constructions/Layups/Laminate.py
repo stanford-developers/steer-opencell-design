@@ -1,3 +1,5 @@
+"""Two-separator laminate layup for wound electrode assemblies."""
+
 from copy import copy, deepcopy
 from enum import Enum
 from typing import Tuple
@@ -12,6 +14,8 @@ from steer_core.Decorators.General import calculate_bulk_properties, calculate_a
 from steer_opencell_design.Components.CurrentCollectors.Base import _TapeCurrentCollector
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
 from steer_opencell_design.Components.Separators import Separator
+from steer_opencell_design.Constructions.Layups.MonoLayers import ElectrodeOrientation
+
 from steer_opencell_design.Constructions.Layups.Base import (
     _Layup,
     SEPARATOR_WIDTH_EXTENSION,
@@ -22,6 +26,7 @@ from steer_opencell_design.Constructions.Layups.Base import (
 
 
 class Laminate(_Layup):
+    """Two-separator electrode layup for wound cells. A Laminate sandwiches the cathode and anode between a top and bottom separator, forming the repeating unit that is wound into a jelly roll."""
 
     def __init__(
         self,
@@ -29,6 +34,7 @@ class Laminate(_Layup):
         bottom_separator: Separator,
         anode: Anode,
         top_separator: Separator,
+        electrode_orientation: ElectrodeOrientation = ElectrodeOrientation.TRANSVERSE,
         name: str = "Layup",
     ):
         
@@ -42,6 +48,7 @@ class Laminate(_Layup):
             bottom_separator=bottom_separator,
             anode=anode,
             top_separator=top_separator,
+            electrode_orientation=electrode_orientation,
             name=name,
         )
 
@@ -239,8 +246,8 @@ class Laminate(_Layup):
         float
             The length of the laminate in meters.
         """
-        anode_length = self._anode._current_collector._x_body_length
-        cathode_length = self._cathode._current_collector._x_body_length
+        anode_length = self._anode._current_collector._x_foil_length
+        cathode_length = self._cathode._current_collector._x_foil_length
 
         # The laminate length is determined by the shorter of the two electrodes
         laminate_length = min(anode_length, cathode_length)
@@ -258,8 +265,8 @@ class Laminate(_Layup):
         float
             The width of the laminate in meters.
         """
-        anode_width = self._anode._current_collector._y_body_length
-        cathode_width = self._cathode._current_collector._y_body_length
+        anode_width = self._anode._current_collector._y_foil_length
+        cathode_width = self._cathode._current_collector._y_foil_length
 
         # The laminate width is determined by the narrower of the two electrodes
         laminate_width = min(anode_width, cathode_width)
@@ -279,10 +286,10 @@ class Laminate(_Layup):
         # Collect all coordinate arrays
         coordinate_arrays = [
             self._bottom_separator._coordinates,
-            self._anode._current_collector._body_coordinates,
+            self._anode._current_collector._foil_coordinates,
             self._anode._a_side_coating_coordinates,
             self._anode._b_side_coating_coordinates,
-            self._cathode._current_collector._body_coordinates,
+            self._cathode._current_collector._foil_coordinates,
             self._cathode._a_side_coating_coordinates,
             self._cathode._b_side_coating_coordinates,
             self._top_separator._coordinates
@@ -357,27 +364,34 @@ class Laminate(_Layup):
 
     @property
     def length(self) -> float:
+        """Get the laminate length in mm."""
         return np.round(self._length * M_TO_MM, 2)
     
     @property
     def length_range(self) -> tuple:
+        """Get the allowable length range in mm."""
         return self._cathode._current_collector.length_range
     
     @property
     def length_hard_range(self) -> tuple:
+        """Get the hard allowable length range in mm."""
         return self._cathode._current_collector.length_hard_range
 
     @property
     def width(self) -> float:
+        """Get the laminate width in mm."""
         return np.round(self._width * M_TO_MM, 2)
 
     @property
     def width_range(self) -> tuple:
+        """Get the allowable width range in mm."""
         return self._cathode._current_collector.width_range
     
     @property
     def width_hard_range(self) -> tuple:
+        """Get the hard allowable width range in mm."""
         return self._cathode._current_collector.width_hard_range
+
     @property
     def total_length(self) -> float:
         """Return the total length of the layup in mm."""

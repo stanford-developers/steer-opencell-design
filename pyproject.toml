@@ -17,10 +17,9 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "steer-core==0.1.32",
-    "steer-materials==0.1.17",
-    "steer-opencell-data==0.0.2",
-    "shapely==2.1.1",
+    "steer-core==0.1.42",
+    "steer-materials==0.1.27",
+    "steer-opencell-data==0.0.18",
 ]
 
 [project.urls]
@@ -30,6 +29,7 @@ Repository = "https://github.com/stanford-developers/steer-opencell-design/"
 [tool.setuptools.dynamic]
 version = {attr = "steer_opencell_design.__version__"}
 
-[tool.setuptools]
-packages = ["steer_opencell_design"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["steer_opencell_design*"]
 

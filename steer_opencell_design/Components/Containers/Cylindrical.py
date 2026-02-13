@@ -1,3 +1,5 @@
+"""Cylindrical cell container components (canister, lid, terminal connectors, encapsulation)."""
+
 from copy import deepcopy
 from steer_opencell_design.Components.Containers.Base import _Container
 from steer_opencell_design.Materials.Other import PrismaticContainerMaterial
@@ -163,6 +165,16 @@ class _CylindricalComponent(
         """
         return
 
+    def _set_radius_range(self, canister: 'CylindricalCanister') -> None:
+        """Set the valid radius range based on canister dimensions.
+        
+        Parameters
+        ----------
+        canister : CylindricalCanister
+            The canister instance to use for determining radius constraints
+        """
+        self._radius_range = (0.0, canister._inner_radius)
+
     def get_bottom_up_plot(self, **kwargs) -> go.Figure:
         """Generate a bottom-up view plot of the component.
         
@@ -296,6 +308,16 @@ class _CylindricalComponent(
         return np.round(self._radius * M_TO_MM, 2)
     
     @property
+    def radius_range(self) -> Tuple[float, float]:
+        """Valid radius range in mm, rounded to 2 decimal places."""
+        if not hasattr(self, '_radius_range'):
+            return None
+        return (
+            np.round(self._radius_range[0] * M_TO_MM, 2),
+            np.round(self._radius_range[1] * M_TO_MM, 2)
+        )
+    
+    @property
     def thickness(self) -> float:
         """Component thickness in mm, rounded to 2 decimal places."""
         return np.round(self._thickness * M_TO_MM, 2)
@@ -306,11 +328,29 @@ class _CylindricalComponent(
         return np.round(self._fill_factor, 2)
     
     @property
+    def fill_factor_range(self) -> Tuple[float, float]:
+        """Valid fill factor range (0.0-1.0)."""
+        return (0.0, 1.0)
+
+    @property
     def mass(self) -> float:
         """Total mass in grams, accounting for fill factor. None if radius not set."""
         if self._mass is None:
             return None
         return np.round(self._mass * KG_TO_G, 2)
+    
+    @property
+    def mass_range(self) -> Tuple[float, float]:
+        """Valid mass range in grams (0 to max with fill_factor=1.0). None if radius not set."""
+        if self._radius is None:
+            return None
+        
+        # Calculate maximum mass with fill_factor = 1.0
+        _max_volume = np.pi * (self._radius) ** 2 * (self._thickness) * 1.0
+        _max_mass = _max_volume * self._material._density
+        max_mass = _max_mass * KG_TO_G
+        
+        return (0.0, np.round(max_mass, 2))
     
     @property
     def cost(self) -> float:
@@ -373,6 +413,28 @@ class _CylindricalComponent(
         if fill_factor > 1.0:
             raise ValueError("Fill Factor must be between 0 and 1.")
         self._fill_factor = float(fill_factor)
+
+    @mass.setter
+    @calculate_bulk_properties
+    def mass(self, mass: float) -> None:
+        """Set mass by calculating and adjusting fill factor."""
+        self.validate_positive_float(mass, "Mass")
+        
+        if self._radius is None:
+            raise ValueError("Cannot set mass: radius is not set")
+        
+        # Convert mass from grams to kg
+        _mass = mass * G_TO_KG
+        
+        # Calculate required fill factor: mass = pi * r^2 * t * fill_factor * density
+        # So: fill_factor = mass / (pi * r^2 * t * density)
+        _volume_without_fill = np.pi * (self._radius) ** 2 * (self._thickness)
+        required_fill_factor = _mass / (_volume_without_fill * self._material._density)
+        
+        if required_fill_factor > 1.0:
+            raise ValueError(f"Cannot achieve mass of {mass} g with current dimensions. Maximum possible mass is {np.round(_volume_without_fill * self._material._density * KG_TO_G, 2)} g")
+        
+        self._fill_factor = float(required_fill_factor)
 
 
 class CylindricalTerminalConnector(_CylindricalComponent):
@@ -537,6 +599,16 @@ class CylindricalTerminalConnector(_CylindricalComponent):
 
         return footprint
 
+    @property
+    def thickness_range(self) -> Tuple[float, float]:
+        """Valid thickness range in mm, rounded to 2 decimal places."""
+        return (0.1, 5)
+    
+    @property
+    def thickness_hard_range(self) -> Tuple[float, float]:
+        """Hard limits for thickness in mm, rounded to 2 decimal places."""
+        return (0.05, 10)
+
 
 class CylindricalLidAssembly(_CylindricalComponent):
     """A cylindrical lid assembly with circular footprint.
@@ -647,8 +719,18 @@ class CylindricalLidAssembly(_CylindricalComponent):
 
         return footprint
 
+    @property
+    def thickness_range(self) -> Tuple[float, float]:
+        """Valid thickness range in mm, rounded to 2 decimal places."""
+        return (0.5, 10)
+    
+    @property
+    def thickness_hard_range(self) -> Tuple[float, float]:
+        """Hard limits for thickness in mm, rounded to 2 decimal places."""
+        return (0.1, 20)
 
-class CylindricalCannister(
+
+class CylindricalCanister(
     CoordinateMixin, 
     SerializerMixin,
     ValidationMixin,
@@ -678,7 +760,7 @@ class CylindricalCannister(
         height: float,
         wall_thickness: float,
         datum: Tuple[float, float, float] = (0.0, 0.0, 0.0),
-        name: str = "Cylindrical Cannister",
+        name: str = "Cylindrical Canister",
     ):
         """Initialize a cylindrical can.
         
@@ -689,15 +771,12 @@ class CylindricalCannister(
         ----------
         material : PrismaticContainerMaterial
             Container material for physical properties
-        radius : float
+        outer_radius : float
             Outer radius of the can in mm. Must be positive and greater than wall_thickness.
         height : float
             Height of the can in mm. Must be positive.
         wall_thickness : float
             Radial wall thickness in mm. Must be positive and less than radius.
-        fill_factor : float, default=0.7
-            Material density factor for calculations.
-            Must be between 0.0 and 1.0.
         datum : Tuple[float, float, float], default=(0.0, 0.0, 0.0)
             Center position in mm as (x, y, z) coordinates
         name : str, default="Cylindrical Can"
@@ -943,6 +1022,13 @@ class CylindricalCannister(
         return np.round(self._inner_radius * M_TO_MM, 2)
 
     @property
+    def inner_radius_range(self) -> Tuple[float, float]:
+        outer_radius_min = self.outer_radius_range[0]
+        outer_radius_max = self.outer_radius_range[1]
+        wall_thickness = self.wall_thickness
+        return (outer_radius_min - wall_thickness, outer_radius_max - wall_thickness)
+
+    @property
     def name(self) -> str:
         return self._name
     
@@ -964,15 +1050,50 @@ class CylindricalCannister(
         return np.round(self._outer_radius * M_TO_MM, 2)
     
     @property
+    def outer_radius_range(self) -> Tuple[float, float]:
+        """Valid outer radius range in mm, rounded to 2 decimal places."""
+        return (5, 80)
+    
+    @property
+    def outer_radius_hard_range(self) -> Tuple[float, float]:
+        """Hard limits for outer radius in mm, rounded to 2 decimal places."""
+        return (1, 500)
+    
+    @property
     def height(self) -> float:
         """Height of the can in mm, rounded to 2 decimal places."""
         return np.round(self._height * M_TO_MM, 2)
     
     @property
+    def height_range(self) -> Tuple[float, float]:
+        """Valid height range in mm, rounded to 2 decimal places."""
+        return (20, 500)
+
+    @property
+    def height_hard_range(self) -> Tuple[float, float]:
+        """Hard limits for height in mm, rounded to 2 decimal places."""
+        return (10, 1000)
+
+    @property
+    def inner_height_range(self) -> Tuple[float, float]:
+        """Valid inner height range in mm (height_range minus wall thickness), rounded to 2 decimal places."""
+        wall_thickness_mm = self._wall_thickness * M_TO_MM
+        min_height, max_height = self.height_range
+        return (
+            np.round(min_height - wall_thickness_mm, 2),
+            np.round(max_height - wall_thickness_mm, 2)
+        )
+
+    @property
     def wall_thickness(self) -> float:
         """Wall thickness of the can in mm, rounded to 2 decimal places."""
         return np.round(self._wall_thickness * M_TO_MM, 2)
     
+    @property
+    def wall_thickness_range(self) -> Tuple[float, float]:
+        """Valid wall thickness range in mm, rounded to 2 decimal places."""
+        return (0.1, 3)
+
     @name.setter
     def name(self, name: str) -> None:
         self.validate_type(name, str, "Name")
@@ -1036,13 +1157,17 @@ class CylindricalCannister(
 
 
 class CylindricalEncapsulation(_Container):
+    """Complete cylindrical cell encapsulation combining canister, lid assembly, and terminal connectors.
+
+    Manages the overall cylindrical geometry and provides mass/cost breakdowns.
+    """
 
     def __init__(
             self,
             cathode_terminal_connector: CylindricalTerminalConnector,
             anode_terminal_connector: CylindricalTerminalConnector,
             lid_assembly: CylindricalLidAssembly,
-            cannister: CylindricalCannister,
+            canister: CylindricalCanister,
             name: str = "Cylindrical Encapsulation",
             datum: Tuple[float, float, float] = (0.0, 0.0, 0.0)
         ):
@@ -1052,7 +1177,7 @@ class CylindricalEncapsulation(_Container):
         self.cathode_terminal_connector = cathode_terminal_connector
         self.anode_terminal_connector = anode_terminal_connector
         self.lid_assembly = lid_assembly
-        self.cannister = cannister
+        self.canister = canister
         self.name = name
         self.datum = datum
 
@@ -1067,19 +1192,19 @@ class CylindricalEncapsulation(_Container):
         
         self._lid_assembly.datum = (
             self._datum[0] * M_TO_MM,
-            (self._datum[1] + self._cannister._height - self._lid_assembly._thickness / 2) * M_TO_MM ,
+            (self._datum[1] + self._canister._height - self._lid_assembly._thickness / 2) * M_TO_MM ,
             self._datum[2] * M_TO_MM
         )
 
         self._anode_terminal_connector.datum = (
             self._datum[0] * M_TO_MM,
-            (self._datum[1] + self._cannister._wall_thickness + self._anode_terminal_connector._thickness / 2) * M_TO_MM,
+            (self._datum[1] + self._canister._wall_thickness + self._anode_terminal_connector._thickness / 2) * M_TO_MM,
             self._datum[2] * M_TO_MM
         )
 
         self._cathode_terminal_connector.datum = (
             self._datum[0] * M_TO_MM,
-            (self._datum[1] + self._cannister._height - self._lid_assembly._thickness - self._cathode_terminal_connector._thickness / 2) * M_TO_MM,
+            (self._datum[1] + self._canister._height - self._lid_assembly._thickness - self._cathode_terminal_connector._thickness / 2) * M_TO_MM,
             self._datum[2] * M_TO_MM
         )
 
@@ -1090,18 +1215,22 @@ class CylindricalEncapsulation(_Container):
 
     def _calculate_bulk_properties(self):
 
-        self._lid_assembly.radius = self._cannister._inner_radius * M_TO_MM
-        self._cathode_terminal_connector.radius = self._cannister._inner_radius * M_TO_MM * 0.9
-        self._anode_terminal_connector.radius = self._cannister._inner_radius * M_TO_MM * 0.9
+        self._lid_assembly.radius = self._canister._inner_radius * M_TO_MM
+
+        if self._cathode_terminal_connector._radius is None or self._cathode_terminal_connector._radius > self._canister._inner_radius:
+            self._cathode_terminal_connector.radius = self._canister._inner_radius * M_TO_MM * 0.9
+
+        if self._anode_terminal_connector._radius is None or self._anode_terminal_connector._radius > self._canister._inner_radius:
+            self._anode_terminal_connector.radius = self._canister._inner_radius * M_TO_MM * 0.9
         
         self._internal_height = (
-            self._cannister._height - \
+            self._canister._height - \
             self._lid_assembly._thickness - \
             self._anode_terminal_connector._thickness - \
             self._cathode_terminal_connector._thickness
         )
 
-        self._volume = self._cannister._volume
+        self._volume = self._canister._volume
 
         self._calculate_mass()
         self._calculate_cost()
@@ -1112,14 +1241,14 @@ class CylindricalEncapsulation(_Container):
             self._cathode_terminal_connector._material._mass +
             self._anode_terminal_connector._material._mass +
             self._lid_assembly._material._mass +
-            self._cannister._material._mass
+            self._canister._material._mass
         )
 
         self._mass_breakdown = {
             "Cathode Terminal Connector": self._cathode_terminal_connector._material._mass,
             "Anode Terminal Connector": self._anode_terminal_connector._material._mass,
             "Lid Assembly": self._lid_assembly._material._mass,
-            "Cannister": self._cannister._material._mass
+            "Canister": self._canister._material._mass
         }
 
     def _calculate_cost(self):
@@ -1128,14 +1257,14 @@ class CylindricalEncapsulation(_Container):
             self._cathode_terminal_connector._material._cost +
             self._anode_terminal_connector._material._cost +
             self._lid_assembly._material._cost +
-            self._cannister._material._cost
+            self._canister._material._cost
         )
 
         self._cost_breakdown = {
             "Cathode Terminal Connector": self._cathode_terminal_connector._material._cost,
             "Anode Terminal Connector": self._anode_terminal_connector._material._cost,
             "Lid Assembly": self._lid_assembly._material._cost,
-            "Cannister": self._cannister._material._cost
+            "Canister": self._canister._material._cost
         }
 
     def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:
@@ -1165,7 +1294,7 @@ class CylindricalEncapsulation(_Container):
         figure = go.Figure()
         traces = []
 
-        traces.append(self._cannister.side_cross_section_trace)
+        traces.append(self._canister.side_cross_section_trace)
         traces.append(self._lid_assembly.top_down_trace)
         traces.append(self._cathode_terminal_connector.top_down_trace)
         traces.append(self._anode_terminal_connector.top_down_trace)
@@ -1192,6 +1321,38 @@ class CylindricalEncapsulation(_Container):
         return np.round(self._internal_height * M_TO_MM, 2)
     
     @property
+    def internal_height_range(self) -> Tuple[float, float]:
+        min_height = (
+            self._canister.height_range[0] - 
+            self._lid_assembly.thickness_hard_range[1] - 
+            self._anode_terminal_connector.thickness_hard_range[1] - 
+            self._cathode_terminal_connector.thickness_hard_range[1]
+        )
+        max_height = (
+            self._canister.height_range[1] - 
+            self._lid_assembly.thickness_hard_range[0] - 
+            self._anode_terminal_connector.thickness_hard_range[0] - 
+            self._cathode_terminal_connector.thickness_hard_range[0]
+        )
+        return (np.round(min_height, 2), np.round(max_height, 2))
+    
+    @property
+    def internal_height_hard_range(self) -> Tuple[float, float]:
+        min_height = (
+            self._canister.height_hard_range[0] - 
+            self._lid_assembly.thickness_hard_range[1] - 
+            self._anode_terminal_connector.thickness_hard_range[1] - 
+            self._cathode_terminal_connector.thickness_hard_range[1]
+        )
+        max_height = (
+            self._canister.height_hard_range[1] - 
+            self._lid_assembly.thickness_hard_range[0] - 
+            self._anode_terminal_connector.thickness_hard_range[0] - 
+            self._cathode_terminal_connector.thickness_hard_range[0]
+        )
+        return (np.round(min_height, 2), np.round(max_height, 2))
+
+    @property
     def datum(self) -> Tuple[float, float, float]:
         return (
             np.round(self._datum[0] * M_TO_MM, 2), 
@@ -1216,8 +1377,8 @@ class CylindricalEncapsulation(_Container):
         return self._lid_assembly
     
     @property
-    def cannister(self) -> CylindricalCannister:
-        return self._cannister
+    def canister(self) -> CylindricalCanister:
+        return self._canister
     
     @name.setter
     def name(self, name: str) -> None:
@@ -1227,7 +1388,7 @@ class CylindricalEncapsulation(_Container):
     @property
     def cost_breakdown(self) -> Dict[str, Any]:
         """
-        Get the cost breakdown of the electrode.
+        Get the cost breakdown of the encapsulation.
 
         :return: Dictionary containing the cost breakdown.
         """
@@ -1243,7 +1404,7 @@ class CylindricalEncapsulation(_Container):
     @property
     def mass_breakdown(self) -> Dict[str, Any]:
         """
-        Get the mass breakdown of the electrode.
+        Get the mass breakdown of the encapsulation.
 
         :return: Dictionary containing the mass breakdown.
         """
@@ -1258,15 +1419,43 @@ class CylindricalEncapsulation(_Container):
     
     @property
     def radius(self) -> float:
-        return self._cannister.outer_radius
+        return self._canister.outer_radius
     
+    @property
+    def radius_range(self) -> Tuple[float, float]:
+        return self._canister.outer_radius_range
+    
+    @property
+    def radius_hard_range(self) -> Tuple[float, float]:
+        return self._canister.outer_radius_hard_range
+
     @property
     def diameter(self) -> float:
-        return self._cannister.outer_diameter
+        return self._canister.outer_diameter
     
     @property
+    def diameter_range(self) -> Tuple[float, float]:
+        min_radius, max_radius = self.radius_range
+        return (min_radius * 2, max_radius * 2)
+    
+    @property
+    def diameter_hard_range(self) -> Tuple[float, float]:
+        min_radius, max_radius = self.radius_hard_range
+        return (min_radius * 2, max_radius * 2)
+
+    @property
     def height(self) -> float:
-        return self._cannister.height
+        return self._canister.height
+    
+    @property
+    def height_range(self) -> Tuple[float, float]:
+        """Valid height range in mm based on canister."""
+        return self._canister.height_range
+    
+    @property
+    def height_hard_range(self) -> Tuple[float, float]:
+        """Hard limits for height in mm based on canister."""
+        return self._canister.height_hard_range
     
     @internal_height.setter
     @calculate_all_properties
@@ -1275,8 +1464,14 @@ class CylindricalEncapsulation(_Container):
         _current_internal_height = self._internal_height
         _asked_for_height = internal_height * MM_TO_M
         _height_difference = _asked_for_height - _current_internal_height
-        new_height = self._cannister._height + _height_difference
-        self._cannister.height = new_height * M_TO_MM
+        new_height = self._canister._height + _height_difference
+        self._canister.height = new_height * M_TO_MM
+    
+    @height.setter
+    @calculate_all_properties
+    def height(self, height: float) -> None:
+        self.validate_positive_float(height, "Height")
+        self._canister.height = height
     
     @datum.setter
     @calculate_coordinates
@@ -1288,21 +1483,29 @@ class CylindricalEncapsulation(_Container):
         # set datum to self
         self._datum = tuple(coord * MM_TO_M for coord in value)
 
-        # set the datum to the cannister
-        self._cannister.datum = value
+        # set the datum to the canister
+        self._canister.datum = value
 
     @cathode_terminal_connector.setter
     @calculate_all_properties
     def cathode_terminal_connector(self, connector: CylindricalTerminalConnector) -> None:
+        
         self.validate_type(connector, CylindricalTerminalConnector, "Cathode Terminal Connector")
-        connector.name = f"{connector.name} (Cathode)"
+
+        if 'cathode' not in connector.name.lower():
+            connector.name = f"{connector.name} (Cathode)"
+        
         self._cathode_terminal_connector = connector
 
     @anode_terminal_connector.setter
     @calculate_all_properties
     def anode_terminal_connector(self, connector: CylindricalTerminalConnector) -> None:
+
         self.validate_type(connector, CylindricalTerminalConnector, "Anode Terminal Connector")
-        connector.name = f"{connector.name} (Anode)"
+
+        if 'anode' not in connector.name.lower():
+            connector.name = f"{connector.name} (Anode)"
+            
         self._anode_terminal_connector = connector
 
     @lid_assembly.setter
@@ -1311,17 +1514,35 @@ class CylindricalEncapsulation(_Container):
         self.validate_type(lid, CylindricalLidAssembly, "Lid Assembly")
         self._lid_assembly = lid
 
-    @cannister.setter
+    @canister.setter
     @calculate_all_properties
-    def cannister(self, cannister: CylindricalCannister) -> None:
-        self.validate_type(cannister, CylindricalCannister, "Cannister")
-        self._cannister = cannister
+    def canister(self, canister: CylindricalCanister) -> None:
+        self.validate_type(canister, CylindricalCanister, "Canister")
+        self._canister = canister
+        
+        # Set radius ranges for components based on canister dimensions
+        if hasattr(self, '_cathode_terminal_connector'):
+            self._cathode_terminal_connector._set_radius_range(canister)
+        if hasattr(self, '_anode_terminal_connector'):
+            self._anode_terminal_connector._set_radius_range(canister)
+        if hasattr(self, '_lid_assembly'):
+            self._lid_assembly._set_radius_range(canister)
 
     @radius.setter
     @calculate_all_properties
     def radius(self, radius: float) -> None:
+
+        # Validate the radius value
         self.validate_positive_float(radius, "Radius")
-        self._cannister.outer_radius = radius
+
+        # get the ratio of canister to terminal connector radius
+        cathode_terminal_ratio = self._cathode_terminal_connector._radius / self._canister._inner_radius
+        anode_terminal_ratio = self._anode_terminal_connector._radius / self._canister._inner_radius
+        
+        # Update the radius of the canister
+        self._canister.outer_radius = radius
+        self._cathode_terminal_connector._radius = cathode_terminal_ratio * radius
+        self._anode_terminal_connector._radius = anode_terminal_ratio * radius
 
     @diameter.setter
     def diameter(self, diameter: float) -> None:

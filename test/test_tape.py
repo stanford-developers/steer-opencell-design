@@ -59,7 +59,7 @@ class TestSimpleTape(unittest.TestCase):
     def test_width_range_default(self):
         """Test default width range when no specific range is set."""
         width_range = self.tape.width_range
-        self.assertEqual(width_range, (0, 500))
+        self.assertEqual(width_range, (0, 300))
 
 
 class TestTapeWithDimensions(unittest.TestCase):
@@ -68,6 +68,7 @@ class TestTapeWithDimensions(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures with dimensioned tape."""
         tape_material = TapeMaterial.from_database(name="Kapton")
+
         self.tape = Tape(
             material=tape_material, 
             thickness=25, 

@@ -1,3 +1,5 @@
+"""Base class for complete battery cells."""
+
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Base import _ElectrodeAssembly
 from steer_opencell_design.Components.Containers.Base import _Container
 from steer_opencell_design.Utils.Decorators import calculate_electrochemical_properties
@@ -24,6 +26,8 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from typing import Any, Dict, Tuple
+import re
+from scipy.optimize import brentq
 
 
 # Module-level constants for calculations and formatting
@@ -44,6 +48,7 @@ ENERGY_CONVERSION_FACTOR = S_TO_H
 VOLUMETRIC_ENERGY_CONVERSION = S_TO_H / M_TO_DM**3
 NORMALISED_COST_CONVERSION = 1 / (ENERGY_CONVERSION_FACTOR * W_TO_KW)
 
+
 class _Cell(
     ABC,
     DunderMixin,
@@ -54,6 +59,7 @@ class _Cell(
     DataMixin,
     CoordinateMixin,
 ):
+    """Abstract base class for complete battery cells. Provides common properties for energy, mass, cost, capacity curves, and voltage window management. Subclasses implement format-specific geometry (cylindrical, prismatic, pouch, flex-frame)."""
 
     def __init__(
         self,
@@ -85,8 +91,8 @@ class _Cell(
         self._calculate_cost_properties()
 
     def _calculate_electrochemical_properties(self) -> None:
-        self._calculate_operating_voltage_window()
         self._calculate_curves()
+        self._calculate_operating_voltage_window()
         self._calculate_upper_voltage_limit_range()
         self._calculate_lower_voltage_limit_range()
         self._calculate_reversible_capacity()
@@ -114,9 +120,19 @@ class _Cell(
 
     def _calculate_electrolyte_properties(self) -> None:
         """Calculate electrolyte volume based on pore volume and overfill."""
-        _pore_volume = sum([ea._pore_volume for ea in self._electrode_assemblies])
-        _electrolyte_volume = _pore_volume * (1 + self.electrolyte_overfill)
-        electrolyte_volume = _electrolyte_volume * M_TO_CM**3
+        # Calculate total pore volume from all electrode assemblies
+        self._pore_volume = sum([ea._pore_volume for ea in self._electrode_assemblies])
+
+        # Set electrolyte ranges based on pore volume
+        self._electrolyte._set_ranges_from_pore_volume(self._pore_volume)
+
+        # Calculate electrolyte volume with overfill
+        _electrolyte_volume = self._pore_volume * (1 + self._electrolyte_overfill)
+
+        # Set electrolyte volume
+        electrolyte_volume = _electrolyte_volume * M_TO_CM ** 3
+
+        # Assign volume to electrolyte
         self._electrolyte.volume = electrolyte_volume
 
     def _make_assemblies(self) -> list[_ElectrodeAssembly]:
@@ -138,8 +154,8 @@ class _Cell(
         """
         # Get center point from reference assembly (x, y coordinates)
         reference_center = self._electrode_assemblies[0]._get_center_point()
-        mid_x = reference_center[0]
-        mid_y = reference_center[1]
+        mid_x = reference_center[0] * M_TO_MM
+        mid_y = reference_center[1] * M_TO_MM
         
         # Calculate z-position as midpoint between all assemblies
         assembly_z_datums = [assembly._datum[2] for assembly in self._electrode_assemblies]
@@ -359,7 +375,7 @@ class _Cell(
         np.ndarray
             Cathode capacity curve scaled by number of electrode assemblies
         """
-        _cathode_capacity_curve = self._reference_electrode_assembly._cathode_capacity_curve
+        _cathode_capacity_curve = self._reference_electrode_assembly._cathode_capacity_curve.copy()
         _cathode_capacity_curve[:, 0] = _cathode_capacity_curve[:, 0] * self._n_electrode_assembly
         self._cathode_capacity_curve = _cathode_capacity_curve
         return self._cathode_capacity_curve
@@ -372,7 +388,7 @@ class _Cell(
         np.ndarray
             Anode capacity curve scaled by number of electrode assemblies
         """
-        _anode_capacity_curve = self._reference_electrode_assembly._anode_capacity_curve
+        _anode_capacity_curve = self._reference_electrode_assembly._anode_capacity_curve.copy()
         _anode_capacity_curve[:, 0] = _anode_capacity_curve[:, 0] * self._n_electrode_assembly
         self._anode_capacity_curve = _anode_capacity_curve
         return self._anode_capacity_curve
@@ -426,7 +442,7 @@ class _Cell(
         # calculate energyin W * s
         _discharge_curve = self._capacity_curve[self._capacity_curve[:, 2] == -1]
         _discharge_curve = _discharge_curve[np.argsort(_discharge_curve[:, 0])]
-        _area_under_curve = np.trapz(_discharge_curve[:, 1], _discharge_curve[:, 0])
+        _area_under_curve = np.trapezoid(_discharge_curve[:, 1], _discharge_curve[:, 0])
         self._energy = _area_under_curve
 
         # get gravimetric energy
@@ -437,7 +453,7 @@ class _Cell(
 
         # get normalised cost
         self._cost_per_energy = self._cost / self._energy
-        
+     
     def get_capacity_plot(
         self,
         include_guides: bool = True,
@@ -499,12 +515,15 @@ class _Cell(
         # Add all traces at once for better performance
         fig.add_traces(traces)
 
+        # get maximum voltage for y axis
+        x_max = max(self._reference_electrode_assembly._layup._cathode._formulation._voltage_operation_window)
+
         # Layout styling
         fig.update_layout(
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             xaxis={**self.SCATTER_X_AXIS, "title": "Capacity (Ah)"},
-            yaxis={**self.SCATTER_Y_AXIS, "title": "Voltage (V)"},
+            yaxis={**self.SCATTER_Y_AXIS, "title": "Voltage (V)", "range": [0, x_max]},
             hovermode="closest",
             **kwargs
         )
@@ -512,6 +531,7 @@ class _Cell(
         return fig
         
     def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:
+        """Generate a sunburst mass breakdown chart."""
 
         fig = self.plot_breakdown_sunburst(
             self.mass_breakdown,
@@ -523,7 +543,8 @@ class _Cell(
         return fig
 
     def plot_cost_breakdown(self, title: str = None, **kwargs) -> go.Figure:
-        
+        """Generate a sunburst cost breakdown chart."""
+
         fig = self.plot_breakdown_sunburst(
             self.cost_breakdown,
             title=title or f"{self.name} Cost Breakdown",
@@ -538,20 +559,89 @@ class _Cell(
     # ------------------------------------------------------------------
 
     @property
+    def volume(self) -> float:
+        """Cell volume in liters."""
+        return np.round(self._encapsulation._volume * M_TO_DM**3, MASS_PRECISION)
+
+    @property
+    def reference_chemistry(self) -> str:
+        """Get the reference chemistry string."""
+
+        # get the reference chemistries from the cathode materials
+        cathode_reference_chemistries = []
+        for am in self._reference_electrode_assembly._layup._cathode._formulation._active_materials.keys():
+            cathode_reference_chemistries.append(am._reference)
+
+        # get the reference chemistries from the anode materials
+        anode_reference_chemistries = []
+        for am in self._reference_electrode_assembly._layup._anode._formulation._active_materials.keys():
+            anode_reference_chemistries.append(am._reference)
+
+        # check if all the cathode materials have the same reference chemistry
+        if len(set(cathode_reference_chemistries)) != 1:
+            raise ValueError(f"All cathode active materials must have the same reference chemistry. Currently: {cathode_reference_chemistries}")
+
+        # check if all the anode materials have the same reference chemistry
+        if len(set(anode_reference_chemistries)) != 1:
+            raise ValueError(f"All anode active materials must have the same reference chemistry. Currently: {anode_reference_chemistries}")
+        
+        cathode_reference_chemistry = cathode_reference_chemistries[0]
+        anode_reference_chemistry = anode_reference_chemistries[0]
+
+        # check if the cathode and anode reference chemistries are compatible
+        if cathode_reference_chemistry != anode_reference_chemistry:
+            raise ValueError(f"Cathode and anode reference chemistries are not compatible. Cathode: {cathode_reference_chemistry}, Anode: {anode_reference_chemistry}")
+
+        return cathode_reference_chemistry
+
+    @property
+    def form_factor(self) -> str:
+        """Get the cell form factor string."""
+        form_factor = self.__class__.__name__
+        form_factor = re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', form_factor)
+        return form_factor
+
+    @property
+    def internal_construction(self) -> str:
+        """Get the internal construction type string."""
+        internal = self._reference_electrode_assembly.__class__.__name__
+        internal = re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', internal)
+        return internal
+
+    @property
     def encapsulation(self) -> _Container:
+        """Get the cell encapsulation."""
         return self._encapsulation
 
     @property
     def n_electrode_assembly(self) -> int:
+        """Get the number of electrode assemblies in the cell."""
         return self._n_electrode_assembly
 
     @property
     def electrolyte(self) -> Electrolyte:
+        """Get the cell electrolyte."""
         return self._electrolyte
 
     @property
+    def n_electrode_assembly_range(self) -> Tuple[int, int]:
+        """Get the suggested range for number of electrode assemblies."""
+        return (1, 6)
+    
+    @property
+    def n_electrode_assembly_hard_range(self) -> Tuple[int, int]:
+        """Get the hard limit range for number of electrode assemblies."""
+        return (1, 20)
+
+    @property
     def electrolyte_overfill(self) -> float:
-        return self._electrolyte_overfill
+        """Get the electrolyte overfill percentage."""
+        return np.round(self._electrolyte_overfill * FRACTION_TO_PERCENT, MASS_PRECISION)
+    
+    @property
+    def electrolyte_overfill_range(self) -> Tuple[float, float]:
+        """Get the valid range for electrolyte overfill percentage."""
+        return (0.0, 100.0)
 
     @property
     def name(self) -> str:
@@ -638,6 +728,100 @@ class _Cell(
         return np.round(self._irreversible_capacity * S_TO_H, CAPACITY_PRECISION)
 
     @property
+    def irreversible_capacity_range(self) -> Tuple[float, float]:
+        """Range of achievable irreversible capacities in Ah.
+        
+        Computes the min and max irreversible capacity by setting the minimum
+        operating voltage to its extreme values.
+        
+        Returns
+        -------
+        Tuple[float, float]
+            (min_irreversible_capacity, max_irreversible_capacity) in Ah
+        """
+        # Store current state
+        current_min_voltage = self._minimum_operating_voltage
+        
+        # Get voltage range
+        v_min, v_max = self._minimum_operating_voltage_range
+        
+        # Calculate irreversible capacity at minimum voltage
+        self._reference_electrode_assembly._layup.minimum_operating_voltage = v_min
+        self._reference_electrode_assembly._calculate_capacity_curves()
+        self._calculate_curves()
+        self._calculate_reversible_capacity()
+        self._calculate_irreversible_capacity()
+        irr_at_min_voltage = self._irreversible_capacity * S_TO_H
+        
+        # Calculate irreversible capacity at maximum voltage
+        self._reference_electrode_assembly._layup.minimum_operating_voltage = v_max
+        self._reference_electrode_assembly._calculate_capacity_curves()
+        self._calculate_curves()
+        self._calculate_reversible_capacity()
+        self._calculate_irreversible_capacity()
+        irr_at_max_voltage = self._irreversible_capacity * S_TO_H
+        
+        # Restore original state
+        self._reference_electrode_assembly._layup.minimum_operating_voltage = current_min_voltage
+        self._reference_electrode_assembly._calculate_capacity_curves()
+        self._calculate_curves()
+        self._calculate_reversible_capacity()
+        self._calculate_irreversible_capacity()
+        
+        # Return range (min at max voltage, max at min voltage due to inverse relationship)
+        return (
+            np.round(min(irr_at_min_voltage, irr_at_max_voltage), CAPACITY_PRECISION),
+            np.round(max(irr_at_min_voltage, irr_at_max_voltage), CAPACITY_PRECISION)
+        )
+
+    @property
+    def reversible_capacity_range(self) -> Tuple[float, float]:
+        """Range of achievable reversible capacities in Ah.
+        
+        Computes the min and max reversible capacity by setting the maximum
+        operating voltage to its extreme values.
+        
+        Returns
+        -------
+        Tuple[float, float]
+            (min_reversible_capacity, max_reversible_capacity) in Ah
+        """
+        # Store current state
+        current_max_voltage = self._maximum_operating_voltage
+        
+        # Get voltage range
+        v_min, v_max = self._maximum_operating_voltage_range
+        
+        # Calculate reversible capacity at minimum voltage
+        self._reference_electrode_assembly._layup.maximum_operating_voltage = v_min
+        self._reference_electrode_assembly._calculate_capacity_curves()
+        self._calculate_curves()
+        self._calculate_reversible_capacity()
+        self._calculate_irreversible_capacity()
+        rev_at_min_voltage = self._reversible_capacity * S_TO_H
+        
+        # Calculate reversible capacity at maximum voltage
+        self._reference_electrode_assembly._layup.maximum_operating_voltage = v_max
+        self._reference_electrode_assembly._calculate_capacity_curves()
+        self._calculate_curves()
+        self._calculate_reversible_capacity()
+        self._calculate_irreversible_capacity()
+        rev_at_max_voltage = self._reversible_capacity * S_TO_H
+        
+        # Restore original state
+        self._reference_electrode_assembly._layup.maximum_operating_voltage = current_max_voltage
+        self._reference_electrode_assembly._calculate_capacity_curves()
+        self._calculate_curves()
+        self._calculate_reversible_capacity()
+        self._calculate_irreversible_capacity()
+        
+        # Return range (sorted min to max)
+        return (
+            np.round(min(rev_at_min_voltage, rev_at_max_voltage), CAPACITY_PRECISION),
+            np.round(max(rev_at_min_voltage, rev_at_max_voltage), CAPACITY_PRECISION)
+        )
+
+    @property
     def capacity_curve(self) -> pd.DataFrame:
         """Full-cell capacity curve as DataFrame.
         
@@ -672,6 +856,7 @@ class _Cell(
     
     @property
     def capacity_curve_trace(self) -> go.Scatter:
+        """Plotly trace for the full-cell capacity curve."""
 
         color = "#ff8c00"
 
@@ -682,11 +867,12 @@ class _Cell(
             name=f"Full-Cell",
             line=dict(color=color, width=3, shape='spline'),  # Slightly thicker for emphasis
             customdata=self.capacity_curve["Direction"],
-            hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
+            hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} mAh<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
     
     @property
     def anode_capacity_curve_trace(self) -> go.Scatter:
+        """Plotly trace for the anode half-cell capacity curve."""
 
         return go.Scatter(
             x=self.anode_capacity_curve["Capacity (Ah)"],
@@ -695,11 +881,12 @@ class _Cell(
             name=f"{self._reference_electrode_assembly._layup._anode.name} Half-Cell",
             line=dict(color=self._reference_electrode_assembly._layup._anode.formulation.color, width=2, shape='spline'),
             customdata=self.anode_capacity_curve["Direction"],
-            hovertemplate="<b>Anode</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
+            hovertemplate="<b>Anode</b><br>" + "Capacity: %{x:.2f} mAh<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
     
     @property
     def cathode_capacity_curve_trace(self) -> go.Scatter:
+        """Plotly trace for the cathode half-cell capacity curve."""
 
         return go.Scatter(
             x=self.cathode_capacity_curve["Capacity (Ah)"],
@@ -708,11 +895,12 @@ class _Cell(
             name=f"{self._reference_electrode_assembly._layup._cathode.name} Half-Cell",
             line=dict(color=self._reference_electrode_assembly._layup._cathode.formulation.color, width=2, shape='spline'),
             customdata=self.cathode_capacity_curve["Direction"],
-            hovertemplate="<b>Cathode</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
+            hovertemplate="<b>Cathode</b><br>" + "Capacity: %{x:.2f} mAh<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
 
     @property
     def integrated_capacity_area_trace(self) -> go.Scatter:
+        """Plotly trace for the integrated discharge capacity area fill."""
 
         color = "#ff8c00"
 
@@ -726,6 +914,7 @@ class _Cell(
             line=dict(color=color, width=1),
             fillcolor='rgba(255, 140, 0, 0.2)',
             fill='tozeroy',
+            hovertemplate="<b>Integrated Capacity Area</b><br>" + "Capacity: %{x:.2f} mAh<br>" + "Voltage: %{y:.3f} V<extra></extra>",
         )
 
     @property
@@ -799,13 +988,168 @@ class _Cell(
         return np.round(self._minimum_operating_voltage, VOLTAGE_PRECISION)
     
     @property
-    def reversible_capacity(self) -> float:
-        """Reversible capacity in Ah."""
-        return np.round(self._reversible_capacity * S_TO_H, CAPACITY_PRECISION)
+    def reference_electrode_assembly(self) -> _ElectrodeAssembly:
+        """Get the reference electrode assembly used to construct the cell."""
+        return self._reference_electrode_assembly
 
     # ------------------------------------------------------------------
     # Setters
     # ------------------------------------------------------------------
+
+    @reference_electrode_assembly.setter
+    @calculate_all_properties
+    def reference_electrode_assembly(self, value: _ElectrodeAssembly) -> None:
+        self.validate_type(value, _ElectrodeAssembly, "reference_electrode_assembly")
+        self._reference_electrode_assembly = value
+
+    @reversible_capacity.setter
+    @calculate_electrochemical_properties
+    def reversible_capacity(self, value: float) -> None:
+        """Set reversible capacity by solving for maximum operating voltage.
+        
+        Parameters
+        ----------
+        value : float
+            Desired reversible capacity in Ah
+        
+        Raises
+        ------
+        ValueError
+            If desired capacity is outside achievable range
+        """
+        self.validate_positive_float(value, "Reversible Capacity")
+        
+        # Convert to internal units
+        target_capacity = value * H_TO_S
+        
+        # Define function that computes reversible capacity for given voltage
+        def compute_reversible_capacity(voltage: float) -> float:
+            # Temporarily set the voltage
+            self._reference_electrode_assembly._layup.maximum_operating_voltage = voltage
+            self._reference_electrode_assembly._calculate_capacity_curves()
+            
+            # Recompute cell curves and reversible capacity
+            self._calculate_curves()
+            self._calculate_reversible_capacity()
+            self._calculate_irreversible_capacity()
+            
+            return self._reversible_capacity - target_capacity
+        
+        # Get voltage range
+        v_min, v_max = self._maximum_operating_voltage_range
+        
+        # Check if target is achievable
+        rev_at_min = compute_reversible_capacity(v_min)
+        rev_at_max = compute_reversible_capacity(v_max)
+        
+        # Tolerance for boundary checks - 0.01 Ah converted to internal units (A·s)
+        tolerance = 0.005 * H_TO_S
+        
+        # Check if we're at the boundary (within tolerance)
+        if abs(rev_at_min) < tolerance:
+            # Target exactly at minimum boundary
+            solved_voltage = v_min
+        elif abs(rev_at_max) < tolerance:
+            # Target exactly at maximum boundary
+            solved_voltage = v_max
+        elif rev_at_min * rev_at_max > 0:
+            # Both have same sign and not at boundary - target not in range
+            actual_at_v_min = (rev_at_min + target_capacity) * S_TO_H
+            actual_at_v_max = (rev_at_max + target_capacity) * S_TO_H
+            # Sort to ensure min < max
+            actual_min = min(actual_at_v_min, actual_at_v_max)
+            actual_max = max(actual_at_v_min, actual_at_v_max)
+            raise ValueError(
+                f"Cannot achieve reversible capacity of {value:.2f} Ah. "
+                f"Achievable range is [{actual_min:.2f}, {actual_max:.2f}] Ah"
+            )
+        else:
+            # Use Brent's method to find the voltage that gives target capacity
+            solved_voltage = brentq(compute_reversible_capacity, v_min, v_max, xtol=1e-6)
+        
+        # Set the final voltage
+        try:
+            self._reference_electrode_assembly._layup.maximum_operating_voltage = solved_voltage
+            self._reference_electrode_assembly._calculate_capacity_curves()
+            self._maximum_operating_voltage = solved_voltage
+            self._operating_voltage_window = (self._minimum_operating_voltage, solved_voltage)
+        except ValueError as e:
+            raise ValueError(f"Failed to solve for maximum operating voltage: {e}")
+
+    @irreversible_capacity.setter
+    @calculate_electrochemical_properties
+    def irreversible_capacity(self, value: float) -> None:
+        """Set irreversible capacity by solving for minimum operating voltage.
+        
+        Parameters
+        ----------
+        value : float
+            Desired irreversible capacity in Ah
+        
+        Raises
+        ------
+        ValueError
+            If desired capacity is outside achievable range
+        """
+        self.validate_positive_float(value, "Irreversible Capacity")
+        
+        # Convert to internal units
+        target_capacity = value * H_TO_S
+        
+        # Define function that computes irreversible capacity for given voltage
+        def compute_irreversible_capacity(voltage: float) -> float:
+            # Temporarily set the voltage
+            self._reference_electrode_assembly._layup.minimum_operating_voltage = voltage
+            self._reference_electrode_assembly._calculate_capacity_curves()
+            
+            # Recompute cell curves and irreversible capacity
+            self._calculate_curves()
+            self._calculate_reversible_capacity()
+            self._calculate_irreversible_capacity()
+            
+            return self._irreversible_capacity - target_capacity
+        
+        # Get voltage range
+        v_min, v_max = self._minimum_operating_voltage_range
+        
+        # Check if target is achievable
+        irr_at_min = compute_irreversible_capacity(v_min)
+        irr_at_max = compute_irreversible_capacity(v_max)
+        
+        # Tolerance for boundary checks - 0.01 Ah converted to internal units (A·s)
+        # Since we display with 2 decimal places, tolerance should be half of that precision
+        tolerance = 0.005 * H_TO_S  # 0.005 Ah = 18 A·s
+        
+        # Check if we're at the boundary (within tolerance)
+        if abs(irr_at_min) < tolerance:
+            # Target exactly at minimum boundary
+            solved_voltage = v_min
+        elif abs(irr_at_max) < tolerance:
+            # Target exactly at maximum boundary
+            solved_voltage = v_max
+        elif irr_at_min * irr_at_max > 0:
+            # Both have same sign and not at boundary - target not in range
+            actual_at_v_min = (irr_at_min + target_capacity) * S_TO_H
+            actual_at_v_max = (irr_at_max + target_capacity) * S_TO_H
+            # Sort to ensure min < max
+            actual_min = min(actual_at_v_min, actual_at_v_max)
+            actual_max = max(actual_at_v_min, actual_at_v_max)
+            raise ValueError(
+                f"Cannot achieve irreversible capacity of {value:.2f} Ah. "
+                f"Achievable range is [{actual_min:.2f}, {actual_max:.2f}] Ah"
+            )
+        else:
+            # Use Brent's method to find the voltage that gives target capacity
+            solved_voltage = brentq(compute_irreversible_capacity, v_min, v_max, xtol=1e-6)
+        
+        # Set the final voltage
+        try:
+            self._reference_electrode_assembly._layup.minimum_operating_voltage = solved_voltage
+            self._reference_electrode_assembly._calculate_capacity_curves()
+            self._minimum_operating_voltage = solved_voltage
+            self._operating_voltage_window = (solved_voltage, self._maximum_operating_voltage)
+        except ValueError as e:
+            raise ValueError(f"Failed to solve for minimum operating voltage: {e}")
 
     @encapsulation.setter
     @calculate_all_properties
@@ -816,20 +1160,28 @@ class _Cell(
     @n_electrode_assembly.setter
     @calculate_all_properties
     def n_electrode_assembly(self, value: int) -> None:
-        self.validate_positive_int(value, "n_electrode_assembly")
+        value = int(np.round(value))
         self._n_electrode_assembly = value
 
     @electrolyte.setter
     @calculate_all_properties
     def electrolyte(self, value: Electrolyte) -> None:
+
+        # validate type
         self.validate_type(value, Electrolyte, "electrolyte")
+
+        # check if it has a volume
+        if self._update_properties and hasattr(value, "_volume") and value._volume is not None and value._volume > 0:
+            self._electrolyte_overfill = (value._volume / self._pore_volume) - 1
+
+        # assign
         self._electrolyte = value
 
     @electrolyte_overfill.setter
     @calculate_all_properties
     def electrolyte_overfill(self, value: float) -> None:
         self.validate_percentage(value, "electrolyte_overfill")
-        self._electrolyte_overfill = value
+        self._electrolyte_overfill = value * PERCENT_TO_FRACTION
 
     @name.setter
     def name(self, value: str) -> None:
@@ -901,4 +1253,18 @@ class _Cell(
 
         self._minimum_operating_voltage = value
         self._operating_voltage_window = (value, self._maximum_operating_voltage)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

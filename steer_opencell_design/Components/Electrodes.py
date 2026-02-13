@@ -1,3 +1,5 @@
+"""Electrode definitions combining formulations with current collectors and coating parameters."""
+
 from functools import wraps
 from steer_core.Decorators.Coordinates import calculate_coordinates, calculate_volumes
 
@@ -360,12 +362,12 @@ class _Electrode(
 
     def _clear_cached_data(self) -> None:
         self._areal_capacity_curve = None
-        self._formulation._specific_capacity_curve = None
+        self._formulation._clear_cached_data()
 
     # === VIEWS ===
 
     def get_right_left_view(self, set_z_zero: bool = False, **kwargs) -> pd.DataFrame:
-    
+        """Generate a right-left (side) Plotly figure of the electrode."""
         if set_z_zero:
             if self.datum_z == 0.0:
                 electrode = self
@@ -376,7 +378,7 @@ class _Electrode(
             electrode = self
 
         figure = electrode._current_collector.get_right_left_view(**kwargs)
-        figure.data = [trace for trace in figure.data if trace.name == "Body" or trace.name == "Tab"]
+        figure.data = [trace for trace in figure.data if trace.name == "Foil" or trace.name == "Tab"]
         figure.add_trace(electrode.right_left_a_side_coating_trace)
         figure.add_trace(electrode.right_left_b_side_coating_trace)
 
@@ -396,7 +398,7 @@ class _Electrode(
         return figure
 
     def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:
-
+        """Generate a sunburst mass breakdown chart."""
         fig = self.plot_breakdown_sunburst(
             self.mass_breakdown,
             title=title or f"{self.name} Mass Breakdown",
@@ -407,7 +409,7 @@ class _Electrode(
         return fig
 
     def plot_cost_breakdown(self, title: str = None, **kwargs) -> go.Figure:
-
+        """Generate a sunburst cost breakdown chart."""
         fig = self.plot_breakdown_sunburst(
             self.cost_breakdown,
             title=title or f"{self.name} Cost Breakdown",
@@ -418,9 +420,9 @@ class _Electrode(
         return fig
 
     def get_top_down_view(self, **kwargs) -> go.Figure:
-        
+        """Generate a top-down Plotly figure of the electrode."""
         figure = self.current_collector.get_top_down_view(**kwargs)
-        figure.data = [trace for trace in figure.data if trace.name == "Body" or trace.name == "Tab"]
+        figure.data = [trace for trace in figure.data if trace.name == "Foil" or trace.name == "Tab"]
 
         # Get the traces to add
         coating_trace = self.top_down_coating_trace
@@ -435,6 +437,7 @@ class _Electrode(
         return figure
 
     def get_a_side_view(self, **kwargs) -> go.Figure:
+        """Generate a Plotly figure of the A-side of the electrode."""
         if self.top_side == "a":
             return self.get_top_down_view(**kwargs)
         else:
@@ -444,6 +447,7 @@ class _Electrode(
             return figure
 
     def get_b_side_view(self, **kwargs) -> go.Figure:
+        """Generate a Plotly figure of the B-side of the electrode."""
         if self.top_side == "b":
             return self.get_top_down_view(**kwargs)
         else:
@@ -469,41 +473,52 @@ class _Electrode(
         # Remove insulation traces if they exist
         figure.data = [trace for trace in figure.data if "Insulation" not in trace.name]
 
+        # covert traces from mm to um
+        for trace in figure.data:
+            trace.x = [x * MM_TO_UM for x in trace.x]
+            trace.y = [y * MM_TO_UM for y in trace.y]
+
         # Get datum coordinates in mm (for plotting)
         datum_y = self.datum[1]  # y-coordinate of datum
 
-        # Get total thickness in mm (electrode thickness includes coating on both sides + current collector)
-        total_thickness_mm = self.thickness * UM_TO_MM
-        
         # Apply locked scaling based on thickness ranges
-        if total_thickness_mm <= 0.4:
-            # Lock from -0.2 to +0.2
+        if self.thickness <= 0.4:
             y_range = [datum_y - 0.2, datum_y + 0.2]
-        elif total_thickness_mm <= 0.8:
-            # Lock from -0.4 to +0.4
+        elif self.thickness <= 0.8:
             y_range = [datum_y - 0.4, datum_y + 0.4]
-        elif total_thickness_mm <= 1.2:
-            # Lock from -0.6 to +0.6
+        elif self.thickness <= 1.2:
             y_range = [datum_y - 0.6, datum_y + 0.6]
         else:
-            # Free scaling - calculate zoom range (1.5x the thickness)
-            zoom_range = total_thickness_mm * 1.5
+            zoom_range = self.thickness * 1.5
             half_range = zoom_range / 2
             y_range = [datum_y - half_range, datum_y + half_range]
 
+        Y_AXIS = self.SCHEMATIC_Y_AXIS
+        Y_AXIS['title'] = "Thickness (µm)"
+        Y_AXIS['range'] = y_range
+
+        X_AXIS = {
+            "range": y_range,
+            "title": "",
+            "showticklabels": False,
+            "ticks": "",
+        }
+
         # Update layout to zoom in and lock aspect ratio
         figure.update_layout(
-            xaxis={**self.SCHEMATIC_X_AXIS, "range": y_range},
-            yaxis={**self.SCHEMATIC_Y_AXIS, "range": y_range},
+            xaxis=X_AXIS,
+            yaxis=Y_AXIS,
             legend=self.BOTTOM_LEGEND
         )
 
         return figure
 
     def get_a_side_center_line(self) -> np.ndarray:
+        """Return the A-side coating center line as an (x, z) array."""
         return self.get_xz_center_line(self._a_side_coating_coordinates)
     
     def get_b_side_center_line(self) -> np.ndarray:
+        """Return the B-side coating center line as an (x, z) array."""
         return self.get_xz_center_line(self._b_side_coating_coordinates)
 
     def plot_areal_capacity_curve(self, **kwargs) -> go.Figure:
@@ -531,7 +546,7 @@ class _Electrode(
     @property
     def right_left_a_side_insulation_trace(self) -> pd.DataFrame:
         """
-        Get the coordinates of the a side insulated area.
+        Get the Plotly trace for the a side insulated area.
         """
         try:
             # get the coordinates
@@ -558,7 +573,7 @@ class _Electrode(
     @property
     def right_left_b_side_insulation_trace(self) -> pd.DataFrame:
         """
-        Get the coordinates of the b side insulated area.
+        Get the Plotly trace for the b side insulated area.
         """
         try:
             # get the coordinates
@@ -585,7 +600,7 @@ class _Electrode(
     @property
     def right_left_a_side_coating_trace(self) -> pd.DataFrame:
         """
-        Get the coordinates of the a side coated area.
+        Get the Plotly trace for the a side coated area.
         """
         # get the coordinates
         a_side_coating_coordinates = self.order_coordinates_clockwise(self.a_side_coating_coordinates, plane="yz")
@@ -608,7 +623,7 @@ class _Electrode(
     @property
     def bottom_up_a_side_coating_trace(self) -> pd.DataFrame:
         """
-        Get the coordinates of the a side coated area.
+        Get the Plotly trace for the a side coated area.
         """
         # get the coordinates
         a_side_coating_coordinates = self.order_coordinates_clockwise(self.a_side_coating_coordinates, plane="xz")
@@ -634,7 +649,7 @@ class _Electrode(
     @property
     def right_left_b_side_coating_trace(self) -> pd.DataFrame:
         """
-        Get the coordinates of the b side coated area.
+        Get the Plotly trace for the b side coated area.
         """
         # get the coordinates
         b_side_coating_coordinates = self.order_coordinates_clockwise(self.b_side_coating_coordinates, plane="yz")
@@ -657,7 +672,7 @@ class _Electrode(
     @property
     def bottom_up_b_side_coating_trace(self) -> pd.DataFrame:
         """
-        Get the coordinates of the b side coated area.
+        Get the Plotly trace for the b side coated area.
         """
         # get the coordinates
         b_side_coating_coordinates = self.order_coordinates_clockwise(self.b_side_coating_coordinates, plane="xz")
@@ -682,10 +697,12 @@ class _Electrode(
 
     @property
     def top_side(self) -> str:
+        """Get which side ('a' or 'b') is currently facing up."""
         return self._current_collector.top_side
 
     @property
     def top_down_coating_trace(self) -> go.Scatter:
+        """Get the top-down Plotly trace for the visible coating side."""
         side = self.current_collector.top_side
         coated_area_coordinates = self.a_side_coating_coordinates if side == "a" else self.b_side_coating_coordinates
 
@@ -785,7 +802,7 @@ class _Electrode(
         })
     
     @property
-    def areal_capacity_curve_trace(self) -> go.Figure:
+    def areal_capacity_curve_trace(self) -> go.Scatter:
         """
         Get the areal capacity curve trace of the electrode.
         """
@@ -821,10 +838,12 @@ class _Electrode(
 
     @property
     def formulation(self) -> _ElectrodeFormulation:
+        """Get the electrode formulation."""
         return self._formulation
 
     @property
     def insulation_material(self) -> InsulationMaterial:
+        """Get the insulation material, or None if not set."""
         return self._insulation_material
 
     @property
@@ -880,10 +899,12 @@ class _Electrode(
 
     @property
     def coating_thickness_hard_range(self) -> Tuple[float, float]:
+        """Get the hard allowable coating thickness range in µm."""
         return (0, 200)
 
     @property
     def coating_thickness_range(self) -> Tuple[float, float]:
+        """Get the allowable coating thickness range in µm."""
         return (2, 200)
 
     @property
@@ -938,16 +959,21 @@ class _Electrode(
 
     @property
     def calender_density_range(self) -> Tuple[float, float]:
+        """Get the allowable calender density range in g/cm³."""
         max_porosity = self.porosity_range[1] / 100
         min_porosity = self.porosity_range[0] / 100
 
         min_calender_density = ((1 - max_porosity) / self._formulation._specific_volume) * (KG_TO_G / M_TO_CM**3)
         max_calender_density = ((1 - min_porosity) / self._formulation._specific_volume) * (KG_TO_G / M_TO_CM**3)
 
+        min_calender_density = np.round(min_calender_density, 2)
+        max_calender_density = np.round(max_calender_density, 2)
+
         return (min_calender_density, max_calender_density)
 
     @property
     def calender_density_hard_range(self) -> Tuple[float, float]:
+        """Get the hard allowable calender density range in g/cm³."""
         max_porosity = self.porosity_hard_range[1] / 100
         min_porosity = self.porosity_hard_range[0] / 100
 
@@ -959,7 +985,7 @@ class _Electrode(
     @property
     def a_side_insulation_coordinates(self) -> pd.DataFrame:
         """
-        Get the A side insulation coordinates of the current collector.
+        Get the A side insulation coordinates of the electrode.
         """
         return pd.DataFrame(self._a_side_insulation_coordinates, columns=["x", "y", "z"]).assign(
             x=lambda x: (x["x"].astype(float) * M_TO_MM).round(10),
@@ -970,7 +996,7 @@ class _Electrode(
     @property
     def b_side_insulation_coordinates(self) -> pd.DataFrame:
         """
-        Get the B side insulation coordinates of the current collector.
+        Get the B side insulation coordinates of the electrode.
         """
         return pd.DataFrame(self._b_side_insulation_coordinates, columns=["x", "y", "z"]).assign(
             x=lambda x: (x["x"].astype(float) * M_TO_MM).round(10),
@@ -981,7 +1007,7 @@ class _Electrode(
     @property
     def a_side_coating_coordinates(self) -> pd.DataFrame:
         """
-        Get the A side coating coordinates of the current collector.
+        Get the A side coating coordinates of the electrode.
         """
         return pd.DataFrame(self._a_side_coating_coordinates, columns=["x", "y", "z"]).assign(
             x=lambda x: (x["x"].astype(float) * M_TO_MM).round(10),
@@ -992,7 +1018,7 @@ class _Electrode(
     @property
     def b_side_coating_coordinates(self) -> pd.DataFrame:
         """
-        Get the B side coating coordinates of the current collector.
+        Get the B side coating coordinates of the electrode.
         """
         return pd.DataFrame(self._b_side_coating_coordinates, columns=["x", "y", "z"]).assign(
             x=lambda x: (x["x"].astype(float) * M_TO_MM).round(10),
@@ -1011,16 +1037,18 @@ class _Electrode(
 
     @property
     def mass_loading_range(self) -> Tuple[float, float]:
+        """Get the allowable mass loading range in mg/cm²."""
         return (
-            self.calender_density_range[0] * self.coating_thickness_range[0] * UM_TO_CM * G_TO_mG,
-            self.calender_density_range[1] * self.coating_thickness_range[1] * UM_TO_CM * G_TO_mG,
+            np.round(self.calender_density_range[0] * self.coating_thickness_range[0] * UM_TO_CM * G_TO_mG, 2),
+            np.round(self.calender_density_range[1] * self.coating_thickness_range[1] * UM_TO_CM * G_TO_mG, 2),
         )
 
     @property
     def mass_loading_hard_range(self) -> Tuple[float, float]:
+        """Get the hard allowable mass loading range in mg/cm²."""
         return (
-            self.calender_density_hard_range[0] * self.coating_thickness_hard_range[0] * UM_TO_CM * G_TO_mG,
-            self.calender_density_hard_range[1] * self.coating_thickness_hard_range[1] * UM_TO_CM * G_TO_mG,
+            np.round(self.calender_density_hard_range[0] * self.coating_thickness_hard_range[0] * UM_TO_CM * G_TO_mG, 2),
+            np.round(self.calender_density_hard_range[1] * self.coating_thickness_hard_range[1] * UM_TO_CM * G_TO_mG, 2),
         )
 
     @property
@@ -1052,6 +1080,7 @@ class _Electrode(
 
     @property
     def mass_range(self) -> Tuple[float, float]:
+        """Get the allowable mass range in g."""
         min = 0
         hyp_max = 1
         max = hyp_max * (1 - np.exp(-0.5 / self._mass))
@@ -1081,10 +1110,12 @@ class _Electrode(
 
     @property
     def cost(self) -> float:
+        """Get the total electrode cost in $."""
         return np.round(self._cost, 2)
 
     @property
     def cost_range(self):
+        """Get the allowable cost range in $."""
         min = 0
         max = self._cost + (1 / self._cost) / 5
         return (min, max)
@@ -1112,6 +1143,7 @@ class _Electrode(
 
     @property
     def porosity_hard_range(self) -> Tuple[float, float]:
+        """Get the hard allowable porosity range in %."""
         return (10, 80)
 
     # === SETTERS ===
@@ -1421,6 +1453,13 @@ class Cathode(_Electrode):
         :return: Tuple containing the minimum and maximum porosity in percentage.
         """
         return (15, 40)
+
+
+
+
+
+
+
 
 
 
