@@ -53,7 +53,7 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         self.assertEqual(round(self.current_collector._tab_height, 6), 0.012)
         self.assertEqual(round(self.current_collector._tab_position, 6), 0.02)
         self.assertEqual(round(self.current_collector._coated_tab_height, 6), 0.003)
-        self.assertEqual(self.current_collector.body_area, 350.4)
+        self.assertEqual(self.current_collector.foil_area, 350.4)
         self.assertEqual(self.current_collector.coated_area, 2 * 169.6)
         self.assertEqual(self.current_collector.insulation_area, 7.6)
 
@@ -182,7 +182,7 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[0], 6), 0.02)
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[1], 6), 0.08)
         self.assertEqual(round(self.current_collector._coated_tab_height, 6), 0.002)
-        self.assertEqual(round(self.current_collector.body_area, 6), 6732)
+        self.assertEqual(round(self.current_collector.foil_area, 6), 6732)
         self.assertEqual(round(self.current_collector.coated_area, 6), 3079.3 + 3074)
         self.assertEqual(round(self.current_collector.insulation_area, 6), 185.8)
         self.assertEqual(self.current_collector.material.cost, 0.17)
@@ -298,7 +298,7 @@ class TestNotchedCurrentCollector2(unittest.TestCase):
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[0], 6), 0.02)
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[1], 6), 0.08)
         self.assertEqual(round(self.current_collector._coated_tab_height, 6), 0.004)
-        self.assertEqual(round(self.current_collector.body_area, 6), 6732)
+        self.assertEqual(round(self.current_collector.foil_area, 6), 6732)
         self.assertEqual(round(self.current_collector.coated_area, 6), 6339.1)
         self.assertEqual(round(self.current_collector.insulation_area, 6), 69.7)
 
@@ -462,7 +462,7 @@ class TestWeldTab(unittest.TestCase):
         self.assertEqual(round(self.weldtab._width, 6), 0.005)
         self.assertEqual(round(self.weldtab._length, 6), 0.115)
         self.assertEqual(round(self.weldtab._thickness, 6), 0.00002)
-        self.assertEqual(self.weldtab._body_area, 0.00115)
+        self.assertEqual(self.weldtab._foil_area, 0.00115)
 
     def test_plots(self):
         """
@@ -525,7 +525,7 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         self.assertEqual(round(self.current_collector._bare_lengths_a_side[1], 6), 0.08)
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[0], 6), 0.02)
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[1], 6), 0.08)
-        self.assertEqual(self.current_collector.body_area, 1771.2)
+        self.assertEqual(self.current_collector.foil_area, 1771.2)
         self.assertEqual(self.current_collector.coated_area, 1431.0)
 
     def test_plots(self):

@@ -1,3 +1,5 @@
+"""Utilities for processing, interpolating, and scaling half-cell voltage-capacity curves."""
+
 import numpy as np
 from typing import List, Type
 from functools import wraps
@@ -21,8 +23,11 @@ def calculate_specific_capacity_curve(func):
 
 def calculate_capacity_curve(func):
     """
-    Decorator to recalculate half-cell curve properties after a method call.
-    This is useful for methods that modify the half-cell curve data.
+    Decorator to recalculate the absolute capacity curve after a method call.
+
+    Unlike ``calculate_specific_capacity_curve``, this also verifies that the
+    object has a ``_mass`` attribute before calling ``_calculate_capacity_curve``,
+    which scales the specific capacity curve by mass.
     """
     @wraps(func)
     def wrapper(self, *args, **kwargs):
@@ -34,6 +39,11 @@ def calculate_capacity_curve(func):
 
 
 class CapacityCurveMixin:
+    """Mixin providing static methods for processing half-cell voltage-capacity curves.
+
+    Handles curve direction correction, monotonicity enforcement, interpolation,
+    truncation, and reversible/irreversible capacity scaling.
+    """
 
     @staticmethod
     def _correct_curve_directions(curve: np.ndarray) -> np.ndarray:
@@ -172,7 +182,7 @@ class CapacityCurveMixin:
         return curve
     
     @staticmethod
-    def _apply_reversible_capacity_scaling(curve: np.ndarray, scaling: float) -> np.ndarray:
+    def _apply_reversible_specific_capacity_scaling(curve: np.ndarray, scaling: float) -> np.ndarray:
         """Scale only the reversible capacity portion of the discharge curve.
 
         Parameters
@@ -205,7 +215,7 @@ class CapacityCurveMixin:
         return result
 
     @staticmethod
-    def _apply_irreversible_capacity_scaling(curve: np.ndarray, scaling: float) -> np.ndarray:
+    def _apply_irreversible_specific_capacity_scaling(curve: np.ndarray, scaling: float) -> np.ndarray:
         """Uniformly scale capacity columns to model irreversible loss.
 
         Parameters
@@ -470,7 +480,7 @@ class CapacityCurveMixin:
         
     @staticmethod
     def _truncate_and_shift_curves(
-        specific_capacity_curves: List[np.array],
+        specific_capacity_curves: List[np.ndarray],
         voltage_cutoff: float,
         material_type: Type
         ) -> np.ndarray:
@@ -560,7 +570,7 @@ class CapacityCurveMixin:
     
     @staticmethod
     def _calculate_specific_capacity_curve(
-        specific_capacity_curves: List[np.array],
+        specific_capacity_curves: List[np.ndarray],
         voltage_cutoff: float,
         voltage_operation_window: tuple[float, float, float],
         material_type: Type,
@@ -633,4 +643,15 @@ class CapacityCurveMixin:
 
         return specific_capacity_curve
 
+    @staticmethod
+    def _calculate_capacity_curve_properties(specific_capacity_curve):
 
+        # get the irreversible capacity as the maximum capacity of the curve
+        _irreverible_capacity = specific_capacity_curve[:, 0].max()
+
+        # get the reversible capacity as the maximum capacity of the discharge curve
+        _discharge_mask = specific_capacity_curve[:, 2] == -1
+        _reversible_capacity = _irreverible_capacity - specific_capacity_curve[_discharge_mask, 0].min()
+
+        # return both capacities
+        return _irreverible_capacity, _reversible_capacity

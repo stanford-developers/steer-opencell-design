@@ -1,3 +1,5 @@
+"""Base classes and enums for electrode layup configurations."""
+
 from copy import copy, deepcopy
 from enum import Enum
 from typing import Tuple
@@ -23,6 +25,8 @@ from steer_opencell_design.Components.Separators import Separator
 from steer_opencell_design.Constructions.Layups.OverhangUtils import OverhangMixin
 from steer_opencell_design.Constructions.Layups.ArealCapacityCurveUtils import ArealCapacityCurveMixin
 from steer_opencell_design.Utils.Decorators import calculate_electrochemical_properties
+from steer_opencell_design.Components.CurrentCollectors.Base import _TapeCurrentCollector
+from steer_opencell_design.Components.CurrentCollectors.Punched import PunchedCurrentCollector
 
 
 # Module-level constants for overhang ranges and plotting parameters
@@ -52,6 +56,12 @@ class NPRatioControlMode(Enum):
     FIXED_THICKNESS = "fixed_thickness"
 
 
+class ElectrodeOrientation(Enum):
+    """Orientation options for electrode layups."""
+    TRANSVERSE = "transverse"
+    LONGITUDINAL = "longitudinal"
+
+
 class _Layup(
     CoordinateMixin, 
     ValidationMixin, 
@@ -78,6 +88,7 @@ class _Layup(
         bottom_separator: Separator,
         anode: Anode,
         top_separator: Separator,
+        electrode_orientation: ElectrodeOrientation,
         name: str = "Layup",
     ):
         """
@@ -89,6 +100,8 @@ class _Layup(
             The anode component of the layup.
         cathode : Cathode
             The cathode component of the layup.
+        electrode_orientation : ElectrodeOrientation
+            The orientation of the electrode (default: ElectrodeOrientation.TRANSVERSE).
         name : str, optional
             Name of the layup (default: "Layup").
         """
@@ -105,6 +118,7 @@ class _Layup(
         self.bottom_separator = bottom_separator
         self.anode = anode
         self.top_separator = top_separator
+        self.electrode_orientation = electrode_orientation
         self.name = name
 
     def _calculate_all_properties(self):
@@ -128,10 +142,29 @@ class _Layup(
         if hasattr(self, '_areal_capacity_curve') and self._areal_capacity_curve is not None:
             self._calculate_upper_voltage_limit_range()
             self._calculate_lower_voltage_limit_range()
-            self._maximum_operating_voltage = max(self._maximum_operating_voltage_range)
-            self._minimum_operating_voltage = min(self._minimum_operating_voltage_range)
-            self._operating_voltage_window = (self._minimum_operating_voltage, self._maximum_operating_voltage)
-            self._operating_reversible_areal_capacity = max(self._maximum_areal_reversible_capacity_range)
+            
+            # Only set default values if they haven't been explicitly set, otherwise clamp to new ranges
+            if not hasattr(self, '_minimum_operating_voltage') or self._minimum_operating_voltage is None:
+                self._minimum_operating_voltage = min(self._minimum_operating_voltage_range)
+            else:
+                # Clamp existing value to new range
+                range_min = min(self._minimum_operating_voltage_range)
+                range_max = max(self._minimum_operating_voltage_range)
+                self._minimum_operating_voltage = np.clip(self._minimum_operating_voltage, range_min, range_max)
+            
+            if not hasattr(self, '_operating_voltage_window') or self._operating_voltage_window is None:
+                self._operating_voltage_window = (self._minimum_operating_voltage, self._maximum_operating_voltage)
+            else:
+                # Update with potentially clamped values
+                self._operating_voltage_window = (self._minimum_operating_voltage, self._maximum_operating_voltage)
+            
+            if not hasattr(self, '_operating_reversible_areal_capacity') or self._operating_reversible_areal_capacity is None:
+                self._operating_reversible_areal_capacity = max(self._maximum_areal_reversible_capacity_range)
+            else:
+                # Clamp existing value to new range
+                range_min = min(self._maximum_areal_reversible_capacity_range)
+                range_max = max(self._maximum_areal_reversible_capacity_range)
+                self._operating_reversible_areal_capacity = np.clip(self._operating_reversible_areal_capacity, range_min, range_max)
 
     def _calculate_lower_voltage_limit_range(self) -> None:
         """Calculate the minimum operating voltage range from discharge curve.
@@ -152,46 +185,73 @@ class _Layup(
         # set the minimum operating voltage range
         self._minimum_operating_voltage_range = (_lower_voltage_minimum, _lower_voltage_top_limit)
 
+    def _compute_voltage_and_capacity_at_cutoff(self, layup, voltage_cutoff: float) -> Tuple[float, float]:
+        """Helper method to compute max voltage and reversible capacity at a given voltage cutoff.
+        
+        Parameters
+        ----------
+        layup : _Layup
+            Layup copy to modify
+        voltage_cutoff : float
+            Cathode voltage cutoff to apply
+            
+        Returns
+        -------
+        Tuple[float, float]
+            Maximum voltage and reversible areal capacity at the given cutoff
+        """
+        layup._cathode._formulation.voltage_cutoff = voltage_cutoff
+        layup._cathode.formulation = layup._cathode._formulation
+        
+        _, areal_curve = self._compute_areal_full_cell_curve(
+            layup._cathode._areal_capacity_curve,
+            layup._anode._areal_capacity_curve,
+        )
+        
+        discharge_mask = areal_curve[:, 2] == -1
+        discharge_curve = areal_curve[discharge_mask]
+        
+        max_voltage = areal_curve[:, 1].max()
+        reversible_capacity = discharge_curve[:, 0].max() - discharge_curve[:, 0].min()
+        
+        return max_voltage, reversible_capacity
+
     def _calculate_upper_voltage_limit_range(self) -> None:
         """Calculate the maximum operating voltage range from cathode voltage cutoff range.
         
         Determines the upper voltage bounds by testing the cathode's voltage cutoff range
         and observing the resulting maximum voltages in the capacity curve.
         """
-        # Get voltage cutoff range bounds using numpy operations (faster than min/max)
+        # Get voltage cutoff range bounds
         _voltage_cutoff_range = self._cathode._formulation._voltage_operation_window
         _formulation_min_voltage, _formulation_max_voltage = min(_voltage_cutoff_range), max(_voltage_cutoff_range)
 
-        # get the upper voltage max
+        # Create a single layup copy for all calculations
         _layup = deepcopy(self)
-        _layup._cathode._formulation.voltage_cutoff = _formulation_max_voltage
-        _layup._cathode.formulation = _layup._cathode._formulation
-        _, _areal_curve = self._compute_areal_full_cell_curve(
-            _layup._cathode._areal_capacity_curve,
-            _layup._anode._areal_capacity_curve,
-        )
-        _discharge_mask = _areal_curve[:, 2] == -1
-        _discharge_curve = _areal_curve[_discharge_mask]
-        _upper_voltage_max = _areal_curve[:, 1].max()
-        _upper_areal_reversible_capacity_max = _discharge_curve[:, 0].max() - _discharge_curve[:, 0].min()
 
-        # get the lower voltage min
-        _layup._cathode._formulation.voltage_cutoff = _formulation_min_voltage
-        _layup._cathode.formulation = _layup._cathode._formulation
-        _, _areal_curve = self._compute_areal_full_cell_curve(
-            _layup._cathode._areal_capacity_curve,
-            _layup._anode._areal_capacity_curve,
+        # Get the current layup cutoff voltage
+        _voltage_cutoff, _ = self._compute_voltage_and_capacity_at_cutoff(_layup, _layup._cathode._formulation.voltage_cutoff)
+
+        # Get upper voltage max (at maximum formulation voltage)
+        _upper_voltage_max, _upper_areal_reversible_capacity_max = self._compute_voltage_and_capacity_at_cutoff(
+            _layup, _formulation_max_voltage
         )
-        _discharge_mask = _areal_curve[:, 2] == -1
-        _discharge_curve = _areal_curve[_discharge_mask]
-        _upper_voltage_min = _areal_curve[:, 1].max()
-        _upper_areal_reversible_capacity_min = _discharge_curve[:, 0].max() - _discharge_curve[:, 0].min()
+
+        # Get lower voltage min (at minimum formulation voltage)
+        _upper_voltage_min, _upper_areal_reversible_capacity_min = self._compute_voltage_and_capacity_at_cutoff(
+            _layup, _formulation_min_voltage
+        )
 
         # Set the maximum and minimum operating voltage ranges
+        self._maximum_operating_voltage = _voltage_cutoff
         self._maximum_operating_voltage_range = (_upper_voltage_min, _upper_voltage_max)
         self._maximum_areal_reversible_capacity_range = (_upper_areal_reversible_capacity_min, _upper_areal_reversible_capacity_max)
 
-        return self._maximum_operating_voltage_range, self._maximum_areal_reversible_capacity_range
+        return (
+            self._maximum_operating_voltage,
+            self._maximum_operating_voltage_range, 
+            self._maximum_areal_reversible_capacity_range
+        )
     
     def _set_z_positions(self):
 
@@ -256,10 +316,10 @@ class _Layup(
         
         if separator._rotated_xy:
             # When rotated, width maps to x-direction, length to y-direction
-            required_width = reference_electrode.current_collector.x_body_length + thickness_buffer
-            required_length = reference_electrode.current_collector.y_body_length + thickness_buffer
+            required_width = reference_electrode.current_collector.x_foil_length + thickness_buffer
+            required_length = reference_electrode.current_collector.y_foil_length + thickness_buffer
             
-            if separator._width < reference_electrode.current_collector._x_body_length:
+            if separator._width < reference_electrode.current_collector._x_foil_length:
                 new_separator = deepcopy(separator)
                 new_separator.width = required_width
                 if separator_name == "bottom":
@@ -267,7 +327,7 @@ class _Layup(
                 else:
                     self._top_separator = new_separator
                 
-            if separator._length < reference_electrode.current_collector._y_body_length:
+            if separator._length < reference_electrode.current_collector._y_foil_length:
                 new_separator = deepcopy(separator)
                 new_separator.length = required_length
                 if separator_name == "bottom":
@@ -276,10 +336,10 @@ class _Layup(
                     self._top_separator = new_separator
         else:
             # When not rotated, length maps to x-direction, width to y-direction
-            required_length = reference_electrode.current_collector.x_body_length + thickness_buffer
-            required_width = reference_electrode.current_collector.y_body_length + thickness_buffer
+            required_length = reference_electrode.current_collector.x_foil_length + thickness_buffer
+            required_width = reference_electrode.current_collector.y_foil_length + thickness_buffer
             
-            if separator._length < reference_electrode.current_collector._x_body_length:
+            if separator._length < reference_electrode.current_collector._x_foil_length:
                 new_separator = deepcopy(separator)
                 new_separator.length = required_length
                 if separator_name == "bottom":
@@ -287,7 +347,7 @@ class _Layup(
                 else:
                     self._top_separator = new_separator
                 
-            if separator._width < reference_electrode.current_collector._y_body_length:
+            if separator._width < reference_electrode.current_collector._y_foil_length:
                 new_separator = deepcopy(separator)
                 new_separator.width = required_width
                 if separator_name == "bottom":
@@ -300,16 +360,16 @@ class _Layup(
         anode_cc = self.anode.current_collector
         cathode_cc = cathode.current_collector
         
-        # Check if x_body_length needs updating
-        if anode_cc._x_body_length < cathode_cc._x_body_length:
+        # Check if x_foil_length needs updating
+        if anode_cc._x_foil_length < cathode_cc._x_foil_length:
             new_anode_current_collector = deepcopy(anode_cc)
-            new_anode_current_collector.x_body_length = cathode_cc.x_body_length
+            new_anode_current_collector.x_foil_length = cathode_cc.x_foil_length
             self.anode.current_collector = new_anode_current_collector
             
-        # Check if y_body_length needs updating
-        if anode_cc._y_body_length < cathode_cc._y_body_length:
+        # Check if y_foil_length needs updating
+        if anode_cc._y_foil_length < cathode_cc._y_foil_length:
             new_anode_current_collector = deepcopy(anode_cc)
-            new_anode_current_collector.y_body_length = cathode_cc.y_body_length
+            new_anode_current_collector.y_foil_length = cathode_cc.y_foil_length
             self.anode.current_collector = new_anode_current_collector
 
     def _flip(self, axis: str) -> None:
@@ -483,7 +543,7 @@ class _Layup(
 
         # Enhanced layout with zero lines and faint grid
         fig.update_layout(
-            title=kwargs.get("title", f"Areal Capacity Curves"),
+            title=kwargs.get("title", f"Areal Capacity Curves (N/P: {self.np_ratio})"),
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             xaxis={**self.SCATTER_X_AXIS, "title": "Areal Capacity (mAh/cm²)"},
@@ -661,6 +721,18 @@ class _Layup(
         return self._np_ratio_control_mode
     
     @property
+    def electrode_orientation(self) -> ElectrodeOrientation:
+        """
+        Get the electrode orientation.
+
+        Returns
+        -------
+        ElectrodeOrientation
+            The orientation of the electrode.
+        """
+        return self._electrode_orientation
+    
+    @property
     def operating_voltage_window(self) -> Tuple[float, float]:
         """Operating voltage window (min, max) in volts."""
         return (
@@ -778,6 +850,9 @@ class _Layup(
 
         # make a deep copy of the anode
         anode = deepcopy(anode)
+
+        if isinstance(anode.current_collector, _TapeCurrentCollector):
+            self.cathode.current_collector.set_ranges_from_reference_bare_lengths(anode)
 
         # set the ranges on the anode current collector based on the cathode current collector
         anode.current_collector.set_ranges_from_reference(self.cathode.current_collector)
@@ -1075,4 +1150,45 @@ class _Layup(
         self._cathode._formulation.voltage_cutoff = optimal_cathode_cutoff
         self._cathode.formulation = self._cathode._formulation
         self._cathode = self._cathode
+
+    @electrode_orientation.setter
+    def electrode_orientation(self, electrode_orientation: ElectrodeOrientation) -> None:
+        """
+        Set the electrode orientation of the layup.
+
+        When electrode_orientation is ElectrodeOrientation.TRANSVERSE, ensures the anode tab comes out the bottom
+        by flipping the anode if it's not already flipped in the y direction.
+
+        Parameters
+        ----------
+        electrode_orientation : ElectrodeOrientation
+            The orientation of the electrode.
+        """
+        if isinstance(electrode_orientation, ElectrodeOrientation):
+            self._electrode_orientation = electrode_orientation
+
+        elif isinstance(electrode_orientation, str):
+            for enum_member in ElectrodeOrientation:
+                if electrode_orientation.lower().replace(" ", "_") == enum_member.value:
+                    self._electrode_orientation = enum_member
+
+        else:
+            # validate the type
+            self.validate_type(electrode_orientation, ElectrodeOrientation, "electrode_orientation")
+
+        # if electrode_orientation is ElectrodeOrientation.TRANSVERSE, check and adjust anode orientation
+        if self._electrode_orientation == ElectrodeOrientation.TRANSVERSE:
+            if not self._anode._flipped_y:
+                self._anode._flip("y")
+            if self._cathode._flipped_y:
+                self._cathode._flip("y")
+        elif self._electrode_orientation == ElectrodeOrientation.LONGITUDINAL:
+            if self._anode._flipped_y:
+                self._anode._flip("y")
+            if self._cathode._flipped_y:
+                self._cathode._flip("y")
+
+        if hasattr(self._anode._current_collector, "_tab_position"):
+            _distance_from_end = self._anode._current_collector._x_foil_length - self._anode._current_collector._tab_position
+            self._anode._current_collector.tab_position = _distance_from_end * M_TO_MM
 

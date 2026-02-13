@@ -1,8 +1,11 @@
+"""Tab-welded current collector with discrete weld tabs."""
+
 # import core mixins
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
+from steer_core.Mixins.Serializer import SerializerMixin
 
 # import core decorators
 from steer_core.Decorators.General import calculate_all_properties
@@ -28,7 +31,7 @@ import pandas as pd
 import numpy as np
 
 
-class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin):
+class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin, SerializerMixin):
     """
     Specification and modeling class for separately manufactured welded tabs.
 
@@ -77,7 +80,7 @@ class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin):
     >>>
     >>> print(f"Tab resistance: {heavy_duty_tab.electrical_resistance:.6f} Ω")
     >>> print(f"Tab mass: {heavy_duty_tab.mass:.3f} g")
-    >>> print(f"Current capacity: {heavy_duty_tab.current_density_limit * heavy_duty_tab.body_area/2:.1f} A")
+    >>> print(f"Current capacity: {heavy_duty_tab.current_density_limit * heavy_duty_tab.foil_area/2:.1f} A")
 
     Create a compact tab for space-constrained applications:
 
@@ -153,7 +156,7 @@ class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin):
         """
         Calculate the bulk properties of the tab.
         """
-        self._volume = self._body_area * self._thickness
+        self._volume = self._foil_area * self._thickness
         volume = self._volume * M_TO_CM**3
         self._material.volume = volume
 
@@ -173,28 +176,28 @@ class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin):
 
         x, y, z, side = self.extrude_footprint(x, y, self._datum, self._thickness)
 
-        self._body_coordinates = np.column_stack((x, y, z))
-        self._body_coordinates_side = side
+        self._foil_coordinates = np.column_stack((x, y, z))
+        self._foil_coordinates_side = side
 
     def _calculate_areas(self) -> None:
         # calculate the area of the a side
-        body_a_side_area = self.get_area_from_points(
-            self._body_coordinates[self._body_coordinates_side == "a"][:, 0],
-            self._body_coordinates[self._body_coordinates_side == "a"][:, 1],
+        foil_a_side_area = self.get_area_from_points(
+            self._foil_coordinates[self._foil_coordinates_side == "a"][:, 0],
+            self._foil_coordinates[self._foil_coordinates_side == "a"][:, 1],
         )
 
-        # calculate the total upper and lower area of the body
-        self._body_area = body_a_side_area * 2
+        # calculate the total upper and lower area of the foil
+        self._foil_area = foil_a_side_area * 2
 
     def _translate(self, vector: Tuple[float, float, float]) -> None:
-        self._body_coordinates += np.array(vector)
+        self._foil_coordinates += np.array(vector)
 
     def get_view(self, **kwargs) -> go.Figure:
         """
         Returns a Plotly Figure representing the weld tab.
         """
         figure = go.Figure()
-        figure.add_trace(self.top_down_body_trace)
+        figure.add_trace(self.top_down_foil_trace)
 
         figure.update_layout(
             xaxis=self.SCHEMATIC_X_AXIS,
@@ -211,7 +214,7 @@ class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin):
         Returns a Plotly Figure representing the side view of the weld tab.
         """
         figure = go.Figure()
-        figure.add_trace(self.right_left_body_trace)
+        figure.add_trace(self.right_left_foil_trace)
 
         figure.update_layout(
             xaxis=self.SCHEMATIC_X_AXIS,
@@ -224,9 +227,9 @@ class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin):
         return figure
 
     @property
-    def body_coordinates(self) -> pd.DataFrame:
+    def foil_coordinates(self) -> pd.DataFrame:
         return pd.DataFrame(
-            np.column_stack((self._body_coordinates, self._body_coordinates_side)),
+            np.column_stack((self._foil_coordinates, self._foil_coordinates_side)),
             columns=["x", "y", "z", "side"],
         ).assign(
             x=lambda df: (df["x"].astype(float) * M_TO_MM).round(10),
@@ -236,34 +239,34 @@ class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin):
         )
 
     @property
-    def right_left_body_trace(self) -> go.Scatter:
-        # get the coordinates of the body, ordered clockwise
-        body_coordinates = self.order_coordinates_clockwise(self.body_coordinates, plane="yz")
+    def right_left_foil_trace(self) -> go.Scatter:
+        # get the coordinates of the foil, ordered clockwise
+        foil_coordinates = self.order_coordinates_clockwise(self.foil_coordinates, plane="yz")
 
-        # make the body trace
-        body_trace = go.Scatter(
-            x=body_coordinates["y"],
-            y=body_coordinates["z"],
+        # make the foil trace
+        foil_trace = go.Scatter(
+            x=foil_coordinates["y"],
+            y=foil_coordinates["z"],
             mode="lines",
-            name="Body",
+            name="Foil",
             line=dict(color="black", width=1),
             fill="toself",
             fillcolor=self._material.color,
-            legendgroup="Body",
+            legendgroup="Foil",
             showlegend=True,
         )
 
-        return body_trace
+        return foil_trace
 
     @property
-    def top_down_body_trace(self) -> go.Scatter:
+    def top_down_foil_trace(self) -> go.Scatter:
         # get the side with the maximum z value
-        body_coordinates = self.body_coordinates.query("z == z.max()")
+        foil_coordinates = self.foil_coordinates.query("z == z.max()")
 
-        # make the body trace
-        body_trace = go.Scatter(
-            x=body_coordinates["x"],
-            y=body_coordinates["y"],
+        # make the foil trace
+        foil_trace = go.Scatter(
+            x=foil_coordinates["x"],
+            y=foil_coordinates["y"],
             mode="lines",
             name="Tab",
             line=dict(color="black", width=1),
@@ -273,7 +276,7 @@ class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin):
             showlegend=True,
         )
 
-        return body_trace
+        return foil_trace
 
     @property
     def datum(self) -> Tuple[float, float]:
@@ -312,8 +315,8 @@ class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin):
         return np.round(self._cost, 2)
 
     @property
-    def body_area(self) -> float:
-        return np.round(self._body_area * M_TO_MM**2, 2)
+    def foil_area(self) -> float:
+        return np.round(self._foil_area * M_TO_MM**2, 2)
 
     @datum.setter
     def datum(self, datum: Tuple[float, float, float]) -> None:
@@ -368,18 +371,18 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
 
     The tab-welded current collector represents a design approach
     where tabs are manufactured separately and then welded to the main collector
-    body.
+    foil.
 
     Parameters
     ----------
     material : CurrentCollectorMaterial
-        Base material for the current collector body
+        Base material for the current collector foil
         Can be optimized independently from tab material
     length : float
-        Total length of the collector body in mm
+        Total length of the collector foil in mm
         Defines the available space for tab positioning
     width : float
-        Width of the collector body in mm
+        Width of the collector foil in mm
         Affects current distribution and tab placement options
     thickness : float
         Thickness of the base collector material in μm
@@ -394,7 +397,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         Width of uncoated area around each tab in mm
         Prevents coating interference with welding and ensures reliable connections
     tab_overhang : float
-        Distance tabs extend beyond the collector body edge in mm
+        Distance tabs extend beyond the collector foil edge in mm
         Provides access for external connections and welding operations
     tab_weld_side : str, optional
         Side of collector for tab welding ('a' or 'b', default: 'a')
@@ -496,8 +499,8 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         super().__init__(
             material=material,
-            x_body_length=length,
-            y_body_length=width,
+            x_foil_length=length,
+            y_foil_length=width,
             thickness=thickness,
             bare_lengths_a_side=bare_lengths_a_side,
             bare_lengths_b_side=bare_lengths_b_side,
@@ -527,20 +530,20 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         tab = WeldTab(
             material=notched.material,
             width=10,
-            length=notched.y_body_length + notched.tab_height,
+            length=notched.y_foil_length + notched.tab_height,
             thickness=notched.thickness,
         )
 
         new_current_collector = cls(
             material=notched.material,
-            length=notched.x_body_length,
-            width=notched.y_body_length + notched.tab_height,
+            length=notched.x_foil_length,
+            width=notched.y_foil_length + notched.tab_height,
             thickness=notched.thickness,
             weld_tab=tab,
             weld_tab_positions=[
                 10,
-                notched.x_body_length / 2,
-                notched.x_body_length - 10,
+                notched.x_foil_length / 2,
+                notched.x_foil_length - 10,
             ],
             tab_overhang=20,
             skip_coat_width=30,
@@ -573,20 +576,20 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         tab = WeldTab(
             material=tabless.material,
             width=10,
-            length=tabless.y_body_length + tabless.tab_height,
+            length=tabless.y_foil_length + tabless.tab_height,
             thickness=tabless.thickness,
         )
 
         new_current_collector = cls(
             material=tabless.material,
-            length=tabless.x_body_length,
-            width=tabless.y_body_length + tabless.tab_height,
+            length=tabless.x_foil_length,
+            width=tabless.y_foil_length + tabless.tab_height,
             thickness=tabless.thickness,
             weld_tab=tab,
             weld_tab_positions=[
                 10,
-                tabless.x_body_length / 2,
-                tabless.x_body_length - 10,
+                tabless.x_foil_length / 2,
+                tabless.x_foil_length - 10,
             ],
             tab_overhang=20,
             skip_coat_width=30,
@@ -612,7 +615,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
 
     def _calculate_bulk_properties(self) -> None:
 
-        self._volume = self._body_area / 2 * self._thickness
+        self._volume = self._foil_area / 2 * self._thickness
         volume = self._volume * M_TO_CM**3
         self._material.volume = volume
 
@@ -624,8 +627,8 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         self._weld_tabs = []
         for x in self._weld_tab_positions:
             new_weld_tab = deepcopy(self._weld_tab)
-            x_datum = (self._datum[0] - self._x_body_length / 2 + x) * M_TO_MM
-            y_datum = (self._datum[1] + self._y_body_length / 2 + self._tab_overhang - new_weld_tab._length / 2) * M_TO_MM
+            x_datum = (self._datum[0] - self._x_foil_length / 2 + x) * M_TO_MM
+            y_datum = (self._datum[1] + self._y_foil_length / 2 + self._tab_overhang - new_weld_tab._length / 2) * M_TO_MM
 
             if self._tab_weld_side == "a":
                 z_datum = (self._datum[2] + self._thickness * UM_TO_MM / 2 + new_weld_tab._thickness * UM_TO_MM / 2) * M_TO_MM
@@ -656,10 +659,10 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
 
     def _get_footprint(self, x_indent_start: float = 0, x_indent_end: float = 0) -> Tuple[np.ndarray, np.ndarray]:
         return self.build_square_array(
-            x_width=self._x_body_length - x_indent_start - x_indent_end,
-            y_width=self._y_body_length,
-            x=self._datum[0] - self._x_body_length / 2 + x_indent_start,
-            y=self._datum[1] - self._y_body_length / 2,
+            x_width=self._x_foil_length - x_indent_start - x_indent_end,
+            y_width=self._y_foil_length,
+            x=self._datum[0] - self._x_foil_length / 2 + x_indent_start,
+            y=self._datum[1] - self._y_foil_length / 2,
         )
 
     def _get_coated_area_coordinates(self, side: str = "a") -> Tuple[go.Scatter, float]:
@@ -674,11 +677,11 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
 
         x, y = self.remove_skip_coat_area(x, y, weld_tab_positions, self._skip_coat_width)
 
-        # Get the indices of the body coordinates for the specified side
-        idx = np.where(self._body_coordinates_side == side)[0]
+        # Get the indices of the foil coordinates for the specified side
+        idx = np.where(self._foil_coordinates_side == side)[0]
 
-        # get the z value from the body coordinates for this side
-        z_value = self._body_coordinates[idx[0], 2]
+        # get the z value from the foil coordinates for this side
+        z_value = self._foil_coordinates[idx[0], 2]
 
         # Create z array
         z = np.full_like(x, z_value)
@@ -773,9 +776,9 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         return (0, self.weld_tab.length)
 
     @property
-    def weld_tab(self) -> list:
+    def weld_tab(self) -> WeldTab:
         """
-        Returns a list of WeldTab objects representing the weld tabs on the current collector.
+        Returns the WeldTab object representing the weld tab specification on the current collector.
         """
         return self._weld_tab
 
@@ -816,7 +819,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         Returns the length range of the weld tab in mm.
         """
-        return (self.tab_overhang, self.y_body_length + self.tab_overhang)
+        return (self.tab_overhang, self.y_foil_length + self.tab_overhang)
 
     @property
     def tab_length_hard_range(self) -> Tuple[float, float]:
@@ -920,7 +923,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
 
         self.validate_type(weld_tab_positions, Iterable, "weld_tab_positions")
 
-        if any(pos > self.x_body_length for pos in weld_tab_positions):
+        if any(pos > self.x_foil_length for pos in weld_tab_positions):
             raise ValueError("Weld tab positions cannot be greater than the length of the current collector.")
 
         self._weld_tab_positions = [float(pos) * MM_TO_M for pos in sorted(weld_tab_positions)]
@@ -941,7 +944,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         else:
             self._skip_coat_width = float(skip_coat_width) * MM_TO_M
 
-        if self._skip_coat_width > self._x_body_length:
+        if self._skip_coat_width > self._x_foil_length:
             raise ValueError("Skip coat width cannot be greater than the length of the current collector.")
 
     @tab_weld_side.setter

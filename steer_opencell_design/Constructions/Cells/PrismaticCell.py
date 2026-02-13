@@ -1,14 +1,15 @@
-from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
+"""Prismatic battery cell implementation."""
+
+from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation, ConnectorOrientation
 from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import FlatWoundJellyRoll
-from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import ZFoldStack, PunchedStack
+from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import ZFoldStack, PunchedStack, _Stack
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
 from steer_opencell_design.Constructions.Cells.Base import _Cell
 
-from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
+from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Constants.Units import *
 
 from typing import Tuple
-import warnings
 import plotly.graph_objects as go
 from functools import wraps
 import numpy as np
@@ -34,6 +35,7 @@ def calculate_encapsulation_properties(func):
 
 
 class PrismaticCell(_Cell):
+    """Prismatic hard-case battery cell. Supports both stacked and flat-wound jelly roll internal constructions with a rigid metal canister."""
 
     def __init__(
         self,
@@ -43,7 +45,7 @@ class PrismaticCell(_Cell):
         electrolyte: Electrolyte,
         operating_voltage_window: Tuple[float, float] = (None, None),
         clipped_tab_length: float = None,
-        electrolyte_overfill: float = 0.2,
+        electrolyte_overfill: float = 20,
         name: str = "Prismatic Cell",
     ):
         """Create a prismatic cell with wound jelly roll or stacked electrode assembly.
@@ -111,7 +113,7 @@ class PrismaticCell(_Cell):
             assembly._clip_current_collector_tabs(self._clipped_tab_length)
 
     def get_top_down_view(self, opacity = 0.3, **kwargs) -> go.Figure:
-        """Get top-down view figure of the pouch cell.
+        """Get top-down view figure of the prismatic cell.
 
         Parameters
         ----------
@@ -123,7 +125,7 @@ class PrismaticCell(_Cell):
         Returns
         -------
         go.Figure
-            Plotly figure object representing the top-down view of the pouch cell
+            Plotly figure object representing the top-down view of the prismatic cell
         """
         figure = go.Figure()
 
@@ -155,7 +157,7 @@ class PrismaticCell(_Cell):
         return figure
     
     def get_side_view(self, **kwargs) -> go.Figure:
-        """Get side view figure of the pouch cell.
+        """Get side view figure of the prismatic cell.
 
         Parameters
         ----------
@@ -165,7 +167,7 @@ class PrismaticCell(_Cell):
         Returns
         -------
         go.Figure
-            Plotly figure object representing the side view of the pouch cell
+            Plotly figure object representing the side view of the prismatic cell
         """
         figure = go.Figure()
 
@@ -194,6 +196,169 @@ class PrismaticCell(_Cell):
         )
 
         return figure
+
+    @property
+    def length(self) -> float:
+        """Get the cell length (depth) in mm."""
+        _assemblies_length = self._reference_electrode_assembly._thickness * self._n_electrode_assembly
+        _encapsulation_length = self._encapsulation._canister._length
+        _largest_length = max(_assemblies_length, _encapsulation_length)
+        return np.round(_largest_length * M_TO_MM, 2)
+    
+    @property
+    def length_range(self) -> float:
+        """Get the valid range for cell length in mm."""
+        assemblies_thickness_range = self._reference_electrode_assembly.thickness_range
+        assemblies_minimum_length = assemblies_thickness_range[0] * self._n_electrode_assembly + self._encapsulation._canister._wall_thickness * 2 * M_TO_MM
+        assemblies_maximum_length = assemblies_thickness_range[1] * self._n_electrode_assembly + self._encapsulation._canister._wall_thickness * 2 * M_TO_MM
+        return (
+            np.round(assemblies_minimum_length, 2), 
+            np.round(assemblies_maximum_length, 2)
+        )
+    
+    @property
+    def length_hard_range(self) -> float:
+        """Get the hard limit range for cell length in mm."""
+        assemblies_thickness_range = self._reference_electrode_assembly.thickness_hard_range
+        assemblies_minimum_length = assemblies_thickness_range[0] * self._n_electrode_assembly + self._encapsulation._canister._wall_thickness * 2 * M_TO_MM
+        assemblies_maximum_length = assemblies_thickness_range[1] * self._n_electrode_assembly + self._encapsulation._canister._wall_thickness * 2 * M_TO_MM
+        return (
+            np.round(assemblies_minimum_length, 2), 
+            np.round(assemblies_maximum_length, 2)
+        )
+    
+    @property
+    def width(self) -> float:
+        """Get the cell width in mm."""
+
+        _layup_width = self._reference_electrode_assembly._layup._width
+        
+        if self._encapsulation._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            _canister_width = self._encapsulation._canister._width
+        elif self._encapsulation._connector_orientation == ConnectorOrientation.TRANSVERSE:
+            _canister_width = self._encapsulation._canister._height
+        
+        _largest_width = max(_layup_width, _canister_width)
+        
+        return np.round(_largest_width * M_TO_MM, 2)
+    
+    @property
+    def width_range(self) -> Tuple[float, float]:
+        """Get the valid range for cell width in mm."""
+
+        # get the width range of the layup
+        layup_width_range = self._reference_electrode_assembly.layup.width_range
+
+        # additional factor for encapsulation
+        if self._encapsulation._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            additional_width = self._encapsulation._canister._wall_thickness * 2 * M_TO_MM
+        elif self._encapsulation._connector_orientation == ConnectorOrientation.TRANSVERSE:
+            additional_width = self._encapsulation._lid_assembly._thickness * M_TO_MM
+
+        minimum_width = layup_width_range[0] + additional_width
+        maximum_width = layup_width_range[1] + additional_width
+
+        return (
+            np.round(minimum_width, 2), 
+            np.round(maximum_width, 2)
+        )
+
+    @property
+    def width_hard_range(self) -> Tuple[float, float]:
+        """Get the hard limit range for cell width in mm."""
+
+        # get the width range of the layup
+        layup_width_range = self._reference_electrode_assembly.layup.width_hard_range
+
+        # additional factor for encapsulation
+        if self._encapsulation._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            additional_width = self._encapsulation._canister._wall_thickness * 2 * M_TO_MM
+        elif self._encapsulation._connector_orientation == ConnectorOrientation.TRANSVERSE:
+            additional_width = self._encapsulation._lid_assembly._thickness * M_TO_MM
+
+        minimum_width = layup_width_range[0] + additional_width
+        maximum_width = layup_width_range[1] + additional_width
+
+        return (
+            np.round(minimum_width, 2), 
+            np.round(maximum_width, 2)
+        )
+    
+    @property
+    def n_electrode_assembly(self) -> int:
+        """Get the number of electrode assemblies in the cell."""
+        return self._n_electrode_assembly
+
+    @property
+    def height(self) -> float:
+        """Get the cell height in mm."""
+        from steer_opencell_design.Constructions.Layups.Laminate import Laminate
+
+        # Laminate uses _width for y-dimension, MonoLayer uses _height
+        layup = self._reference_electrode_assembly._layup
+        if isinstance(layup, Laminate):
+            _layup_height = layup._width
+        else:
+            _layup_height = layup._height
+        
+        if self._encapsulation._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            _canister_height = self._encapsulation._canister._height
+        elif self._encapsulation._connector_orientation == ConnectorOrientation.TRANSVERSE:
+            _canister_height = self._encapsulation._canister._width
+
+        _largest_height = max(_layup_height, _canister_height)
+        
+        return np.round(_largest_height * M_TO_MM, 2)
+    
+    @property
+    def height_range(self) -> Tuple[float, float]:
+        """Get the valid range for cell height in mm."""
+        from steer_opencell_design.Constructions.Layups.Laminate import Laminate
+        
+        # Laminate uses width_range for y-dimension, MonoLayer uses height_range
+        layup = self._reference_electrode_assembly.layup
+        if isinstance(layup, Laminate):
+            layup_height_range = layup.width_range
+        else:
+            layup_height_range = layup.height_range
+
+        if self._encapsulation._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            additional_height = self._encapsulation._canister._wall_thickness * 2 * M_TO_MM
+        elif self._encapsulation._connector_orientation == ConnectorOrientation.TRANSVERSE:
+            additional_height = self._encapsulation._canister._wall_thickness * 2 * M_TO_MM
+
+        minimum_height = layup_height_range[0] + additional_height
+        maximum_height = layup_height_range[1] + additional_height
+
+        return (
+            np.round(minimum_height, 2), 
+            np.round(maximum_height, 2)
+        )
+    
+    @property
+    def height_hard_range(self) -> Tuple[float, float]:
+        """Get the hard limit range for cell height in mm."""
+        from steer_opencell_design.Constructions.Layups.Laminate import Laminate
+        
+        # Laminate uses width_hard_range for y-dimension, MonoLayer uses height_hard_range
+        layup = self._reference_electrode_assembly.layup
+        if isinstance(layup, Laminate):
+            layup_height_range = layup.width_hard_range
+        else:
+            layup_height_range = layup.height_hard_range
+
+        if self._encapsulation._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            additional_height = self._encapsulation._canister._wall_thickness * 2 * M_TO_MM
+        elif self._encapsulation._connector_orientation == ConnectorOrientation.TRANSVERSE:
+            additional_height = self._encapsulation._canister._wall_thickness * 2 * M_TO_MM
+
+        minimum_height = layup_height_range[0] + additional_height
+        maximum_height = layup_height_range[1] + additional_height
+
+        return (
+            np.round(minimum_height, 2), 
+            np.round(maximum_height, 2)
+        )
 
     @property
     def clipped_tab_length(self) -> float:
@@ -236,6 +401,70 @@ class PrismaticCell(_Cell):
         """Get encapsulation."""
         return self._encapsulation
 
+    @length.setter
+    @calculate_all_properties
+    def length(self, value: float) -> None:
+
+        # validate input
+        self.validate_positive_float(value, "length")
+
+        # get the length difference
+        current_length = self.length
+        length_difference = value - current_length
+        length_difference_per_assembly = length_difference / self._n_electrode_assembly
+
+        # record width values incase the width needs to be updated to maintain fit with flat wound jelly rolls
+        if type(self._reference_electrode_assembly) == FlatWoundJellyRoll:
+            assembly_width = self._reference_electrode_assembly.width
+
+        # update the reference electrode assembly thickness
+        new_thickness = self._reference_electrode_assembly.thickness + length_difference_per_assembly
+        self._reference_electrode_assembly.thickness = new_thickness
+        self._encapsulation.length = value
+        self._reference_electrode_assembly = self._reference_electrode_assembly
+
+        # if the reference electrode assembly is a flat wound jelly roll, also update the encapsulation width or height to maintain fit with the new assembly thickness
+        if type(self._reference_electrode_assembly) == FlatWoundJellyRoll:
+            new_assembly_width = self._reference_electrode_assembly.width
+            width_difference = new_assembly_width - assembly_width
+            if width_difference > 1e-4:
+                self._encapsulation.height += width_difference
+
+    @width.setter
+    @calculate_all_properties
+    def width(self, value: float) -> None:
+
+        # validate input
+        self.validate_positive_float(value, "width")
+
+        # get the width difference
+        current_width = self.width
+        width_difference = value - current_width
+
+        if isinstance(self._reference_electrode_assembly, _Stack):
+
+            # update the reference electrode assembly width
+            new_layup_width = self._reference_electrode_assembly.layup.width + width_difference
+            self._reference_electrode_assembly.layup.width = new_layup_width
+            self._reference_electrode_assembly.layup = self._reference_electrode_assembly.layup
+
+        elif type(self._reference_electrode_assembly) == FlatWoundJellyRoll:
+        
+            _original_assembly_thickness = self._reference_electrode_assembly._thickness
+            new_assembly_width = self._reference_electrode_assembly.width + width_difference
+            self._reference_electrode_assembly.width = new_assembly_width
+            _new_assembly_thickness = self._reference_electrode_assembly._thickness
+            encapsulation_length_difference = (_new_assembly_thickness - _original_assembly_thickness) * self._n_electrode_assembly * M_TO_MM
+            self._encapsulation.length += encapsulation_length_difference
+
+        # update the encapsulation width or height depending on connector orientation
+        if self._encapsulation._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            new_canister_width = self._encapsulation.width + width_difference
+            self._encapsulation.width = new_canister_width
+        elif self._encapsulation._connector_orientation == ConnectorOrientation.TRANSVERSE:
+            new_canister_height = self._encapsulation.height + width_difference
+            self._encapsulation.height = new_canister_height
+
     @clipped_tab_length.setter
     @calculate_encapsulation_properties
     def clipped_tab_length(self, value: float) -> None:
@@ -276,13 +505,29 @@ class PrismaticCell(_Cell):
         # Ensure encapsulation connector orientation matches electrode orientation
         from steer_opencell_design.Constructions.Layups.MonoLayers import ElectrodeOrientation
         from steer_opencell_design.Components.Containers.Prismatic import ConnectorOrientation
+        
         if self._update_properties:
             if self._reference_electrode_assembly._layup._electrode_orientation == ElectrodeOrientation.LONGITUDINAL:
                 if self._encapsulation._connector_orientation != ConnectorOrientation.LONGITUDINAL:
-                    self._encapsulation._connector_orientation = ConnectorOrientation.LONGITUDINAL
+                    self._encapsulation.connector_orientation = ConnectorOrientation.LONGITUDINAL
+
+                    # Swap height and length to match orientation change
+                    _original_height = self._encapsulation._canister._height
+                    _original_width = self._encapsulation._canister._width
+                    self._encapsulation._canister.height = _original_width * M_TO_MM
+                    self._encapsulation._canister.width = _original_height * M_TO_MM
+                    self._encapsulation.canister = self._encapsulation.canister
+
             elif self._reference_electrode_assembly._layup._electrode_orientation == ElectrodeOrientation.TRANSVERSE:
                 if self._encapsulation._connector_orientation != ConnectorOrientation.TRANSVERSE:
-                    self._encapsulation._connector_orientation = ConnectorOrientation.TRANSVERSE
+                    self._encapsulation.connector_orientation = ConnectorOrientation.TRANSVERSE
+                    
+                    # Swap height and length to match orientation change
+                    _original_height = self._encapsulation._canister._height
+                    _original_width = self._encapsulation._canister._width
+                    self._encapsulation._canister.height = _original_width * M_TO_MM
+                    self._encapsulation._canister.width = _original_height * M_TO_MM
+                    self._encapsulation.canister = self._encapsulation.canister
 
     @encapsulation.setter
     @calculate_all_properties
@@ -291,7 +536,7 @@ class PrismaticCell(_Cell):
         
         Parameters
         ----------
-        value : PouchEncapsulation
+        value : PrismaticEncapsulation
             New encapsulation to set
         """
         self.validate_type(value, PrismaticEncapsulation, "encapsulation")
@@ -308,4 +553,22 @@ class PrismaticCell(_Cell):
                 if self._reference_electrode_assembly._layup._electrode_orientation != ElectrodeOrientation.TRANSVERSE:
                     self._reference_electrode_assembly._layup._electrode_orientation = ElectrodeOrientation.TRANSVERSE
 
+    @n_electrode_assembly.setter
+    @calculate_all_properties
+    def n_electrode_assembly(self, value: int) -> None:
+
+        # validate input
+        value = int(np.round(value))
+        
+        if self._update_properties:
+
+            # difference in number of assemblies
+            assembly_difference = value - self._n_electrode_assembly
+
+            # modify encapsulation length by the same amount to maintain fit
+            new_length = self._encapsulation.length + assembly_difference * self._reference_electrode_assembly._thickness * M_TO_MM
+            self._encapsulation.length = new_length
+
+        # update the reference electrode assembly thickness by the same ratio to maintain fit
+        self._n_electrode_assembly = value
 

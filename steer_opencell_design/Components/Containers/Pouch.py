@@ -1,3 +1,5 @@
+"""Pouch cell container components (laminate sheets, terminals, encapsulation)."""
+
 from typing import Tuple
 
 from steer_opencell_design.Components.Containers.Base import _Container
@@ -28,6 +30,10 @@ class LaminateSheet(
     PlotterMixin,
     SerializerMixin,
     ):
+    """Laminate film sheet for pouch cell packaging.
+
+    Provides geometry, coordinates, and visualization traces for top and bottom laminate layers.
+    """
 
     def __init__(
         self,
@@ -45,7 +51,7 @@ class LaminateSheet(
         areal_cost : float
             Areal cost of the laminate in $/m².
         density : float
-            Density of the laminate in kg/m³.
+            Density of the laminate in g/cm^3.
         thickness : float
             Thickness of the laminate in um.
         datum : Tuple[float, float, float], optional
@@ -373,6 +379,14 @@ class LaminateSheet(
         return np.round(self._areal_cost, 2)
 
     @property
+    def areal_cost_range(self):
+        return (0, 0.1)
+    
+    @property
+    def areal_cost_hard_range(self):
+        return (0, 1)
+
+    @property
     def datum(self) -> Tuple[float, float, float]:
         """Get the datum position in mm."""
         return tuple(np.round(coord * M_TO_MM, 2) for coord in self._datum)
@@ -411,7 +425,11 @@ class LaminateSheet(
     @property
     def density(self) -> float:
         """Density in kg/m³."""
-        return np.round(self._density, 2)
+        return np.round(self._density * KG_TO_G / M_TO_CM**3, 2)
+    
+    @property
+    def density_range(self):
+        return (0, 5)
 
     @property
     def thickness(self):
@@ -555,9 +573,10 @@ class LaminateSheet(
     @calculate_all_properties
     def density(self, density: float) -> None:
         self.validate_positive_float(density, "Density")
-        self._density = float(density)
+        self._density = float(density) * G_TO_KG / CM_TO_M**3
 
     @datum.setter
+    @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]) -> None:
         """Set the datum position in mm."""
         self.validate_datum(datum)
@@ -861,6 +880,10 @@ class PouchTerminal(
 
 
 class PouchEncapsulation(_Container):
+    """Complete pouch cell encapsulation combining top/bottom laminate sheets and terminals.
+
+    Manages pouch geometry, hot-pressing cavity formation, and provides mass/cost breakdowns.
+    """
 
     def __init__(
             self,
@@ -1145,16 +1168,24 @@ class PouchEncapsulation(_Container):
     @calculate_all_properties
     def cathode_terminal(self, terminal: PouchTerminal) -> None:
         """Set cathode terminal."""
+
         self.validate_type(terminal, PouchTerminal, "Cathode Terminal")
-        terminal.name = f"{terminal.name} (Cathode)"
+
+        if 'cathode' not in terminal.name.lower():
+            terminal.name = f"{terminal.name} (Cathode)"
+
         self._cathode_terminal = terminal
 
     @anode_terminal.setter
     @calculate_all_properties
     def anode_terminal(self, terminal: PouchTerminal) -> None:
         """Set anode terminal."""
+
         self.validate_type(terminal, PouchTerminal, "Anode Terminal")
-        terminal.name = f"{terminal.name} (Anode)"
+
+        if 'anode' not in terminal.name.lower():
+            terminal.name = f"{terminal.name} (Anode)"
+
         self._anode_terminal = terminal
 
     @top_laminate.setter

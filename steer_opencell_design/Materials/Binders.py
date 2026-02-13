@@ -1,8 +1,16 @@
+"""Binder material definitions for electrode formulations."""
+
 from steer_materials.Base import _Material, _VolumedMaterialMixin
 from steer_core.Mixins.Serializer import SerializerMixin
 
 
 class Binder(_VolumedMaterialMixin, _Material):
+    """
+    Binder material used in electrode formulations.
+
+    Binders (e.g., PVDF, CMC) provide mechanical cohesion between
+    active material particles and conductive additives in the electrode coating.
+    """
 
     _table_name = "binder_materials"
 
@@ -18,11 +26,22 @@ class Binder(_VolumedMaterialMixin, _Material):
         **kwargs,
     ):
         """
-        Initialize an object that represents a binder.
+        Initialize a binder material.
 
-        :param name: str: name of the material
-        :param specific_cost: float: specific cost of the material per kg
-        :param density: float: density of the material in g/cm^3 (default: 1.7)
+        Parameters
+        ----------
+        name : str
+            Name of the binder material (e.g., "PVDF", "CMC").
+        specific_cost : float
+            Specific cost of the material in $/kg.
+        density : float
+            Density of the material in g/cm³.
+        color : str, optional
+            Hex color string for visualization (default: "#2c2c2c").
+        volume : float or None, optional
+            Initial volume in cm³.
+        mass : float or None, optional
+            Initial mass in g.
         """
         super().__init__(
             name=name, 

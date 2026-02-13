@@ -1,3 +1,5 @@
+"""Stacked electrode assembly configurations (Z-fold and punched)."""
+
 import math
 from steer_opencell_design.Constructions.Layups.MonoLayers import MonoLayer, ZFoldMonoLayer
 
@@ -238,7 +240,7 @@ class _Stack(_ElectrodeAssembly):
         separators = [s for s in self._stack.values() if isinstance(s, Separator)]
 
         # Get the overall coordinates
-        _cc_coordinates = np.vstack([cc._body_coordinates for cc in current_collectors])
+        _cc_coordinates = np.vstack([cc._foil_coordinates for cc in current_collectors])
         _separator_coordinates = np.vstack([s._coordinates for s in separators])
         _all_coordinates = np.vstack([_cc_coordinates, _separator_coordinates])
 
@@ -292,10 +294,10 @@ class _Stack(_ElectrodeAssembly):
         # Define trace configurations for cleaner code
         trace_configs = [
             (cathodes, '_a_side_coating_coordinates', "Cathode A Side", lambda c: c._formulation._color),
-            (cathodes, '_current_collector._body_coordinates', "Cathode Current Collector", lambda c: c._current_collector._material._color),
+            (cathodes, '_current_collector._foil_coordinates', "Cathode Current Collector", lambda c: c._current_collector._material._color),
             (cathodes, '_b_side_coating_coordinates', "Cathode B Side", lambda c: c._formulation._color),
             (anodes, '_a_side_coating_coordinates', "Anode A Side", lambda a: a._formulation._color),
-            (anodes, '_current_collector._body_coordinates', "Anode Current Collector", lambda a: a._current_collector._material._color),
+            (anodes, '_current_collector._foil_coordinates', "Anode Current Collector", lambda a: a._current_collector._material._color),
             (anodes, '_b_side_coating_coordinates', "Anode B Side", lambda a: a._formulation._color),
             (separators, '_coordinates', "Separator", lambda s: s._material._color),
         ]
@@ -329,6 +331,7 @@ class _Stack(_ElectrodeAssembly):
         return figure
 
     def get_top_down_view(self, **kwargs):
+        """Generate a top-down Plotly figure of the stack."""
         return self._layup.get_top_down_view(**kwargs)
 
     @staticmethod
@@ -507,6 +510,7 @@ class _Stack(_ElectrodeAssembly):
 
     @property
     def layup(self) -> ZFoldMonoLayer | MonoLayer:
+        """Return the underlying layup instance."""
         return self._layup
 
     @property
@@ -711,6 +715,7 @@ class ZFoldStack(_Stack):
 
     @property
     def layup(self) -> MonoLayer:
+        """Return the underlying Z-fold layup instance."""
         return self._layup
     
     @layup.setter
@@ -771,6 +776,7 @@ class PunchedStack(_Stack):
     
     @property
     def layup(self) -> MonoLayer:
+        """Return the underlying mono-layer layup instance."""
         return self._layup
     
     @layup.setter

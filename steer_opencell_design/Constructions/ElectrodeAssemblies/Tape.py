@@ -1,3 +1,5 @@
+"""Termination tape for wound electrode assemblies."""
+
 from time import time
 from steer_core.Constants.Units import *
 
@@ -15,6 +17,7 @@ from typing import Tuple
 from copy import deepcopy
 import numpy as np
 
+
 class Tape(
     CoordinateMixin, 
     ValidationMixin,
@@ -22,6 +25,8 @@ class Tape(
     PlotterMixin,
     SerializerMixin,
     ):
+    """Adhesive tape used to secure the outer wraps of wound jelly roll assemblies. Manages tape geometry (width, thickness) and material properties."""
+
     def __init__(
         self,
         material: TapeMaterial,
@@ -105,12 +110,13 @@ class Tape(
     def _set_width_range(self, jellyroll, length_multiplier: float = 1.1):
 
         self._width_range = (
-            jellyroll._layup._anode._current_collector._y_body_length, 
-            jellyroll._layup._anode._current_collector._y_body_length * length_multiplier
+            jellyroll._layup._anode._current_collector._y_foil_length, 
+            jellyroll._layup._anode._current_collector._y_foil_length * length_multiplier
         )
 
     @property
     def areal_cost_range(self) -> Tuple[float, float]:
+        """Get the allowable areal cost range in $/m²."""
         min = self._material._specific_cost_range[0] * self._material._density * self._thickness
         max = self._material._specific_cost_range[1] * self._material._density * self._thickness
         return (
@@ -120,24 +126,28 @@ class Tape(
             
     @property
     def cost(self) -> float:
+        """Get the total tape cost in $."""
         if self._cost is None:
             return None
         return np.round(self._cost, 2)
 
     @property
     def mass(self) -> float:
+        """Get the total tape mass in g."""
         if self._mass is None:
             return None
         return np.round(self._mass * KG_TO_G, 2)
 
     @property
     def area(self) -> float:
+        """Get the total tape area in cm²."""
         if self._area is None:
             return None
         return np.round(self._area * M_TO_CM**2, 2)
 
     @property
     def areal_cost(self) -> float:
+        """Get the areal cost of the tape in $/m²."""
         return np.round(self._areal_cost, 2)
 
     @property
@@ -147,26 +157,31 @@ class Tape(
 
     @property
     def name(self) -> str:
+        """Get the tape name."""
         return self._name
 
     @property
     def length(self) -> float:
+        """Get the tape length in mm."""
         if self._length is None:
             return None
         return np.round(self._length * M_TO_MM, 2)
     
     @property
     def length_range(self):
+        """Get the allowable tape length range in mm."""
         return (0, 1000)
 
     @property
     def width(self) -> float:
+        """Get the tape width in mm."""
         if self._width is None:
             return None
         return np.round(self._width * M_TO_MM, 2)
 
     @property
     def width_range(self):
+        """Get the allowable tape width range in mm."""
 
         if hasattr(self, "_width_range"):
             return (
@@ -174,18 +189,21 @@ class Tape(
                 np.round(self._width_range[1] * M_TO_MM, 2),
             )
         else:
-            return (0, 500)
+            return (0, 300)
 
     @property
     def material(self) -> TapeMaterial:
+        """Get the tape material."""
         return self._material
 
     @property
     def thickness(self):
+        """Get the tape thickness in µm."""
         return np.round(self._thickness * M_TO_UM, 2)
 
     @property
     def thickness_range(self):
+        """Get the allowable tape thickness range in µm."""
         return (0, 100)
 
     @areal_cost.setter
@@ -229,3 +247,4 @@ class Tape(
     def thickness(self, thickness: float) -> None:
         self.validate_positive_float(thickness, "Thickness")
         self._thickness = float(thickness) * UM_TO_M
+

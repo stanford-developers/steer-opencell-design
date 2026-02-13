@@ -1,10 +1,11 @@
-from steer_opencell_design.Constructions.Layups import Laminate
+"""Static utility methods for spiral and racetrack geometry calculations used in jelly roll winding."""
+
+from steer_opencell_design.Constructions.Layups.Laminate import Laminate
 from steer_core.Constants.Universal import PI
 from steer_core.Constants.Units import *
 import numpy as np
 import pandas as pd
-from shapely.geometry import Polygon, Point
-from shapely import minimum_bounding_circle
+from typing import Optional
 
 from steer_core.Mixins.Coordinates import CoordinateMixin
 
@@ -24,14 +25,15 @@ MAX_POINTS = 120000
 
 
 class SpiralCalculator:
+    """Utility class providing static methods for spiral and racetrack geometry calculations. Computes variable-thickness spirals, builds component-level spiral coordinates, and handles racetrack (flat-wound) geometry for FlatWoundJellyRoll assemblies."""
 
     @staticmethod
     def calculate_variable_thickness_spiral(
-        laminate: Laminate, 
-        start_radius: float, 
-        dtheta: float = None,
+        laminate: Laminate,
+        start_radius: float,
+        dtheta: Optional[float] = None,
         **kwargs
-        ) -> np.ndarray:
+    ) -> np.ndarray:
         """Integrate a variable-thickness Archimedean-like spiral (clockwise) with adaptive RK4.
 
         Governing relations (parametrized by θ, clockwise so θ decreases from π/2):
@@ -70,22 +72,50 @@ class SpiralCalculator:
         # Handle dtheta parameter from kwargs if not explicitly provided
         if dtheta is None:
             dtheta = kwargs.get('dtheta', 0.5)
-        
+        assert dtheta is not None, "dtheta must be set from kwargs or argument"
+        dtheta = float(dtheta)
+
         total_length = laminate._total_length
         r0 = start_radius
             
-        # Build interpolation grid for thickness
+        # Build interpolation grid for thickness (vectorized)
         # Heuristic: finer where dtheta small or mandrel small
         base_dl = max(dtheta * r0 / 8.0, 0.00025)
         n_grid = min(6000, max(400, int(total_length / base_dl) + 2))
         x_grid = np.linspace(0.0, total_length, n_grid)
-        t_grid = np.array([laminate.get_thickness_at_x(x) for x in x_grid], dtype=float)
+
+        # Vectorized thickness grid: inline the laminate interpolation
+        # instead of calling get_thickness_at_x() in a Python loop
+        surface_xs = laminate._top_surface[:, 0]
+        surface_zs = laminate._top_surface[:, 1]
+        baseline_z = getattr(laminate, "_baseline_z", None)
+        if baseline_z is None and hasattr(laminate, "_flattened_center_lines"):
+            fcl = laminate._flattened_center_lines
+            if "baseline" in fcl and len(fcl["baseline"]) > 0:
+                baseline_z = fcl["baseline"][0, 1]
+            else:
+                baseline_z = 0.0
+        top_z = np.interp(x_grid, surface_xs, surface_zs)
+        t_grid = np.maximum(top_z - baseline_z, 0.0).astype(float)
+
         t_min, t_max = float(t_grid.min()), float(t_grid.max())
 
+        # Fast uniform-grid interpolation using direct index math
+        # (x_grid is uniform so we can compute the index directly)
+        _t_grid = t_grid  # local reference for closure
+        _n_grid_m1 = n_grid - 1
+        _dx_inv = _n_grid_m1 / total_length if total_length > 0 else 0.0
+        _t0 = float(t_grid[0])
+        _t_last = float(t_grid[-1])
+
         def thickness_at(x):
-            if x <= 0: return t_grid[0]
-            if x >= total_length: return t_grid[-1]
-            return float(np.interp(x, x_grid, t_grid))
+            if x <= 0.0: return _t0
+            if x >= total_length: return _t_last
+            idx_f = x * _dx_inv
+            idx = int(idx_f)
+            if idx >= _n_grid_m1: return _t_last
+            frac = idx_f - idx
+            return _t_grid[idx] + frac * (_t_grid[idx + 1] - _t_grid[idx])
 
         # Adaptive RK4 integration (θ decreases)
         # State: (r, x); derivatives w.r.t θ
@@ -398,7 +428,7 @@ class SpiralCalculator:
         return extruded_spirals
 
     @staticmethod
-    def _extrude_single_spiral(spiral, thickness) -> np.array:
+    def _extrude_single_spiral(spiral, thickness) -> np.ndarray:
 
         half_thickness = thickness / 2.0
         outer_spiral = spiral.copy()
@@ -432,11 +462,11 @@ class SpiralCalculator:
 
     @staticmethod
     def calculate_simple_spiral(
-        n_turns: float = None,
-        start_radius: float = None, 
-        thickness: float = None,
+        n_turns: Optional[float] = None,
+        start_radius: Optional[float] = None,
+        thickness: Optional[float] = None,
         points_per_turn: int = 100,
-        target_length: float = None
+        target_length: Optional[float] = None
     ) -> np.ndarray:
         """
         Calculate a simple uniform-thickness Archimedean spiral.
@@ -479,7 +509,8 @@ class SpiralCalculator:
         
         if start_radius is None or thickness is None:
             raise ValueError("start_radius and thickness are required parameters.")
-        
+        assert start_radius is not None and thickness is not None
+
         # Determine n_turns based on input
         if target_length is not None:
             # Rough overestimate: assume average radius is start_radius + some thickness buildup
@@ -487,7 +518,8 @@ class SpiralCalculator:
             avg_radius_estimate = start_radius + thickness * 2  # Conservative estimate
             rough_turns_estimate = target_length / (TWO_PI * avg_radius_estimate)
             n_turns = rough_turns_estimate * 1.5  # 50% overestimate for safety
-        
+        assert n_turns is not None, "n_turns must be set by here"
+
         # Calculate total angular span (clockwise, starting from π/2)
         total_angle = n_turns * TWO_PI
         n_points = int(n_turns * points_per_turn) + 1
@@ -571,12 +603,12 @@ class SpiralCalculator:
 
     @staticmethod
     def calculate_variable_thickness_racetrack(
-            laminate: Laminate,
-            mandrel_radius: float, 
-            straight_length: float, 
-            ds_target: float = None,
-            **kwargs
-        ) -> np.ndarray:
+        laminate: Laminate,
+        mandrel_radius: float,
+        straight_length: float,
+        ds_target: Optional[float] = None,
+        **kwargs
+    ) -> np.ndarray:
         """Calculate spiral path for given mandrel geometry parameters (clockwise direction).
         
         The racetrack consists of:
@@ -606,8 +638,44 @@ class SpiralCalculator:
         # Handle ds_target parameter from kwargs if not explicitly provided
         if ds_target is None:
             ds_target = kwargs.get('ds_target', 0.5e-3)
-        
+        assert ds_target is not None, "ds_target must be set from kwargs or argument"
+        ds_target = float(ds_target)
+
         total_length = laminate._total_length  # meters
+
+        # Build fast thickness interpolator (vectorized, avoids per-step Python method calls)
+        surface_xs = laminate._top_surface[:, 0]
+        surface_zs = laminate._top_surface[:, 1]
+        baseline_z = getattr(laminate, "_baseline_z", None)
+        if baseline_z is None and hasattr(laminate, "_flattened_center_lines"):
+            fcl = laminate._flattened_center_lines
+            if "baseline" in fcl and len(fcl["baseline"]) > 0:
+                baseline_z = fcl["baseline"][0, 1]
+            else:
+                baseline_z = 0.0
+
+        n_t_grid = max(400, int(total_length / max(ds_target, 1e-6)) + 2)
+        n_t_grid = min(6000, n_t_grid)
+        t_x_grid = np.linspace(0.0, total_length, n_t_grid)
+        t_z_interp = np.interp(t_x_grid, surface_xs, surface_zs)
+        t_grid = np.maximum(t_z_interp - baseline_z, 0.0).astype(float)
+        _n_grid_m1 = n_t_grid - 1
+        _dx_inv = _n_grid_m1 / total_length if total_length > 0 else 0.0
+        _t0 = float(t_grid[0])
+        _t_last = float(t_grid[-1])
+
+        def thickness_at_fast(x):
+            if x <= 0.0: return _t0
+            if x >= total_length: return _t_last
+            idx_f = x * _dx_inv
+            idx = int(idx_f)
+            if idx >= _n_grid_m1: return _t_last
+            frac = idx_f - idx
+            return t_grid[idx] + frac * (t_grid[idx + 1] - t_grid[idx])
+
+        # Local references for speed in tight loop
+        _racetrack_position = SpiralCalculator.racetrack_position
+        _racetrack_curvature = SpiralCalculator.racetrack_curvature
 
         # Initialize arrays for spiral path
         positions = []
@@ -619,22 +687,20 @@ class SpiralCalculator:
         theta_racetrack = TWO_PI
         
         while x_unwrapped < total_length:
-            # Get thickness at current unwrapped position
-            thickness = laminate.get_thickness_at_x(x_unwrapped)
+            # Get thickness at current unwrapped position (fast interpolation)
+            thickness = thickness_at_fast(x_unwrapped)
             current_radius = mandrel_radius + accumulated_thickness
             
             # Calculate position on current racetrack
-            x_pos, z_pos = SpiralCalculator.racetrack_position(theta_racetrack, current_radius, straight_length)
+            x_pos, z_pos = _racetrack_position(theta_racetrack, current_radius, straight_length)
             
             # Calculate normalized theta for clockwise motion (starting from 2π, decreasing)
-            # Total turns traveled = (initial_theta - current_theta) / (2π) + full_turns_completed
             theta_traveled = (TWO_PI - theta_racetrack) + turn_count * TWO_PI
             total_turns = theta_traveled / TWO_PI
-            normalized_theta = theta_traveled  # Represents cumulative angle traveled clockwise
             
             # Store position data
             positions.append([
-                normalized_theta, # Normalized theta representing cumulative angle traveled clockwise
+                theta_traveled,   # Normalized theta representing cumulative angle traveled clockwise
                 x_unwrapped,      # Cumulative unwrapped length
                 current_radius,   # Distance from center to current layer
                 x_pos,           # Cartesian x coordinate
@@ -643,7 +709,7 @@ class SpiralCalculator:
             ])
             
             # Calculate step size based on local curvature and thickness
-            curvature = SpiralCalculator.racetrack_curvature(theta_racetrack, current_radius, straight_length)
+            curvature = _racetrack_curvature(theta_racetrack, current_radius, straight_length)
             if curvature > 0:
                 # On curved sections, limit step by curvature
                 ds_max = min(ds_target, 0.1 / curvature)
@@ -654,7 +720,6 @@ class SpiralCalculator:
             ds_actual = min(ds_max, total_length - x_unwrapped)
             
             # Calculate how much thickness to add based on this step
-            # Thickness accumulation rate depends on perimeter
             perimeter_current = TWO_PI * current_radius + 2 * straight_length
             dtheta = ds_actual * TWO_PI / perimeter_current
             
@@ -671,18 +736,50 @@ class SpiralCalculator:
                 full_turns = (-theta_racetrack) // TWO_PI + 1
                 turn_count += full_turns
                 theta_racetrack = theta_racetrack + full_turns * TWO_PI
-        
+
         # Convert to numpy array
-        return np.array(positions)
+        spiral_array = np.array(positions)
+        
+        # Vectorized downsampling: determine curved vs straight from theta values
+        # instead of calling racetrack_curvature() per point in a Python loop
+        thetas_col = spiral_array[:, 0]  # cumulative theta
+        radii_col = spiral_array[:, 2]
+        
+        # Normalize theta to [0, 2π) for each point
+        thetas_mod = thetas_col % TWO_PI
+        semi_arc_fractions = np.pi * radii_col
+        total_perimeters = 2.0 * semi_arc_fractions + 2.0 * straight_length
+        arc_lengths = (thetas_mod / TWO_PI) * total_perimeters
+        
+        # Point is on curved section when arc_length is in [0, semi_arc] or [semi_arc+straight, 2*semi_arc+straight]
+        is_curved = (
+            (arc_lengths <= semi_arc_fractions) |
+            ((semi_arc_fractions + straight_length <= arc_lengths) & 
+             (arc_lengths <= 2.0 * semi_arc_fractions + straight_length))
+        )
+        
+        # Build mask for points to keep
+        downsample_factor = 5
+        keep_mask = np.zeros(len(spiral_array), dtype=bool)
+        keep_mask[0] = True
+        keep_mask[-1] = True
+        keep_mask[is_curved] = True
+        
+        # For straight sections, keep every Nth point
+        straight_indices = np.where(~is_curved)[0]
+        if len(straight_indices) > 0:
+            keep_mask[straight_indices[::downsample_factor]] = True
+        
+        return spiral_array[keep_mask]
 
     @staticmethod
     def calculate_simple_racetrack(
-        n_turns: float = None,
-        start_radius: float = None,
-        straight_length: float = None,
-        thickness: float = None,
+        n_turns: Optional[float] = None,
+        start_radius: Optional[float] = None,
+        straight_length: Optional[float] = None,
+        thickness: Optional[float] = None,
         points_per_turn: int = 300,
-        target_length: float = None
+        target_length: Optional[float] = None
     ) -> np.ndarray:
         """
         Calculate a simple uniform-thickness racetrack spiral.
@@ -727,7 +824,8 @@ class SpiralCalculator:
         
         if start_radius is None or straight_length is None or thickness is None:
             raise ValueError("start_radius, straight_length, and thickness are required parameters.")
-        
+        assert start_radius is not None and straight_length is not None and thickness is not None
+
         # Determine n_turns based on input
         if target_length is not None:
             # Estimate based on average perimeter
@@ -735,10 +833,11 @@ class SpiralCalculator:
             # For safety, use 50% more turns than the rough estimate
             rough_turns_estimate = target_length / avg_perimeter
             n_turns = rough_turns_estimate * 1.5  # 50% overestimate for safety
-        
+        assert n_turns is not None, "n_turns must be set by here"
+
         # Calculate total perimeter for one complete turn at start radius
         perimeter_start = TWO_PI * start_radius + 2 * straight_length
-        
+
         # Generate parametric coordinates
         n_points = int(n_turns * points_per_turn) + 1
         
@@ -998,7 +1097,7 @@ class SpiralCalculator:
         return extruded_spirals
 
     @staticmethod
-    def _extrude_single_racetrack(spiral, thickness, mandrel_radius, straight_length) -> np.array:
+    def _extrude_single_racetrack(spiral, thickness, mandrel_radius, straight_length) -> np.ndarray:
 
         half_thickness = thickness / 2.0
         
@@ -1459,7 +1558,7 @@ class SpiralCalculator:
 
         # Use Brent's method (via minimize_scalar) to find angle that minimizes thickness
         result = minimize_scalar(compute_thickness_at_angle, bounds=(0, np.pi), method='bounded')
-        optimal_angle = result.x
+        optimal_angle = float(result.x)  # type: ignore[union-attr]
 
         # Apply the optimal rotation to the spiral data
         c, s = np.cos(optimal_angle), np.sin(optimal_angle)
