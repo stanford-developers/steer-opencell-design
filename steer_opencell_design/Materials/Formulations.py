@@ -1,3 +1,5 @@
+"""Electrode formulation definitions combining active materials, binders, and conductive additives."""
+
 from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
 from steer_core.Constants.Units import *
 
@@ -25,6 +27,12 @@ class _ElectrodeFormulation(
     PlotterMixin,
     SerializerMixin,
     ):
+    """Base class for electrode formulations.
+
+    Combines active materials, binders, and conductive additives with mass
+    fractions to calculate blended density, cost, color, and composite
+    voltage-capacity curves.
+    """
 
     def __init__(
         self,
@@ -279,14 +287,8 @@ class _ElectrodeFormulation(
 
     def _calculate_specific_capacity_curve(self) -> None:
         """
-        Calculate the half-cell curve for the cathode formulation based on the active materials
+        Calculate the half-cell curve for the electrode formulation based on the active materials
         and their weight fractions, treating charge and discharge curves separately.
-
-        Parameters
-        ----------
-        voltage : Optional[float]
-            The maximum voltage for the half-cell curve. If not provided, it will be set to
-            the maximum voltage from the active materials' voltage cutoff range.
         """
 
         def safe_interp(target_values, x_vals, y_vals):
@@ -930,9 +932,9 @@ class _ElectrodeFormulation(
     @property
     def voltage_cutoff(self) -> float:
         """
-        Get the maximum voltage of the half cell curves.
+        Get the voltage cutoff for this formulation.
 
-        :return: float: maximum voltage of the half cell curves
+        :return: float: voltage cutoff of the half cell curves
         """
         return np.round(self._voltage_cutoff, 3)
 
@@ -1648,7 +1650,7 @@ class AnodeFormulation(_ElectrodeFormulation):
         conductive_additives : Optional[Dict[ConductiveAdditive, float]]
             Dictionary of conductive additives and their mass fractions in percent.
         voltage_cutoff : Optional[float]
-            The maximum voltage for the half-cell curves. If not provided, it will be set to
+            The voltage cutoff for the half-cell curves. If not provided, it will be set to
             the minimum voltage from the active materials' voltage cutoff range.
         name : Optional[str]
             Name of the anode formulation. Defaults to 'Anode Formulation'.

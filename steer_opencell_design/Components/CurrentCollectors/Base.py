@@ -1,3 +1,5 @@
+"""Base classes for current collector components."""
+
 # Standard library imports
 from abc import ABC, abstractmethod
 from copy import deepcopy
@@ -558,7 +560,7 @@ class _CurrentCollector(
     @property
     def right_left_b_side_insulation_trace(self) -> pd.DataFrame:
         """
-        Get the coordinates of the b side insulation area.
+        Get the Plotly trace for the b side insulation area.
         """
         # get the coordinates
         b_side_insulation_coordinates = self.order_coordinates_clockwise(self.b_side_insulation_coordinates, plane="yz")
@@ -582,7 +584,7 @@ class _CurrentCollector(
     @property
     def right_left_a_side_insulation_trace(self) -> pd.DataFrame:
         """
-        Get the coordinates of the a side insulation area.
+        Get the Plotly trace for the a side insulation area.
         """
         # get the coordinates
         a_side_insulation_coordinates = self.order_coordinates_clockwise(self.a_side_insulation_coordinates, plane="yz")
@@ -606,7 +608,7 @@ class _CurrentCollector(
     @property
     def right_left_b_side_coated_trace(self) -> pd.DataFrame:
         """
-        Get the coordinates of the b side coated area.
+        Get the Plotly trace for the b side coated area.
         """
         # get the coordinates
         b_side_coated_coordinates = self.order_coordinates_clockwise(self.b_side_coated_coordinates, plane="yz")
@@ -630,7 +632,7 @@ class _CurrentCollector(
     @property
     def right_left_a_side_coated_trace(self) -> pd.DataFrame:
         """
-        Get the coordinates of the a side coated area.
+        Get the Plotly trace for the a side coated area.
         """
         # get the coordinates
         a_side_coated_coordinates = self.order_coordinates_clockwise(self.a_side_coated_coordinates, plane="yz")
@@ -1489,7 +1491,7 @@ class _TapeCurrentCollector(_CurrentCollector):
     @property
     def a_side_coated_section(self):
         """
-        Property inidcating the length of the current collector that is coated on the A side. Given as a tuple, with the first float being the start point along the tape of the
+        Property indicating the length of the current collector that is coated on the A side. Given as a tuple, with the first float being the start point along the tape of the
         coated area, and the second float being the end point along the tape of the coated area.
         """
         return (
@@ -1511,7 +1513,7 @@ class _TapeCurrentCollector(_CurrentCollector):
     @property
     def b_side_coated_section(self):
         """
-        Property inidcating the length of the current collector that is coated on the B side. Given as a tuple, with the first float being the start point along the tape of the
+        Property indicating the length of the current collector that is coated on the B side. Given as a tuple, with the first float being the start point along the tape of the
         coated area, and the second float being the end point along the tape of the coated area.
         """
         return (

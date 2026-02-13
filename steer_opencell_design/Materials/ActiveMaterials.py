@@ -1,3 +1,5 @@
+"""Active material definitions with half-cell voltage-capacity curves."""
+
 from steer_core.Constants.Units import *
 from steer_core.Mixins.Data import DataMixin
 from steer_core.Mixins.Serializer import SerializerMixin
@@ -25,6 +27,12 @@ class _ActiveMaterial(
     CapacityCurveMixin,
     PlotterMixin
     ):
+    """Base class for electrode active materials (cathode/anode).
+
+    Manages half-cell voltage-capacity curves, scaling factors for reversible
+    and irreversible capacity, and provides plotting utilities for capacity
+    curves.
+    """
 
     def __init__(
         self,
@@ -59,9 +67,6 @@ class _ActiveMaterial(
             Half cell curves for the material, either as a list of pandas DataFrames or a single DataFrame.
         color : str
             Color of the material, used for plotting.
-        voltage_cutoff : Optional[float]
-            The voltage cutoff for the half cell curves in V. This is the maximum voltage (for CathodeMaterial) or minimum voltage (for AnodeMaterial)
-            at which the half cell curve will be calculated.
         extrapolation_window : Optional[float]
             The extrapolation window in V. This is the amount of voltage below the maximum voltage (for CathodeMaterial) or above the minimum voltage (for AnodeMaterial)
             of the half cell curves that will be used for extrapolation. This allows for estimation of voltage profiles over a voltage window
@@ -480,7 +485,7 @@ class _ActiveMaterial(
     @property
     def voltage_cutoff(self) -> Optional[float]:
         """
-        Get the maximum voltage of the half cell curves.
+        Get the voltage cutoff for this active material.
         """
         return self._voltage_cutoff
 
@@ -838,6 +843,11 @@ class _ActiveMaterial(
 
 
 class CathodeMaterial(_ActiveMaterial):
+    """Cathode active material with half-cell voltage-capacity curve data.
+
+    Inherits capacity curve processing from ``_ActiveMaterial`` and adds
+    cathode-specific voltage cutoff handling.
+    """
 
     _table_name = "cathode_materials"
 
@@ -918,6 +928,11 @@ class CathodeMaterial(_ActiveMaterial):
 
 
 class AnodeMaterial(_ActiveMaterial):
+    """Anode active material with half-cell voltage-capacity curve data.
+
+    Inherits capacity curve processing from ``_ActiveMaterial`` and adds
+    anode-specific voltage cutoff handling.
+    """
 
     _table_name = "anode_materials"
 
@@ -954,8 +969,6 @@ class AnodeMaterial(_ActiveMaterial):
             Half cell curves for the material, either as a list of pandas DataFrames or a single DataFrame.
         color : str
             Color of the material, used for plotting.
-        voltage_cutoff : float
-            The voltage cutoff for the half cell curves in V. This is the minimum voltage at which the half cell curve will be calculated.
         extrapolation_window : float
             The positive voltage extrapolation window in V. This is the amount of voltage above the maximum voltage of the half cell curves that will be used for extrapolation.
             This is useful for anode materials where the voltage can go above 0V, e.g., for Li-ion batteries.

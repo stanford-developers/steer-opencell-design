@@ -1,3 +1,5 @@
+"""Overhang control utilities for managing electrode and separator overhang behavior."""
+
 from copy import copy, deepcopy
 from enum import Enum
 from typing import Tuple

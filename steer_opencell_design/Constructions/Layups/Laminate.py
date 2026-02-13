@@ -1,3 +1,5 @@
+"""Two-separator laminate layup for wound electrode assemblies."""
+
 from copy import copy, deepcopy
 from enum import Enum
 from typing import Tuple
@@ -24,6 +26,7 @@ from steer_opencell_design.Constructions.Layups.Base import (
 
 
 class Laminate(_Layup):
+    """Two-separator electrode layup for wound cells. A Laminate sandwiches the cathode and anode between a top and bottom separator, forming the repeating unit that is wound into a jelly roll."""
 
     def __init__(
         self,
@@ -361,26 +364,32 @@ class Laminate(_Layup):
 
     @property
     def length(self) -> float:
+        """Get the laminate length in mm."""
         return np.round(self._length * M_TO_MM, 2)
     
     @property
     def length_range(self) -> tuple:
+        """Get the allowable length range in mm."""
         return self._cathode._current_collector.length_range
     
     @property
     def length_hard_range(self) -> tuple:
+        """Get the hard allowable length range in mm."""
         return self._cathode._current_collector.length_hard_range
 
     @property
     def width(self) -> float:
+        """Get the laminate width in mm."""
         return np.round(self._width * M_TO_MM, 2)
 
     @property
     def width_range(self) -> tuple:
+        """Get the allowable width range in mm."""
         return self._cathode._current_collector.width_range
     
     @property
     def width_hard_range(self) -> tuple:
+        """Get the hard allowable width range in mm."""
         return self._cathode._current_collector.width_hard_range
 
     @property

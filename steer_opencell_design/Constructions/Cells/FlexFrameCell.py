@@ -1,3 +1,5 @@
+"""Flex-frame battery cell implementation."""
+
 from steer_opencell_design.Components.Containers.Flexframe import FlexFrameEncapsulation
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import PunchedStack
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
@@ -34,6 +36,7 @@ def calculate_encapsulation_properties(func):
 
 
 class FlexFrameCell(_Cell):
+    """Flex-frame battery cell for solid-state or specialized designs. Uses a rigid polymer frame with laminate sealing instead of a metal canister."""
 
     def __init__(
         self,
@@ -333,7 +336,7 @@ class FlexFrameCell(_Cell):
         
         Parameters
         ----------
-        value : PouchEncapsulation
+        value : FlexFrameEncapsulation
             New encapsulation to set
         """
         self.validate_type(value, FlexFrameEncapsulation, "encapsulation")

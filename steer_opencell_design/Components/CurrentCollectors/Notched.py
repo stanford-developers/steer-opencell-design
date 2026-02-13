@@ -1,3 +1,5 @@
+"""Notched current collector for tabless wound cells."""
+
 # import core decorators
 from steer_core.Decorators.General import calculate_all_properties
 

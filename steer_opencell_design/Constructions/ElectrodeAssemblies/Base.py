@@ -1,3 +1,5 @@
+"""Base class for electrode assemblies."""
+
 from steer_opencell_design.Constructions.Layups.Base import _Layup
 
 from steer_core.Mixins.Coordinates import CoordinateMixin
@@ -39,6 +41,7 @@ class _ElectrodeAssembly(
     PlotterMixin,
     DataMixin
 ):
+    """Abstract base class for electrode assemblies (jelly rolls, stacks). Provides common properties for mass, cost, pore volume, and capacity curves, as well as visualization methods for breakdowns and capacity plots."""
     
     def __init__(
             self,
@@ -141,7 +144,7 @@ class _ElectrodeAssembly(
         self._layup.anode._formulation._clear_cached_data()
 
     def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:
-
+        """Generate a sunburst mass breakdown chart."""
         fig = self.plot_breakdown_sunburst(
             self.mass_breakdown,
             title=title or f"{self.name} Mass Breakdown",
@@ -152,7 +155,7 @@ class _ElectrodeAssembly(
         return fig
 
     def plot_cost_breakdown(self, title: str = None, **kwargs) -> go.Figure:
-        
+        """Generate a sunburst cost breakdown chart."""
         fig = self.plot_breakdown_sunburst(
             self.cost_breakdown,
             title=title or f"{self.name} Cost Breakdown",
@@ -173,7 +176,7 @@ class _ElectrodeAssembly(
 
         Returns
         -------
-        go.Figuren
+        go.Figure
             Plotly figure with capacity curves
 
         Raises
@@ -210,7 +213,7 @@ class _ElectrodeAssembly(
 
     @property
     def pore_volume(self) -> float:
-        """Return the pore volume of the jelly roll assembly."""
+        """Return the pore volume of the electrode assembly."""
         return np.round(self._pore_volume * M_TO_CM**3, 2)
 
     @property
@@ -230,7 +233,7 @@ class _ElectrodeAssembly(
     
     @property
     def capacity_curve(self) -> pd.DataFrame:
-
+        """Get the full-cell capacity curve as a DataFrame."""
         if self._capacity_curve is None:
             return None
 
@@ -247,7 +250,7 @@ class _ElectrodeAssembly(
     
     @property
     def capacity_curve_trace(self) -> go.Scatter:
-
+        """Get the Plotly trace for the full-cell capacity curve."""
         if self._capacity_curve is None:
             return None
 
@@ -265,7 +268,7 @@ class _ElectrodeAssembly(
 
     @property
     def anode_capacity_curve(self) -> pd.DataFrame:
-
+        """Get the anode capacity curve as a DataFrame."""
         if self._anode_capacity_curve is None:
             return None
 
@@ -282,7 +285,7 @@ class _ElectrodeAssembly(
     
     @property
     def anode_capacity_curve_trace(self) -> go.Scatter:
-
+        """Get the Plotly trace for the anode capacity curve."""
         if self._anode_capacity_curve is None:
             return None
 
@@ -298,7 +301,7 @@ class _ElectrodeAssembly(
 
     @property
     def cathode_capacity_curve(self) -> pd.DataFrame:
-
+        """Get the cathode capacity curve as a DataFrame."""
         if self._cathode_capacity_curve is None:
             return None
 
@@ -315,7 +318,7 @@ class _ElectrodeAssembly(
     
     @property
     def cathode_capacity_curve_trace(self) -> go.Scatter:
-
+        """Get the Plotly trace for the cathode capacity curve."""
         if self._cathode_capacity_curve is None:
             return None
 

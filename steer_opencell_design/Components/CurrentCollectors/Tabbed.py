@@ -1,3 +1,5 @@
+"""Tab-welded current collector with discrete weld tabs."""
+
 # import core mixins
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
@@ -774,9 +776,9 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         return (0, self.weld_tab.length)
 
     @property
-    def weld_tab(self) -> list:
+    def weld_tab(self) -> WeldTab:
         """
-        Returns a list of WeldTab objects representing the weld tabs on the current collector.
+        Returns the WeldTab object representing the weld tab specification on the current collector.
         """
         return self._weld_tab
 

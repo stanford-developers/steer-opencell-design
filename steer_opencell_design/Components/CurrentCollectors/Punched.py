@@ -1,3 +1,5 @@
+"""Punched current collector with integral tabs for stacked cells."""
+
 # import core units
 from steer_core.Constants.Units import *
 
@@ -161,9 +163,9 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         material: CurrentCollectorMaterial
             Material of the current collector.
         width: float
-            Length of the current collector in mm.
-        height: float
             Width of the current collector in mm.
+        height: float
+            Height of the current collector in mm.
         tab_width: float
             Width of the tab in mm.
         tab_height: float

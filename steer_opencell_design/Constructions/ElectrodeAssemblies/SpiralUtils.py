@@ -1,3 +1,5 @@
+"""Static utility methods for spiral and racetrack geometry calculations used in jelly roll winding."""
+
 from steer_opencell_design.Constructions.Layups.Laminate import Laminate
 from steer_core.Constants.Universal import PI
 from steer_core.Constants.Units import *
@@ -23,6 +25,7 @@ MAX_POINTS = 120000
 
 
 class SpiralCalculator:
+    """Utility class providing static methods for spiral and racetrack geometry calculations. Computes variable-thickness spirals, builds component-level spiral coordinates, and handles racetrack (flat-wound) geometry for FlatWoundJellyRoll assemblies."""
 
     @staticmethod
     def calculate_variable_thickness_spiral(

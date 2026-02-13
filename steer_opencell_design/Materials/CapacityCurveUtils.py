@@ -1,3 +1,5 @@
+"""Utilities for processing, interpolating, and scaling half-cell voltage-capacity curves."""
+
 import numpy as np
 from typing import List, Type
 from functools import wraps
@@ -21,8 +23,11 @@ def calculate_specific_capacity_curve(func):
 
 def calculate_capacity_curve(func):
     """
-    Decorator to recalculate half-cell curve properties after a method call.
-    This is useful for methods that modify the half-cell curve data.
+    Decorator to recalculate the absolute capacity curve after a method call.
+
+    Unlike ``calculate_specific_capacity_curve``, this also verifies that the
+    object has a ``_mass`` attribute before calling ``_calculate_capacity_curve``,
+    which scales the specific capacity curve by mass.
     """
     @wraps(func)
     def wrapper(self, *args, **kwargs):
@@ -34,6 +39,11 @@ def calculate_capacity_curve(func):
 
 
 class CapacityCurveMixin:
+    """Mixin providing static methods for processing half-cell voltage-capacity curves.
+
+    Handles curve direction correction, monotonicity enforcement, interpolation,
+    truncation, and reversible/irreversible capacity scaling.
+    """
 
     @staticmethod
     def _correct_curve_directions(curve: np.ndarray) -> np.ndarray:

@@ -1,3 +1,5 @@
+"""Cylindrical cell container components (canister, lid, terminal connectors, encapsulation)."""
+
 from copy import deepcopy
 from steer_opencell_design.Components.Containers.Base import _Container
 from steer_opencell_design.Materials.Other import PrismaticContainerMaterial
@@ -769,15 +771,12 @@ class CylindricalCanister(
         ----------
         material : PrismaticContainerMaterial
             Container material for physical properties
-        radius : float
+        outer_radius : float
             Outer radius of the can in mm. Must be positive and greater than wall_thickness.
         height : float
             Height of the can in mm. Must be positive.
         wall_thickness : float
             Radial wall thickness in mm. Must be positive and less than radius.
-        fill_factor : float, default=0.7
-            Material density factor for calculations.
-            Must be between 0.0 and 1.0.
         datum : Tuple[float, float, float], default=(0.0, 0.0, 0.0)
             Center position in mm as (x, y, z) coordinates
         name : str, default="Cylindrical Can"
@@ -1158,6 +1157,10 @@ class CylindricalCanister(
 
 
 class CylindricalEncapsulation(_Container):
+    """Complete cylindrical cell encapsulation combining canister, lid assembly, and terminal connectors.
+
+    Manages the overall cylindrical geometry and provides mass/cost breakdowns.
+    """
 
     def __init__(
             self,
@@ -1385,7 +1388,7 @@ class CylindricalEncapsulation(_Container):
     @property
     def cost_breakdown(self) -> Dict[str, Any]:
         """
-        Get the cost breakdown of the electrode.
+        Get the cost breakdown of the encapsulation.
 
         :return: Dictionary containing the cost breakdown.
         """
@@ -1401,7 +1404,7 @@ class CylindricalEncapsulation(_Container):
     @property
     def mass_breakdown(self) -> Dict[str, Any]:
         """
-        Get the mass breakdown of the electrode.
+        Get the mass breakdown of the encapsulation.
 
         :return: Dictionary containing the mass breakdown.
         """

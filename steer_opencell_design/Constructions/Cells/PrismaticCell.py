@@ -1,3 +1,5 @@
+"""Prismatic battery cell implementation."""
+
 from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation, ConnectorOrientation
 from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import FlatWoundJellyRoll
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import ZFoldStack, PunchedStack, _Stack
@@ -33,6 +35,7 @@ def calculate_encapsulation_properties(func):
 
 
 class PrismaticCell(_Cell):
+    """Prismatic hard-case battery cell. Supports both stacked and flat-wound jelly roll internal constructions with a rigid metal canister."""
 
     def __init__(
         self,
@@ -110,7 +113,7 @@ class PrismaticCell(_Cell):
             assembly._clip_current_collector_tabs(self._clipped_tab_length)
 
     def get_top_down_view(self, opacity = 0.3, **kwargs) -> go.Figure:
-        """Get top-down view figure of the pouch cell.
+        """Get top-down view figure of the prismatic cell.
 
         Parameters
         ----------
@@ -122,7 +125,7 @@ class PrismaticCell(_Cell):
         Returns
         -------
         go.Figure
-            Plotly figure object representing the top-down view of the pouch cell
+            Plotly figure object representing the top-down view of the prismatic cell
         """
         figure = go.Figure()
 
@@ -154,7 +157,7 @@ class PrismaticCell(_Cell):
         return figure
     
     def get_side_view(self, **kwargs) -> go.Figure:
-        """Get side view figure of the pouch cell.
+        """Get side view figure of the prismatic cell.
 
         Parameters
         ----------
@@ -164,7 +167,7 @@ class PrismaticCell(_Cell):
         Returns
         -------
         go.Figure
-            Plotly figure object representing the side view of the pouch cell
+            Plotly figure object representing the side view of the prismatic cell
         """
         figure = go.Figure()
 
@@ -196,6 +199,7 @@ class PrismaticCell(_Cell):
 
     @property
     def length(self) -> float:
+        """Get the cell length (depth) in mm."""
         _assemblies_length = self._reference_electrode_assembly._thickness * self._n_electrode_assembly
         _encapsulation_length = self._encapsulation._canister._length
         _largest_length = max(_assemblies_length, _encapsulation_length)
@@ -203,6 +207,7 @@ class PrismaticCell(_Cell):
     
     @property
     def length_range(self) -> float:
+        """Get the valid range for cell length in mm."""
         assemblies_thickness_range = self._reference_electrode_assembly.thickness_range
         assemblies_minimum_length = assemblies_thickness_range[0] * self._n_electrode_assembly + self._encapsulation._canister._wall_thickness * 2 * M_TO_MM
         assemblies_maximum_length = assemblies_thickness_range[1] * self._n_electrode_assembly + self._encapsulation._canister._wall_thickness * 2 * M_TO_MM
@@ -213,6 +218,7 @@ class PrismaticCell(_Cell):
     
     @property
     def length_hard_range(self) -> float:
+        """Get the hard limit range for cell length in mm."""
         assemblies_thickness_range = self._reference_electrode_assembly.thickness_hard_range
         assemblies_minimum_length = assemblies_thickness_range[0] * self._n_electrode_assembly + self._encapsulation._canister._wall_thickness * 2 * M_TO_MM
         assemblies_maximum_length = assemblies_thickness_range[1] * self._n_electrode_assembly + self._encapsulation._canister._wall_thickness * 2 * M_TO_MM
@@ -223,6 +229,7 @@ class PrismaticCell(_Cell):
     
     @property
     def width(self) -> float:
+        """Get the cell width in mm."""
 
         _layup_width = self._reference_electrode_assembly._layup._width
         
@@ -237,6 +244,7 @@ class PrismaticCell(_Cell):
     
     @property
     def width_range(self) -> Tuple[float, float]:
+        """Get the valid range for cell width in mm."""
 
         # get the width range of the layup
         layup_width_range = self._reference_electrode_assembly.layup.width_range
@@ -257,7 +265,8 @@ class PrismaticCell(_Cell):
 
     @property
     def width_hard_range(self) -> Tuple[float, float]:
-        
+        """Get the hard limit range for cell width in mm."""
+
         # get the width range of the layup
         layup_width_range = self._reference_electrode_assembly.layup.width_hard_range
 
@@ -277,10 +286,12 @@ class PrismaticCell(_Cell):
     
     @property
     def n_electrode_assembly(self) -> int:
+        """Get the number of electrode assemblies in the cell."""
         return self._n_electrode_assembly
 
     @property
     def height(self) -> float:
+        """Get the cell height in mm."""
         from steer_opencell_design.Constructions.Layups.Laminate import Laminate
 
         # Laminate uses _width for y-dimension, MonoLayer uses _height
@@ -301,6 +312,7 @@ class PrismaticCell(_Cell):
     
     @property
     def height_range(self) -> Tuple[float, float]:
+        """Get the valid range for cell height in mm."""
         from steer_opencell_design.Constructions.Layups.Laminate import Laminate
         
         # Laminate uses width_range for y-dimension, MonoLayer uses height_range
@@ -325,6 +337,7 @@ class PrismaticCell(_Cell):
     
     @property
     def height_hard_range(self) -> Tuple[float, float]:
+        """Get the hard limit range for cell height in mm."""
         from steer_opencell_design.Constructions.Layups.Laminate import Laminate
         
         # Laminate uses width_hard_range for y-dimension, MonoLayer uses height_hard_range

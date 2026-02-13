@@ -1,3 +1,5 @@
+"""Separator component for battery cells."""
+
 from time import time
 from steer_core.Constants.Units import *
 
@@ -32,6 +34,8 @@ class Separator(
     PlotterMixin,
     SerializerMixin
     ):
+    """Porous separator membrane that electrically isolates the anode from the cathode while allowing ion transport. Manages separator geometry (length, width, thickness), coordinates, and Plotly visualization traces."""
+
     def __init__(
         self,
         material: SeparatorMaterial,
@@ -201,7 +205,7 @@ class Separator(
         return self
 
     def get_top_down_view(self, **kwargs) -> go.Figure:
-        
+        """Generate a top-down Plotly figure of the separator."""
         if self._coordinates is None:
             raise ValueError("Cannot generate top-down view: length not set")
 
@@ -219,7 +223,7 @@ class Separator(
         return fig
     
     def get_right_left_view(self, **kwargs):
-
+        """Generate a right-left (side) Plotly figure of the separator."""
         if self._coordinates is None:
             raise ValueError("Cannot generate right-left view: length not set")
 
@@ -238,7 +242,7 @@ class Separator(
         return fig
 
     def get_bottom_up_view(self, **kwargs):
-
+        """Generate a bottom-up Plotly figure of the separator."""
         if self._coordinates is None:
             raise ValueError("Cannot generate bottom-up view: length not set")
 
@@ -257,10 +261,12 @@ class Separator(
         return fig
 
     def get_center_line(self) -> np.ndarray:
+        """Get the center line coordinates of the separator."""
         return self.get_xz_center_line(self._coordinates)
 
     @property
     def coordinates(self) -> pd.DataFrame:
+        """Get the separator boundary coordinates as a DataFrame in mm."""
         if self._coordinates is None:
             return None
 
@@ -272,6 +278,7 @@ class Separator(
 
     @property
     def top_down_trace(self) -> go.Scatter:
+        """Get the Plotly trace for the top-down separator view."""
         if self._coordinates is None:
             return None
 
@@ -295,7 +302,7 @@ class Separator(
 
     @property
     def right_left_trace(self) -> go.Scatter:
-
+        """Get the Plotly trace for the right-left separator view."""
         if self._coordinates is None:
             return None
 
@@ -319,7 +326,7 @@ class Separator(
 
     @property
     def bottom_up_trace(self) -> go.Scatter:
-
+        """Get the Plotly trace for the bottom-up separator view."""
         if self._coordinates is None:
             return None
 
@@ -346,28 +353,33 @@ class Separator(
 
     @property
     def cost(self) -> float:
+        """Get the total separator cost in $."""
         if self._cost is None:
             return None
         return np.round(self._cost, 2)
 
     @property
     def mass(self) -> float:
+        """Get the total separator mass in g."""
         if self._mass is None:
             return None
         return np.round(self._mass * KG_TO_G, 2)
 
     @property
     def area(self) -> float:
+        """Get the separator area in cm²."""
         if self._area is None:
             return None
         return np.round(self._area * M_TO_CM**2, 2)
 
     @property
     def areal_cost(self) -> float:
+        """Get the separator areal cost in $/cm²."""
         return np.round(self._areal_cost, 2)
     
     @property
     def areal_cost_range(self) -> Tuple[float, float]:
+        """Get the allowable areal cost range in $/cm²."""
         _specific_cost_minimum = self.material._specific_cost_range[0]
         _specific_cost_maximum = self.material._specific_cost_range[1]
         _areal_cost_minimum = _specific_cost_minimum * self.material._density * self._thickness
@@ -379,12 +391,14 @@ class Separator(
 
     @property
     def pore_volume(self) -> float:
+        """Get the separator pore volume in mm³."""
         if self._pore_volume is None:
             return None
         return np.round(self._pore_volume * M_TO_MM**3, 2)
 
     @property
     def datum(self) -> Tuple[float, float, float]:
+        """Get the (x, y, z) datum position in mm."""
         return (
             self._datum[0] * M_TO_MM,
             self._datum[1] * M_TO_MM,
@@ -393,29 +407,34 @@ class Separator(
 
     @property
     def datum_x(self) -> float:
+        """Get the x datum coordinate in mm."""
         return np.round(self._datum[0] * M_TO_MM, 2)
 
     @property
     def datum_y(self) -> float:
+        """Get the y datum coordinate in mm."""
         return np.round(self._datum[1] * M_TO_MM, 2)
 
     @property
     def datum_z(self) -> float:
+        """Get the z datum coordinate in mm."""
         return np.round(self._datum[2] * M_TO_MM, 2)
 
     @property
     def name(self) -> str:
+        """Get the separator name."""
         return self._name
 
     @property
     def length(self) -> float:
+        """Get the separator length in mm."""
         if self._length is None:
             return None
         return np.round(self._length * M_TO_MM, 2)
 
     @property
     def length_range(self):
-
+        """Get the allowable separator length range in mm."""
         if hasattr(self, "_length_range") and hasattr(self, "_length"):
             return (
                 np.round(self._length_range[0] * M_TO_MM, 2),
@@ -426,13 +445,14 @@ class Separator(
 
     @property
     def width(self) -> float:
+        """Get the separator width in mm."""
         if self._width is None:
             return None
         return np.round(self._width * M_TO_MM, 2)
 
     @property
     def width_range(self):
-
+        """Get the allowable separator width range in mm."""
         if hasattr(self, "_width_range"):
             return (
                 np.round(self._width_range[0] * M_TO_MM, 2),
@@ -443,14 +463,17 @@ class Separator(
 
     @property
     def material(self) -> SeparatorMaterial:
+        """Get the separator material."""
         return self._material
 
     @property
     def thickness(self):
+        """Get the separator thickness in um."""
         return np.round(self._thickness * M_TO_UM, 2)
 
     @property
     def thickness_range(self):
+        """Get the allowable separator thickness range in um."""
         return (0, 100)
 
     @areal_cost.setter
