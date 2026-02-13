@@ -1,3 +1,5 @@
+"""Pouch (soft-pack) battery cell implementation."""
+
 from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import ZFoldStack, PunchedStack
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
@@ -36,6 +38,7 @@ def calculate_encapsulation_properties(func):
 
 
 class PouchCell(_Cell):
+    """Pouch (soft-pack) battery cell. Combines stacked electrode assemblies with laminate film encapsulation, terminals, and electrolyte."""
 
     def __init__(
         self,
@@ -48,7 +51,7 @@ class PouchCell(_Cell):
         top_seal_thickness: float = 5,
         bottom_seal_thickness: float = 5,
         clipped_tab_length: float = None,
-        electrolyte_overfill: float = 0.2,
+        electrolyte_overfill: float = 20,
         name: str = "Pouch Cell",
     ):
         """Create a pouch cell with stacked electrode assembly.
@@ -133,18 +136,18 @@ class PouchCell(_Cell):
         # cathode get the tab position
         _current_collector = self._electrode_assemblies[0]._layup._cathode._current_collector
         _terminal = self._encapsulation._cathode_terminal
-        _cathode_connector_position_x = _current_collector._tab_position - _current_collector._x_body_length / 2
-        _cathode_connector_position_y = _current_collector._datum[1] + _current_collector._y_body_length / 2 + self._clipped_tab_length + _terminal._length / 2
+        _cathode_connector_position_x = _current_collector._tab_position - _current_collector._x_foil_length / 2
+        _cathode_connector_position_y = _current_collector._datum[1] + _current_collector._y_foil_length / 2 + self._clipped_tab_length + _terminal._length / 2
 
         _current_collector = self._electrode_assemblies[0]._layup._anode._current_collector
         _terminal = self._encapsulation._anode_terminal
-        _anode_connector_position_x = _current_collector._tab_position - _current_collector._x_body_length / 2
+        _anode_connector_position_x = _current_collector._tab_position - _current_collector._x_foil_length / 2
         _anode_connector_position_y = _current_collector._datum[1]
 
         if self._reference_electrode_assembly._layup._electrode_orientation == ElectrodeOrientation.TRANSVERSE:
-            _anode_connector_position_y -= _current_collector._y_body_length / 2 + self._clipped_tab_length + _terminal._length / 2
+            _anode_connector_position_y -= _current_collector._y_foil_length / 2 + self._clipped_tab_length + _terminal._length / 2
         else:
-            _anode_connector_position_y += _current_collector._y_body_length / 2 + self._clipped_tab_length + _terminal._length / 2
+            _anode_connector_position_y += _current_collector._y_foil_length / 2 + self._clipped_tab_length + _terminal._length / 2
 
         # get average z position of assemblies
         assembly_z_datums = [assembly._datum[2] for assembly in self._electrode_assemblies]
@@ -202,14 +205,14 @@ class PouchCell(_Cell):
         
         Determines the required width, height, and thickness of the encapsulation
         based on the electrode assembly dimensions plus seal thicknesses. Height is
-        calculated from the current collector body extents, width includes side
+        calculated from the current collector foil extents, width includes side
         seals, and thickness accounts for the stack and laminate thicknesses.
         """
         top_assembly = self._electrode_assemblies[0]
         cathodes = [c for c in top_assembly._stack.values() if isinstance(c, Cathode)]
         anodes = [a for a in top_assembly._stack.values() if isinstance(a, Anode)]
-        max_y = cathodes[0]._current_collector._body_coordinates[:, 1].max()
-        min_y = anodes[0]._current_collector._body_coordinates[:, 1].min()
+        max_y = cathodes[0]._current_collector._foil_coordinates[:, 1].max()
+        min_y = anodes[0]._current_collector._foil_coordinates[:, 1].min()
         _encapsulation_height = max_y - min_y + self._top_seal_thickness + self._bottom_seal_thickness
 
         ref_assembly = self._reference_electrode_assembly
@@ -316,14 +319,44 @@ class PouchCell(_Cell):
         return np.round(self._side_seal_thickness * M_TO_MM, 2)
     
     @property
+    def side_seal_thickness_range(self) -> Tuple[float, float]:
+        """Get the valid range for side seal thickness in mm."""
+        return (0.1, 20.0)
+    
+    @property
+    def side_seal_thickness_hard_range(self) -> Tuple[float, float]:
+        """Get the hard limit range for side seal thickness in mm."""
+        return (0.1, 50.0)
+    
+    @property
     def top_seal_thickness(self) -> float:
         """Get top seal thickness."""
         return np.round(self._top_seal_thickness * M_TO_MM, 2)
     
     @property
+    def top_seal_thickness_range(self) -> Tuple[float, float]:
+        """Get the valid range for top seal thickness in mm."""
+        return (0.1, 20.0)
+    
+    @property
+    def top_seal_thickness_hard_range(self) -> Tuple[float, float]:
+        """Get the hard limit range for top seal thickness in mm."""
+        return (0.1, 50.0)
+    
+    @property
     def bottom_seal_thickness(self) -> float:
         """Get bottom seal thickness."""
         return np.round(self._bottom_seal_thickness * M_TO_MM, 2)
+    
+    @property
+    def bottom_seal_thickness_range(self) -> Tuple[float, float]:
+        """Get the valid range for bottom seal thickness in mm."""
+        return (0.1, 20.0)
+    
+    @property
+    def bottom_seal_thickness_hard_range(self) -> Tuple[float, float]:
+        """Get the hard limit range for bottom seal thickness in mm."""
+        return (0.1, 50.0)
 
     @property
     def reference_electrode_assembly(self) -> ZFoldStack | PunchedStack:
@@ -364,8 +397,138 @@ class PouchCell(_Cell):
         max_clipped_tab_length = min(_free_cathode_tab_length, _free_anode_tab_length) * M_TO_MM
         return (0.0, max_clipped_tab_length)
 
+    @property
+    def height(self) -> float:
+        """Get the total cell height in mm (assembly + seals)."""
+        assembly_height = self._reference_electrode_assembly._layup.height
+        top_seal_height = self.top_seal_thickness
+        bottom_seal_height = self.bottom_seal_thickness
+        total_height = assembly_height + top_seal_height + bottom_seal_height
+        return total_height
+    
+    @property
+    def height_range(self) -> float:
+        """Get the valid range for cell height in mm."""
+        assembly_height_range = self._reference_electrode_assembly._layup.height_range
+        top_seal_height = self.top_seal_thickness
+        bottom_seal_height = self.bottom_seal_thickness
+        min_height = assembly_height_range[0] + top_seal_height + bottom_seal_height
+        max_height = assembly_height_range[1] + top_seal_height + bottom_seal_height
+        return (min_height, max_height)
+    
+    @property
+    def height_hard_range(self) -> float:
+        """Get the hard limit range for cell height in mm."""
+        assembly_height_hard_range = self._reference_electrode_assembly._layup.height_hard_range
+        top_seal_height = self.top_seal_thickness
+        bottom_seal_height = self.bottom_seal_thickness
+        min_height = assembly_height_hard_range[0] + top_seal_height + bottom_seal_height
+        max_height = assembly_height_hard_range[1] + top_seal_height + bottom_seal_height
+        return (min_height, max_height)
+    
+    @property
+    def width(self) -> float:
+        """Get the total cell width in mm (assembly + side seals)."""
+        assembly_width = self._reference_electrode_assembly._layup.width
+        side_seal_width = 2 * self.side_seal_thickness
+        total_width = assembly_width + side_seal_width
+        return total_width
+    
+    @property
+    def width_range(self) -> float:
+        """Get the valid range for cell width in mm."""
+        assembly_width_range = self._reference_electrode_assembly._layup.width_range
+        side_seal_width = 2 * self.side_seal_thickness
+        min_width = assembly_width_range[0] + side_seal_width
+        max_width = assembly_width_range[1] + side_seal_width
+        return (min_width, max_width)
+    
+    @property
+    def width_hard_range(self) -> float:
+        """Get the hard limit range for cell width in mm."""
+        assembly_width_hard_range = self._reference_electrode_assembly._layup.width_hard_range
+        side_seal_width = 2 * self.side_seal_thickness
+        min_width = assembly_width_hard_range[0] + side_seal_width
+        max_width = assembly_width_hard_range[1] + side_seal_width
+        return (min_width, max_width)
+    
+    @property
+    def thickness(self) -> float:
+        """Get the total cell thickness in mm (assemblies + laminates)."""
+        _assembly_thickness = self._reference_electrode_assembly._thickness * self._n_electrode_assembly
+        _laminate_thickness = self._encapsulation._top_laminate._thickness + self._encapsulation._bottom_laminate._thickness
+        _total_thickness = _assembly_thickness + _laminate_thickness
+        total_thickness = np.round(_total_thickness * M_TO_MM, 2)
+        return total_thickness
+    
+    @property
+    def thickness_range(self) -> float:
+        """Get the valid range for cell thickness in mm."""
+        assembly_thickness_range = self._reference_electrode_assembly.thickness_range
+        laminate_thickness = (self._encapsulation._top_laminate._thickness + self._encapsulation._bottom_laminate._thickness) * M_TO_MM
+        min_thickness = np.round(assembly_thickness_range[0] * self._n_electrode_assembly + laminate_thickness, 2)
+        max_thickness = np.round(assembly_thickness_range[1] * self._n_electrode_assembly + laminate_thickness, 2)
+        return (min_thickness, max_thickness)
+    
+    @property
+    def thickness_hard_range(self) -> float:
+        """Get the hard limit range for cell thickness in mm."""
+        assembly_thickness_hard_range = self._reference_electrode_assembly.thickness_hard_range
+        laminate_thickness = self._encapsulation._top_laminate._thickness + self._encapsulation._bottom_laminate._thickness
+        min_thickness = assembly_thickness_hard_range[0] * self._n_electrode_assembly + laminate_thickness
+        max_thickness = assembly_thickness_hard_range[1] * self._n_electrode_assembly + laminate_thickness
+        return (min_thickness, max_thickness)
+
+    @height.setter
+    def height(self, value: float) -> None:
+
+        # validate input
+        self.validate_positive_float(value, "height")
+
+        # get change in height
+        current_height = self.height
+        height_diff = value - current_height
+
+        # adjust the layup height by the height difference
+        new_layup_height = self._reference_electrode_assembly._layup.height + height_diff
+        self._reference_electrode_assembly._layup.height = new_layup_height
+        self._reference_electrode_assembly.layup = self._reference_electrode_assembly._layup
+        self.reference_electrode_assembly = self.reference_electrode_assembly
+
+    @width.setter
+    def width(self, value: float) -> None:
+
+        # validate input
+        self.validate_positive_float(value, "width")
+
+        # get change in width
+        current_width = self.width
+        width_diff = value - current_width
+
+        # adjust the layup width by the width difference
+        new_layup_width = self._reference_electrode_assembly._layup.width + width_diff
+        self._reference_electrode_assembly._layup.width = new_layup_width
+        self._reference_electrode_assembly.layup = self._reference_electrode_assembly._layup
+        self.reference_electrode_assembly = self.reference_electrode_assembly
+
+    @thickness.setter
+    def thickness(self, value: float) -> None:
+
+        # validate input
+        self.validate_positive_float(value, "thickness")
+
+        # get change in thickness
+        current_thickness = self.thickness
+        thickness_diff = value - current_thickness
+
+        # adjust the layup thickness by the thickness difference
+        new_layup_thickness = (self._reference_electrode_assembly._thickness * M_TO_MM) + thickness_diff / self._n_electrode_assembly
+
+        self._reference_electrode_assembly.thickness = new_layup_thickness
+        self.reference_electrode_assembly = self.reference_electrode_assembly
+
     @clipped_tab_length.setter
-    @calculate_encapsulation_properties
+    @calculate_all_properties
     def clipped_tab_length(self, value: float) -> None:
         """Set clipped tab length with validation.
         

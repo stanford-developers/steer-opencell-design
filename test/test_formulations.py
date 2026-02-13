@@ -6,6 +6,7 @@ from steer_opencell_design.Materials.Formulations import CathodeFormulation, Ano
 from steer_opencell_design.Materials.ActiveMaterials import CathodeMaterial, AnodeMaterial
 from steer_opencell_design.Materials.Binders import Binder
 from steer_opencell_design.Materials.ConductiveAdditives import ConductiveAdditive
+from steer_core.Mixins.Serializer import SerializerMixin
 
 
 class TestSimpleCathodeFormulation(unittest.TestCase):
@@ -1175,6 +1176,64 @@ class TestConductiveAdditiveWeightPropertiesAndSetters(unittest.TestCase):
         
         self.assertEqual(f.conductive_additive_2_weight, 0.0)
         self.assertEqual(f._conductive_additives[self.additive2], 0.0)
+
+
+class TestAnodeFormulationAddMaterialAndSerialize(unittest.TestCase):
+    def setUp(self):
+        """
+        Set up an anode formulation with one active material.
+        """
+        self.anode_active_material1 = AnodeMaterial.from_database("Hard Carbon (Vendor A)")
+        self.anode_active_material1.density = 1.5
+        self.anode_active_material1.specific_cost = 14.27
+
+        self.anode_active_material2 = AnodeMaterial.from_database("Hard Carbon (Vendor B)")
+        self.anode_active_material2.density = 1.6
+        self.anode_active_material2.specific_cost = 12.0
+
+        anode_binder = Binder.from_database("PVDF")
+        anode_binder.specific_cost = 10
+        anode_binder.density = 1.7
+
+        anode_conductive_additive = ConductiveAdditive.from_database("Super P")
+        anode_conductive_additive.specific_cost = 9
+        anode_conductive_additive.density = 1.9
+
+        self.anode_formulation = AnodeFormulation(
+            active_materials={self.anode_active_material1: 88},
+            binders={anode_binder: 3},
+            conductive_additives={anode_conductive_additive: 9},
+        )
+
+    def test_add_material_adjust_weights_and_serialize(self):
+        """
+        Test adding a second active material, adjusting weights, and serialization.
+        """
+        warnings.filterwarnings('ignore')
+        
+        # Add second active material using setter
+        self.anode_formulation.active_material_2 = self.anode_active_material2
+        
+        # Adjust weights
+        self.anode_formulation.active_material_2_weight = 10
+        original_weight = self.anode_formulation.active_material_1_weight
+        self.anode_formulation.active_material_1_weight = original_weight - 10
+        
+        # Verify the weights are correct
+        self.assertEqual(self.anode_formulation.active_material_1_weight, 78)
+        self.assertEqual(self.anode_formulation.active_material_2_weight, 10)
+        
+        # Serialize the formulation
+        serialized = self.anode_formulation.serialize()
+        
+        # Deserialize using SerializerMixin.deserialize()
+        deserialized = SerializerMixin.deserialize(serialized)
+        
+        # Verify the deserialized formulation matches the original
+        self.assertEqual(self.anode_formulation, deserialized)
+        self.assertEqual(deserialized.active_material_1_weight, 78)
+        self.assertEqual(deserialized.active_material_2_weight, 10)
+        self.assertEqual(len(deserialized._active_materials), 2)
 
 
 if __name__ == "__main__":

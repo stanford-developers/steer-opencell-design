@@ -5,11 +5,12 @@ from copy import deepcopy
 from steer_opencell_design.Components.Containers.Cylindrical import (
     CylindricalTerminalConnector,
     CylindricalLidAssembly,
-    CylindricalCannister,
+    CylindricalCanister,
     CylindricalEncapsulation,
 )
 
 from steer_opencell_design.Materials.Other import PrismaticContainerMaterial
+
 
 class TestCylindricalTerminalConnector(unittest.TestCase):
     def setUp(self):
@@ -728,33 +729,33 @@ class TestCylindricalLidAssembly(unittest.TestCase):
         self.assertFalse(np.array_equal(lid_footprint, connector_footprint))
 
 
-class TestCylindricalCannister(unittest.TestCase):
+class TestCylindricalCanister(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures for CylindricalCan tests"""
         material = PrismaticContainerMaterial.from_database("Aluminum")
         
-        self.can_standard = CylindricalCannister(
+        self.can_standard = CylindricalCanister(
             material=material,
             outer_radius=10.0,
             height=50.0,
             wall_thickness=1.0  # 1000 μm = 1 mm
         )
         
-        self.can_small = CylindricalCannister(
+        self.can_small = CylindricalCanister(
             material=PrismaticContainerMaterial.from_database("Copper"),
             outer_radius=5.0,
             height=25.0,
             wall_thickness=0.5  # 0.5 mm
         )
         
-        self.can_large = CylindricalCannister(
+        self.can_large = CylindricalCanister(
             material=PrismaticContainerMaterial.from_database("Steel"),
             outer_radius=25.0,
             height=100.0,
             wall_thickness=2.0  # 2 mm
         )
         
-        self.can_thin_wall = CylindricalCannister(
+        self.can_thin_wall = CylindricalCanister(
             material=material,
             outer_radius=15.0,
             height=30.0,
@@ -768,7 +769,7 @@ class TestCylindricalCannister(unittest.TestCase):
         self.assertEqual(can.height, 50.0)
         self.assertEqual(can.wall_thickness, 1)
         self.assertEqual(can.inner_radius, 9.0)  # 10 - 1 = 9
-        self.assertEqual(can.name, "Cylindrical Cannister")
+        self.assertEqual(can.name, "Cylindrical Canister")
 
     def test_equal(self):
         can_copy = deepcopy(self.can_standard)
@@ -777,7 +778,7 @@ class TestCylindricalCannister(unittest.TestCase):
 
     def test_serialization(self):
         serialized = self.can_large.serialize()
-        deserialized = CylindricalCannister.deserialize(serialized)
+        deserialized = CylindricalCanister.deserialize(serialized)
         test_case = self.can_large == deserialized
         self.assertTrue(test_case)
 
@@ -786,7 +787,7 @@ class TestCylindricalCannister(unittest.TestCase):
         material = PrismaticContainerMaterial.from_database("Aluminum")
         
         # Test minimum viable can
-        min_can = CylindricalCannister(
+        min_can = CylindricalCanister(
             material=material,
             outer_radius=2.0,
             height=5.0,
@@ -797,7 +798,7 @@ class TestCylindricalCannister(unittest.TestCase):
         self.assertEqual(min_can.inner_radius, 1.95)  # 2.0 - 0.05
         
         # Test thick wall can
-        thick_wall_can = CylindricalCannister(
+        thick_wall_can = CylindricalCanister(
             material=material,
             outer_radius=20.0,
             height=40.0,
@@ -821,7 +822,7 @@ class TestCylindricalCannister(unittest.TestCase):
         ]
         
         for outer_r, wall_t in test_cases:
-            test_can = CylindricalCannister(
+            test_can = CylindricalCanister(
                 material=PrismaticContainerMaterial.from_database("Aluminum"),
                 outer_radius=outer_r,
                 height=30.0,
@@ -869,19 +870,19 @@ class TestCylindricalCannister(unittest.TestCase):
 
     def test_material_dependency(self):
         """Test that different materials produce different results"""
-        al_can = CylindricalCannister(
+        al_can = CylindricalCanister(
             material=PrismaticContainerMaterial.from_database("Aluminum"),
             outer_radius=10.0,
             height=50.0,
             wall_thickness=1000.0
         )
-        cu_can = CylindricalCannister(
+        cu_can = CylindricalCanister(
             material=PrismaticContainerMaterial.from_database("Copper"),
             outer_radius=10.0,
             height=50.0,
             wall_thickness=1000.0
         )
-        steel_can = CylindricalCannister(
+        steel_can = CylindricalCanister(
             material=PrismaticContainerMaterial.from_database("Steel"),
             outer_radius=10.0,
             height=50.0,
@@ -993,14 +994,14 @@ class TestCylindricalCannister(unittest.TestCase):
     def test_volume_scaling_with_base(self):
         """Test that volume calculations include base correctly"""
         # Create cans with different configurations to test base vs wall volume
-        tall_can = CylindricalCannister(
+        tall_can = CylindricalCanister(
             material=PrismaticContainerMaterial.from_database("Aluminum"),
             outer_radius=10.0,
             height=100.0,  # Tall
             wall_thickness=1
         )
         
-        short_can = CylindricalCannister(
+        short_can = CylindricalCanister(
             material=PrismaticContainerMaterial.from_database("Aluminum"),
             outer_radius=10.0,
             height=10.0,  # Short - base volume more significant
@@ -1019,7 +1020,7 @@ class TestCylindricalCannister(unittest.TestCase):
         material = PrismaticContainerMaterial.from_database("Aluminum")
         
         # Very thin wall
-        thin_can = CylindricalCannister(
+        thin_can = CylindricalCanister(
             material=material,
             outer_radius=10.0,
             height=20.0,
@@ -1029,7 +1030,7 @@ class TestCylindricalCannister(unittest.TestCase):
         self.assertGreater(thin_can.volume, 0)
         
         # Thick wall (but still valid)
-        thick_can = CylindricalCannister(
+        thick_can = CylindricalCanister(
             material=material,
             outer_radius=10.0,
             height=20.0,
@@ -1043,7 +1044,7 @@ class TestCylindricalCannister(unittest.TestCase):
         material = PrismaticContainerMaterial.from_database("Aluminum")
         
         # Test with offset datum
-        offset_can = CylindricalCannister(
+        offset_can = CylindricalCanister(
             material=material,
             outer_radius=5.0,
             height=10.0,
@@ -1112,7 +1113,7 @@ class TestCylindricalEncapsulation(unittest.TestCase):
             fill_factor=0.9
         )
         
-        self.cannister = CylindricalCannister(
+        self.canister = CylindricalCanister(
             material=self.aluminum,
             outer_radius=20.0,  # mm
             height=50.0,  # mm
@@ -1124,8 +1125,17 @@ class TestCylindricalEncapsulation(unittest.TestCase):
             cathode_terminal_connector=self.cathode_connector,
             anode_terminal_connector=self.anode_connector,
             lid_assembly=self.lid,
-            cannister=self.cannister
+            canister=self.canister
         )
+
+    def test_connector_radius_change(self):
+
+        original_radius = self.encapsulation.cathode_terminal_connector.radius
+        self.assertEqual(original_radius, 17.55)
+
+        self.encapsulation.cathode_terminal_connector.radius = 15
+        self.encapsulation.cathode_terminal_connector = self.encapsulation.cathode_terminal_connector
+        self.assertEqual(self.encapsulation.cathode_terminal_connector.radius, 15)
 
     def test_initialization(self):
         """Test basic encapsulation initialization"""
@@ -1133,7 +1143,7 @@ class TestCylindricalEncapsulation(unittest.TestCase):
         self.assertEqual(self.encapsulation.cathode_terminal_connector, self.cathode_connector)
         self.assertEqual(self.encapsulation.anode_terminal_connector, self.anode_connector)
         self.assertEqual(self.encapsulation.lid_assembly, self.lid)
-        self.assertEqual(self.encapsulation.cannister, self.cannister)
+        self.assertEqual(self.encapsulation.canister, self.canister)
         self.assertEqual(self.encapsulation.name, "Cylindrical Encapsulation")
 
     def test_serialization(self):
@@ -1164,9 +1174,9 @@ class TestCylindricalEncapsulation(unittest.TestCase):
         # fig5.show()
 
     def test_automatic_radius_sizing(self):
-        """Test that component radii are automatically set based on cannister"""
-        expected_lid_radius = self.cannister.inner_radius  # 19.5 mm
-        expected_terminal_radius = self.cannister.inner_radius * 0.9  # 17.55 mm
+        """Test that component radii are automatically set based on canister"""
+        expected_lid_radius = self.canister.inner_radius  # 19.5 mm
+        expected_terminal_radius = self.canister.inner_radius * 0.9  # 17.55 mm
         
         # Check lid assembly radius
         self.assertAlmostEqual(self.encapsulation.lid_assembly.radius, expected_lid_radius, places=2)
@@ -1181,16 +1191,16 @@ class TestCylindricalEncapsulation(unittest.TestCase):
         cathode_mass = self.cathode_connector.mass
         anode_mass = self.anode_connector.mass  
         lid_mass = self.lid.mass
-        cannister_mass = self.cannister.mass
+        canister_mass = self.canister.mass
         
         cathode_cost = self.cathode_connector.cost
         anode_cost = self.anode_connector.cost
         lid_cost = self.lid.cost
-        cannister_cost = self.cannister.cost
+        canister_cost = self.canister.cost
         
         # Check that totals are correct
-        expected_total_mass = cathode_mass + anode_mass + lid_mass + cannister_mass
-        expected_total_cost = cathode_cost + anode_cost + lid_cost + cannister_cost
+        expected_total_mass = cathode_mass + anode_mass + lid_mass + canister_mass
+        expected_total_cost = cathode_cost + anode_cost + lid_cost + canister_cost
         
         # Verify calculations are reasonable (all positive)
         self.assertGreater(expected_total_mass, 0)
@@ -1209,7 +1219,7 @@ class TestCylindricalEncapsulation(unittest.TestCase):
         self.assertIn("Cathode Terminal Connector", component_names)  # Will have 2 instances
         self.assertIn("Anode Terminal Connector", component_names)  # Will have 2 instances
         self.assertIn("Lid Assembly", component_names)
-        self.assertIn("Cannister", component_names)
+        self.assertIn("Canister", component_names)
         
         # Check that all values are positive numbers
         for name, mass in breakdown.items():
@@ -1271,7 +1281,7 @@ class TestCylindricalEncapsulation(unittest.TestCase):
         self.assertNotEqual(original_breakdown, new_breakdown)
         
         # New component should be properly sized
-        expected_radius = self.cannister.inner_radius * 0.9
+        expected_radius = self.canister.inner_radius * 0.9
         self.assertAlmostEqual(new_cathode.radius, expected_radius, places=2)
 
     def test_different_materials(self):
@@ -1289,7 +1299,7 @@ class TestCylindricalEncapsulation(unittest.TestCase):
             lid_assembly=CylindricalLidAssembly(
                 material=steel, thickness=100.0, fill_factor=0.9
             ),
-            cannister=CylindricalCannister(
+            canister=CylindricalCanister(
                 material=self.aluminum, outer_radius=15.0, height=40.0, wall_thickness=1000.0
             )
         )
@@ -1304,8 +1314,8 @@ class TestCylindricalEncapsulation(unittest.TestCase):
 
     def test_edge_cases(self):
         """Test edge cases and boundary conditions"""
-        # Test with minimum viable cannister
-        min_cannister = CylindricalCannister(
+        # Test with minimum viable canister
+        min_canister = CylindricalCanister(
             material=self.aluminum,
             outer_radius=2.0,  # mm
             height=5.0,  # mm  
@@ -1316,7 +1326,7 @@ class TestCylindricalEncapsulation(unittest.TestCase):
             cathode_terminal_connector=self.cathode_connector,
             anode_terminal_connector=self.anode_connector,
             lid_assembly=self.lid,
-            cannister=min_cannister
+            canister=min_canister
         )
         
         # Should still work with very small dimensions
@@ -1334,11 +1344,11 @@ class TestCylindricalEncapsulation(unittest.TestCase):
 
     def test_dimensional_consistency(self):
         """Test that all dimensions are consistent and reasonable"""
-        # Lid radius should match cannister inner radius
-        self.assertEqual(self.encapsulation.lid_assembly.radius, self.cannister.inner_radius)
+        # Lid radius should match canister inner radius
+        self.assertEqual(self.encapsulation.lid_assembly.radius, self.canister.inner_radius)
         
-        # Terminal radii should be 90% of cannister inner radius
-        expected_terminal_radius = self.cannister.inner_radius * 0.9
+        # Terminal radii should be 90% of canister inner radius
+        expected_terminal_radius = self.canister.inner_radius * 0.9
         self.assertAlmostEqual(self.encapsulation.cathode_terminal_connector.radius, expected_terminal_radius, places=2)
         self.assertAlmostEqual(self.encapsulation.anode_terminal_connector.radius, expected_terminal_radius, places=2)
         
@@ -1354,14 +1364,14 @@ class TestCylindricalEncapsulation(unittest.TestCase):
                 cathode_terminal_connector="invalid",
                 anode_terminal_connector=self.anode_connector,
                 lid_assembly=self.lid,
-                cannister=self.cannister
+                canister=self.canister
             )
             
         with self.assertRaises(TypeError):
-            self.encapsulation.cannister = "invalid"
+            self.encapsulation.canister = "invalid"
 
-    def test_different_cannister_sizes(self):
-        """Test behavior with different cannister sizes"""
+    def test_different_canister_sizes(self):
+        """Test behavior with different canister sizes"""
         test_cases = [
             {"outer_radius": 10.0, "height": 30.0, "wall_thickness": 200.0},
             {"outer_radius": 25.0, "height": 60.0, "wall_thickness": 1000.0},
@@ -1369,7 +1379,7 @@ class TestCylindricalEncapsulation(unittest.TestCase):
         ]
         
         for case in test_cases:
-            test_cannister = CylindricalCannister(
+            test_canister = CylindricalCanister(
                 material=self.aluminum,
                 **case
             )
@@ -1384,16 +1394,16 @@ class TestCylindricalEncapsulation(unittest.TestCase):
                 lid_assembly=CylindricalLidAssembly(
                     material=self.aluminum, thickness=100.0
                 ),
-                cannister=test_cannister
+                canister=test_canister
             )
             
             # Check dimensional relationships
-            self.assertEqual(test_encapsulation.lid_assembly.radius, test_cannister.inner_radius)
-            expected_terminal_radius = test_cannister.inner_radius * 0.9
+            self.assertEqual(test_encapsulation.lid_assembly.radius, test_canister.inner_radius)
+            expected_terminal_radius = test_canister.inner_radius * 0.9
             self.assertAlmostEqual(test_encapsulation.cathode_terminal_connector.radius, expected_terminal_radius, places=2)
             
             # Check that calculations are reasonable
-            self.assertGreater(test_encapsulation.mass_breakdown["Cannister"], 0)
+            self.assertGreater(test_encapsulation.mass_breakdown["Canister"], 0)
 
 
 class TestLaminateSheet(unittest.TestCase):
@@ -2592,14 +2602,15 @@ class TestPrismaticLidAssembly(unittest.TestCase):
         self.assertIsNotNone(fig.data)
 
 
-class TestPrismaticCannister(unittest.TestCase):
+class TestPrismaticCanister(unittest.TestCase):
+
     def setUp(self):
-        """Set up test fixtures for PrismaticCannister tests"""
-        from steer_opencell_design.Components.Containers.Prismatic import PrismaticCannister
+        """Set up test fixtures for PrismaticCanister tests"""
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticCanister
         
         material = PrismaticContainerMaterial.from_database("Aluminum")
 
-        self.cannister_standard = PrismaticCannister(
+        self.canister_standard = PrismaticCanister(
             material=material,
             width=100.0,
             length=150.0,
@@ -2607,7 +2618,7 @@ class TestPrismaticCannister(unittest.TestCase):
             wall_thickness=2.0
         )
 
-        self.cannister_thick_walls = PrismaticCannister(
+        self.canister_thick_walls = PrismaticCanister(
             material=PrismaticContainerMaterial.from_database("Steel"),
             width=100.0,
             length=150.0,
@@ -2615,41 +2626,59 @@ class TestPrismaticCannister(unittest.TestCase):
             wall_thickness=5.0
         )
 
+    def test_plots_with_datums(self):
+
+        fig1 = self.canister_standard.get_top_down_view()
+        self.assertIsNotNone(fig1.data)
+        fig2 = self.canister_standard.get_right_left_view()
+        self.assertIsNotNone(fig2.data)
+
+        self.canister_standard.datum = (10, 100, 20)
+        fig3 = self.canister_standard.get_top_down_view()
+        self.assertIsNotNone(fig3.data)
+        fig4 = self.canister_standard.get_right_left_view()
+        self.assertIsNotNone(fig4.data)
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+        # fig4.show()
+
     def test_initialization_standard(self):
-        """Test standard cannister initialization"""
-        cannister = self.cannister_standard
-        self.assertEqual(cannister.width, 100.0)
-        self.assertEqual(cannister.length, 150.0)
-        self.assertEqual(cannister.height, 200.0)
-        self.assertEqual(cannister.wall_thickness, 2.0)
-        self.assertEqual(cannister.name, "Prismatic Cannister")
+        """Test standard canister initialization"""
+        canister = self.canister_standard
+        self.assertEqual(canister.width, 100.0)
+        self.assertEqual(canister.length, 150.0)
+        self.assertEqual(canister.height, 200.0)
+        self.assertEqual(canister.wall_thickness, 2.0)
+        self.assertEqual(canister.name, "Prismatic Canister")
 
     def test_inner_dimensions(self):
         """Test that inner dimensions are calculated correctly"""
-        cannister = self.cannister_standard
+        canister = self.canister_standard
         
         # Inner dimensions should account for wall thickness
         expected_inner_width = 100.0 - 2 * 2.0  # outer - 2*thickness
         expected_inner_length = 150.0 - 2 * 2.0
         expected_inner_height = 200.0 - 2.0  # height - bottom thickness
         
-        self.assertEqual(cannister.inner_width, expected_inner_width)
-        self.assertEqual(cannister.inner_length, expected_inner_length)
-        self.assertEqual(cannister.inner_height, expected_inner_height)
+        self.assertEqual(canister.inner_width, expected_inner_width)
+        self.assertEqual(canister.inner_length, expected_inner_length)
+        self.assertEqual(canister.inner_height, expected_inner_height)
 
     def test_bulk_properties(self):
         """Test bulk property calculations"""
-        cannister = self.cannister_standard
-        self.assertIsInstance(cannister.cost, (int, float))
-        self.assertIsInstance(cannister.mass, (int, float))
-        self.assertGreater(cannister.cost, 0)
-        self.assertGreater(cannister.mass, 0)
-        self.assertGreater(cannister.volume, 0)
+        canister = self.canister_standard
+        self.assertIsInstance(canister.cost, (int, float))
+        self.assertIsInstance(canister.mass, (int, float))
+        self.assertGreater(canister.cost, 0)
+        self.assertGreater(canister.mass, 0)
+        self.assertGreater(canister.volume, 0)
 
     def test_wall_thickness_effect(self):
         """Test that thicker walls result in more mass"""
-        standard_mass = self.cannister_standard.mass
-        thick_mass = self.cannister_thick_walls.mass
+        standard_mass = self.canister_standard.mass
+        thick_mass = self.canister_thick_walls.mass
         
         # Thicker walls should have more mass (even accounting for different materials)
         # Just check that both have reasonable positive values
@@ -2658,59 +2687,103 @@ class TestPrismaticCannister(unittest.TestCase):
 
     def test_setters(self):
         """Test dimension setters"""
-        cannister = self.cannister_standard
+        canister = self.canister_standard
+        fig1 = canister.get_right_left_view()
+        self.assertIsNotNone(fig1.data)
         
         # Test width setter
-        cannister.width = 120.0
-        self.assertEqual(cannister.width, 120.0)
+        canister.length = 200.0
+        self.assertEqual(canister.length, 200.0)
+        fig2 = canister.get_right_left_view()
+        self.assertIsNotNone(fig2.data)
         
         # Test height setter
-        cannister.height = 250.0
-        self.assertEqual(cannister.height, 250.0)
-        
+        canister.height = 250.0
+        self.assertEqual(canister.height, 250.0)
+        fig3 = canister.get_right_left_view()
+        self.assertIsNotNone(fig3.data)
+
         # Test wall thickness setter
-        cannister.wall_thickness = 3.0
-        self.assertEqual(cannister.wall_thickness, 3.0)
+        canister.wall_thickness = 3.0
+        self.assertEqual(canister.wall_thickness, 3.0)
+        fig4 = canister.get_right_left_view()
+        self.assertIsNotNone(fig4.data)
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+        # fig4.show()
+
+    def test_height_setter(self):
+        """Test that height setter updates inner height correctly"""
+        canister = self.canister_standard
+        canister.datum = (0, -97, 0)
+        fig1 = canister.get_right_left_view()
+        self.assertIsNotNone(fig1.data)
+        self.assertEqual(canister.datum, (0, -97, 0))
+        
+        # Set new height
+        canister.height = 250.0
+        self.assertEqual(canister.height, 250.0)
+        fig2 = canister.get_right_left_view()
+        self.assertIsNotNone(fig2.data)
+        self.assertEqual(canister.datum, (0, -97, 0))
+
+        # rotate canister
+        canister.rotated_z = True
+        fig3 = canister.get_top_down_view()
+        self.assertIsNotNone(fig3.data)
+
+        canister.height = 300.0
+        self.assertEqual(canister.height, 300.0)
+        fig4 = canister.get_top_down_view()
+        self.assertIsNotNone(fig4.data)
+
+        # fig1.show()
+        # fig2.show()
+
+        # fig3.show()
+        # fig4.show()
 
     def test_inner_dimension_setters(self):
         """Test that inner dimension setters update outer dimensions correctly"""
-        cannister = self.cannister_standard
+        canister = self.canister_standard
         
         # Set inner width
-        cannister.inner_width = 90.0
+        canister.inner_width = 90.0
         expected_outer = 90.0 + 2 * 2.0  # inner + 2*wall_thickness
-        self.assertEqual(cannister.inner_width, 90.0)
-        self.assertEqual(cannister.width, expected_outer)
+        self.assertEqual(canister.inner_width, 90.0)
+        self.assertEqual(canister.width, expected_outer)
         
         # Set inner height
-        cannister.inner_height = 190.0
+        canister.inner_height = 190.0
         expected_height = 190.0 + 2.0  # inner + wall_thickness
-        self.assertEqual(cannister.inner_height, 190.0)
-        self.assertEqual(cannister.height, expected_height)
+        self.assertEqual(canister.inner_height, 190.0)
+        self.assertEqual(canister.height, expected_height)
 
     def test_plots(self):
         """Test plotting functionality"""
         # base case
-        fig1 = self.cannister_standard.get_top_down_view()
+        fig1 = self.canister_standard.get_top_down_view()
         self.assertIsNotNone(fig1.data)
         
         # rotate around y axis and re-plot
-        self.cannister_standard.rotated_z = True
-        fig3 = self.cannister_standard.get_top_down_view()
+        self.canister_standard.rotated_z = True
+        fig3 = self.canister_standard.get_top_down_view()
         self.assertIsNotNone(fig3.data)
 
         # fig1.show()
         # fig3.show()
 
 
-
 class TestPrismaticEncapsulation(unittest.TestCase):
     def setUp(self):
+
         """Set up test fixtures for PrismaticEncapsulation tests"""
         from steer_opencell_design.Components.Containers.Prismatic import (
             PrismaticTerminalConnector,
             PrismaticLidAssembly,
-            PrismaticCannister,
+            PrismaticCanister,
             PrismaticEncapsulation
         )
         
@@ -2734,7 +2807,7 @@ class TestPrismaticEncapsulation(unittest.TestCase):
             fill_factor=0.9
         )
         
-        self.cannister = PrismaticCannister(
+        self.canister = PrismaticCanister(
             material=material,
             width=100.0,
             length=150.0,
@@ -2746,7 +2819,7 @@ class TestPrismaticEncapsulation(unittest.TestCase):
             cathode_terminal_connector=self.cathode_connector,
             anode_terminal_connector=self.anode_connector,
             lid_assembly=self.lid,
-            cannister=self.cannister
+            canister=self.canister
         )
 
     def test_initialization(self):
@@ -2755,7 +2828,7 @@ class TestPrismaticEncapsulation(unittest.TestCase):
         self.assertIsNotNone(enc.cathode_terminal_connector)
         self.assertIsNotNone(enc.anode_terminal_connector)
         self.assertIsNotNone(enc.lid_assembly)
-        self.assertIsNotNone(enc.cannister)
+        self.assertIsNotNone(enc.canister)
         self.assertEqual(enc.name, "Prismatic Encapsulation")
 
     def test_plots(self):
@@ -2791,19 +2864,19 @@ class TestPrismaticEncapsulation(unittest.TestCase):
         # fig6.show()
 
     def test_component_sizing(self):
-        """Test that components are sized correctly relative to cannister"""
+        """Test that components are sized correctly relative to canister"""
         enc = self.encapsulation
         
-        # Lid should match cannister inner dimensions
-        self.assertEqual(enc.lid_assembly.width, enc.cannister.inner_width)
-        self.assertEqual(enc.lid_assembly.length, enc.cannister.inner_length)
+        # Lid should match canister inner dimensions
+        self.assertEqual(enc.lid_assembly.width, enc.canister.inner_width)
+        self.assertEqual(enc.lid_assembly.length, enc.canister.inner_length)
         
-        # Terminal connectors should be sized relative to cannister
-        # They should be smaller than the cannister inner dimensions
-        self.assertLess(enc.cathode_terminal_connector.width, enc.cannister.inner_width)
-        self.assertLess(enc.cathode_terminal_connector.length, enc.cannister.inner_length)
-        self.assertLess(enc.anode_terminal_connector.width, enc.cannister.inner_width)
-        self.assertLess(enc.anode_terminal_connector.length, enc.cannister.inner_length)
+        # Terminal connectors should be sized relative to canister
+        # They should be smaller than the canister inner dimensions
+        self.assertLess(enc.cathode_terminal_connector.width, enc.canister.inner_width)
+        self.assertLess(enc.cathode_terminal_connector.length, enc.canister.inner_length)
+        self.assertLess(enc.anode_terminal_connector.width, enc.canister.inner_width)
+        self.assertLess(enc.anode_terminal_connector.length, enc.canister.inner_length)
 
     def test_component_positioning(self):
         """Test that components are positioned correctly"""
@@ -2814,10 +2887,10 @@ class TestPrismaticEncapsulation(unittest.TestCase):
         self.assertIsNotNone(enc.cathode_terminal_connector.datum)
         self.assertIsNotNone(enc.anode_terminal_connector.datum)
         
-        # Lid should be at top of cannister
+        # Lid should be at top of canister
         lid_y = enc.lid_assembly.datum[1]
-        cannister_top = enc.cannister.datum[1] + enc.cannister.height
-        self.assertAlmostEqual(lid_y, cannister_top - enc.lid_assembly.thickness / 2, places=1)
+        canister_top = enc.canister.datum[1] + enc.canister.height
+        self.assertAlmostEqual(lid_y, canister_top - enc.lid_assembly.thickness / 2, places=1)
         
         # Connectors should be offset horizontally (not at same x position)
         cathode_x = enc.cathode_terminal_connector.datum[0]
@@ -2832,7 +2905,7 @@ class TestPrismaticEncapsulation(unittest.TestCase):
         internal = enc.internal_height
         self.assertIsInstance(internal, (int, float))
         self.assertGreater(internal, 0)
-        self.assertLess(internal, enc.cannister.height)
+        self.assertLess(internal, enc.canister.height)
 
     def test_mass_and_cost_calculations(self):
         """Test that mass and cost are calculated correctly"""
@@ -2850,44 +2923,44 @@ class TestPrismaticEncapsulation(unittest.TestCase):
         self.assertIn("Cathode Terminal Connector", enc.mass_breakdown)
         self.assertIn("Anode Terminal Connector", enc.mass_breakdown)
         self.assertIn("Lid Assembly", enc.mass_breakdown)
-        self.assertIn("Cannister", enc.mass_breakdown)
+        self.assertIn("Canister", enc.mass_breakdown)
 
     def test_volume_property(self):
         """Test volume property"""
         enc = self.encapsulation
         self.assertGreater(enc.volume, 0)
-        # Volume should match cannister volume
-        self.assertEqual(enc.volume, enc.cannister.volume)
+        # Volume should match canister volume
+        self.assertEqual(enc.volume, enc.canister.volume)
 
     def test_dimension_properties(self):
         """Test that dimension properties work correctly"""
         enc = self.encapsulation
         
-        self.assertEqual(enc.width, enc.cannister.width)
-        self.assertEqual(enc.length, enc.cannister.length)
-        self.assertEqual(enc.height, enc.cannister.height)
+        self.assertEqual(enc.width, enc.canister.width)
+        self.assertEqual(enc.length, enc.canister.length)
+        self.assertEqual(enc.height, enc.canister.height)
 
     def test_dimension_setters(self):
-        """Test that dimension setters update cannister"""
+        """Test that dimension setters update canister"""
         enc = self.encapsulation
         
         # Test width setter
         enc.width = 120.0
         self.assertEqual(enc.width, 120.0)
-        self.assertEqual(enc.cannister.width, 120.0)
+        self.assertEqual(enc.canister.width, 120.0)
         
         # Test length setter
         enc.length = 180.0
         self.assertEqual(enc.length, 180.0)
-        self.assertEqual(enc.cannister.length, 180.0)
+        self.assertEqual(enc.canister.length, 180.0)
         
         # Test height setter
         enc.height = 250.0
         self.assertEqual(enc.height, 250.0)
-        self.assertEqual(enc.cannister.height, 250.0)
+        self.assertEqual(enc.canister.height, 250.0)
 
     def test_internal_height_setter(self):
-        """Test internal height setter adjusts cannister height"""
+        """Test internal height setter adjusts canister height"""
         enc = self.encapsulation
         
         original_height = enc.height
@@ -2937,6 +3010,140 @@ class TestPrismaticEncapsulation(unittest.TestCase):
         new_name = "Custom Prismatic Encapsulation"
         enc.name = new_name
         self.assertEqual(enc.name, new_name)
+
+    def test_modify_canister_dimensions(self):
+        """Test that modifying canister dimensions updates encapsulation"""
+        enc = self.encapsulation
+        fig1 = enc.canister.get_top_down_view()
+        fig2 = enc.get_top_down_view()
+        self.assertIsNotNone(fig1.data)
+        
+        # Modify canister dimensions
+        enc.canister.height = 300.0
+        fig3 = enc.canister.get_top_down_view()
+        enc.canister = enc.canister
+        fig4 = enc.get_top_down_view()
+        self.assertEqual(enc.height, 300.0)
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+        # fig4.show()
+
+    def test_modify_canister_dimensions_transverse(self):
+        """Test that modifying canister dimensions updates encapsulation"""
+        enc = self.encapsulation
+        fig1 = enc.get_top_down_view()
+
+        enc.connector_orientation = 'transverse'
+        fig2 = enc.get_top_down_view()
+
+        enc.canister.height = 300.0
+        fig3 = enc.canister.get_top_down_view()
+        enc.canister = enc.canister
+        fig4 = enc.get_top_down_view()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+        # fig4.show()
+
+    def test_modify_connector_orientation(self):
+        """Test that modifying connector orientation updates encapsulation"""
+        enc = self.encapsulation
+        fig1 = enc.get_right_left_view()
+
+        # change datum
+        enc.datum = (100, 200, 300)
+        fig2 = enc.get_right_left_view()
+
+        # set to transverse orientation and re-plot
+        enc.connector_orientation = 'transverse'
+        fig3 = enc.get_right_left_view()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+
+
+class TestFlexFrameEncapsulation(unittest.TestCase):
+
+    def setUp(self):
+
+        from steer_opencell_design.Components.Containers.Flexframe import FlexFrame, FlexFrameEncapsulation
+        from steer_opencell_design.Materials.Other import FlexFrameMaterial
+
+        material = FlexFrameMaterial(
+            name="PEEK",
+            density=1.3,
+            specific_cost=12
+        )
+
+        self.frame = FlexFrame(
+            material=material,
+            width=65,
+            height=84,
+            border_thickness=2,
+            cutout_height=76,
+            thickness=4.4
+        )
+
+        from steer_opencell_design.Components.Containers.Pouch import LaminateSheet
+        from steer_opencell_design.Components.Containers.Pouch import PouchTerminal
+        from steer_opencell_design.Materials.Other import PrismaticContainerMaterial
+
+        terminal_material = PrismaticContainerMaterial.from_database("Aluminum")
+
+        cathode_terminal = PouchTerminal(
+            material=terminal_material,
+            thickness=0.5,
+            width=10,
+            length=10
+        )
+
+        anode_terminal = PouchTerminal(
+            material=terminal_material,
+            thickness=0.5,
+            width=10,
+            length=10
+        )
+
+        laminate = LaminateSheet(
+            areal_cost=0.02,
+            density=1.4,
+            thickness=200
+        )
+
+        self.encapsulation = FlexFrameEncapsulation(
+            flex_frame=self.frame,
+            cathode_terminal=cathode_terminal,
+            anode_terminal=anode_terminal,
+            laminate_sheet=laminate
+        )
+
+    def test_basics(self):
+        self.assertEqual(self.frame.width, 65)
+        self.assertEqual(self.frame.height, 84)
+        self.assertEqual(self.frame.border_thickness, 2)
+        self.assertEqual(self.frame.cutout_height, 76)
+        self.assertEqual(self.frame.thickness, 4.4)
+        self.assertEqual(self.frame.mass, 4.71)
+        self.assertEqual(self.frame.cost, 0.06)
+
+        self.assertEqual(self.encapsulation.width, 65.4)
+        self.assertEqual(self.encapsulation.height, 84.4)
+        self.assertEqual(self.encapsulation.mass, 8.4)
+        self.assertEqual(self.encapsulation.cost, 0.06)
+
+    def test_plots(self):
+        fig1 = self.frame.get_top_down_view()
+        self.assertIsNotNone(fig1.data)
+
+        fig2 = self.encapsulation.get_top_down_view()
+        self.assertIsNotNone(fig2.data)
+
+        # fig1.show()
+        # fig2.show()
 
 
 if __name__ == '__main__':

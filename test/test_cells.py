@@ -1,8 +1,11 @@
 import unittest
+import warnings
 from copy import deepcopy
-
-from steer_opencell_design import *
 import steer_opencell_design as ocd
+from steer_opencell_design.Components.Containers.Flexframe import FlexFrameEncapsulation
+from steer_opencell_design.Components.Containers.Pouch import PouchTerminal
+from steer_core.Mixins.Serializer import SerializerMixin
+
 
 class TestCylindricalCell(unittest.TestCase):
     
@@ -12,22 +15,22 @@ class TestCylindricalCell(unittest.TestCase):
         # make a basic cathode
         ########################
 
-        material = CathodeMaterial.from_database("LFP")
+        material = ocd.CathodeMaterial.from_database("LFP")
         material.specific_cost = 6
         material.density = 3.6
 
-        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
-        binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+        conductive_additive = ocd.ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = ocd.Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
 
-        formulation = CathodeFormulation(
+        formulation = ocd.CathodeFormulation(
             active_materials={material: 95},
             binders={binder: 2},
             conductive_additives={conductive_additive: 3},
         )
 
-        current_collector_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
+        current_collector_material = ocd.CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
 
-        current_collector = NotchedCurrentCollector(
+        current_collector = ocd.NotchedCurrentCollector(
             material=current_collector_material,
             length=4500,
             width=300,
@@ -39,9 +42,9 @@ class TestCylindricalCell(unittest.TestCase):
             coated_tab_height=2,
         )
 
-        insulation = InsulationMaterial.from_database("Aluminium Oxide, 99.5%")
+        insulation = ocd.InsulationMaterial.from_database("Aluminium Oxide, 99.5%")
 
-        cathode = Cathode(
+        cathode = ocd.Cathode(
             formulation=formulation,
             mass_loading=12,
             current_collector=current_collector,
@@ -50,17 +53,17 @@ class TestCylindricalCell(unittest.TestCase):
             insulation_thickness=10,
         )
 
-        material = AnodeMaterial.from_database("Synthetic Graphite")
+        material = ocd.AnodeMaterial.from_database("Synthetic Graphite")
         material.specific_cost = 4
         material.density = 2.2
 
-        formulation = AnodeFormulation(
+        formulation = ocd.AnodeFormulation(
             active_materials={material: 90},
             binders={binder: 5},
             conductive_additives={conductive_additive: 5},
         )
 
-        current_collector = NotchedCurrentCollector(
+        current_collector = ocd.NotchedCurrentCollector(
             material=current_collector_material,
             length=4500,
             width=306,
@@ -74,7 +77,7 @@ class TestCylindricalCell(unittest.TestCase):
             bare_lengths_b_side=(150, 250),
         )
 
-        anode = Anode(
+        anode = ocd.Anode(
             formulation=formulation,
             mass_loading=7.2,
             current_collector=current_collector,
@@ -83,7 +86,7 @@ class TestCylindricalCell(unittest.TestCase):
             insulation_thickness=10,
         )
 
-        separator_material = SeparatorMaterial(
+        separator_material = ocd.SeparatorMaterial(
             name="Polyethylene",
             specific_cost=2,
             density=0.94,
@@ -91,67 +94,67 @@ class TestCylindricalCell(unittest.TestCase):
             porosity=45,
         )
 
-        top_separator = Separator(material=separator_material, thickness=25, width=310, length=5000)
+        top_separator = ocd.Separator(material=separator_material, thickness=25, width=310, length=5000)
 
-        bottom_separator = Separator(material=separator_material, thickness=25, width=310, length=7000)
+        bottom_separator = ocd.Separator(material=separator_material, thickness=25, width=310, length=7000)
 
-        layup = Laminate(
+        layup = ocd.Laminate(
             anode=anode,
             cathode=cathode,
             top_separator=top_separator,
             bottom_separator=bottom_separator,
         )
 
-        mandrel = RoundMandrel(
+        mandrel = ocd.RoundMandrel(
             diameter=5, 
             length=350,
         )
 
-        tape_material = TapeMaterial.from_database("Kapton")
+        tape_material = ocd.TapeMaterial.from_database("Kapton")
         tape_material.density = 1.42
         tape_material.specific_cost = 70
 
-        tape = Tape(
+        tape = ocd.Tape(
             material = tape_material,
             thickness=30
         )
 
-        my_jellyroll = WoundJellyRoll(
+        my_jellyroll = ocd.WoundJellyRoll(
             laminate=layup,
             mandrel=mandrel,
             tape=tape,
             additional_tape_wraps=5,
         )
         
-        aluminum = PrismaticContainerMaterial.from_database("Aluminum")
-        copper = PrismaticContainerMaterial.from_database("Copper")
+        aluminum = ocd.PrismaticContainerMaterial.from_database("Aluminum")
+        copper = ocd.PrismaticContainerMaterial.from_database("Copper")
 
-        cathode_connector = CylindricalTerminalConnector(
+        cathode_connector = ocd.CylindricalTerminalConnector(
             material=aluminum,
             thickness=2,
             fill_factor=0.8
         )
         
-        anode_connector = CylindricalTerminalConnector(
+        anode_connector = ocd.CylindricalTerminalConnector(
             material=copper,
             thickness=3,  # μm
             fill_factor=0.7
         )
         
-        lid = CylindricalLidAssembly(
+        lid = ocd.CylindricalLidAssembly(
             material=aluminum,
             thickness=4.0,  # mm
             fill_factor=0.9
         )
         
-        cannister = CylindricalCannister(
+        canister = ocd.CylindricalCanister(
             material=aluminum,
             outer_radius=21.4,  # mm
             height=330,  # mm
             wall_thickness=0.5  
         )
 
-        electrolyte = Electrolyte(
+        electrolyte = ocd.Electrolyte(
             name="1M LiPF6 in EC:DMC (1:1)",
             density=1.2,
             specific_cost=15.0,
@@ -159,18 +162,18 @@ class TestCylindricalCell(unittest.TestCase):
         )
         
         # Create encapsulation
-        encapsulation = CylindricalEncapsulation(
+        encapsulation = ocd.CylindricalEncapsulation(
             cathode_terminal_connector=cathode_connector,
             anode_terminal_connector=anode_connector,
             lid_assembly=lid,
-            cannister=cannister
+            canister=canister
         )
 
-        self.cell = CylindricalCell(
+        self.cell = ocd.CylindricalCell(
             reference_electrode_assembly=my_jellyroll,
             encapsulation=encapsulation,
             electrolyte=electrolyte,
-            electrolyte_overfill=0.2,
+            electrolyte_overfill=20,
         )
         
         # Store components for tests
@@ -178,10 +181,10 @@ class TestCylindricalCell(unittest.TestCase):
         self.cathode_connector = cathode_connector
         self.anode_connector = anode_connector
         self.lid = lid
-        self.cannister = cannister
+        self.canister = canister
 
     def test_basics(self):
-        self.assertIsInstance(self.cell, CylindricalCell)
+        self.assertIsInstance(self.cell, ocd.CylindricalCell)
         self.assertEqual(self.cell.energy, 124.09)
         self.assertEqual(self.cell.mass, 910.08)
         self.assertEqual(self.cell.specific_energy, 136.35)
@@ -302,47 +305,17 @@ class TestCylindricalCell(unittest.TestCase):
         self.cell.maximum_operating_voltage = max_range + 1.0
         self.assertAlmostEqual(self.cell.maximum_operating_voltage, max_range, 2)
         
-    def test_reference_electrode_assembly_setter(self):
-        """Test setting reference electrode assembly triggers recalculation."""
-        from steer_opencell_design.Constructions.Layups.Base import NPRatioControlMode
-        # get original np ratio
-        original_np_ratio = self.jellyroll.layup.np_ratio
-
-        # Create a new jellyroll with different properties
-        new_jellyroll = deepcopy(self.jellyroll)
-        new_jellyroll._layup._cathode.coating_thickness = 150  # Thicker coating
-        new_jellyroll._layup.cathode = new_jellyroll._layup._cathode
-        new_jellyroll.layup = new_jellyroll._layup
-        new_jellyroll._layup.np_ratio_control_mode = NPRatioControlMode.FIXED_CATHODE
-        new_jellyroll._layup.np_ratio = original_np_ratio  # keep np ratio same
-        new_jellyroll.radius = 20.8
-        
-        original_energy = self.cell.energy
-        
-        # Set new assembly
-        self.cell.reference_electrode_assembly = new_jellyroll
-        
-        # Check that cell properties changed
-        self.assertIsNotNone(self.cell.energy)
-        self.assertIsNotNone(self.cell.reversible_capacity)
-        
-        # Verify the assembly was updated
-        self.assertEqual(self.cell.reference_electrode_assembly, new_jellyroll)
-
-        # verify energy increased due to thicker cathode
-        self.assertGreater(self.cell.energy, original_energy)
-        
     def test_encapsulation_setter(self):
         """Test setting encapsulation triggers recalculation."""
         # Create new encapsulation with different dimensions
-        new_cannister = deepcopy(self.cannister)
-        new_cannister._length = 72  # Longer cannister
+        new_canister = deepcopy(self.canister)
+        new_canister._length = 72  # Longer canister
         
-        new_encapsulation = CylindricalEncapsulation(
+        new_encapsulation = ocd.CylindricalEncapsulation(
             cathode_terminal_connector=self.cathode_connector,
             anode_terminal_connector=self.anode_connector,
             lid_assembly=self.lid,
-            cannister=new_cannister
+            canister=new_canister
         )
         
         original_mass = self.cell.mass
@@ -350,7 +323,7 @@ class TestCylindricalCell(unittest.TestCase):
         # Set new encapsulation
         self.cell.encapsulation = new_encapsulation
         
-        # Check that mass changed (different cannister mass)
+        # Check that mass changed (different canister mass)
         self.assertIsNotNone(self.cell.mass)
         
         # Verify encapsulation was updated
@@ -359,7 +332,7 @@ class TestCylindricalCell(unittest.TestCase):
     def test_electrolyte_setter(self):
         """Test setting electrolyte updates cell properties."""
         # Create new electrolyte with different properties
-        new_electrolyte = Electrolyte(
+        new_electrolyte = ocd.Electrolyte(
             name="New Electrolyte",
             specific_cost=25,  # More expensive
             density=1.3,
@@ -377,14 +350,14 @@ class TestCylindricalCell(unittest.TestCase):
         
         # Verify electrolyte was updated
         self.assertEqual(self.cell.electrolyte, new_electrolyte)
-        
+
     def test_electrolyte_overfill_setter(self):
         """Test setting electrolyte overfill updates electrolyte mass."""
         original_overfill = self.cell.electrolyte_overfill
         original_mass = self.cell.mass
         
         # Increase overfill
-        new_overfill = 0.5  # 50% overfill instead of 20%
+        new_overfill = 50 
         self.cell.electrolyte_overfill = new_overfill
         
         # Check that mass increased (more electrolyte)
@@ -405,12 +378,12 @@ class TestCylindricalCell(unittest.TestCase):
         """Test that multiple setter calls maintain consistency."""
         # Change multiple properties
         self.cell.operating_voltage_window = (2.69, 3.9)
-        self.cell.electrolyte_overfill = 0.3
+        self.cell.electrolyte_overfill = 30
         self.cell.name = "Modified Cell"
         
         # Verify all properties are consistent
         self.assertEqual(self.cell.operating_voltage_window, (2.69, 3.9))
-        self.assertEqual(self.cell.electrolyte_overfill, 0.3)
+        self.assertEqual(self.cell.electrolyte_overfill, 30)
         self.assertEqual(self.cell.name, "Modified Cell")
         
         # Verify calculated properties are still valid
@@ -418,7 +391,40 @@ class TestCylindricalCell(unittest.TestCase):
         self.assertIsNotNone(self.cell.mass)
         self.assertIsNotNone(self.cell.cost)
         self.assertGreater(self.cell.reversible_capacity, 0)
+
+    def test_operating_voltage_window_consistency(self):
+
+        new_window = (2.69, 3.6)
+        self.cell.operating_voltage_window = new_window
+        self.assertEqual(self.cell.operating_voltage_window, new_window)
+
+        original_layup_window = self.cell.reference_electrode_assembly.layup.operating_voltage_window
+        self.assertEqual(original_layup_window, new_window)
+
+        # now change a material
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.density = 5
+        self.assertEqual(self.cell.operating_voltage_window, new_window)
+        self.assertEqual(self.cell.reference_electrode_assembly.layup.operating_voltage_window, new_window)
+
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1 = self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1
+        self.assertEqual(self.cell.operating_voltage_window, new_window)
+        self.assertEqual(self.cell.reference_electrode_assembly.layup.operating_voltage_window, new_window)
+        self.cell.reference_electrode_assembly.layup.cathode.formulation = self.cell.reference_electrode_assembly.layup.cathode.formulation
+        self.assertEqual(self.cell.operating_voltage_window, new_window)
+        self.assertEqual(self.cell.reference_electrode_assembly.layup.operating_voltage_window, new_window)
+
+        self.cell.reference_electrode_assembly.layup.cathode = self.cell.reference_electrode_assembly.layup.cathode
+        self.assertEqual(self.cell.operating_voltage_window, new_window)
+        self.assertEqual(self.cell.reference_electrode_assembly.layup.operating_voltage_window, new_window)
+
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.assertEqual(self.cell.operating_voltage_window, new_window)
+        self.assertEqual(self.cell.reference_electrode_assembly.layup.operating_voltage_window, new_window)
         
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+        self.assertEqual(self.cell.operating_voltage_window, new_window)
+        self.assertEqual(self.cell.reference_electrode_assembly.layup.operating_voltage_window, new_window)
+
     def test_setter_type_validation(self):
         """Test that setters validate input types."""
         # Test invalid type for reference_electrode_assembly
@@ -442,16 +448,18 @@ class TestCylindricalCell(unittest.TestCase):
         self.cell.maximum_operating_voltage = None
         self.assertIsNotNone(self.cell.maximum_operating_voltage)
 
-    def test_formulation_setter(self):
+    def test_cathode_formulation_setter(self):
 
-        material = CathodeMaterial.from_database("NMC811")
+        original_layup_length_range = self.cell.reference_electrode_assembly.layup.length_range
+
+        material = ocd.CathodeMaterial.from_database("NMC811")
         material.specific_cost = 25
         material.density = 4.8
 
-        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
-        binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+        conductive_additive = ocd.ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = ocd.Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
 
-        formulation = CathodeFormulation(
+        formulation = ocd.CathodeFormulation(
             active_materials={material: 95},
             binders={binder: 2},
             conductive_additives={conductive_additive: 3},
@@ -463,30 +471,406 @@ class TestCylindricalCell(unittest.TestCase):
         self.cell._reference_electrode_assembly.layup = self.cell._reference_electrode_assembly._layup
         self.cell.reference_electrode_assembly = self.cell._reference_electrode_assembly
 
+        self.assertEqual(
+            self.cell.reference_electrode_assembly.layup.length_range[0],
+            original_layup_length_range[0],
+        )
+
+        self.assertEqual(
+            self.cell.reference_electrode_assembly.layup.length_range[1],
+            original_layup_length_range[1],
+        )
+
         fig1 = self.cell.get_capacity_plot()
         # fig1.show()
+
+    def test_anode_formulation_setter(self):
+
+        original_layup_length_range = self.cell.reference_electrode_assembly.layup.length_range
+
+        material = ocd.AnodeMaterial.from_database("Synthetic Graphite")
+        material.specific_cost = 4
+        material.density = 2.2
+
+        conductive_additive = ocd.ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = ocd.Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+
+        formulation = ocd.AnodeFormulation(
+            active_materials={material: 90},
+            binders={binder: 5},
+            conductive_additives={conductive_additive: 5},
+        )
+
+        self.cell._reference_electrode_assembly._layup._anode.formulation = formulation
+        self.cell._reference_electrode_assembly._layup._anode.mass_loading = 10
+        self.cell._reference_electrode_assembly._layup.anode = self.cell._reference_electrode_assembly._layup._anode
+        self.cell._reference_electrode_assembly.layup = self.cell._reference_electrode_assembly._layup
+        self.cell.reference_electrode_assembly.radius = 20.9
+        self.cell.reference_electrode_assembly = self.cell._reference_electrode_assembly
+
+        self.assertEqual(
+            self.cell.reference_electrode_assembly.layup.length_range[0],
+            original_layup_length_range[0],
+        )
+
+        self.assertEqual(
+            self.cell.reference_electrode_assembly.layup.length_range[1],
+            original_layup_length_range[1],
+        )
+
+        fig1 = self.cell.get_capacity_plot()
+        # fig1.show()
+
+    def test_voltage_operating_range_after_active_material_removal(self):
+        warnings.filterwarnings('ignore')
+
+        fig1 = self.cell.get_capacity_plot()
+
+        # step 1 - set the active material as nmc
+        nmc = ocd.CathodeMaterial.from_database("NMC811")
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1 = nmc
+        self.cell.reference_electrode_assembly.layup.cathode.formulation = self.cell.reference_electrode_assembly.layup.cathode.formulation
+        self.cell.reference_electrode_assembly.layup.cathode.calender_density = 3.6
+        self.cell.reference_electrode_assembly.layup.cathode = self.cell.reference_electrode_assembly.layup.cathode
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+        self.cell.maximum_operating_voltage = 4.2
+        self.assertEqual(self.cell.maximum_operating_voltage, 4.2)
+        self.assertEqual(self.cell.maximum_operating_voltage_range[1], 4.22)
+
+        fig2 = self.cell.get_capacity_plot()
+
+        # step 2 - add lfp
+        lfp = ocd.CathodeMaterial.from_database("LFP")
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_2 = lfp
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_2_weight = 20
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1_weight = 75
+        self.cell.reference_electrode_assembly.layup.cathode.formulation = self.cell.reference_electrode_assembly.layup.cathode.formulation
+        self.cell.reference_electrode_assembly.layup.cathode = self.cell.reference_electrode_assembly.layup.cathode
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+        self.assertEqual(self.cell.maximum_operating_voltage, 4.04)
+        self.assertEqual(self.cell.maximum_operating_voltage_range[1], 4.04)
+
+        fig3 = self.cell.get_capacity_plot()
+
+        # step 3 - remove the lfp
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_2 = None
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1_weight = 95
+        self.cell.reference_electrode_assembly.layup.cathode.formulation = self.cell.reference_electrode_assembly.layup.cathode.formulation
+        self.cell.reference_electrode_assembly.layup.cathode = self.cell.reference_electrode_assembly.layup.cathode
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+        self.assertEqual(self.cell.maximum_operating_voltage, 4.04)
+        self.assertEqual(self.cell.maximum_operating_voltage_range[1], 4.22)
+
+        fig4 = self.cell.get_capacity_plot()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+        # fig4.show()
+
+    def test_cathode_blend_energy_change(self):
+        warnings.filterwarnings('ignore')
+        
+        """Test that cell energy changes when adding and removing a second cathode active material."""
+        
+        # Capture baseline energy (cell starts with 95% LFP cathode from setUp)
+        baseline_energy = self.cell.energy
+        self.assertIsNotNone(baseline_energy)
+
+        fig1 = self.cell.get_capacity_plot()
+        
+        # Load second cathode material
+        nmc811 = ocd.CathodeMaterial.from_database("NMC811")
+        nmc811.extrapolation_window = 0.5
+        
+        # Add second active material at 20%, reduce first material by 20%
+        formulation = self.cell.reference_electrode_assembly.layup.cathode.formulation
+        formulation.active_material_2 = nmc811
+        formulation.active_material_2_weight = 20
+        formulation.active_material_1_weight = 75  # 95 - 20 = 75
+        
+        # Propagate changes through hierarchy
+        self.cell.reference_electrode_assembly.layup.cathode.formulation = formulation
+        self.cell.reference_electrode_assembly.layup.cathode = self.cell.reference_electrode_assembly.layup.cathode
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+        
+        # Verify energy changed with blended cathode
+        blended_energy = self.cell.energy
+        self.assertNotEqual(blended_energy, baseline_energy, 
+                            "Energy should change when adding second active material")
+        
+        fig2 = self.cell.get_capacity_plot()
+
+        # Remove second material by setting it to None
+        formulation.active_material_2 = None
+        formulation.active_material_1_weight = 95  # Restore original weight
+        
+        # Propagate changes through hierarchy again
+        self.cell.reference_electrode_assembly.layup.cathode.formulation = formulation
+        self.cell.reference_electrode_assembly.layup.cathode = self.cell.reference_electrode_assembly.layup.cathode
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+        
+        # Verify energy changed back (differs from blended state)
+        restored_energy = self.cell.energy
+        self.assertNotEqual(restored_energy, blended_energy,
+                            "Energy should change when removing second active material")
+        
+        # Verify energy approximately returns to baseline
+        self.assertAlmostEqual(restored_energy, baseline_energy, places=1,
+                               msg="Energy should return close to baseline after removing second material")
+
+        fig3 = self.cell.get_capacity_plot()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+
+
+class TestCylindricalCellTabbed(unittest.TestCase):
+    
+    def setUp(self):
+
+        ########################
+        # make a basic cathode
+        ########################
+
+        material = ocd.CathodeMaterial.from_database("LFP")
+        material.specific_cost = 6
+        material.density = 3.6
+
+        conductive_additive = ocd.ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = ocd.Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+
+        formulation = ocd.CathodeFormulation(
+            active_materials={material: 95},
+            binders={binder: 2},
+            conductive_additives={conductive_additive: 3},
+        )
+
+        current_collector_material = ocd.CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
+
+        tab = ocd.WeldTab(material=current_collector_material, width=20, length=120, thickness=12)
+
+        current_collector = ocd.TabWeldedCurrentCollector(
+            material=current_collector_material,
+            weld_tab=tab,
+            length=4500,
+            width=300,
+            thickness=8,
+            skip_coat_width=30,
+            tab_overhang=20,
+            weld_tab_positions=[500, 1500, 2500, 3500],
+        )
+
+        cathode = ocd.Cathode(
+            formulation=formulation,
+            mass_loading=12,
+            current_collector=current_collector,
+            calender_density=2.60
+        )
+
+        material = ocd.AnodeMaterial.from_database("Synthetic Graphite")
+        material.specific_cost = 4
+        material.density = 2.2
+
+        formulation = ocd.AnodeFormulation(
+            active_materials={material: 90},
+            binders={binder: 5},
+            conductive_additives={conductive_additive: 5},
+        )
+
+        current_collector = ocd.TabWeldedCurrentCollector(
+            material=current_collector_material,
+            weld_tab=tab,
+            length=4500,
+            width=300,
+            thickness=8,
+            skip_coat_width=30,
+            tab_overhang=20,
+            weld_tab_positions=[1000, 2000, 3000, 4000],
+        )
+
+        anode = ocd.Anode(
+            formulation=formulation,
+            mass_loading=7.2,
+            current_collector=current_collector,
+            calender_density=1.1
+        )
+
+        separator_material = ocd.SeparatorMaterial(
+            name="Polyethylene",
+            specific_cost=2,
+            density=0.94,
+            color="#FDFDB7",
+            porosity=45,
+        )
+
+        top_separator = ocd.Separator(material=separator_material, thickness=25, width=310, length=5000)
+
+        bottom_separator = ocd.Separator(material=separator_material, thickness=25, width=310, length=7000)
+
+        layup = ocd.Laminate(
+            anode=anode,
+            cathode=cathode,
+            top_separator=top_separator,
+            bottom_separator=bottom_separator,
+        )
+
+        mandrel = ocd.RoundMandrel(
+            diameter=5, 
+            length=350,
+        )
+
+        tape_material = ocd.TapeMaterial.from_database("Kapton")
+        tape_material.density = 1.42
+        tape_material.specific_cost = 70
+
+        tape = ocd.Tape(
+            material = tape_material,
+            thickness=30
+        )
+
+        my_jellyroll = ocd.WoundJellyRoll(
+            laminate=layup,
+            mandrel=mandrel,
+            tape=tape,
+            additional_tape_wraps=5,
+            collector_tab_crumple_factor=70
+        )
+        
+        aluminum = ocd.PrismaticContainerMaterial.from_database("Aluminum")
+        copper = ocd.PrismaticContainerMaterial.from_database("Copper")
+
+        cathode_connector = ocd.CylindricalTerminalConnector(
+            material=aluminum,
+            thickness=2,
+            fill_factor=0.8
+        )
+        
+        anode_connector = ocd.CylindricalTerminalConnector(
+            material=copper,
+            thickness=3,  # μm
+            fill_factor=0.7
+        )
+        
+        lid = ocd.CylindricalLidAssembly(
+            material=aluminum,
+            thickness=4.0,  # mm
+            fill_factor=0.9
+        )
+        
+        canister = ocd.CylindricalCanister(
+            material=aluminum,
+            outer_radius=21.4,  # mm
+            height=322,  # mm
+            wall_thickness=0.5  
+        )
+
+        electrolyte = ocd.Electrolyte(
+            name="1M LiPF6 in EC:DMC (1:1)",
+            density=1.2,
+            specific_cost=15.0,
+            color="#00FF00"
+        )
+        
+        # Create encapsulation
+        encapsulation = ocd.CylindricalEncapsulation(
+            cathode_terminal_connector=cathode_connector,
+            anode_terminal_connector=anode_connector,
+            lid_assembly=lid,
+            canister=canister
+        )
+
+        self.cell = ocd.CylindricalCell(
+            reference_electrode_assembly=my_jellyroll,
+            encapsulation=encapsulation,
+            electrolyte=electrolyte,
+            electrolyte_overfill=20,
+        )
+        
+        # Store components for tests
+        self.jellyroll = my_jellyroll
+        self.cathode_connector = cathode_connector
+        self.anode_connector = anode_connector
+        self.lid = lid
+        self.canister = canister
+
+    def test_plots(self):
+
+        fig1 = self.cell.get_top_down_view()
+        fig2 = self.cell.get_cross_section()
+        fig3 = self.cell._reference_electrode_assembly._layup.get_top_down_view()
+        fig4 = self.cell._reference_electrode_assembly.get_top_down_view()
+
+        self.assertIsNotNone(fig1)
+        self.assertIsNotNone(fig2)
+        self.assertIsNotNone(fig3)
+        self.assertIsNotNone(fig4)
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+        # fig4.show()
+
+    def test_basics(self):
+        self.assertIsInstance(self.cell, ocd.CylindricalCell)
+        self.assertEqual(self.cell.energy, 132.3)
+        self.assertEqual(self.cell.mass, 920.95)
+        self.assertEqual(self.cell.specific_energy, 143.66)
+        self.assertEqual(self.cell.volumetric_energy, 285.58)
+        self.assertEqual(self.cell.cost_per_energy, 58.59)
+
+    def test_set_nmc(self):
+    
+        self.assertEqual(self.cell.maximum_operating_voltage, 4.03)
+        self.assertEqual(self.cell.minimum_operating_voltage, 2.27)
+        self.assertEqual(self.cell.reversible_capacity, 41.46)
+        self.assertEqual(self.cell.irreversible_capacity, 4.03)
+
+        fig1 = self.cell.get_capacity_plot()
+        self.assertIsNotNone(fig1)
+
+        # new material
+        new_material = ocd.CathodeMaterial.from_database("NMC811")
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1 = new_material
+        self.cell.reference_electrode_assembly.layup.cathode.formulation = self.cell.reference_electrode_assembly.layup.cathode.formulation
+        self.cell.reference_electrode_assembly.layup.cathode = self.cell.reference_electrode_assembly.layup.cathode
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly 
+
+        fig2 = self.cell.get_capacity_plot()
+        self.assertIsNotNone(fig2)
+
+        # fig1.show()
+        # fig2.show()
 
 
 class TestStackedPouchCell(unittest.TestCase):
     
     def setUp(self):
+        
         # Replicate MonoLayer setup similar to TestSimpleMonoLayer in test_layups
-        cathode_active = CathodeMaterial.from_database("LFP")
+        cathode_active = ocd.CathodeMaterial.from_database("LFP")
         cathode_active.specific_cost = 6
         cathode_active.density = 3.6
 
-        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
-        binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+        conductive_additive = ocd.ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = ocd.Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
 
-        cathode_formulation = CathodeFormulation(
+        cathode_formulation = ocd.CathodeFormulation(
             active_materials={cathode_active: 95},
             binders={binder: 2},
             conductive_additives={conductive_additive: 3},
         )
 
-        cathode_cc_material = CurrentCollectorMaterial(name="Copper", specific_cost=5, density=2.7, color="#FFAE00")
+        cathode_cc_material = ocd.CurrentCollectorMaterial(name="Copper", specific_cost=5, density=2.7, color="#FFAE00")
 
-        cathode_cc = PunchedCurrentCollector(
+        cathode_cc = ocd.PunchedCurrentCollector(
             material=cathode_cc_material,
             width=300,
             height=800,
@@ -496,26 +880,26 @@ class TestStackedPouchCell(unittest.TestCase):
             tab_position=50,
         )
 
-        cathode = Cathode(
+        cathode = ocd.Cathode(
             formulation=cathode_formulation,
             mass_loading=28.2,
             current_collector=cathode_cc,
             calender_density=2.60,
         )
 
-        anode_active = AnodeMaterial.from_database("Synthetic Graphite")
+        anode_active = ocd.AnodeMaterial.from_database("Synthetic Graphite")
         anode_active.specific_cost = 4
         anode_active.density = 2.2
 
-        anode_formulation = AnodeFormulation(
+        anode_formulation = ocd.AnodeFormulation(
             active_materials={anode_active: 90},
             binders={binder: 5},
             conductive_additives={conductive_additive: 5},
         )
 
-        cc_material = CurrentCollectorMaterial(name="Aluminium", specific_cost=5, density=2.7, color="#717171")
+        cc_material = ocd.CurrentCollectorMaterial(name="Aluminium", specific_cost=5, density=2.7, color="#717171")
 
-        anode_cc = PunchedCurrentCollector(
+        anode_cc = ocd.PunchedCurrentCollector(
             material=cc_material,
             width=300,
             height=800,
@@ -525,7 +909,7 @@ class TestStackedPouchCell(unittest.TestCase):
             tab_position=250,
         )
 
-        anode = Anode(
+        anode = ocd.Anode(
             formulation=anode_formulation,
             mass_loading=20.68,
             current_collector=anode_cc,
@@ -533,7 +917,7 @@ class TestStackedPouchCell(unittest.TestCase):
             insulation_thickness=10,
         )
 
-        separator_material = SeparatorMaterial(
+        separator_material = ocd.SeparatorMaterial(
             name="Polyethylene",
             specific_cost=2,
             density=0.94,
@@ -541,9 +925,9 @@ class TestStackedPouchCell(unittest.TestCase):
             porosity=45,
         )
 
-        separator = Separator(material=separator_material, thickness=25, width=310, length=326)
+        separator = ocd.Separator(material=separator_material, thickness=25, width=310, length=326)
 
-        monolayer = MonoLayer(
+        monolayer = ocd.MonoLayer(
             anode=anode,
             cathode=cathode,
             separator=separator,
@@ -551,38 +935,38 @@ class TestStackedPouchCell(unittest.TestCase):
         )
 
         # default stack for reuse in tests
-        stack = PunchedStack(
+        stack = ocd.PunchedStack(
             layup=monolayer, 
             n_layers=20
         )
 
-        top_laminate_sheet = LaminateSheet(
+        top_laminate_sheet = ocd.LaminateSheet(
             areal_cost=10,
             thickness=150,
             density=1500,
         )
 
-        bottom_laminate_sheet = LaminateSheet(
+        bottom_laminate_sheet = ocd.LaminateSheet(
             areal_cost=10,
             thickness=150,
             density=1500,
         )
 
-        cathode_terminal = PouchTerminal(
+        cathode_terminal = ocd.PouchTerminal(
             material=cc_material,
             thickness=2,
             width=50,
             length=40,
         )
 
-        anode_terminal = PouchTerminal(
+        anode_terminal = ocd.PouchTerminal(
             material=cc_material,
             thickness=2,
             width=50,
             length=40,
         )
 
-        encapsulation = PouchEncapsulation(
+        encapsulation = ocd.PouchEncapsulation(
             top_laminate=top_laminate_sheet,
             bottom_laminate=bottom_laminate_sheet,
             cathode_terminal=cathode_terminal,
@@ -591,26 +975,26 @@ class TestStackedPouchCell(unittest.TestCase):
             height=340,
         )
 
-        electrolyte = Electrolyte(
+        electrolyte = ocd.Electrolyte(
             name="1M LiPF6 in EC:DMC (1:1)",
             density=1.2,
             specific_cost=5.0,
             color="#00FF00"
         )
 
-        self.cell = PouchCell(
+        self.cell = ocd.PouchCell(
             reference_electrode_assembly=stack,
             n_electrode_assembly=2,
             encapsulation=encapsulation,
             electrolyte=electrolyte,
-            electrolyte_overfill=0.2,
+            electrolyte_overfill=20,
             clipped_tab_length=10
         )
 
     def test_basics(self):
-        self.assertIsInstance(self.cell, PouchCell)
+        self.assertIsInstance(self.cell, ocd.PouchCell)
         self.assertAlmostEqual(self.cell.energy, 2282.76, 1)
-        self.assertAlmostEqual(self.cell.mass, 14008.36, 0)
+        self.assertAlmostEqual(self.cell.mass, 129677.71, 0)
         self.assertAlmostEqual(self.cell.cost, 79.82, 1)
 
     def test_serialization(self):
@@ -768,7 +1152,7 @@ class TestStackedPouchCell(unittest.TestCase):
 
     def test_electrolyte_setter(self):
         """Test setting electrolyte updates cell properties."""
-        new_electrolyte = Electrolyte(
+        new_electrolyte = ocd.Electrolyte(
             name="New Electrolyte",
             specific_cost=10,
             density=1.3,
@@ -789,11 +1173,11 @@ class TestStackedPouchCell(unittest.TestCase):
         original_mass = self.cell.mass
         
         # Increase overfill
-        self.cell.electrolyte_overfill = 0.5
+        self.cell.electrolyte_overfill = 50
         
         # Check that mass increased
         self.assertGreater(self.cell.mass, original_mass)
-        self.assertEqual(self.cell.electrolyte_overfill, 0.5)
+        self.assertEqual(self.cell.electrolyte_overfill, 50)
 
     def test_n_electrode_assembly_setter(self):
         """Test setting number of electrode assemblies."""
@@ -882,173 +1266,52 @@ class TestStackedPouchCell(unittest.TestCase):
         self.assertIsNotNone(self.cell.cost)
         self.assertGreater(self.cell.reversible_capacity, 0)
 
-
-class TestStackedPouchCellTemp(unittest.TestCase):
-    
-    def setUp(self):
-
-        import steer_opencell_design as ocd
-
-        conductive_additive = ocd.ConductiveAdditive.from_database("Super P")
-        binder = ocd.Binder.from_database("PVDF")
-        insulation = ocd.InsulationMaterial.from_database("Aluminium Oxide, 95%")
-        separator_material = ocd.SeparatorMaterial.from_database('Polyethylene')
-        tape_material = ocd.TapeMaterial.from_database("Kapton")
-        prismatic_material = ocd.PrismaticContainerMaterial.from_database("Steel")
-
-        cathode_current_collector_material = ocd.CurrentCollectorMaterial.from_database('Aluminum')
-
-        cathode_current_collector=ocd.PunchedCurrentCollector(
-            material=cathode_current_collector_material,
-            width=300,
-            height=280,
-            tab_height=30,
-            tab_position=70,
-            tab_width=80,
-            thickness=10,
-            insulation_width=2
-        )
-
-        cathode_active_material = ocd.CathodeMaterial.from_database("NMC811")
-
-        cathode_formulation = ocd.CathodeFormulation(
-            active_materials={cathode_active_material: 95},
-            binders={binder: 2.5},
-            conductive_additives={conductive_additive: 2.5}
-        )
-
-        my_cathode = ocd.Cathode(
-            formulation=cathode_formulation,
-            current_collector=cathode_current_collector,
-            calender_density=3.1,
-            mass_loading=14,
-            insulation_material=insulation,
-            insulation_thickness=3
-        )
-
-        # Create the anode
-
-        cathode_current_collector_material = ocd.CurrentCollectorMaterial.from_database("Copper")
-
-        anode_current_collector = ocd.PunchedCurrentCollector(
-            material=cathode_current_collector_material,
-            width=300,
-            height=280,
-            tab_height=30,
-            tab_position=230,
-            tab_width=80,
-            thickness=10
-        )
-
-        anode_active_material = ocd.AnodeMaterial.from_database("Synthetic Graphite")
-
-        anode_formulation = ocd.AnodeFormulation(
-            active_materials={anode_active_material: 95},
-            binders={binder: 2.5},
-            conductive_additives={conductive_additive: 2.5}
-        )
-
-        my_anode = ocd.Anode(
-            formulation=anode_formulation,
-            current_collector=anode_current_collector,
-            calender_density=1.1,
-            mass_loading=9
-        )
-
-        # create the layup 
-
-        separator = ocd.Separator(
-            material=separator_material, 
-            thickness=12,
-            width=280,
-            length=300
-        )
-
-        my_layup = ocd.ZFoldMonoLayer(
-            cathode=my_cathode,
-            anode=my_anode,
-            separator=separator,
-        )
-
-        # create the stack assembly
-
-        my_stack = ocd.ZFoldStack(
-            layup=my_layup,
-            n_layers=40,
-            additional_separator_wraps=3
-        )
-
-        # make the electrolyte
-
-        my_electrolyte = ocd.Electrolyte(
-            name="1M NaPF6 in EC:PC:DMC (1:1:1 wt%)",
-            density=1.2,
-            specific_cost=10,
-            color="#FF9D00"
-        )
-
-        top_laminate = ocd.LaminateSheet(
-            areal_cost=0.06,
-            density=1.4,
-            thickness=80
-        )
-
-        bottom_laminate = ocd.LaminateSheet(
-            areal_cost=0.06,
-            density=1.4,
-            thickness=80
-        )
-
-        cathode_terminal_connector = ocd.PouchTerminal(
-            material=prismatic_material,
-            width=50,
-            length=10,
-            thickness=1
-        )
-
-        anode_terminal_connector = ocd.PouchTerminal(
-            material=prismatic_material,
-            width=50,
-            length=10,
-            thickness=1
-        )
-
-        encapsulation = ocd.PouchEncapsulation(
-            top_laminate=top_laminate,
-            bottom_laminate=bottom_laminate,
-            cathode_terminal=cathode_terminal_connector,
-            anode_terminal=anode_terminal_connector
-        )
-
-        self.cell = ocd.PouchCell(
-            reference_electrode_assembly=my_stack,
-            electrolyte=my_electrolyte,
-            electrolyte_overfill=0.1,
-            encapsulation=encapsulation,
-            n_electrode_assembly=1,
-            clipped_tab_length=10
-        )
-
-    def test_plots(self):
-
-        fig1 = self.cell.plot_mass_breakdown()
-        fig2 = self.cell.plot_cost_breakdown()
-        fig3 = self.cell.get_capacity_plot()
-        fig4 = self.cell.get_side_view()
-        fig5 = self.cell.get_top_down_view(opacity=0.6)
-
-        self.assertIsNotNone(fig1)
-        self.assertIsNotNone(fig2)
-        self.assertIsNotNone(fig3)
-        self.assertIsNotNone(fig4)
-        self.assertIsNotNone(fig5)
-
-        # fig1.show()
-        # fig2.show()
-        # fig3.show()
-        # fig4.show()
-        # fig5.show()
-
+    def test_add_anode_material_adjust_weights_and_serialize(self):
+        """
+        Test adding a second active material to anode formulation at cell level,
+        adjusting weights, and serialization/deserialization.
+        """
+        warnings.filterwarnings('ignore')
+        
+        # Create a second anode active material
+        anode_active_2 = ocd.AnodeMaterial.from_database("Hard Carbon (Vendor A)")
+        anode_active_2.specific_cost = 8
+        anode_active_2.density = 1.5
+        
+        # Add second active material to the anode formulation
+        self.cell.reference_electrode_assembly.layup.anode.formulation.active_material_2 = anode_active_2
+        
+        # Adjust weights: set material 2 to 10%, reduce material 1 by 10%
+        self.cell.reference_electrode_assembly.layup.anode.formulation.active_material_2_weight = 10
+        original_weight = self.cell.reference_electrode_assembly.layup.anode.formulation.active_material_1_weight
+        self.cell.reference_electrode_assembly.layup.anode.formulation.active_material_1_weight = original_weight - 10
+        
+        # Propagate changes up the hierarchy
+        self.cell.reference_electrode_assembly.layup.anode.formulation = self.cell.reference_electrode_assembly.layup.anode.formulation
+        self.cell.reference_electrode_assembly.layup.anode = self.cell.reference_electrode_assembly.layup.anode
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+        
+        # Verify the weights are correct
+        self.assertEqual(self.cell.reference_electrode_assembly.layup.anode.formulation.active_material_1_weight, 80)
+        self.assertEqual(self.cell.reference_electrode_assembly.layup.anode.formulation.active_material_2_weight, 10)
+        self.assertEqual(len(self.cell.reference_electrode_assembly.layup.anode.formulation._active_materials), 2)
+        
+        # Serialize the cell
+        serialized = self.cell.serialize()
+        
+        # Deserialize using SerializerMixin.deserialize()
+        deserialized = SerializerMixin.deserialize(serialized)
+        
+        # Verify the deserialized cell has correct structure
+        self.assertIsInstance(deserialized, ocd.PouchCell)
+        self.assertEqual(deserialized.reference_electrode_assembly.layup.anode.formulation.active_material_1_weight, 80)
+        self.assertEqual(deserialized.reference_electrode_assembly.layup.anode.formulation.active_material_2_weight, 10)
+        self.assertEqual(len(deserialized.reference_electrode_assembly.layup.anode.formulation._active_materials), 2)
+        
+        # Verify energy and mass are preserved
+        self.assertAlmostEqual(deserialized.energy, self.cell.energy, 2)
+        self.assertAlmostEqual(deserialized.mass, self.cell.mass, 2)
 
 
 class TestStackedPrismaticCell(unittest.TestCase):
@@ -1155,7 +1418,7 @@ class TestStackedPrismaticCell(unittest.TestCase):
             fill_factor=0.8
         )
 
-        cannister = ocd.PrismaticCannister(
+        canister = ocd.PrismaticCanister(
             material=prismatic_material,
             wall_thickness=1,
             length=85,
@@ -1181,7 +1444,7 @@ class TestStackedPrismaticCell(unittest.TestCase):
             cathode_terminal_connector=cathode_connector_terminal,
             anode_terminal_connector=anode_connector_terminal,
             lid_assembly=lid,
-            cannister=cannister
+            canister=canister
         )
 
         self.cell = ocd.PrismaticCell(
@@ -1189,7 +1452,7 @@ class TestStackedPrismaticCell(unittest.TestCase):
             n_electrode_assembly=6,
             encapsulation=encapsulation,
             electrolyte=electrolyte,
-            electrolyte_overfill=0.2,
+            electrolyte_overfill=20,
             clipped_tab_length=7
         )
 
@@ -1281,7 +1544,7 @@ class TestStackedPrismaticCell(unittest.TestCase):
 
     def test_electrolyte_setter(self):
         """Test setting electrolyte updates cell properties."""
-        new_electrolyte = Electrolyte(
+        new_electrolyte = ocd.Electrolyte(
             name="New Electrolyte",
             specific_cost=10,
             density=1.3,
@@ -1302,11 +1565,11 @@ class TestStackedPrismaticCell(unittest.TestCase):
         original_mass = self.cell.mass
         
         # Increase overfill
-        self.cell.electrolyte_overfill = 0.5
+        self.cell.electrolyte_overfill = 50
         
         # Check that mass increased
         self.assertGreater(self.cell.mass, original_mass)
-        self.assertEqual(self.cell.electrolyte_overfill, 0.5)
+        self.assertEqual(self.cell.electrolyte_overfill, 50)
 
     def test_n_electrode_assembly_setter(self):
         """Test setting number of electrode assemblies."""
@@ -1368,6 +1631,40 @@ class TestStackedPrismaticCell(unittest.TestCase):
         self.assertIsNotNone(self.cell.mass)
         self.assertIsNotNone(self.cell.cost)
         self.assertGreater(self.cell.reversible_capacity, 0)
+
+    def test_encapsulation_parameter_setters(self):
+
+        fig1 = self.cell.get_side_view()
+
+        self.cell.encapsulation.canister.height = 600
+        self.cell.encapsulation.canister = self.cell.encapsulation.canister
+        self.cell.encapsulation = self.cell.encapsulation
+        fig2 = self.cell.get_side_view()
+
+        self.cell.encapsulation.canister.length = 160
+        self.cell.encapsulation.canister = self.cell.encapsulation.canister
+        self.cell.encapsulation = self.cell.encapsulation
+        fig3 = self.cell.get_side_view()
+
+        # fig1.show(renderer="browser")
+        # fig2.show(renderer="browser")
+        # fig3.show(renderer="browser")
+
+    def test_assembly_orientation_setter(self):
+
+        fig1 = self.cell.get_top_down_view()
+
+        self.cell.reference_electrode_assembly.layup.electrode_orientation = 'transverse'
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+
+        fig2 = self.cell.get_top_down_view()
+        
+        self.assertIsNotNone(fig1)
+        self.assertIsNotNone(fig2)
+
+        # fig1.show()
+        # fig2.show()
 
 
 class TestFlatJellyRollPrismatic(unittest.TestCase):
@@ -1504,7 +1801,7 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
             thickness=8,
         )
 
-        cannister = ocd.PrismaticCannister(
+        canister = ocd.PrismaticCanister(
             material=prismatic_material,
             width=138,
             length=74,
@@ -1513,7 +1810,7 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
         )
 
         encapsulation = ocd.PrismaticEncapsulation(
-            cannister=cannister,
+            canister=canister,
             cathode_terminal_connector=cathode_terminal_connector,
             anode_terminal_connector=anode_terminal_connector,
             lid_assembly=lid_assembly,
@@ -1523,7 +1820,7 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
         self.cell = ocd.PrismaticCell(
             reference_electrode_assembly=jellyroll,
             electrolyte=electrolyte,
-            electrolyte_overfill=0.1,
+            electrolyte_overfill=10,
             encapsulation=encapsulation,
             n_electrode_assembly=4,
             operating_voltage_window=(2, 3.96),
@@ -1536,12 +1833,381 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
     def test_plots(self):
         fig1 = self.cell.get_top_down_view()
         fig2 = self.cell.get_side_view()
+        fig3 = self.cell.get_capacity_plot()
         # fig1.show()
         # fig2.show()
         # fig3.show()
-        # fig4.show()
+
+    def test_active_material_cutoff_voltage_setter(self):
+
+        self.assertEqual(self.cell.irreversible_capacity, 13.83)
+        self.assertEqual(self.cell.reversible_capacity, 58.82)
+        self.assertEqual(self.cell.minimum_operating_voltage, 2.0)
+        self.assertEqual(self.cell.maximum_operating_voltage, 3.96)
+
+        fig1 = self.cell.get_capacity_plot()
+        self.assertIsNotNone(fig1)
+
+        # change the active material
+        new_active_material = ocd.CathodeMaterial.from_database("NFM111 (Vendor C)")
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_materials = {new_active_material: 95}
+        self.cell.reference_electrode_assembly.layup.cathode.formulation = self.cell.reference_electrode_assembly.layup.cathode.formulation
+        self.cell.reference_electrode_assembly.layup.cathode = self.cell.reference_electrode_assembly.layup.cathode
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+
+        fig2 = self.cell.get_capacity_plot()
+        self.assertIsNotNone(fig2)
+
+        self.assertEqual(self.cell.irreversible_capacity, 15.25)
+        self.assertEqual(self.cell.reversible_capacity, 54.98)
+        self.assertEqual(self.cell.minimum_operating_voltage, 2)
+        self.assertEqual(self.cell.maximum_operating_voltage, 3.96)
+        
+        # fig1.show()
+        # fig2.show()
+
+    def test_separator_material_setter(self):
+
+        new_separator_material = ocd.SeparatorMaterial(
+            name="Cellulose",
+            specific_cost=1,
+            density=0.8,
+            color="#FDFDB7",
+            porosity=30,
+        )
+
+        self.cell.reference_electrode_assembly.layup.top_separator.material = new_separator_material
+        self.cell.reference_electrode_assembly.layup.bottom_separator.material = new_separator_material
+        self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+
+        self.assertEqual(self.cell.reference_electrode_assembly.layup.top_separator.material.name, "Cellulose")
 
 
+class TestFlexFrameCell(unittest.TestCase):
+
+    def setUp(self):
+
+        from steer_core.Constants.Units import UM_TO_MM
+
+        ####################
+        # Parameters Setup #
+        ####################
+
+        CELL_WIDTH = 65.4      # mm
+        CELL_HEIGHT = 84.5     # mm
+        CELL_THICKNESS = 4.6   # mm
+
+        LAMINATE_THICKNESS = 200  # microns
+
+        FLEXFRAME_WIDTH = CELL_WIDTH - (LAMINATE_THICKNESS * UM_TO_MM * 2)          # mm
+        FLEXFRAME_HEIGHT = CELL_HEIGHT - (LAMINATE_THICKNESS * UM_TO_MM * 2)        # mm
+        FLEXFRAME_THICKNESS = CELL_THICKNESS - (LAMINATE_THICKNESS * UM_TO_MM * 2)  # mm
+        FLEXFRAME_BORDER_THICKNESS = 2                                              # mm
+        FLEXFRAME_TOP_BORDER_THICKNESS = 10                                         # mm
+        FLEXFRAME_CUTOUT_HEIGHT = FLEXFRAME_HEIGHT - FLEXFRAME_TOP_BORDER_THICKNESS # mm
+
+        PEEK_DENSITY = 1.3       # g/cm3
+        PEEK_SPECIFIC_COST = 12  # $/kg
+
+        TERMINAL_THICKNESS = 0.5  # mm
+        TERMINAL_WIDTH = 10       # mm
+        TERMINAL_LENGTH = 10      # mm
+
+        LAMINATE_AREAL_COST = 0.02  # $/cm2
+        LAMINATE_DENSITY = 1.4      # g/cm3
+        LAMINATE_THICKNESS = 200    # microns
+
+        STACK_WIDTH = FLEXFRAME_WIDTH - 2 * FLEXFRAME_BORDER_THICKNESS          # mm
+        STACK_HEIGHT = FLEXFRAME_CUTOUT_HEIGHT                                  # mm
+        ELECTROLYTE_TO_ANODE_OVERHGANG = 1                                      # mm
+        ANODE_TO_CATHODE_OVERHANG = 1                                           # mm
+
+        ANODE_WIDTH = STACK_WIDTH - 2 * ELECTROLYTE_TO_ANODE_OVERHGANG          # mm
+        ANODE_HEIGHT = STACK_HEIGHT - 2 * ELECTROLYTE_TO_ANODE_OVERHGANG        # mm
+        CATHODE_WIDTH = ANODE_WIDTH - 2 * ANODE_TO_CATHODE_OVERHANG             # mm
+        CATHODE_HEIGHT = ANODE_HEIGHT - 2 * ANODE_TO_CATHODE_OVERHANG           # mm
+        STACK_THICKNESS = FLEXFRAME_THICKNESS                                   # mm
+        TAB_HEIGHT = 8                                                          # mm
+        CATHODE_TAB_POSITION = CATHODE_WIDTH / 4                                # mm
+        ANODE_TAB_POSITION = ANODE_WIDTH * 3 / 4                                # mm
+        TAB_WIDTH = 16                                                          # mm
+
+        CATHODE_CURRENT_COLLECTOR_THICKNESS = 12                                # mm
+        ANODE_CURRENT_COLLECTOR_THICKNESS = 8                                   # mm
+
+        ACTIVE_MATERIAL_FRACTION = 95
+        BINDER_FRACTION = 2.5
+        CONDUCTIVE_ADDITIVE_FRACTION = 2.5
+
+        CATHODE_CALENDER_DENSITY = 3.1      # g/cm3
+        CATHODE_MASS_LOADING = 30           # mg/cm2
+        LITHIUM_MASS_LOADING = 2.1          # mg/cm2
+
+        LLZO_THICKNESS = 50               # microns
+
+        ALUMINUM_DENSITY = 2.7            # g/cm3
+        COPPER_DENSITY = 8.96             # g/cm3
+        NMC_DENSITY = 4.75 / 1.08         # g/cm3 adjusted for delithiation
+        BINDER_DENSITY = 1.78             # g/cm3
+        CONDUCTIVE_ADDITIVE_DENSITY = 2.0 # g/cm3
+        LITHIUM_DENSITY = 0.534           # g/cm3
+        LLZO_DENSITY = 5.1                # g/cm3
+        CATHOLYTE_DENSITY = 1.3           # g/cm3
+
+        ALUMINUM_SPECIFIC_COST = 5.0              # $/kg
+        COPPER_SPECIFIC_COST = 9.0                # $/kg
+        NMC_SPECIFIC_COST = 25.0 * 1.08           # $/kg adjusted for delithiation
+        BINDER_SPECIFIC_COST = 10.0               # $/kg
+        CONDUCTIVE_ADDITIVE_SPECIFIC_COST = 15.0  # $/kg
+        LITHIUM_SPECIFIC_COST = 0                 # $/kg
+        LLZO_SPECIFIC_COST = 50.0                 # $/kg
+        CATHOLYTE_SPECIFIC_COST = 20.0            # $/kg
+
+        #####################################
+        # Make the flex frame encapsulation #
+        #####################################
+
+        material = ocd.FlexFrameMaterial(
+            name="PEEK",
+            density=PEEK_DENSITY,
+            specific_cost=PEEK_SPECIFIC_COST
+        )
+
+        frame = ocd.FlexFrame(
+            material=material,
+            width=FLEXFRAME_WIDTH,
+            height=FLEXFRAME_HEIGHT,
+            border_thickness=FLEXFRAME_BORDER_THICKNESS,
+            cutout_height=FLEXFRAME_CUTOUT_HEIGHT,
+            thickness=FLEXFRAME_THICKNESS
+        )
+
+        terminal_material = ocd.PrismaticContainerMaterial.from_database("Aluminum")
+
+        cathode_terminal = ocd.PouchTerminal(
+            material=terminal_material,
+            thickness=TERMINAL_THICKNESS,
+            width=TERMINAL_WIDTH,
+            length=TERMINAL_LENGTH
+        )
+
+        anode_terminal = ocd.PouchTerminal(
+            material=terminal_material,
+            thickness=TERMINAL_THICKNESS,
+            width=TERMINAL_WIDTH,
+            length=TERMINAL_LENGTH
+        )
+
+        laminate = ocd.LaminateSheet(
+            areal_cost=LAMINATE_AREAL_COST,
+            density=LAMINATE_DENSITY,
+            thickness=LAMINATE_THICKNESS
+        )
+
+        encapsulation = ocd.FlexFrameEncapsulation(
+            flex_frame=frame,
+            cathode_terminal=cathode_terminal,
+            anode_terminal=anode_terminal,
+            laminate_sheet=laminate
+        )
+
+        ####################
+        # Make the cathode #
+        ####################
+
+        cathode_current_collector_material = ocd.CurrentCollectorMaterial.from_database('Aluminum')
+        cathode_current_collector_material.density = ALUMINUM_DENSITY
+        cathode_current_collector_material.specific_cost = ALUMINUM_SPECIFIC_COST
+
+        cathode_current_collector=ocd.PunchedCurrentCollector(
+            material=cathode_current_collector_material,
+            width=CATHODE_WIDTH,
+            height=CATHODE_HEIGHT,
+            tab_height=TAB_HEIGHT,
+            tab_position=CATHODE_TAB_POSITION,
+            tab_width=TAB_WIDTH,
+            thickness=CATHODE_CURRENT_COLLECTOR_THICKNESS
+        )
+
+        cathode_active_material = ocd.CathodeMaterial.from_database("NMC811")
+        cathode_active_material.density = NMC_DENSITY
+        cathode_active_material.specific_cost = NMC_SPECIFIC_COST
+
+        binder = ocd.Binder.from_database("PVDF")
+        binder.density = BINDER_DENSITY
+        binder.specific_cost = BINDER_SPECIFIC_COST
+
+        conductive_additive = ocd.ConductiveAdditive.from_database("Super P")
+        conductive_additive.density = CONDUCTIVE_ADDITIVE_DENSITY
+        conductive_additive.specific_cost = CONDUCTIVE_ADDITIVE_SPECIFIC_COST
+
+        cathode_formulation = ocd.CathodeFormulation(
+            active_materials={cathode_active_material: ACTIVE_MATERIAL_FRACTION},
+            binders={binder: BINDER_FRACTION},
+            conductive_additives={conductive_additive: CONDUCTIVE_ADDITIVE_FRACTION}
+        )
+
+        cathode = ocd.Cathode(
+            formulation=cathode_formulation,
+            current_collector=cathode_current_collector,
+            calender_density=CATHODE_CALENDER_DENSITY,
+            mass_loading=CATHODE_MASS_LOADING,
+        )
+
+        ##################
+        # Make the anode #
+        ##################
+
+        # create anode active material
+        import pandas as pd
+
+        spec_cap = [0, 5000, 5000, 0]
+        voltage = [0, 0.001, 0.001, 0]
+        direction = ['charge', 'charge', 'discharge', 'discharge']
+
+        half_cell_curve = pd.DataFrame({
+            'specific_capacity': spec_cap,
+            'voltage': voltage,
+            'direction': direction
+        })
+
+        lithium_metal_anode_material = ocd.AnodeMaterial(
+            name="Lithium Metal",
+            specific_capacity_curves=half_cell_curve,
+            density=LITHIUM_DENSITY,
+            specific_cost=LITHIUM_SPECIFIC_COST,
+            reference="Li/Li+",
+            color="#C9C9C9"
+        )
+
+        anode_current_collector_material = ocd.CurrentCollectorMaterial.from_database('Copper')
+        anode_current_collector_material.density = COPPER_DENSITY
+        anode_current_collector_material.specific_cost = COPPER_SPECIFIC_COST
+
+        anode_current_collector = ocd.PunchedCurrentCollector(
+            material=anode_current_collector_material,
+            width=ANODE_WIDTH,
+            height=ANODE_HEIGHT,
+            tab_height=TAB_HEIGHT,
+            tab_position=ANODE_TAB_POSITION,
+            tab_width=TAB_WIDTH,
+            thickness=ANODE_CURRENT_COLLECTOR_THICKNESS
+        )
+
+        anode_formulation = ocd.AnodeFormulation(
+            active_materials={lithium_metal_anode_material: 100},
+        )
+
+        anode = ocd.Anode(
+            formulation=anode_formulation,
+            current_collector=anode_current_collector,
+            calender_density=LITHIUM_DENSITY,
+            mass_loading=LITHIUM_MASS_LOADING
+        )
+
+        ####################################
+        # Create the electrolyte/separator #
+        ####################################
+
+        separator_material = ocd.SeparatorMaterial(
+            porosity=0,
+            density=LLZO_DENSITY,
+            specific_cost=LLZO_SPECIFIC_COST,
+            name="LLZO",
+            color="#D8D6D0"
+        )
+
+        separator = ocd.Separator(
+            material=separator_material, 
+            thickness=LLZO_THICKNESS,
+            width=STACK_WIDTH,
+            length=STACK_HEIGHT,
+        )
+
+        ####################
+        # Create the stack #
+        ####################
+
+        layup = ocd.MonoLayer(
+            cathode=cathode,
+            anode=anode,
+            separator=separator,
+        )
+
+        stack = ocd.PunchedStack(
+            layup=layup,
+            n_layers=1
+        )
+
+        stack.thickness = STACK_THICKNESS
+
+        ########################
+        # Create the catholyte #
+        ########################
+
+        catholyte = ocd.Electrolyte(
+            name="gel catholyte",
+            density=CATHOLYTE_DENSITY,
+            specific_cost=CATHOLYTE_SPECIFIC_COST,
+            color="#FFBE55"
+        )
+
+        #################
+        # Make the cell #
+        #################
+
+        self.cell = ocd.FlexFrameCell(
+            electrode_assembly=stack,
+            encapsulation=encapsulation,
+            catholyte=catholyte,
+            clipped_tab_length=8
+        )
+
+    def test_basics(self):
+        self.assertTrue(type(self.cell) is ocd.FlexFrameCell)
+        self.assertEqual(self.cell.cost, 2.05)
+        self.assertEqual(self.cell.mass, 67.43)
+        self.assertEqual(self.cell.energy, 17.64)
+
+    def test_plots(self):
+        fig1 = self.cell.get_top_down_view()
+        fig2 = self.cell.electrode_assembly.get_side_view()
+        self.assertIsNotNone(fig1)
+        self.assertIsNotNone(fig2)
+        # fig1.show()
+        # fig2.show()
+
+
+class TestFromLoadedCell(unittest.TestCase):
+
+    def setUp(self):
+
+        self.cell = ocd.CylindricalCell.from_database(table_name="cell_references", name="LFP Cylindrical Tabless Cell")
+
+    def test_basics(self):
+        self.assertTrue(type(self.cell) is ocd.CylindricalCell)
+        self.assertIsNotNone(self.cell.energy)
+        self.assertIsNotNone(self.cell.mass)
+        self.assertIsNotNone(self.cell.cost)
+
+    def test_radius_setter(self):
+        import time
+        new_radius = 12.3
+        
+        start_time = time.time()
+        self.cell.reference_electrode_assembly.radius = new_radius
+        end_time = time.time()
+        print(f"Radius setter execution time: {end_time - start_time} seconds")
+
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+        self.assertAlmostEqual(self.cell.reference_electrode_assembly.radius, new_radius)
+
+    def test_plot(self):
+        fig1 = self.cell.get_cross_section()
+        self.assertIsNotNone(fig1)
+        # fig1.show()
 
 
 if __name__ == "__main__":

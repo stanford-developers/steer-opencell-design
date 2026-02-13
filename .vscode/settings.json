@@ -1,14 +1,15 @@
 {
-  "python.analysis.extraPaths": [
-    "/Users/nsiemons/Drive/Code_projects/STEER/steer-core"
-  ],
-  "python.testing.unittestArgs": [
-    "-v",
-    "-s",
-    "./test",
-    "-p",
-    "test_*.py"
-  ],
+  "python.defaultInterpreterPath": "/Users/nsiemons/anaconda3/envs/STEER/bin/python",
+  "python.testing.unittestArgs": ["-v", "-s", "./test", "-p", "test_*.py"],
   "python.testing.pytestEnabled": false,
-  "python.testing.unittestEnabled": true
+  "python.testing.unittestEnabled": true,
+  "python-envs.defaultEnvManager": "ms-python.python:conda",
+  "python-envs.defaultPackageManager": "ms-python.python:conda",
+  "python-envs.pythonProjects": [],
+  "basedpyright.analysis.typeCheckingMode": "off",
+  "basedpyright.disableLanguageServices": true,
+  "python.analysis.typeCheckingMode": "off",
+  "python.analysis.extraPaths": [
+    "../steer-core"
+  ]
 }
