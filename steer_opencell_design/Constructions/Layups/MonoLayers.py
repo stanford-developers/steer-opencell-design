@@ -1,3 +1,5 @@
+"""Single-separator layup configurations for stacked electrode assemblies."""
+
 from copy import copy, deepcopy
 from enum import Enum
 import numpy as np
@@ -9,13 +11,7 @@ from steer_core.Decorators.General import calculate_bulk_properties
 from steer_opencell_design.Components.CurrentCollectors.Punched import PunchedCurrentCollector
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
 from steer_opencell_design.Components.Separators import Separator
-from steer_opencell_design.Constructions.Layups.Base import _Layup
-
-
-class ElectrodeOrientation(Enum):
-    """Orientation options for electrode layups."""
-    TRANSVERSE = "transverse"
-    LONGITUDINAL = "longitudinal"
+from steer_opencell_design.Constructions.Layups.Base import _Layup, ElectrodeOrientation
 
 
 class MonoLayer(_Layup):
@@ -32,24 +28,20 @@ class MonoLayer(_Layup):
         name: str = "MonoLayer",
     ):
         """
-        Initialize the MonoLayer with the given components and offsets.
+        Initialize the MonoLayer with the given components.
 
         Parameters
         ----------
-        anode : Anode
-            The anode component of the monolayer.
         cathode : Cathode
             The cathode component of the monolayer.
+        anode : Anode
+            The anode component of the monolayer.
         separator : Separator
             The separator component of the monolayer.
-        anode_offset : tuple
-            The (x, y) offset for the anode in mm.
-        bottom_separator_offset : float
-            The (x, y) offset for the bottom separator in mm.
-        top_separator_offset : float
-            The (x, y) offset for the top separator in mm.
         electrode_orientation : ElectrodeOrientation
             The orientation of the electrode (default: ElectrodeOrientation.LONGITUDINAL).
+        name : str, optional
+            Name of the monolayer (default: "MonoLayer").
         """
         # rotate the separator
         if separator._rotated_xy == False:
@@ -64,11 +56,11 @@ class MonoLayer(_Layup):
             bottom_separator=deepcopy(separator),
             anode=anode,
             top_separator=deepcopy(separator),
+            electrode_orientation=electrode_orientation,
             name=name,
         )
 
         # Add MonoLayer-specific components and properties
-        self.electrode_orientation = electrode_orientation
 
         # Recalculate properties now that separator is set
         self._calculate_all_properties()
@@ -122,8 +114,8 @@ class MonoLayer(_Layup):
             A new MonoLayer instance with the same properties as the input ZFoldMonoLayer.
         """
         bottom_separator = deepcopy(zfold_monolayer._bottom_separator)
-        bottom_separator.width = zfold_monolayer.anode.current_collector.x_body_length + 4
-        bottom_separator.length = zfold_monolayer.anode.current_collector.y_body_length + 4
+        bottom_separator.width = zfold_monolayer.anode.current_collector.x_foil_length + 4
+        bottom_separator.length = zfold_monolayer.anode.current_collector.y_foil_length + 4
         
         return cls(
             cathode=deepcopy(zfold_monolayer.cathode),
@@ -138,15 +130,15 @@ class MonoLayer(_Layup):
 
     def _calculate_height(self) -> float:
         """
-        Calculate the height of the laminate based on the anode and cathode heights.
+        Calculate the height of the monolayer based on the anode and cathode heights.
 
         Returns
         -------
         float
-            The height of the laminate in meters.
+            The height of the monolayer in meters.
         """
-        anode_height = self._anode._current_collector._y_body_length
-        cathode_height = self._cathode._current_collector._y_body_length
+        anode_height = self._anode._current_collector._y_foil_length
+        cathode_height = self._cathode._current_collector._y_foil_length
 
         # The laminate height is determined by the longer of the two electrodes
         monolayer_height = max(anode_height, cathode_height)
@@ -157,15 +149,15 @@ class MonoLayer(_Layup):
 
     def _calculate_width(self) -> float:
         """
-        Calculate the width of the laminate based on the anode and cathode widths.
+        Calculate the width of the monolayer based on the anode and cathode widths.
 
         Returns
         -------
         float
-            The width of the laminate in meters.
+            The width of the monolayer in meters.
         """
-        anode_width = self._anode._current_collector._x_body_length
-        cathode_width = self._cathode._current_collector._x_body_length
+        anode_width = self._anode._current_collector._x_foil_length
+        cathode_width = self._cathode._current_collector._x_foil_length
 
         # The laminate width is determined by the wider of the two electrodes
         monolayer_width = max(anode_width, cathode_width)
@@ -180,7 +172,14 @@ class MonoLayer(_Layup):
 
     @property
     def width_range(self) -> tuple:
-        return self.cathode.current_collector.width_range
+        _anode_tab_width = self.anode.current_collector._tab_width
+        _cathode_tab_width = self.cathode.current_collector._tab_width
+        _max_tab_width = max(_anode_tab_width, _cathode_tab_width)
+        _min_width = _max_tab_width * 1.2
+        return (
+            np.round(_min_width, 2),
+            self.cathode.current_collector.width_range[1],
+        )
     
     @property
     def width_hard_range(self) -> tuple:
@@ -198,11 +197,6 @@ class MonoLayer(_Layup):
     def height_hard_range(self) -> tuple:
         return self.cathode.current_collector.height_hard_range
 
-    @property
-    def electrode_orientation(self) -> ElectrodeOrientation:
-        """Get the electrode orientation of the monolayer."""
-        return self._electrode_orientation
-    
     # === Unified separator API ===
 
     @property
@@ -294,39 +288,6 @@ class MonoLayer(_Layup):
     def separator_overhang_bottom(self, overhang: float) -> None:
         self.bottom_separator_overhang_bottom = overhang
         self.top_separator_overhang_bottom = overhang
-
-    @electrode_orientation.setter
-    def electrode_orientation(self, electrode_orientation: ElectrodeOrientation) -> None:
-        """
-        Set the electrode orientation of the monolayer.
-
-        When electrode_orientation is ElectrodeOrientation.TRANSVERSE, ensures the anode tab comes out the bottom
-        by flipping the anode if it's not already flipped in the y direction.
-
-        Parameters
-        ----------
-        electrode_orientation : ElectrodeOrientation
-            The orientation of the electrode.
-        """
-        if isinstance(electrode_orientation, ElectrodeOrientation):
-            self._electrode_orientation = electrode_orientation
-
-        elif isinstance(electrode_orientation, str):
-            for enum_member in ElectrodeOrientation:
-                if electrode_orientation.lower().replace(" ", "_") == enum_member.value:
-                    self._electrode_orientation = enum_member
-
-        else:
-            # validate the type
-            self.validate_type(electrode_orientation, ElectrodeOrientation, "electrode_orientation")
-
-        # if electrode_orientation is ElectrodeOrientation.TRANSVERSE, check and adjust anode orientation
-        if self._electrode_orientation == ElectrodeOrientation.TRANSVERSE:
-            if not self._anode._flipped_y:
-                self._anode._flip("y")
-        elif self._electrode_orientation == ElectrodeOrientation.LONGITUDINAL:
-            if self._anode._flipped_y:
-                self._anode._flip("y")
 
     @width.setter 
     @calculate_coordinates
@@ -421,13 +382,13 @@ class ZFoldMonoLayer(MonoLayer):
         bottom_separator = deepcopy(separator)
         top_separator = deepcopy(separator)
 
-        # Set lengths using electrode WIDTHs (x_body_length) + 2*thickness
+        # Set lengths using electrode WIDTHs (x_foil_length) + 2*thickness
         bottom_separator.length = (
-            (cathode.current_collector._x_body_length + 2 * self._canonical_separator._thickness) * M_TO_MM
+            (cathode.current_collector._x_foil_length + 2 * self._canonical_separator._thickness) * M_TO_MM
         )
 
         top_separator.length = (
-            (anode.current_collector._x_body_length + 2 * self._canonical_separator._thickness) * M_TO_MM
+            (anode.current_collector._x_foil_length + 2 * self._canonical_separator._thickness) * M_TO_MM
         )
 
         # Call base _Layup initializer directly (skip MonoLayer rotation logic)
@@ -437,6 +398,7 @@ class ZFoldMonoLayer(MonoLayer):
             anode=anode,
             top_separator=top_separator,
             name=name,
+            electrode_orientation=electrode_orientation,
         )
 
         # Electrode orientation behavior same as MonoLayer
@@ -477,12 +439,12 @@ class ZFoldMonoLayer(MonoLayer):
         """Enforce Z-fold separator geometry constraints."""
         # Bottom separator length
         self._bottom_separator.length = (
-            (self.cathode.current_collector._x_body_length + 2 * self._canonical_separator._thickness) * M_TO_MM
+            (self.cathode.current_collector._x_foil_length + 2 * self._canonical_separator._thickness) * M_TO_MM
         )
 
         # Top separator length
         self._top_separator.length = (
-            (self.anode.current_collector._x_body_length + 2 * self._canonical_separator._thickness) * M_TO_MM
+            (self.anode.current_collector._x_foil_length + 2 * self._canonical_separator._thickness) * M_TO_MM
         )
 
     @property

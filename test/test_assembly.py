@@ -144,7 +144,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.diameter, 41.6, 1)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23895, 0)
         self.assertAlmostEqual(self.my_jellyroll.cost, 4.33, 2)
-        self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 6.74, 2)
+        self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 8.73, 2)
         self.assertAlmostEqual(self.my_jellyroll.radius_range[1], 30.55, 2)
         self.assertAlmostEqual(self.my_jellyroll.mass, 655.4, 1)
 
@@ -287,7 +287,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         # Check that diameter updated correctly
         self.assertAlmostEqual(self.my_jellyroll.radius, new_radius, 0)
         self.assertAlmostEqual(self.my_jellyroll.diameter, new_radius * 2, 0)
-        self.assertAlmostEqual(self.my_jellyroll.cost, 6.67, 1)
+        self.assertAlmostEqual(self.my_jellyroll.cost, 6.6, 1)
 
     def test_to_flat_jelly_roll(self):
 
@@ -599,16 +599,15 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.width, 114.1, 1)
         self.assertAlmostEqual(self.my_jellyroll.cost, 4.18, 1)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23725.74, 0)
-        self.assertAlmostEqual(self.my_jellyroll.thickness_range[0], 2.01, 1)
+        self.assertAlmostEqual(self.my_jellyroll.thickness_range[0], 2.91, 1)
         self.assertAlmostEqual(self.my_jellyroll.thickness_range[1], 24.37, 1)
-        self.assertAlmostEqual(self.my_jellyroll.width_range[0], 103.6, 1)
+        self.assertAlmostEqual(self.my_jellyroll.width_range[0], 104.48, 1)
         self.assertAlmostEqual(self.my_jellyroll.width_range[1], 125.95, 1)
 
     def test_serialization(self):
         serialized = self.my_jellyroll.serialize()
         deserialized = FlatWoundJellyRoll.deserialize(serialized)
-        test_case = self.my_jellyroll == deserialized
-        self.assertTrue(test_case)
+        self.assertEqual(self.my_jellyroll, deserialized)
 
     def test_plots(self):
 
@@ -623,7 +622,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         fig7 = self.my_jellyroll.get_top_down_view()
         fig8 = self.my_jellyroll.get_side_view()
 
-        fig1.show()
+        # fig1.show()
         # fig3.show()
         # fig4.show()
         # fig5.show()

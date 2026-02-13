@@ -1,3 +1,5 @@
+"""Notched current collector for tabless wound cells."""
+
 # import core decorators
 from steer_core.Decorators.General import calculate_all_properties
 
@@ -42,7 +44,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         Center-to-center distance between adjacent tabs (mm)
         Determines current distribution uniformity
     tab_height : float
-        Extension height of tabs beyond the body (mm)
+        Extension height of tabs beyond the foil (mm)
         Must provide adequate access for welding and connections
     coated_tab_height : float, optional
         Height of active material coating on each tab (mm, default: 0)
@@ -148,8 +150,8 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         """
         super().__init__(
             material=material,
-            x_body_length=length,
-            y_body_length=width,
+            x_foil_length=length,
+            y_foil_length=width,
             tab_width=tab_width,
             tab_height=tab_height,
             thickness=thickness,
@@ -177,8 +179,8 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         new_current_collector = cls(
             material=tabless.material,
-            length=tabless.x_body_length,
-            width=tabless.y_body_length,
+            length=tabless.x_foil_length,
+            width=tabless.y_foil_length,
             thickness=tabless.thickness,
             tab_width=50,
             tab_spacing=100,
@@ -212,8 +214,8 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         new_current_collector = cls(
             material=tab_welded.material,
-            length=tab_welded.x_body_length,
-            width=tab_welded.y_body_length - 10,
+            length=tab_welded.x_foil_length,
+            width=tab_welded.y_foil_length - 10,
             thickness=tab_welded.thickness,
             tab_width=50,
             tab_spacing=100,
@@ -239,8 +241,8 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         """
         Function to calculate the positions of the tabs along the length of the current collector.
         """
-        x_min = self._datum[0] - self._x_body_length / 2
-        x_max = self._datum[0] + self._x_body_length / 2 + self._tab_spacing
+        x_min = self._datum[0] - self._x_foil_length / 2
+        x_max = self._datum[0] + self._x_foil_length / 2 + self._tab_spacing
 
         number_of_tabs = 1
         tab_positions = [x_min + self._tab_spacing / 2]
@@ -258,12 +260,12 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
             tab_starts.append(next_tab_position - self._tab_width / 2)
             tab_ends.append(next_tab_position + self._tab_width / 2)
 
-        if tab_starts[-1] > self._datum[0] + self._x_body_length / 2:
+        if tab_starts[-1] > self._datum[0] + self._x_foil_length / 2:
             tab_starts = tab_starts[:-1]
             tab_ends = tab_ends[:-1]
 
-        if tab_ends[-1] > self._datum[0] + self._x_body_length / 2:
-            tab_ends[-1] = self._datum[0] + self._x_body_length / 2
+        if tab_ends[-1] > self._datum[0] + self._x_foil_length / 2:
+            tab_ends[-1] = self._datum[0] + self._x_foil_length / 2
 
         self._tab_positions = np.column_stack((tab_starts, tab_ends))
 
@@ -286,8 +288,8 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         Optional x_start and x_end can restrict the x-bounds of the shape.
         """
         # Default values
-        y_depth = self._y_body_length if y_depth is None else y_depth
-        y_start = self._datum[1] - self._y_body_length / 2 if y_start is None else y_start
+        y_depth = self._y_foil_length if y_depth is None else y_depth
+        y_start = self._datum[1] - self._y_foil_length / 2 if y_start is None else y_start
         notch = self._tab_height if notch_height is None else notch_height
 
         # Convert bare lengths to meters (they come in mm according to docstring)
@@ -295,8 +297,8 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         bare_right = bare_lengths[1] * MM_TO_M if bare_lengths[1] != 0 else 0
 
         # X bounds
-        default_x0 = self._datum[0] - self._x_body_length / 2 + bare_left
-        default_x1 = self._datum[0] + self._x_body_length / 2 - bare_right
+        default_x0 = self._datum[0] - self._x_foil_length / 2 + bare_left
+        default_x1 = self._datum[0] + self._x_foil_length / 2 - bare_right
         x0 = default_x0 if x_start is None else x_start
         x1 = default_x1 if x_end is None else x_end
 
@@ -361,28 +363,28 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
     def _get_insulation_coordinates(self, side: str = "a") -> np.ndarray:
         """
         Return insulation coordinates for a given side ('a' or 'b') as numpy array.
-        Handles three cases: (1) above body, (2) below body, (3) straddling edge.
+        Handles three cases: (1) above foil, (2) below foil, (3) straddling edge.
         """
         if self._insulation_width == 0:
             return np.empty((0, 3))
 
         # Compute insulation Y-range
-        y_body_top = self._datum[1] + self._y_body_length / 2
-        y_ins_start = y_body_top + self._coated_tab_height - self._insulation_width
+        y_foil_top = self._datum[1] + self._y_foil_length / 2
+        y_ins_start = y_foil_top + self._coated_tab_height - self._insulation_width
         y_ins_end = y_ins_start + self._insulation_width
 
         # Compute x bounds of coated region
         bare_left, bare_right = self._bare_lengths_a_side if side == "a" else self._bare_lengths_b_side
         
-        # Check if bare lengths exceed body length - return empty arrays if so
-        if bare_left + bare_right >= self._x_body_length:
+        # Check if bare lengths exceed foil length - return empty arrays if so
+        if bare_left + bare_right >= self._x_foil_length:
             return np.empty((0, 3))
             
-        x_start = self._datum[0] - self._x_body_length / 2 + bare_left
-        x_end = self._datum[0] + self._x_body_length / 2 - bare_right
+        x_start = self._datum[0] - self._x_foil_length / 2 + bare_left
+        x_end = self._datum[0] + self._x_foil_length / 2 - bare_right
 
-        # Case 1: Insulation entirely above the body
-        if np.round(y_ins_start, 5) >= np.round(y_body_top, 5):
+        # Case 1: Insulation entirely above the foil
+        if np.round(y_ins_start, 5) >= np.round(y_foil_top, 5):
             all_x = []
             all_y = []
 
@@ -412,8 +414,8 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
             x = np.array(all_x)
             y = np.array(all_y)
 
-        # Case 2: Insulation entirely below the body
-        elif np.round(y_ins_end, 10) <= np.round(y_body_top, 10):
+        # Case 2: Insulation entirely below the foil
+        elif np.round(y_ins_end, 10) <= np.round(y_foil_top, 10):
             x, y = self.build_square_array(
                 x_width=x_end - x_start,
                 y_width=self._insulation_width,
@@ -421,10 +423,10 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
                 y=y_ins_start,
             )
 
-        # Case 3: Insulation straddles the top of the body
+        # Case 3: Insulation straddles the top of the foil
         else:
-            notch = y_ins_end - y_body_top
-            depth = y_body_top - y_ins_start
+            notch = y_ins_end - y_foil_top
+            depth = y_foil_top - y_ins_start
             x, y = self._get_footprint(
                 notch_height=notch,
                 y_depth=depth,
@@ -433,13 +435,13 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
                 x_end=x_end,
             )
 
-        # Get z-coordinate from body coordinates for this side
-        idx = np.where(self._body_coordinates_side == side)[0]
+        # Get z-coordinate from foil coordinates for this side
+        idx = np.where(self._foil_coordinates_side == side)[0]
 
         if len(idx) == 0:
-            raise ValueError(f"No body coordinates found for side '{side}'")
+            raise ValueError(f"No foil coordinates found for side '{side}'")
 
-        z_val = self._body_coordinates[idx[0], 2]
+        z_val = self._foil_coordinates[idx[0], 2]
 
         # Create z array with proper numeric dtype
         z = np.full_like(x, z_val, dtype=float)
@@ -503,6 +505,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
     @tab_spacing.setter
     @calculate_all_properties
     def tab_spacing(self, tab_spacing: float) -> None:
+        
         self.validate_positive_float(tab_spacing, "tab_spacing")
 
         self._tab_spacing = float(tab_spacing) * MM_TO_M

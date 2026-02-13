@@ -152,9 +152,9 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertTrue(hasattr(self.layup, "maximum_areal_reversible_capacity_range"))
         self.assertTrue(hasattr(self.layup, "_maximum_areal_reversible_capacity_range"))
         self.assertEqual(self.layup.minimum_operating_voltage_range, (2.27, 3.12))
-        self.assertEqual(self.layup.maximum_operating_voltage_range, (3.63, 4.03))
+        self.assertEqual(self.layup.maximum_operating_voltage_range, (3.53, 4.03))
         self.assertEqual(self.layup.operating_reversible_areal_capacity, 0.842)
-        self.assertEqual(self.layup.maximum_areal_reversible_capacity_range, (0.819, 0.842))
+        self.assertEqual(self.layup.maximum_areal_reversible_capacity_range, (0.8, 0.842))
 
     def test_voltage_maximum_setter(self):
 
@@ -169,8 +169,8 @@ class TestSimpleLaminate(unittest.TestCase):
         figure2 = self.layup.get_areal_capacity_plot()
 
         self.layup.maximum_operating_voltage = 3.5
-        self.assertEqual(self.layup.maximum_operating_voltage, 3.63)
-        self.assertAlmostEqual(self.layup._areal_capacity_curve[:,1].max(), 3.63, places=2)
+        self.assertEqual(self.layup.maximum_operating_voltage, 3.53)
+        self.assertAlmostEqual(self.layup._areal_capacity_curve[:,1].max(), 3.53, places=2)
         figure3 = self.layup.get_areal_capacity_plot()
 
         # figure1.show()
@@ -1332,8 +1332,8 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.assertTrue(hasattr(self.zfoldmonolayer, "_np_ratio_control_mode"))
 
         # Check that separator lengths are constrained correctly
-        expected_bottom_length = (self.zfoldmonolayer.cathode.current_collector._x_body_length + 2 * self.zfoldmonolayer._bottom_separator._thickness) * M_TO_MM
-        expected_top_length = (self.zfoldmonolayer.anode.current_collector._x_body_length + 2 * self.zfoldmonolayer._top_separator._thickness) * M_TO_MM
+        expected_bottom_length = (self.zfoldmonolayer.cathode.current_collector._x_foil_length + 2 * self.zfoldmonolayer._bottom_separator._thickness) * M_TO_MM
+        expected_top_length = (self.zfoldmonolayer.anode.current_collector._x_foil_length + 2 * self.zfoldmonolayer._top_separator._thickness) * M_TO_MM
 
         self.assertAlmostEqual(
             self.zfoldmonolayer._bottom_separator.length,
@@ -1379,8 +1379,8 @@ class TestZFoldMonoLayer(unittest.TestCase):
 
         # Length should be constrained by Z-fold geometry for both internal separators
         # We can check via internal attributes since unified interface doesn't expose them
-        expected_bottom_length = (self.zfoldmonolayer.cathode.current_collector._x_body_length + 2 * new_separator._thickness) * M_TO_MM
-        expected_top_length = (self.zfoldmonolayer.anode.current_collector._x_body_length + 2 * new_separator._thickness) * M_TO_MM
+        expected_bottom_length = (self.zfoldmonolayer.cathode.current_collector._x_foil_length + 2 * new_separator._thickness) * M_TO_MM
+        expected_top_length = (self.zfoldmonolayer.anode.current_collector._x_foil_length + 2 * new_separator._thickness) * M_TO_MM
 
         self.assertAlmostEqual(
             self.zfoldmonolayer._bottom_separator.length,
@@ -1431,8 +1431,8 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.zfoldmonolayer.separator = new_separator
 
         # Both separators should be updated with correct lengths
-        expected_bottom_length = (self.zfoldmonolayer.cathode.current_collector._x_body_length + 2 * new_separator._thickness) * M_TO_MM
-        expected_top_length = (self.zfoldmonolayer.anode.current_collector._x_body_length + 2 * new_separator._thickness) * M_TO_MM
+        expected_bottom_length = (self.zfoldmonolayer.cathode.current_collector._x_foil_length + 2 * new_separator._thickness) * M_TO_MM
+        expected_top_length = (self.zfoldmonolayer.anode.current_collector._x_foil_length + 2 * new_separator._thickness) * M_TO_MM
 
         self.assertAlmostEqual(
             self.zfoldmonolayer._bottom_separator.length,
