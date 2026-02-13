@@ -1,3 +1,5 @@
+"""Prismatic cell container components (canister, lid, terminal connectors, encapsulation)."""
+
 from copy import deepcopy
 from steer_opencell_design.Components.Containers.Base import _Container
 from steer_opencell_design.Materials.Other import PrismaticContainerMaterial

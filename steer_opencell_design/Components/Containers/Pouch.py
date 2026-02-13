@@ -1,3 +1,5 @@
+"""Pouch cell container components (laminate sheets, terminals, encapsulation)."""
+
 from typing import Tuple
 
 from steer_opencell_design.Components.Containers.Base import _Container
@@ -28,6 +30,10 @@ class LaminateSheet(
     PlotterMixin,
     SerializerMixin,
     ):
+    """Laminate film sheet for pouch cell packaging.
+
+    Provides geometry, coordinates, and visualization traces for top and bottom laminate layers.
+    """
 
     def __init__(
         self,
@@ -874,6 +880,10 @@ class PouchTerminal(
 
 
 class PouchEncapsulation(_Container):
+    """Complete pouch cell encapsulation combining top/bottom laminate sheets and terminals.
+
+    Manages pouch geometry, hot-pressing cavity formation, and provides mass/cost breakdowns.
+    """
 
     def __init__(
             self,

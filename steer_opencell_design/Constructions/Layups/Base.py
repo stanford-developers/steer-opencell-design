@@ -1,3 +1,5 @@
+"""Base classes and enums for electrode layup configurations."""
+
 from copy import copy, deepcopy
 from enum import Enum
 from typing import Tuple

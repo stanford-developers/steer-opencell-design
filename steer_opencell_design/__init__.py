@@ -1,3 +1,23 @@
+"""
+STEER OpenCell Design — A Python package for designing and modeling battery cells.
+
+This package provides a hierarchical, composable API for building virtual battery
+cells from raw materials up to complete cell assemblies. The modeling hierarchy is::
+
+    Materials → Formulations → Electrodes → Layups → Assemblies → Cells
+
+Supported cell formats:
+    - Cylindrical (e.g., 18650, 21700, 4680)
+    - Prismatic (hard-case)
+    - Pouch (soft-pack)
+    - Flex-frame (solid-state)
+
+All public classes are re-exported from this top-level namespace for convenience::
+
+    import steer_opencell_design as ocd
+    cell = ocd.CylindricalCell(...)
+"""
+
 __version__ = "1.0.18"
 
 # import materials

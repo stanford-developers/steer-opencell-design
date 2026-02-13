@@ -7,6 +7,8 @@
   "python-envs.defaultPackageManager": "ms-python.python:conda",
   "python-envs.pythonProjects": [],
   "basedpyright.analysis.typeCheckingMode": "off",
+  "basedpyright.disableLanguageServices": true,
+  "python.analysis.typeCheckingMode": "off",
   "python.analysis.extraPaths": [
     "../steer-core"
   ]

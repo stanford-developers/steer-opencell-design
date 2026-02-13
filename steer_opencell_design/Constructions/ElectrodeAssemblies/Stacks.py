@@ -1,3 +1,5 @@
+"""Stacked electrode assembly configurations (Z-fold and punched)."""
+
 import math
 from steer_opencell_design.Constructions.Layups.MonoLayers import MonoLayer, ZFoldMonoLayer
 
@@ -329,6 +331,7 @@ class _Stack(_ElectrodeAssembly):
         return figure
 
     def get_top_down_view(self, **kwargs):
+        """Generate a top-down Plotly figure of the stack."""
         return self._layup.get_top_down_view(**kwargs)
 
     @staticmethod
@@ -507,6 +510,7 @@ class _Stack(_ElectrodeAssembly):
 
     @property
     def layup(self) -> ZFoldMonoLayer | MonoLayer:
+        """Return the underlying layup instance."""
         return self._layup
 
     @property
@@ -711,6 +715,7 @@ class ZFoldStack(_Stack):
 
     @property
     def layup(self) -> MonoLayer:
+        """Return the underlying Z-fold layup instance."""
         return self._layup
     
     @layup.setter
@@ -771,6 +776,7 @@ class PunchedStack(_Stack):
     
     @property
     def layup(self) -> MonoLayer:
+        """Return the underlying mono-layer layup instance."""
         return self._layup
     
     @layup.setter

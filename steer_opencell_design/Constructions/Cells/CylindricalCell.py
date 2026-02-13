@@ -1,3 +1,5 @@
+"""Cylindrical battery cell implementation."""
+
 from steer_opencell_design.Components.Containers.Cylindrical import CylindricalEncapsulation
 from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import WoundJellyRoll
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
@@ -18,6 +20,7 @@ DIMENSION_FIT_TOLERANCE = 1e-3  # 1 mm tolerance for assembly-encapsulation fit 
 
 
 class CylindricalCell(_Cell):
+    """Complete cylindrical battery cell (e.g., 18650, 21700, 4680 format). Combines a wound jelly roll with a cylindrical canister encapsulation and electrolyte."""
 
     def __init__(
         self,
@@ -213,12 +216,14 @@ class CylindricalCell(_Cell):
         self._validate_assembly_encapsulation_fit(self._reference_electrode_assembly, encapsulation)
 
     def fit_assembly_radius_to_canister(self) -> None:
+        """Resize the jelly roll radius to match the canister inner radius."""
         target_radius = self._encapsulation._canister.inner_radius
         self._reference_electrode_assembly.radius = target_radius
         self.reference_electrode_assembly = self._reference_electrode_assembly
         return self
     
     def fit_assembly_height_to_canister(self) -> None:
+        """Resize the jelly roll height to match the canister internal height."""
         target_height = self._encapsulation.internal_height
         self._reference_electrode_assembly.height = target_height
         self.reference_electrode_assembly = self._reference_electrode_assembly
@@ -256,6 +261,7 @@ class CylindricalCell(_Cell):
         return figure
     
     def get_cross_section(self, **kwargs) -> go.Figure:
+        """Generate cross-section view showing the spiral winding and canister."""
 
         spiral_plot = self._reference_electrode_assembly.get_spiral_plot()
         spiral_traces = spiral_plot['data']
@@ -276,6 +282,7 @@ class CylindricalCell(_Cell):
         
     @property
     def radius(self) -> float:
+        """Get the cell outer radius in mm."""
         assembly_radius = self._reference_electrode_assembly.radius
         encapsulation_radius = self._encapsulation.radius
         max_radius = max(assembly_radius, encapsulation_radius)
@@ -283,6 +290,7 @@ class CylindricalCell(_Cell):
     
     @property
     def radius_range(self) -> Tuple[float, float]:
+        """Get the valid range for cell radius in mm."""
         assembly_radius_range = self._reference_electrode_assembly.radius_range
         encapsulation_radius_range = self._encapsulation.radius_range
         min_radius = max(assembly_radius_range[0], encapsulation_radius_range[0])
@@ -291,23 +299,28 @@ class CylindricalCell(_Cell):
     
     @property
     def radius_hard_range(self) -> Tuple[float, float]:
+        """Get the hard limit range for cell radius in mm."""
         return (0, 500)
     
     @property
     def diameter(self) -> float:
+        """Get the cell outer diameter in mm."""
         return self.radius * 2
     
     @property
     def diameter_range(self) -> Tuple[float, float]:
+        """Get the valid range for cell diameter in mm."""
         radius_range = self.radius_range
         return (radius_range[0] * 2, radius_range[1] * 2)
     
     @property
     def diameter_hard_range(self) -> Tuple[float, float]:
+        """Get the hard limit range for cell diameter in mm."""
         return (0, 1000)
 
     @property
     def height(self) -> float:
+        """Get the cell height in mm."""
         assembly_height = self._reference_electrode_assembly.height
         encapsulation_height = self._encapsulation.canister.height
         max_height = max(assembly_height, encapsulation_height)
@@ -315,6 +328,7 @@ class CylindricalCell(_Cell):
     
     @property
     def height_range(self) -> Tuple[float, float]:
+        """Get the valid range for cell height in mm."""
         assembly_height_range = self._reference_electrode_assembly.height_range
         encapsulation_height_range = self._encapsulation.canister.height_range
         min_height = max(assembly_height_range[0], encapsulation_height_range[0])
@@ -323,18 +337,22 @@ class CylindricalCell(_Cell):
     
     @property
     def height_hard_range(self) -> Tuple[float, float]:
+        """Get the hard limit range for cell height in mm."""
         return (0, 1000)
 
     @property
     def reference_electrode_assembly(self) -> WoundJellyRoll:
+        """Get the reference wound jelly roll electrode assembly."""
         return self._reference_electrode_assembly
     
     @property
     def encapsulation(self) -> CylindricalEncapsulation:
+        """Get the cylindrical encapsulation."""
         return self._encapsulation
     
     @property
     def n_electrode_assembly(self) -> int:
+        """Get the number of electrode assemblies (always 1 for cylindrical)."""
         return 1
 
     @radius.setter

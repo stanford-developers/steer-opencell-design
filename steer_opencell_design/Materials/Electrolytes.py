@@ -1,3 +1,5 @@
+"""Electrolyte material definitions for battery cells."""
+
 from steer_core.Constants.Units import *
 from steer_materials.Base import _Material, _VolumedMaterialMixin
 
@@ -8,7 +10,11 @@ import numpy as np
 
 class Electrolyte(_VolumedMaterialMixin, _Material):
     """
-    Materials from which insulation is made.
+    Liquid electrolyte material used to fill battery cells.
+
+    The electrolyte fills the pore volume of the electrode assembly and
+    separator. Volume and mass ranges are set dynamically based on the
+    pore volume of the assembly via ``_set_ranges_from_pore_volume``.
     """
 
     def __init__(
@@ -23,18 +29,22 @@ class Electrolyte(_VolumedMaterialMixin, _Material):
             **kwargs,
         ):
         """
-        Insulation material for encapsulation of the cell
+        Initialize an electrolyte material.
 
         Parameters
         ----------
         name : str
-            Name of the insulation material.
+            Name of the electrolyte (e.g., "1M LiPF6 in EC:DMC (1:1)").
         density : float
-            Density of the material in g/cm^3.
+            Density of the electrolyte in g/cm³.
         specific_cost : float
-            Specific cost of the material in $/kg.
-        color : str
-            Color of the material.
+            Specific cost of the electrolyte in $/kg.
+        color : str, optional
+            Hex color string for visualization (default: "#2c2c2c").
+        volume : float or None, optional
+            Initial volume in cm³.
+        mass : float or None, optional
+            Initial mass in g.
         """
         super().__init__(
             name=name, 
@@ -47,7 +57,16 @@ class Electrolyte(_VolumedMaterialMixin, _Material):
         )
 
     def _set_ranges_from_pore_volume(self, _pore_volume: float, _range_scaling: float = 2) -> None:
-        """Set volume and mass ranges based on pore volume."""
+        """
+        Set volume and mass ranges based on pore volume of the electrode assembly.
+
+        Parameters
+        ----------
+        _pore_volume : float
+            Total pore volume of the electrode assembly in m³ (internal SI units).
+        _range_scaling : float, optional
+            Multiplier for the upper bound of the volume range (default: 2).
+        """
 
         self._volume_range = (_pore_volume, _pore_volume * _range_scaling)
 
@@ -58,7 +77,7 @@ class Electrolyte(_VolumedMaterialMixin, _Material):
 
     @property
     def volume_range(self) -> Tuple[float, float]:
-        """Get volume range in cm^3."""
+        """Get the allowable electrolyte volume range in cm³."""
         return (
             np.round(self._volume_range[0] * M_TO_CM**3, 2),
             np.round(self._volume_range[1] * M_TO_CM**3, 2),
@@ -66,7 +85,7 @@ class Electrolyte(_VolumedMaterialMixin, _Material):
 
     @property
     def mass_range(self) -> Tuple[float, float]:
-        """Get mass range in g."""
+        """Get the allowable electrolyte mass range in g."""
         return (
             np.round(self._mass_range[0] * KG_TO_G, 2),
             np.round(self._mass_range[1] * KG_TO_G, 2),

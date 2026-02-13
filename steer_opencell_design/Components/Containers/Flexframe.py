@@ -1,3 +1,5 @@
+"""Flex-frame cell container components."""
+
 from steer_core import CoordinateMixin, PlotterMixin, ValidationMixin, DunderMixin, SerializerMixin
 from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Decorators.Coordinates import calculate_coordinates
@@ -31,6 +33,10 @@ class FlexFrame(
     DunderMixin,
     PlotterMixin,
     ):
+    """Rigid polymer frame for flex-frame cell designs.
+
+    Provides a border structure with a central cutout for the electrode stack.
+    """
     
     def __init__(
         self,
@@ -415,6 +421,7 @@ class FlexFrame(
 
 
 class FlexFrameEncapsulation(_Container):
+    """Complete flex-frame cell encapsulation combining the flex frame, laminate sheet, and terminals."""
 
     def __init__(
         self,

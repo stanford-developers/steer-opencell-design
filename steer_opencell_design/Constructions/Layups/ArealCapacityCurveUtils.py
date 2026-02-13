@@ -1,3 +1,5 @@
+"""Utilities for computing full-cell areal capacity curves from half-cell data."""
+
 import numpy as np
 from typing import Tuple
 
@@ -6,6 +8,7 @@ CAPACITY_INTERPOLATION_POINTS = 100  # Number of points for capacity curve inter
 
 
 class ArealCapacityCurveMixin:
+    """Mixin for computing full-cell areal capacity curves by combining cathode and anode half-cell curves with N/P ratio adjustments."""
 
     @staticmethod
     def _compute_areal_full_cell_curve(cathode_areal_curve: np.ndarray, anode_areal_curve: np.ndarray) -> Tuple[float, np.ndarray]:

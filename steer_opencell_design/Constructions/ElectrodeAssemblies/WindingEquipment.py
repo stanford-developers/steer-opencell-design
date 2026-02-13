@@ -1,3 +1,5 @@
+"""Winding mandrel definitions for jelly roll electrode assemblies."""
+
 from copy import deepcopy
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
@@ -26,6 +28,7 @@ class _Mandrel(
     CoordinateMixin,
     PlotterMixin
 ):
+    """Abstract base class for winding mandrels used in jelly roll assembly."""
     
     def __init__(
             self, 
@@ -53,7 +56,7 @@ class _Mandrel(
         pass
 
     def get_top_down_view(self, **kwargs) -> go.Figure:
-
+        """Generate a top-down Plotly figure of the mandrel."""
         figure = go.Figure()
         figure.add_trace(self.top_down_trace)
 
@@ -68,7 +71,7 @@ class _Mandrel(
         return figure
 
     def get_bottom_up_view(self, **kwargs) -> go.Figure:
-
+        """Generate a bottom-up Plotly figure of the mandrel."""
         figure = go.Figure()
         figure.add_trace(self.bottom_up_trace)
 
@@ -84,14 +87,17 @@ class _Mandrel(
 
     @property
     def name(self) -> str:
+        """Get the mandrel name."""
         return self._name
 
     @property
     def material(self) -> CurrentCollectorMaterial:
+        """Get the mandrel material."""
         return self._material
 
     @property
     def coordinates(self) -> pd.DataFrame:
+        """Get the mandrel 3-D coordinates as a DataFrame in mm."""
         return pd.DataFrame(
             self._coordinates,
             columns=["x", "y", "z"],
@@ -103,7 +109,7 @@ class _Mandrel(
     
     @property
     def top_down_trace(self) -> go.Scatter:
-        
+        """Get the Plotly trace for the top-down mandrel view."""
         coordinates = self.order_coordinates_clockwise(self.coordinates, plane='xy')
         
         # Add the first row to the end to close the circle
@@ -126,7 +132,7 @@ class _Mandrel(
 
     @property
     def bottom_up_trace(self) -> go.Scatter:
-        
+        """Get the Plotly trace for the bottom-up mandrel view."""
         # Get only the first circle (first half of coordinates) for bottom-up view
         coords_df = (
             self
@@ -202,6 +208,7 @@ class _Mandrel(
 
 
 class RoundMandrel(_Mandrel):
+    """Cylindrical mandrel for winding round jelly rolls. Defined by diameter and length."""
 
     def __init__(
             self, 
@@ -298,6 +305,7 @@ class RoundMandrel(_Mandrel):
 
 
 class FlatMandrel(_Mandrel):
+    """Flat (racetrack) mandrel for winding flat jelly rolls. Defined by width, height, and length."""
     
     def __init__(
             self, 

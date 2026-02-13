@@ -1,3 +1,5 @@
+"""Base class for complete battery cells."""
+
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Base import _ElectrodeAssembly
 from steer_opencell_design.Components.Containers.Base import _Container
 from steer_opencell_design.Utils.Decorators import calculate_electrochemical_properties
@@ -57,6 +59,7 @@ class _Cell(
     DataMixin,
     CoordinateMixin,
 ):
+    """Abstract base class for complete battery cells. Provides common properties for energy, mass, cost, capacity curves, and voltage window management. Subclasses implement format-specific geometry (cylindrical, prismatic, pouch, flex-frame)."""
 
     def __init__(
         self,
@@ -528,6 +531,7 @@ class _Cell(
         return fig
         
     def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:
+        """Generate a sunburst mass breakdown chart."""
 
         fig = self.plot_breakdown_sunburst(
             self.mass_breakdown,
@@ -539,7 +543,8 @@ class _Cell(
         return fig
 
     def plot_cost_breakdown(self, title: str = None, **kwargs) -> go.Figure:
-        
+        """Generate a sunburst cost breakdown chart."""
+
         fig = self.plot_breakdown_sunburst(
             self.cost_breakdown,
             title=title or f"{self.name} Cost Breakdown",
@@ -560,7 +565,8 @@ class _Cell(
 
     @property
     def reference_chemistry(self) -> str:
-        
+        """Get the reference chemistry string."""
+
         # get the reference chemistries from the cathode materials
         cathode_reference_chemistries = []
         for am in self._reference_electrode_assembly._layup._cathode._formulation._active_materials.keys():
@@ -590,42 +596,51 @@ class _Cell(
 
     @property
     def form_factor(self) -> str:
+        """Get the cell form factor string."""
         form_factor = self.__class__.__name__
         form_factor = re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', form_factor)
         return form_factor
 
     @property
     def internal_construction(self) -> str:
+        """Get the internal construction type string."""
         internal = self._reference_electrode_assembly.__class__.__name__
         internal = re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', internal)
         return internal
 
     @property
     def encapsulation(self) -> _Container:
+        """Get the cell encapsulation."""
         return self._encapsulation
 
     @property
     def n_electrode_assembly(self) -> int:
+        """Get the number of electrode assemblies in the cell."""
         return self._n_electrode_assembly
 
     @property
     def electrolyte(self) -> Electrolyte:
+        """Get the cell electrolyte."""
         return self._electrolyte
 
     @property
     def n_electrode_assembly_range(self) -> Tuple[int, int]:
+        """Get the suggested range for number of electrode assemblies."""
         return (1, 6)
     
     @property
     def n_electrode_assembly_hard_range(self) -> Tuple[int, int]:
+        """Get the hard limit range for number of electrode assemblies."""
         return (1, 20)
 
     @property
     def electrolyte_overfill(self) -> float:
+        """Get the electrolyte overfill percentage."""
         return np.round(self._electrolyte_overfill * FRACTION_TO_PERCENT, MASS_PRECISION)
     
     @property
     def electrolyte_overfill_range(self) -> Tuple[float, float]:
+        """Get the valid range for electrolyte overfill percentage."""
         return (0.0, 100.0)
 
     @property
@@ -841,6 +856,7 @@ class _Cell(
     
     @property
     def capacity_curve_trace(self) -> go.Scatter:
+        """Plotly trace for the full-cell capacity curve."""
 
         color = "#ff8c00"
 
@@ -856,6 +872,7 @@ class _Cell(
     
     @property
     def anode_capacity_curve_trace(self) -> go.Scatter:
+        """Plotly trace for the anode half-cell capacity curve."""
 
         return go.Scatter(
             x=self.anode_capacity_curve["Capacity (Ah)"],
@@ -869,6 +886,7 @@ class _Cell(
     
     @property
     def cathode_capacity_curve_trace(self) -> go.Scatter:
+        """Plotly trace for the cathode half-cell capacity curve."""
 
         return go.Scatter(
             x=self.cathode_capacity_curve["Capacity (Ah)"],
@@ -882,6 +900,7 @@ class _Cell(
 
     @property
     def integrated_capacity_area_trace(self) -> go.Scatter:
+        """Plotly trace for the integrated discharge capacity area fill."""
 
         color = "#ff8c00"
 
@@ -970,6 +989,7 @@ class _Cell(
     
     @property
     def reference_electrode_assembly(self) -> _ElectrodeAssembly:
+        """Get the reference electrode assembly used to construct the cell."""
         return self._reference_electrode_assembly
 
     # ------------------------------------------------------------------

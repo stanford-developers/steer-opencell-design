@@ -1,3 +1,5 @@
+"""Pouch (soft-pack) battery cell implementation."""
+
 from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import ZFoldStack, PunchedStack
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
@@ -36,6 +38,7 @@ def calculate_encapsulation_properties(func):
 
 
 class PouchCell(_Cell):
+    """Pouch (soft-pack) battery cell. Combines stacked electrode assemblies with laminate film encapsulation, terminals, and electrolyte."""
 
     def __init__(
         self,
@@ -317,10 +320,12 @@ class PouchCell(_Cell):
     
     @property
     def side_seal_thickness_range(self) -> Tuple[float, float]:
+        """Get the valid range for side seal thickness in mm."""
         return (0.1, 20.0)
     
     @property
     def side_seal_thickness_hard_range(self) -> Tuple[float, float]:
+        """Get the hard limit range for side seal thickness in mm."""
         return (0.1, 50.0)
     
     @property
@@ -330,10 +335,12 @@ class PouchCell(_Cell):
     
     @property
     def top_seal_thickness_range(self) -> Tuple[float, float]:
+        """Get the valid range for top seal thickness in mm."""
         return (0.1, 20.0)
     
     @property
     def top_seal_thickness_hard_range(self) -> Tuple[float, float]:
+        """Get the hard limit range for top seal thickness in mm."""
         return (0.1, 50.0)
     
     @property
@@ -343,10 +350,12 @@ class PouchCell(_Cell):
     
     @property
     def bottom_seal_thickness_range(self) -> Tuple[float, float]:
+        """Get the valid range for bottom seal thickness in mm."""
         return (0.1, 20.0)
     
     @property
     def bottom_seal_thickness_hard_range(self) -> Tuple[float, float]:
+        """Get the hard limit range for bottom seal thickness in mm."""
         return (0.1, 50.0)
 
     @property
@@ -390,6 +399,7 @@ class PouchCell(_Cell):
 
     @property
     def height(self) -> float:
+        """Get the total cell height in mm (assembly + seals)."""
         assembly_height = self._reference_electrode_assembly._layup.height
         top_seal_height = self.top_seal_thickness
         bottom_seal_height = self.bottom_seal_thickness
@@ -398,6 +408,7 @@ class PouchCell(_Cell):
     
     @property
     def height_range(self) -> float:
+        """Get the valid range for cell height in mm."""
         assembly_height_range = self._reference_electrode_assembly._layup.height_range
         top_seal_height = self.top_seal_thickness
         bottom_seal_height = self.bottom_seal_thickness
@@ -407,6 +418,7 @@ class PouchCell(_Cell):
     
     @property
     def height_hard_range(self) -> float:
+        """Get the hard limit range for cell height in mm."""
         assembly_height_hard_range = self._reference_electrode_assembly._layup.height_hard_range
         top_seal_height = self.top_seal_thickness
         bottom_seal_height = self.bottom_seal_thickness
@@ -416,6 +428,7 @@ class PouchCell(_Cell):
     
     @property
     def width(self) -> float:
+        """Get the total cell width in mm (assembly + side seals)."""
         assembly_width = self._reference_electrode_assembly._layup.width
         side_seal_width = 2 * self.side_seal_thickness
         total_width = assembly_width + side_seal_width
@@ -423,6 +436,7 @@ class PouchCell(_Cell):
     
     @property
     def width_range(self) -> float:
+        """Get the valid range for cell width in mm."""
         assembly_width_range = self._reference_electrode_assembly._layup.width_range
         side_seal_width = 2 * self.side_seal_thickness
         min_width = assembly_width_range[0] + side_seal_width
@@ -431,6 +445,7 @@ class PouchCell(_Cell):
     
     @property
     def width_hard_range(self) -> float:
+        """Get the hard limit range for cell width in mm."""
         assembly_width_hard_range = self._reference_electrode_assembly._layup.width_hard_range
         side_seal_width = 2 * self.side_seal_thickness
         min_width = assembly_width_hard_range[0] + side_seal_width
@@ -439,6 +454,7 @@ class PouchCell(_Cell):
     
     @property
     def thickness(self) -> float:
+        """Get the total cell thickness in mm (assemblies + laminates)."""
         _assembly_thickness = self._reference_electrode_assembly._thickness * self._n_electrode_assembly
         _laminate_thickness = self._encapsulation._top_laminate._thickness + self._encapsulation._bottom_laminate._thickness
         _total_thickness = _assembly_thickness + _laminate_thickness
@@ -447,6 +463,7 @@ class PouchCell(_Cell):
     
     @property
     def thickness_range(self) -> float:
+        """Get the valid range for cell thickness in mm."""
         assembly_thickness_range = self._reference_electrode_assembly.thickness_range
         laminate_thickness = (self._encapsulation._top_laminate._thickness + self._encapsulation._bottom_laminate._thickness) * M_TO_MM
         min_thickness = np.round(assembly_thickness_range[0] * self._n_electrode_assembly + laminate_thickness, 2)
@@ -455,6 +472,7 @@ class PouchCell(_Cell):
     
     @property
     def thickness_hard_range(self) -> float:
+        """Get the hard limit range for cell thickness in mm."""
         assembly_thickness_hard_range = self._reference_electrode_assembly.thickness_hard_range
         laminate_thickness = self._encapsulation._top_laminate._thickness + self._encapsulation._bottom_laminate._thickness
         min_thickness = assembly_thickness_hard_range[0] * self._n_electrode_assembly + laminate_thickness

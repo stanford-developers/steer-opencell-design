@@ -1,3 +1,5 @@
+"""Single-separator layup configurations for stacked electrode assemblies."""
+
 from copy import copy, deepcopy
 from enum import Enum
 import numpy as np
@@ -26,24 +28,20 @@ class MonoLayer(_Layup):
         name: str = "MonoLayer",
     ):
         """
-        Initialize the MonoLayer with the given components and offsets.
+        Initialize the MonoLayer with the given components.
 
         Parameters
         ----------
-        anode : Anode
-            The anode component of the monolayer.
         cathode : Cathode
             The cathode component of the monolayer.
+        anode : Anode
+            The anode component of the monolayer.
         separator : Separator
             The separator component of the monolayer.
-        anode_offset : tuple
-            The (x, y) offset for the anode in mm.
-        bottom_separator_offset : float
-            The (x, y) offset for the bottom separator in mm.
-        top_separator_offset : float
-            The (x, y) offset for the top separator in mm.
         electrode_orientation : ElectrodeOrientation
             The orientation of the electrode (default: ElectrodeOrientation.LONGITUDINAL).
+        name : str, optional
+            Name of the monolayer (default: "MonoLayer").
         """
         # rotate the separator
         if separator._rotated_xy == False:
@@ -132,12 +130,12 @@ class MonoLayer(_Layup):
 
     def _calculate_height(self) -> float:
         """
-        Calculate the height of the laminate based on the anode and cathode heights.
+        Calculate the height of the monolayer based on the anode and cathode heights.
 
         Returns
         -------
         float
-            The height of the laminate in meters.
+            The height of the monolayer in meters.
         """
         anode_height = self._anode._current_collector._y_foil_length
         cathode_height = self._cathode._current_collector._y_foil_length
@@ -151,12 +149,12 @@ class MonoLayer(_Layup):
 
     def _calculate_width(self) -> float:
         """
-        Calculate the width of the laminate based on the anode and cathode widths.
+        Calculate the width of the monolayer based on the anode and cathode widths.
 
         Returns
         -------
         float
-            The width of the laminate in meters.
+            The width of the monolayer in meters.
         """
         anode_width = self._anode._current_collector._x_foil_length
         cathode_width = self._cathode._current_collector._x_foil_length
