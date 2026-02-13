@@ -19,7 +19,7 @@ classifiers = [
 dependencies = [
     "steer-core==0.1.42",
     "steer-materials==0.1.27",
-    "steer-opencell-data==0.0.18",
+    "steer-opencell-data==0.0.19",
 ]
 
 [project.urls]
