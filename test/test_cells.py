@@ -630,6 +630,65 @@ class TestCylindricalCell(unittest.TestCase):
         # fig2.show()
         # fig3.show()
 
+    def test_get_materials(self):
+        """Test that get_materials returns a dict of materials with paths."""
+        from steer_materials.Base import _Material
+
+        materials = self.cell.get_materials()
+
+        # Should return a dictionary
+        self.assertIsInstance(materials, dict)
+
+        # All keys should be _Material instances
+        for mat in materials.keys():
+            self.assertIsInstance(mat, _Material)
+
+        # All values should be lists of strings
+        for paths in materials.values():
+            self.assertIsInstance(paths, list)
+            for path in paths:
+                self.assertIsInstance(path, str)
+
+        # Should contain electrolyte
+        electrolyte_found = any(
+            "electrolyte" in path
+            for paths in materials.values()
+            for path in paths
+        )
+        self.assertTrue(electrolyte_found, "Electrolyte should be found in materials")
+
+        # Should contain cathode active material
+        cathode_am_found = any(
+            "cathode" in path and "active_materials" in path
+            for paths in materials.values()
+            for path in paths
+        )
+        self.assertTrue(cathode_am_found, "Cathode active material should be found")
+
+        # Should contain anode active material
+        anode_am_found = any(
+            "anode" in path and "active_materials" in path
+            for paths in materials.values()
+            for path in paths
+        )
+        self.assertTrue(anode_am_found, "Anode active material should be found")
+
+        # Should contain separator material
+        separator_found = any(
+            "separator" in path
+            for paths in materials.values()
+            for path in paths
+        )
+        self.assertTrue(separator_found, "Separator material should be found")
+
+        # Should contain current collector material
+        cc_found = any(
+            "current_collector" in path and "material" in path
+            for paths in materials.values()
+            for path in paths
+        )
+        self.assertTrue(cc_found, "Current collector material should be found")
+
 
 class TestCylindricalCellTabbed(unittest.TestCase):
     
