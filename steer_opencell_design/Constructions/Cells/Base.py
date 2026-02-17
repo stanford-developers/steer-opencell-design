@@ -8,6 +8,8 @@ from steer_opencell_design.Components.Separators import Separator
 
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
 
+from steer_materials.Base import _Material
+
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Serializer import SerializerMixin
@@ -25,7 +27,7 @@ from copy import deepcopy
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, List, Tuple
 import re
 from scipy.optimize import brentq
 
@@ -553,6 +555,85 @@ class _Cell(
         )
 
         return fig
+
+    def get_materials(self) -> Dict[_Material, List[str]]:
+        """Return all materials in the cell with their paths.
+
+        Recursively traverses the cell structure to find all instances of
+        `_Material` (from steer_materials). Returns a dictionary mapping each
+        material instance to a list of dot-notation paths where it appears.
+
+        Returns
+        -------
+        Dict[_Material, List[str]]
+            Dictionary mapping material instances to lists of paths.
+            Example: {<Electrolyte>: ["electrolyte"], <NMC811>: ["reference_electrode_assembly.layup.cathode.formulation.active_materials.NMC811"]}
+        """
+        results: Dict[_Material, List[str]] = {}
+        visited: set = set()
+
+        def _collect(obj: Any, path: str) -> None:
+            """Recursively collect materials from an object."""
+            obj_id = id(obj)
+            if obj_id in visited:
+                return
+            visited.add(obj_id)
+
+            # Check if this object is a material
+            if isinstance(obj, _Material):
+                if obj not in results:
+                    results[obj] = []
+                results[obj].append(path)
+                # Continue traversing - materials may contain other materials
+
+            # Handle dictionaries (e.g., formulation._active_materials)
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    # Use material name or key repr for path
+                    key_name = getattr(key, "name", None) or getattr(key, "_name", None) or repr(key)
+                    _collect(key, f"{path}.{key_name}")
+                    # Also check values if they might be materials
+                    if not isinstance(value, (int, float, str, bool, type(None))):
+                        _collect(value, f"{path}.{key_name}._value")
+                return
+
+            # Handle lists/tuples
+            if isinstance(obj, (list, tuple)):
+                for i, item in enumerate(obj):
+                    _collect(item, f"{path}[{i}]")
+                return
+
+            # Skip primitives and None
+            if obj is None or isinstance(obj, (int, float, str, bool, np.ndarray, pd.DataFrame, pd.Series)):
+                return
+
+            # Traverse object attributes
+            for attr_name in dir(obj):
+                # Skip dunder, private methods, and known non-material attributes
+                if attr_name.startswith("__"):
+                    continue
+                if not attr_name.startswith("_"):
+                    continue  # Only check private attributes (where data is stored)
+
+                try:
+                    attr_value = getattr(obj, attr_name)
+                except Exception:
+                    continue
+
+                # Skip callables
+                if callable(attr_value) and not isinstance(attr_value, _Material):
+                    continue
+
+                # Build clean path name (strip leading underscore)
+                clean_name = attr_name[1:] if attr_name.startswith("_") else attr_name
+                _collect(attr_value, f"{path}.{clean_name}" if path else clean_name)
+
+        # Start traversal from key cell components
+        _collect(self._electrolyte, "electrolyte")
+        _collect(self._encapsulation, "encapsulation")
+        _collect(self._reference_electrode_assembly, "reference_electrode_assembly")
+
+        return results
 
     # ------------------------------------------------------------------
     # Properties

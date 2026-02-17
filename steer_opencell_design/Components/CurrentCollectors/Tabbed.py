@@ -190,6 +190,7 @@ class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin, Seria
         self._foil_area = foil_a_side_area * 2
 
     def _translate(self, vector: Tuple[float, float, float]) -> None:
+        self._foil_coordinates = self._foil_coordinates.copy()
         self._foil_coordinates += np.array(vector)
 
     def get_view(self, **kwargs) -> go.Figure:
