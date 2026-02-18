@@ -121,7 +121,54 @@ class TestAnodeNoInsulation(unittest.TestCase):
 
         # fig1.show()
         # fig2.show()
+
+    def test_serialization_preserves_propagation_capability(self):
+        """Test that propagate_changes() works correctly after serialization/deserialization.
         
+        Tests that:
+        1. Modifying a property low in the hierarchy (current_collector.thickness)
+        2. Calling propagate_changes() on that child object
+        3. Updates a property at a higher level (electrode.mass)
+        
+        This should work both before and after serialization.
+        """
+        # Get original properties
+        original_mass = self.anode.mass
+        original_cc_thickness = self.anode.current_collector.thickness
+        
+        # Modify low in hierarchy (current collector thickness)
+        self.anode.current_collector.thickness = original_cc_thickness * 2
+        
+        # Call propagate_changes() to bubble up the change
+        self.anode.current_collector.propagate_changes()
+        
+        # Verify parent property (mass) changed
+        self.assertGreater(self.anode.mass, original_mass)
+        modified_mass = self.anode.mass
+        
+        # Reset and verify
+        self.anode.current_collector.thickness = original_cc_thickness
+        self.anode.current_collector.propagate_changes()
+        self.assertAlmostEqual(self.anode.mass, original_mass, places=1)
+        
+        # Serialize and deserialize
+        serialized = self.anode.serialize()
+        deserialized_anode = Anode.deserialize(serialized)
+        
+        # Verify deserialized has same properties
+        self.assertAlmostEqual(deserialized_anode.mass, original_mass, places=1)
+        self.assertEqual(deserialized_anode.current_collector.thickness, original_cc_thickness)
+        
+        # Modify low in hierarchy on deserialized object
+        deserialized_anode.current_collector.thickness = original_cc_thickness * 2
+        
+        # Call propagate_changes() on deserialized object
+        deserialized_anode.current_collector.propagate_changes()
+        
+        # Verify parent property changed on deserialized object
+        self.assertGreater(deserialized_anode.mass, original_mass)
+        self.assertAlmostEqual(deserialized_anode.mass, modified_mass, places=1)
+
 
 class TestCathodePunchedCurrentCollector(unittest.TestCase):
     def setUp(self):
@@ -786,7 +833,117 @@ class TestElectrodeControlModes(unittest.TestCase):
         self.assertTrue((capacity_ratio - scaling_factor).abs().max() < 0.01)
 
 
-
+class TestElectrodePropagation(unittest.TestCase):
+    """Test update propagation behavior for electrodes."""
+    
+    def setUp(self):
+        current_collector_material = CurrentCollectorMaterial.from_database("Aluminum")
+        conductive_additive = ConductiveAdditive.from_database("Super P")
+        binder = Binder.from_database("PVDF")
+        
+        self.current_collector = TablessCurrentCollector(
+            material=current_collector_material,
+            width=132,
+            length=2427,
+            coated_width=127,
+            thickness=13,
+        )
+        
+        anode_active_material = AnodeMaterial.from_database("Hard Carbon (Vendor A)")
+        
+        self.formulation = AnodeFormulation(
+            active_materials={anode_active_material: 95},
+            binders={binder: 2.5},
+            conductive_additives={conductive_additive: 2.5},
+        )
+        
+        self.anode = Anode(
+            formulation=self.formulation,
+            current_collector=self.current_collector,
+            calender_density=1.03,
+            mass_loading=8.35,
+        )
+    
+    def test_current_collector_parent_reference(self):
+        """Test that current collector has parent reference to electrode after assignment."""
+        parent = self.current_collector._get_parent()
+        self.assertIsNotNone(parent)
+        self.assertIs(parent, self.anode)
+    
+    def test_formulation_parent_reference(self):
+        """Test that formulation has parent reference to electrode after assignment."""
+        parent = self.formulation._get_parent()
+        self.assertIsNotNone(parent)
+        self.assertIs(parent, self.anode)
+    
+    def test_replace_current_collector_clears_old_parent(self):
+        """Test that replacing current collector clears old component's parent."""
+        old_cc = self.current_collector
+        
+        # Create a new current collector
+        current_collector_material = CurrentCollectorMaterial.from_database("Aluminum")
+        new_cc = TablessCurrentCollector(
+            material=current_collector_material,
+            width=100,
+            length=2000,
+            coated_width=95,
+            thickness=10,
+        )
+        
+        # Replace current collector
+        self.anode.current_collector = new_cc
+        
+        # Old one should have no parent
+        self.assertIsNone(old_cc._get_parent())
+        # New one should have parent
+        self.assertIs(new_cc._get_parent(), self.anode)
+    
+    def test_replace_formulation_clears_old_parent(self):
+        """Test that replacing formulation clears old component's parent."""
+        old_formulation = self.formulation
+        
+        # Create a new formulation
+        conductive_additive = ConductiveAdditive.from_database("Super P")
+        binder = Binder.from_database("PVDF")
+        anode_active_material = AnodeMaterial.from_database("Hard Carbon (Vendor A)")
+        
+        new_formulation = AnodeFormulation(
+            active_materials={anode_active_material: 92},
+            binders={binder: 4},
+            conductive_additives={conductive_additive: 4},
+        )
+        
+        # Replace formulation
+        self.anode.formulation = new_formulation
+        
+        # Old one should have no parent
+        self.assertIsNone(old_formulation._get_parent())
+        # New one should have parent
+        self.assertIs(new_formulation._get_parent(), self.anode)
+    
+    def test_update_method_exists(self):
+        """Test that update method exists on electrode."""
+        self.assertTrue(hasattr(self.anode, 'update'))
+        self.assertTrue(callable(self.anode.update))
+    
+    def test_propagate_changes_method_exists(self):
+        """Test that propagate_changes method exists on electrode."""
+        self.assertTrue(hasattr(self.anode, 'propagate_changes'))
+        self.assertTrue(callable(self.anode.propagate_changes))
+    
+    def test_update_on_current_collector(self):
+        """Test that calling update on current collector works without error."""
+        # Should not raise
+        self.current_collector.update()
+    
+    def test_propagate_changes_on_current_collector(self):
+        """Test that propagate_changes bubbles up through parent."""
+        # Modify a property
+        initial_thickness = self.anode.current_collector.thickness
+        self.anode.current_collector.thickness = initial_thickness + 1
+        
+        # Call propagate_changes - should not raise
+        self.current_collector.propagate_changes()
 
 
 

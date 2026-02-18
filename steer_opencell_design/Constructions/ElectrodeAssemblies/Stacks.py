@@ -604,7 +604,12 @@ class _Stack(_ElectrodeAssembly):
     @layup.setter
     @calculate_all_properties  
     def layup(self, value: Union[MonoLayer, ZFoldMonoLayer]):
+        # Clear parent reference on old layup if exists
+        if hasattr(self, '_layup') and self._layup is not None:
+            self._layup._set_parent(None)
         self._layup = value
+        # Set parent reference on new layup
+        value._set_parent(self)
 
 
 class ZFoldStack(_Stack):
@@ -725,6 +730,10 @@ class ZFoldStack(_Stack):
         """Set layup and convert stack type if needed."""
         self.validate_type(value, (MonoLayer, ZFoldMonoLayer), "layup")
         
+        # Clear parent reference on old layup if exists
+        if hasattr(self, '_layup') and self._layup is not None:
+            self._layup._set_parent(None)
+        
         if self._update_properties:
 
             # If layup type changed, convert the entire stack
@@ -747,6 +756,8 @@ class ZFoldStack(_Stack):
         else:
             # Same type, just update layup
             self._layup = value
+            # Set parent reference on new layup
+            value._set_parent(self)
 
 
 class PunchedStack(_Stack):
@@ -786,6 +797,10 @@ class PunchedStack(_Stack):
         """Set layup and convert stack type if needed."""
         self.validate_type(value, (MonoLayer, ZFoldMonoLayer), "layup")
         
+        # Clear parent reference on old layup if exists
+        if hasattr(self, '_layup') and self._layup is not None:
+            self._layup._set_parent(None)
+        
         if self._update_properties:
 
             # If layup type changed, convert the entire stack
@@ -808,5 +823,7 @@ class PunchedStack(_Stack):
         else:
             # Same type, just update layup
             self._layup = value
+            # Set parent reference on new layup
+            value._set_parent(self)
 
 

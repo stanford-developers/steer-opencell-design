@@ -13,12 +13,13 @@ import plotly.graph_objects as go
 # Core STEER imports
 from steer_core.Constants.Units import *
 from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
-from steer_core.Decorators.Coordinates import calculate_areas, calculate_coordinates
+from steer_core.Decorators.Coordinates import calculate_areas
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Serializer import SerializerMixin
+from steer_core.Mixins.Propagation import PropagationMixin
 
 from steer_opencell_design.Materials.Other import CurrentCollectorMaterial
 
@@ -29,7 +30,8 @@ class _CurrentCollector(
     ValidationMixin,
     DunderMixin,
     PlotterMixin,
-    SerializerMixin
+    PropagationMixin,
+    SerializerMixin,
     ):
     """
     Abstract base class for all current collector implementations.

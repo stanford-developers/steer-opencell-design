@@ -2601,11 +2601,18 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         # validate type
         self.validate_type(value, Laminate, "layup")
 
+        # Clear parent reference on old layup if exists
+        if hasattr(self, '_layup') and self._layup is not None:
+            self._layup._set_parent(None)
+
         # position the layup on the mandrel
         value = self.position_layup_on_mandrel(value, self._mandrel)
 
         # set to self
         self._layup = value
+
+        # Set parent reference on new layup
+        value._set_parent(self)
 
         # adjust the tape width range
         if hasattr(self, '_tape') and self._tape is not None:

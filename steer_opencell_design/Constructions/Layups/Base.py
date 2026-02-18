@@ -19,6 +19,7 @@ from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Plotter import PlotterMixin
+from steer_core.Mixins.Propagation import PropagationMixin
 
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
 from steer_opencell_design.Components.Separators import Separator
@@ -26,7 +27,6 @@ from steer_opencell_design.Constructions.Layups.OverhangUtils import OverhangMix
 from steer_opencell_design.Constructions.Layups.ArealCapacityCurveUtils import ArealCapacityCurveMixin
 from steer_opencell_design.Utils.Decorators import calculate_electrochemical_properties
 from steer_opencell_design.Components.CurrentCollectors.Base import _TapeCurrentCollector
-from steer_opencell_design.Components.CurrentCollectors.Punched import PunchedCurrentCollector
 
 
 # Module-level constants for overhang ranges and plotting parameters
@@ -65,6 +65,7 @@ class ElectrodeOrientation(Enum):
 class _Layup(
     CoordinateMixin, 
     ValidationMixin, 
+    PropagationMixin,
     SerializerMixin, 
     ColorMixin, 
     DunderMixin,
@@ -811,8 +812,13 @@ class _Layup(
             self._update_separator_sizes(cathode)
             self._update_anode_dimensions(cathode)
 
+        # Clear parent reference on old cathode if exists
+        if hasattr(self, '_cathode') and self._cathode is not None:
+            self._cathode._set_parent(None)
         # set the cathode to self
         self._cathode = cathode
+        # Set parent reference on new cathode
+        cathode._set_parent(self)
 
     @bottom_separator.setter
     @calculate_volumes
@@ -838,8 +844,13 @@ class _Layup(
                 bottom_separator._datum[2],
             )
 
+        # Clear parent reference on old separator if exists
+        if hasattr(self, '_bottom_separator') and self._bottom_separator is not None:
+            self._bottom_separator._set_parent(None)
         # assign to self
         self._bottom_separator = bottom_separator
+        # Set parent reference on new separator
+        bottom_separator._set_parent(self)
 
     @anode.setter
     @calculate_all_properties
@@ -867,8 +878,13 @@ class _Layup(
         if self._update_properties:
             self._update_separator_sizes(anode)
 
+        # Clear parent reference on old anode if exists
+        if hasattr(self, '_anode') and self._anode is not None:
+            self._anode._set_parent(None)
         # assign to self
         self._anode = anode
+        # Set parent reference on new anode
+        anode._set_parent(self)
 
     @top_separator.setter
     @calculate_volumes
@@ -891,8 +907,13 @@ class _Layup(
                 top_separator.datum[2],
             )
 
+        # Clear parent reference on old separator if exists
+        if hasattr(self, '_top_separator') and self._top_separator is not None:
+            self._top_separator._set_parent(None)
         # assign to self
         self._top_separator = top_separator
+        # Set parent reference on new separator
+        top_separator._set_parent(self)
 
     @np_ratio.setter
     @calculate_all_properties

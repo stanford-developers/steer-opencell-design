@@ -7,6 +7,7 @@ from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Serializer import SerializerMixin
+from steer_core.Mixins.Propagation import PropagationMixin
 
 from steer_opencell_design.Materials.ActiveMaterials import _ActiveMaterial
 from steer_opencell_design.Materials.Binders import Binder
@@ -25,6 +26,7 @@ class _ElectrodeFormulation(
     ValidationMixin, 
     DunderMixin,
     PlotterMixin,
+    PropagationMixin,
     SerializerMixin,
     ):
     """Base class for electrode formulations.
@@ -1107,7 +1109,16 @@ class _ElectrodeFormulation(
                 self.validate_type(key, ConductiveAdditive, "Conductive additive")
                 self.validate_percentage(value, f"Mass fraction for {key.name}")
 
+        # Clear parent references on old materials
+        if hasattr(self, '_conductive_additives') and self._conductive_additives:
+            for material in self._conductive_additives.keys():
+                material._set_parent(None)
+
         self._conductive_additives = {key: value / 100 for key, value in conductive_additives.items() if key is not None}
+
+        # Set parent references on new materials
+        for material in self._conductive_additives.keys():
+            material._set_parent(self)
 
     @binders.setter
     @calculate_all_properties
@@ -1125,8 +1136,17 @@ class _ElectrodeFormulation(
                 self.validate_type(key, Binder, "Binder")
                 self.validate_percentage(value, f"Mass fraction for {key.name}")
 
+        # Clear parent references on old materials
+        if hasattr(self, '_binders') and self._binders:
+            for material in self._binders.keys():
+                material._set_parent(None)
+
         # assign
         self._binders = {key: value / 100 for key, value in binders.items()}
+
+        # Set parent references on new materials
+        for material in self._binders.keys():
+            material._set_parent(self)
 
     @active_materials.setter
     @calculate_all_properties
@@ -1146,8 +1166,17 @@ class _ElectrodeFormulation(
             self.validate_type(key, _ActiveMaterial, "Active material")
             self.validate_percentage(value, f"Mass fraction for {key.name}")
 
+        # Clear parent references on old materials
+        if hasattr(self, '_active_materials') and self._active_materials:
+            for material in self._active_materials.keys():
+                material._set_parent(None)
+
         # Store the new active materials
         self._active_materials = {key: value / 100 for key, value in active_materials.items()}
+
+        # Set parent references on new materials
+        for material in self._active_materials.keys():
+            material._set_parent(self)
 
         # Handle voltage cutoff compatibility with new materials
         self._handle_voltage_cutoff_compatibility()
@@ -1164,6 +1193,11 @@ class _ElectrodeFormulation(
         new_material : _ActiveMaterial or None
             The new active material to replace the first one, or None to remove it
         """
+        # Get old material and clear its parent reference
+        old_material = self.active_material_1
+        if old_material is not None:
+            old_material._set_parent(None)
+        
         if new_material is None:
             # Remove the first active material
             materials_list = list(self._active_materials.items())
@@ -1193,6 +1227,9 @@ class _ElectrodeFormulation(
         # Update the active materials
         self._active_materials = new_active_materials
         
+        # Set parent reference on new material
+        new_material._set_parent(self)
+        
         # Handle voltage cutoff compatibility with new materials
         self._handle_voltage_cutoff_compatibility()
 
@@ -1210,6 +1247,11 @@ class _ElectrodeFormulation(
         new_material : _ActiveMaterial or None
             The new active material to set as the second one, or None to remove it
         """
+        # Get old material and clear its parent reference
+        old_material = self.active_material_2
+        if old_material is not None:
+            old_material._set_parent(None)
+        
         if new_material is None:
             # Remove the second active material
             materials_list = list(self._active_materials.items())
@@ -1239,6 +1281,9 @@ class _ElectrodeFormulation(
             materials_list[1] = new_material
             new_active_materials = {k: v for (k, v) in zip(materials_list, weight_fractions_list)}
             self._active_materials = new_active_materials
+        
+        # Set parent reference on new material
+        new_material._set_parent(self)
             
         # Handle voltage cutoff compatibility with new materials
         self._handle_voltage_cutoff_compatibility()
@@ -1257,6 +1302,11 @@ class _ElectrodeFormulation(
         new_material : _ActiveMaterial or None
             The new active material to set as the third one, or None to remove it
         """
+        # Get old material and clear its parent reference
+        old_material = self.active_material_3
+        if old_material is not None:
+            old_material._set_parent(None)
+        
         if new_material is None:
             # Remove the third active material
             materials_list = list(self._active_materials.items())
@@ -1303,6 +1353,9 @@ class _ElectrodeFormulation(
         
         # Update the active materials
         self._active_materials = new_active_materials
+        
+        # Set parent reference on new material
+        new_material._set_parent(self)
         
         # Handle voltage cutoff compatibility with new materials
         self._handle_voltage_cutoff_compatibility()
@@ -1364,6 +1417,11 @@ class _ElectrodeFormulation(
         material : Binder or None
             The binder material to set as the first binder, or None to remove it
         """
+        # Get old material and clear its parent reference
+        old_material = self.binder_1
+        if old_material is not None:
+            old_material._set_parent(None)
+        
         if material is None:
             # Remove the first binder
             binders_list = list(self._binders.items())
@@ -1390,6 +1448,9 @@ class _ElectrodeFormulation(
         else:
             # Add new material with 0 weight fraction
             self._binders[material] = 0.0
+        
+        # Set parent reference on new material
+        material._set_parent(self)
 
     @binder_2.setter
     @calculate_all_properties
@@ -1405,6 +1466,11 @@ class _ElectrodeFormulation(
         material : Binder or None
             The binder material to set as the second binder, or None to remove it
         """
+        # Get old material and clear its parent reference
+        old_binder = self.binder_2
+        if old_binder is not None:
+            old_binder._set_parent(None)
+        
         if material is None:
             # Remove the second binder
             binders_list = list(self._binders.items())
@@ -1437,6 +1503,9 @@ class _ElectrodeFormulation(
             first_material = binders_list[0][0]
             first_weight = self._binders[first_material]
             self._binders = {first_material: first_weight, material: old_weight, **{k: v for k, v in self._binders.items() if k != first_material}}
+        
+        # Set parent reference on new material
+        material._set_parent(self)
 
     @binder_1_weight.setter
     @calculate_all_properties
@@ -1479,6 +1548,11 @@ class _ElectrodeFormulation(
         material : ConductiveAdditive
             The conductive additive material to set as the first conductive additive
         """
+        # Get old material and clear its parent reference
+        old_material = self.conductive_additive_1
+        if old_material is not None:
+            old_material._set_parent(None)
+        
         self.validate_type(material, ConductiveAdditive, "Conductive additive material")
         
         additives_list = list(self._conductive_additives.items())
@@ -1494,6 +1568,9 @@ class _ElectrodeFormulation(
         else:
             # Add new material with 0 weight fraction
             self._conductive_additives[material] = 0.0
+        
+        # Set parent reference on new material
+        material._set_parent(self)
 
     @conductive_additive_2.setter
     @calculate_all_properties
@@ -1508,6 +1585,11 @@ class _ElectrodeFormulation(
         material : ConductiveAdditive
             The conductive additive material to set as the second conductive additive
         """
+        # Get old material and clear its parent reference
+        old_additive = self.conductive_additive_2
+        if old_additive is not None:
+            old_additive._set_parent(None)
+        
         self.validate_type(material, ConductiveAdditive, "Conductive additive material")
         
         additives_list = list(self._conductive_additives.items())
@@ -1526,6 +1608,9 @@ class _ElectrodeFormulation(
             first_material = additives_list[0][0]
             first_weight = self._conductive_additives[first_material]
             self._conductive_additives = {first_material: first_weight, material: old_weight, **{k: v for k, v in self._conductive_additives.items() if k != first_material}}
+        
+        # Set parent reference on new material
+        material._set_parent(self)
 
     @conductive_additive_1_weight.setter
     @calculate_all_properties

@@ -17,6 +17,7 @@ from steer_core.Mixins.Colors import ColorMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Data import DataMixin
+from steer_core.Mixins.Propagation import PropagationMixin
 
 from steer_core.Decorators.General import calculate_all_properties
 
@@ -57,6 +58,7 @@ class _Cell(
     ValidationMixin,
     ColorMixin,
     PlotterMixin,
+    PropagationMixin,
     SerializerMixin,
     DataMixin,
     CoordinateMixin,
@@ -1081,7 +1083,12 @@ class _Cell(
     @calculate_all_properties
     def reference_electrode_assembly(self, value: _ElectrodeAssembly) -> None:
         self.validate_type(value, _ElectrodeAssembly, "reference_electrode_assembly")
+        # Clear parent reference on old assembly if exists
+        if hasattr(self, '_reference_electrode_assembly') and self._reference_electrode_assembly is not None:
+            self._reference_electrode_assembly._set_parent(None)
         self._reference_electrode_assembly = value
+        # Set parent reference on new assembly
+        value._set_parent(self)
 
     @reversible_capacity.setter
     @calculate_electrochemical_properties
