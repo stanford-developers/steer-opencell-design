@@ -13,6 +13,7 @@ from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Dunder import DunderMixin
+from steer_core.Mixins.Propagation import PropagationMixin
 
 from steer_core.Constants.Units import *
 
@@ -59,9 +60,10 @@ def calculate_areal_capacity_curve(func):
 class _Electrode(
     ValidationMixin, 
     CoordinateMixin, 
+    PropagationMixin,
     SerializerMixin, 
     PlotterMixin,
-    DunderMixin
+    DunderMixin,
     ):
     """
     Base class for electrodes, representing the common properties and methods of an electrode.
@@ -1202,7 +1204,12 @@ class _Electrode(
     @calculate_all_properties
     def formulation(self, formulation: _ElectrodeFormulation):
         self.validate_type(formulation, _ElectrodeFormulation, "formulation")
+        # Clear parent reference on old formulation if exists
+        if hasattr(self, '_formulation') and self._formulation is not None:
+            self._formulation._set_parent(None)
         self._formulation = formulation
+        # Set parent reference on new formulation
+        formulation._set_parent(self)
 
     @calender_density.setter
     @calculate_all_properties
@@ -1248,8 +1255,14 @@ class _Electrode(
         # validate the current collector
         self.validate_type(current_collector, _CurrentCollector, "current collector")
 
+        # Clear parent reference on old current collector if exists
+        if hasattr(self, '_current_collector') and self._current_collector is not None:
+            self._current_collector._set_parent(None)
+
         # assign the current collector
         self._current_collector = current_collector
+        # Set parent reference on new current collector
+        current_collector._set_parent(self)
 
         # if the current collector has insulation, load up a default material if none is provided
         if self._current_collector.insulation_area != 0:

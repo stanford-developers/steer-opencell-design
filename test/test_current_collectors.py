@@ -248,6 +248,47 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         condition = copy_cc == self.current_collector
         self.assertTrue(condition)
 
+    def test_serialization_preserves_property_dependencies(self):
+        """Test that property dependencies work correctly after serialization/deserialization.
+        
+        Tests that changing length affects mass and cost both before
+        and after serialization.
+        """
+        # Get original properties
+        original_length = self.current_collector.length
+        original_mass = self.current_collector.mass
+        original_cost = self.current_collector.cost
+        
+        # Double the length
+        new_length = original_length * 2
+        self.current_collector.length = new_length
+        
+        # Verify mass and cost approximately doubled
+        self.assertEqual(self.current_collector.length, new_length)
+        self.assertGreater(self.current_collector.mass, original_mass)
+        self.assertGreater(self.current_collector.cost, original_cost)
+        modified_mass = self.current_collector.mass
+        
+        # Reset
+        self.current_collector.length = original_length
+        self.assertEqual(self.current_collector.length, original_length)
+        self.assertAlmostEqual(self.current_collector.mass, original_mass, places=2)
+        
+        # Serialize and deserialize
+        serialized = self.current_collector.serialize()
+        deserialized_cc = NotchedCurrentCollector.deserialize(serialized)
+        
+        # Verify deserialized has same properties
+        self.assertEqual(deserialized_cc.length, original_length)
+        self.assertAlmostEqual(deserialized_cc.mass, original_mass, places=2)
+        
+        # Double length on deserialized object
+        deserialized_cc.length = new_length
+        
+        # Verify mass increased on deserialized object
+        self.assertEqual(deserialized_cc.length, new_length)
+        self.assertAlmostEqual(deserialized_cc.mass, modified_mass, places=2)
+
 
 class TestNotchedCurrentCollector2(unittest.TestCase):
     def setUp(self):

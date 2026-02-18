@@ -639,6 +639,50 @@ class TestSeparator(unittest.TestCase):
         # fig_right.show()
         # fig_bottom.show()
 
+    def test_serialization_preserves_property_dependencies(self):
+        """Test that property dependencies work correctly after serialization/deserialization.
+        
+        Tests that changing length affects mass, cost, and area both before
+        and after serialization.
+        """
+        # Get original properties
+        original_length = self.separator.length
+        original_mass = self.separator.mass
+        original_cost = self.separator.cost
+        original_area = self.separator.area
+        
+        # Double the length
+        new_length = original_length * 2
+        self.separator.length = new_length
+        
+        # Verify dependent properties doubled
+        self.assertEqual(self.separator.length, new_length)
+        self.assertAlmostEqual(self.separator.mass, original_mass * 2, places=2)
+        self.assertAlmostEqual(self.separator.cost, original_cost * 2, places=2)
+        self.assertAlmostEqual(self.separator.area, original_area * 2, places=2)
+        
+        # Reset
+        self.separator.length = original_length
+        self.assertEqual(self.separator.length, original_length)
+        self.assertAlmostEqual(self.separator.mass, original_mass, places=2)
+        
+        # Serialize and deserialize
+        serialized = self.separator.serialize()
+        deserialized_sep = Separator.deserialize(serialized)
+        
+        # Verify deserialized has same properties
+        self.assertEqual(deserialized_sep.length, original_length)
+        self.assertAlmostEqual(deserialized_sep.mass, original_mass, places=2)
+        
+        # Double length on deserialized object
+        deserialized_sep.length = new_length
+        
+        # Verify dependent properties doubled on deserialized object
+        self.assertEqual(deserialized_sep.length, new_length)
+        self.assertAlmostEqual(deserialized_sep.mass, original_mass * 2, places=2)
+        self.assertAlmostEqual(deserialized_sep.cost, original_cost * 2, places=2)
+        self.assertAlmostEqual(deserialized_sep.area, original_area * 2, places=2)
+
 
 if __name__ == "__main__":
     unittest.main()

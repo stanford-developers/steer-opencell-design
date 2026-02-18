@@ -387,7 +387,12 @@ class CylindricalCell(_Cell):
             New electrode assembly to set
         """
         self.validate_type(value, WoundJellyRoll, "reference_electrode_assembly")
+        # Clear parent reference on old assembly if exists
+        if hasattr(self, '_reference_electrode_assembly') and self._reference_electrode_assembly is not None:
+            self._reference_electrode_assembly._set_parent(None)
         self._reference_electrode_assembly = value
+        # Set parent reference on new assembly
+        value._set_parent(self)
 
     @encapsulation.setter
     @calculate_all_properties

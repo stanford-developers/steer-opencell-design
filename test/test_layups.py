@@ -688,6 +688,53 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertFalse(self.layup.bottom_separator._flipped_z)
         self.assertFalse(self.layup.top_separator._flipped_z)
 
+    def test_serialization_preserves_propagation_capability(self):
+        """Test that propagate_changes() works correctly after serialization/deserialization.
+        
+        Tests that:
+        1. Modifying a property low in the hierarchy (cathode.mass_loading)
+        2. Calling propagate_changes() on that child object
+        3. Updates a property at a higher level (layup.thickness)
+        
+        This should work both before and after serialization.
+        """
+        # Get original properties
+        original_thickness = self.layup.thickness
+        original_mass_loading = self.layup.cathode.mass_loading
+        
+        # Modify low in hierarchy (cathode mass loading)
+        self.layup.cathode.mass_loading = original_mass_loading * 1.5
+        
+        # Call propagate_changes() to bubble up the change
+        self.layup.cathode.propagate_changes()
+        
+        # Verify parent property (thickness) changed
+        self.assertGreater(self.layup.thickness, original_thickness)
+        modified_thickness = self.layup.thickness
+        
+        # Reset and verify
+        self.layup.cathode.mass_loading = original_mass_loading
+        self.layup.cathode.propagate_changes()
+        self.assertAlmostEqual(self.layup.thickness, original_thickness, places=1)
+        
+        # Serialize and deserialize
+        serialized = self.layup.serialize()
+        deserialized_layup = Laminate.deserialize(serialized)
+        
+        # Verify deserialized has same properties
+        self.assertAlmostEqual(deserialized_layup.thickness, original_thickness, places=1)
+        self.assertEqual(deserialized_layup.cathode.mass_loading, original_mass_loading)
+        
+        # Modify low in hierarchy on deserialized object
+        deserialized_layup.cathode.mass_loading = original_mass_loading * 1.5
+        
+        # Call propagate_changes() on deserialized object
+        deserialized_layup.cathode.propagate_changes()
+        
+        # Verify parent property changed on deserialized object
+        self.assertGreater(deserialized_layup.thickness, original_thickness)
+        self.assertAlmostEqual(deserialized_layup.thickness, modified_thickness, places=1)
+
 
 class TestSimpleMonoLayer(unittest.TestCase):
 
@@ -1651,6 +1698,194 @@ class TestZFoldMonoLayer(unittest.TestCase):
         # The separator lengths should remain the same after flipping
         self.assertAlmostEqual(self.zfoldmonolayer._bottom_separator.length, original_bottom_sep_length, places=1)
         self.assertAlmostEqual(self.zfoldmonolayer._top_separator.length, original_top_sep_length, places=1)
+
+
+class TestLayupPropagation(unittest.TestCase):
+    """Test update propagation behavior for layups."""
+    
+    def setUp(self):
+        # Create cathode
+        material = CathodeMaterial.from_database("LFP")
+        material.specific_cost = 6
+        material.density = 3.6
+
+        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+
+        formulation = CathodeFormulation(
+            active_materials={material: 95},
+            binders={binder: 2},
+            conductive_additives={conductive_additive: 3},
+        )
+
+        current_collector_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
+
+        cathode_cc = NotchedCurrentCollector(
+            material=current_collector_material,
+            length=4500,
+            width=300,
+            thickness=8,
+            tab_width=60,
+            tab_spacing=200,
+            tab_height=18,
+            insulation_width=6,
+            coated_tab_height=2,
+        )
+
+        insulation = InsulationMaterial.from_database("Aluminium Oxide, 99.5%")
+
+        self.cathode = Cathode(
+            formulation=formulation,
+            mass_loading=6.2,
+            current_collector=cathode_cc,
+            calender_density=2.60,
+            insulation_material=insulation,
+            insulation_thickness=10,
+        )
+
+        # Create anode
+        anode_material = AnodeMaterial.from_database("Synthetic Graphite")
+        anode_material.specific_cost = 4
+        anode_material.density = 2.2
+
+        anode_formulation = AnodeFormulation(
+            active_materials={anode_material: 90},
+            binders={binder: 5},
+            conductive_additives={conductive_additive: 5},
+        )
+
+        anode_cc = NotchedCurrentCollector(
+            material=current_collector_material,
+            length=4500,
+            width=306,
+            thickness=8,
+            tab_width=60,
+            tab_spacing=100,
+            tab_height=18,
+            insulation_width=6,
+            coated_tab_height=2,
+        )
+
+        self.anode = Anode(
+            formulation=anode_formulation,
+            mass_loading=10,
+            current_collector=anode_cc,
+            calender_density=1.60,
+            insulation_material=insulation,
+            insulation_thickness=10,
+        )
+
+        # Create separator
+        separator_material = SeparatorMaterial(name="PE", specific_cost=1.5, density=1.0, color="#EEEEEE", porosity=40)
+        self.top_separator = Separator(
+            material=separator_material,
+            thickness=12,
+            length=4550,
+            width=310,
+        )
+        self.bottom_separator = Separator(
+            material=separator_material,
+            thickness=12,
+            length=4550,
+            width=310,
+        )
+
+        # Create laminate
+        self.laminate = Laminate(
+            cathode=self.cathode,
+            anode=self.anode,
+            top_separator=self.top_separator,
+            bottom_separator=self.bottom_separator,
+        )
+    
+    def test_cathode_parent_reference(self):
+        """Test that layup's cathode has parent reference to layup.
+        
+        Note: Layup makes a deepcopy of components, so we check the layup's copy,
+        not the original object passed to the constructor.
+        """
+        parent = self.laminate.cathode._get_parent()
+        self.assertIsNotNone(parent)
+        self.assertIs(parent, self.laminate)
+    
+    def test_anode_parent_reference(self):
+        """Test that layup's anode has parent reference to layup.
+        
+        Note: Layup makes a deepcopy of components, so we check the layup's copy,
+        not the original object passed to the constructor.
+        """
+        parent = self.laminate.anode._get_parent()
+        self.assertIsNotNone(parent)
+        self.assertIs(parent, self.laminate)
+    
+    def test_separator_parent_reference(self):
+        """Test that layup's separator has parent reference to layup.
+        
+        Note: Layup makes a deepcopy of components, so we check the layup's copy,
+        not the original object passed to the constructor.
+        """
+        parent = self.laminate.top_separator._get_parent()
+        self.assertIsNotNone(parent)
+        self.assertIs(parent, self.laminate)
+    
+    def test_replace_cathode_clears_old_parent(self):
+        """Test that replacing cathode clears old electrode's parent.
+        
+        Note: Layup makes deepcopies, so we track the layup's copy of the cathode.
+        """
+        # Get the layup's copy of the original cathode
+        old_cathode_in_layup = self.laminate.cathode
+        
+        # Create new cathode
+        material = CathodeMaterial.from_database("LFP")
+        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+        formulation = CathodeFormulation(
+            active_materials={material: 95},
+            binders={binder: 2.5},
+            conductive_additives={conductive_additive: 2.5},
+        )
+        current_collector_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
+        cathode_cc = NotchedCurrentCollector(
+            material=current_collector_material,
+            length=4000,
+            width=280,
+            thickness=8,
+            tab_width=50,
+            tab_spacing=180,
+            tab_height=16,
+            insulation_width=5,
+            coated_tab_height=2,
+        )
+        insulation = InsulationMaterial.from_database("Aluminium Oxide, 99.5%")
+        new_cathode = Cathode(
+            formulation=formulation,
+            mass_loading=5.5,
+            current_collector=cathode_cc,
+            calender_density=2.50,
+            insulation_material=insulation,
+            insulation_thickness=8,
+        )
+        
+        # Replace
+        self.laminate.cathode = new_cathode
+        
+        # Old layup's copy should have no parent after replacement
+        self.assertIsNone(old_cathode_in_layup._get_parent())
+        # New layup's copy (not the original new_cathode) should have parent
+        self.assertIs(self.laminate.cathode._get_parent(), self.laminate)
+    
+    def test_propagate_changes_from_electrode_to_layup(self):
+        """Test that propagate_changes from electrode reaches layup."""
+        # This should not raise - use layup's copies since originals aren't parented
+        self.laminate.cathode.propagate_changes()
+        self.laminate.anode.propagate_changes()
+    
+    def test_propagate_changes_from_current_collector(self):
+        """Test that propagate_changes from current collector bubbles up through electrode to layup."""
+        # Should not raise - propagates CC -> Electrode -> Layup
+        # Use layup's copy of cathode since that's what has the parent reference
+        self.laminate.cathode.current_collector.propagate_changes()
 
 
 if __name__ == "__main__":

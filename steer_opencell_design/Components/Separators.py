@@ -8,6 +8,7 @@ from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Serializer import SerializerMixin
+from steer_core.Mixins.Propagation import PropagationMixin
 
 from steer_core.Decorators.Coordinates import calculate_coordinates
 from steer_core.Decorators.General import (
@@ -32,7 +33,8 @@ class Separator(
     ValidationMixin,
     DunderMixin,
     PlotterMixin,
-    SerializerMixin
+    PropagationMixin,
+    SerializerMixin,
     ):
     """Porous separator membrane that electrically isolates the anode from the cathode while allowing ion transport. Manages separator geometry (length, width, thickness), coordinates, and Plotly visualization traces."""
 

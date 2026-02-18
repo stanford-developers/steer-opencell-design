@@ -207,6 +207,7 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
 
 
 class TestMultiCathodeFormulation(unittest.TestCase):
+
     def setUp(self):
         """
         Set up
@@ -1234,6 +1235,109 @@ class TestAnodeFormulationAddMaterialAndSerialize(unittest.TestCase):
         self.assertEqual(deserialized.active_material_1_weight, 78)
         self.assertEqual(deserialized.active_material_2_weight, 10)
         self.assertEqual(len(deserialized._active_materials), 2)
+
+
+class TestFormulationMaterialParentReferences(unittest.TestCase):
+    """Test that material setters properly establish parent references for propagation."""
+
+    def setUp(self):
+        """Set up test fixtures."""
+        self.active_material = CathodeMaterial.from_database("NaNiMn P2-O3 Composite")
+        self.active_material.density = 4
+        self.active_material.specific_cost = 10
+
+        self.binder = Binder.from_database("PVDF")
+        self.binder.specific_cost = 15
+        self.binder.density = 1.7
+
+        self.conductive_additive = ConductiveAdditive.from_database("Super P")
+        self.conductive_additive.specific_cost = 9
+        self.conductive_additive.density = 1.9
+
+        self.formulation = CathodeFormulation(
+            active_materials={self.active_material: 90},
+            binders={self.binder: 5},
+            conductive_additives={self.conductive_additive: 5},
+        )
+
+    def test_active_material_1_setter_establishes_parent(self):
+        """Test that setting active_material_1 establishes parent reference."""
+        new_material = CathodeMaterial.from_database("LFP")
+        new_material.density = 3.5
+        new_material.specific_cost = 8
+
+        # Verify no parent initially
+        self.assertIsNone(new_material._get_parent())
+
+        # Set via setter
+        self.formulation.active_material_1 = new_material
+
+        # Verify parent is established
+        self.assertIs(new_material._get_parent(), self.formulation)
+
+    def test_active_material_propagates_changes_to_formulation(self):
+        """Test that changes to active material propagate to formulation."""
+        # Record initial specific_cost
+        initial_cost = self.formulation.specific_cost
+
+        # Modify active material property
+        self.formulation.active_material_1.specific_cost = 20  # was 10
+
+        # Call propagate_changes
+        self.formulation.active_material_1.propagate_changes()
+
+        # Verify formulation specific_cost changed
+        self.assertNotEqual(self.formulation.specific_cost, initial_cost)
+        self.assertGreater(self.formulation.specific_cost, initial_cost)
+
+    def test_binder_1_setter_establishes_parent(self):
+        """Test that setting binder_1 establishes parent reference."""
+        new_binder = Binder.from_database("CMC")
+        new_binder.density = 1.5
+        new_binder.specific_cost = 12
+
+        # Verify no parent initially
+        self.assertIsNone(new_binder._get_parent())
+
+        # Set via setter
+        self.formulation.binder_1 = new_binder
+
+        # Verify parent is established
+        self.assertIs(new_binder._get_parent(), self.formulation)
+
+    def test_conductive_additive_1_setter_establishes_parent(self):
+        """Test that setting conductive_additive_1 establishes parent reference."""
+        new_additive = ConductiveAdditive.from_database("Graphite")
+        new_additive.density = 1.0
+        new_additive.specific_cost = 12
+
+        # Verify no parent initially
+        self.assertIsNone(new_additive._get_parent())
+
+        # Set via setter
+        self.formulation.conductive_additive_1 = new_additive
+
+        # Verify parent is established
+        self.assertIs(new_additive._get_parent(), self.formulation)
+
+    def test_old_material_parent_cleared_on_replacement(self):
+        """Test that old material's parent reference is cleared when replaced."""
+        old_material = self.formulation.active_material_1
+
+        # Verify old material has parent
+        self.assertIs(old_material._get_parent(), self.formulation)
+
+        # Replace with new material
+        new_material = CathodeMaterial.from_database("LFP")
+        new_material.density = 3.5
+        new_material.specific_cost = 8
+        self.formulation.active_material_1 = new_material
+
+        # Verify old material no longer has parent
+        self.assertIsNone(old_material._get_parent())
+
+        # Verify new material has parent
+        self.assertIs(new_material._get_parent(), self.formulation)
 
 
 if __name__ == "__main__":

@@ -334,6 +334,51 @@ class TestCylindricalTerminalConnector(unittest.TestCase):
         self.assertEqual(connector.radius, 15.0)
         self.assertNotEqual(connector.mass, original_mass)  # Should be different due to size change
 
+    def test_serialization_preserves_property_dependencies(self):
+        """Test that property dependencies work correctly after serialization/deserialization.
+        
+        Tests that changing radius affects mass, cost, and volume both before
+        and after serialization.
+        """
+        connector = self.connector_standard
+        
+        # Get original properties
+        original_radius = connector.radius
+        original_mass = connector.mass
+        original_cost = connector._cost
+        original_volume = connector.volume
+        
+        # Increase radius
+        new_radius = original_radius * 1.5
+        connector.radius = new_radius
+        
+        # Verify dependent properties changed
+        self.assertEqual(connector.radius, new_radius)
+        self.assertGreater(connector.mass, original_mass)
+        self.assertGreater(connector._cost, original_cost)
+        self.assertGreater(connector.volume, original_volume)
+        modified_mass = connector.mass
+        
+        # Reset
+        connector.radius = original_radius
+        self.assertEqual(connector.radius, original_radius)
+        self.assertAlmostEqual(connector.mass, original_mass, places=2)
+        
+        # Serialize and deserialize
+        serialized = connector.serialize()
+        deserialized_connector = CylindricalTerminalConnector.deserialize(serialized)
+        
+        # Verify deserialized has same properties
+        self.assertEqual(deserialized_connector.radius, original_radius)
+        self.assertAlmostEqual(deserialized_connector.mass, original_mass, places=2)
+        
+        # Increase radius on deserialized object
+        deserialized_connector.radius = new_radius
+        
+        # Verify dependent properties changed on deserialized object
+        self.assertEqual(deserialized_connector.radius, new_radius)
+        self.assertAlmostEqual(deserialized_connector.mass, modified_mass, places=2)
+
 
 class TestCylindricalLidAssembly(unittest.TestCase):
     def setUp(self):

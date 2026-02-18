@@ -9,6 +9,7 @@ from steer_core.Mixins.Colors import ColorMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Data import DataMixin
+from steer_core.Mixins.Propagation import PropagationMixin
 
 from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Decorators.Coordinates import calculate_coordinates
@@ -35,11 +36,12 @@ class _ElectrodeAssembly(
     ABC,
     CoordinateMixin, 
     ValidationMixin, 
+    PropagationMixin,
     SerializerMixin, 
     ColorMixin, 
     DunderMixin,
     PlotterMixin,
-    DataMixin
+    DataMixin,
 ):
     """Abstract base class for electrode assemblies (jelly rolls, stacks). Provides common properties for mass, cost, pore volume, and capacity curves, as well as visualization methods for breakdowns and capacity plots."""
     
@@ -404,5 +406,13 @@ class _ElectrodeAssembly(
             If layup is None or invalid
         """
         self.validate_type(value, _Layup, "layup")
+
+        # Clear parent reference on old layup if exists
+        if hasattr(self, '_layup') and self._layup is not None:
+            self._layup._set_parent(None)
+
         self._layup = value
+        
+        # Set parent reference on new layup
+        value._set_parent(self)
 

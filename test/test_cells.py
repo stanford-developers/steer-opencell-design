@@ -689,6 +689,114 @@ class TestCylindricalCell(unittest.TestCase):
         )
         self.assertTrue(cc_found, "Current collector material should be found")
 
+    def test_serialization_preserves_propagation_capability(self):
+        """Test that propagation works correctly after serialization/deserialization.
+        
+        This tests that:
+        1. A cell can be serialized and deserialized
+        2. After reassigning components through setters at each level, parent refs are established
+        3. propagate_changes() works through the full hierarchy
+        
+        Note: Deserialization bypasses setters, so parent references are not automatically
+        established. Users must reassign components through setters at each level to
+        establish the parent chain for full propagation capability.
+        """
+        # get some original properties
+        original_radius = self.cell.reference_electrode_assembly.radius 
+        original_layup_length = self.cell.reference_electrode_assembly.layup.length
+
+        # change the layup length
+        self.cell.reference_electrode_assembly.layup.length = original_layup_length + 2000
+
+        # propagate the changes
+        self.cell.reference_electrode_assembly.layup.propagate_changes()
+
+        # test that the layup length is updated
+        self.assertAlmostEqual(self.cell.reference_electrode_assembly.layup.length, original_layup_length + 2000)
+
+        # test that the radius increased
+        self.assertGreater(self.cell.reference_electrode_assembly.radius, original_radius)
+
+        # reset the layup length
+        self.cell.reference_electrode_assembly.layup.length = original_layup_length
+        self.cell.reference_electrode_assembly.layup.propagate_changes()
+
+        # test that the layup length is updated
+        self.assertAlmostEqual(self.cell.reference_electrode_assembly.layup.length, original_layup_length)
+        self.assertAlmostEqual(self.cell.reference_electrode_assembly.radius, original_radius)
+
+        # now serialize the cell
+        serialized = self.cell.serialize()
+
+        # deserialize to a new object
+        deserialized_cell = ocd.CylindricalCell.deserialize(serialized)
+
+        # test that the deserialized cell has the same properties
+        self.assertEqual(deserialized_cell.reference_electrode_assembly.radius, original_radius)
+        self.assertEqual(deserialized_cell.reference_electrode_assembly.layup.length, original_layup_length)
+
+        # Now change the layup length on the deserialized cell and propagate
+        deserialized_cell.reference_electrode_assembly.layup.length = original_layup_length + 3000
+        deserialized_cell.reference_electrode_assembly.layup.propagate_changes()
+
+        # test that the layup length is updated
+        self.assertAlmostEqual(deserialized_cell.reference_electrode_assembly.layup.length, original_layup_length + 3000)
+
+        # test that the radius increased
+        self.assertGreater(deserialized_cell.reference_electrode_assembly.radius, original_radius)
+
+    def test_material_specific_cost_change(self):
+
+        original_cell_cost = self.cell._cost
+        original_energy = self.cell.energy
+
+        fig1 = self.cell.get_capacity_plot()
+
+        # modify cathode formulation active material cost
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.specific_cost *= 2  # double the cost
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.propagate_changes()
+
+        new_cell_cost = self.cell._cost
+
+        self.assertNotEqual(new_cell_cost, original_cell_cost, "Cell cost should change when active material cost changes")
+
+        # modify the cathode irreversible specific capacity to change the energy
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.irreversible_specific_capacity *= 0.5  # increase irreversible capacity
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.propagate_changes()
+
+        new_energy = self.cell.energy
+
+        self.assertNotEqual(new_energy, original_energy, "Cell energy should change when active material irreversible specific capacity changes")
+
+        fig2 = self.cell.get_capacity_plot()
+
+        # serialize and check that changes persist
+        serialized = self.cell.serialize()
+        deserialized_cell = ocd.CylindricalCell.deserialize(serialized)
+
+        self.assertEqual(deserialized_cell._cost, new_cell_cost, "Deserialized cell should have the updated cost")
+        self.assertEqual(deserialized_cell.energy, new_energy, "Deserialized cell should have the updated energy")
+
+        # modify the specific cost back down and check that it updates again
+        deserialized_cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.specific_cost /= 2  # revert cost change
+        deserialized_cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.propagate_changes()
+
+        reverted_cost = deserialized_cell._cost
+        self.assertEqual(reverted_cost, original_cell_cost, "Reverted cell cost should match original cost")
+
+        # modify the irreversible specific capacity back and check that energy updates again
+        deserialized_cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.irreversible_specific_capacity /= 0.5
+        deserialized_cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.propagate_changes()
+
+        reverted_energy = deserialized_cell.energy
+        self.assertEqual(reverted_energy, original_energy, "Reverted cell energy should match original energy")
+
+        fig3 = deserialized_cell.get_capacity_plot()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+
 
 class TestCylindricalCellTabbed(unittest.TestCase):
     
@@ -2267,6 +2375,70 @@ class TestFromLoadedCell(unittest.TestCase):
         fig1 = self.cell.get_cross_section()
         self.assertIsNotNone(fig1)
         # fig1.show()
+
+
+class TestCellPropagation(unittest.TestCase):
+    """Test update propagation behavior for cells with full hierarchy."""
+    
+    def setUp(self):
+        # Load a cell from database (full hierarchy)
+        # Note: from_database deserializes directly, bypassing setters.
+        # Parent references are not automatically established on deserialization.
+        self.cell = ocd.CylindricalCell.from_database(table_name="cell_references", name="LFP Cylindrical Tabless Cell")
+    
+    def test_propagate_changes_from_bottom_to_top(self):
+        """Test that propagate_changes from current collector doesn't raise."""
+        # Since deserialization bypasses setters, we work with the hierarchy that exists.
+        # The propagation should still work even if parent refs are None - it just stops bubbling.
+        cc = self.cell.reference_electrode_assembly.layup.cathode.current_collector
+        # Should not raise (will just stop at first None parent)
+        cc.propagate_changes()
+    
+    def test_update_method_exists(self):
+        """Test that update method exists on cell."""
+        self.assertTrue(hasattr(self.cell, 'update'))
+        self.assertTrue(callable(self.cell.update))
+    
+    def test_modify_deep_property_and_propagate(self):
+        """Test modifying a deep property without triggering expensive recalc."""
+        # Modify current collector thickness
+        cc = self.cell.reference_electrode_assembly.layup.cathode.current_collector
+        original_thickness = cc.thickness
+        cc.thickness = original_thickness + 1
+        
+        # Propagate - should not raise
+        cc.propagate_changes()
+        
+        # Verify the change persisted
+        self.assertAlmostEqual(cc.thickness, original_thickness + 1)
+    
+    def test_propagate_changes_from_bottom_to_top(self):
+        """Test that propagate_changes from current collector doesn't raise."""
+        # Since deserialization bypasses setters, we work with the hierarchy that exists.
+        # The propagation should still work even if parent refs are None - it just stops bubbling.
+        cc = self.cell.reference_electrode_assembly.layup.cathode.current_collector
+        # Should not raise (will just stop at first None parent)
+        cc.propagate_changes()
+    
+    def test_update_method_exists(self):
+        """Test that update method exists on cell."""
+        self.assertTrue(hasattr(self.cell, 'update'))
+        self.assertTrue(callable(self.cell.update))
+    
+    def test_modify_deep_property_and_propagate(self):
+        """Test modifying a deep property and propagating changes."""
+        # Modify current collector thickness
+        cc = self.cell.reference_electrode_assembly.layup.cathode.current_collector
+        original_thickness = cc.thickness
+        cc.thickness = original_thickness + 1
+        
+        # Propagate changes - should not raise
+        cc.propagate_changes()
+        
+        # Verify the change persisted
+        self.assertAlmostEqual(cc.thickness, original_thickness + 1)
+    
+
 
 
 if __name__ == "__main__":

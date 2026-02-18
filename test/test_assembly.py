@@ -473,7 +473,54 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertTrue(new_tape_wraps > original_tape_wraps)
         self.assertTrue(new_cost > original_cost)
         self.assertTrue(new_mass > original_mass)
+
+    def test_serialization_preserves_propagation_capability(self):
+        """Test that propagate_changes() works correctly after serialization/deserialization.
         
+        Tests that:
+        1. Modifying a property low in the hierarchy (current_collector.length)
+        2. Calling propagate_changes() on that child object
+        3. Updates a property at a higher level (jellyroll.radius)
+        
+        This should work both before and after serialization.
+        """
+        # Get original properties
+        original_radius = self.my_jellyroll.radius
+        original_cc_length = self.my_jellyroll.layup.cathode.current_collector.x_foil_length
+        
+        # Modify low in hierarchy (current collector length)
+        self.my_jellyroll.layup.cathode.current_collector.x_foil_length = original_cc_length + 1000
+        
+        # Call propagate_changes() to bubble up the change
+        self.my_jellyroll.layup.cathode.current_collector.propagate_changes()
+        
+        # Verify parent property (radius) changed
+        self.assertGreater(self.my_jellyroll.radius, original_radius)
+        modified_radius = self.my_jellyroll.radius
+        
+        # Reset and verify
+        self.my_jellyroll.layup.cathode.current_collector.x_foil_length = original_cc_length
+        self.my_jellyroll.layup.cathode.current_collector.propagate_changes()
+        self.assertAlmostEqual(self.my_jellyroll.radius, original_radius, places=1)
+        
+        # Serialize and deserialize
+        serialized = self.my_jellyroll.serialize()
+        deserialized_jr = WoundJellyRoll.deserialize(serialized)
+        
+        # Verify deserialized has same properties
+        self.assertAlmostEqual(deserialized_jr.radius, original_radius, places=1)
+        self.assertEqual(deserialized_jr.layup.cathode.current_collector.x_foil_length, original_cc_length)
+        
+        # Modify low in hierarchy on deserialized object
+        deserialized_jr.layup.cathode.current_collector.x_foil_length = original_cc_length + 1000
+        
+        # Call propagate_changes() on deserialized object
+        deserialized_jr.layup.cathode.current_collector.propagate_changes()
+        
+        # Verify parent property changed on deserialized object
+        self.assertGreater(deserialized_jr.radius, original_radius)
+        self.assertAlmostEqual(deserialized_jr.radius, modified_radius, places=1)
+
 
 class TestFlatJellyRoll(unittest.TestCase):
     
@@ -826,6 +873,53 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertTrue(new_cost > original_cost)
         self.assertTrue(new_mass > original_mass)
 
+    def test_serialization_preserves_propagation_capability(self):
+        """Test that propagate_changes() works correctly after serialization/deserialization.
+        
+        Tests that:
+        1. Modifying a property low in the hierarchy (current_collector.length)
+        2. Calling propagate_changes() on that child object
+        3. Updates a property at a higher level (jellyroll.thickness)
+        
+        This should work both before and after serialization.
+        """
+        # Get original properties
+        original_thickness = self.my_jellyroll.thickness
+        original_cc_length = self.my_jellyroll.layup.cathode.current_collector.length
+        
+        # Modify low in hierarchy (current collector length)
+        self.my_jellyroll.layup.cathode.current_collector.length = original_cc_length + 1000
+        
+        # Call propagate_changes() to bubble up the change
+        self.my_jellyroll.layup.cathode.current_collector.propagate_changes()
+        
+        # Verify parent property (thickness) changed
+        self.assertGreater(self.my_jellyroll.thickness, original_thickness)
+        modified_thickness = self.my_jellyroll.thickness
+        
+        # Reset and verify
+        self.my_jellyroll.layup.cathode.current_collector.length = original_cc_length
+        self.my_jellyroll.layup.cathode.current_collector.propagate_changes()
+        self.assertAlmostEqual(self.my_jellyroll.thickness, original_thickness, places=1)
+        
+        # Serialize and deserialize
+        serialized = self.my_jellyroll.serialize()
+        deserialized_jr = FlatWoundJellyRoll.deserialize(serialized)
+        
+        # Verify deserialized has same properties
+        self.assertAlmostEqual(deserialized_jr.thickness, original_thickness, places=1)
+        self.assertEqual(deserialized_jr.layup.cathode.current_collector.length, original_cc_length)
+        
+        # Modify low in hierarchy on deserialized object
+        deserialized_jr.layup.cathode.current_collector.length = original_cc_length + 1000
+        
+        # Call propagate_changes() on deserialized object
+        deserialized_jr.layup.cathode.current_collector.propagate_changes()
+        
+        # Verify parent property changed on deserialized object
+        self.assertGreater(deserialized_jr.thickness, original_thickness)
+        self.assertAlmostEqual(deserialized_jr.thickness, modified_thickness, places=1)
+
 
 class TestPunchedStack(unittest.TestCase):
     """Tests for the PunchedStack electrode assembly built from a MonoLayer."""
@@ -1013,6 +1107,53 @@ class TestPunchedStack(unittest.TestCase):
         self.assertLess(new_cost, original_cost)
         self.assertLess(new_mass, original_mass)
         self.assertEqual(new_layer_count, original_layer_count)
+
+    def test_serialization_preserves_propagation_capability(self):
+        """Test that propagate_changes() works correctly after serialization/deserialization.
+        
+        Tests that:
+        1. Modifying a property low in the hierarchy (layup.cathode.mass_loading)
+        2. Calling propagate_changes() on that child object
+        3. Updates a property at a higher level (stack.mass)
+        
+        This should work both before and after serialization.
+        """
+        # Get original properties
+        original_mass = self.stack.mass
+        original_mass_loading = self.stack.layup.cathode.mass_loading
+        
+        # Modify low in hierarchy (cathode mass loading)
+        self.stack.layup.cathode.mass_loading = original_mass_loading * 1.5
+        
+        # Call propagate_changes() to bubble up the change
+        self.stack.layup.cathode.propagate_changes()
+        
+        # Verify parent property (mass) changed
+        self.assertGreater(self.stack.mass, original_mass)
+        modified_mass = self.stack.mass
+        
+        # Reset and verify
+        self.stack.layup.cathode.mass_loading = original_mass_loading
+        self.stack.layup.cathode.propagate_changes()
+        self.assertAlmostEqual(self.stack.mass, original_mass, places=1)
+        
+        # Serialize and deserialize
+        serialized = self.stack.serialize()
+        deserialized_stack = PunchedStack.deserialize(serialized)
+        
+        # Verify deserialized has same properties
+        self.assertAlmostEqual(deserialized_stack.mass, original_mass, places=1)
+        self.assertEqual(deserialized_stack.layup.cathode.mass_loading, original_mass_loading)
+        
+        # Modify low in hierarchy on deserialized object
+        deserialized_stack.layup.cathode.mass_loading = original_mass_loading * 1.5
+        
+        # Call propagate_changes() on deserialized object
+        deserialized_stack.layup.cathode.propagate_changes()
+        
+        # Verify parent property changed on deserialized object
+        self.assertGreater(deserialized_stack.mass, original_mass)
+        self.assertAlmostEqual(deserialized_stack.mass, modified_mass, places=1)
 
 
 class TestZFoldStack(unittest.TestCase):
@@ -1379,6 +1520,241 @@ class TestFlatJellyRollWithTabWelded(unittest.TestCase):
         # fig1.show()
         # fig3.show()
         # fig4.show()
+
+
+class TestAssemblyPropagation(unittest.TestCase):
+    """Test update propagation behavior for electrode assemblies."""
+    
+    def setUp(self):
+        # Create cathode
+        material = CathodeMaterial.from_database("LFP")
+        material.specific_cost = 6
+        material.density = 3.6
+
+        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+
+        formulation = CathodeFormulation(
+            active_materials={material: 95},
+            binders={binder: 2},
+            conductive_additives={conductive_additive: 3},
+        )
+
+        current_collector_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
+
+        current_collector = NotchedCurrentCollector(
+            material=current_collector_material,
+            length=4500,
+            width=300,
+            thickness=8,
+            tab_width=60,
+            tab_spacing=200,
+            tab_height=18,
+            insulation_width=6,
+            coated_tab_height=2,
+        )
+
+        insulation = InsulationMaterial.from_database("Aluminium Oxide, 99.5%")
+
+        cathode = Cathode(
+            formulation=formulation,
+            mass_loading=12,
+            current_collector=current_collector,
+            calender_density=2.60,
+            insulation_material=insulation,
+            insulation_thickness=10,
+        )
+
+        # Create anode
+        anode_material = AnodeMaterial.from_database("Synthetic Graphite")
+        anode_material.specific_cost = 4
+        anode_material.density = 2.2
+
+        anode_formulation = AnodeFormulation(
+            active_materials={anode_material: 90},
+            binders={binder: 5},
+            conductive_additives={conductive_additive: 5},
+        )
+
+        anode_cc = NotchedCurrentCollector(
+            material=current_collector_material,
+            length=4500,
+            width=306,
+            thickness=8,
+            tab_width=60,
+            tab_spacing=100,
+            tab_height=18,
+            insulation_width=6,
+            coated_tab_height=2,
+        )
+
+        anode = Anode(
+            formulation=anode_formulation,
+            mass_loading=10,
+            current_collector=anode_cc,
+            calender_density=1.60,
+            insulation_material=insulation,
+            insulation_thickness=10,
+        )
+
+        # Create separators
+        separator_material = SeparatorMaterial(name="PE", specific_cost=1.5, density=1.0, color="#EEEEEE", porosity=40)
+        top_separator = Separator(
+            material=separator_material,
+            thickness=12,
+            length=4550,
+            width=310,
+        )
+        bottom_separator = Separator(
+            material=separator_material,
+            thickness=12,
+            length=4550,
+            width=310,
+        )
+
+        # Create laminate
+        self.layup = Laminate(
+            cathode=cathode,
+            anode=anode,
+            top_separator=top_separator,
+            bottom_separator=bottom_separator,
+        )
+
+        # Create jelly roll
+        mandrel = RoundMandrel(
+            diameter=4,
+            length=300
+        )
+        
+        self.jelly_roll = WoundJellyRoll(
+            laminate=self.layup,
+            mandrel=mandrel,
+        )
+    
+    def test_layup_parent_reference(self):
+        """Test that jelly roll's layup has parent reference to assembly.
+        
+        Note: Assembly makes a deepcopy of components, so we check the assembly's copy,
+        not the original object passed to the constructor.
+        """
+        parent = self.jelly_roll.layup._get_parent()
+        self.assertIsNotNone(parent)
+        self.assertIs(parent, self.jelly_roll)
+    
+    def test_replace_layup_clears_old_parent(self):
+        """Test that replacing layup clears old layup's parent.
+        
+        Note: Assembly makes deepcopies, so we track the assembly's copy of the layup.
+        """
+        # Get the assembly's copy of the original layup
+        old_layup_in_assembly = self.jelly_roll.layup
+        
+        # Create new components for a new layup
+        material = CathodeMaterial.from_database("LFP")
+        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+        formulation = CathodeFormulation(
+            active_materials={material: 95},
+            binders={binder: 2.5},
+            conductive_additives={conductive_additive: 2.5},
+        )
+        current_collector_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
+        cathode_cc = NotchedCurrentCollector(
+            material=current_collector_material,
+            length=4000,
+            width=280,
+            thickness=8,
+            tab_width=50,
+            tab_spacing=180,
+            tab_height=16,
+            insulation_width=5,
+            coated_tab_height=2,
+        )
+        insulation = InsulationMaterial.from_database("Aluminium Oxide, 99.5%")
+        new_cathode = Cathode(
+            formulation=formulation,
+            mass_loading=10,
+            current_collector=cathode_cc,
+            calender_density=2.50,
+            insulation_material=insulation,
+            insulation_thickness=8,
+        )
+        
+        anode_material = AnodeMaterial.from_database("Synthetic Graphite")
+        anode_formulation = AnodeFormulation(
+            active_materials={anode_material: 90},
+            binders={binder: 5},
+            conductive_additives={conductive_additive: 5},
+        )
+        anode_cc = NotchedCurrentCollector(
+            material=current_collector_material,
+            length=4000,
+            width=286,
+            thickness=8,
+            tab_width=50,
+            tab_spacing=90,
+            tab_height=16,
+            insulation_width=5,
+            coated_tab_height=2,
+        )
+        new_anode = Anode(
+            formulation=anode_formulation,
+            mass_loading=8,
+            current_collector=anode_cc,
+            calender_density=1.50,
+            insulation_material=insulation,
+            insulation_thickness=8,
+        )
+        
+        separator_material = SeparatorMaterial(name="PE", specific_cost=1.5, density=1.0, color="#EEEEEE", porosity=40)
+        new_top_separator = Separator(
+            material=separator_material,
+            thickness=10,
+            length=4100,
+            width=290,
+        )
+        new_bottom_separator = Separator(
+            material=separator_material,
+            thickness=10,
+            length=4100,
+            width=290,
+        )
+        
+        new_layup = Laminate(
+            cathode=new_cathode,
+            anode=new_anode,
+            top_separator=new_top_separator,
+            bottom_separator=new_bottom_separator,
+        )
+        
+        # Replace layup
+        self.jelly_roll.layup = new_layup
+        
+        # Old assembly's copy should have no parent after replacement
+        self.assertIsNone(old_layup_in_assembly._get_parent())
+        # New assembly's copy (not the original new_layup) should have parent
+        self.assertIs(self.jelly_roll.layup._get_parent(), self.jelly_roll)
+    
+    def test_propagate_changes_from_layup_to_assembly(self):
+        """Test that propagate_changes from layup reaches assembly."""
+        # Should not raise - use assembly's copy since that's what has parent reference
+        self.jelly_roll.layup.propagate_changes()
+    
+    def test_propagate_changes_from_electrode_to_assembly(self):
+        """Test that propagate_changes from electrode bubbles up through layup to assembly."""
+        # Should not raise - propagates Electrode -> Layup -> Assembly
+        # Use assembly's copy of layup
+        old_layup_cost = self.jelly_roll._cost
+        self.jelly_roll.layup.cathode.current_collector.thickness = 30
+        self.jelly_roll.layup.cathode.current_collector.propagate_changes()
+        new_layup_cost = self.jelly_roll._cost
+        self.assertTrue(new_layup_cost > old_layup_cost)
+    
+    def test_propagate_changes_from_current_collector_to_assembly(self):
+        """Test that propagate_changes from current collector bubbles up through full hierarchy."""
+        # Should not raise - propagates CC -> Electrode -> Layup -> Assembly
+        # Use assembly's copies
+        self.jelly_roll.layup.cathode.current_collector.propagate_changes()
 
 
 if __name__ == "__main__":
