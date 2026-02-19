@@ -370,6 +370,36 @@ class Laminate(_Layup):
         return self._cathode._current_collector.width_hard_range
 
     @property
+    def bottom_separator(self) -> Separator:
+        """Get the bottom separator of the laminate."""
+        return self._bottom_separator
+
+    @bottom_separator.setter
+    @calculate_all_properties
+    def bottom_separator(self, value: Separator):
+        """Set the bottom separator of the laminate.
+        
+        The internal _set_bottom_separator method handles type validation,
+        datum positioning, and parent reference management for propagation.
+        """
+        self._set_bottom_separator(value)
+
+    @property
+    def top_separator(self) -> Separator:
+        """Get the top separator of the laminate."""
+        return self._top_separator
+
+    @top_separator.setter
+    @calculate_all_properties
+    def top_separator(self, value: Separator):
+        """Set the top separator of the laminate.
+        
+        The internal _set_top_separator method handles type validation,
+        datum positioning, and parent reference management for propagation.
+        """
+        self._set_top_separator(value)
+
+    @property
     def total_length(self) -> float:
         """Return the total length of the layup in mm."""
         return np.round(self._total_length * M_TO_MM, 2)
