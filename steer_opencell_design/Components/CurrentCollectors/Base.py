@@ -1009,8 +1009,18 @@ class _CurrentCollector(
     @calculate_bulk_properties
     def material(self, material: CurrentCollectorMaterial) -> None:
         self.validate_type(material, CurrentCollectorMaterial, "material")
+
+        # Clear old parent reference
+        if hasattr(self, '_material') and self._material is not None:
+            if hasattr(self._material, '_set_parent'):
+                self._material._set_parent(None)
+
         self._material = deepcopy(material)
         self._calculate_fill_patterns()
+
+        # Set new parent reference for propagation
+        if hasattr(self._material, '_set_parent'):
+            self._material._set_parent(self)
 
     @datum_x.setter
     def datum_x(self, x: float) -> None:

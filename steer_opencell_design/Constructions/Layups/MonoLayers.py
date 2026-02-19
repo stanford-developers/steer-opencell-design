@@ -215,6 +215,17 @@ class MonoLayer(_Layup):
         # Validate input type
         self.validate_type(value, Separator, "Separator")
 
+        # Clear old parent references
+        if hasattr(self, '_bottom_separator') and self._bottom_separator is not None:
+            if hasattr(self._bottom_separator, '_set_parent'):
+                self._bottom_separator._set_parent(None)
+        if hasattr(self, '_top_separator') and self._top_separator is not None:
+            if hasattr(self._top_separator, '_set_parent'):
+                self._top_separator._set_parent(None)
+        if hasattr(self, '_canonical_separator') and self._canonical_separator is not None:
+            if hasattr(self._canonical_separator, '_set_parent'):
+                self._canonical_separator._set_parent(None)
+
         # Deep copy into both
         base = deepcopy(value)
         top = deepcopy(value)
@@ -226,6 +237,14 @@ class MonoLayer(_Layup):
         self._bottom_separator = base
         self._top_separator = top
         self._canonical_separator = deepcopy(value)
+
+        # Set new parent references for propagation
+        if hasattr(self._bottom_separator, '_set_parent'):
+            self._bottom_separator._set_parent(self)
+        if hasattr(self._top_separator, '_set_parent'):
+            self._top_separator._set_parent(self)
+        if hasattr(self._canonical_separator, '_set_parent'):
+            self._canonical_separator._set_parent(self)
 
     @property
     def separator_overhangs(self) -> dict:
@@ -466,6 +485,17 @@ class ZFoldMonoLayer(MonoLayer):
 
         # Validate input type
         self.validate_type(value, Separator, "Separator")
+
+        # Clear old parent references
+        if hasattr(self, '_bottom_separator') and self._bottom_separator is not None:
+            if hasattr(self._bottom_separator, '_set_parent'):
+                self._bottom_separator._set_parent(None)
+        if hasattr(self, '_top_separator') and self._top_separator is not None:
+            if hasattr(self._top_separator, '_set_parent'):
+                self._top_separator._set_parent(None)
+        if hasattr(self, '_canonical_separator') and self._canonical_separator is not None:
+            if hasattr(self._canonical_separator, '_set_parent'):
+                self._canonical_separator._set_parent(None)
         
         # Set canonical separator
         self._canonical_separator = deepcopy(value)
@@ -488,6 +518,14 @@ class ZFoldMonoLayer(MonoLayer):
 
         self._bottom_separator = bottom
         self._top_separator = top
+
+        # Set new parent references for propagation
+        if hasattr(self._bottom_separator, '_set_parent'):
+            self._bottom_separator._set_parent(self)
+        if hasattr(self._top_separator, '_set_parent'):
+            self._top_separator._set_parent(self)
+        if hasattr(self._canonical_separator, '_set_parent'):
+            self._canonical_separator._set_parent(self)
 
         self._constrain_separator_geometry()
 

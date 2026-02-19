@@ -507,7 +507,12 @@ class Separator(
     @calculate_bulk_properties
     def material(self, material: SeparatorMaterial) -> None:
         self.validate_type(material, SeparatorMaterial, "Material")
+        # Clear parent reference on old material if exists
+        if hasattr(self, '_material') and self._material is not None:
+            self._material._set_parent(None)
         self._material = deepcopy(material)
+        # Set parent reference on new material
+        self._material._set_parent(self)
 
     @datum.setter
     @calculate_coordinates

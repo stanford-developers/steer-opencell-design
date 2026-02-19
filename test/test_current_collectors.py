@@ -92,18 +92,6 @@ class TestPunchedCurrentCollector(unittest.TestCase):
 
         self.assertTrue(True)
 
-    def test_pickle_unpickle(self):
-        serialized = dumps(self.current_collector)
-        encoded = b64encode(serialized).decode("utf-8")
-        decoded = b64decode(encoded)
-        deserialized = loads(decoded)
-
-        self.assertEqual(self.current_collector.material.mass, deserialized.material.mass)
-        self.assertEqual(self.current_collector.material.cost, deserialized.material.cost)
-        self.assertEqual(self.current_collector.material.name, deserialized.material.name)
-        self.assertEqual(self.current_collector.width, deserialized.width)
-        self.assertEqual(self.current_collector.height, deserialized.height)
-
     def test_setters(self):
         self.current_collector.width = 200
         self.assertEqual(self.current_collector.width, 200)

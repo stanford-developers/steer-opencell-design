@@ -8,6 +8,7 @@ from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Serializer import SerializerMixin
+from steer_core.Mixins.Propagation import PropagationMixin
 
 from steer_core.Decorators.General import calculate_all_properties
 
@@ -23,6 +24,7 @@ class Tape(
     ValidationMixin,
     DunderMixin,
     PlotterMixin,
+    PropagationMixin,
     SerializerMixin,
     ):
     """Adhesive tape used to secure the outer wraps of wound jelly roll assemblies. Manages tape geometry (width, thickness) and material properties."""
@@ -240,7 +242,17 @@ class Tape(
     @calculate_all_properties
     def material(self, material: TapeMaterial) -> None:
         self.validate_type(material, TapeMaterial, "Material")
+
+        # Clear old parent reference
+        if hasattr(self, '_material') and self._material is not None:
+            if hasattr(self._material, '_set_parent'):
+                self._material._set_parent(None)
+
         self._material = deepcopy(material)
+
+        # Set new parent reference for propagation
+        if hasattr(self._material, '_set_parent'):
+            self._material._set_parent(self)
 
     @thickness.setter
     @calculate_all_properties

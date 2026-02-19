@@ -10,12 +10,14 @@ from steer_core import (
     DunderMixin,
     PlotterMixin,
 )
+from steer_core.Mixins.Propagation import PropagationMixin
 
 class _Container(
     ABC,
     CoordinateMixin,
     ColorMixin,
     ValidationMixin,
+    PropagationMixin,
     SerializerMixin,
     DunderMixin,
     PlotterMixin,

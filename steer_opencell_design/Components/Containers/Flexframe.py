@@ -1,6 +1,7 @@
 """Flex-frame cell container components."""
 
 from steer_core import CoordinateMixin, PlotterMixin, ValidationMixin, DunderMixin, SerializerMixin
+from steer_core.Mixins.Propagation import PropagationMixin
 from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Decorators.Coordinates import calculate_coordinates
 from steer_core.Constants.Units import *
@@ -29,6 +30,7 @@ PLOT_LINE_COLOR = "black"
 class FlexFrame(
     CoordinateMixin,
     ValidationMixin,
+    PropagationMixin,
     SerializerMixin,
     DunderMixin,
     PlotterMixin,
@@ -382,7 +384,12 @@ class FlexFrame(
     @calculate_all_properties
     def material(self, material: FlexFrameMaterial) -> None:
         self.validate_type(material, FlexFrameMaterial, "Material")
+        # Clear parent reference on old material if exists
+        if hasattr(self, '_material') and self._material is not None:
+            self._material._set_parent(None)
         self._material = material
+        # Set parent reference on new material
+        material._set_parent(self)
 
     @width.setter
     @calculate_all_properties
@@ -651,7 +658,12 @@ class FlexFrameEncapsulation(_Container):
     def flex_frame(self, flex_frame: FlexFrame) -> None:
         """Set flex frame component."""
         self.validate_type(flex_frame, FlexFrame, "Flex Frame")
+        # Clear parent reference on old flex frame if exists
+        if hasattr(self, '_flex_frame') and self._flex_frame is not None:
+            self._flex_frame._set_parent(None)
         self._flex_frame = flex_frame
+        # Set parent reference on new flex frame
+        flex_frame._set_parent(self)
 
     @thickness.setter
     @calculate_all_properties
@@ -706,7 +718,14 @@ class FlexFrameEncapsulation(_Container):
         if 'cathode' not in terminal.name.lower():
             terminal.name = f"{terminal.name} (Cathode)"
 
+        # Clear parent reference on old terminal if exists
+        if hasattr(self, '_cathode_terminal') and self._cathode_terminal is not None:
+            self._cathode_terminal._set_parent(None)
+
         self._cathode_terminal = terminal
+        
+        # Set parent reference on new terminal
+        terminal._set_parent(self)
 
     @anode_terminal.setter
     @calculate_all_properties
@@ -718,7 +737,14 @@ class FlexFrameEncapsulation(_Container):
         if 'anode' not in terminal.name.lower():
             terminal.name = f"{terminal.name} (Anode)"
 
+        # Clear parent reference on old terminal if exists
+        if hasattr(self, '_anode_terminal') and self._anode_terminal is not None:
+            self._anode_terminal._set_parent(None)
+
         self._anode_terminal = terminal
+        
+        # Set parent reference on new terminal
+        terminal._set_parent(self)
 
     @laminate_sheet.setter
     @calculate_all_properties
@@ -727,6 +753,11 @@ class FlexFrameEncapsulation(_Container):
         self.validate_type(laminate, LaminateSheet, "Laminate Sheet")
         laminate.width = self._flex_frame.width + laminate._thickness * 2 * UM_TO_M
         laminate.height = self._flex_frame.height + laminate._thickness * 2 * UM_TO_M
+        # Clear parent reference on old laminate if exists
+        if hasattr(self, '_laminate_sheet') and self._laminate_sheet is not None:
+            self._laminate_sheet._set_parent(None)
         self._laminate_sheet = laminate
+        # Set parent reference on new laminate
+        laminate._set_parent(self)
 
 

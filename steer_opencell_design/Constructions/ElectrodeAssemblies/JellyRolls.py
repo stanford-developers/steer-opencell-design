@@ -2537,6 +2537,11 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         TypeError
             If value is not a Tape instance
         """
+        # Clear old parent reference
+        if hasattr(self, '_tape') and self._tape is not None:
+            if hasattr(self._tape, '_set_parent'):
+                self._tape._set_parent(None)
+
         if value is None:
             self._tape = None
             return
@@ -2559,6 +2564,10 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
         self._tape = value
 
+        # Set new parent reference for propagation
+        if hasattr(value, '_set_parent'):
+            value._set_parent(self)
+
         if self._update_properties:
             self._tape_length_driver = TapeDriver.TAPE_DRIVEN
 
@@ -2578,7 +2587,17 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             If value is not a valid mandrel type
         """
         self.validate_type(value, (RoundMandrel, FlatMandrel), "mandrel")
+
+        # Clear old parent reference
+        if hasattr(self, '_mandrel') and self._mandrel is not None:
+            if hasattr(self._mandrel, '_set_parent'):
+                self._mandrel._set_parent(None)
+
         self._mandrel = value
+
+        # Set new parent reference for propagation
+        if hasattr(value, '_set_parent'):
+            value._set_parent(self)
 
         if hasattr(self, '_layup'):
             self._layup = self.position_layup_on_mandrel(self._layup, self._mandrel)

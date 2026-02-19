@@ -1243,7 +1243,17 @@ class _Cell(
     @calculate_all_properties
     def encapsulation(self, value: _Container) -> None:
         self.validate_type(value, _Container, "encapsulation")
+
+        # Clear old parent reference
+        if hasattr(self, '_encapsulation') and self._encapsulation is not None:
+            if hasattr(self._encapsulation, '_set_parent'):
+                self._encapsulation._set_parent(None)
+
         self._encapsulation = value
+
+        # Set new parent reference for propagation
+        if hasattr(value, '_set_parent'):
+            value._set_parent(self)
 
     @n_electrode_assembly.setter
     @calculate_all_properties
@@ -1262,8 +1272,17 @@ class _Cell(
         if self._update_properties and hasattr(value, "_volume") and value._volume is not None and value._volume > 0:
             self._electrolyte_overfill = (value._volume / self._pore_volume) - 1
 
+        # Clear old parent reference
+        if hasattr(self, '_electrolyte') and self._electrolyte is not None:
+            if hasattr(self._electrolyte, '_set_parent'):
+                self._electrolyte._set_parent(None)
+
         # assign
         self._electrolyte = value
+
+        # Set new parent reference for propagation
+        if hasattr(value, '_set_parent'):
+            value._set_parent(self)
 
     @electrolyte_overfill.setter
     @calculate_all_properties
