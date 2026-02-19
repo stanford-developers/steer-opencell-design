@@ -24,11 +24,12 @@ from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Constants.Units import *
 
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
 from copy import deepcopy
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Generator
 import re
 from scipy.optimize import brentq
 
@@ -89,6 +90,40 @@ class _Cell(
         self._calculate_bulk_properties()
         self._calculate_electrochemical_properties()
 
+    @contextmanager
+    def batch_updates(self) -> Generator[None, None, None]:
+        """Context manager for efficient batch property updates.
+        
+        Temporarily disables automatic recalculation during property changes,
+        then performs a single recalculation when exiting the context.
+        
+        Use this when setting multiple properties at once to avoid redundant
+        recalculations that would otherwise occur after each property change.
+        
+        Examples
+        --------
+        >>> with cell.batch_updates():
+        ...     cell.n_electrode_assembly = 2
+        ...     cell.electrolyte_overfill = 30
+        ...     cell.operating_voltage_window = (2.5, 4.2)
+        # Single recalculation happens here
+        
+        Yields
+        ------
+        None
+        """
+        # Store and disable update flag
+        original_update_flag = self._update_properties
+        self._update_properties = False
+        
+        try:
+            yield
+        finally:
+            # Restore flag and trigger single recalculation
+            self._update_properties = original_update_flag
+            if original_update_flag:
+                self._calculate_all_properties()
+
     def _calculate_bulk_properties(self) -> None:
         self._calculate_electrolyte_properties()
         self._calculate_mass_properties()
@@ -101,6 +136,7 @@ class _Cell(
         self._calculate_lower_voltage_limit_range()
         self._calculate_reversible_capacity()
         self._calculate_irreversible_capacity()
+        self._calculate_capacity_ranges()  # Cache ranges to avoid recalculation on property access
         self._calculate_energy_properties()
 
     def _calculate_curves(self) -> None:
@@ -140,11 +176,20 @@ class _Cell(
         self._electrolyte.volume = electrolyte_volume
 
     def _make_assemblies(self) -> list[_ElectrodeAssembly]:
-
+        """Create electrode assemblies as deep copies of the reference assembly.
+        
+        Always performs deep copies to ensure cost and property propagation
+        works correctly when the reference assembly's internal state changes.
+        
+        Returns
+        -------
+        list[_ElectrodeAssembly]
+            List of electrode assembly instances
+        """
         # Create the electrode assemblies based on the reference assembly and number of assemblies
-        self._electrode_assemblies = [deepcopy(self.reference_electrode_assembly) for _ in range(self.n_electrode_assembly)]
+        self._electrode_assemblies = [deepcopy(self._reference_electrode_assembly) for _ in range(self._n_electrode_assembly)]
 
-        # clear their cached data
+        # Clear their cached data
         for assembly in self._electrode_assemblies:
             assembly._clear_cached_data()
 
@@ -408,6 +453,78 @@ class _Cell(
         _discharge_mask = self._capacity_curve[:, 2] == -1
         _discharge_curve = self._capacity_curve[_discharge_mask]
         self._irreversible_capacity = _discharge_curve[:, 0].min()
+
+    def _calculate_capacity_ranges(self) -> None:
+        """Calculate and cache reversible and irreversible capacity ranges.
+        
+        This method computes both ranges in a single pass to avoid redundant
+        recalculations when accessing range properties. The ranges are stored
+        in private cache attributes and returned by the property accessors.
+        """
+        # Store current state
+        current_min_voltage = self._minimum_operating_voltage
+        current_max_voltage = self._maximum_operating_voltage
+        
+        # Get voltage ranges from layup
+        v_min_lower, v_max_lower = self._minimum_operating_voltage_range
+        v_min_upper, v_max_upper = self._maximum_operating_voltage_range
+        
+        # --- Calculate irreversible capacity range ---
+        # At minimum lower voltage
+        self._reference_electrode_assembly._layup._minimum_operating_voltage = v_min_lower
+        self._reference_electrode_assembly._calculate_capacity_curves()
+        self._calculate_curves()
+        self._calculate_reversible_capacity()
+        self._calculate_irreversible_capacity()
+        irr_at_min = self._irreversible_capacity * S_TO_H
+        
+        # At maximum lower voltage
+        self._reference_electrode_assembly._layup._minimum_operating_voltage = v_max_lower
+        self._reference_electrode_assembly._calculate_capacity_curves()
+        self._calculate_curves()
+        self._calculate_reversible_capacity()
+        self._calculate_irreversible_capacity()
+        irr_at_max = self._irreversible_capacity * S_TO_H
+        
+        # Cache irreversible range
+        self._irreversible_capacity_range_cache = (
+            np.round(min(irr_at_min, irr_at_max), CAPACITY_PRECISION),
+            np.round(max(irr_at_min, irr_at_max), CAPACITY_PRECISION)
+        )
+        
+        # Restore minimum voltage before calculating reversible range
+        self._reference_electrode_assembly._layup._minimum_operating_voltage = current_min_voltage
+        
+        # --- Calculate reversible capacity range ---
+        # At minimum upper voltage
+        self._reference_electrode_assembly._layup._maximum_operating_voltage = v_min_upper
+        self._reference_electrode_assembly._calculate_capacity_curves()
+        self._calculate_curves()
+        self._calculate_reversible_capacity()
+        self._calculate_irreversible_capacity()
+        rev_at_min = self._reversible_capacity * S_TO_H
+        
+        # At maximum upper voltage
+        self._reference_electrode_assembly._layup._maximum_operating_voltage = v_max_upper
+        self._reference_electrode_assembly._calculate_capacity_curves()
+        self._calculate_curves()
+        self._calculate_reversible_capacity()
+        self._calculate_irreversible_capacity()
+        rev_at_max = self._reversible_capacity * S_TO_H
+        
+        # Cache reversible range
+        self._reversible_capacity_range_cache = (
+            np.round(min(rev_at_min, rev_at_max), CAPACITY_PRECISION),
+            np.round(max(rev_at_min, rev_at_max), CAPACITY_PRECISION)
+        )
+        
+        # Restore original state
+        self._reference_electrode_assembly._layup._minimum_operating_voltage = current_min_voltage
+        self._reference_electrode_assembly._layup._maximum_operating_voltage = current_max_voltage
+        self._reference_electrode_assembly._calculate_capacity_curves()
+        self._calculate_curves()
+        self._calculate_reversible_capacity()
+        self._calculate_irreversible_capacity()
 
     def _calculate_mass_properties(self) -> tuple[float, Dict]:
         
@@ -814,95 +931,27 @@ class _Cell(
     def irreversible_capacity_range(self) -> Tuple[float, float]:
         """Range of achievable irreversible capacities in Ah.
         
-        Computes the min and max irreversible capacity by setting the minimum
-        operating voltage to its extreme values.
+        Returns cached values computed during _calculate_electrochemical_properties().
         
         Returns
         -------
         Tuple[float, float]
             (min_irreversible_capacity, max_irreversible_capacity) in Ah
         """
-        # Store current state
-        current_min_voltage = self._minimum_operating_voltage
-        
-        # Get voltage range
-        v_min, v_max = self._minimum_operating_voltage_range
-        
-        # Calculate irreversible capacity at minimum voltage
-        self._reference_electrode_assembly._layup.minimum_operating_voltage = v_min
-        self._reference_electrode_assembly._calculate_capacity_curves()
-        self._calculate_curves()
-        self._calculate_reversible_capacity()
-        self._calculate_irreversible_capacity()
-        irr_at_min_voltage = self._irreversible_capacity * S_TO_H
-        
-        # Calculate irreversible capacity at maximum voltage
-        self._reference_electrode_assembly._layup.minimum_operating_voltage = v_max
-        self._reference_electrode_assembly._calculate_capacity_curves()
-        self._calculate_curves()
-        self._calculate_reversible_capacity()
-        self._calculate_irreversible_capacity()
-        irr_at_max_voltage = self._irreversible_capacity * S_TO_H
-        
-        # Restore original state
-        self._reference_electrode_assembly._layup.minimum_operating_voltage = current_min_voltage
-        self._reference_electrode_assembly._calculate_capacity_curves()
-        self._calculate_curves()
-        self._calculate_reversible_capacity()
-        self._calculate_irreversible_capacity()
-        
-        # Return range (min at max voltage, max at min voltage due to inverse relationship)
-        return (
-            np.round(min(irr_at_min_voltage, irr_at_max_voltage), CAPACITY_PRECISION),
-            np.round(max(irr_at_min_voltage, irr_at_max_voltage), CAPACITY_PRECISION)
-        )
+        return self._irreversible_capacity_range_cache
 
     @property
     def reversible_capacity_range(self) -> Tuple[float, float]:
         """Range of achievable reversible capacities in Ah.
         
-        Computes the min and max reversible capacity by setting the maximum
-        operating voltage to its extreme values.
+        Returns cached values computed during _calculate_electrochemical_properties().
         
         Returns
         -------
         Tuple[float, float]
             (min_reversible_capacity, max_reversible_capacity) in Ah
         """
-        # Store current state
-        current_max_voltage = self._maximum_operating_voltage
-        
-        # Get voltage range
-        v_min, v_max = self._maximum_operating_voltage_range
-        
-        # Calculate reversible capacity at minimum voltage
-        self._reference_electrode_assembly._layup.maximum_operating_voltage = v_min
-        self._reference_electrode_assembly._calculate_capacity_curves()
-        self._calculate_curves()
-        self._calculate_reversible_capacity()
-        self._calculate_irreversible_capacity()
-        rev_at_min_voltage = self._reversible_capacity * S_TO_H
-        
-        # Calculate reversible capacity at maximum voltage
-        self._reference_electrode_assembly._layup.maximum_operating_voltage = v_max
-        self._reference_electrode_assembly._calculate_capacity_curves()
-        self._calculate_curves()
-        self._calculate_reversible_capacity()
-        self._calculate_irreversible_capacity()
-        rev_at_max_voltage = self._reversible_capacity * S_TO_H
-        
-        # Restore original state
-        self._reference_electrode_assembly._layup.maximum_operating_voltage = current_max_voltage
-        self._reference_electrode_assembly._calculate_capacity_curves()
-        self._calculate_curves()
-        self._calculate_reversible_capacity()
-        self._calculate_irreversible_capacity()
-        
-        # Return range (sorted min to max)
-        return (
-            np.round(min(rev_at_min_voltage, rev_at_max_voltage), CAPACITY_PRECISION),
-            np.round(max(rev_at_min_voltage, rev_at_max_voltage), CAPACITY_PRECISION)
-        )
+        return self._reversible_capacity_range_cache
 
     @property
     def capacity_curve(self) -> pd.DataFrame:

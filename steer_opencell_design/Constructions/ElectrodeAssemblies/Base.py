@@ -111,23 +111,28 @@ class _ElectrodeAssembly(
         pass
 
     def _calculate_capacity_curves(self):
-        """Calculate full cell voltage curve of the electrode assembly."""
+        """Calculate full cell voltage curve of the electrode assembly.
+        
+        Uses .copy() instead of deepcopy() for numpy arrays as we only need
+        shallow copies for scaling operations - significantly faster.
+        """
         if hasattr(self._layup, "_areal_capacity_curve") and self._layup._areal_capacity_curve is not None:
-            _capacity_curve = deepcopy(self._layup._areal_capacity_curve)
-            _capacity_curve[:, 0] = _capacity_curve[:, 0] * self._interfacial_area
+            # Use .copy() instead of deepcopy() - arrays only need shallow copy for scaling
+            _capacity_curve = self._layup._areal_capacity_curve.copy()
+            _capacity_curve[:, 0] *= self._interfacial_area
             self._capacity_curve = _capacity_curve
 
         if hasattr(self._layup._cathode, "_areal_capacity_curve") and self._layup._cathode._areal_capacity_curve is not None:
-            # also calculate capacity curve for cathode
-            _cathode_capacity_curve = deepcopy(self._layup._cathode._areal_capacity_curve)
-            _cathode_capacity_curve[:, 0] = _cathode_capacity_curve[:, 0] * self._interfacial_area
-            self._cathode_capacity_curve = np.column_stack([_cathode_capacity_curve[:, 0], _cathode_capacity_curve[:,1], _cathode_capacity_curve[:,2]])
+            # Use .copy() instead of deepcopy() for cathode curve
+            _cathode_capacity_curve = self._layup._cathode._areal_capacity_curve.copy()
+            _cathode_capacity_curve[:, 0] *= self._interfacial_area
+            self._cathode_capacity_curve = _cathode_capacity_curve
 
         if hasattr(self._layup._anode, "_areal_capacity_curve") and self._layup._anode._areal_capacity_curve is not None:
-            # also calculate capacity curve for anode
-            _anode_capacity_curve = deepcopy(self._layup._anode._areal_capacity_curve)
-            _anode_capacity_curve[:, 0] = _anode_capacity_curve[:, 0] * self._interfacial_area
-            self._anode_capacity_curve = np.column_stack([_anode_capacity_curve[:,0], _anode_capacity_curve[:,1], _anode_capacity_curve[:,2]])
+            # Use .copy() instead of deepcopy() for anode curve
+            _anode_capacity_curve = self._layup._anode._areal_capacity_curve.copy()
+            _anode_capacity_curve[:, 0] *= self._interfacial_area
+            self._anode_capacity_curve = _anode_capacity_curve
 
         return self._capacity_curve, self._cathode_capacity_curve, self._anode_capacity_curve
     

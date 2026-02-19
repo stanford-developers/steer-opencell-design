@@ -1,15 +1,10 @@
 """Two-separator laminate layup for wound electrode assemblies."""
 
-from copy import copy, deepcopy
-from enum import Enum
-from typing import Tuple
-
 import numpy as np
 import pandas as pd
 
 from steer_core.Constants.Units import *
-from steer_core.Decorators.Coordinates import calculate_coordinates
-from steer_core.Decorators.General import calculate_bulk_properties, calculate_all_properties
+from steer_core.Decorators.General import calculate_all_properties
 
 from steer_opencell_design.Components.CurrentCollectors.Base import _TapeCurrentCollector
 from steer_opencell_design.Components.Electrodes import Anode, Cathode

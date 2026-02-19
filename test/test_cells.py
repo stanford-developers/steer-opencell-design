@@ -701,6 +701,8 @@ class TestCylindricalCell(unittest.TestCase):
         established. Users must reassign components through setters at each level to
         establish the parent chain for full propagation capability.
         """
+        warnings.filterwarnings('ignore')
+        
         # get some original properties
         original_radius = self.cell.reference_electrode_assembly.radius 
         original_layup_length = self.cell.reference_electrode_assembly.layup.length
@@ -2475,8 +2477,6 @@ class TestCellPropagation(unittest.TestCase):
         # Verify the change persisted
         self.assertAlmostEqual(cc.thickness, original_thickness + 1)
     
-
-
 
 if __name__ == "__main__":
     unittest.main()
