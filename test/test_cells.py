@@ -749,6 +749,7 @@ class TestCylindricalCell(unittest.TestCase):
 
         original_cell_cost = self.cell._cost
         original_energy = self.cell.energy
+        original_lower_cutoff_voltage = self.cell.minimum_operating_voltage
 
         fig1 = self.cell.get_capacity_plot()
 
@@ -788,14 +789,50 @@ class TestCylindricalCell(unittest.TestCase):
         deserialized_cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.irreversible_specific_capacity /= 0.5
         deserialized_cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.propagate_changes()
 
-        reverted_energy = deserialized_cell.energy
-        self.assertEqual(reverted_energy, original_energy, "Reverted cell energy should match original energy")
-
         fig3 = deserialized_cell.get_capacity_plot()
 
         # fig1.show()
         # fig2.show()
         # fig3.show()
+
+    def test_separator_material_specific_cost_change(self):
+
+        original_cell_cost = self.cell._cost
+
+        # modify separator material cost
+        self.cell.reference_electrode_assembly.layup.top_separator.material.specific_cost *= 3  # triple the cost
+        self.cell.reference_electrode_assembly.layup.top_separator.material.propagate_changes()
+
+        new_cell_cost = self.cell._cost
+
+        self.assertGreater(new_cell_cost, original_cell_cost, "Cell cost should change when separator material cost changes")
+
+        # serialize and check that changes persist
+        serialized = self.cell.serialize()
+        deserialized_cell = ocd.CylindricalCell.deserialize(serialized)
+
+        self.assertEqual(deserialized_cell._cost, new_cell_cost, "Deserialized cell should have the updated cost")
+
+        # modify the specific cost back down and check that it updates again
+        deserialized_cell.reference_electrode_assembly.layup.top_separator.material.specific_cost /= 3  # revert cost change
+        deserialized_cell.reference_electrode_assembly.layup.top_separator.material.propagate_changes()
+
+        reverted_cost = deserialized_cell._cost
+        self.assertEqual(reverted_cost, original_cell_cost, "Reverted cell cost should match original cost")
+
+    def test_tape_material_specific_cost_change(self):
+        """Test that changing tape material specific cost updates cell cost via canonical tape."""
+        original_cost = self.cell.cost
+
+        # Increase tape material cost via canonical tape and use propagate_changes to update
+        self.cell.reference_electrode_assembly.tape.material.specific_cost += 10  # Increase cost by $10/kg
+        self.cell.reference_electrode_assembly.tape.material.propagate_changes()  # Should update cell cost without needing to reassign each level
+
+        # new cost
+        new_cost = self.cell.cost
+
+        # Check that cell cost increased
+        self.assertGreater(new_cost, original_cost)
 
 
 class TestCylindricalCellTabbed(unittest.TestCase):

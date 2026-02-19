@@ -327,7 +327,17 @@ class FlexFrameCell(_Cell):
             New electrode assembly to set
         """
         self.validate_type(value, (PunchedStack), "electrode_assembly")
+
+        # Clear old parent reference
+        if hasattr(self, '_reference_electrode_assembly') and self._reference_electrode_assembly is not None:
+            if hasattr(self._reference_electrode_assembly, '_set_parent'):
+                self._reference_electrode_assembly._set_parent(None)
+
         self._reference_electrode_assembly = value
+
+        # Set new parent reference for propagation
+        if hasattr(value, '_set_parent'):
+            value._set_parent(self)
 
     @encapsulation.setter
     @calculate_all_properties
@@ -340,6 +350,16 @@ class FlexFrameCell(_Cell):
             New encapsulation to set
         """
         self.validate_type(value, FlexFrameEncapsulation, "encapsulation")
+
+        # Clear old parent reference
+        if hasattr(self, '_encapsulation') and self._encapsulation is not None:
+            if hasattr(self._encapsulation, '_set_parent'):
+                self._encapsulation._set_parent(None)
+
         self._encapsulation = value
+
+        # Set new parent reference for propagation
+        if hasattr(value, '_set_parent'):
+            value._set_parent(self)
 
 

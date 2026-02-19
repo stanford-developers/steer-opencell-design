@@ -10,6 +10,7 @@ from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Serializer import SerializerMixin
+from steer_core.Mixins.Propagation import PropagationMixin
 
 from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Decorators.Coordinates import calculate_coordinates
@@ -26,6 +27,7 @@ import plotly.graph_objects as go
 class LaminateSheet(
     CoordinateMixin, 
     ValidationMixin,
+    PropagationMixin,
     DunderMixin,
     PlotterMixin,
     SerializerMixin,
@@ -609,6 +611,7 @@ class LaminateSheet(
 class PouchTerminal(
     CoordinateMixin,
     ValidationMixin,
+    PropagationMixin,
     DunderMixin,
     PlotterMixin,
     SerializerMixin
@@ -1174,7 +1177,16 @@ class PouchEncapsulation(_Container):
         if 'cathode' not in terminal.name.lower():
             terminal.name = f"{terminal.name} (Cathode)"
 
+        # Clear old parent reference
+        if hasattr(self, '_cathode_terminal') and self._cathode_terminal is not None:
+            if hasattr(self._cathode_terminal, '_set_parent'):
+                self._cathode_terminal._set_parent(None)
+
         self._cathode_terminal = terminal
+
+        # Set new parent reference for propagation
+        if hasattr(terminal, '_set_parent'):
+            terminal._set_parent(self)
 
     @anode_terminal.setter
     @calculate_all_properties
@@ -1186,21 +1198,50 @@ class PouchEncapsulation(_Container):
         if 'anode' not in terminal.name.lower():
             terminal.name = f"{terminal.name} (Anode)"
 
+        # Clear old parent reference
+        if hasattr(self, '_anode_terminal') and self._anode_terminal is not None:
+            if hasattr(self._anode_terminal, '_set_parent'):
+                self._anode_terminal._set_parent(None)
+
         self._anode_terminal = terminal
+
+        # Set new parent reference for propagation
+        if hasattr(terminal, '_set_parent'):
+            terminal._set_parent(self)
 
     @top_laminate.setter
     @calculate_all_properties
     def top_laminate(self, laminate: LaminateSheet) -> None:
         """Set top laminate sheet."""
         self.validate_type(laminate, LaminateSheet, "Top Laminate")
+
+        # Clear old parent reference
+        if hasattr(self, '_top_laminate') and self._top_laminate is not None:
+            if hasattr(self._top_laminate, '_set_parent'):
+                self._top_laminate._set_parent(None)
+
         self._top_laminate = laminate
+
+        # Set new parent reference for propagation
+        if hasattr(laminate, '_set_parent'):
+            laminate._set_parent(self)
 
     @bottom_laminate.setter
     @calculate_all_properties
     def bottom_laminate(self, laminate: LaminateSheet) -> None:
         """Set bottom laminate sheet."""
         self.validate_type(laminate, LaminateSheet, "Bottom Laminate")
+
+        # Clear old parent reference
+        if hasattr(self, '_bottom_laminate') and self._bottom_laminate is not None:
+            if hasattr(self._bottom_laminate, '_set_parent'):
+                self._bottom_laminate._set_parent(None)
+
         self._bottom_laminate = laminate
+
+        # Set new parent reference for propagation
+        if hasattr(laminate, '_set_parent'):
+            laminate._set_parent(self)
 
     @width.setter
     @calculate_all_properties

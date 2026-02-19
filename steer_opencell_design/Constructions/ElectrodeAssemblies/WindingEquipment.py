@@ -168,12 +168,21 @@ class _Mandrel(
     @material.setter
     def material(self, value: CurrentCollectorMaterial):
 
+        # Clear old parent reference
+        if hasattr(self, '_material') and self._material is not None:
+            if hasattr(self._material, '_set_parent'):
+                self._material._set_parent(None)
+
         if value is None:
             self._material = CurrentCollectorMaterial.from_database("Aluminum")
 
         else:
             self.validate_type(value, CurrentCollectorMaterial, "material")
             self._material = deepcopy(value)
+
+        # Set new parent reference for propagation
+        if hasattr(self._material, '_set_parent'):
+            self._material._set_parent(self)
 
     @property
     def length(self) -> float:

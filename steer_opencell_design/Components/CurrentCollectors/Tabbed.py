@@ -916,7 +916,17 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
     @calculate_all_properties
     def weld_tab(self, weld_tab: WeldTab) -> None:
         self.validate_type(weld_tab, WeldTab, "weld_tab")
+
+        # Clear old parent reference
+        if hasattr(self, '_weld_tab') and self._weld_tab is not None:
+            if hasattr(self._weld_tab, '_set_parent'):
+                self._weld_tab._set_parent(None)
+
         self._weld_tab = weld_tab
+
+        # Set new parent reference for propagation
+        if hasattr(weld_tab, '_set_parent'):
+            weld_tab._set_parent(self)
 
     @weld_tab_positions.setter
     @calculate_all_properties

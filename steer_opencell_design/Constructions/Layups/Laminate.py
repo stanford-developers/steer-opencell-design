@@ -52,12 +52,6 @@ class Laminate(_Layup):
             name=name,
         )
 
-        # Store canonical separator for unified API
-        self._canonical_separator = Separator(
-            material=bottom_separator.material,
-            thickness=bottom_separator.thickness,
-        )
-
         self._calculate_all_properties()
         self._update_properties = True
 
@@ -351,18 +345,6 @@ class Laminate(_Layup):
         return max(THICKNESS_FALLBACK, top_z - baseline_z)
 
     @property
-    def separator(self) -> Separator:
-        """
-        Get the canonical separator used in the laminate.
-
-        Returns
-        -------
-        Separator
-            The canonical separator instance.
-        """
-        return self._canonical_separator
-
-    @property
     def length(self) -> float:
         """Get the laminate length in mm."""
         return np.round(self._length * M_TO_MM, 2)
@@ -401,28 +383,6 @@ class Laminate(_Layup):
     def thickness(self) -> float:
         """Return the total thickness of the laminate in micrometers."""
         return np.round(self._thickness * M_TO_UM, 2)
-
-    @separator.setter
-    @calculate_coordinates
-    @calculate_bulk_properties
-    def separator(self, value: Separator):
-
-        # Validate input type
-        self.validate_type(value, Separator, "Laminate Separator")
-
-        # transfer properties to bottom separator
-        self.bottom_separator.material = value.material
-        self.bottom_separator.thickness = value.thickness
-        self.bottom_separator = self.bottom_separator
-
-        # transfer properties to top separator
-        self.top_separator.material = value.material
-        self.top_separator.thickness = value.thickness
-        self.top_separator = self.top_separator
-
-        # Store canonical separator for unified API
-        self._canonical_separator.material = value.material
-        self._canonical_separator.thickness = value.thickness
 
     @length.setter
     @calculate_all_properties

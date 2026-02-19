@@ -405,7 +405,17 @@ class CylindricalCell(_Cell):
             New encapsulation to set
         """
         self.validate_type(value, CylindricalEncapsulation, "encapsulation")
+
+        # Clear old parent reference
+        if hasattr(self, '_encapsulation') and self._encapsulation is not None:
+            if hasattr(self._encapsulation, '_set_parent'):
+                self._encapsulation._set_parent(None)
+
         self._encapsulation = value
+
+        # Set new parent reference for propagation
+        if hasattr(value, '_set_parent'):
+            value._set_parent(self)
 
     @n_electrode_assembly.setter
     def n_electrode_assembly(self, value: int) -> None:

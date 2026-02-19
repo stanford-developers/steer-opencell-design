@@ -1231,7 +1231,15 @@ class _Electrode(
         if self._current_collector.insulation_area == 0 and insulation_material is not None:
             raise ValueError("Insulation material cannot be provided if the current collector does not have an insulation area")
 
+        # Clear parent reference on old material if exists
+        if hasattr(self, '_insulation_material') and self._insulation_material is not None:
+            self._insulation_material._set_parent(None)
+
         self._insulation_material = deepcopy(insulation_material)
+
+        # Set parent reference on new material
+        if self._insulation_material is not None:
+            self._insulation_material._set_parent(self)
 
     @insulation_thickness.setter
     @calculate_volumes
