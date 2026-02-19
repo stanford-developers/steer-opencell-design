@@ -116,9 +116,9 @@ class _Layup(
         self.np_ratio_control_mode = NPRatioControlMode.FIXED_ANODE
 
         self.cathode = cathode
-        self.bottom_separator = bottom_separator
+        self._set_bottom_separator(bottom_separator)
         self.anode = anode
-        self.top_separator = top_separator
+        self._set_top_separator(top_separator)
         self.electrode_orientation = electrode_orientation
         self.name = name
 
@@ -705,16 +705,8 @@ class _Layup(
         return self._cathode
 
     @property
-    def bottom_separator(self):
-        return self._bottom_separator
-
-    @property
     def anode(self):
         return self._anode
-
-    @property
-    def top_separator(self):
-        return self._top_separator
 
     @property
     def np_ratio_control_mode(self) -> NPRatioControlMode:
@@ -776,7 +768,7 @@ class _Layup(
         self.cathode.datum = new_datum
 
         # Components to shift (if present)
-        for comp_attr in ["anode", "bottom_separator", "top_separator"]:
+        for comp_attr in ["anode", "_bottom_separator", "_top_separator"]:
             comp = getattr(self, comp_attr)
             cx, cy, cz = comp.datum
             comp.datum = (cx + dx, cy + dy, cz + dz)
@@ -820,10 +812,8 @@ class _Layup(
         # Set parent reference on new cathode
         cathode._set_parent(self)
 
-    @bottom_separator.setter
-    @calculate_volumes
-    def bottom_separator(self, bottom_separator: Separator):
-
+    def _set_bottom_separator(self, bottom_separator: Separator):
+        """Internal method to set the bottom separator with validation and parent management."""
         # validate the type
         self.validate_type(bottom_separator, Separator, "Bottom Separator")
 
@@ -839,8 +829,8 @@ class _Layup(
         elif self._update_properties:
 
             bottom_separator._datum = (
-                self.bottom_separator._datum[0],
-                self.bottom_separator._datum[1],
+                self._bottom_separator._datum[0],
+                self._bottom_separator._datum[1],
                 bottom_separator._datum[2],
             )
 
@@ -851,6 +841,33 @@ class _Layup(
         self._bottom_separator = bottom_separator
         # Set parent reference on new separator
         bottom_separator._set_parent(self)
+
+    def _set_top_separator(self, top_separator: Separator):
+        """Internal method to set the top separator with validation and parent management."""
+        # validate the type
+        self.validate_type(top_separator, Separator, "Top Separator")
+        
+        # if there is an anode, update its ranges
+        if not self._update_properties:
+            top_separator.datum = (
+                self.cathode.datum[0],
+                self.cathode.datum[1],
+                top_separator.datum[2],
+            )
+        elif self._update_properties:
+            top_separator.datum = (
+                self._top_separator.datum[0],
+                self._top_separator.datum[1],
+                top_separator.datum[2],
+            )
+
+        # Clear parent reference on old separator if exists
+        if hasattr(self, '_top_separator') and self._top_separator is not None:
+            self._top_separator._set_parent(None)
+        # assign to self
+        self._top_separator = top_separator
+        # Set parent reference on new separator
+        top_separator._set_parent(self)
 
     @anode.setter
     @calculate_all_properties
@@ -885,35 +902,6 @@ class _Layup(
         self._anode = anode
         # Set parent reference on new anode
         anode._set_parent(self)
-
-    @top_separator.setter
-    @calculate_volumes
-    def top_separator(self, top_separator: Separator):
-
-        # validate the type
-        self.validate_type(top_separator, Separator, "Top Separator")
-        
-        # if there is an anode, update its ranges
-        if not self._update_properties:
-            top_separator.datum = (
-                self.cathode.datum[0],
-                self.cathode.datum[1],
-                top_separator.datum[2],
-            )
-        elif self._update_properties:
-            top_separator.datum = (
-                self.top_separator.datum[0],
-                self.top_separator.datum[1],
-                top_separator.datum[2],
-            )
-
-        # Clear parent reference on old separator if exists
-        if hasattr(self, '_top_separator') and self._top_separator is not None:
-            self._top_separator._set_parent(None)
-        # assign to self
-        self._top_separator = top_separator
-        # Set parent reference on new separator
-        top_separator._set_parent(self)
 
     @np_ratio.setter
     @calculate_all_properties

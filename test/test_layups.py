@@ -835,10 +835,10 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.assertEqual(self.monolayer.anode.current_collector.width, 304)
         self.assertEqual(self.monolayer.cathode.current_collector.height, 320)
         self.assertEqual(self.monolayer.cathode.current_collector.width, 300)
-        self.assertEqual(self.monolayer.top_separator.length, 326)
-        self.assertEqual(self.monolayer.top_separator.width, 310)
-        self.assertEqual(self.monolayer.bottom_separator.length, 326)
-        self.assertEqual(self.monolayer.bottom_separator.width, 310)
+        self.assertEqual(self.monolayer._top_separator.length, 326)
+        self.assertEqual(self.monolayer._top_separator.width, 310)
+        self.assertEqual(self.monolayer._bottom_separator.length, 326)
+        self.assertEqual(self.monolayer._bottom_separator.width, 310)
         fig1 = self.monolayer.get_top_down_view(opacity=0.2)
 
         self.monolayer.height = 500
@@ -848,10 +848,10 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.assertEqual(self.monolayer.anode.current_collector.width, 304)
         self.assertEqual(self.monolayer.cathode.current_collector.height, 496)
         self.assertEqual(self.monolayer.cathode.current_collector.width, 300)
-        self.assertEqual(self.monolayer.top_separator.length, 502)
-        self.assertEqual(self.monolayer.top_separator.width, 310)
-        self.assertEqual(self.monolayer.bottom_separator.length, 502)
-        self.assertEqual(self.monolayer.bottom_separator.width, 310)
+        self.assertEqual(self.monolayer._top_separator.length, 502)
+        self.assertEqual(self.monolayer._top_separator.width, 310)
+        self.assertEqual(self.monolayer._bottom_separator.length, 502)
+        self.assertEqual(self.monolayer._bottom_separator.width, 310)
         fig2 = self.monolayer.get_top_down_view(opacity=0.2)
 
         self.monolayer.width = 400
@@ -861,10 +861,10 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.assertEqual(self.monolayer.anode.current_collector.width, 400)
         self.assertEqual(self.monolayer.cathode.current_collector.height, 496)
         self.assertEqual(self.monolayer.cathode.current_collector.width, 396)
-        self.assertEqual(self.monolayer.top_separator.length, 502)
-        self.assertEqual(self.monolayer.top_separator.width, 406)
-        self.assertEqual(self.monolayer.bottom_separator.length, 502)
-        self.assertEqual(self.monolayer.bottom_separator.width, 406)
+        self.assertEqual(self.monolayer._top_separator.length, 502)
+        self.assertEqual(self.monolayer._top_separator.width, 406)
+        self.assertEqual(self.monolayer._bottom_separator.length, 502)
+        self.assertEqual(self.monolayer._bottom_separator.width, 406)
         fig3 = self.monolayer.get_top_down_view(opacity=0.2)
 
         self.monolayer.width = 350
@@ -874,10 +874,10 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.assertEqual(self.monolayer.anode.current_collector.width, 350)
         self.assertEqual(self.monolayer.cathode.current_collector.height, 496)
         self.assertEqual(self.monolayer.cathode.current_collector.width, 346)
-        self.assertEqual(self.monolayer.top_separator.length, 502)
-        self.assertEqual(self.monolayer.top_separator.width, 356)
-        self.assertEqual(self.monolayer.bottom_separator.length, 502)
-        self.assertEqual(self.monolayer.bottom_separator.width, 356)
+        self.assertEqual(self.monolayer._top_separator.length, 502)
+        self.assertEqual(self.monolayer._top_separator.width, 356)
+        self.assertEqual(self.monolayer._bottom_separator.length, 502)
+        self.assertEqual(self.monolayer._bottom_separator.width, 356)
         fig4 = self.monolayer.get_top_down_view(opacity=0.2)
 
         # fig1.show()
@@ -1062,8 +1062,8 @@ class TestSimpleMonoLayer(unittest.TestCase):
         old_layup_datum = self.monolayer.datum
         old_cathode_datum = self.monolayer.cathode.datum
         old_anode_datum = self.monolayer.anode.datum
-        old_top_sep_datum = self.monolayer.top_separator.datum
-        old_bottom_sep_datum = self.monolayer.bottom_separator.datum
+        old_top_sep_datum = self.monolayer._top_separator.datum
+        old_bottom_sep_datum = self.monolayer._bottom_separator.datum
 
         figure_old = self.monolayer.get_top_down_view(opacity=0.2)
 
@@ -1081,8 +1081,8 @@ class TestSimpleMonoLayer(unittest.TestCase):
 
         assert_shift(old_cathode_datum, self.monolayer.cathode.datum)
         assert_shift(old_anode_datum, self.monolayer.anode.datum)
-        assert_shift(old_top_sep_datum, self.monolayer.top_separator.datum)
-        assert_shift(old_bottom_sep_datum, self.monolayer.bottom_separator.datum)
+        assert_shift(old_top_sep_datum, self.monolayer._top_separator.datum)
+        assert_shift(old_bottom_sep_datum, self.monolayer._bottom_separator.datum)
 
         # Layup datum should equal cathode datum
         self.assertEqual(self.monolayer.datum, self.monolayer.cathode.datum)
@@ -1203,8 +1203,8 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.assertTrue(self.monolayer._flipped_z)
         self.assertTrue(self.monolayer.cathode._flipped_z)
         self.assertTrue(self.monolayer.anode._flipped_z)
-        self.assertTrue(self.monolayer.bottom_separator._flipped_z)
-        self.assertTrue(self.monolayer.top_separator._flipped_z)
+        self.assertTrue(self.monolayer._bottom_separator._flipped_z)
+        self.assertTrue(self.monolayer._top_separator._flipped_z)
         
         # Flip back
         self.monolayer._flip("z")
@@ -1213,8 +1213,8 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.assertFalse(self.monolayer._flipped_z)
         self.assertFalse(self.monolayer.cathode._flipped_z)
         self.assertFalse(self.monolayer.anode._flipped_z)
-        self.assertFalse(self.monolayer.bottom_separator._flipped_z)
-        self.assertFalse(self.monolayer.top_separator._flipped_z)
+        self.assertFalse(self.monolayer._bottom_separator._flipped_z)
+        self.assertFalse(self.monolayer._top_separator._flipped_z)
 
 
 class TestZFoldMonoLayer(unittest.TestCase):
@@ -1319,10 +1319,10 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.assertEqual(self.zfoldmonolayer.anode.current_collector.width, 304)
         self.assertEqual(self.zfoldmonolayer.cathode.current_collector.height, 320)
         self.assertEqual(self.zfoldmonolayer.cathode.current_collector.width, 300)
-        self.assertEqual(self.zfoldmonolayer.top_separator.length, 304.05)
-        self.assertEqual(self.zfoldmonolayer.top_separator.width, 326.0)
-        self.assertEqual(self.zfoldmonolayer.bottom_separator.length, 300.05)
-        self.assertEqual(self.zfoldmonolayer.bottom_separator.width, 326)
+        self.assertEqual(self.zfoldmonolayer._top_separator.length, 304.05)
+        self.assertEqual(self.zfoldmonolayer._top_separator.width, 326.0)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator.length, 300.05)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator.width, 326)
         fig1 = self.zfoldmonolayer.get_top_down_view(opacity=0.2)
 
         self.zfoldmonolayer.height = 500
@@ -1332,10 +1332,10 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.assertEqual(self.zfoldmonolayer.anode.current_collector.width, 304)
         self.assertEqual(self.zfoldmonolayer.cathode.current_collector.height, 496)
         self.assertEqual(self.zfoldmonolayer.cathode.current_collector.width, 300)
-        self.assertEqual(self.zfoldmonolayer.top_separator.length, 304.05)
-        self.assertEqual(self.zfoldmonolayer.top_separator.width, 502)
-        self.assertEqual(self.zfoldmonolayer.bottom_separator.length, 300.05)
-        self.assertEqual(self.zfoldmonolayer.bottom_separator.width, 502)
+        self.assertEqual(self.zfoldmonolayer._top_separator.length, 304.05)
+        self.assertEqual(self.zfoldmonolayer._top_separator.width, 502)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator.length, 300.05)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator.width, 502)
         fig2 = self.zfoldmonolayer.get_top_down_view(opacity=0.2)
 
         self.zfoldmonolayer.width = 400
@@ -1345,10 +1345,10 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.assertEqual(self.zfoldmonolayer.anode.current_collector.width, 400)
         self.assertEqual(self.zfoldmonolayer.cathode.current_collector.height, 496)
         self.assertEqual(self.zfoldmonolayer.cathode.current_collector.width, 396)
-        self.assertEqual(self.zfoldmonolayer.top_separator.length, 400.05)
-        self.assertEqual(self.zfoldmonolayer.top_separator.width, 502)
-        self.assertEqual(self.zfoldmonolayer.bottom_separator.length, 396.05)
-        self.assertEqual(self.zfoldmonolayer.bottom_separator.width, 502)
+        self.assertEqual(self.zfoldmonolayer._top_separator.length, 400.05)
+        self.assertEqual(self.zfoldmonolayer._top_separator.width, 502)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator.length, 396.05)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator.width, 502)
         fig3 = self.zfoldmonolayer.get_top_down_view(opacity=0.2)
 
         self.zfoldmonolayer.width = 350
@@ -1358,10 +1358,10 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.assertEqual(self.zfoldmonolayer.anode.current_collector.width, 350)
         self.assertEqual(self.zfoldmonolayer.cathode.current_collector.height, 496)
         self.assertEqual(self.zfoldmonolayer.cathode.current_collector.width, 346)
-        self.assertEqual(self.zfoldmonolayer.top_separator.length, 350.05)
-        self.assertEqual(self.zfoldmonolayer.top_separator.width, 502.0)
-        self.assertEqual(self.zfoldmonolayer.bottom_separator.length, 346.05)
-        self.assertEqual(self.zfoldmonolayer.bottom_separator.width, 502)
+        self.assertEqual(self.zfoldmonolayer._top_separator.length, 350.05)
+        self.assertEqual(self.zfoldmonolayer._top_separator.width, 502.0)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator.length, 346.05)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator.width, 502)
         fig4 = self.zfoldmonolayer.get_top_down_view(opacity=0.2)
 
         # fig1.show()
@@ -1456,41 +1456,6 @@ class TestZFoldMonoLayer(unittest.TestCase):
 
         # fig1.show()
         # fig2.show()
-
-    def test_unified_separator_property(self):
-        """Test the unified separator property interface."""
-        # Get separator should return the bottom separator as canonical reference
-        separator = self.zfoldmonolayer.separator
-        self.assertEqual(separator, self.zfoldmonolayer._bottom_separator)
-
-        # Test setting via unified interface
-        original_separator = self.zfoldmonolayer.separator
-
-        # Create new separator
-        new_separator = Separator(
-            material=original_separator.material,
-            thickness=15,  # Different thickness
-            width=350,  # Different width
-            name="New Z-Fold Separator",
-        )
-
-        # Set via unified interface
-        self.zfoldmonolayer.separator = new_separator
-
-        # Both separators should be updated with correct lengths
-        expected_bottom_length = (self.zfoldmonolayer.cathode.current_collector._x_foil_length + 2 * new_separator._thickness) * M_TO_MM
-        expected_top_length = (self.zfoldmonolayer.anode.current_collector._x_foil_length + 2 * new_separator._thickness) * M_TO_MM
-
-        self.assertAlmostEqual(
-            self.zfoldmonolayer._bottom_separator.length,
-            expected_bottom_length,
-            places=1,
-        )
-        self.assertAlmostEqual(self.zfoldmonolayer._top_separator.length, expected_top_length, places=1)
-        self.assertEqual(self.zfoldmonolayer.separator.name, "New Z-Fold Separator")
-
-        fig1 = self.zfoldmonolayer.get_top_down_view()
-        # fig1.show()
 
     def test_unified_separator_overhang_properties_fixed_component(self):
         """Test the unified separator overhang properties."""
@@ -1673,16 +1638,16 @@ class TestZFoldMonoLayer(unittest.TestCase):
         # The layup and separators should have the same flip state
         # Note: Individual electrodes may have different internal flip states due to Z-fold initialization
         self.assertTrue(self.zfoldmonolayer._flipped_y)
-        self.assertTrue(self.zfoldmonolayer.bottom_separator._flipped_y)
-        self.assertTrue(self.zfoldmonolayer.top_separator._flipped_y)
+        self.assertTrue(self.zfoldmonolayer._bottom_separator._flipped_y)
+        self.assertTrue(self.zfoldmonolayer._top_separator._flipped_y)
         
         # Flip back
         self.zfoldmonolayer._flip("y")
         
         # All should be False
         self.assertFalse(self.zfoldmonolayer._flipped_y)
-        self.assertFalse(self.zfoldmonolayer.bottom_separator._flipped_y)
-        self.assertFalse(self.zfoldmonolayer.top_separator._flipped_y)
+        self.assertFalse(self.zfoldmonolayer._bottom_separator._flipped_y)
+        self.assertFalse(self.zfoldmonolayer._top_separator._flipped_y)
 
     def test_flip_maintains_zfold_geometry(self):
         """Test that flipping maintains Z-fold specific geometric relationships"""
@@ -1698,6 +1663,23 @@ class TestZFoldMonoLayer(unittest.TestCase):
         # The separator lengths should remain the same after flipping
         self.assertAlmostEqual(self.zfoldmonolayer._bottom_separator.length, original_bottom_sep_length, places=1)
         self.assertAlmostEqual(self.zfoldmonolayer._top_separator.length, original_top_sep_length, places=1)
+
+    def test_separator_thickness_setter_syncs_both_separators(self):
+        """Test that changing separator.thickness updates both _top_separator and _bottom_separator."""
+        # Get initial thicknesses
+        original_thickness = self.zfoldmonolayer.separator.thickness
+        self.assertEqual(self.zfoldmonolayer._top_separator.thickness, original_thickness)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator.thickness, original_thickness)
+
+        # Change the canonical separator's thickness
+        new_thickness = 30
+        self.zfoldmonolayer.separator.thickness = new_thickness
+        self.zfoldmonolayer.separator.propagate_changes()
+
+        # Verify both internal separators are updated
+        self.assertEqual(self.zfoldmonolayer.separator.thickness, new_thickness)
+        self.assertEqual(self.zfoldmonolayer._top_separator.thickness, new_thickness)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator.thickness, new_thickness)
 
 
 class TestLayupPropagation(unittest.TestCase):

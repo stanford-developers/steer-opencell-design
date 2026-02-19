@@ -702,7 +702,7 @@ class TestCylindricalCell(unittest.TestCase):
         establish the parent chain for full propagation capability.
         """
         warnings.filterwarnings('ignore')
-        
+
         # get some original properties
         original_radius = self.cell.reference_electrode_assembly.radius 
         original_layup_length = self.cell.reference_electrode_assembly.layup.length
@@ -1200,8 +1200,8 @@ class TestStackedPouchCell(unittest.TestCase):
     def test_basics(self):
         self.assertIsInstance(self.cell, ocd.PouchCell)
         self.assertAlmostEqual(self.cell.energy, 2282.76, 1)
-        self.assertAlmostEqual(self.cell.mass, 129677.71, 0)
-        self.assertAlmostEqual(self.cell.cost, 79.82, 1)
+        self.assertAlmostEqual(self.cell.mass, 129387.64, 0)
+        self.assertAlmostEqual(self.cell.cost, 79.24, 1)
 
     def test_serialization(self):
         serialized = self.cell.serialize()

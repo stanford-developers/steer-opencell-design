@@ -8,8 +8,4 @@
   "python-envs.pythonProjects": [],
   "basedpyright.analysis.typeCheckingMode": "off",
   "basedpyright.disableLanguageServices": true,
-  "python.analysis.typeCheckingMode": "off",
-  "python.analysis.extraPaths": [
-    "../steer-core"
-  ]
 }
