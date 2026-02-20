@@ -1425,6 +1425,35 @@ class TestStackedPouchCell(unittest.TestCase):
         self.assertGreater(len(fig1.data), 0)
         self.assertGreater(len(fig2.data), 0)
 
+    def test_pouch_to_prismatic_conversion(self):
+        """Test converting PouchCell to PrismaticCell by setting prismatic encapsulation."""
+        # Record original properties
+        original_capacity = self.cell.reversible_capacity
+        original_max_voltage = self.cell.maximum_operating_voltage
+        original_min_voltage = self.cell.minimum_operating_voltage
+        original_energy = self.cell.energy
+        original_type = type(self.cell)
+
+        # Verify we start as PouchCell
+        self.assertIsInstance(self.cell, ocd.PouchCell)
+
+        # Convert to prismatic encapsulation
+        prismatic_enc = ocd.PrismaticEncapsulation.from_pouch(self.cell.encapsulation)
+        self.cell.encapsulation = prismatic_enc
+
+        # Verify cell type changed
+        self.assertIsInstance(self.cell, ocd.PrismaticCell)
+        self.assertNotEqual(type(self.cell), original_type)
+
+        # Verify electrochemical properties preserved
+        self.assertAlmostEqual(self.cell.reversible_capacity, original_capacity, places=1)
+        self.assertAlmostEqual(self.cell.maximum_operating_voltage, original_max_voltage, places=2)
+        self.assertAlmostEqual(self.cell.minimum_operating_voltage, original_min_voltage, places=2)
+        self.assertAlmostEqual(self.cell.energy, original_energy, places=0)
+
+        # Verify encapsulation changed
+        self.assertIsInstance(self.cell.encapsulation, ocd.PrismaticEncapsulation)
+
     def test_hot_pressing_geometry(self):
         """Test that hot-pressing creates cavity in laminates."""
         # Check that laminates have been hot-pressed
@@ -1871,6 +1900,35 @@ class TestStackedPrismaticCell(unittest.TestCase):
 
         # fig1.show()
         # fig2.show()
+
+    def test_prismatic_to_pouch_conversion(self):
+        """Test converting PrismaticCell to PouchCell by setting pouch encapsulation."""
+        # Record original properties
+        original_capacity = self.cell.reversible_capacity
+        original_max_voltage = self.cell.maximum_operating_voltage
+        original_min_voltage = self.cell.minimum_operating_voltage
+        original_energy = self.cell.energy
+        original_type = type(self.cell)
+
+        # Verify we start as PrismaticCell
+        self.assertIsInstance(self.cell, ocd.PrismaticCell)
+
+        # Convert to pouch encapsulation
+        pouch_enc = ocd.PouchEncapsulation.from_prismatic(self.cell.encapsulation)
+        self.cell.encapsulation = pouch_enc
+
+        # Verify cell type changed
+        self.assertIsInstance(self.cell, ocd.PouchCell)
+        self.assertNotEqual(type(self.cell), original_type)
+
+        # Verify electrochemical properties preserved
+        self.assertAlmostEqual(self.cell.reversible_capacity, original_capacity, places=1)
+        self.assertAlmostEqual(self.cell.maximum_operating_voltage, original_max_voltage, places=2)
+        self.assertAlmostEqual(self.cell.minimum_operating_voltage, original_min_voltage, places=2)
+        self.assertAlmostEqual(self.cell.energy, original_energy, places=0)
+
+        # Verify encapsulation changed
+        self.assertIsInstance(self.cell.encapsulation, ocd.PouchEncapsulation)
 
 
 class TestFlatJellyRollPrismatic(unittest.TestCase):
@@ -2476,10 +2534,11 @@ class TestCellPropagation(unittest.TestCase):
         
         # Verify the change persisted
         self.assertAlmostEqual(cc.thickness, original_thickness + 1)
-    
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
 

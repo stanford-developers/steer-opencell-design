@@ -124,6 +124,65 @@ class _Cell(
             if original_update_flag:
                 self._calculate_all_properties()
 
+    def _convert_to_cell_type(self, new_encapsulation: _Container) -> None:
+        """Convert cell to appropriate type based on encapsulation type.
+        
+        When an encapsulation of a different type is set (e.g., setting a PouchEncapsulation
+        on a PrismaticCell), this method converts the cell to the appropriate type while
+        preserving all electrode assembly and electrolyte properties.
+        
+        Only conversions between PrismaticCell and PouchCell are supported, as both
+        use compatible electrode assembly types (ZFoldStack, PunchedStack, FlatWoundJellyRoll).
+        CylindricalCell uses WoundJellyRoll which is incompatible with the other cell types.
+        
+        Parameters
+        ----------
+        new_encapsulation : _Container
+            The new encapsulation that requires a different cell type
+            
+        Notes
+        -----
+        This performs an in-place conversion by copying all attributes from a newly
+        created cell of the appropriate type into self.
+        """
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
+        from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
+        
+        # Determine target cell type based on encapsulation type
+        if isinstance(new_encapsulation, PrismaticEncapsulation):
+            from steer_opencell_design.Constructions.Cells.PrismaticCell import PrismaticCell
+            target_cell_class = PrismaticCell
+            extra_kwargs = {
+                'clipped_tab_length': getattr(self, '_clipped_tab_length', None) and self._clipped_tab_length * M_TO_MM
+            }
+        elif isinstance(new_encapsulation, PouchEncapsulation):
+            from steer_opencell_design.Constructions.Cells.PouchCell import PouchCell
+            target_cell_class = PouchCell
+            extra_kwargs = {
+                'side_seal_thickness': getattr(self, '_side_seal_thickness', None) and self._side_seal_thickness * M_TO_MM or 5.0,
+                'top_seal_thickness': getattr(self, '_top_seal_thickness', None) and self._top_seal_thickness * M_TO_MM or 5.0,
+                'bottom_seal_thickness': getattr(self, '_bottom_seal_thickness', None) and self._bottom_seal_thickness * M_TO_MM or 5.0,
+                'clipped_tab_length': getattr(self, '_clipped_tab_length', None) and self._clipped_tab_length * M_TO_MM
+            }
+        else:
+            raise TypeError(f"Unknown encapsulation type: {type(new_encapsulation).__name__}")
+        
+        # Create new cell of the appropriate type with current properties
+        new_cell = target_cell_class(
+            reference_electrode_assembly=self._reference_electrode_assembly,
+            n_electrode_assembly=self._n_electrode_assembly,
+            encapsulation=new_encapsulation,
+            electrolyte=self._electrolyte,
+            operating_voltage_window=self._operating_voltage_window,
+            electrolyte_overfill=self._electrolyte_overfill,
+            name=self._name,
+            **extra_kwargs
+        )
+        
+        # Copy all attributes from new cell to self (in-place conversion)
+        self.__class__ = target_cell_class
+        self.__dict__.update(new_cell.__dict__)
+
     def _calculate_bulk_properties(self) -> None:
         self._calculate_electrolyte_properties()
         self._calculate_mass_properties()

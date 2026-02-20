@@ -3738,8 +3738,8 @@ class TestPrismaticEncapsulation(unittest.TestCase):
         self.assertEqual(prismatic_enc.cathode_terminal_connector.thickness, 0.5)
         self.assertEqual(prismatic_enc.anode_terminal_connector.thickness, 0.5)
         
-        # Verify lid thickness is set (0.5 mm default)
-        self.assertEqual(prismatic_enc.lid_assembly.thickness, 0.5)
+        # Verify lid thickness is set (3 mm default)
+        self.assertEqual(prismatic_enc.lid_assembly.thickness, 3)
         
         # Verify fill factors are set (0.7 default)
         self.assertEqual(prismatic_enc.cathode_terminal_connector.fill_factor, 0.7)

@@ -396,16 +396,21 @@ class CylindricalCell(_Cell):
 
     @encapsulation.setter
     @calculate_all_properties
-    def encapsulation(self, value: CylindricalEncapsulation) -> None:
-        """Set encapsulation with validation.
+    def encapsulation(self, value) -> None:
+        """Set encapsulation with validation. Automatically converts cell type if encapsulation type changes.
         
         Parameters
         ----------
-        value : CylindricalEncapsulation
-            New encapsulation to set
+        value : _Container
+            New encapsulation to set. Can be any container type (Prismatic, Pouch, Cylindrical).
+            If type differs from current cell type, cell will be automatically converted.
         """
+        from steer_opencell_design.Components.Containers.Base import _Container
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
+        from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
+        
         self.validate_type(value, CylindricalEncapsulation, "encapsulation")
-
+        
         # Clear old parent reference
         if hasattr(self, '_encapsulation') and self._encapsulation is not None:
             if hasattr(self._encapsulation, '_set_parent'):

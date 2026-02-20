@@ -2,6 +2,7 @@
 
 from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import ZFoldStack, PunchedStack
+from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import FlatWoundJellyRoll
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
 from steer_opencell_design.Constructions.Cells.Base import _Cell
 from steer_opencell_design.Components.Electrodes import Cathode, Anode
@@ -595,15 +596,15 @@ class PouchCell(_Cell):
 
     @reference_electrode_assembly.setter
     @calculate_all_properties
-    def reference_electrode_assembly(self, value: ZFoldStack | PunchedStack) -> None:
+    def reference_electrode_assembly(self, value: ZFoldStack | PunchedStack | FlatWoundJellyRoll) -> None:
         """Set reference electrode assembly with validation.
         
         Parameters
         ----------
-        value : ZFoldStack | PunchedStack
+        value : ZFoldStack | PunchedStack | FlatWoundJellyRoll
             New electrode assembly to set
         """
-        self.validate_type(value, (ZFoldStack, PunchedStack), "reference_electrode_assembly")
+        self.validate_type(value, (ZFoldStack, PunchedStack, FlatWoundJellyRoll), "reference_electrode_assembly")
         # Clear parent reference on old assembly if exists
         if hasattr(self, '_reference_electrode_assembly') and self._reference_electrode_assembly is not None:
             self._reference_electrode_assembly._set_parent(None)
@@ -613,25 +614,37 @@ class PouchCell(_Cell):
 
     @encapsulation.setter
     @calculate_all_properties
-    def encapsulation(self, value: PouchEncapsulation) -> None:
-        """Set encapsulation with validation.
+    def encapsulation(self, value) -> None:
+        """Set encapsulation with validation. Automatically converts cell type if encapsulation type changes.
         
         Parameters
         ----------
-        value : PouchEncapsulation
-            New encapsulation to set
+        value : _Container
+            New encapsulation to set. Can be any container type (Prismatic, Pouch, Cylindrical).
+            If type differs from current cell type, cell will be automatically converted.
         """
-        self.validate_type(value, PouchEncapsulation, "encapsulation")
+        from steer_opencell_design.Components.Containers.Base import _Container
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
+        from steer_opencell_design.Components.Containers.Cylindrical import CylindricalEncapsulation
+        
+        # Only allow PouchEncapsulation or PrismaticEncapsulation
+        self.validate_type(value, (PouchEncapsulation, PrismaticEncapsulation), "encapsulation")
+        
+        # Check if encapsulation type matches cell type
+        if isinstance(value, PouchEncapsulation):
+            # Same type, proceed normally
+            # Clear old parent reference
+            if hasattr(self, '_encapsulation') and self._encapsulation is not None:
+                if hasattr(self._encapsulation, '_set_parent'):
+                    self._encapsulation._set_parent(None)
 
-        # Clear old parent reference
-        if hasattr(self, '_encapsulation') and self._encapsulation is not None:
-            if hasattr(self._encapsulation, '_set_parent'):
-                self._encapsulation._set_parent(None)
+            self._encapsulation = value
 
-        self._encapsulation = value
-
-        # Set new parent reference for propagation
-        if hasattr(value, '_set_parent'):
-            value._set_parent(self)
+            # Set new parent reference for propagation
+            if hasattr(value, '_set_parent'):
+                value._set_parent(self)
+        else:
+            # Different type, convert cell
+            self._convert_to_cell_type(value)
 
 
