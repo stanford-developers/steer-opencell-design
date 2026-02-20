@@ -1265,5 +1265,232 @@ class PouchEncapsulation(_Container):
         self._top_laminate.height = height
         self._bottom_laminate.height = height
 
+    @classmethod
+    def from_prismatic(
+        cls,
+        prismatic_encapsulation,
+        terminal_width: float = 10.0,
+        terminal_length: float = 30.0,
+        terminal_thickness: float = 1.0,
+        laminate_areal_cost: float = 2.5,
+        laminate_density: float = 920.0,
+        laminate_thickness: float = 50.0,
+    ):
+        """Create a PouchEncapsulation from a PrismaticEncapsulation.
+
+        Converts a prismatic encapsulation to pouch format by removing rigid structure
+        and creating flexible laminate packaging. Dimensions are mapped to preserve
+        internal volume:
+        - pouch width = prismatic width
+        - pouch height = prismatic length
+        - pouch thickness = prismatic internal height
+
+        Parameters
+        ----------
+        prismatic_encapsulation : PrismaticEncapsulation
+            The prismatic encapsulation to convert from.
+        terminal_width : float, optional
+            Width of pouch terminals in mm. Defaults to 10.0.
+        terminal_length : float, optional
+            Length of pouch terminals in mm. Defaults to 30.0.
+        terminal_thickness : float, optional
+            Thickness of pouch terminals in mm. Defaults to 1.0.
+        laminate_areal_cost : float, optional
+            Areal cost of laminate sheets in $/m². Defaults to 2.5.
+        laminate_density : float, optional
+            Density of laminate sheets in g/cm³. Defaults to 920.0.
+        laminate_thickness : float, optional
+            Thickness of laminate sheets in µm. Defaults to 50.0.
+
+        Returns
+        -------
+        PouchEncapsulation
+            A new pouch encapsulation with dimensions mapped from prismatic.
+
+        Raises
+        ------
+        TypeError
+            If prismatic_encapsulation is not a PrismaticEncapsulation instance.
+
+        Examples
+        --------
+        >>> from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
+        >>> prismatic = PrismaticEncapsulation(...)
+        >>> pouch = PouchEncapsulation.from_prismatic(prismatic)
+        """
+        # Import here to avoid circular dependency
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
+
+        if not isinstance(prismatic_encapsulation, PrismaticEncapsulation):
+            raise TypeError(
+                f"Expected PrismaticEncapsulation, got {type(prismatic_encapsulation).__name__}"
+            )
+
+        # Get material from prismatic encapsulation (use canister material)
+        terminal_material = prismatic_encapsulation.canister.material
+
+        # Map dimensions: width->width, length->height, internal_height->thickness
+        pouch_width = prismatic_encapsulation.width
+        pouch_height = prismatic_encapsulation.length
+        pouch_thickness = prismatic_encapsulation.internal_height
+
+        # Create terminals
+        cathode_terminal = PouchTerminal(
+            material=terminal_material,
+            width=terminal_width,
+            length=terminal_length,
+            thickness=terminal_thickness,
+            name="Cathode Terminal"
+        )
+
+        anode_terminal = PouchTerminal(
+            material=terminal_material,
+            width=terminal_width,
+            length=terminal_length,
+            thickness=terminal_thickness,
+            name="Anode Terminal"
+        )
+
+        # Create laminate sheets
+        top_laminate = LaminateSheet(
+            areal_cost=laminate_areal_cost,
+            density=laminate_density,
+            thickness=laminate_thickness,
+            name="Top Laminate"
+        )
+
+        bottom_laminate = LaminateSheet(
+            areal_cost=laminate_areal_cost,
+            density=laminate_density,
+            thickness=laminate_thickness,
+            name="Bottom Laminate"
+        )
+
+        # Create and return pouch encapsulation
+        return cls(
+            cathode_terminal=cathode_terminal,
+            anode_terminal=anode_terminal,
+            top_laminate=top_laminate,
+            bottom_laminate=bottom_laminate,
+            width=pouch_width,
+            height=pouch_height,
+            thickness=pouch_thickness,
+            name=f"Pouch from {prismatic_encapsulation.name}"
+        )
+
+    @classmethod
+    def from_cylindrical(
+        cls,
+        cylindrical_encapsulation,
+        terminal_width: float = 10.0,
+        terminal_length: float = 30.0,
+        terminal_thickness: float = 1.0,
+        laminate_areal_cost: float = 2.5,
+        laminate_density: float = 920.0,
+        laminate_thickness: float = 50.0,
+    ):
+        """Create a PouchEncapsulation from a CylindricalEncapsulation.
+
+        Converts a cylindrical encapsulation to pouch format by removing rigid structure
+        and creating flexible laminate packaging. Dimensions are mapped to preserve
+        internal volume:
+        - pouch width = 2 × radius (cylinder diameter)
+        - pouch height = cylinder height
+        - pouch thickness = 2 × radius (cylinder diameter)
+
+        Parameters
+        ----------
+        cylindrical_encapsulation : CylindricalEncapsulation
+            The cylindrical encapsulation to convert from.
+        terminal_width : float, optional
+            Width of pouch terminals in mm. Defaults to 10.0.
+        terminal_length : float, optional
+            Length of pouch terminals in mm. Defaults to 30.0.
+        terminal_thickness : float, optional
+            Thickness of pouch terminals in mm. Defaults to 1.0.
+        laminate_areal_cost : float, optional
+            Areal cost of laminate sheets in $/m². Defaults to 2.5.
+        laminate_density : float, optional
+            Density of laminate sheets in g/cm³. Defaults to 920.0.
+        laminate_thickness : float, optional
+            Thickness of laminate sheets in µm. Defaults to 50.0.
+
+        Returns
+        -------
+        PouchEncapsulation
+            A new pouch encapsulation with dimensions mapped from cylindrical.
+
+        Raises
+        ------
+        TypeError
+            If cylindrical_encapsulation is not a CylindricalEncapsulation instance.
+
+        Examples
+        --------
+        >>> from steer_opencell_design.Components.Containers.Cylindrical import CylindricalEncapsulation
+        >>> cylindrical = CylindricalEncapsulation(...)
+        >>> pouch = PouchEncapsulation.from_cylindrical(cylindrical)
+        """
+        # Import here to avoid circular dependency
+        from steer_opencell_design.Components.Containers.Cylindrical import CylindricalEncapsulation
+
+        if not isinstance(cylindrical_encapsulation, CylindricalEncapsulation):
+            raise TypeError(
+                f"Expected CylindricalEncapsulation, got {type(cylindrical_encapsulation).__name__}"
+            )
+
+        # Get material from cylindrical encapsulation (use canister material)
+        terminal_material = cylindrical_encapsulation.canister.material
+
+        # Map dimensions: diameter for both width and thickness, height->height
+        diameter = 2 * cylindrical_encapsulation.radius
+        pouch_width = diameter
+        pouch_height = cylindrical_encapsulation.height
+        pouch_thickness = diameter
+
+        # Create terminals
+        cathode_terminal = PouchTerminal(
+            material=terminal_material,
+            width=terminal_width,
+            length=terminal_length,
+            thickness=terminal_thickness,
+            name="Cathode Terminal"
+        )
+
+        anode_terminal = PouchTerminal(
+            material=terminal_material,
+            width=terminal_width,
+            length=terminal_length,
+            thickness=terminal_thickness,
+            name="Anode Terminal"
+        )
+
+        # Create laminate sheets
+        top_laminate = LaminateSheet(
+            areal_cost=laminate_areal_cost,
+            density=laminate_density,
+            thickness=laminate_thickness,
+            name="Top Laminate"
+        )
+
+        bottom_laminate = LaminateSheet(
+            areal_cost=laminate_areal_cost,
+            density=laminate_density,
+            thickness=laminate_thickness,
+            name="Bottom Laminate"
+        )
+
+        # Create and return pouch encapsulation
+        return cls(
+            cathode_terminal=cathode_terminal,
+            anode_terminal=anode_terminal,
+            top_laminate=top_laminate,
+            bottom_laminate=bottom_laminate,
+            width=pouch_width,
+            height=pouch_height,
+            thickness=pouch_thickness,
+            name=f"Pouch from {cylindrical_encapsulation.name}"
+        )
+
 
 
