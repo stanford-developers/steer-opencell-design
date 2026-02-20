@@ -3464,6 +3464,71 @@ class TestPrismaticEncapsulation(unittest.TestCase):
         # Total height should have increased by same amount
         self.assertAlmostEqual(enc.height, original_height + 20.0, places=1)
 
+    def test_internal_height_setter_transverse(self):
+        """Test internal height setter adjusts canister width in transverse mode.
+        
+        In TRANSVERSE orientation, internal_height derives from canister._inner_width,
+        so setting internal_height should adjust canister.width (not height).
+        """
+        enc = self.encapsulation
+        enc.connector_orientation = 'transverse'
+        
+        original_canister_width = enc.canister.width
+        original_canister_height = enc.canister.height
+        original_internal_height = enc.internal_height
+        
+        # Increase internal height by 20mm
+        new_internal = original_internal_height + 20.0
+        enc.internal_height = new_internal
+        
+        self.assertAlmostEqual(enc.internal_height, new_internal, places=1)
+        # Canister width should have increased (not height)
+        self.assertAlmostEqual(enc.canister.width, original_canister_width + 20.0, places=1)
+        # Canister height should remain unchanged
+        self.assertAlmostEqual(enc.canister.height, original_canister_height, places=1)
+
+    def test_internal_width_setter_longitudinal(self):
+        """Test internal width setter adjusts canister width in longitudinal mode."""
+        enc = self.encapsulation
+        # Default is longitudinal
+        
+        original_canister_width = enc.canister.width
+        original_canister_height = enc.canister.height
+        original_internal_width = enc.internal_width
+        
+        # Increase internal width by 15mm
+        new_internal = original_internal_width + 15.0
+        enc.internal_width = new_internal
+        
+        self.assertAlmostEqual(enc.internal_width, new_internal, places=1)
+        # Canister width should have increased
+        self.assertAlmostEqual(enc.canister.width, original_canister_width + 15.0, places=1)
+        # Canister height should remain unchanged
+        self.assertAlmostEqual(enc.canister.height, original_canister_height, places=1)
+
+    def test_internal_width_setter_transverse(self):
+        """Test internal width setter adjusts canister height in transverse mode.
+        
+        In TRANSVERSE orientation, internal_width derives from canister._inner_height,
+        so setting internal_width should adjust canister.height (not width).
+        """
+        enc = self.encapsulation
+        enc.connector_orientation = 'transverse'
+        
+        original_canister_width = enc.canister.width
+        original_canister_height = enc.canister.height
+        original_internal_width = enc.internal_width
+        
+        # Increase internal width by 15mm
+        new_internal = original_internal_width + 15.0
+        enc.internal_width = new_internal
+        
+        self.assertAlmostEqual(enc.internal_width, new_internal, places=1)
+        # Canister height should have increased (not width)
+        self.assertAlmostEqual(enc.canister.height, original_canister_height + 15.0, places=1)
+        # Canister width should remain unchanged
+        self.assertAlmostEqual(enc.canister.width, original_canister_width, places=1)
+
     def test_datum_setter(self):
         """Test datum setter updates all components"""
         enc = self.encapsulation

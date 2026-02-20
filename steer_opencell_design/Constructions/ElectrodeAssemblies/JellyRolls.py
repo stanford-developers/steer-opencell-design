@@ -3002,7 +3002,7 @@ class WoundJellyRoll(_JellyRoll):
         )
 
     @classmethod
-    def from_flat_wound_jelly_roll(
+    def from_flat_jelly_roll(
             cls,
             flat_jelly_roll: 'FlatWoundJellyRoll',
         ) -> 'WoundJellyRoll':
@@ -3030,7 +3030,7 @@ class WoundJellyRoll(_JellyRoll):
         Examples
         --------
         >>> flat_roll = FlatWoundJellyRoll(layup, flat_mandrel)
-        >>> wound_roll = WoundJellyRoll.from_FlatWoundJellyRoll(flat_roll)
+        >>> wound_roll = WoundJellyRoll.from_jelly_roll(flat_roll)
         """        
         # Validate inputs
         cls.validate_type(flat_jelly_roll, FlatWoundJellyRoll, "flat_jelly_roll")
@@ -3732,6 +3732,7 @@ class FlatWoundJellyRoll(_JellyRoll):
     def from_round_jelly_roll(
             cls,
             round_jelly_roll: 'WoundJellyRoll',
+            width: float = None,
         ) -> 'FlatWoundJellyRoll':
         """Create a FlatWoundJellyRoll from an existing WoundJellyRoll.
         
@@ -3743,6 +3744,10 @@ class FlatWoundJellyRoll(_JellyRoll):
         ----------
         round_jelly_roll : WoundJellyRoll
             The wound jelly roll to convert from
+        width : float, optional
+            The width of the flat mandrel in mm. If not provided, defaults to
+            diameter * 11 (creating a flat mandrel with a straight section of
+            10x the diameter).
             
         Returns
         -------
@@ -3758,6 +3763,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         --------
         >>> wound_roll = WoundJellyRoll(layup, round_mandrel)
         >>> flat_roll = FlatWoundJellyRoll.from_round_jelly_roll(wound_roll)
+        >>> flat_roll_custom = FlatWoundJellyRoll.from_round_jelly_roll(wound_roll, width=50)
         """        
         # Validate inputs
         cls.validate_type(round_jelly_roll, WoundJellyRoll, "round_jelly_roll")
@@ -3769,12 +3775,13 @@ class FlatWoundJellyRoll(_JellyRoll):
         round_mandrel = deepcopy(round_jelly_roll._mandrel)
         
         # Use the round mandrel's diameter as the flat mandrel's height to maintain radius
-        # Set a default straight length (can be adjusted based on requirements)
-        default_straight_length = round_mandrel.diameter * 10
+        # If width not provided, default to diameter * 11 (diameter + 10x diameter straight)
+        mandrel_height = round_mandrel.diameter
+        mandrel_width = width if width is not None else round_mandrel.diameter * 11
         
         flat_mandrel = FlatMandrel(
-            height=round_mandrel.diameter,
-            width=round_mandrel.diameter + default_straight_length,
+            height=mandrel_height,
+            width=mandrel_width,
             length=round_mandrel.length,
             datum=round_mandrel.datum,
             material=round_mandrel.material
@@ -3974,4 +3981,4 @@ class FlatWoundJellyRoll(_JellyRoll):
         # Set the optimized length and run full pipeline once
         self._layup.length = optimal_length
         self.layup = self._layup
- 
+
