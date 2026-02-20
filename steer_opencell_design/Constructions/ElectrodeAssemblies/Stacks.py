@@ -752,6 +752,9 @@ class ZFoldStack(_Stack):
                 # Replace current instance with converted stack
                 self.__class__ = converted_stack.__class__
                 self.__dict__.update(converted_stack.__dict__)
+                
+                # Restore parent references so children point to self, not converted_stack
+                self._restore_child_parent_refs()
             
         else:
             # Same type, just update layup
@@ -819,6 +822,9 @@ class PunchedStack(_Stack):
                 # Replace current instance with converted stack
                 self.__class__ = converted_stack.__class__
                 self.__dict__.update(converted_stack.__dict__)
+                
+                # Restore parent references so children point to self, not converted_stack
+                self._restore_child_parent_refs()
             
         else:
             # Same type, just update layup

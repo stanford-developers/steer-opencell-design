@@ -182,6 +182,9 @@ class _Cell(
         # Copy all attributes from new cell to self (in-place conversion)
         self.__class__ = target_cell_class
         self.__dict__.update(new_cell.__dict__)
+        
+        # Restore parent references so children point to self, not new_cell
+        self._restore_child_parent_refs()
 
     def _calculate_bulk_properties(self) -> None:
         self._calculate_electrolyte_properties()

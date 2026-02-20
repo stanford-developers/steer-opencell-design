@@ -629,4 +629,7 @@ class PrismaticCell(_Cell):
         # Copy all attributes from new cell to self (in-place conversion)
         self.__class__ = CylindricalCell
         self.__dict__.update(new_cell.__dict__)
+        
+        # Restore parent references so children point to self, not new_cell
+        self._restore_child_parent_refs()
 
