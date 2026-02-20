@@ -1197,6 +1197,230 @@ class CylindricalEncapsulation(_Container):
         self._update_properties = True
         self._calculate_all_properties()
 
+    @classmethod
+    def from_prismatic(cls, prismatic_encapsulation) -> "CylindricalEncapsulation":
+        """Create a CylindricalEncapsulation from a PrismaticEncapsulation.
+        
+        Converts a prismatic (rectangular) encapsulation to cylindrical form by calculating
+        an equivalent radius that preserves internal volume. The conversion uses the formula
+        r = sqrt(width × length / π) to maintain the same cross-sectional area, and maps
+        height directly from prismatic to cylindrical.
+        
+        Parameters
+        ----------
+        prismatic_encapsulation : PrismaticEncapsulation
+            The prismatic encapsulation to convert
+            
+        Returns
+        -------
+        CylindricalEncapsulation
+            A new cylindrical encapsulation with equivalent internal volume
+            
+        Notes
+        -----
+        - Internal volume is preserved through equivalent cross-sectional area conversion
+        - Height maps directly from prismatic to cylindrical
+        - Materials and thicknesses are transferred from the prismatic components
+        - Terminal connectors and lid are auto-sized to fit the new canister (90% inner radius)
+        
+        Examples
+        --------
+        >>> prismatic_enc = PrismaticEncapsulation(...)
+        >>> cylindrical_enc = CylindricalEncapsulation.from_prismatic(prismatic_enc)
+        """
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
+        
+        # Validate input type
+        cls.validate_type(prismatic_encapsulation, PrismaticEncapsulation, "prismatic_encapsulation")
+        
+        # Extract internal dimensions from prismatic encapsulation
+        internal_width = prismatic_encapsulation._internal_width
+        internal_length = prismatic_encapsulation._internal_length
+        internal_height = prismatic_encapsulation._internal_height
+        
+        # Calculate equivalent internal radius to preserve cross-sectional area (and thus volume)
+        # Using formula: π × r² = width × length  =>  r = sqrt(width × length / π)
+        internal_radius = np.sqrt(internal_width * internal_length / np.pi)
+        
+        # Get wall thickness from prismatic canister (in meters)
+        wall_thickness = prismatic_encapsulation._canister._wall_thickness
+        
+        # Calculate outer radius (in meters)
+        outer_radius = internal_radius + wall_thickness
+        
+        # Get height from prismatic canister (in meters)
+        height = prismatic_encapsulation._canister._height
+        
+        # Convert dimensions to mm for component creation
+        outer_radius_mm = outer_radius * M_TO_MM
+        height_mm = height * M_TO_MM
+        wall_thickness_mm = wall_thickness * M_TO_MM
+        
+        # Create cylindrical canister with transferred material and dimensions
+        cylindrical_canister = CylindricalCanister(
+            material=prismatic_encapsulation._canister._material,
+            outer_radius=outer_radius_mm,
+            height=height_mm,
+            wall_thickness=wall_thickness_mm,
+            datum=prismatic_encapsulation._canister.datum,  # Use property (returns mm)
+            name=f"Cylindrical Canister (from {prismatic_encapsulation._canister.name})"
+        )
+        
+        # Create cylindrical terminal connectors with transferred materials
+        # Set radius=None to trigger auto-sizing by encapsulation (90% of inner radius)
+        cathode_terminal_connector = CylindricalTerminalConnector(
+            material=prismatic_encapsulation._cathode_terminal_connector._material,
+            thickness=prismatic_encapsulation._cathode_terminal_connector.thickness,  # Use property (returns mm)
+            radius=None,
+            fill_factor=prismatic_encapsulation._cathode_terminal_connector._fill_factor,
+            name=f"Cylindrical Cathode Terminal (from {prismatic_encapsulation._cathode_terminal_connector.name})"
+        )
+        
+        anode_terminal_connector = CylindricalTerminalConnector(
+            material=prismatic_encapsulation._anode_terminal_connector._material,
+            thickness=prismatic_encapsulation._anode_terminal_connector.thickness,  # Use property (returns mm)
+            radius=None,
+            fill_factor=prismatic_encapsulation._anode_terminal_connector._fill_factor,
+            name=f"Cylindrical Anode Terminal (from {prismatic_encapsulation._anode_terminal_connector.name})"
+        )
+        
+        # Create cylindrical lid assembly with transferred material
+        # Set radius=None to trigger auto-sizing by encapsulation (matches inner radius)
+        lid_assembly = CylindricalLidAssembly(
+            material=prismatic_encapsulation._lid_assembly._material,
+            thickness=prismatic_encapsulation._lid_assembly.thickness,  # Use property (returns mm)
+            radius=None,
+            fill_factor=prismatic_encapsulation._lid_assembly._fill_factor,
+            name=f"Cylindrical Lid (from {prismatic_encapsulation._lid_assembly.name})"
+        )
+        
+        # Create and return the cylindrical encapsulation
+        return cls(
+            cathode_terminal_connector=cathode_terminal_connector,
+            anode_terminal_connector=anode_terminal_connector,
+            lid_assembly=lid_assembly,
+            canister=cylindrical_canister,
+            name=f"Cylindrical Encapsulation (from {prismatic_encapsulation.name})",
+            datum=prismatic_encapsulation.datum  # Use property (returns mm)
+        )
+
+    @classmethod
+    def from_pouch(cls, pouch_encapsulation) -> "CylindricalEncapsulation":
+        """Create a CylindricalEncapsulation from a PouchEncapsulation.
+        
+        Converts a pouch encapsulation to cylindrical form by calculating an equivalent
+        radius from the pouch dimensions and creating rigid container components with
+        default aluminum material. This conversion is useful for comparing flexible
+        pouch designs with rigid cylindrical implementations.
+        
+        Parameters
+        ----------
+        pouch_encapsulation : PouchEncapsulation
+            The pouch encapsulation to convert
+            
+        Returns
+        -------
+        CylindricalEncapsulation
+            A new cylindrical encapsulation with aluminum components
+            
+        Notes
+        -----
+        Default parameters for rigid components:
+        - Canister material: Aluminum (from database)
+        - Wall thickness: 1.0 mm
+        - Terminal thickness: 0.5 mm
+        - Lid thickness: 0.5 mm  
+        - Fill factor: 0.7 (standard)
+        
+        The conversion calculates equivalent radius using r = sqrt(width × thickness / π)
+        and maps pouch height to cylindrical height. Since pouches lack rigid components,
+        all structural parts are created with aluminum defaults.
+        
+        Examples
+        --------
+        >>> pouch_enc = PouchEncapsulation(...)
+        >>> cylindrical_enc = CylindricalEncapsulation.from_pouch(pouch_enc)
+        """
+        from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
+        
+        # Validate input type
+        cls.validate_type(pouch_encapsulation, PouchEncapsulation, "pouch_encapsulation")
+        
+        # Extract dimensions from pouch encapsulation (all in meters internally)
+        # Pouch stores width/height in the laminate, thickness in the encapsulation
+        width = pouch_encapsulation._top_laminate._width
+        thickness = pouch_encapsulation._thickness
+        height = pouch_encapsulation._top_laminate._height
+        
+        # Calculate equivalent internal radius from pouch dimensions
+        # Using width and thickness (laminate separation) as the rectangular cross-section
+        internal_radius = np.sqrt(width * thickness / np.pi)
+        
+        # Define default parameters for rigid components (per user specification)
+        wall_thickness = 1.0 * MM_TO_M  # 1.0 mm converted to meters
+        terminal_thickness_mm = 0.5  # mm
+        lid_thickness_mm = 0.5  # mm
+        fill_factor = 0.7  # standard default
+        
+        # Calculate outer radius (in meters)
+        outer_radius = internal_radius + wall_thickness
+        
+        # Convert dimensions to mm for component creation
+        outer_radius_mm = outer_radius * M_TO_MM
+        height_mm = height * M_TO_MM
+        wall_thickness_mm = wall_thickness * M_TO_MM
+        
+        # Get aluminum material from database (per user specification)
+        aluminum_material = PrismaticContainerMaterial.from_database("Aluminum")
+        
+        # Create cylindrical canister with aluminum
+        cylindrical_canister = CylindricalCanister(
+            material=aluminum_material,
+            outer_radius=outer_radius_mm,
+            height=height_mm,
+            wall_thickness=wall_thickness_mm,
+            datum=pouch_encapsulation.datum,  # Use property (returns mm)
+            name=f"Cylindrical Canister (from {pouch_encapsulation.name})"
+        )
+        
+        # Create cylindrical terminal connectors with aluminum
+        # Set radius=None to trigger auto-sizing by encapsulation (90% of inner radius)
+        cathode_terminal_connector = CylindricalTerminalConnector(
+            material=aluminum_material,
+            thickness=terminal_thickness_mm,
+            radius=None,
+            fill_factor=fill_factor,
+            name=f"Cylindrical Cathode Terminal (from {pouch_encapsulation.name})"
+        )
+        
+        anode_terminal_connector = CylindricalTerminalConnector(
+            material=aluminum_material,
+            thickness=terminal_thickness_mm,
+            radius=None,
+            fill_factor=fill_factor,
+            name=f"Cylindrical Anode Terminal (from {pouch_encapsulation.name})"
+        )
+        
+        # Create cylindrical lid assembly with aluminum
+        # Set radius=None to trigger auto-sizing by encapsulation (matches inner radius)
+        lid_assembly = CylindricalLidAssembly(
+            material=aluminum_material,
+            thickness=lid_thickness_mm,
+            radius=None,
+            fill_factor=fill_factor,
+            name=f"Cylindrical Lid (from {pouch_encapsulation.name})"
+        )
+        
+        # Create and return the cylindrical encapsulation
+        return cls(
+            cathode_terminal_connector=cathode_terminal_connector,
+            anode_terminal_connector=anode_terminal_connector,
+            lid_assembly=lid_assembly,
+            canister=cylindrical_canister,
+            name=f"Cylindrical Encapsulation (from {pouch_encapsulation.name})",
+            datum=pouch_encapsulation.datum  # Use property (returns mm)
+        )
+
     def _calculate_all_properties(self):
         self._calculate_bulk_properties()
         self._calculate_coordinates()

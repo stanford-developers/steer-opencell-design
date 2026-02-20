@@ -1394,6 +1394,236 @@ class PrismaticEncapsulation(_Container):
         self._calculate_all_properties()
         self._update_properties = True
 
+    @classmethod
+    def from_cylindrical(cls, cylindrical_encapsulation) -> "PrismaticEncapsulation":
+        """Create a PrismaticEncapsulation from a CylindricalEncapsulation.
+        
+        Converts a cylindrical encapsulation to prismatic (rectangular) form by calculating
+        equivalent width and length that preserve internal volume. The conversion uses a 2:3
+        aspect ratio (width:length) which is common for prismatic battery cells.
+        
+        Parameters
+        ----------
+        cylindrical_encapsulation : CylindricalEncapsulation
+            The cylindrical encapsulation to convert
+            
+        Returns
+        -------
+        PrismaticEncapsulation
+            A new prismatic encapsulation with equivalent internal volume
+            
+        Notes
+        -----
+        - Internal volume is preserved through equivalent cross-sectional area conversion
+        - Aspect ratio is 2:3 (width:length), common for prismatic cells
+        - Conversion formulas:
+          - width = radius × sqrt(2π/3)
+          - length = radius × sqrt(3π/2)
+        - Height maps directly from cylindrical to prismatic
+        - Materials and thicknesses are transferred from the cylindrical components
+        - Connector orientation defaults to LONGITUDINAL
+        
+        Examples
+        --------
+        >>> cylindrical_enc = CylindricalEncapsulation(...)
+        >>> prismatic_enc = PrismaticEncapsulation.from_cylindrical(cylindrical_enc)
+        """
+        from steer_opencell_design.Components.Containers.Cylindrical import CylindricalEncapsulation
+        
+        # Validate input type
+        cls.validate_type(cylindrical_encapsulation, CylindricalEncapsulation, "cylindrical_encapsulation")
+        
+        # Extract internal radius and height from cylindrical encapsulation (in meters)
+        internal_radius = cylindrical_encapsulation._canister._inner_radius
+        internal_height = cylindrical_encapsulation._internal_height
+        
+        # Calculate equivalent width and length with 2:3 aspect ratio to preserve cross-sectional area
+        # Area: π × r² = width × length
+        # With width:length = 2:3, we get:
+        # width = r × sqrt(2π/3)
+        # length = r × sqrt(3π/2)
+        internal_width = internal_radius * np.sqrt(2 * np.pi / 3)
+        internal_length = internal_radius * np.sqrt(3 * np.pi / 2)
+        
+        # Get wall thickness and height from cylindrical canister (in meters)
+        wall_thickness = cylindrical_encapsulation._canister._wall_thickness
+        height = cylindrical_encapsulation._canister._height
+        
+        # Calculate outer dimensions (in meters)
+        outer_width = internal_width + 2 * wall_thickness
+        outer_length = internal_length + 2 * wall_thickness
+        
+        # Convert dimensions to mm for component creation
+        outer_width_mm = outer_width * M_TO_MM
+        outer_length_mm = outer_length * M_TO_MM
+        height_mm = height * M_TO_MM
+        wall_thickness_mm = wall_thickness * M_TO_MM
+        
+        # Create prismatic canister with transferred material and dimensions
+        prismatic_canister = PrismaticCanister(
+            material=cylindrical_encapsulation._canister._material,
+            width=outer_width_mm,
+            length=outer_length_mm,
+            height=height_mm,
+            wall_thickness=wall_thickness_mm,
+            datum=cylindrical_encapsulation._canister.datum,  # Use property (returns mm)
+            name=f"Prismatic Canister (from {cylindrical_encapsulation._canister.name})"
+        )
+        
+        # Create prismatic terminal connectors with transferred materials
+        # Size them proportionally to the new canister (30% width × 80% length is typical)
+        cathode_terminal_connector = PrismaticTerminalConnector(
+            material=cylindrical_encapsulation._cathode_terminal_connector._material,
+            thickness=cylindrical_encapsulation._cathode_terminal_connector.thickness,  # Use property (returns mm)
+            fill_factor=cylindrical_encapsulation._cathode_terminal_connector._fill_factor,
+            name=f"Prismatic Cathode Terminal (from {cylindrical_encapsulation._cathode_terminal_connector.name})"
+        )
+        
+        anode_terminal_connector = PrismaticTerminalConnector(
+            material=cylindrical_encapsulation._anode_terminal_connector._material,
+            thickness=cylindrical_encapsulation._anode_terminal_connector.thickness,  # Use property (returns mm)
+            fill_factor=cylindrical_encapsulation._anode_terminal_connector._fill_factor,
+            name=f"Prismatic Anode Terminal (from {cylindrical_encapsulation._anode_terminal_connector.name})"
+        )
+        
+        # Create prismatic lid assembly with transferred material
+        prismatic_lid = PrismaticLidAssembly(
+            material=cylindrical_encapsulation._lid_assembly._material,
+            thickness=cylindrical_encapsulation._lid_assembly.thickness,  # Use property (returns mm)
+            fill_factor=cylindrical_encapsulation._lid_assembly._fill_factor,
+            name=f"Prismatic Lid (from {cylindrical_encapsulation._lid_assembly.name})"
+        )
+        
+        # Create and return the prismatic encapsulation
+        return cls(
+            cathode_terminal_connector=cathode_terminal_connector,
+            anode_terminal_connector=anode_terminal_connector,
+            lid_assembly=prismatic_lid,
+            canister=prismatic_canister,
+            connector_orientation=ConnectorOrientation.LONGITUDINAL,
+            name=f"Prismatic Encapsulation (from {cylindrical_encapsulation.name})",
+            datum=cylindrical_encapsulation.datum  # Use property (returns mm)
+        )
+
+    @classmethod
+    def from_pouch(cls, pouch_encapsulation) -> "PrismaticEncapsulation":
+        """Create a PrismaticEncapsulation from a PouchEncapsulation.
+        
+        Converts a pouch encapsulation to prismatic form by creating rigid container
+        components with default aluminum material. The pouch dimensions map to prismatic
+        dimensions while adding structural rigidity.
+        
+        Parameters
+        ----------
+        pouch_encapsulation : PouchEncapsulation
+            The pouch encapsulation to convert
+            
+        Returns
+        -------
+        PrismaticEncapsulation
+            A new prismatic encapsulation with aluminum components
+            
+        Notes
+        -----
+        Default parameters for rigid components:
+        - Canister material: Aluminum (from database)
+        - Wall thickness: 1.0 mm
+        - Terminal thickness: 0.5 mm
+        - Lid thickness: 0.5 mm
+        - Fill factor: 0.7 (standard)
+        - Connector orientation: LONGITUDINAL
+        
+        The conversion maps pouch dimensions as follows:
+        - pouch width → prismatic width
+        - pouch thickness → prismatic length
+        - pouch height → prismatic height
+        
+        Since pouches lack rigid components, all structural parts are created
+        with aluminum defaults.
+        
+        Examples
+        --------
+        >>> pouch_enc = PouchEncapsulation(...)
+        >>> prismatic_enc = PrismaticEncapsulation.from_pouch(pouch_enc)
+        """
+        from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
+        
+        # Validate input type
+        cls.validate_type(pouch_encapsulation, PouchEncapsulation, "pouch_encapsulation")
+        
+        # Extract dimensions from pouch encapsulation (all in meters internally)
+        # Pouch stores width/height in the laminate, thickness in the encapsulation
+        width = pouch_encapsulation._top_laminate._width
+        thickness = pouch_encapsulation._thickness
+        height = pouch_encapsulation._top_laminate._height
+        
+        # Define default parameters for rigid components
+        wall_thickness = 1.0 * MM_TO_M  # 1.0 mm converted to meters
+        terminal_thickness_mm = 0.5  # mm
+        lid_thickness_mm = 0.5  # mm
+        fill_factor = 0.7  # standard default
+        
+        # Map pouch dimensions to prismatic dimensions
+        # width → width, thickness → length, height → height
+        # Add wall thickness for outer dimensions
+        outer_width = width + 2 * wall_thickness
+        outer_length = thickness + 2 * wall_thickness
+        outer_height = height + wall_thickness
+        
+        # Convert dimensions to mm for component creation
+        outer_width_mm = outer_width * M_TO_MM
+        outer_length_mm = outer_length * M_TO_MM
+        outer_height_mm = outer_height * M_TO_MM
+        wall_thickness_mm = wall_thickness * M_TO_MM
+        
+        # Get aluminum material from database
+        aluminum_material = PrismaticContainerMaterial.from_database("Aluminum")
+        
+        # Create prismatic canister with aluminum
+        prismatic_canister = PrismaticCanister(
+            material=aluminum_material,
+            width=outer_width_mm,
+            length=outer_length_mm,
+            height=outer_height_mm,
+            wall_thickness=wall_thickness_mm,
+            datum=pouch_encapsulation.datum,  # Use property (returns mm)
+            name=f"Prismatic Canister (from {pouch_encapsulation.name})"
+        )
+        
+        # Create prismatic terminal connectors with aluminum
+        cathode_terminal_connector = PrismaticTerminalConnector(
+            material=aluminum_material,
+            thickness=terminal_thickness_mm,
+            fill_factor=fill_factor,
+            name=f"Prismatic Cathode Terminal (from {pouch_encapsulation.name})"
+        )
+        
+        anode_terminal_connector = PrismaticTerminalConnector(
+            material=aluminum_material,
+            thickness=terminal_thickness_mm,
+            fill_factor=fill_factor,
+            name=f"Prismatic Anode Terminal (from {pouch_encapsulation.name})"
+        )
+        
+        # Create prismatic lid assembly with aluminum
+        prismatic_lid = PrismaticLidAssembly(
+            material=aluminum_material,
+            thickness=lid_thickness_mm,
+            fill_factor=fill_factor,
+            name=f"Prismatic Lid (from {pouch_encapsulation.name})"
+        )
+        
+        # Create and return the prismatic encapsulation
+        return cls(
+            cathode_terminal_connector=cathode_terminal_connector,
+            anode_terminal_connector=anode_terminal_connector,
+            lid_assembly=prismatic_lid,
+            canister=prismatic_canister,
+            connector_orientation=ConnectorOrientation.LONGITUDINAL,
+            name=f"Prismatic Encapsulation (from {pouch_encapsulation.name})",
+            datum=pouch_encapsulation.datum  # Use property (returns mm)
+        )
+
     def _calculate_all_properties(self):
         """Calculate all encapsulation properties."""
         self._calculate_bulk_properties()
