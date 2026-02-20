@@ -1269,9 +1269,9 @@ class PouchEncapsulation(_Container):
     def from_prismatic(
         cls,
         prismatic_encapsulation,
-        terminal_width: float = 10.0,
-        terminal_length: float = 30.0,
-        terminal_thickness: float = 1.0,
+        terminal_width: float = None,
+        terminal_length: float = None,
+        terminal_thickness: float = None,
         laminate_areal_cost: float = 2.5,
         laminate_density: float = 920.0,
         laminate_thickness: float = 50.0,
@@ -1290,11 +1290,11 @@ class PouchEncapsulation(_Container):
         prismatic_encapsulation : PrismaticEncapsulation
             The prismatic encapsulation to convert from.
         terminal_width : float, optional
-            Width of pouch terminals in mm. Defaults to 10.0.
+            Width of pouch terminals in mm. Defaults to pouch_width / 6 if not specified.
         terminal_length : float, optional
-            Length of pouch terminals in mm. Defaults to 30.0.
+            Length of pouch terminals in mm. Defaults to pouch_height / 10 if not specified.
         terminal_thickness : float, optional
-            Thickness of pouch terminals in mm. Defaults to 1.0.
+            Thickness of pouch terminals in mm. Defaults to 1.0 if not specified.
         laminate_areal_cost : float, optional
             Areal cost of laminate sheets in $/m². Defaults to 2.5.
         laminate_density : float, optional
@@ -1333,6 +1333,14 @@ class PouchEncapsulation(_Container):
         pouch_width = prismatic_encapsulation.width
         pouch_height = prismatic_encapsulation.length
         pouch_thickness = prismatic_encapsulation.internal_height
+
+        # Derive terminal dimensions from pouch dimensions if not specified
+        if terminal_width is None:
+            terminal_width = pouch_width / 6
+        if terminal_length is None:
+            terminal_length = pouch_height / 10
+        if terminal_thickness is None:
+            terminal_thickness = 1.0
 
         # Create terminals
         cathode_terminal = PouchTerminal(
@@ -1382,9 +1390,9 @@ class PouchEncapsulation(_Container):
     def from_cylindrical(
         cls,
         cylindrical_encapsulation,
-        terminal_width: float = 10.0,
-        terminal_length: float = 30.0,
-        terminal_thickness: float = 1.0,
+        terminal_width: float = None,
+        terminal_length: float = None,
+        terminal_thickness: float = None,
         laminate_areal_cost: float = 2.5,
         laminate_density: float = 920.0,
         laminate_thickness: float = 50.0,
@@ -1403,11 +1411,11 @@ class PouchEncapsulation(_Container):
         cylindrical_encapsulation : CylindricalEncapsulation
             The cylindrical encapsulation to convert from.
         terminal_width : float, optional
-            Width of pouch terminals in mm. Defaults to 10.0.
+            Width of pouch terminals in mm. Defaults to pouch_width / 6 if not specified.
         terminal_length : float, optional
-            Length of pouch terminals in mm. Defaults to 30.0.
+            Length of pouch terminals in mm. Defaults to pouch_height / 10 if not specified.
         terminal_thickness : float, optional
-            Thickness of pouch terminals in mm. Defaults to 1.0.
+            Thickness of pouch terminals in mm. Defaults to 1.0 if not specified.
         laminate_areal_cost : float, optional
             Areal cost of laminate sheets in $/m². Defaults to 2.5.
         laminate_density : float, optional
@@ -1447,6 +1455,14 @@ class PouchEncapsulation(_Container):
         pouch_width = diameter
         pouch_height = cylindrical_encapsulation.height
         pouch_thickness = diameter
+
+        # Derive terminal dimensions from pouch dimensions if not specified
+        if terminal_width is None:
+            terminal_width = pouch_width / 6
+        if terminal_length is None:
+            terminal_length = pouch_height / 10
+        if terminal_thickness is None:
+            terminal_thickness = 1.0
 
         # Create terminals
         cathode_terminal = PouchTerminal(

@@ -1560,7 +1560,7 @@ class PrismaticEncapsulation(_Container):
         # Define default parameters for rigid components
         wall_thickness = 1.0 * MM_TO_M  # 1.0 mm converted to meters
         terminal_thickness_mm = 0.5  # mm
-        lid_thickness_mm = 0.5  # mm
+        lid_thickness_mm = 3  # mm
         fill_factor = 0.7  # standard default
         
         # Map pouch dimensions to prismatic dimensions

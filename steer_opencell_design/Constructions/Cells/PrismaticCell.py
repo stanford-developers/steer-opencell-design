@@ -536,27 +536,40 @@ class PrismaticCell(_Cell):
 
     @encapsulation.setter
     @calculate_all_properties
-    def encapsulation(self, value: PrismaticEncapsulation) -> None:
-        """Set encapsulation with validation.
+    def encapsulation(self, value) -> None:
+        """Set encapsulation with validation. Automatically converts cell type if encapsulation type changes.
         
         Parameters
         ----------
-        value : PrismaticEncapsulation
-            New encapsulation to set
+        value : _Container
+            New encapsulation to set. Can be any container type (Prismatic, Pouch, Cylindrical).
+            If type differs from current cell type, cell will be automatically converted.
         """
-        self.validate_type(value, PrismaticEncapsulation, "encapsulation")
-        self._encapsulation = value
+        from steer_opencell_design.Components.Containers.Base import _Container
+        from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
+        from steer_opencell_design.Components.Containers.Cylindrical import CylindricalEncapsulation
+        
+        # Only allow PrismaticEncapsulation or PouchEncapsulation
+        self.validate_type(value, (PrismaticEncapsulation, PouchEncapsulation), "encapsulation")
+        
+        # Check if encapsulation type matches cell type
+        if isinstance(value, PrismaticEncapsulation):
+            # Same type, proceed normally
+            self._encapsulation = value
 
-        # Ensure encapsulation connector orientation matches electrode orientation
-        from steer_opencell_design.Constructions.Layups.MonoLayers import ElectrodeOrientation
-        from steer_opencell_design.Components.Containers.Prismatic import ConnectorOrientation
-        if self._update_properties:
-            if self._encapsulation._connector_orientation == ConnectorOrientation.LONGITUDINAL:
-                if self._reference_electrode_assembly._layup._electrode_orientation != ElectrodeOrientation.LONGITUDINAL:
-                    self._reference_electrode_assembly._layup._electrode_orientation = ElectrodeOrientation.LONGITUDINAL
-            elif self._encapsulation._connector_orientation == ConnectorOrientation.TRANSVERSE:
-                if self._reference_electrode_assembly._layup._electrode_orientation != ElectrodeOrientation.TRANSVERSE:
-                    self._reference_electrode_assembly._layup._electrode_orientation = ElectrodeOrientation.TRANSVERSE
+            # Ensure encapsulation connector orientation matches electrode orientation
+            from steer_opencell_design.Constructions.Layups.MonoLayers import ElectrodeOrientation
+            from steer_opencell_design.Components.Containers.Prismatic import ConnectorOrientation
+            if self._update_properties:
+                if self._encapsulation._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+                    if self._reference_electrode_assembly._layup._electrode_orientation != ElectrodeOrientation.LONGITUDINAL:
+                        self._reference_electrode_assembly._layup._electrode_orientation = ElectrodeOrientation.LONGITUDINAL
+                elif self._encapsulation._connector_orientation == ConnectorOrientation.TRANSVERSE:
+                    if self._reference_electrode_assembly._layup._electrode_orientation != ElectrodeOrientation.TRANSVERSE:
+                        self._reference_electrode_assembly._layup._electrode_orientation = ElectrodeOrientation.TRANSVERSE
+        else:
+            # Different type, convert cell
+            self._convert_to_cell_type(value)
 
     @n_electrode_assembly.setter
     @calculate_all_properties
