@@ -1,14 +1,14 @@
 """Cylindrical battery cell implementation."""
 
 from steer_opencell_design.Components.Containers.Cylindrical import CylindricalEncapsulation
-from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import WoundJellyRoll
+from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import WoundJellyRoll, FlatWoundJellyRoll
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
 from steer_opencell_design.Constructions.Cells.Base import _Cell
 
 from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Constants.Units import *
 
-from typing import Tuple
+from typing import Tuple, Union
 import warnings
 import plotly.graph_objects as go
 
@@ -378,21 +378,63 @@ class CylindricalCell(_Cell):
 
     @reference_electrode_assembly.setter
     @calculate_all_properties
-    def reference_electrode_assembly(self, value: WoundJellyRoll) -> None:
+    def reference_electrode_assembly(self, value: Union[WoundJellyRoll, FlatWoundJellyRoll]) -> None:
         """Set reference electrode assembly with validation.
+        
+        If a FlatWoundJellyRoll is provided, the cell will be automatically converted
+        to a PrismaticCell with a transverse connector orientation encapsulation.
         
         Parameters
         ----------
-        value : WoundJellyRoll
-            New electrode assembly to set
+        value : Union[WoundJellyRoll, FlatWoundJellyRoll]
+            New electrode assembly to set. If FlatWoundJellyRoll, cell converts to PrismaticCell.
         """
-        self.validate_type(value, WoundJellyRoll, "reference_electrode_assembly")
+        self.validate_type(value, (WoundJellyRoll, FlatWoundJellyRoll), "reference_electrode_assembly")
+        
+        # If FlatWoundJellyRoll is provided, convert to PrismaticCell
+        if isinstance(value, FlatWoundJellyRoll):
+            self._convert_to_prismatic_cell(value)
+            return
+        
         # Clear parent reference on old assembly if exists
         if hasattr(self, '_reference_electrode_assembly') and self._reference_electrode_assembly is not None:
             self._reference_electrode_assembly._set_parent(None)
         self._reference_electrode_assembly = value
         # Set parent reference on new assembly
         value._set_parent(self)
+    
+    def _convert_to_prismatic_cell(self, flat_jelly_roll: FlatWoundJellyRoll) -> None:
+        """Convert this CylindricalCell to a PrismaticCell with the given FlatWoundJellyRoll.
+        
+        Parameters
+        ----------
+        flat_jelly_roll : FlatWoundJellyRoll
+            The flat wound jelly roll to use as the reference electrode assembly
+        """
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation, ConnectorOrientation
+        from steer_opencell_design.Constructions.Cells.PrismaticCell import PrismaticCell
+        
+        # Convert encapsulation to PrismaticEncapsulation
+        prismatic_encapsulation = PrismaticEncapsulation.from_cylindrical(self._encapsulation)
+        prismatic_encapsulation.connector_orientation = ConnectorOrientation.TRANSVERSE
+
+        # fit the prismatic container to the jelly roll
+        prismatic_encapsulation.fit_to_electrode_assembly(flat_jelly_roll)
+        
+        # Create new PrismaticCell with the flat jelly roll
+        new_cell = PrismaticCell(
+            reference_electrode_assembly=flat_jelly_roll,
+            n_electrode_assembly=1,
+            encapsulation=prismatic_encapsulation,
+            electrolyte=self._electrolyte,
+            operating_voltage_window=self._operating_voltage_window,
+            electrolyte_overfill=self._electrolyte_overfill,
+            name=self._name,
+        )
+        
+        # Copy all attributes from new cell to self (in-place conversion)
+        self.__class__ = PrismaticCell
+        self.__dict__.update(new_cell.__dict__)
 
     @encapsulation.setter
     @calculate_all_properties
