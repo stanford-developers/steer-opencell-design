@@ -1,7 +1,7 @@
 """Prismatic battery cell implementation."""
 
 from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation, ConnectorOrientation
-from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import FlatWoundJellyRoll
+from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import FlatWoundJellyRoll, WoundJellyRoll
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import ZFoldStack, PunchedStack, _Stack
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
 from steer_opencell_design.Constructions.Cells.Base import _Cell
@@ -491,15 +491,24 @@ class PrismaticCell(_Cell):
 
     @reference_electrode_assembly.setter
     @calculate_all_properties
-    def reference_electrode_assembly(self, value: ZFoldStack | PunchedStack) -> None:
+    def reference_electrode_assembly(self, value: ZFoldStack | PunchedStack | FlatWoundJellyRoll | WoundJellyRoll) -> None:
         """Set reference electrode assembly with validation.
+        
+        If a WoundJellyRoll is provided, the cell will be automatically converted
+        to a CylindricalCell with an appropriately sized encapsulation.
         
         Parameters
         ----------
-        value : ZFoldStack | PunchedStack
-            New electrode assembly to set
+        value : ZFoldStack | PunchedStack | FlatWoundJellyRoll | WoundJellyRoll
+            New electrode assembly to set. If WoundJellyRoll, cell converts to CylindricalCell.
         """
-        self.validate_type(value, (ZFoldStack, PunchedStack, FlatWoundJellyRoll), "reference_electrode_assembly")
+        self.validate_type(value, (ZFoldStack, PunchedStack, FlatWoundJellyRoll, WoundJellyRoll), "reference_electrode_assembly")
+        
+        # If WoundJellyRoll is provided, convert to CylindricalCell
+        if isinstance(value, WoundJellyRoll):
+            self._convert_to_cylindrical_cell(value)
+            return
+        
         # Clear parent reference on old assembly if exists
         if hasattr(self, '_reference_electrode_assembly') and self._reference_electrode_assembly is not None:
             self._reference_electrode_assembly._set_parent(None)
@@ -589,4 +598,35 @@ class PrismaticCell(_Cell):
 
         # update the reference electrode assembly thickness by the same ratio to maintain fit
         self._n_electrode_assembly = value
+
+    def _convert_to_cylindrical_cell(self, wound_jelly_roll: WoundJellyRoll) -> None:
+        """Convert this PrismaticCell to a CylindricalCell with the given WoundJellyRoll.
+        
+        Parameters
+        ----------
+        wound_jelly_roll : WoundJellyRoll
+            The wound jelly roll to use as the reference electrode assembly
+        """
+        from steer_opencell_design.Components.Containers.Cylindrical import CylindricalEncapsulation
+        from steer_opencell_design.Constructions.Cells.CylindricalCell import CylindricalCell
+        
+        # Convert encapsulation to CylindricalEncapsulation
+        cylindrical_encapsulation = CylindricalEncapsulation.from_prismatic(self._encapsulation)
+        
+        # Fit the cylindrical container to the wound jelly roll
+        cylindrical_encapsulation.fit_to_electrode_assembly(wound_jelly_roll)
+        
+        # Create new CylindricalCell with the wound jelly roll
+        new_cell = CylindricalCell(
+            reference_electrode_assembly=wound_jelly_roll,
+            encapsulation=cylindrical_encapsulation,
+            electrolyte=self._electrolyte,
+            operating_voltage_window=self._operating_voltage_window,
+            electrolyte_overfill=self._electrolyte_overfill,
+            name=self._name,
+        )
+        
+        # Copy all attributes from new cell to self (in-place conversion)
+        self.__class__ = CylindricalCell
+        self.__dict__.update(new_cell.__dict__)
 

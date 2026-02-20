@@ -1549,6 +1549,54 @@ class CylindricalEncapsulation(_Container):
 
         return figure
     
+    def fit_radius(self, assembly, clearance: float = 0) -> None:
+        """Set the internal radius to fit an electrode assembly's radius dimension.
+        
+        Parameters
+        ----------
+        assembly : WoundJellyRoll
+            The electrode assembly to fit
+        clearance : float, optional
+            Additional clearance in mm (default: 0)
+        """
+        from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import WoundJellyRoll
+        
+        self.validate_type(assembly, WoundJellyRoll, "assembly")
+        target_radius = assembly.radius + clearance
+        self.internal_radius = target_radius
+    
+    def fit_height(self, assembly, clearance: float = 0) -> None:
+        """Set the internal height to fit an electrode assembly's height dimension.
+        
+        Parameters
+        ----------
+        assembly : WoundJellyRoll
+            The electrode assembly to fit
+        clearance : float, optional
+            Additional clearance in mm (default: 0)
+        """
+        from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import WoundJellyRoll
+        
+        self.validate_type(assembly, WoundJellyRoll, "assembly")
+        target_height = assembly.height + clearance
+        self.internal_height = target_height
+    
+    def fit_to_electrode_assembly(self, assembly, clearance: float = 0) -> None:
+        """Adjust all encapsulation dimensions to fit a given electrode assembly.
+        
+        Resizes the canister's inner dimensions to accommodate the electrode assembly
+        with a specified clearance margin. Calls fit_radius and fit_height.
+        
+        Parameters
+        ----------
+        assembly : WoundJellyRoll
+            The electrode assembly to fit the encapsulation to
+        clearance : float, optional
+            Additional clearance in mm around the assembly (default: 0)
+        """
+        self.fit_radius(assembly, clearance)
+        self.fit_height(assembly, clearance)
+    
     @property
     def volume(self) -> float:
         return np.round(self._volume * M_TO_MM**3, 2)
@@ -1588,6 +1636,16 @@ class CylindricalEncapsulation(_Container):
             self._cathode_terminal_connector.thickness_hard_range[0]
         )
         return (np.round(min_height, 2), np.round(max_height, 2))
+
+    @property
+    def internal_radius(self) -> float:
+        """Internal radius available for cell contents in mm."""
+        return self._canister.inner_radius
+    
+    @property
+    def internal_radius_range(self) -> Tuple[float, float]:
+        """Valid internal radius range in mm."""
+        return self._canister.inner_radius_range
 
     @property
     def datum(self) -> Tuple[float, float, float]:
@@ -1703,6 +1761,13 @@ class CylindricalEncapsulation(_Container):
         _height_difference = _asked_for_height - _current_internal_height
         new_height = self._canister._height + _height_difference
         self._canister.height = new_height * M_TO_MM
+    
+    @internal_radius.setter
+    @calculate_all_properties
+    def internal_radius(self, internal_radius: float) -> None:
+        """Set internal radius and adjust canister dimensions accordingly."""
+        self.validate_positive_float(internal_radius, "Internal Radius")
+        self._canister.inner_radius = internal_radius
     
     @height.setter
     @calculate_all_properties
