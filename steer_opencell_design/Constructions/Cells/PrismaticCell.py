@@ -87,6 +87,7 @@ class PrismaticCell(_Cell):
 
     def _calculate_all_properties(self) -> None:
         """Calculate all cell properties and position encapsulation."""
+        self._sync_connector_orientation()
         self._make_assemblies()
         self._position_assemblies()
         self._clip_tabs()
@@ -489,6 +490,41 @@ class PrismaticCell(_Cell):
 
         self._clipped_tab_length = float(value) * MM_TO_M
 
+    def _sync_connector_orientation(self) -> None:
+        """Synchronize encapsulation connector orientation with electrode assembly orientation.
+        
+        This method ensures the encapsulation's connector_orientation matches the
+        electrode assembly's layup electrode_orientation. If they differ, it updates
+        the connector_orientation and swaps the canister's height and width dimensions.
+        """
+        from steer_opencell_design.Constructions.Layups.MonoLayers import ElectrodeOrientation
+        from steer_opencell_design.Components.Containers.Prismatic import ConnectorOrientation
+        
+        if not self._update_properties:
+            return
+            
+        layup_orientation = self._reference_electrode_assembly._layup._electrode_orientation
+        
+        if layup_orientation == ElectrodeOrientation.LONGITUDINAL:
+            if self._encapsulation._connector_orientation != ConnectorOrientation.LONGITUDINAL:
+                self._encapsulation.connector_orientation = ConnectorOrientation.LONGITUDINAL
+                # Swap height and width to match orientation change
+                _original_height = self._encapsulation._canister._height
+                _original_width = self._encapsulation._canister._width
+                self._encapsulation._canister.height = _original_width * M_TO_MM
+                self._encapsulation._canister.width = _original_height * M_TO_MM
+                self._encapsulation.canister = self._encapsulation.canister
+                
+        elif layup_orientation == ElectrodeOrientation.TRANSVERSE:
+            if self._encapsulation._connector_orientation != ConnectorOrientation.TRANSVERSE:
+                self._encapsulation.connector_orientation = ConnectorOrientation.TRANSVERSE
+                # Swap height and width to match orientation change
+                _original_height = self._encapsulation._canister._height
+                _original_width = self._encapsulation._canister._width
+                self._encapsulation._canister.height = _original_width * M_TO_MM
+                self._encapsulation._canister.width = _original_height * M_TO_MM
+                self._encapsulation.canister = self._encapsulation.canister
+
     @reference_electrode_assembly.setter
     @calculate_all_properties
     def reference_electrode_assembly(self, value: ZFoldStack | PunchedStack | FlatWoundJellyRoll | WoundJellyRoll) -> None:
@@ -517,31 +553,7 @@ class PrismaticCell(_Cell):
         value._set_parent(self)
 
         # Ensure encapsulation connector orientation matches electrode orientation
-        from steer_opencell_design.Constructions.Layups.MonoLayers import ElectrodeOrientation
-        from steer_opencell_design.Components.Containers.Prismatic import ConnectorOrientation
-        
-        if self._update_properties:
-            if self._reference_electrode_assembly._layup._electrode_orientation == ElectrodeOrientation.LONGITUDINAL:
-                if self._encapsulation._connector_orientation != ConnectorOrientation.LONGITUDINAL:
-                    self._encapsulation.connector_orientation = ConnectorOrientation.LONGITUDINAL
-
-                    # Swap height and length to match orientation change
-                    _original_height = self._encapsulation._canister._height
-                    _original_width = self._encapsulation._canister._width
-                    self._encapsulation._canister.height = _original_width * M_TO_MM
-                    self._encapsulation._canister.width = _original_height * M_TO_MM
-                    self._encapsulation.canister = self._encapsulation.canister
-
-            elif self._reference_electrode_assembly._layup._electrode_orientation == ElectrodeOrientation.TRANSVERSE:
-                if self._encapsulation._connector_orientation != ConnectorOrientation.TRANSVERSE:
-                    self._encapsulation.connector_orientation = ConnectorOrientation.TRANSVERSE
-                    
-                    # Swap height and length to match orientation change
-                    _original_height = self._encapsulation._canister._height
-                    _original_width = self._encapsulation._canister._width
-                    self._encapsulation._canister.height = _original_width * M_TO_MM
-                    self._encapsulation._canister.width = _original_height * M_TO_MM
-                    self._encapsulation.canister = self._encapsulation.canister
+        self._sync_connector_orientation()
 
     @encapsulation.setter
     @calculate_all_properties

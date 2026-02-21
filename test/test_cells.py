@@ -1901,6 +1901,48 @@ class TestStackedPrismaticCell(unittest.TestCase):
         # fig1.show()
         # fig2.show()
 
+    def test_electrode_orientation_propagation_to_connector_orientation(self):
+        """Test that changing electrode_orientation on layup propagates to encapsulation connector_orientation via propagate_changes()."""
+        from steer_opencell_design.Constructions.Layups.Base import ElectrodeOrientation
+        from steer_opencell_design.Components.Containers.Prismatic import ConnectorOrientation
+        
+        # Verify initial state - should be LONGITUDINAL by default
+        self.assertEqual(
+            self.cell.reference_electrode_assembly.layup._electrode_orientation,
+            ElectrodeOrientation.LONGITUDINAL
+        )
+        self.assertEqual(
+            self.cell.encapsulation._connector_orientation,
+            ConnectorOrientation.LONGITUDINAL
+        )
+        
+        # Record original canister dimensions
+        original_width = self.cell.encapsulation.canister.width
+        original_height = self.cell.encapsulation.canister.height
+        
+        # Change electrode orientation on layup and propagate changes
+        self.cell.reference_electrode_assembly.layup.electrode_orientation = ElectrodeOrientation.TRANSVERSE
+        self.cell.reference_electrode_assembly.layup.propagate_changes()
+        
+        # Verify encapsulation connector orientation was updated
+        self.assertEqual(
+            self.cell.encapsulation._connector_orientation,
+            ConnectorOrientation.TRANSVERSE
+        )
+        
+        # Verify canister dimensions were swapped
+        self.assertAlmostEqual(self.cell.encapsulation.canister.width, original_height, places=1)
+        self.assertAlmostEqual(self.cell.encapsulation.canister.height, original_width, places=1)
+        
+        # Change back to LONGITUDINAL
+        self.cell.reference_electrode_assembly.layup.electrode_orientation = ElectrodeOrientation.LONGITUDINAL
+        
+        # Verify it changed back
+        self.assertEqual(
+            self.cell.encapsulation._connector_orientation,
+            ConnectorOrientation.LONGITUDINAL
+        )
+
     def test_prismatic_to_pouch_conversion(self):
         """Test converting PrismaticCell to PouchCell by setting pouch encapsulation."""
         # Record original properties
