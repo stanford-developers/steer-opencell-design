@@ -1864,6 +1864,7 @@ class PrismaticEncapsulation(_Container):
             self._lid_assembly._thickness - 
             max_connector_thickness
         )
+
         self._internal_width = self._canister._inner_width
         self._internal_length = self._canister._inner_length
     
@@ -2250,7 +2251,10 @@ class PrismaticEncapsulation(_Container):
     @property
     def width(self) -> float:
         """Outer width of the encapsulation in mm."""
-        return self._canister.width
+        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            return self._canister.width
+        else:  # TRANSVERSE
+            return self._canister.height
     
     @property
     def length(self) -> float:
@@ -2265,7 +2269,10 @@ class PrismaticEncapsulation(_Container):
     @property
     def height(self) -> float:
         """Total height of the encapsulation in mm."""
-        return self._canister.height
+        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            return self._canister.height
+        else:  # TRANSVERSE
+            return self._canister.width
     
     @property
     def cathode_terminal_connector_position(self) -> float:
@@ -2362,13 +2369,50 @@ class PrismaticEncapsulation(_Container):
     @internal_length.setter
     @calculate_all_properties
     def internal_length(self, internal_length: float) -> None:
-        """Set internal length and adjust canister length accordingly."""
+        """Set internal length and adjust canister length accordingly.
+        
+        Also scales terminal connectors proportionally to maintain their ratio relative to the length.
+        """
         self.validate_positive_float(internal_length, "Internal Length")
+        
+        # Calculate new outer length needed
         _current_internal_length = self._internal_length
         _asked_for_length = internal_length * MM_TO_M
         _length_difference = _asked_for_length - _current_internal_length
-        new_length = self._canister._length + _length_difference
-        self._canister.length = new_length * M_TO_MM
+        new_length_mm = (self._canister._length + _length_difference) * M_TO_MM
+        
+        # Use helper method to set length and scale connectors
+        self._set_length_and_scale_connectors(new_length_mm)
+    
+    def _set_length_and_scale_connectors(self, length: float) -> None:
+        """Set canister length and scale terminal connectors proportionally.
+        
+        This helper method maintains the ratio of terminal connector dimensions
+        to canister length when the length changes.
+        
+        Parameters
+        ----------
+        length : float
+            New canister length in mm
+        """
+        # Store connector ratios before changing length
+        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            cathode_length_ratio = self._cathode_terminal_connector._length / self._canister._length
+            anode_length_ratio = self._anode_terminal_connector._length / self._canister._length
+        else:  # TRANSVERSE
+            cathode_length_ratio = self._cathode_terminal_connector._width / self._canister._length
+            anode_length_ratio = self._anode_terminal_connector._width / self._canister._length
+        
+        # Set the new canister length
+        self._canister.length = length
+        
+        # Scale terminal connectors to maintain ratio
+        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            self._cathode_terminal_connector.length = self._canister._length * cathode_length_ratio * M_TO_MM
+            self._anode_terminal_connector.length = self._canister._length * anode_length_ratio * M_TO_MM
+        else:  # TRANSVERSE
+            self._cathode_terminal_connector.width = self._canister._length * cathode_length_ratio * M_TO_MM
+            self._anode_terminal_connector.width = self._canister._length * anode_length_ratio * M_TO_MM
     
     def _translate_component(self, component, translation_vector: Tuple[float, float, float]):
         """Apply translation vector to a component's datum.
@@ -2503,47 +2547,29 @@ class PrismaticEncapsulation(_Container):
     def width(self, width: float) -> None:
         """Set outer width of the encapsulation."""
         self.validate_positive_float(width, "Width")
-        self._canister.width = width
+        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            self._canister.width = width
+        else:  # TRANSVERSE
+            self._canister.height = width
 
     @length.setter
     @calculate_all_properties
     def length(self, length: float) -> None:
-        """Set outer length of the encapsulation."""
-
-        # Validate input
+        """Set outer length of the encapsulation.
+        
+        Also scales terminal connectors proportionally to maintain their ratio relative to the length.
+        """
         self.validate_positive_float(length, "Length")
-
-        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
-
-            # get the ratio of canister length and connector length to maintain when adjusting length
-            cathode_length_ratio = self._cathode_terminal_connector._length / self._canister._length
-            anode_length_ratio = self._anode_terminal_connector._length / self._canister._length
-
-            # set the length of the canister
-            self._canister.length = length
-
-            # adjust the length of the connectors to maintain the same ratio
-            self._cathode_terminal_connector.length = self._canister._length * cathode_length_ratio * M_TO_MM
-            self._anode_terminal_connector.length = self._canister._length * anode_length_ratio * M_TO_MM
-
-        elif self._connector_orientation == ConnectorOrientation.TRANSVERSE:
-            
-            # get the ratio of canister length and connector length to maintain when adjusting length
-            cathode_length_ratio = self._cathode_terminal_connector._width / self._canister._length
-            anode_length_ratio = self._anode_terminal_connector._width / self._canister._length
-
-            # set the length of the canister
-            self._canister.length = length
-
-            # adjust the length of the connectors to maintain the same ratio
-            self._cathode_terminal_connector.width = self._canister._length * cathode_length_ratio * M_TO_MM
-            self._anode_terminal_connector.width = self._canister._length * anode_length_ratio * M_TO_MM
+        self._set_length_and_scale_connectors(length)
 
     @height.setter
     @calculate_all_properties
     def height(self, height: float) -> None:
         """Set total height of the encapsulation."""
         self.validate_positive_float(height, "Height")
-        self._canister.height = height
+        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            self._canister.height = height
+        else:  # TRANSVERSE
+            self._canister.width = height
 
 
