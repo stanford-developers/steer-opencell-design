@@ -1936,6 +1936,7 @@ class TestStackedPrismaticCell(unittest.TestCase):
         
         # Change back to LONGITUDINAL
         self.cell.reference_electrode_assembly.layup.electrode_orientation = ElectrodeOrientation.LONGITUDINAL
+        self.cell.reference_electrode_assembly.layup.propagate_changes()
         
         # Verify it changed back
         self.assertEqual(
