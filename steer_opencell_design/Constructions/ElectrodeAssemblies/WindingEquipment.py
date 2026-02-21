@@ -3,6 +3,7 @@
 from copy import deepcopy
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
+from steer_core.Mixins.Propagation import PropagationMixin
 from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
@@ -22,6 +23,7 @@ from typing import Tuple
 
 
 class _Mandrel(
+    PropagationMixin,
     SerializerMixin,
     ValidationMixin,
     DunderMixin,
