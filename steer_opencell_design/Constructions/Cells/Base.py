@@ -89,6 +89,7 @@ class _Cell(
     def _calculate_all_properties(self) -> None:
         self._calculate_bulk_properties()
         self._calculate_electrochemical_properties()
+        self._calculate_capacity_ranges()  # Cache ranges to avoid recalculation on property access
 
     @contextmanager
     def batch_updates(self) -> Generator[None, None, None]:
@@ -198,7 +199,7 @@ class _Cell(
         self._calculate_lower_voltage_limit_range()
         self._calculate_reversible_capacity()
         self._calculate_irreversible_capacity()
-        self._calculate_capacity_ranges()  # Cache ranges to avoid recalculation on property access
+        self._calculate_capacity_loss()
         self._calculate_energy_properties()
 
     def _calculate_curves(self) -> None:
@@ -512,81 +513,66 @@ class _Cell(
         self._reversible_capacity = _max_cap - _min_cap
 
     def _calculate_irreversible_capacity(self) -> float:
+        """Calculate irreversible (total) capacity - the max capacity reached at full charge."""
         _discharge_mask = self._capacity_curve[:, 2] == -1
         _discharge_curve = self._capacity_curve[_discharge_mask]
-        self._irreversible_capacity = _discharge_curve[:, 0].min()
+        self._irreversible_capacity = _discharge_curve[:, 0].max()
+
+    def _calculate_capacity_loss(self) -> float:
+        """Calculate capacity loss - the capacity remaining at minimum voltage."""
+        _discharge_mask = self._capacity_curve[:, 2] == -1
+        _discharge_curve = self._capacity_curve[_discharge_mask]
+        self._capacity_loss = _discharge_curve[:, 0].min()
 
     def _calculate_capacity_ranges(self) -> None:
         """Calculate and cache reversible and irreversible capacity ranges.
         
-        This method computes both ranges in a single pass to avoid redundant
-        recalculations when accessing range properties. The ranges are stored
-        in private cache attributes and returned by the property accessors.
+        This method computes both ranges by creating temporary cell copies at
+        voltage extremes. Using deepcopy ensures the full property chain is
+        triggered (including Brent's method optimization for cathode cutoff)
+        without modifying the original cell state.
         """
-        # Store current state
-        current_min_voltage = self._minimum_operating_voltage
-        current_max_voltage = self._maximum_operating_voltage
+        # Get voltage ranges
+        max_v_lower, max_v_upper = self._maximum_operating_voltage_range
+        min_v_lower, min_v_upper = self._minimum_operating_voltage_range
+
+        # Calculate irreversible capacity range (varies with max operating voltage)
+        # Higher max voltage → more capacity accessed → higher irreversible capacity
+        cell_copy = deepcopy(self)
+        cell_copy.maximum_operating_voltage = max_v_upper
+        irr_at_high_voltage = cell_copy.irreversible_capacity
+
+        cell_copy.maximum_operating_voltage = max_v_lower
+        irr_at_low_voltage = cell_copy.irreversible_capacity
         
-        # Get voltage ranges from layup
-        v_min_lower, v_max_lower = self._minimum_operating_voltage_range
-        v_min_upper, v_max_upper = self._maximum_operating_voltage_range
-        
-        # --- Calculate irreversible capacity range ---
-        # At minimum lower voltage
-        self._reference_electrode_assembly._layup._minimum_operating_voltage = v_min_lower
-        self._reference_electrode_assembly._calculate_capacity_curves()
-        self._calculate_curves()
-        self._calculate_reversible_capacity()
-        self._calculate_irreversible_capacity()
-        irr_at_min = self._irreversible_capacity * S_TO_H
-        
-        # At maximum lower voltage
-        self._reference_electrode_assembly._layup._minimum_operating_voltage = v_max_lower
-        self._reference_electrode_assembly._calculate_capacity_curves()
-        self._calculate_curves()
-        self._calculate_reversible_capacity()
-        self._calculate_irreversible_capacity()
-        irr_at_max = self._irreversible_capacity * S_TO_H
-        
-        # Cache irreversible range
+        # Cache irreversible range (min, max)
         self._irreversible_capacity_range_cache = (
-            np.round(min(irr_at_min, irr_at_max), CAPACITY_PRECISION),
-            np.round(max(irr_at_min, irr_at_max), CAPACITY_PRECISION)
+            np.round(min(irr_at_low_voltage, irr_at_high_voltage), CAPACITY_PRECISION),
+            np.round(max(irr_at_low_voltage, irr_at_high_voltage), CAPACITY_PRECISION)
         )
+
+        # Calculate reversible capacity and capacity loss ranges (both vary with min operating voltage)
+        # Lower min voltage → deeper discharge → higher reversible capacity, smaller capacity loss
+        cell_copy = deepcopy(self)
+        cell_copy.minimum_operating_voltage = min_v_upper
+        rev_at_high_min_voltage = cell_copy.reversible_capacity
+        loss_at_high_min_voltage = cell_copy.capacity_loss
+
+        cell_copy.minimum_operating_voltage = min_v_lower
+        rev_at_low_min_voltage = cell_copy.reversible_capacity
+        loss_at_low_min_voltage = cell_copy.capacity_loss
         
-        # Restore minimum voltage before calculating reversible range
-        self._reference_electrode_assembly._layup._minimum_operating_voltage = current_min_voltage
-        
-        # --- Calculate reversible capacity range ---
-        # At minimum upper voltage
-        self._reference_electrode_assembly._layup._maximum_operating_voltage = v_min_upper
-        self._reference_electrode_assembly._calculate_capacity_curves()
-        self._calculate_curves()
-        self._calculate_reversible_capacity()
-        self._calculate_irreversible_capacity()
-        rev_at_min = self._reversible_capacity * S_TO_H
-        
-        # At maximum upper voltage
-        self._reference_electrode_assembly._layup._maximum_operating_voltage = v_max_upper
-        self._reference_electrode_assembly._calculate_capacity_curves()
-        self._calculate_curves()
-        self._calculate_reversible_capacity()
-        self._calculate_irreversible_capacity()
-        rev_at_max = self._reversible_capacity * S_TO_H
-        
-        # Cache reversible range
+        # Cache reversible range (min, max)
         self._reversible_capacity_range_cache = (
-            np.round(min(rev_at_min, rev_at_max), CAPACITY_PRECISION),
-            np.round(max(rev_at_min, rev_at_max), CAPACITY_PRECISION)
+            np.round(min(rev_at_high_min_voltage, rev_at_low_min_voltage), CAPACITY_PRECISION),
+            np.round(max(rev_at_high_min_voltage, rev_at_low_min_voltage), CAPACITY_PRECISION)
         )
         
-        # Restore original state
-        self._reference_electrode_assembly._layup._minimum_operating_voltage = current_min_voltage
-        self._reference_electrode_assembly._layup._maximum_operating_voltage = current_max_voltage
-        self._reference_electrode_assembly._calculate_capacity_curves()
-        self._calculate_curves()
-        self._calculate_reversible_capacity()
-        self._calculate_irreversible_capacity()
+        # Cache capacity loss range (min, max)
+        self._capacity_loss_range_cache = (
+            np.round(min(loss_at_high_min_voltage, loss_at_low_min_voltage), CAPACITY_PRECISION),
+            np.round(max(loss_at_high_min_voltage, loss_at_low_min_voltage), CAPACITY_PRECISION)
+        )
 
     def _calculate_mass_properties(self) -> tuple[float, Dict]:
         
@@ -685,6 +671,7 @@ class _Cell(
         if include_guides:
             if show_capacity_markers:
                 traces.extend([
+                    self.capacity_loss_guide_trace,
                     self.irreversible_capacity_guide_trace,
                     self.reversible_capacity_guide_trace,
                 ])
@@ -986,8 +973,26 @@ class _Cell(
 
     @property
     def irreversible_capacity(self) -> float:
-        """Irreversible capacity in Ah."""
+        """Irreversible (total) capacity in Ah - max capacity reached at full charge."""
         return np.round(self._irreversible_capacity * S_TO_H, CAPACITY_PRECISION)
+
+    @property
+    def capacity_loss(self) -> float:
+        """Capacity loss in Ah - capacity remaining at minimum voltage."""
+        return np.round(self._capacity_loss * S_TO_H, CAPACITY_PRECISION)
+
+    @property
+    def capacity_loss_range(self) -> Tuple[float, float]:
+        """Range of achievable capacity loss in Ah.
+        
+        Returns cached values computed during _calculate_electrochemical_properties().
+        
+        Returns
+        -------
+        Tuple[float, float]
+            (min_capacity_loss, max_capacity_loss) in Ah
+        """
+        return self._capacity_loss_range_cache
 
     @property
     def irreversible_capacity_range(self) -> Tuple[float, float]:
@@ -1112,19 +1117,28 @@ class _Cell(
         )
 
     @property
-    def irreversible_capacity_guide_trace(self) -> go.Scatter:
-        """Vertical line marking irreversible capacity."""
+    def capacity_loss_guide_trace(self) -> go.Scatter:
+        """Vertical line marking capacity loss (capacity at minimum voltage)."""
         return self._create_vertical_guide_trace(
-            self.irreversible_capacity,
-            f"Irreversible Cap: {self.irreversible_capacity:.2f} Ah",
+            self.capacity_loss,
+            f"Capacity Loss: {self.capacity_loss:.2f} Ah",
             "#d62728"
         )
 
     @property
-    def reversible_capacity_guide_trace(self) -> go.Scatter:
-        """Vertical line marking reversible capacity."""
+    def irreversible_capacity_guide_trace(self) -> go.Scatter:
+        """Vertical line marking irreversible (total) capacity at max voltage."""
         return self._create_vertical_guide_trace(
-            self.reversible_capacity + self.irreversible_capacity,
+            self.irreversible_capacity,
+            f"Irreversible Cap: {self.irreversible_capacity:.2f} Ah",
+            "#9467bd"
+        )
+
+    @property
+    def reversible_capacity_guide_trace(self) -> go.Scatter:
+        """Vertical line marking end of reversible capacity range."""
+        return self._create_vertical_guide_trace(
+            self.reversible_capacity + self.capacity_loss,
             f"Reversible Cap: {self.reversible_capacity:.2f} Ah",
             "#2ca02c"
         )
@@ -1200,7 +1214,7 @@ class _Cell(
     @reversible_capacity.setter
     @calculate_electrochemical_properties
     def reversible_capacity(self, value: float) -> None:
-        """Set reversible capacity by solving for maximum operating voltage.
+        """Set reversible capacity by solving for minimum operating voltage.
         
         Parameters
         ----------
@@ -1220,7 +1234,7 @@ class _Cell(
         # Define function that computes reversible capacity for given voltage
         def compute_reversible_capacity(voltage: float) -> float:
             # Temporarily set the voltage
-            self._reference_electrode_assembly._layup.maximum_operating_voltage = voltage
+            self._reference_electrode_assembly._layup.minimum_operating_voltage = voltage
             self._reference_electrode_assembly._calculate_capacity_curves()
             
             # Recompute cell curves and reversible capacity
@@ -1231,7 +1245,7 @@ class _Cell(
             return self._reversible_capacity - target_capacity
         
         # Get voltage range
-        v_min, v_max = self._maximum_operating_voltage_range
+        v_min, v_max = self._minimum_operating_voltage_range
         
         # Check if target is achievable
         rev_at_min = compute_reversible_capacity(v_min)
@@ -1264,22 +1278,22 @@ class _Cell(
         
         # Set the final voltage
         try:
-            self._reference_electrode_assembly._layup.maximum_operating_voltage = solved_voltage
+            self._reference_electrode_assembly._layup.minimum_operating_voltage = solved_voltage
             self._reference_electrode_assembly._calculate_capacity_curves()
-            self._maximum_operating_voltage = solved_voltage
-            self._operating_voltage_window = (self._minimum_operating_voltage, solved_voltage)
+            self._minimum_operating_voltage = solved_voltage
+            self._operating_voltage_window = (solved_voltage, self._maximum_operating_voltage)
         except ValueError as e:
-            raise ValueError(f"Failed to solve for maximum operating voltage: {e}")
+            raise ValueError(f"Failed to solve for minimum operating voltage: {e}")
 
     @irreversible_capacity.setter
     @calculate_electrochemical_properties
     def irreversible_capacity(self, value: float) -> None:
-        """Set irreversible capacity by solving for minimum operating voltage.
+        """Set irreversible capacity by solving for maximum operating voltage.
         
         Parameters
         ----------
         value : float
-            Desired irreversible capacity in Ah
+            Desired irreversible (total) capacity in Ah
         
         Raises
         ------
@@ -1294,7 +1308,7 @@ class _Cell(
         # Define function that computes irreversible capacity for given voltage
         def compute_irreversible_capacity(voltage: float) -> float:
             # Temporarily set the voltage
-            self._reference_electrode_assembly._layup.minimum_operating_voltage = voltage
+            self._reference_electrode_assembly._layup.maximum_operating_voltage = voltage
             self._reference_electrode_assembly._calculate_capacity_curves()
             
             # Recompute cell curves and irreversible capacity
@@ -1305,7 +1319,7 @@ class _Cell(
             return self._irreversible_capacity - target_capacity
         
         # Get voltage range
-        v_min, v_max = self._minimum_operating_voltage_range
+        v_min, v_max = self._maximum_operating_voltage_range
         
         # Check if target is achievable
         irr_at_min = compute_irreversible_capacity(v_min)
@@ -1339,12 +1353,12 @@ class _Cell(
         
         # Set the final voltage
         try:
-            self._reference_electrode_assembly._layup.minimum_operating_voltage = solved_voltage
+            self._reference_electrode_assembly._layup.maximum_operating_voltage = solved_voltage
             self._reference_electrode_assembly._calculate_capacity_curves()
-            self._minimum_operating_voltage = solved_voltage
-            self._operating_voltage_window = (solved_voltage, self._maximum_operating_voltage)
+            self._maximum_operating_voltage = solved_voltage
+            self._operating_voltage_window = (self._minimum_operating_voltage, solved_voltage)
         except ValueError as e:
-            raise ValueError(f"Failed to solve for minimum operating voltage: {e}")
+            raise ValueError(f"Failed to solve for maximum operating voltage: {e}")
 
     @encapsulation.setter
     @calculate_all_properties
