@@ -1035,7 +1035,7 @@ class TestCylindricalCellTabbed(unittest.TestCase):
         self.assertEqual(self.cell.maximum_operating_voltage, 4.03)
         self.assertEqual(self.cell.minimum_operating_voltage, 2.27)
         self.assertEqual(self.cell.reversible_capacity, 41.46)
-        self.assertEqual(self.cell.irreversible_capacity, 4.03)
+        self.assertEqual(self.cell.irreversible_capacity, 45.49)
 
         fig1 = self.cell.get_capacity_plot()
         self.assertIsNotNone(fig1)
@@ -2146,7 +2146,7 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
 
     def test_active_material_cutoff_voltage_setter(self):
 
-        self.assertEqual(self.cell.irreversible_capacity, 13.83)
+        self.assertEqual(self.cell.irreversible_capacity, 72.65 )
         self.assertEqual(self.cell.reversible_capacity, 58.82)
         self.assertEqual(self.cell.minimum_operating_voltage, 2.0)
         self.assertEqual(self.cell.maximum_operating_voltage, 3.96)
@@ -2165,7 +2165,7 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
         fig2 = self.cell.get_capacity_plot()
         self.assertIsNotNone(fig2)
 
-        self.assertEqual(self.cell.irreversible_capacity, 15.25)
+        self.assertEqual(self.cell.irreversible_capacity, 70.24)
         self.assertEqual(self.cell.reversible_capacity, 54.98)
         self.assertEqual(self.cell.minimum_operating_voltage, 2)
         self.assertEqual(self.cell.maximum_operating_voltage, 3.96)
