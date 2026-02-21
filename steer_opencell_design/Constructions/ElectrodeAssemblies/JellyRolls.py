@@ -3030,7 +3030,7 @@ class WoundJellyRoll(_JellyRoll):
         Examples
         --------
         >>> flat_roll = FlatWoundJellyRoll(layup, flat_mandrel)
-        >>> wound_roll = WoundJellyRoll.from_jelly_roll(flat_roll)
+        >>> wound_roll = WoundJellyRoll.from_flat_jelly_roll(flat_roll)
         """        
         # Validate inputs
         cls.validate_type(flat_jelly_roll, FlatWoundJellyRoll, "flat_jelly_roll")

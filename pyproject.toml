@@ -33,3 +33,5 @@ version = {attr = "steer_opencell_design.__version__"}
 where = ["."]
 include = ["steer_opencell_design*"]
 
+[tool.pytest_env]
+OPENCELL_ENV = "development"

@@ -773,7 +773,7 @@ class TestFlatJellyRoll(unittest.TestCase):
     def test_to_wound_jelly_roll(self):
         """Test converting a FlatWoundJellyRoll to a WoundJellyRoll."""
 
-        wound_jellyroll = WoundJellyRoll.from_jelly_roll(self.my_jellyroll)
+        wound_jellyroll = WoundJellyRoll.from_flat_jelly_roll(self.my_jellyroll)
 
         self.assertIsInstance(wound_jellyroll, WoundJellyRoll)
         self.assertAlmostEqual(wound_jellyroll.interfacial_area, 23895, 0)

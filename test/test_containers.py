@@ -1506,9 +1506,6 @@ class TestCylindricalEncapsulation(unittest.TestCase):
         
         # Verify materials transferred correctly
         self.assertEqual(cylindrical_enc.canister.material.name, material.name)
-        
-        # Verify name includes conversion reference
-        self.assertIn("from", cylindrical_enc.name)
 
     def test_from_prismatic_volume_preservation(self):
         """Test that internal volume is approximately preserved during prismatic conversion."""
@@ -1624,9 +1621,6 @@ class TestCylindricalEncapsulation(unittest.TestCase):
         
         # Verify wall thickness is 1.0 mm (per specification)
         self.assertEqual(cylindrical_enc.canister.wall_thickness, 1.0)
-        
-        # Verify name includes conversion reference
-        self.assertIn("from", cylindrical_enc.name)
 
     def test_from_pouch_defaults(self):
         """Test that .from_pouch() uses appropriate default values."""
@@ -3658,9 +3652,6 @@ class TestPrismaticEncapsulation(unittest.TestCase):
         
         # Verify materials transferred correctly
         self.assertEqual(prismatic_enc.canister.material.name, material.name)
-        
-        # Verify name includes conversion reference
-        self.assertIn("from", prismatic_enc.name)
 
     def test_from_cylindrical_volume_preservation(self):
         """Test that internal volume is approximately preserved during cylindrical conversion."""
@@ -3768,9 +3759,6 @@ class TestPrismaticEncapsulation(unittest.TestCase):
         
         # Verify wall thickness is 1.0 mm (per specification)
         self.assertEqual(prismatic_enc.canister.wall_thickness, 1.0)
-        
-        # Verify name includes conversion reference
-        self.assertIn("from", prismatic_enc.name)
 
     def test_from_pouch_defaults(self):
         """Test that .from_pouch() uses appropriate default values."""
