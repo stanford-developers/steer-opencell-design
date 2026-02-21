@@ -17,7 +17,7 @@ from steer_core.Mixins.Colors import ColorMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Data import DataMixin
-from steer_core.Mixins.Propagation import PropagationMixin
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
 from steer_core.Decorators.General import calculate_all_properties
 
@@ -1192,14 +1192,10 @@ class _Cell(
 
     @reference_electrode_assembly.setter
     @calculate_all_properties
+    @propagating_setter()
     def reference_electrode_assembly(self, value: _ElectrodeAssembly) -> None:
         self.validate_type(value, _ElectrodeAssembly, "reference_electrode_assembly")
-        # Clear parent reference on old assembly if exists
-        if hasattr(self, '_reference_electrode_assembly') and self._reference_electrode_assembly is not None:
-            self._reference_electrode_assembly._set_parent(None)
         self._reference_electrode_assembly = value
-        # Set parent reference on new assembly
-        value._set_parent(self)
 
     @reversible_capacity.setter
     @calculate_electrochemical_properties
@@ -1352,19 +1348,10 @@ class _Cell(
 
     @encapsulation.setter
     @calculate_all_properties
+    @propagating_setter()
     def encapsulation(self, value: _Container) -> None:
         self.validate_type(value, _Container, "encapsulation")
-
-        # Clear old parent reference
-        if hasattr(self, '_encapsulation') and self._encapsulation is not None:
-            if hasattr(self._encapsulation, '_set_parent'):
-                self._encapsulation._set_parent(None)
-
         self._encapsulation = value
-
-        # Set new parent reference for propagation
-        if hasattr(value, '_set_parent'):
-            value._set_parent(self)
 
     @n_electrode_assembly.setter
     @calculate_all_properties
@@ -1374,6 +1361,7 @@ class _Cell(
 
     @electrolyte.setter
     @calculate_all_properties
+    @propagating_setter()
     def electrolyte(self, value: Electrolyte) -> None:
 
         # validate type
@@ -1383,17 +1371,8 @@ class _Cell(
         if self._update_properties and hasattr(value, "_volume") and value._volume is not None and value._volume > 0:
             self._electrolyte_overfill = (value._volume / self._pore_volume) - 1
 
-        # Clear old parent reference
-        if hasattr(self, '_electrolyte') and self._electrolyte is not None:
-            if hasattr(self._electrolyte, '_set_parent'):
-                self._electrolyte._set_parent(None)
-
         # assign
         self._electrolyte = value
-
-        # Set new parent reference for propagation
-        if hasattr(value, '_set_parent'):
-            value._set_parent(self)
 
     @electrolyte_overfill.setter
     @calculate_all_properties

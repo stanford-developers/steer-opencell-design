@@ -5,6 +5,7 @@ import pandas as pd
 
 from steer_core.Constants.Units import *
 from steer_core.Decorators.General import calculate_all_properties
+from steer_core.Mixins.Propagation import propagating_setter
 
 from steer_opencell_design.Components.CurrentCollectors.Base import _TapeCurrentCollector
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
@@ -374,30 +375,26 @@ class Laminate(_Layup):
         """Get the bottom separator of the laminate."""
         return self._bottom_separator
 
-    @bottom_separator.setter
-    @calculate_all_properties
-    def bottom_separator(self, value: Separator):
-        """Set the bottom separator of the laminate.
-        
-        The internal _set_bottom_separator method handles type validation,
-        datum positioning, and parent reference management for propagation.
-        """
-        self._set_bottom_separator(value)
-
     @property
     def top_separator(self) -> Separator:
         """Get the top separator of the laminate."""
         return self._top_separator
 
+    @bottom_separator.setter
+    @calculate_all_properties
+    @propagating_setter()
+    def bottom_separator(self, value: Separator):
+        """Set the bottom separator of the laminate."""
+        self.validate_type(value, Separator, "bottom_separator")
+        self._bottom_separator = value
+
     @top_separator.setter
     @calculate_all_properties
+    @propagating_setter()
     def top_separator(self, value: Separator):
-        """Set the top separator of the laminate.
-        
-        The internal _set_top_separator method handles type validation,
-        datum positioning, and parent reference management for propagation.
-        """
-        self._set_top_separator(value)
+        """Set the top separator of the laminate."""
+        self.validate_type(value, Separator, "top_separator")
+        self._top_separator = value
 
     @property
     def total_length(self) -> float:

@@ -19,7 +19,7 @@ from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Plotter import PlotterMixin
-from steer_core.Mixins.Propagation import PropagationMixin
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
 from steer_opencell_design.Components.Separators import Separator
@@ -793,6 +793,7 @@ class _Layup(
 
     @cathode.setter
     @calculate_all_properties
+    @propagating_setter()
     def cathode(self, cathode: Cathode):
         """Set the cathode and update dependent components."""
         # validate the type
@@ -804,13 +805,8 @@ class _Layup(
             self._update_separator_sizes(cathode)
             self._update_anode_dimensions(cathode)
 
-        # Clear parent reference on old cathode if exists
-        if hasattr(self, '_cathode') and self._cathode is not None:
-            self._cathode._set_parent(None)
         # set the cathode to self
         self._cathode = cathode
-        # Set parent reference on new cathode
-        cathode._set_parent(self)
 
     def _set_bottom_separator(self, bottom_separator: Separator):
         """Internal method to set the bottom separator with validation and parent management."""
@@ -871,37 +867,31 @@ class _Layup(
 
     @anode.setter
     @calculate_all_properties
+    @propagating_setter(deepcopy=True)
     def anode(self, anode: Anode):
 
         # validate type
         self.validate_type(anode, Anode, "Anode")
 
-        # make a deep copy of the anode
-        anode = deepcopy(anode)
+        # assign to self (decorator handles deepcopy and parent refs)
+        self._anode = anode
 
-        if isinstance(anode.current_collector, _TapeCurrentCollector):
-            self.cathode.current_collector.set_ranges_from_reference_bare_lengths(anode)
+        # Post-assignment logic operates on self._anode (the copy)
+        if isinstance(self._anode.current_collector, _TapeCurrentCollector):
+            self.cathode.current_collector.set_ranges_from_reference_bare_lengths(self._anode)
 
         # set the ranges on the anode current collector based on the cathode current collector
-        anode.current_collector.set_ranges_from_reference(self.cathode.current_collector)
+        self._anode.current_collector.set_ranges_from_reference(self.cathode.current_collector)
 
         # modify the anodes datum position
         if not self._update_properties:
-            anode.datum = (self.cathode.datum[0], self.cathode.datum[1], anode.datum[2])
-        elif self._update_properties:
-            anode.datum = (anode.datum[0], anode.datum[1], anode.datum[2])
+            self._anode.datum = (self.cathode.datum[0], self.cathode.datum[1], self._anode.datum[2])
+        else:
+            self._anode.datum = (self._anode.datum[0], self._anode.datum[1], self._anode.datum[2])
 
         # if there is an anode, update its ranges
         if self._update_properties:
-            self._update_separator_sizes(anode)
-
-        # Clear parent reference on old anode if exists
-        if hasattr(self, '_anode') and self._anode is not None:
-            self._anode._set_parent(None)
-        # assign to self
-        self._anode = anode
-        # Set parent reference on new anode
-        anode._set_parent(self)
+            self._update_separator_sizes(self._anode)
 
     @np_ratio.setter
     @calculate_all_properties

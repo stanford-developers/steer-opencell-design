@@ -3,7 +3,7 @@
 from copy import deepcopy
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
-from steer_core.Mixins.Propagation import PropagationMixin
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
@@ -119,6 +119,11 @@ class _Mandrel(
             first_row = coordinates.iloc[0:1].copy()
             coordinates = pd.concat([coordinates, first_row], ignore_index=True)
         
+        if self.material is None:
+            fill_color = "rgba(0,0,0,0)"  # Transparent if no material
+        else:
+            fill_color = self.material.color
+
         # make the coated area trace
         trace = go.Scatter(
             x=coordinates["x"],
@@ -126,7 +131,7 @@ class _Mandrel(
             mode="lines",
             name=self.name,
             line=dict(width=1, color="black"),
-            fillcolor=self.material.color,
+            fillcolor=fill_color,
             fill="toself"
         )
 
@@ -149,6 +154,11 @@ class _Mandrel(
         first_row = first_circle_ordered.iloc[0:1].copy()
         first_circle_ordered = pd.concat([first_circle_ordered, first_row], ignore_index=True)
 
+        if self.material is None:
+            fill_color = "rgba(0,0,0,0)"  # Transparent if no material
+        else:
+            fill_color = self.material.color
+
         # make the coated area trace using x and z coordinates (bottom-up view)
         trace = go.Scatter(
             x=first_circle_ordered["x"],
@@ -156,7 +166,7 @@ class _Mandrel(
             mode="lines",
             name=self.name,
             line=dict(width=1, color="black", shape="spline", smoothing=1.3),
-            fillcolor=self.material.color,
+            fillcolor=fill_color,
             fill="toself"
         )
 
@@ -168,23 +178,14 @@ class _Mandrel(
         self._name = value
 
     @material.setter
-    def material(self, value: CurrentCollectorMaterial):
+    @calculate_all_properties
+    @propagating_setter(deepcopy=True)
+    def material(self, material: CurrentCollectorMaterial | None) -> None:
 
-        # Clear old parent reference
-        if hasattr(self, '_material') and self._material is not None:
-            if hasattr(self._material, '_set_parent'):
-                self._material._set_parent(None)
+        if material is not None:
+            self.validate_type(material, CurrentCollectorMaterial, "Material")
 
-        if value is None:
-            self._material = CurrentCollectorMaterial.from_database("Aluminum")
-
-        else:
-            self.validate_type(value, CurrentCollectorMaterial, "material")
-            self._material = deepcopy(value)
-
-        # Set new parent reference for propagation
-        if hasattr(self._material, '_set_parent'):
-            self._material._set_parent(self)
+        self._material = material  # Already a copy due to decorator
 
     @property
     def length(self) -> float:
@@ -422,7 +423,18 @@ class FlatMandrel(_Mandrel):
     @property
     def width_range(self) -> Tuple[float, float]:
         """Return the mandrel width range as a tuple (min, max) in mm."""
-        return (1, 100)
+        return (
+            self.height * 3, 
+            self.height * 20
+        )
+    
+    @property
+    def width_hard(self) -> Tuple[float, float]:
+        """Return the mandrel width range as a tuple (min, max) in mm."""
+        return (
+            self.height * 2, 
+            self.height * 80
+        )
 
     @property
     def height(self) -> float:

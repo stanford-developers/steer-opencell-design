@@ -7,6 +7,7 @@ from steer_opencell_design.Constructions.Cells.Base import _Cell
 
 from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Constants.Units import *
+from steer_core.Mixins.Propagation import propagating_setter
 
 from typing import Tuple, Union
 import warnings
@@ -378,6 +379,7 @@ class CylindricalCell(_Cell):
 
     @reference_electrode_assembly.setter
     @calculate_all_properties
+    @propagating_setter()
     def reference_electrode_assembly(self, value: Union[WoundJellyRoll, FlatWoundJellyRoll]) -> None:
         """Set reference electrode assembly with validation.
         
@@ -396,12 +398,7 @@ class CylindricalCell(_Cell):
             self._convert_to_prismatic_cell(value)
             return
         
-        # Clear parent reference on old assembly if exists
-        if hasattr(self, '_reference_electrode_assembly') and self._reference_electrode_assembly is not None:
-            self._reference_electrode_assembly._set_parent(None)
         self._reference_electrode_assembly = value
-        # Set parent reference on new assembly
-        value._set_parent(self)
     
     def _convert_to_prismatic_cell(self, flat_jelly_roll: FlatWoundJellyRoll) -> None:
         """Convert this CylindricalCell to a PrismaticCell with the given FlatWoundJellyRoll.
@@ -441,6 +438,7 @@ class CylindricalCell(_Cell):
 
     @encapsulation.setter
     @calculate_all_properties
+    @propagating_setter()
     def encapsulation(self, value) -> None:
         """Set encapsulation with validation. Automatically converts cell type if encapsulation type changes.
         
@@ -450,22 +448,8 @@ class CylindricalCell(_Cell):
             New encapsulation to set. Can be any container type (Prismatic, Pouch, Cylindrical).
             If type differs from current cell type, cell will be automatically converted.
         """
-        from steer_opencell_design.Components.Containers.Base import _Container
-        from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
-        from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
-        
         self.validate_type(value, CylindricalEncapsulation, "encapsulation")
-        
-        # Clear old parent reference
-        if hasattr(self, '_encapsulation') and self._encapsulation is not None:
-            if hasattr(self._encapsulation, '_set_parent'):
-                self._encapsulation._set_parent(None)
-
         self._encapsulation = value
-
-        # Set new parent reference for propagation
-        if hasattr(value, '_set_parent'):
-            value._set_parent(self)
 
     @n_electrode_assembly.setter
     def n_electrode_assembly(self, value: int) -> None:

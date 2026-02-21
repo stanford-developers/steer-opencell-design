@@ -13,7 +13,7 @@ from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Dunder import DunderMixin
-from steer_core.Mixins.Propagation import PropagationMixin
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
 from steer_core.Constants.Units import *
 
@@ -1202,14 +1202,10 @@ class _Electrode(
 
     @formulation.setter
     @calculate_all_properties
+    @propagating_setter()
     def formulation(self, formulation: _ElectrodeFormulation):
         self.validate_type(formulation, _ElectrodeFormulation, "formulation")
-        # Clear parent reference on old formulation if exists
-        if hasattr(self, '_formulation') and self._formulation is not None:
-            self._formulation._set_parent(None)
         self._formulation = formulation
-        # Set parent reference on new formulation
-        formulation._set_parent(self)
 
     @calender_density.setter
     @calculate_all_properties
@@ -1222,24 +1218,20 @@ class _Electrode(
 
     @insulation_material.setter
     @calculate_bulk_properties
+    @propagating_setter(deepcopy=True)
     def insulation_material(self, insulation_material: InsulationMaterial | None):
-        self.validate_type(insulation_material, InsulationMaterial, "insulation material") if insulation_material else None
 
-        if self._current_collector.insulation_area != 0 and insulation_material is None:
-            raise ValueError("Insulation material must be provided if the current collector has an insulation width")
+        if insulation_material is not None:
 
-        if self._current_collector.insulation_area == 0 and insulation_material is not None:
-            raise ValueError("Insulation material cannot be provided if the current collector does not have an insulation area")
+            self.validate_type(insulation_material, InsulationMaterial, "insulation material") if insulation_material else None
 
-        # Clear parent reference on old material if exists
-        if hasattr(self, '_insulation_material') and self._insulation_material is not None:
-            self._insulation_material._set_parent(None)
+            if self._current_collector.insulation_area != 0 and insulation_material is None:
+                raise ValueError("Insulation material must be provided if the current collector has an insulation width")
 
-        self._insulation_material = deepcopy(insulation_material)
+            if self._current_collector.insulation_area == 0 and insulation_material is not None:
+                raise ValueError("Insulation material cannot be provided if the current collector does not have an insulation area")
 
-        # Set parent reference on new material
-        if self._insulation_material is not None:
-            self._insulation_material._set_parent(self)
+        self._insulation_material = insulation_material  # Already a copy due to decorator
 
     @insulation_thickness.setter
     @calculate_volumes
@@ -1259,23 +1251,19 @@ class _Electrode(
     @current_collector.setter
     @calculate_bulk_properties
     @calculate_coordinates
+    @propagating_setter()
     def current_collector(self, current_collector: _CurrentCollector):
         # validate the current collector
         self.validate_type(current_collector, _CurrentCollector, "current collector")
 
-        # Clear parent reference on old current collector if exists
-        if hasattr(self, '_current_collector') and self._current_collector is not None:
-            self._current_collector._set_parent(None)
-
         # assign the current collector
         self._current_collector = current_collector
-        # Set parent reference on new current collector
-        current_collector._set_parent(self)
 
         # if the current collector has insulation, load up a default material if none is provided
         if self._current_collector.insulation_area != 0:
             if not hasattr(self, "_insulation_material") or self._insulation_material is None:
-                self._insulation_material = InsulationMaterial.from_database("Aluminium Oxide, 95%")
+                # Use the setter so @propagating_setter handles the parent reference
+                self.insulation_material = InsulationMaterial.from_database("Aluminium Oxide, 95%")
 
     @name.setter
     def name(self, name: str):

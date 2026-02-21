@@ -52,7 +52,7 @@ class MonoLayer(_Layup):
 
         # Set parent reference for propagation
         if hasattr(self._canonical_separator, '_set_parent'):
-            self._canonical_separator._set_parent(self)
+            self._canonical_separator._set_parent(self, "separator")
 
         # call the general layup init
         super().__init__(
@@ -262,15 +262,15 @@ class MonoLayer(_Layup):
         # Validate input type
         self.validate_type(value, Separator, "Separator")
 
-        # Clear old parent references
+        # Clear old parent references (only if different objects)
         if hasattr(self, '_bottom_separator') and self._bottom_separator is not None:
-            if hasattr(self._bottom_separator, '_set_parent'):
+            if self._bottom_separator is not value:
                 self._bottom_separator._set_parent(None)
         if hasattr(self, '_top_separator') and self._top_separator is not None:
-            if hasattr(self._top_separator, '_set_parent'):
+            if self._top_separator is not value:
                 self._top_separator._set_parent(None)
         if hasattr(self, '_canonical_separator') and self._canonical_separator is not None:
-            if hasattr(self._canonical_separator, '_set_parent'):
+            if self._canonical_separator is not value:
                 self._canonical_separator._set_parent(None)
 
         # Deep copy into both
@@ -286,12 +286,9 @@ class MonoLayer(_Layup):
         self._canonical_separator = deepcopy(value)
 
         # Set new parent references for propagation
-        if hasattr(self._bottom_separator, '_set_parent'):
-            self._bottom_separator._set_parent(self)
-        if hasattr(self._top_separator, '_set_parent'):
-            self._top_separator._set_parent(self)
-        if hasattr(self._canonical_separator, '_set_parent'):
-            self._canonical_separator._set_parent(self)
+        self._bottom_separator._set_parent(self, "bottom_separator")
+        self._top_separator._set_parent(self, "top_separator")
+        self._canonical_separator._set_parent(self, "canonical_separator")
 
     @property
     def separator_overhangs(self) -> dict:
@@ -447,7 +444,7 @@ class ZFoldMonoLayer(MonoLayer):
         self._canonical_separator = deepcopy(separator)
         # Set parent reference for propagation
         if hasattr(self._canonical_separator, '_set_parent'):
-            self._canonical_separator._set_parent(self)
+            self._canonical_separator._set_parent(self, "separator")
 
         # Create specialized separator copies (no rotation enforced)
         bottom_separator = deepcopy(separator)
@@ -570,15 +567,15 @@ class ZFoldMonoLayer(MonoLayer):
         # Validate input type
         self.validate_type(value, Separator, "Separator")
 
-        # Clear old parent references
+        # Clear old parent references (only if different objects)
         if hasattr(self, '_bottom_separator') and self._bottom_separator is not None:
-            if hasattr(self._bottom_separator, '_set_parent'):
+            if self._bottom_separator is not value:
                 self._bottom_separator._set_parent(None)
         if hasattr(self, '_top_separator') and self._top_separator is not None:
-            if hasattr(self._top_separator, '_set_parent'):
+            if self._top_separator is not value:
                 self._top_separator._set_parent(None)
         if hasattr(self, '_canonical_separator') and self._canonical_separator is not None:
-            if hasattr(self._canonical_separator, '_set_parent'):
+            if self._canonical_separator is not value:
                 self._canonical_separator._set_parent(None)
         
         # Set canonical separator
@@ -604,12 +601,9 @@ class ZFoldMonoLayer(MonoLayer):
         self._top_separator = top
 
         # Set new parent references for propagation
-        if hasattr(self._bottom_separator, '_set_parent'):
-            self._bottom_separator._set_parent(self)
-        if hasattr(self._top_separator, '_set_parent'):
-            self._top_separator._set_parent(self)
-        if hasattr(self._canonical_separator, '_set_parent'):
-            self._canonical_separator._set_parent(self)
+        self._bottom_separator._set_parent(self, "bottom_separator")
+        self._top_separator._set_parent(self, "top_separator")
+        self._canonical_separator._set_parent(self, "canonical_separator")
 
         self._constrain_separator_geometry()
 

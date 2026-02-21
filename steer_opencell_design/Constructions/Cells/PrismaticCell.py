@@ -7,6 +7,7 @@ from steer_opencell_design.Materials.Electrolytes import Electrolyte
 from steer_opencell_design.Constructions.Cells.Base import _Cell
 
 from steer_core.Decorators.General import calculate_all_properties
+from steer_core.Mixins.Propagation import propagating_setter
 from steer_core.Constants.Units import *
 
 from typing import Tuple
@@ -527,6 +528,7 @@ class PrismaticCell(_Cell):
 
     @reference_electrode_assembly.setter
     @calculate_all_properties
+    @propagating_setter()
     def reference_electrode_assembly(self, value: ZFoldStack | PunchedStack | FlatWoundJellyRoll | WoundJellyRoll) -> None:
         """Set reference electrode assembly with validation.
         
@@ -545,18 +547,14 @@ class PrismaticCell(_Cell):
             self._convert_to_cylindrical_cell(value)
             return
         
-        # Clear parent reference on old assembly if exists
-        if hasattr(self, '_reference_electrode_assembly') and self._reference_electrode_assembly is not None:
-            self._reference_electrode_assembly._set_parent(None)
         self._reference_electrode_assembly = value
-        # Set parent reference on new assembly
-        value._set_parent(self)
 
         # Ensure encapsulation connector orientation matches electrode orientation
         self._sync_connector_orientation()
 
     @encapsulation.setter
     @calculate_all_properties
+    @propagating_setter()
     def encapsulation(self, value) -> None:
         """Set encapsulation with validation. Automatically converts cell type if encapsulation type changes.
         

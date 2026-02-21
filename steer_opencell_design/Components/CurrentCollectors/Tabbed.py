@@ -3,7 +3,7 @@
 # import core mixins
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
-from steer_core.Mixins.Propagation import PropagationMixin
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Serializer import SerializerMixin
@@ -344,9 +344,10 @@ class WeldTab(PropagationMixin, ValidationMixin, CoordinateMixin, DunderMixin, P
 
     @material.setter
     @calculate_all_properties
+    @propagating_setter(deepcopy=True)
     def material(self, material: CurrentCollectorMaterial) -> None:
         self.validate_type(material, CurrentCollectorMaterial, "material")
-        self._material = deepcopy(material)
+        self._material = material  # Already a copy due to decorator
 
     @width.setter
     @calculate_all_properties
@@ -915,19 +916,10 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
 
     @weld_tab.setter
     @calculate_all_properties
+    @propagating_setter()
     def weld_tab(self, weld_tab: WeldTab) -> None:
         self.validate_type(weld_tab, WeldTab, "weld_tab")
-
-        # Clear old parent reference
-        if hasattr(self, '_weld_tab') and self._weld_tab is not None:
-            if hasattr(self._weld_tab, '_set_parent'):
-                self._weld_tab._set_parent(None)
-
         self._weld_tab = weld_tab
-
-        # Set new parent reference for propagation
-        if hasattr(weld_tab, '_set_parent'):
-            weld_tab._set_parent(self)
 
     @weld_tab_positions.setter
     @calculate_all_properties

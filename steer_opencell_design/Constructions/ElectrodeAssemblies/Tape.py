@@ -8,7 +8,7 @@ from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Serializer import SerializerMixin
-from steer_core.Mixins.Propagation import PropagationMixin
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
 from steer_core.Decorators.General import calculate_all_properties
 
@@ -240,19 +240,10 @@ class Tape(
 
     @material.setter
     @calculate_all_properties
+    @propagating_setter(deepcopy=True)
     def material(self, material: TapeMaterial) -> None:
         self.validate_type(material, TapeMaterial, "Material")
-
-        # Clear old parent reference
-        if hasattr(self, '_material') and self._material is not None:
-            if hasattr(self._material, '_set_parent'):
-                self._material._set_parent(None)
-
-        self._material = deepcopy(material)
-
-        # Set new parent reference for propagation
-        if hasattr(self._material, '_set_parent'):
-            self._material._set_parent(self)
+        self._material = material  # Already a copy due to decorator
 
     @thickness.setter
     @calculate_all_properties

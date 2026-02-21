@@ -749,22 +749,21 @@ class TestCylindricalCell(unittest.TestCase):
 
     def test_material_specific_cost_change(self):
 
-        original_cell_cost = self.cell._cost
+        original_cell_cost = self.cell.cost
         original_energy = self.cell.energy
-        original_lower_cutoff_voltage = self.cell.minimum_operating_voltage
 
         fig1 = self.cell.get_capacity_plot()
 
         # modify cathode formulation active material cost
-        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.specific_cost *= 2  # double the cost
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.specific_cost *= 10  # increase the cost
         self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.propagate_changes()
 
-        new_cell_cost = self.cell._cost
+        new_cell_cost = self.cell.cost
 
         self.assertNotEqual(new_cell_cost, original_cell_cost, "Cell cost should change when active material cost changes")
 
         # modify the cathode irreversible specific capacity to change the energy
-        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.irreversible_specific_capacity *= 0.5  # increase irreversible capacity
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.irreversible_specific_capacity /= 10  # increase irreversible capacity
         self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.propagate_changes()
 
         new_energy = self.cell.energy
@@ -777,18 +776,18 @@ class TestCylindricalCell(unittest.TestCase):
         serialized = self.cell.serialize()
         deserialized_cell = ocd.CylindricalCell.deserialize(serialized)
 
-        self.assertEqual(deserialized_cell._cost, new_cell_cost, "Deserialized cell should have the updated cost")
+        self.assertEqual(deserialized_cell.cost, new_cell_cost, "Deserialized cell should have the updated cost")
         self.assertEqual(deserialized_cell.energy, new_energy, "Deserialized cell should have the updated energy")
 
         # modify the specific cost back down and check that it updates again
-        deserialized_cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.specific_cost /= 2  # revert cost change
+        deserialized_cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.specific_cost /= 10  # revert cost change
         deserialized_cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.propagate_changes()
 
-        reverted_cost = deserialized_cell._cost
+        reverted_cost = deserialized_cell.cost
         self.assertEqual(reverted_cost, original_cell_cost, "Reverted cell cost should match original cost")
 
         # modify the irreversible specific capacity back and check that energy updates again
-        deserialized_cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.irreversible_specific_capacity /= 0.5
+        deserialized_cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.irreversible_specific_capacity *= 10
         deserialized_cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.propagate_changes()
 
         fig3 = deserialized_cell.get_capacity_plot()
