@@ -3,6 +3,7 @@
 # import core mixins
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
+from steer_core.Mixins.Propagation import PropagationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Serializer import SerializerMixin
@@ -31,7 +32,7 @@ import pandas as pd
 import numpy as np
 
 
-class WeldTab(ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin, SerializerMixin):
+class WeldTab(PropagationMixin, ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin, SerializerMixin):
     """
     Specification and modeling class for separately manufactured welded tabs.
 
