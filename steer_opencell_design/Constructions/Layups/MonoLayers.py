@@ -49,6 +49,7 @@ class MonoLayer(_Layup):
 
         # Store canonical separator for unified API
         self._canonical_separator = deepcopy(separator)
+
         # Set parent reference for propagation
         if hasattr(self._canonical_separator, '_set_parent'):
             self._canonical_separator._set_parent(self)
@@ -160,7 +161,7 @@ class MonoLayer(_Layup):
 
     def _calculate_height(self) -> float:
         """
-        Calculate the height of the monolayer based on the anode and cathode heights.
+        Calculate the height of the monolayer based on the anode, cathode, and separator heights.
 
         Returns
         -------
@@ -170,8 +171,16 @@ class MonoLayer(_Layup):
         anode_height = self._anode._current_collector._y_foil_length
         cathode_height = self._cathode._current_collector._y_foil_length
 
-        # The laminate height is determined by the longer of the two electrodes
-        monolayer_height = max(anode_height, cathode_height)
+        # Get separator height contribution, accounting for rotation
+        # If rotated: separator's length contributes to layup height
+        # If not rotated: separator's width contributes to layup height
+        if self._bottom_separator._rotated_xy:
+            separator_height = max(self._bottom_separator._length, self._top_separator._length)
+        else:
+            separator_height = max(self._bottom_separator._width, self._top_separator._width)
+
+        # The laminate height is determined by the longest of electrodes and separator
+        monolayer_height = max(anode_height, cathode_height, separator_height)
 
         self._height = monolayer_height
 
@@ -179,7 +188,7 @@ class MonoLayer(_Layup):
 
     def _calculate_width(self) -> float:
         """
-        Calculate the width of the monolayer based on the anode and cathode widths.
+        Calculate the width of the monolayer based on the anode, cathode, and separator widths.
 
         Returns
         -------
@@ -189,8 +198,16 @@ class MonoLayer(_Layup):
         anode_width = self._anode._current_collector._x_foil_length
         cathode_width = self._cathode._current_collector._x_foil_length
 
-        # The laminate width is determined by the wider of the two electrodes
-        monolayer_width = max(anode_width, cathode_width)
+        # Get separator width contribution, accounting for rotation
+        # If rotated: separator's width contributes to layup width
+        # If not rotated: separator's length contributes to layup width
+        if self._bottom_separator._rotated_xy:
+            separator_width = max(self._bottom_separator._width, self._top_separator._width)
+        else:
+            separator_width = max(self._bottom_separator._length, self._top_separator._length)
+
+        # The laminate width is determined by the widest of electrodes and separator
+        monolayer_width = max(anode_width, cathode_width, separator_width)
 
         self._width = monolayer_width
 
@@ -645,7 +662,7 @@ class ZFoldMonoLayer(MonoLayer):
         # get the difference in the heights
         height_diff = value - current_height
 
-        # Update the height property of the bottom separator
+        # Update the height property of the bottom separator (use width since not rotated)
         self._bottom_separator.width = self._bottom_separator.width + height_diff
 
         # Update the height property of the top separator

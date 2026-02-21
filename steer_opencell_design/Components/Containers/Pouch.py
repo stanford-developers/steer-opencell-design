@@ -1383,7 +1383,6 @@ class PouchEncapsulation(_Container):
             width=pouch_width,
             height=pouch_height,
             thickness=pouch_thickness,
-            name=f"Pouch from {prismatic_encapsulation.name}"
         )
 
     @classmethod
@@ -1505,7 +1504,6 @@ class PouchEncapsulation(_Container):
             width=pouch_width,
             height=pouch_height,
             thickness=pouch_thickness,
-            name=f"Pouch from {cylindrical_encapsulation.name}"
         )
 
 

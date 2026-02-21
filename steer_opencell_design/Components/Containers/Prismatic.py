@@ -77,6 +77,7 @@ class ConnectorOrientation(Enum):
 class _PrismaticComponent(
     ABC,
     CoordinateMixin,
+    PropagationMixin,
     ColorMixin,
     ValidationMixin,
     SerializerMixin,
@@ -1471,7 +1472,6 @@ class PrismaticEncapsulation(_Container):
             height=height_mm,
             wall_thickness=wall_thickness_mm,
             datum=cylindrical_encapsulation._canister.datum,  # Use property (returns mm)
-            name=f"Prismatic Canister (from {cylindrical_encapsulation._canister.name})"
         )
         
         # Create prismatic terminal connectors with transferred materials
@@ -1480,14 +1480,12 @@ class PrismaticEncapsulation(_Container):
             material=cylindrical_encapsulation._cathode_terminal_connector._material,
             thickness=cylindrical_encapsulation._cathode_terminal_connector.thickness,  # Use property (returns mm)
             fill_factor=cylindrical_encapsulation._cathode_terminal_connector._fill_factor,
-            name=f"Prismatic Cathode Terminal (from {cylindrical_encapsulation._cathode_terminal_connector.name})"
         )
         
         anode_terminal_connector = PrismaticTerminalConnector(
             material=cylindrical_encapsulation._anode_terminal_connector._material,
             thickness=cylindrical_encapsulation._anode_terminal_connector.thickness,  # Use property (returns mm)
             fill_factor=cylindrical_encapsulation._anode_terminal_connector._fill_factor,
-            name=f"Prismatic Anode Terminal (from {cylindrical_encapsulation._anode_terminal_connector.name})"
         )
         
         # Create prismatic lid assembly with transferred material
@@ -1495,7 +1493,6 @@ class PrismaticEncapsulation(_Container):
             material=cylindrical_encapsulation._lid_assembly._material,
             thickness=cylindrical_encapsulation._lid_assembly.thickness,  # Use property (returns mm)
             fill_factor=cylindrical_encapsulation._lid_assembly._fill_factor,
-            name=f"Prismatic Lid (from {cylindrical_encapsulation._lid_assembly.name})"
         )
         
         # Create and return the prismatic encapsulation
@@ -1505,7 +1502,6 @@ class PrismaticEncapsulation(_Container):
             lid_assembly=prismatic_lid,
             canister=prismatic_canister,
             connector_orientation=ConnectorOrientation.LONGITUDINAL,
-            name=f"Prismatic Encapsulation (from {cylindrical_encapsulation.name})",
             datum=cylindrical_encapsulation.datum  # Use property (returns mm)
         )
 
@@ -1591,7 +1587,6 @@ class PrismaticEncapsulation(_Container):
             height=outer_height_mm,
             wall_thickness=wall_thickness_mm,
             datum=pouch_encapsulation.datum,  # Use property (returns mm)
-            name=f"Prismatic Canister (from {pouch_encapsulation.name})"
         )
         
         # Create prismatic terminal connectors with aluminum
@@ -1599,14 +1594,12 @@ class PrismaticEncapsulation(_Container):
             material=aluminum_material,
             thickness=terminal_thickness_mm,
             fill_factor=fill_factor,
-            name=f"Prismatic Cathode Terminal (from {pouch_encapsulation.name})"
         )
         
         anode_terminal_connector = PrismaticTerminalConnector(
             material=aluminum_material,
             thickness=terminal_thickness_mm,
             fill_factor=fill_factor,
-            name=f"Prismatic Anode Terminal (from {pouch_encapsulation.name})"
         )
         
         # Create prismatic lid assembly with aluminum
@@ -1614,7 +1607,6 @@ class PrismaticEncapsulation(_Container):
             material=aluminum_material,
             thickness=lid_thickness_mm,
             fill_factor=fill_factor,
-            name=f"Prismatic Lid (from {pouch_encapsulation.name})"
         )
         
         # Create and return the prismatic encapsulation
@@ -1624,7 +1616,6 @@ class PrismaticEncapsulation(_Container):
             lid_assembly=prismatic_lid,
             canister=prismatic_canister,
             connector_orientation=ConnectorOrientation.LONGITUDINAL,
-            name=f"Prismatic Encapsulation (from {pouch_encapsulation.name})",
             datum=pouch_encapsulation.datum  # Use property (returns mm)
         )
 
@@ -1993,7 +1984,11 @@ class PrismaticEncapsulation(_Container):
         return figure
     
     def _get_assembly_dimensions(self, assembly):
-        """Extract width, length (thickness), and height dimensions from an electrode assembly.
+        """Extract width, length, and height dimensions from an electrode assembly.
+        
+        Returns dimensions mapped to encapsulation internal dimensions. The orientation
+        does NOT affect this mapping - it only affects how internal_* setters map to
+        canister dimensions.
         
         Parameters
         ----------
@@ -2003,7 +1998,7 @@ class PrismaticEncapsulation(_Container):
         Returns
         -------
         tuple
-            (width, length/thickness, height) in mm
+            (width_dim, length_dim, height_dim) in mm
         """
         from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import FlatWoundJellyRoll
         from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import ZFoldStack, PunchedStack
@@ -2011,25 +2006,36 @@ class PrismaticEncapsulation(_Container):
         self.validate_type(assembly, (FlatWoundJellyRoll, ZFoldStack, PunchedStack), "assembly")
         
         if isinstance(assembly, FlatWoundJellyRoll):
+            # FlatWoundJellyRoll (always TRANSVERSE orientation):
+            # - encapsulation width ← jelly_roll.width (racetrack X span)
+            # - encapsulation length ← jelly_roll.thickness (racetrack Z depth)
+            # - encapsulation height ← jelly_roll.height (= laminate.width, Y dimension)
             return (
-                assembly.thickness,  # racetrack horizontal span → width
-                assembly.height,     # racetrack vertical span → length
-                assembly.width       # Y dimension → height
+                assembly.width,      # → internal_width
+                assembly.thickness,  # → internal_length
+                assembly.height      # → internal_height (= layup/laminate width)
             )
         else:
-            # For stacked assemblies (ZFoldStack, PunchedStack)
+            # Stacked assemblies (ZFoldStack, PunchedStack)
+            # - layup.width: maps to encapsulation width
+            # - layup.height: maps to encapsulation height
+            # - thickness: stack thickness/depth
+            #
+            # Mapping:
+            # - encapsulation width ← layup.width
+            # - encapsulation length ← stack thickness
+            # - encapsulation height ← layup.height
             return (
-                assembly.layup.width,   # width
-                assembly.thickness,     # thickness → length
-                assembly.layup.length   # length → height
+                assembly.layup.width,    # → internal_width
+                assembly.thickness,      # → internal_length
+                assembly.layup.height    # → internal_height
             )
     
     def fit_height(self, assembly, clearance: float = 0) -> None:
         """Set the internal height to fit an electrode assembly's height dimension.
         
-        The dimension mapping depends on the connector orientation:
-        - LONGITUDINAL: sets internal_height directly
-        - TRANSVERSE: sets internal_width (since height maps to width in transverse)
+        For stacks: uses layup.height + cathode current collector tab height
+        For FlatWoundJellyRoll: uses jelly_roll.height (= layup.width)
         
         Parameters
         ----------
@@ -2038,20 +2044,23 @@ class PrismaticEncapsulation(_Container):
         clearance : float, optional
             Additional clearance in mm (default: 0)
         """
-        _, _, assembly_height = self._get_assembly_dimensions(assembly)
-        target_height = assembly_height + clearance
+        from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import FlatWoundJellyRoll
         
-        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
-            self.internal_height = target_height
-        else:  # TRANSVERSE
-            self.internal_width = target_height
+        _, _, assembly_height = self._get_assembly_dimensions(assembly)
+        
+        # For stacked assemblies, add the cathode tab height
+        if not isinstance(assembly, FlatWoundJellyRoll):
+            tab_height = assembly.layup.cathode.current_collector.tab_height
+            assembly_height += tab_height
+        
+        target_height = assembly_height + clearance
+        self.internal_height = target_height
     
     def fit_width(self, assembly, clearance: float = 0) -> None:
         """Set the internal width to fit an electrode assembly's width dimension.
         
-        The dimension mapping depends on the connector orientation:
-        - LONGITUDINAL: sets internal_width directly
-        - TRANSVERSE: sets internal_length (since width maps to length in transverse)
+        For stacks: uses layup.width
+        For FlatWoundJellyRoll: uses jelly_roll.width (racetrack X span)
         
         Parameters
         ----------
@@ -2062,18 +2071,12 @@ class PrismaticEncapsulation(_Container):
         """
         assembly_width, _, _ = self._get_assembly_dimensions(assembly)
         target_width = assembly_width + clearance
-        
-        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
-            self.internal_width = target_width
-        else:  # TRANSVERSE
-            self.internal_length = target_width
+        self.internal_width = target_width
     
-    def fit_length(self, assembly, clearance: float = 0) -> None:
-        """Set the internal length to fit an electrode assembly's thickness dimension.
+    def fit_length(self, assembly, clearance: float = 0, n_electrode_assembly: int = 1) -> None:
+        """Set the internal length to fit electrode assembly thickness.
         
-        The dimension mapping depends on the connector orientation:
-        - LONGITUDINAL: sets internal_length directly
-        - TRANSVERSE: sets internal_height (since length maps to height in transverse)
+        For all assembly types: uses assembly.thickness × n_electrode_assembly
         
         Parameters
         ----------
@@ -2081,21 +2084,19 @@ class PrismaticEncapsulation(_Container):
             The electrode assembly to fit
         clearance : float, optional
             Additional clearance in mm (default: 0)
+        n_electrode_assembly : int, optional
+            Number of electrode assemblies to fit (default: 1). The total length
+            will be assembly_thickness × n_electrode_assembly + clearance.
         """
         _, assembly_thickness, _ = self._get_assembly_dimensions(assembly)
-        target_length = assembly_thickness + clearance
-        
-        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
-            self.internal_length = target_length
-        else:  # TRANSVERSE
-            self.internal_height = target_length
+        target_length = assembly_thickness * n_electrode_assembly + clearance
+        self.internal_length = target_length
 
     def fit_to_electrode_assembly(self, assembly, clearance: float = 0) -> None:
         """Adjust all encapsulation dimensions to fit a given electrode assembly.
         
         Resizes the canister's inner dimensions to accommodate the electrode assembly
-        with a specified clearance margin. Calls fit_width, fit_length, and fit_height
-        which handle orientation-dependent dimension mapping.
+        with a specified clearance margin.
         
         Parameters
         ----------
@@ -2106,15 +2107,21 @@ class PrismaticEncapsulation(_Container):
             
         Notes
         -----
-        For FlatWoundJellyRoll:
-            - width: horizontal span of the racetrack
-            - thickness: vertical span of the racetrack
-            - height: Y dimension (layup height)
-            
+        Dimension mapping:
+        
         For stacked assemblies (ZFoldStack, PunchedStack):
-            - layup.width: width of the layup
-            - thickness: total stack thickness
-            - layup.length: length of the layup
+            - encapsulation width ← layup.width
+            - encapsulation length ← assembly.thickness
+            - encapsulation height ← layup.height
+            
+        For FlatWoundJellyRoll:
+            - encapsulation width ← jelly_roll.width (racetrack X span)
+            - encapsulation length ← jelly_roll.thickness
+            - encapsulation height ← jelly_roll.height (= layup.width)
+        
+        The connector_orientation affects how internal dimensions map to canister
+        dimensions (TRANSVERSE rotates the canister 90°), but does not change
+        the assembly→encapsulation dimension mapping.
         """
         self.fit_width(assembly, clearance)
         self.fit_length(assembly, clearance)
@@ -2319,8 +2326,8 @@ class PrismaticEncapsulation(_Container):
     def internal_height(self, internal_height: float) -> None:
         """Set internal height and adjust canister dimensions accordingly.
         
-        For LONGITUDINAL orientation: adjusts canister height
-        For TRANSVERSE orientation: adjusts canister width
+        For LONGITUDINAL orientation: adjusts canister height (internal_height comes from canister._inner_height)
+        For TRANSVERSE orientation: adjusts canister width (internal_height comes from canister._inner_width)
         """
         self.validate_positive_float(internal_height, "Internal Height")
         _current_internal_height = self._internal_height
@@ -2338,8 +2345,8 @@ class PrismaticEncapsulation(_Container):
     def internal_width(self, internal_width: float) -> None:
         """Set internal width and adjust canister dimensions accordingly.
         
-        For LONGITUDINAL orientation: adjusts canister width
-        For TRANSVERSE orientation: adjusts canister height
+        For LONGITUDINAL orientation: adjusts canister width (internal_width comes from canister._inner_width)
+        For TRANSVERSE orientation: adjusts canister height (internal_width comes from canister._inner_height)
         """
         self.validate_positive_float(internal_width, "Internal Width")
         _current_internal_width = self._internal_width

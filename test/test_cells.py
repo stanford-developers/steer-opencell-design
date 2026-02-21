@@ -1200,8 +1200,8 @@ class TestStackedPouchCell(unittest.TestCase):
     def test_basics(self):
         self.assertIsInstance(self.cell, ocd.PouchCell)
         self.assertAlmostEqual(self.cell.energy, 2282.76, 1)
-        self.assertAlmostEqual(self.cell.mass, 129387.64, 0)
-        self.assertAlmostEqual(self.cell.cost, 79.24, 1)
+        self.assertAlmostEqual(self.cell.mass, 133122.64, 0)
+        self.assertAlmostEqual(self.cell.cost, 79.41, 1)
 
     def test_serialization(self):
         serialized = self.cell.serialize()

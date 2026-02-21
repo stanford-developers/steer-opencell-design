@@ -599,6 +599,49 @@ class PrismaticCell(_Cell):
         # update the reference electrode assembly thickness by the same ratio to maintain fit
         self._n_electrode_assembly = value
 
+    def fit_encapsulation_height_to_assemblies(self, clearance: float = 0) -> None:
+        """Fit the encapsulation height to the electrode assemblies.
+        
+        Delegates to PrismaticEncapsulation.fit_height() using the first
+        electrode assembly (which has clipped tabs).
+        
+        Parameters
+        ----------
+        clearance : float, optional
+            Additional clearance in mm (default: 0)
+        """
+        self._encapsulation.fit_height(self.electrode_assemblies[0], clearance)
+    
+    def fit_encapsulation_width_to_assemblies(self, clearance: float = 0) -> None:
+        """Fit the encapsulation width to the electrode assemblies.
+        
+        Delegates to PrismaticEncapsulation.fit_width() using the reference
+        electrode assembly.
+        
+        Parameters
+        ----------
+        clearance : float, optional
+            Additional clearance in mm (default: 0)
+        """
+        self._encapsulation.fit_width(self._reference_electrode_assembly, clearance)
+    
+    def fit_encapsulation_length_to_assemblies(self, clearance: float = 0) -> None:
+        """Fit the encapsulation length to the electrode assemblies.
+        
+        Delegates to PrismaticEncapsulation.fit_length() using the reference
+        electrode assembly and n_electrode_assembly.
+        
+        Parameters
+        ----------
+        clearance : float, optional
+            Additional clearance in mm (default: 0)
+        """
+        self._encapsulation.fit_length(
+            self._reference_electrode_assembly, 
+            clearance, 
+            n_electrode_assembly=self._n_electrode_assembly
+        )
+
     def _convert_to_cylindrical_cell(self, wound_jelly_roll: WoundJellyRoll) -> None:
         """Convert this PrismaticCell to a CylindricalCell with the given WoundJellyRoll.
         

@@ -1263,7 +1263,6 @@ class CylindricalEncapsulation(_Container):
             height=height_mm,
             wall_thickness=wall_thickness_mm,
             datum=prismatic_encapsulation._canister.datum,  # Use property (returns mm)
-            name=f"Cylindrical Canister (from {prismatic_encapsulation._canister.name})"
         )
         
         # Create cylindrical terminal connectors with transferred materials
@@ -1273,7 +1272,6 @@ class CylindricalEncapsulation(_Container):
             thickness=prismatic_encapsulation._cathode_terminal_connector.thickness,  # Use property (returns mm)
             radius=None,
             fill_factor=prismatic_encapsulation._cathode_terminal_connector._fill_factor,
-            name=f"Cylindrical Cathode Terminal (from {prismatic_encapsulation._cathode_terminal_connector.name})"
         )
         
         anode_terminal_connector = CylindricalTerminalConnector(
@@ -1281,7 +1279,6 @@ class CylindricalEncapsulation(_Container):
             thickness=prismatic_encapsulation._anode_terminal_connector.thickness,  # Use property (returns mm)
             radius=None,
             fill_factor=prismatic_encapsulation._anode_terminal_connector._fill_factor,
-            name=f"Cylindrical Anode Terminal (from {prismatic_encapsulation._anode_terminal_connector.name})"
         )
         
         # Create cylindrical lid assembly with transferred material
@@ -1291,7 +1288,6 @@ class CylindricalEncapsulation(_Container):
             thickness=prismatic_encapsulation._lid_assembly.thickness,  # Use property (returns mm)
             radius=None,
             fill_factor=prismatic_encapsulation._lid_assembly._fill_factor,
-            name=f"Cylindrical Lid (from {prismatic_encapsulation._lid_assembly.name})"
         )
         
         # Create and return the cylindrical encapsulation
@@ -1300,7 +1296,6 @@ class CylindricalEncapsulation(_Container):
             anode_terminal_connector=anode_terminal_connector,
             lid_assembly=lid_assembly,
             canister=cylindrical_canister,
-            name=f"Cylindrical Encapsulation (from {prismatic_encapsulation.name})",
             datum=prismatic_encapsulation.datum  # Use property (returns mm)
         )
 
@@ -1380,7 +1375,6 @@ class CylindricalEncapsulation(_Container):
             height=height_mm,
             wall_thickness=wall_thickness_mm,
             datum=pouch_encapsulation.datum,  # Use property (returns mm)
-            name=f"Cylindrical Canister (from {pouch_encapsulation.name})"
         )
         
         # Create cylindrical terminal connectors with aluminum
@@ -1390,7 +1384,6 @@ class CylindricalEncapsulation(_Container):
             thickness=terminal_thickness_mm,
             radius=None,
             fill_factor=fill_factor,
-            name=f"Cylindrical Cathode Terminal (from {pouch_encapsulation.name})"
         )
         
         anode_terminal_connector = CylindricalTerminalConnector(
@@ -1398,7 +1391,6 @@ class CylindricalEncapsulation(_Container):
             thickness=terminal_thickness_mm,
             radius=None,
             fill_factor=fill_factor,
-            name=f"Cylindrical Anode Terminal (from {pouch_encapsulation.name})"
         )
         
         # Create cylindrical lid assembly with aluminum
@@ -1408,7 +1400,6 @@ class CylindricalEncapsulation(_Container):
             thickness=lid_thickness_mm,
             radius=None,
             fill_factor=fill_factor,
-            name=f"Cylindrical Lid (from {pouch_encapsulation.name})"
         )
         
         # Create and return the cylindrical encapsulation
@@ -1417,7 +1408,6 @@ class CylindricalEncapsulation(_Container):
             anode_terminal_connector=anode_terminal_connector,
             lid_assembly=lid_assembly,
             canister=cylindrical_canister,
-            name=f"Cylindrical Encapsulation (from {pouch_encapsulation.name})",
             datum=pouch_encapsulation.datum  # Use property (returns mm)
         )
 
