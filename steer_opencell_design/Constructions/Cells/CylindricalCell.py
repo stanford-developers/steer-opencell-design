@@ -229,6 +229,34 @@ class CylindricalCell(_Cell):
         self._reference_electrode_assembly.height = target_height
         self.reference_electrode_assembly = self._reference_electrode_assembly
         return self
+    
+    def fit_encapsulation_radius_to_assembly(self, clearance: float = 0) -> None:
+        """Fit the encapsulation radius to the electrode assembly.
+        
+        Delegates to CylindricalEncapsulation.fit_radius() using the reference
+        electrode assembly.
+        
+        Parameters
+        ----------
+        clearance : float, optional
+            Additional clearance in mm (default: 0)
+        """
+        self._encapsulation.fit_radius(self._reference_electrode_assembly, clearance)
+        self._position_encapsulation()
+    
+    def fit_encapsulation_height_to_assembly(self, clearance: float = 0) -> None:
+        """Fit the encapsulation internal height to the electrode assembly.
+        
+        Delegates to CylindricalEncapsulation.fit_height() using the reference
+        electrode assembly.
+        
+        Parameters
+        ----------
+        clearance : float, optional
+            Additional clearance in mm (default: 0)
+        """
+        self._encapsulation.fit_height(self._reference_electrode_assembly, clearance)
+        self._position_encapsulation()
 
     def get_top_down_view(self, **kwargs) -> go.Figure:
         """Generate top down view plot showing encapsulation and jelly roll cross-section.
