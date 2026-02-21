@@ -383,6 +383,7 @@ class MonoLayer(_Layup):
 
         # Update the width property of the cathode
         self.cathode.current_collector.width = self.cathode.current_collector.width + width_diff
+        self.cathode.current_collector.tab_position = self.cathode.current_collector.tab_position + width_diff
         self.cathode.current_collector = self.cathode.current_collector
         self.cathode = self.cathode
 
@@ -639,6 +640,7 @@ class ZFoldMonoLayer(MonoLayer):
 
         # Update the width property of the cathode
         self.cathode.current_collector.width = self.cathode.current_collector.width + width_diff
+        self.cathode.current_collector.tab_position = self.cathode.current_collector.tab_position + width_diff
         self.cathode.current_collector = self.cathode.current_collector
         self.cathode = self.cathode
 
