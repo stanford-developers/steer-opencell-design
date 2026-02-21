@@ -21,7 +21,7 @@ from steer_core import (
     DunderMixin,
     PlotterMixin,
 )
-from steer_core.Mixins.Propagation import PropagationMixin
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
 
 class _CylindricalComponent(
@@ -381,14 +381,10 @@ class _CylindricalComponent(
 
     @material.setter
     @calculate_bulk_properties
+    @propagating_setter(deepcopy=True)
     def material(self, material: PrismaticContainerMaterial) -> None:
         self.validate_type(material, PrismaticContainerMaterial, "Material")
-        # Clear parent reference on old material if exists
-        if hasattr(self, '_material') and self._material is not None:
-            self._material._set_parent(None)
-        self._material = deepcopy(material)
-        # Set parent reference on new material
-        self._material._set_parent(self)
+        self._material = material  # Already a copy due to decorator
 
     @radius.setter
     def radius(self, radius: float) -> None:
@@ -1115,14 +1111,10 @@ class CylindricalCanister(
 
     @material.setter
     @calculate_bulk_properties
+    @propagating_setter(deepcopy=True)
     def material(self, material: PrismaticContainerMaterial) -> None:
         self.validate_type(material, PrismaticContainerMaterial, "Material")
-        # Clear parent reference on old material if exists
-        if hasattr(self, '_material') and self._material is not None:
-            self._material._set_parent(None)
-        self._material = deepcopy(material)
-        # Set parent reference on new material
-        self._material._set_parent(self)
+        self._material = material  # Already a copy due to decorator
 
     @outer_radius.setter
     @calculate_all_properties
@@ -1780,6 +1772,7 @@ class CylindricalEncapsulation(_Container):
 
     @cathode_terminal_connector.setter
     @calculate_all_properties
+    @propagating_setter()
     def cathode_terminal_connector(self, connector: CylindricalTerminalConnector) -> None:
         
         self.validate_type(connector, CylindricalTerminalConnector, "Cathode Terminal Connector")
@@ -1787,54 +1780,33 @@ class CylindricalEncapsulation(_Container):
         if 'cathode' not in connector.name.lower():
             connector.name = f"{connector.name} (Cathode)"
         
-        # Clear parent reference on old connector if exists
-        if hasattr(self, '_cathode_terminal_connector') and self._cathode_terminal_connector is not None:
-            self._cathode_terminal_connector._set_parent(None)
-        
         self._cathode_terminal_connector = connector
-        
-        # Set parent reference on new connector
-        connector._set_parent(self)
 
     @anode_terminal_connector.setter
     @calculate_all_properties
+    @propagating_setter()
     def anode_terminal_connector(self, connector: CylindricalTerminalConnector) -> None:
 
         self.validate_type(connector, CylindricalTerminalConnector, "Anode Terminal Connector")
 
         if 'anode' not in connector.name.lower():
             connector.name = f"{connector.name} (Anode)"
-        
-        # Clear parent reference on old connector if exists
-        if hasattr(self, '_anode_terminal_connector') and self._anode_terminal_connector is not None:
-            self._anode_terminal_connector._set_parent(None)
             
         self._anode_terminal_connector = connector
-        
-        # Set parent reference on new connector
-        connector._set_parent(self)
 
     @lid_assembly.setter
     @calculate_all_properties
+    @propagating_setter()
     def lid_assembly(self, lid: CylindricalLidAssembly) -> None:
         self.validate_type(lid, CylindricalLidAssembly, "Lid Assembly")
-        # Clear parent reference on old lid if exists
-        if hasattr(self, '_lid_assembly') and self._lid_assembly is not None:
-            self._lid_assembly._set_parent(None)
         self._lid_assembly = lid
-        # Set parent reference on new lid
-        lid._set_parent(self)
 
     @canister.setter
     @calculate_all_properties
+    @propagating_setter()
     def canister(self, canister: CylindricalCanister) -> None:
         self.validate_type(canister, CylindricalCanister, "Canister")
-        # Clear parent reference on old canister if exists
-        if hasattr(self, '_canister') and self._canister is not None:
-            self._canister._set_parent(None)
         self._canister = canister
-        # Set parent reference on new canister
-        canister._set_parent(self)
         
         # Set radius ranges for components based on canister dimensions
         if hasattr(self, '_cathode_terminal_connector'):

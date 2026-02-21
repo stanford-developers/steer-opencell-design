@@ -8,7 +8,7 @@ from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Serializer import SerializerMixin
-from steer_core.Mixins.Propagation import PropagationMixin
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
 from steer_core.Decorators.Coordinates import calculate_coordinates
 from steer_core.Decorators.General import (
@@ -505,14 +505,10 @@ class Separator(
 
     @material.setter
     @calculate_bulk_properties
+    @propagating_setter(deepcopy=True)
     def material(self, material: SeparatorMaterial) -> None:
         self.validate_type(material, SeparatorMaterial, "Material")
-        # Clear parent reference on old material if exists
-        if hasattr(self, '_material') and self._material is not None:
-            self._material._set_parent(None)
-        self._material = deepcopy(material)
-        # Set parent reference on new material
-        self._material._set_parent(self)
+        self._material = material  # Already a copy due to decorator
 
     @datum.setter
     @calculate_coordinates

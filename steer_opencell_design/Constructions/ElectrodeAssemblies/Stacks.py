@@ -3,10 +3,10 @@
 import math
 from steer_opencell_design.Constructions.Layups.MonoLayers import MonoLayer, ZFoldMonoLayer
 
-from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
+from steer_core.Decorators.General import calculate_all_properties
 
 from steer_core.Constants.Units import *
-from steer_core.Constants.Universal import PI
+from steer_core.Mixins.Propagation import propagating_setter
 
 from steer_opencell_design.Components.Electrodes import Cathode, Anode
 from steer_opencell_design.Components.Separators import Separator
@@ -602,14 +602,11 @@ class _Stack(_ElectrodeAssembly):
         self.n_layers = calculated_n_layers
 
     @layup.setter
-    @calculate_all_properties  
+    @calculate_all_properties
+    @propagating_setter()
     def layup(self, value: Union[MonoLayer, ZFoldMonoLayer]):
-        # Clear parent reference on old layup if exists
-        if hasattr(self, '_layup') and self._layup is not None:
-            self._layup._set_parent(None)
+        self.validate_type(value, (MonoLayer, ZFoldMonoLayer), "layup")
         self._layup = value
-        # Set parent reference on new layup
-        value._set_parent(self)
 
 
 class ZFoldStack(_Stack):
@@ -724,15 +721,11 @@ class ZFoldStack(_Stack):
         return self._layup
     
     @layup.setter
-    @calculate_all_properties  
+    @calculate_all_properties
+    @propagating_setter()
     def layup(self, value: Union[MonoLayer, ZFoldMonoLayer]):
-
         """Set layup and convert stack type if needed."""
         self.validate_type(value, (MonoLayer, ZFoldMonoLayer), "layup")
-        
-        # Clear parent reference on old layup if exists
-        if hasattr(self, '_layup') and self._layup is not None:
-            self._layup._set_parent(None)
         
         if self._update_properties:
 
@@ -755,14 +748,11 @@ class ZFoldStack(_Stack):
                 
                 # Restore parent references so children point to self, not converted_stack
                 self._restore_child_parent_refs()
+                return
             
-        else:
-            # Same type, just update layup
-            self._layup = value
-            # Set parent reference on new layup
-            value._set_parent(self)
-
-
+        # Same type or not updating, just update layup
+        self._layup = value
+        
 class PunchedStack(_Stack):
     """
     Punched mono-layer stack electrode assembly.
@@ -794,15 +784,11 @@ class PunchedStack(_Stack):
         return self._layup
     
     @layup.setter
-    @calculate_all_properties  
+    @calculate_all_properties
+    @propagating_setter()
     def layup(self, value: Union[MonoLayer, ZFoldMonoLayer]):
-
         """Set layup and convert stack type if needed."""
         self.validate_type(value, (MonoLayer, ZFoldMonoLayer), "layup")
-        
-        # Clear parent reference on old layup if exists
-        if hasattr(self, '_layup') and self._layup is not None:
-            self._layup._set_parent(None)
         
         if self._update_properties:
 
@@ -825,11 +811,7 @@ class PunchedStack(_Stack):
                 
                 # Restore parent references so children point to self, not converted_stack
                 self._restore_child_parent_refs()
-            
-        else:
-            # Same type, just update layup
-            self._layup = value
-            # Set parent reference on new layup
-            value._set_parent(self)
-
-
+                return
+        
+        # Same type or not updating, just update layup
+        self._layup = value

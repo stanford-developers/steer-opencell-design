@@ -13,6 +13,7 @@ from steer_core.Constants.Units import *
 from steer_core.Constants.Universal import PI
 from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
 from steer_core.Decorators.Coordinates import calculate_coordinates
+from steer_core.Mixins.Propagation import propagating_setter
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Base import _ElectrodeAssembly
 from steer_opencell_design.Constructions.ElectrodeAssemblies.WindingEquipment import RoundMandrel, FlatMandrel
 from steer_opencell_design.Constructions.ElectrodeAssemblies.SpiralUtils import SpiralCalculator
@@ -2524,6 +2525,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
     @tape.setter
     @calculate_bulk_properties
     @calculate_tape_properties
+    @propagating_setter()
     def tape(self, value: Optional[Tape]) -> None:
         """Set the tape and recalculate properties.
         
@@ -2537,18 +2539,13 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         TypeError
             If value is not a Tape instance
         """
-        # Clear old parent reference
-        if hasattr(self, '_tape') and self._tape is not None:
-            if hasattr(self._tape, '_set_parent'):
-                self._tape._set_parent(None)
-
         if value is None:
             self._tape = None
             return
 
         # validate type
         self.validate_type(value, Tape, "tape")
-    
+
         # set the tape width to at least the current collector y-foil length
         if value._width is None or value._width < self._layup._anode._current_collector._y_foil_length:
             value.width = self._layup._anode._current_collector._y_foil_length * M_TO_MM
@@ -2564,15 +2561,12 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
         self._tape = value
 
-        # Set new parent reference for propagation
-        if hasattr(value, '_set_parent'):
-            value._set_parent(self)
-
         if self._update_properties:
             self._tape_length_driver = TapeDriver.TAPE_DRIVEN
 
     @mandrel.setter
     @calculate_all_properties
+    @propagating_setter()
     def mandrel(self, value: Union[RoundMandrel, FlatMandrel]) -> None:
         """Set the mandrel and recalculate properties.
         
@@ -2587,23 +2581,14 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             If value is not a valid mandrel type
         """
         self.validate_type(value, (RoundMandrel, FlatMandrel), "mandrel")
-
-        # Clear old parent reference
-        if hasattr(self, '_mandrel') and self._mandrel is not None:
-            if hasattr(self._mandrel, '_set_parent'):
-                self._mandrel._set_parent(None)
-
         self._mandrel = value
-
-        # Set new parent reference for propagation
-        if hasattr(value, '_set_parent'):
-            value._set_parent(self)
 
         if hasattr(self, '_layup'):
             self._layup = self.position_layup_on_mandrel(self._layup, self._mandrel)
 
     @layup.setter
     @calculate_all_properties
+    @propagating_setter()
     def layup(self, value: Laminate) -> None:
         """Set the layup and recalculate properties.
         
@@ -2620,18 +2605,11 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         # validate type
         self.validate_type(value, Laminate, "layup")
 
-        # Clear parent reference on old layup if exists
-        if hasattr(self, '_layup') and self._layup is not None:
-            self._layup._set_parent(None)
-
         # position the layup on the mandrel
         value = self.position_layup_on_mandrel(value, self._mandrel)
 
         # set to self
         self._layup = value
-
-        # Set parent reference on new layup
-        value._set_parent(self)
 
         # adjust the tape width range
         if hasattr(self, '_tape') and self._tape is not None:

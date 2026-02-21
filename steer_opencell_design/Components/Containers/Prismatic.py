@@ -6,7 +6,7 @@ from steer_opencell_design.Materials.Other import PrismaticContainerMaterial
 from steer_core.Constants.Units import *
 from steer_core.Decorators.General import calculate_bulk_properties, calculate_all_properties
 from steer_core.Decorators.Coordinates import calculate_coordinates
-from steer_core.Mixins.Propagation import PropagationMixin
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
 import numpy as np
 import pandas as pd
@@ -560,19 +560,10 @@ class _PrismaticComponent(
 
     @material.setter
     @calculate_bulk_properties
+    @propagating_setter(deepcopy=True)
     def material(self, material: PrismaticContainerMaterial) -> None:
         self.validate_type(material, PrismaticContainerMaterial, "Material")
-
-        # Clear old parent reference
-        if hasattr(self, '_material') and self._material is not None:
-            if hasattr(self._material, '_set_parent'):
-                self._material._set_parent(None)
-
-        self._material = deepcopy(material)
-
-        # Set new parent reference for propagation
-        if hasattr(self._material, '_set_parent'):
-            self._material._set_parent(self)
+        self._material = material  # Already a copy due to decorator
 
     @width.setter
     @calculate_all_properties
@@ -1265,19 +1256,10 @@ class PrismaticCanister(
 
     @material.setter
     @calculate_bulk_properties
+    @propagating_setter(deepcopy=True)
     def material(self, material: PrismaticContainerMaterial) -> None:
         self.validate_type(material, PrismaticContainerMaterial, "Material")
-
-        # Clear old parent reference
-        if hasattr(self, '_material') and self._material is not None:
-            if hasattr(self._material, '_set_parent'):
-                self._material._set_parent(None)
-
-        self._material = deepcopy(material)
-
-        # Set new parent reference for propagation
-        if hasattr(self._material, '_set_parent'):
-            self._material._set_parent(self)
+        self._material = material  # Already a copy due to decorator
 
     @width.setter
     @calculate_all_properties
@@ -2465,6 +2447,7 @@ class PrismaticEncapsulation(_Container):
 
     @cathode_terminal_connector.setter
     @calculate_all_properties
+    @propagating_setter()
     def cathode_terminal_connector(self, connector: PrismaticTerminalConnector) -> None:
         """Set cathode terminal connector."""
 
@@ -2473,19 +2456,11 @@ class PrismaticEncapsulation(_Container):
         if 'cathode' not in connector.name.lower():
             connector.name = f"{connector.name} (Cathode)"
 
-        # Clear old parent reference
-        if hasattr(self, '_cathode_terminal_connector') and self._cathode_terminal_connector is not None:
-            if hasattr(self._cathode_terminal_connector, '_set_parent'):
-                self._cathode_terminal_connector._set_parent(None)
-
         self._cathode_terminal_connector = connector
-
-        # Set new parent reference for propagation
-        if hasattr(connector, '_set_parent'):
-            connector._set_parent(self)
 
     @anode_terminal_connector.setter
     @calculate_all_properties
+    @propagating_setter()
     def anode_terminal_connector(self, connector: PrismaticTerminalConnector) -> None:
         """Set anode terminal connector."""
 
@@ -2494,53 +2469,23 @@ class PrismaticEncapsulation(_Container):
         if 'anode' not in connector.name.lower():
             connector.name = f"{connector.name} (Anode)"
 
-        # Clear old parent reference
-        if hasattr(self, '_anode_terminal_connector') and self._anode_terminal_connector is not None:
-            if hasattr(self._anode_terminal_connector, '_set_parent'):
-                self._anode_terminal_connector._set_parent(None)
-            
         self._anode_terminal_connector = connector
-
-        # Set new parent reference for propagation
-        if hasattr(connector, '_set_parent'):
-            connector._set_parent(self)
 
     @lid_assembly.setter
     @calculate_all_properties
+    @propagating_setter()
     def lid_assembly(self, lid: PrismaticLidAssembly) -> None:
         """Set lid assembly."""
         self.validate_type(lid, PrismaticLidAssembly, "Lid Assembly")
-
-        # Clear old parent reference
-        if hasattr(self, '_lid_assembly') and self._lid_assembly is not None:
-            if hasattr(self._lid_assembly, '_set_parent'):
-                self._lid_assembly._set_parent(None)
-
         self._lid_assembly = lid
-
-        # Set new parent reference for propagation
-        if hasattr(lid, '_set_parent'):
-            lid._set_parent(self)
 
     @canister.setter
     @calculate_all_properties
+    @propagating_setter()
     def canister(self, canister: PrismaticCanister) -> None:
         """Set canister."""
-
-        # Validate type
         self.validate_type(canister, PrismaticCanister, "Canister")
-
-        # Clear old parent reference
-        if hasattr(self, '_canister') and self._canister is not None:
-            if hasattr(self._canister, '_set_parent'):
-                self._canister._set_parent(None)
-
-        # set internal canister value
         self._canister = canister
-
-        # Set new parent reference for propagation
-        if hasattr(canister, '_set_parent'):
-            canister._set_parent(self)
 
     @width.setter
     @calculate_all_properties

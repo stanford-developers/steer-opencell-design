@@ -4,10 +4,10 @@ from steer_opencell_design.Components.Containers.Flexframe import FlexFrameEncap
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import PunchedStack
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
 from steer_opencell_design.Constructions.Cells.Base import _Cell
-from steer_opencell_design.Components.Electrodes import Cathode, Anode
 
-from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
+from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Constants.Units import *
+from steer_core.Mixins.Propagation import propagating_setter
 
 from typing import Tuple
 import plotly.graph_objects as go
@@ -318,6 +318,7 @@ class FlexFrameCell(_Cell):
 
     @electrode_assembly.setter
     @calculate_all_properties
+    @propagating_setter('reference_electrode_assembly')
     def electrode_assembly(self, value: PunchedStack) -> None:
         """Set electrode assembly with validation.
         
@@ -327,20 +328,11 @@ class FlexFrameCell(_Cell):
             New electrode assembly to set
         """
         self.validate_type(value, (PunchedStack), "electrode_assembly")
-
-        # Clear old parent reference
-        if hasattr(self, '_reference_electrode_assembly') and self._reference_electrode_assembly is not None:
-            if hasattr(self._reference_electrode_assembly, '_set_parent'):
-                self._reference_electrode_assembly._set_parent(None)
-
         self._reference_electrode_assembly = value
-
-        # Set new parent reference for propagation
-        if hasattr(value, '_set_parent'):
-            value._set_parent(self)
 
     @encapsulation.setter
     @calculate_all_properties
+    @propagating_setter()
     def encapsulation(self, value: FlexFrameEncapsulation) -> None:
         """Set encapsulation with validation.
         
@@ -350,16 +342,6 @@ class FlexFrameCell(_Cell):
             New encapsulation to set
         """
         self.validate_type(value, FlexFrameEncapsulation, "encapsulation")
-
-        # Clear old parent reference
-        if hasattr(self, '_encapsulation') and self._encapsulation is not None:
-            if hasattr(self._encapsulation, '_set_parent'):
-                self._encapsulation._set_parent(None)
-
         self._encapsulation = value
-
-        # Set new parent reference for propagation
-        if hasattr(value, '_set_parent'):
-            value._set_parent(self)
 
 

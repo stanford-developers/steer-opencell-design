@@ -19,7 +19,7 @@ from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Serializer import SerializerMixin
-from steer_core.Mixins.Propagation import PropagationMixin
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
 from steer_opencell_design.Materials.Other import CurrentCollectorMaterial
 
@@ -1007,20 +1007,11 @@ class _CurrentCollector(
 
     @material.setter
     @calculate_bulk_properties
+    @propagating_setter(deepcopy=True)
     def material(self, material: CurrentCollectorMaterial) -> None:
         self.validate_type(material, CurrentCollectorMaterial, "material")
-
-        # Clear old parent reference
-        if hasattr(self, '_material') and self._material is not None:
-            if hasattr(self._material, '_set_parent'):
-                self._material._set_parent(None)
-
-        self._material = deepcopy(material)
+        self._material = material  # Already a copy due to decorator
         self._calculate_fill_patterns()
-
-        # Set new parent reference for propagation
-        if hasattr(self._material, '_set_parent'):
-            self._material._set_parent(self)
 
     @datum_x.setter
     def datum_x(self, x: float) -> None:
