@@ -593,7 +593,7 @@ class TestFlatJellyRoll(unittest.TestCase):
             laminate=layup,
             mandrel=mandrel,
             tape=tape,
-            additional_tape_wraps=2s
+            additional_tape_wraps=2
         )
 
     def test_basics(self):

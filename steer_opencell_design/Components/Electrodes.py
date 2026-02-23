@@ -112,6 +112,13 @@ class _Electrode(
         self.mass_loading = mass_loading
         self.calender_density = calender_density
 
+        # Validate that insulation material is provided when current collector has insulation area
+        if self.current_collector.insulation_area > 0 and self.insulation_material is None:
+            raise ValueError(
+                f"Current collector has insulation area ({self.current_collector.insulation_area} cm²) "
+                f"but no insulation material was provided. Please specify an insulation_material."
+            )
+
         # Calculate initial properties
         self._calculate_all_properties()
 
@@ -1253,17 +1260,12 @@ class _Electrode(
     @calculate_coordinates
     @propagating_setter()
     def current_collector(self, current_collector: _CurrentCollector):
+
         # validate the current collector
         self.validate_type(current_collector, _CurrentCollector, "current collector")
 
         # assign the current collector
         self._current_collector = current_collector
-
-        # if the current collector has insulation, load up a default material if none is provided
-        if self._current_collector.insulation_area != 0:
-            if not hasattr(self, "_insulation_material") or self._insulation_material is None:
-                # Use the setter so @propagating_setter handles the parent reference
-                self.insulation_material = InsulationMaterial.from_database("Aluminium Oxide, 95%")
 
     @name.setter
     def name(self, name: str):
