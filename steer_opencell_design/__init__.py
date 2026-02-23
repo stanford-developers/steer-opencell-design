@@ -18,7 +18,7 @@ All public classes are re-exported from this top-level namespace for convenience
     cell = ocd.CylindricalCell(...)
 """
 
-__version__ = "1.0.24"
+__version__ = "1.0.25"
 
 # import materials
 from .Materials.ActiveMaterials import CathodeMaterial, AnodeMaterial
