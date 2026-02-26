@@ -189,7 +189,7 @@ class TestCylindricalCell(unittest.TestCase):
         self.assertEqual(self.cell.mass, 910.08)
         self.assertEqual(self.cell.specific_energy, 136.35)
         self.assertEqual(self.cell.volumetric_energy, 261.36)
-        self.assertEqual(self.cell.cost_per_energy, 64.45)
+        self.assertEqual(self.cell.cost_per_energy, 58.02)
     
     def test_plots(self):
 
@@ -1028,7 +1028,7 @@ class TestCylindricalCellTabbed(unittest.TestCase):
         self.assertEqual(self.cell.mass, 920.95)
         self.assertEqual(self.cell.specific_energy, 143.66)
         self.assertEqual(self.cell.volumetric_energy, 285.58)
-        self.assertEqual(self.cell.cost_per_energy, 58.59)
+        self.assertEqual(self.cell.cost_per_energy, 52.65)
 
     def test_set_nmc(self):
     

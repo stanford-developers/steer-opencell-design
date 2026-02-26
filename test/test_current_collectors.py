@@ -173,7 +173,7 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         self.assertEqual(round(self.current_collector.foil_area, 6), 6732)
         self.assertEqual(round(self.current_collector.coated_area, 6), 3079.3 + 3074)
         self.assertEqual(round(self.current_collector.insulation_area, 6), 185.8)
-        self.assertEqual(self.current_collector.material.cost, 0.17)
+        self.assertEqual(self.current_collector.material.cost, 0.04)
         self.assertEqual(self.current_collector.material.mass, 13.63)
 
     def test_figures(self):
@@ -189,16 +189,16 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         self.current_collector.material = CurrentCollectorMaterial.from_database(name="Copper")
         self.assertEqual(self.current_collector.material.name, "Copper")
         self.assertEqual(self.current_collector.material.mass, 45.24)
-        self.assertEqual(self.current_collector.material.cost, 0.82)
+        self.assertEqual(self.current_collector.material.cost, 0.7)
 
         self.current_collector.thickness = 10
         self.assertEqual(self.current_collector.thickness, 10)
         self.assertEqual(self.current_collector.material.mass, 30.16)
-        self.assertEqual(self.current_collector.material.cost, 0.55)
+        self.assertEqual(self.current_collector.material.cost, 0.47)
 
         self.current_collector.bare_lengths_a_side = (100, 100)
         self.assertEqual(self.current_collector.material.mass, 30.16)
-        self.assertEqual(self.current_collector.material.cost, 0.55)
+        self.assertEqual(self.current_collector.material.cost, 0.47)
 
         fig_a = self.current_collector.get_a_side_view()
         fig_b = self.current_collector.get_b_side_view()

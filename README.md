@@ -442,4 +442,4 @@ If you use this software in your research, please cite it using the metadata in 
 
 ## License
 
-MIT License. See [LICENCE.txt](LICENCE.txt) for details.
+This project is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. See [LICENCE.txt](LICENCE.txt) for details.

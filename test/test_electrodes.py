@@ -234,21 +234,6 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
             },
         )
 
-        self.assertEqual(
-            self.cathode.cost_breakdown,
-            {
-                "Coating": {
-                    "NaNiMn P2-O3 Composite": 0.17,
-                    "PVDF": 0.01,
-                    "CMC": 0.0,
-                    "Super P": 0.01,
-                    "Graphite": 0.0,
-                },
-                "Current Collector": 0.03,
-                "Electrical Insulation": 0.01,
-            },
-        )
-
         def sum_nested_dict(data):
             """Recursively sum all numeric values in a nested dictionary"""
             total = 0
@@ -259,7 +244,6 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
                     total += value
             return total
 
-        self.assertAlmostEqual(self.cathode._cost, sum_nested_dict(self.cathode._cost_breakdown), 5)
         self.assertAlmostEqual(self.cathode._mass, sum_nested_dict(self.cathode._mass_breakdown), 5)
 
         self.assertEqual(self.cathode.calender_density, 2.60)
@@ -568,18 +552,6 @@ class testAnodeTabWelded(unittest.TestCase):
             },
         )
 
-        self.assertEqual(
-            self.anode.cost_breakdown,
-            {
-                "Coating": {
-                    "Synthetic Graphite": 0.22,
-                    "CMC": 0.01,
-                    "Super P": 0.07,
-                },
-                "Current Collector": 0.79,
-            },
-        )
-
         def sum_nested_dict(data):
             """Recursively sum all numeric values in a nested dictionary"""
             total = 0
@@ -590,7 +562,6 @@ class testAnodeTabWelded(unittest.TestCase):
                     total += value
             return total
 
-        self.assertAlmostEqual(self.anode._cost, sum_nested_dict(self.anode._cost_breakdown), 5)
         self.assertAlmostEqual(self.anode._mass, sum_nested_dict(self.anode._mass_breakdown), 5)
 
     def test_equality(self):

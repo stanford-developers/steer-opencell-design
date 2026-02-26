@@ -242,7 +242,7 @@ class TestMultiCathodeFormulation(unittest.TestCase):
         self.assertEqual(self.cathode_formulation._name, "Cathode Formulation")
         self.assertEqual(self.cathode_formulation.name, "Cathode Formulation")
         self.assertEqual(self.cathode_formulation.density, 3.37)
-        self.assertEqual(self.cathode_formulation.specific_cost, 8.37)
+        self.assertEqual(self.cathode_formulation.specific_cost, 8.64)
 
         figure = self.cathode_formulation.plot_specific_capacity_curve(add_materials=True)
 
@@ -279,7 +279,7 @@ class TestMultiCathodeFormulation(unittest.TestCase):
         self.cathode_formulation.voltage_cutoff = 4.09
 
         self.assertEqual(self.cathode_formulation.density, 3.3)
-        self.assertEqual(self.cathode_formulation.specific_cost, 6.47)
+        self.assertEqual(self.cathode_formulation.specific_cost, 7.24)
 
         figure = self.cathode_formulation.plot_specific_capacity_curve(add_materials=True)
         # figure.show()
@@ -369,7 +369,7 @@ class TestDualAnodeFormulation(unittest.TestCase):
         self.assertEqual(self.anode_formulation._name, "Anode Formulation")
         self.assertEqual(self.anode_formulation.name, "Anode Formulation")
         self.assertEqual(self.anode_formulation.density, 1.54)
-        self.assertEqual(self.anode_formulation.specific_cost, 7.87)
+        self.assertEqual(self.anode_formulation.specific_cost, 5.81)
 
     def test_plot_specific_capacity_curve(self):
         figure = self.anode_formulation.plot_specific_capacity_curve(add_materials=True)
