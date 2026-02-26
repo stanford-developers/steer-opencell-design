@@ -376,7 +376,7 @@ class Separator(
 
     @property
     def areal_cost(self) -> float:
-        """Get the separator areal cost in $/cm²."""
+        """Get the separator areal cost in $/m²."""
         return np.round(self._areal_cost, 2)
     
     @property
