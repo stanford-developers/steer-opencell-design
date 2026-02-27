@@ -362,6 +362,56 @@ class PrismaticCell(_Cell):
             np.round(maximum_height, 2)
         )
 
+    @height.setter
+    @calculate_all_properties
+    def height(self, value: float) -> None:
+        """Set the cell height by adjusting the layup and encapsulation dimensions.
+
+        Parameters
+        ----------
+        value : float
+            Desired cell height in millimeters
+        """
+        from steer_opencell_design.Constructions.Layups.Laminate import Laminate
+
+        # validate input
+        self.validate_positive_float(value, "height")
+
+        # get the height difference
+        current_height = self.height
+        height_difference = value - current_height
+
+        if isinstance(self._reference_electrode_assembly, _Stack):
+            # For stacked assemblies, update layup height directly
+            layup = self._reference_electrode_assembly.layup
+            if isinstance(layup, Laminate):
+                # Laminate uses width for y-dimension
+                new_layup_width = layup.width + height_difference
+                layup.width = new_layup_width
+            else:
+                # MonoLayer uses height
+                new_layup_height = layup.height + height_difference
+                layup.height = new_layup_height
+            self._reference_electrode_assembly.layup = self._reference_electrode_assembly.layup
+
+        elif type(self._reference_electrode_assembly) == FlatWoundJellyRoll:
+            # For flat wound jelly rolls, use the assembly's height setter
+            # which internally adjusts layup.width and tape width
+            _original_assembly_thickness = self._reference_electrode_assembly._thickness
+            new_assembly_height = self._reference_electrode_assembly.height + height_difference
+            self._reference_electrode_assembly.height = new_assembly_height
+            _new_assembly_thickness = self._reference_electrode_assembly._thickness
+            encapsulation_length_difference = (_new_assembly_thickness - _original_assembly_thickness) * self._n_electrode_assembly * M_TO_MM
+            self._encapsulation.length += encapsulation_length_difference
+
+        # update the encapsulation height or width depending on connector orientation
+        if self._encapsulation._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            new_canister_height = self._encapsulation.height + height_difference
+            self._encapsulation.height = new_canister_height
+        elif self._encapsulation._connector_orientation == ConnectorOrientation.TRANSVERSE:
+            new_canister_width = self._encapsulation.width + height_difference
+            self._encapsulation.width = new_canister_width
+
     @property
     def clipped_tab_length(self) -> float:
         """Get clipped tab length."""
