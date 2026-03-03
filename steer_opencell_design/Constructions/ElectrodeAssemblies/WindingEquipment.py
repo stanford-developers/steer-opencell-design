@@ -7,6 +7,7 @@ from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
+from steer_core.Mixins.Datum import DatumMixin
 
 from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Decorators.Coordinates import calculate_coordinates
@@ -28,6 +29,7 @@ class _Mandrel(
     ValidationMixin,
     DunderMixin,
     CoordinateMixin,
+    DatumMixin,
     PlotterMixin
 ):
     """Abstract base class for winding mandrels used in jelly roll assembly."""
@@ -41,6 +43,9 @@ class _Mandrel(
         ):
 
         self._update_properties = False
+
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
 
         self.length = length
         self.datum = datum
@@ -192,18 +197,8 @@ class _Mandrel(
         """Return the mandrel length in mm."""
         return np.round(self._length * M_TO_MM, 2)
 
-    @property
-    def datum(self) -> Tuple[float, float, float]:
-        """
-        Get the datum of the current collector.
-        """
-        return (
-            np.round(self._datum[0] * M_TO_MM, 2),
-            np.round(self._datum[1] * M_TO_MM, 2),
-            np.round(self._datum[2] * M_TO_MM, 2),
-        )
-    
-    @datum.setter
+    # Override datum setter to use decorator
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, value: Tuple[float, float, float]):
         

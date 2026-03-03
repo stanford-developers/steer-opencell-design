@@ -3,6 +3,7 @@
 from steer_opencell_design.Constructions.Layups.Base import _Layup
 
 from steer_core.Mixins.Coordinates import CoordinateMixin
+from steer_core.Mixins.Datum import DatumMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Mixins.Colors import ColorMixin
@@ -34,7 +35,8 @@ DIRECTION_COL = 2
 
 class _ElectrodeAssembly(
     ABC,
-    CoordinateMixin, 
+    CoordinateMixin,
+    DatumMixin,
     ValidationMixin, 
     PropagationMixin,
     SerializerMixin, 
@@ -66,6 +68,10 @@ class _ElectrodeAssembly(
             If layup is invalid or None
         """
         self._update_properties = False
+        
+        # Initialize _datum early; will be properly set from layup or calculated later
+        self._datum = (0.0, 0.0, 0.0)
+        
         self.layup = layup
         self.name = name
 
@@ -212,11 +218,6 @@ class _ElectrodeAssembly(
         )
 
         return fig
-
-    @property
-    def datum(self) -> Tuple[float, float, float]:
-        """Return the datum coordinates of the electrode assembly."""
-        return tuple(round(d * M_TO_MM, 2) for d in self._datum)
 
     @property
     def pore_volume(self) -> float:
@@ -380,11 +381,11 @@ class _ElectrodeAssembly(
 
         return _convert_and_round_recursive(self._mass_breakdown)
 
-    @datum.setter
-    @calculate_coordinates
+    # Override datum setter to sync with layup
+    @DatumMixin.datum.setter
     def datum(self, value: Tuple[float, float, float]) -> None:
         """Set the datum coordinates of the electrode assembly with validation."""
-        self.validate_datum(value, "datum")
+        self.validate_datum(value)
         self._layup.datum = value
         self._datum = tuple(float(v) * MM_TO_M for v in value)
 

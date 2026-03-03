@@ -4,6 +4,7 @@ from time import time
 from steer_core.Constants.Units import *
 
 from steer_core.Mixins.Coordinates import CoordinateMixin
+from steer_core.Mixins.Datum import DatumMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
@@ -20,7 +21,8 @@ import numpy as np
 
 
 class Tape(
-    CoordinateMixin, 
+    CoordinateMixin,
+    DatumMixin,
     ValidationMixin,
     DunderMixin,
     PlotterMixin,
@@ -57,6 +59,9 @@ class Tape(
             Name of the tape. Defaults to 'Tape'.
         """
         self._update_properties = False
+
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
 
         self.thickness = thickness
         self.material = material
@@ -153,11 +158,6 @@ class Tape(
         return np.round(self._areal_cost, 2)
 
     @property
-    def datum(self) -> Tuple[float, float, float]:
-        """Get the datum position in mm."""
-        return tuple(round(coord * M_TO_MM, 2) for coord in self._datum)
-
-    @property
     def name(self) -> str:
         """Get the tape name."""
         return self._name
@@ -214,12 +214,6 @@ class Tape(
         self.validate_positive_float(areal_cost, "Areal Cost")
         new_material_specific_cost = areal_cost / (self.material._density * self._thickness)  # $/kg
         self._material.specific_cost = new_material_specific_cost
-
-    @datum.setter
-    def datum(self, datum: Tuple[float, float, float]) -> None:
-        """Set the datum position in mm."""
-        self.validate_datum(datum)
-        self._datum = tuple(coord * MM_TO_M for coord in datum)
 
     @name.setter
     def name(self, name: str) -> None:

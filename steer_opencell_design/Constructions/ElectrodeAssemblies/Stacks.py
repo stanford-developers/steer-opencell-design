@@ -513,44 +513,33 @@ class _Stack(_ElectrodeAssembly):
         """Return the underlying layup instance."""
         return self._layup
 
-    @property
-    def datum(self) -> Tuple[float, float, float]:
-        """Get the datum position in mm."""
-        return tuple(round(coord * M_TO_MM, 2) for coord in self._datum)
-
-    @datum.setter
-    def datum(self, value: Tuple[float, float, float]):
-
-        # Validate input
+    # Override datum setter to translate stack components and sync with layup
+    @_ElectrodeAssembly.datum.setter
+    def datum(self, value: Tuple[float, float, float]) -> None:
+        """Set datum position, translating all stack components.
+        
+        Translates all stack components and the layup by the difference
+        between the new and current datum positions.
+        """
         self.validate_datum(value)
-
-        # value in m
-        _value = tuple(coord * MM_TO_M for coord in value)
-
-        # get the translation vector
-        _translation_vector = (
-            _value[0] - self._datum[0],
-            _value[1] - self._datum[1],
-            _value[2] - self._datum[2],
-        )
-
-        # go through each component and apply the translation
+        
+        # Compute translation vector from current datum to new datum
+        translation = self._compute_datum_translation(value)
+        
+        # Translate each component in the stack
         for component in self._stack.values():
             component.datum = (
-                (component._datum[0] + _translation_vector[0]) * M_TO_MM,
-                (component._datum[1] + _translation_vector[1]) * M_TO_MM,
-                (component._datum[2] + _translation_vector[2]) * M_TO_MM,
+                (component._datum[0] + translation[0]) * M_TO_MM,
+                (component._datum[1] + translation[1]) * M_TO_MM,
+                (component._datum[2] + translation[2]) * M_TO_MM,
             )
 
-        # translate the layup
-        self._layup.datum = (
-            (self._layup._cathode._datum[0] + _translation_vector[0]) * M_TO_MM,
-            (self._layup._cathode._datum[1] + _translation_vector[1]) * M_TO_MM,
-            (self._layup._cathode._datum[2] + _translation_vector[2]) * M_TO_MM,
-        )
-
-        # update the stack datum
-        self._datum = _value
+        # Translate the layup by setting its datum to the new value
+        # (layup propagates to its children)
+        self._layup.datum = value
+        
+        # Update assembly's datum
+        self._datum = tuple(float(v) * MM_TO_M for v in value)
 
     @n_layers.setter
     @calculate_all_properties

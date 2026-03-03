@@ -416,22 +416,28 @@ class OverhangMixin:
             # Determine which dimension and position to adjust
             if direction in ["left", "right"]:
                 self.anode.current_collector.x_foil_length += overhang_difference * M_TO_MM
-                position_adjustment = (overhang_difference / 2) * M_TO_MM
+                position_adjustment = (overhang_difference / 2)  # In meters
                 if direction == "left":
-                    self.anode.current_collector.datum_x -= position_adjustment
+                    new_datum_x = self.anode.datum_x - position_adjustment * M_TO_MM
                 else:  # right
-                    self.anode.current_collector.datum_x += position_adjustment
+                    new_datum_x = self.anode.datum_x + position_adjustment * M_TO_MM
+                # Set anode datum (syncs to current_collector via electrode datum setter)
+                self.anode.datum = (new_datum_x, self.anode.datum_y, self.anode.datum_z)
             else:  # bottom or top
                 self.anode.current_collector.y_foil_length += overhang_difference * M_TO_MM
-                position_adjustment = (overhang_difference / 2) * M_TO_MM
+                position_adjustment = (overhang_difference / 2)  # In meters
                 if direction == "bottom":
-                    self.anode.current_collector.datum_y -= position_adjustment
+                    new_datum_y = self.anode.datum_y - position_adjustment * M_TO_MM
                 else:  # top
-                    self.anode.current_collector.datum_y += position_adjustment
+                    new_datum_y = self.anode.datum_y + position_adjustment * M_TO_MM
+                # Set anode datum (syncs to current_collector via electrode datum setter)
+                self.anode.datum = (self.anode.datum_x, new_datum_y, self.anode.datum_z)
 
-            # Trigger setters
-            self.anode.current_collector = self.anode.current_collector
+            # Trigger anode setter with _update_properties=True to preserve datum position
+            old_update_state = self._update_properties
+            self._update_properties = True
             self.anode = self.anode
+            self._update_properties = old_update_state
 
         elif isinstance(component_obj, Separator):
             # Create mapping for dimension and position adjustments
