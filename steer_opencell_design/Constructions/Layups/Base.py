@@ -1,5 +1,6 @@
 """Base classes and enums for electrode layup configurations."""
 
+from abc import ABC, abstractmethod
 from copy import copy, deepcopy
 from enum import Enum
 from typing import Tuple
@@ -64,6 +65,7 @@ class ElectrodeOrientation(Enum):
 
 
 class _Layup(
+    ABC,
     CoordinateMixin,
     DatumMixin,
     ValidationMixin, 
@@ -131,6 +133,7 @@ class _Layup(
         self._calculate_electrochemical_properties()
         self._calculate_voltage_limits()
 
+    @abstractmethod
     def _calculate_bulk_properties(self):
         pass
 
