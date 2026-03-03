@@ -19,6 +19,11 @@ class MonoLayer(_Layup):
     Class for a MonoLayer, which is a combination of anode, cathode, and separator. This class represents the
     item which will be repeated in space to form a z-fold stack.
     """
+    
+    # Class-level behavioral attributes for separator handling
+    _sync_separator_length: bool = True  # Whether to sync length from canonical separator
+    _require_rotated_separator: bool = True  # Whether separators should be rotated (90° in xy-plane)
+
     def __init__(
         self,
         cathode: Cathode,
@@ -76,26 +81,13 @@ class MonoLayer(_Layup):
 
     def _calculate_all_properties(self):
 
-        self.validate_type(
-            self.anode.current_collector,
-            PunchedCurrentCollector,
-            "Anode Current Collector",
-        )
-
-        self.validate_type(
-            self.cathode.current_collector,
-            PunchedCurrentCollector,
-            "Cathode Current Collector",
-        )
+        self._validate_punched_current_collectors()
 
         # Sync canonical separator properties to internal separators
         self._sync_separator_from_canonical()
 
-        # Ensure bottom and top separators are not rotated in xy-plane
-        if not self._bottom_separator._rotated_xy:
-            self._bottom_separator._rotate_90_xy()
-        if not self._top_separator._rotated_xy:
-            self._top_separator._rotate_90_xy()
+        # Ensure separators have the required rotation state
+        self._ensure_separator_rotation()
 
         super()._calculate_all_properties()
 
@@ -112,11 +104,83 @@ class MonoLayer(_Layup):
         self._canonical_separator._width_range = (_x_foil_length, _x_foil_length * 1.2)
         self._canonical_separator._length_range = (_y_foil_length, _y_foil_length * 1.2)
 
+    def _validate_punched_current_collectors(self):
+        """Validate that both anode and cathode use PunchedCurrentCollector."""
+        self.validate_type(
+            self.anode.current_collector,
+            PunchedCurrentCollector,
+            "Anode Current Collector",
+        )
+        self.validate_type(
+            self.cathode.current_collector,
+            PunchedCurrentCollector,
+            "Cathode Current Collector",
+        )
+
+    def _ensure_separator_rotation(self):
+        """Ensure separators have the required rotation state based on `_require_rotated_separator`."""
+        for sep in [self._bottom_separator, self._top_separator]:
+            if sep is None:
+                continue
+            # Rotate if current state doesn't match required state
+            if sep._rotated_xy != self._require_rotated_separator:
+                sep._rotate_90_xy()
+
+    def _update_electrode_dimensions(self, width_diff: float = 0, height_diff: float = 0, update_tab_position: bool = True):
+        """Propagate dimension changes to anode and cathode current collectors.
+        
+        Parameters
+        ----------
+        width_diff : float
+            Change in width to apply (in mm)
+        height_diff : float  
+            Change in height to apply (in mm)
+        update_tab_position : bool
+            Whether to also update tab position (only for width changes)
+        """
+        for electrode_attr in ['anode', 'cathode']:
+            electrode = getattr(self, electrode_attr)
+            cc = electrode.current_collector
+            if width_diff:
+                cc.width = cc.width + width_diff
+                if update_tab_position:
+                    cc.tab_position = cc.tab_position + width_diff
+            if height_diff:
+                cc.height = cc.height + height_diff
+            electrode.current_collector = cc
+            setattr(self, electrode_attr, electrode)
+
+    def _update_separator_dimensions(self, width_diff: float = 0, length_diff: float = 0, include_canonical: bool = True):
+        """Propagate dimension changes to separators.
+        
+        Parameters
+        ----------
+        width_diff : float
+            Change in separator width to apply (in mm)
+        length_diff : float
+            Change in separator length to apply (in mm)
+        include_canonical : bool
+            Whether to also update the canonical separator
+        """
+        separators = [self._bottom_separator, self._top_separator]
+        if include_canonical and hasattr(self, '_canonical_separator'):
+            separators.append(self._canonical_separator)
+        for sep in separators:
+            if sep is None:
+                continue
+            if width_diff:
+                sep.width = sep.width + width_diff
+            if length_diff:
+                sep.length = sep.length + length_diff
+
     def _sync_separator_from_canonical(self):
         """Sync separator properties from canonical separator to internal top/bottom separators.
         
         This method propagates changes made to the unified separator API to both
         internal separator instances, while preserving their individual z-positions.
+        
+        Note: Length syncing is controlled by the `_sync_separator_length` class attribute.
+        ZFoldMonoLayer sets this to False since its separator lengths are constrained by electrode geometry.
         """
         if not hasattr(self, '_canonical_separator') or self._canonical_separator is None:
             return
@@ -128,7 +192,8 @@ class MonoLayer(_Layup):
                 continue
             # Sync dimensions (stored in internal units - meters)
             sep._width = self._canonical_separator._width
-            sep._length = self._canonical_separator._length
+            if self._sync_separator_length:
+                sep._length = self._canonical_separator._length
             sep._thickness = self._canonical_separator._thickness
             # Sync material
             sep._material = deepcopy(self._canonical_separator._material)
@@ -288,32 +353,33 @@ class MonoLayer(_Layup):
     @calculate_coordinates
     @calculate_bulk_properties
     def separator(self, value: Separator):
+        self._set_separator_common(value)
 
+    def _set_separator_common(self, value: Separator):
+        """Common logic for setting the separator on both MonoLayer and ZFoldMonoLayer.
+        
+        Handles validation, parent reference management, deep copying, datum preservation,
+        and parent reference setup. Subclasses can call this and add additional behavior.
+        """
         # Validate input type
         self.validate_type(value, Separator, "Separator")
 
         # Clear old parent references (only if different objects)
-        if hasattr(self, '_bottom_separator') and self._bottom_separator is not None:
-            if self._bottom_separator is not value:
-                self._bottom_separator._set_parent(None)
-        if hasattr(self, '_top_separator') and self._top_separator is not None:
-            if self._top_separator is not value:
-                self._top_separator._set_parent(None)
-        if hasattr(self, '_canonical_separator') and self._canonical_separator is not None:
-            if self._canonical_separator is not value:
-                self._canonical_separator._set_parent(None)
+        for attr in ['_bottom_separator', '_top_separator', '_canonical_separator']:
+            sep = getattr(self, attr, None)
+            if sep is not None and sep is not value:
+                sep._set_parent(None)
 
-        # Deep copy into both
-        base = deepcopy(value)
-        top = deepcopy(value)
+        # Deep copy into both separators, preserving existing z positions
+        bottom_datum = self._bottom_separator.datum
+        top_datum = self._top_separator.datum
 
-        # Preserve existing z positions if already initialized
-        base.datum = (self._bottom_separator.datum[0], self._bottom_separator.datum[1], self._bottom_separator.datum[2])
-        top.datum = (self._top_separator.datum[0], self._top_separator.datum[1], self._top_separator.datum[2])
-
-        self._bottom_separator = base
-        self._top_separator = top
+        self._bottom_separator = deepcopy(value)
+        self._top_separator = deepcopy(value)
         self._canonical_separator = deepcopy(value)
+
+        self._bottom_separator.datum = bottom_datum
+        self._top_separator.datum = top_datum
 
         # Set new parent references for propagation
         self._bottom_separator._set_parent(self, "bottom_separator")
@@ -322,13 +388,7 @@ class MonoLayer(_Layup):
 
     @property
     def separator_overhangs(self) -> dict:
-
-        return {
-            "left": self.bottom_separator_overhang_left,
-            "right": self.bottom_separator_overhang_right,
-            "top": self.bottom_separator_overhang_top,
-            "bottom": self.bottom_separator_overhang_bottom,
-        }
+        return {direction: getattr(self, f"separator_overhang_{direction}") for direction in ['left', 'right', 'top', 'bottom']}
 
     @property
     def separator_overhang_left(self) -> float:
@@ -357,7 +417,7 @@ class MonoLayer(_Layup):
         self.top_separator_overhang_right = overhang
 
     @property
-    def separator_overhang_top(self) -> float: 
+    def separator_overhang_top(self) -> float:
         return self.bottom_separator_overhang_top
 
     @property
@@ -382,73 +442,23 @@ class MonoLayer(_Layup):
         self.bottom_separator_overhang_bottom = overhang
         self.top_separator_overhang_bottom = overhang
 
-    @width.setter 
+    @width.setter
     @calculate_coordinates
     @calculate_bulk_properties
     def width(self, value: float):
-
-        # Validate input
         self.validate_positive_float(value, "Laminate Width")
-        
-        # get the current width
-        current_width = self.width
-
-        # get the difference in the widths
-        width_diff = value - current_width
-
-        # Update the width property of the bottom separator
-        self._bottom_separator.width = self._bottom_separator.width + width_diff
-
-        # Update the width property of the top separator
-        self._top_separator.width = self._top_separator.width + width_diff
-
-        # Update canonical separator so sync doesn't override
-        self._canonical_separator.width = self._canonical_separator.width + width_diff
-
-        # Update the width property of the anode
-        self.anode.current_collector.width = self.anode.current_collector.width + width_diff
-        self.anode.current_collector.tab_position = self.anode.current_collector.tab_position + width_diff
-        self.anode.current_collector = self.anode.current_collector
-        self.anode = self.anode
-
-        # Update the width property of the cathode
-        self.cathode.current_collector.width = self.cathode.current_collector.width + width_diff
-        self.cathode.current_collector.tab_position = self.cathode.current_collector.tab_position + width_diff
-        self.cathode.current_collector = self.cathode.current_collector
-        self.cathode = self.cathode
+        width_diff = value - self.width
+        self._update_separator_dimensions(width_diff=width_diff)
+        self._update_electrode_dimensions(width_diff=width_diff)
 
     @height.setter
     @calculate_coordinates
     @calculate_bulk_properties
     def height(self, value: float):
-
-        # Validate input
         self.validate_positive_float(value, "Laminate Height")
-        
-        # get the current height
-        current_height = self.height
-
-        # get the difference in the heights
-        height_diff = value - current_height
-
-        # Update the height property of the bottom separator
-        self._bottom_separator.length = self._bottom_separator.length + height_diff
-
-        # Update the height property of the top separator
-        self._top_separator.length = self._top_separator.length + height_diff
-
-        # Update canonical separator so sync doesn't override
-        self._canonical_separator.length = self._canonical_separator.length + height_diff
-
-        # Update the height property of the anode
-        self.anode.current_collector.height = self.anode.current_collector.height + height_diff
-        self.anode.current_collector = self.anode.current_collector
-        self.anode = self.anode
-
-        # Update the height property of the cathode
-        self.cathode.current_collector.height = self.cathode.current_collector.height + height_diff
-        self.cathode.current_collector = self.cathode.current_collector
-        self.cathode = self.cathode
+        height_diff = value - self.height
+        self._update_separator_dimensions(length_diff=height_diff)
+        self._update_electrode_dimensions(height_diff=height_diff, update_tab_position=False)
 
 
 class ZFoldMonoLayer(MonoLayer):
@@ -461,6 +471,10 @@ class ZFoldMonoLayer(MonoLayer):
     - Unified separator API identical to `MonoLayer` (use `separator` property).
     - Overhang setters behave the same; left/right still adjustable if needed.
     """
+    
+    # Override behavioral attributes for Z-fold separator handling
+    _sync_separator_length: bool = False  # Don't sync length - it's constrained by electrode geometry
+    _require_rotated_separator: bool = False  # Z-fold uses non-rotated separators
 
     def __init__(
         self,
@@ -507,26 +521,13 @@ class ZFoldMonoLayer(MonoLayer):
 
     def _calculate_all_properties(self):
 
-        self.validate_type(
-            self.anode.current_collector,
-            PunchedCurrentCollector,
-            "Anode Current Collector",
-        )
+        self._validate_punched_current_collectors()
 
-        self.validate_type(
-            self.cathode.current_collector,
-            PunchedCurrentCollector,
-            "Cathode Current Collector",
-        )
-
-        # Sync canonical separator properties to internal separators (except length)
+        # Sync canonical separator properties to internal separators (length handled via class attribute)
         self._sync_separator_from_canonical()
 
-        # Ensure bottom and top separators are not rotated in xy-plane
-        if self._bottom_separator._rotated_xy:
-            self._bottom_separator._rotate_90_xy()
-        if self._top_separator._rotated_xy:
-            self._top_separator._rotate_90_xy()
+        # Ensure separators have the required rotation state
+        self._ensure_separator_rotation()
 
         super(MonoLayer, self)._calculate_all_properties()
 
@@ -548,28 +549,6 @@ class ZFoldMonoLayer(MonoLayer):
             _y_foil_length = self._anode._current_collector._y_foil_length
             self._canonical_separator._width_range = (_y_foil_length, _y_foil_length * 1.2)
 
-    def _sync_separator_from_canonical(self):
-        """Sync separator properties from canonical separator to internal top/bottom separators.
-        
-        For ZFoldMonoLayer, length is NOT synced because it's constrained by electrode geometry.
-        Only width, thickness, and material are synchronized.
-        """
-        if not hasattr(self, '_canonical_separator') or self._canonical_separator is None:
-            return
-            
-        # Properties to sync (NOTE: length is NOT synced for ZFold - it's constrained)
-        for sep in [self._bottom_separator, self._top_separator]:
-            if sep is None:
-                continue
-            # Sync dimensions except length (stored in internal units - meters)
-            sep._width = self._canonical_separator._width
-            sep._thickness = self._canonical_separator._thickness
-            # Sync material
-            sep._material = deepcopy(self._canonical_separator._material)
-            # Recalculate separator properties with new values
-            sep._calculate_bulk_properties()
-            sep._calculate_coordinates()
-
     def _constrain_separator_geometry(self):
         """Enforce Z-fold separator geometry constraints."""
         # Bottom separator length
@@ -583,14 +562,6 @@ class ZFoldMonoLayer(MonoLayer):
         )
 
     @property
-    def width(self) -> float:
-        return np.round(self._width * M_TO_MM, 2)
-
-    @property
-    def height(self) -> float:
-        return np.round(self._height * M_TO_MM, 2)
-
-    @property
     def separator(self) -> Separator:
         """Unified separator interface (canonical); setting updates both top and bottom separators."""
         return self._canonical_separator
@@ -599,48 +570,7 @@ class ZFoldMonoLayer(MonoLayer):
     @calculate_coordinates
     @calculate_bulk_properties
     def separator(self, value: Separator):
-
-        # Validate input type
-        self.validate_type(value, Separator, "Separator")
-
-        # Clear old parent references (only if different objects)
-        if hasattr(self, '_bottom_separator') and self._bottom_separator is not None:
-            if self._bottom_separator is not value:
-                self._bottom_separator._set_parent(None)
-        if hasattr(self, '_top_separator') and self._top_separator is not None:
-            if self._top_separator is not value:
-                self._top_separator._set_parent(None)
-        if hasattr(self, '_canonical_separator') and self._canonical_separator is not None:
-            if self._canonical_separator is not value:
-                self._canonical_separator._set_parent(None)
-        
-        # Set canonical separator
-        self._canonical_separator = deepcopy(value)
-
-        # Deep copy into both top and bottom
-        bottom = deepcopy(value)
-        top = deepcopy(value)
-
-        bottom.datum = (
-            self._bottom_separator.datum[0],
-            self._bottom_separator.datum[1],
-            self._bottom_separator.datum[2],
-        )
-
-        top.datum = (
-            self._top_separator.datum[0],
-            self._top_separator.datum[1],
-            self._top_separator.datum[2],
-        )
-
-        self._bottom_separator = bottom
-        self._top_separator = top
-
-        # Set new parent references for propagation
-        self._bottom_separator._set_parent(self, "bottom_separator")
-        self._top_separator._set_parent(self, "top_separator")
-        self._canonical_separator._set_parent(self, "separator")
-
+        self._set_separator_common(value)
         self._constrain_separator_geometry()
 
     @classmethod
@@ -687,63 +617,23 @@ class ZFoldMonoLayer(MonoLayer):
             electrode_orientation=monolayer.electrode_orientation,
         )
 
-    @width.setter
+    @MonoLayer.width.setter
     @calculate_coordinates
     @calculate_bulk_properties
     def width(self, value: float):
-
-        # Validate input
         self.validate_positive_float(value, "Laminate Width")
-        
-        # get the current width
-        current_width = self.width
+        width_diff = value - self.width
+        # ZFold: separators have constrained length, don't update them for width changes
+        self._update_electrode_dimensions(width_diff=width_diff)
 
-        # get the difference in the widths
-        width_diff = value - current_width
-
-        # Update the width property of the anode
-        self.anode.current_collector.width = self.anode.current_collector.width + width_diff
-        self.anode.current_collector.tab_position = self.anode.current_collector.tab_position + width_diff
-        self.anode.current_collector = self.anode.current_collector
-        self.anode = self.anode
-
-        # Update the width property of the cathode
-        self.cathode.current_collector.width = self.cathode.current_collector.width + width_diff
-        self.cathode.current_collector.tab_position = self.cathode.current_collector.tab_position + width_diff
-        self.cathode.current_collector = self.cathode.current_collector
-        self.cathode = self.cathode
-
-    @height.setter
+    @MonoLayer.height.setter
     @calculate_coordinates
     @calculate_bulk_properties
     def height(self, value: float):
-
-        # Validate input
         self.validate_positive_float(value, "Laminate Height")
-        
-        # get the current height
-        current_height = self.height
-
-        # get the difference in the heights
-        height_diff = value - current_height
-
-        # Update the height property of the bottom separator (use width since not rotated)
-        self._bottom_separator.width = self._bottom_separator.width + height_diff
-
-        # Update the height property of the top separator
-        self._top_separator.width = self._top_separator.width + height_diff
-
-        # Update canonical separator so sync doesn't override
-        self._canonical_separator.width = self._canonical_separator.width + height_diff
-
-        # Update the height property of the anode
-        self.anode.current_collector.height = self.anode.current_collector.height + height_diff
-        self.anode.current_collector = self.anode.current_collector
-        self.anode = self.anode
-
-        # Update the height property of the cathode
-        self.cathode.current_collector.height = self.cathode.current_collector.height + height_diff
-        self.cathode.current_collector = self.cathode.current_collector
-        self.cathode = self.cathode
+        height_diff = value - self.height
+        # ZFold non-rotated: height maps to separator width (not length)
+        self._update_separator_dimensions(width_diff=height_diff)
+        self._update_electrode_dimensions(height_diff=height_diff, update_tab_position=False)
 
 
