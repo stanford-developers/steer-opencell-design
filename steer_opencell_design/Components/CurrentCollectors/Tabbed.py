@@ -2,6 +2,7 @@
 
 # import core mixins
 from steer_core.Mixins.Coordinates import CoordinateMixin
+from steer_core.Mixins.Datum import DatumMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 from steer_core.Mixins.Dunder import DunderMixin
@@ -10,7 +11,7 @@ from steer_core.Mixins.Serializer import SerializerMixin
 
 # import core decorators
 from steer_core.Decorators.General import calculate_all_properties
-from steer_core.Decorators.Coordinates import calculate_areas
+from steer_core.Decorators.Coordinates import calculate_areas, calculate_coordinates
 from steer_core.Decorators.Objects import calculate_weld_tab_properties
 
 # import core units
@@ -32,7 +33,7 @@ import pandas as pd
 import numpy as np
 
 
-class WeldTab(PropagationMixin, ValidationMixin, CoordinateMixin, DunderMixin, PlotterMixin, SerializerMixin):
+class WeldTab(PropagationMixin, ValidationMixin, CoordinateMixin, DatumMixin, DunderMixin, PlotterMixin, SerializerMixin):
     """
     Specification and modeling class for separately manufactured welded tabs.
 
@@ -139,6 +140,9 @@ class WeldTab(PropagationMixin, ValidationMixin, CoordinateMixin, DunderMixin, P
         """
         self._update_properties = False
 
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
+
         self.datum = datum
         self.material = material
         self.width = width
@@ -193,6 +197,14 @@ class WeldTab(PropagationMixin, ValidationMixin, CoordinateMixin, DunderMixin, P
     def _translate(self, vector: Tuple[float, float, float]) -> None:
         self._foil_coordinates = self._foil_coordinates.copy()
         self._foil_coordinates += np.array(vector)
+
+    # Override datum setter to recalculate coordinates
+    @DatumMixin.datum.setter
+    @calculate_coordinates
+    def datum(self, value: Tuple[float, float, float]) -> None:
+        """Set datum position in millimeters, triggering coordinate recalculation."""
+        self.validate_datum(value)
+        self._datum = (float(value[0]) * MM_TO_M, float(value[1]) * MM_TO_M, float(value[2]) * MM_TO_M)
 
     def get_view(self, **kwargs) -> go.Figure:
         """
@@ -281,14 +293,6 @@ class WeldTab(PropagationMixin, ValidationMixin, CoordinateMixin, DunderMixin, P
         return foil_trace
 
     @property
-    def datum(self) -> Tuple[float, float]:
-        return (
-            np.round(self._datum[0] * M_TO_MM, 2),
-            np.round(self._datum[1] * M_TO_MM, 2),
-            np.round(self._datum[2] * M_TO_MM, 2),
-        )
-
-    @property
     def material(self) -> CurrentCollectorMaterial:
         return self._material
 
@@ -319,28 +323,6 @@ class WeldTab(PropagationMixin, ValidationMixin, CoordinateMixin, DunderMixin, P
     @property
     def foil_area(self) -> float:
         return np.round(self._foil_area * M_TO_MM**2, 2)
-
-    @datum.setter
-    def datum(self, datum: Tuple[float, float, float]) -> None:
-        # validate the datum
-        self.validate_datum(datum)
-
-        if self._update_properties:
-            # calculate the translation vector in m
-            translation_vector = (
-                float(datum[0]) * MM_TO_M - self._datum[0],
-                float(datum[1]) * MM_TO_M - self._datum[1],
-                float(datum[2]) * MM_TO_M - self._datum[2],
-            )
-
-            # translate all coordinates
-            self._translate(translation_vector)
-
-        self._datum = (
-            float(datum[0]) * MM_TO_M,
-            float(datum[1]) * MM_TO_M,
-            float(datum[2]) * MM_TO_M,
-        )
 
     @material.setter
     @calculate_all_properties

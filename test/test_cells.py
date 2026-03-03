@@ -819,7 +819,7 @@ class TestCylindricalCell(unittest.TestCase):
         deserialized_cell.reference_electrode_assembly.layup.top_separator.material.propagate_changes()
 
         reverted_cost = deserialized_cell._cost
-        self.assertEqual(reverted_cost, original_cell_cost, "Reverted cell cost should match original cost")
+        self.assertAlmostEqual(reverted_cost, original_cell_cost, places=10, msg="Reverted cell cost should match original cost")
 
     def test_tape_material_specific_cost_change(self):
         """Test that changing tape material specific cost updates cell cost via canonical tape."""

@@ -22,11 +22,13 @@ from steer_core import (
     PlotterMixin,
 )
 from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
+from steer_core.Mixins.Datum import DatumMixin
 
 
 class _CylindricalComponent(
     ABC,
     CoordinateMixin,
+    DatumMixin,
     ColorMixin,
     ValidationMixin,
     PropagationMixin,
@@ -93,6 +95,9 @@ class _CylindricalComponent(
             If material is not a PrismaticContainerMaterial instance
         """
         self._update_properties = False
+
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
 
         self.material = material
         self.thickness = thickness
@@ -291,14 +296,6 @@ class _CylindricalComponent(
         return self._name
 
     @property
-    def datum(self) -> Tuple[float, float, float]:
-        return (
-            np.round(self._datum[0] * M_TO_MM, 2), 
-            np.round(self._datum[1] * M_TO_MM, 2), 
-            np.round(self._datum[2] * M_TO_MM, 2)
-        )
-
-    @property
     def material(self) -> PrismaticContainerMaterial:
         return self._material
     
@@ -373,7 +370,8 @@ class _CylindricalComponent(
         self.validate_type(name, str, "Name")
         self._name = name
 
-    @datum.setter
+    # Override datum setter to use decorator
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]) -> None:
         self.validate_datum(datum)
@@ -734,7 +732,8 @@ class CylindricalLidAssembly(_CylindricalComponent):
 
 
 class CylindricalCanister(
-    CoordinateMixin, 
+    CoordinateMixin,
+    DatumMixin,
     ValidationMixin,
     PropagationMixin,
     SerializerMixin,
@@ -795,6 +794,9 @@ class CylindricalCanister(
             If material is not a PrismaticContainerMaterial instance
         """
         self._update_properties = False
+
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
 
         self.material = material
         self.outer_radius = outer_radius
@@ -1037,14 +1039,6 @@ class CylindricalCanister(
         return self._name
     
     @property
-    def datum(self) -> Tuple[float, float, float]:
-        return (
-            np.round(self._datum[0] * M_TO_MM, 2), 
-            np.round(self._datum[1] * M_TO_MM, 2), 
-            np.round(self._datum[2] * M_TO_MM, 2)
-        )
-    
-    @property
     def material(self) -> PrismaticContainerMaterial:
         return self._material
     
@@ -1103,7 +1097,8 @@ class CylindricalCanister(
         self.validate_type(name, str, "Name")
         self._name = name
 
-    @datum.setter
+    # Override datum setter to use decorator
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]) -> None:
         self.validate_datum(datum)
@@ -1161,7 +1156,7 @@ class CylindricalCanister(
         self.height = new_height
 
 
-class CylindricalEncapsulation(_Container):
+class CylindricalEncapsulation(_Container, DatumMixin):
     """Complete cylindrical cell encapsulation combining canister, lid assembly, and terminal connectors.
 
     Manages the overall cylindrical geometry and provides mass/cost breakdowns.
@@ -1178,6 +1173,9 @@ class CylindricalEncapsulation(_Container):
         ):
 
         self._update_properties = False
+        
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
         
         self.cathode_terminal_connector = cathode_terminal_connector
         self.anode_terminal_connector = anode_terminal_connector
@@ -1628,14 +1626,6 @@ class CylindricalEncapsulation(_Container):
     def internal_radius_range(self) -> Tuple[float, float]:
         """Valid internal radius range in mm."""
         return self._canister.inner_radius_range
-
-    @property
-    def datum(self) -> Tuple[float, float, float]:
-        return (
-            np.round(self._datum[0] * M_TO_MM, 2), 
-            np.round(self._datum[1] * M_TO_MM, 2), 
-            np.round(self._datum[2] * M_TO_MM, 2)
-        )
         
     @property
     def name(self) -> str:
@@ -1756,8 +1746,9 @@ class CylindricalEncapsulation(_Container):
     def height(self, height: float) -> None:
         self.validate_positive_float(height, "Height")
         self._canister.height = height
-    
-    @datum.setter
+
+    # Override datum setter to use decorator and sync to canister
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, value: Tuple[float, float, float]) -> None:
 

@@ -23,6 +23,7 @@ from steer_core import (
     DunderMixin,
     PlotterMixin,
 )
+from steer_core.Mixins.Datum import DatumMixin
 
 
 # Module-level constants for prismatic components
@@ -77,6 +78,7 @@ class ConnectorOrientation(Enum):
 class _PrismaticComponent(
     ABC,
     CoordinateMixin,
+    DatumMixin,
     PropagationMixin,
     ColorMixin,
     ValidationMixin,
@@ -151,6 +153,9 @@ class _PrismaticComponent(
         self._rotated_x = False
         self._rotated_y = False
         self._rotated_z = False
+
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
 
         self.material = material
         self.thickness = thickness
@@ -428,14 +433,6 @@ class _PrismaticComponent(
         return self._name
 
     @property
-    def datum(self) -> Tuple[float, float, float]:
-        return (
-            np.round(self._datum[0] * M_TO_MM, DIMENSION_PRECISION), 
-            np.round(self._datum[1] * M_TO_MM, DIMENSION_PRECISION), 
-            np.round(self._datum[2] * M_TO_MM, DIMENSION_PRECISION)
-        )
-
-    @property
     def material(self) -> PrismaticContainerMaterial:
         return self._material
     
@@ -539,23 +536,12 @@ class _PrismaticComponent(
         self.validate_type(name, str, "Name")
         self._name = name
 
-    @datum.setter
+    # Override datum setter to use decorator
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]) -> None:
+        """Set datum position, triggering coordinate recalculation."""
         self.validate_datum(datum)
-        
-        if self._update_properties and hasattr(self, '_datum'):
-            # Calculate translation vector in meters
-            translation_vector = np.array([
-                float(datum[0]) * MM_TO_M - self._datum[0],
-                float(datum[1]) * MM_TO_M - self._datum[1],
-                float(datum[2]) * MM_TO_M - self._datum[2],
-            ])
-            
-            # Apply translation to coordinates if they exist
-            if self._coordinates is not None:
-                self._coordinates = self._coordinates + translation_vector
-        
         self._datum = tuple(coord * MM_TO_M for coord in datum)
 
     @material.setter
@@ -802,7 +788,8 @@ class PrismaticLidAssembly(_PrismaticComponent):
 
 
 class PrismaticCanister(
-    CoordinateMixin, 
+    CoordinateMixin,
+    DatumMixin,
     PropagationMixin,
     SerializerMixin,
     ValidationMixin,
@@ -846,6 +833,9 @@ class PrismaticCanister(
         """
         self._update_properties = False
         self._rotated_z = False
+
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
 
         self.material = material
         self.width = width
@@ -1156,14 +1146,6 @@ class PrismaticCanister(
         return self._name
     
     @property
-    def datum(self) -> Tuple[float, float, float]:
-        return (
-            np.round(self._datum[0] * M_TO_MM, DIMENSION_PRECISION), 
-            np.round(self._datum[1] * M_TO_MM, DIMENSION_PRECISION), 
-            np.round(self._datum[2] * M_TO_MM, DIMENSION_PRECISION)
-        )
-    
-    @property
     def material(self) -> PrismaticContainerMaterial:
         return self._material
     
@@ -1232,26 +1214,12 @@ class PrismaticCanister(
         self.validate_type(name, str, "Name")
         self._name = name
 
-    @datum.setter
+    # Override datum setter to use decorator
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]) -> None:
+        """Set datum position, triggering coordinate recalculation."""
         self.validate_datum(datum)
-        
-        if self._update_properties and hasattr(self, '_datum'):
-            # Calculate translation vector in meters
-            translation_vector = np.array([
-                float(datum[0]) * MM_TO_M - self._datum[0],
-                float(datum[1]) * MM_TO_M - self._datum[1],
-                float(datum[2]) * MM_TO_M - self._datum[2],
-            ])
-            
-            # Apply translation to coordinate arrays if they exist
-            if hasattr(self, '_right_left_coordinates') and self._right_left_coordinates is not None:
-                self._right_left_coordinates = self._right_left_coordinates + np.array([translation_vector[1], translation_vector[2]])
-            
-            if hasattr(self, '_top_down_coordinates') and self._top_down_coordinates is not None:
-                self._top_down_coordinates = self._top_down_coordinates + np.array([translation_vector[0], translation_vector[1]])
-        
         self._datum = tuple(coord * MM_TO_M for coord in datum)
 
     @material.setter
@@ -1320,7 +1288,7 @@ class PrismaticCanister(
             self._get_right_left_coordinates()  # Recalculate after rotation state changes
 
 
-class PrismaticEncapsulation(_Container):
+class PrismaticEncapsulation(_Container, DatumMixin):
     """A prismatic encapsulation with rectangular geometry.
     
     This class combines a rectangular canister with a lid assembly and two
@@ -1367,6 +1335,10 @@ class PrismaticEncapsulation(_Container):
             Center position in mm as (x, y, z) coordinates
         """
         self._update_properties = False
+        
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
+        
         self.connector_orientation = connector_orientation
         self.cathode_terminal_connector_position = cathode_terminal_connector_position
         self.anode_terminal_connector_position = anode_terminal_connector_position
@@ -2164,14 +2136,6 @@ class PrismaticEncapsulation(_Container):
             LENGTH_RANGE_MIN + 2 * self._canister._wall_thickness * M_TO_MM, 
             LENGTH_RANGE_MAX - 2 * self._canister._wall_thickness * M_TO_MM
         )
-
-    @property
-    def datum(self) -> Tuple[float, float, float]:
-        return (
-            np.round(self._datum[0] * M_TO_MM, DIMENSION_PRECISION), 
-            np.round(self._datum[1] * M_TO_MM, DIMENSION_PRECISION), 
-            np.round(self._datum[2] * M_TO_MM, DIMENSION_PRECISION)
-        )
         
     @property
     def cost(self) -> float:
@@ -2424,21 +2388,13 @@ class PrismaticEncapsulation(_Container):
         self._translate_component(self._lid_assembly, translation_vector)
         self._translate_component(self._cathode_terminal_connector, translation_vector)
         self._translate_component(self._anode_terminal_connector, translation_vector)
-    
-    @datum.setter
+
+    # Override datum setter to use decorator
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, value: Tuple[float, float, float]) -> None:
-        """Set datum position for the encapsulation."""
+        """Set datum position, triggering coordinate recalculation."""
         self.validate_datum(value)
-        
-        if self._update_properties:
-            translation_vector = (
-                float(value[0]) * MM_TO_M - self._datum[0],
-                float(value[1]) * MM_TO_M - self._datum[1],
-                float(value[2]) * MM_TO_M - self._datum[2],
-            )
-            self._translate_all_components(translation_vector)
-        
         self._datum = (
             float(value[0]) * MM_TO_M,
             float(value[1]) * MM_TO_M,

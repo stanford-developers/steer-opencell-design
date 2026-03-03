@@ -6,6 +6,7 @@ from steer_opencell_design.Components.Containers.Base import _Container
 from steer_core.Constants.Units import *
 
 from steer_core.Mixins.Coordinates import CoordinateMixin
+from steer_core.Mixins.Datum import DatumMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
@@ -25,7 +26,8 @@ import plotly.graph_objects as go
 
 
 class LaminateSheet(
-    CoordinateMixin, 
+    CoordinateMixin,
+    DatumMixin,
     ValidationMixin,
     PropagationMixin,
     DunderMixin,
@@ -64,6 +66,9 @@ class LaminateSheet(
         self._update_properties = False
 
         self._hot_pressed = False
+
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
 
         self.areal_cost = areal_cost
         self.density = density
@@ -389,11 +394,6 @@ class LaminateSheet(
         return (0, 1)
 
     @property
-    def datum(self) -> Tuple[float, float, float]:
-        """Get the datum position in mm."""
-        return tuple(np.round(coord * M_TO_MM, 2) for coord in self._datum)
-
-    @property
     def name(self) -> str:
         return self._name
 
@@ -577,7 +577,8 @@ class LaminateSheet(
         self.validate_positive_float(density, "Density")
         self._density = float(density) * G_TO_KG / CM_TO_M**3
 
-    @datum.setter
+    # Override datum setter to use decorator
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]) -> None:
         """Set the datum position in mm."""
@@ -610,6 +611,7 @@ class LaminateSheet(
 
 class PouchTerminal(
     CoordinateMixin,
+    DatumMixin,
     ValidationMixin,
     PropagationMixin,
     DunderMixin,
@@ -657,6 +659,9 @@ class PouchTerminal(
             If width, length, or thickness <= 0 when provided.
         """
         self._update_properties = False
+
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
 
         self.material = material
         self.width = width
@@ -793,11 +798,6 @@ class PouchTerminal(
         return (0, 50)
 
     @property
-    def datum(self) -> Tuple[float, float, float]:
-        """Datum position in mm."""
-        return tuple(round(coord * M_TO_MM, 2) for coord in self._datum)
-
-    @property
     def name(self) -> str:
         """Component name."""
         return self._name
@@ -873,7 +873,8 @@ class PouchTerminal(
         self.validate_positive_float(thickness, "Thickness")
         self._thickness = float(thickness) * MM_TO_M
 
-    @datum.setter
+    # Override datum setter to use decorator
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]) -> None:
         """Set datum position in mm."""
@@ -887,7 +888,7 @@ class PouchTerminal(
         self._name = name
 
 
-class PouchEncapsulation(_Container):
+class PouchEncapsulation(_Container, DatumMixin):
     """Complete pouch cell encapsulation combining top/bottom laminate sheets and terminals.
 
     Manages pouch geometry, hot-pressing cavity formation, and provides mass/cost breakdowns.
@@ -908,6 +909,9 @@ class PouchEncapsulation(_Container):
 
         self._update_properties = False
         self._terminals_positioned = False
+        
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
         
         # Initialize volume to None
         self._volume = None
@@ -1088,11 +1092,6 @@ class PouchEncapsulation(_Container):
         return np.round(self._cost, 2)
 
     @property
-    def datum(self) -> Tuple[float, float, float]:
-        """Datum position in mm."""
-        return tuple(round(coord * M_TO_MM, 2) for coord in self._datum)
-
-    @property
     def name(self) -> str:
         """Encapsulation name."""
         return self._name
@@ -1158,8 +1157,9 @@ class PouchEncapsulation(_Container):
             return
         self.validate_positive_float(thickness, "Thickness")
         self._thickness = float(thickness) * MM_TO_M
-    
-    @datum.setter
+
+    # Override datum setter to use decorator
+    @DatumMixin.datum.setter
     @calculate_all_properties
     def datum(self, value: Tuple[float, float, float]) -> None:
         """Set datum position in mm."""

@@ -15,6 +15,7 @@ from steer_core.Decorators.General import calculate_all_properties
 
 from steer_core.Mixins.Colors import ColorMixin
 from steer_core.Mixins.Coordinates import CoordinateMixin
+from steer_core.Mixins.Datum import DatumMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
@@ -63,7 +64,8 @@ class ElectrodeOrientation(Enum):
 
 
 class _Layup(
-    CoordinateMixin, 
+    CoordinateMixin,
+    DatumMixin,
     ValidationMixin, 
     PropagationMixin,
     SerializerMixin, 
@@ -116,6 +118,7 @@ class _Layup(
         self.np_ratio_control_mode = NPRatioControlMode.FIXED_ANODE
 
         self.cathode = cathode
+        self._datum = cathode._datum  # Initialize datum from cathode
         self._set_bottom_separator(bottom_separator)
         self.anode = anode
         self._set_top_separator(top_separator)
@@ -615,24 +618,12 @@ class _Layup(
 
         Returns
         -------
-        (x, y, z) in mm: The cathode datum coordinates.
+        (x, y, z) in mm: The datum coordinates.
         """
-        return self.cathode.datum
-
-    @property
-    def datum_x(self) -> float:
-        """Get the x-coordinate of the layup datum in mm."""
-        return self.datum[0]
-    
-    @property
-    def datum_y(self) -> float:
-        """Get the y-coordinate of the layup datum in mm."""
-        return self.datum[1]
-
-    @property
-    def datum_z(self) -> float:
-        """Get the z-coordinate of the layup datum in mm."""
-        return self.datum[2]
+        # Initialize _datum from cathode if not yet set
+        if not hasattr(self, '_datum') or self._datum is None:
+            self._datum = self.cathode._datum
+        return DatumMixin.datum.fget(self)
 
     @property
     def np_ratio(self) -> float:
@@ -743,7 +734,8 @@ class _Layup(
         """Minimum operating voltage in volts."""
         return np.round(self._operating_voltage_window[0], VOLTAGE_PRECISION)
 
-    @datum.setter
+    # Override datum setter to sync with child components and use decorator
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, new_datum: Tuple[float, float, float]):
         """Shift entire layup so cathode datum becomes ``new_datum``.
@@ -757,6 +749,10 @@ class _Layup(
             Target cathode datum in mm.
         """
         self.validate_datum(new_datum)
+
+        # Initialize _datum from cathode if not yet set
+        if not hasattr(self, '_datum') or self._datum is None:
+            self._datum = self.cathode._datum
 
         old = self.cathode.datum
 
@@ -773,23 +769,12 @@ class _Layup(
             cx, cy, cz = comp.datum
             comp.datum = (cx + dx, cy + dy, cz + dz)
 
-    @datum_x.setter
-    def datum_x(self, new_x: float):
-        """Set the x-coordinate of the layup datum in mm."""
-        self.validate_coordinate(new_x, "datum_x")
-        self.datum = (new_x, self.datum[1], self.datum[2])
-
-    @datum_y.setter
-    def datum_y(self, new_y: float):
-        """Set the y-coordinate of the layup datum in mm."""
-        self.validate_coordinate(new_y, "datum_y")
-        self.datum = (self.datum[0], new_y, self.datum[2])
-
-    @datum_z.setter
-    def datum_z(self, new_z: float):
-        """Set the z-coordinate of the layup datum in mm."""
-        self.validate_coordinate(new_z, "datum_z")
-        self.datum = (self.datum[0], self.datum[1], new_z)
+        # Store own datum
+        self._datum = (
+            float(new_datum[0]) * MM_TO_M,
+            float(new_datum[1]) * MM_TO_M,
+            float(new_datum[2]) * MM_TO_M,
+        )
 
     @cathode.setter
     @calculate_all_properties

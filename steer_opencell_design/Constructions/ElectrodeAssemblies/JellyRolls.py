@@ -2400,17 +2400,6 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             Total unwrapped length of the layup in millimeters
         """
         return self._layup.total_length
-
-    @property
-    def datum(self) -> Tuple[float, float, float]:
-        """Return the jelly roll datum point.
-        
-        Returns
-        -------
-        Tuple[float, float, float]
-            (x, y, z) coordinates of the jelly roll datum in millimeters
-        """
-        return tuple(round(d * M_TO_MM, 2) for d in self._datum)
     
     @property
     def total_height(self) -> float:
@@ -2423,49 +2412,52 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         """
         return np.round(self._total_height * M_TO_MM, 2)
 
-    @datum.setter
+    # Override datum setter to translate all jelly roll components
+    @_ElectrodeAssembly.datum.setter
     def datum(self, value: Tuple[float, float, float]) -> None:
+        """Set datum position, translating all jelly roll components.
         
-        # validate
+        Translates spiral coordinates, mandrel, and layup by the difference
+        between the new and current datum positions.
+        
+        Parameters
+        ----------
+        value : Tuple[float, float, float]
+            New datum position in millimeters (x, y, z).
+        """
         self.validate_datum(value)
+        
+        # Compute translation vector from current datum to new datum
+        translation = self._compute_datum_translation(value)
+        
+        # Convert to mm for component updates
+        translation_mm = tuple(t * M_TO_MM for t in translation)
+        
+        # Translate spirals (uses meters internally)
+        self._translate_spirals_xz(translation[0], translation[2])
 
-        # current datum
-        _current_datum = self._datum
+        # Translate top-down coordinates (uses meters internally)
+        self._translate_top_down_coordinates(translation[0], translation[1])
 
-        # translation vector
-        _value = tuple(v * MM_TO_M for v in value)
-        _translation_vector = (
-            _value[0] - _current_datum[0],
-            _value[1] - _current_datum[1],
-            _value[2] - _current_datum[2]
-        )
-        translation_vector = tuple(t * M_TO_MM for t in _translation_vector)
+        # Translate right-left coordinates (uses meters internally)
+        self._translate_right_left_coordinates(translation[1], translation[2])
 
-        # translate spirals
-        self._translate_spirals_xz(_translation_vector[0], _translation_vector[2])
-
-        # translate top-down coordinates
-        self._translate_top_down_coordinates(_translation_vector[0], _translation_vector[1])
-
-        # translate right-left coordinates
-        self._translate_right_left_coordinates(_translation_vector[1], _translation_vector[2])
-
-        # translate mandrel
+        # Translate mandrel (expects mm)
         self._mandrel.datum = (
-            self._mandrel.datum[0] + translation_vector[0],
-            self._mandrel.datum[1] + translation_vector[1],
-            self._mandrel.datum[2] + translation_vector[2],
+            self._mandrel.datum[0] + translation_mm[0],
+            self._mandrel.datum[1] + translation_mm[1],
+            self._mandrel.datum[2] + translation_mm[2],
         )
 
-        # translate the layup
+        # Translate the layup (expects mm)
         self._layup.datum = (
-            self._layup.datum[0] + translation_vector[0],
-            self._layup.datum[1] + translation_vector[1],
-            self._layup.datum[2] + translation_vector[2],
+            self._layup.datum[0] + translation_mm[0],
+            self._layup.datum[1] + translation_mm[1],
+            self._layup.datum[2] + translation_mm[2],
         )
-
-        # set datum
-        self._datum = tuple(d * MM_TO_M for d in value)
+        
+        # Update assembly's datum
+        self._datum = tuple(float(v) * MM_TO_M for v in value)
 
     @tape_length_driver.setter
     def tape_length_driver(self, value: TapeDriver) -> None:
