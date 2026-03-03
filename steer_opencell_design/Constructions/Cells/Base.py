@@ -86,6 +86,7 @@ class _Cell(
         self.operating_voltage_window = operating_voltage_window
         self.name = name
     
+    @abstractmethod
     def _calculate_all_properties(self) -> None:
         self._calculate_bulk_properties()
         self._calculate_electrochemical_properties()
