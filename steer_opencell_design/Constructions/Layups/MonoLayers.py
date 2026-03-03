@@ -105,6 +105,13 @@ class MonoLayer(_Layup):
         self._bottom_separator._set_width_range(self._anode, extended_range=0.1)
         self._bottom_separator._set_length_range(self._anode, extended_range=0.1)
 
+        # Set canonical separator ranges based on anode current collector dimensions
+        # For rotated separator: width -> x_foil_length, length -> y_foil_length
+        _x_foil_length = self._anode._current_collector._x_foil_length
+        _y_foil_length = self._anode._current_collector._y_foil_length
+        self._canonical_separator._width_range = (_x_foil_length, _x_foil_length * 1.2)
+        self._canonical_separator._length_range = (_y_foil_length, _y_foil_length * 1.2)
+
     def _sync_separator_from_canonical(self):
         """Sync separator properties from canonical separator to internal top/bottom separators.
         
@@ -143,15 +150,38 @@ class MonoLayer(_Layup):
         -------
         MonoLayer
             A new MonoLayer instance with the same properties as the input ZFoldMonoLayer.
+            
+        Notes
+        -----
+        ZFoldMonoLayer uses non-rotated separators (_rotated_xy=False) where width -> y-direction.
+        MonoLayer uses rotated separators (_rotated_xy=True) where width -> x-direction.
+        This method swaps width and length values and rotates to match MonoLayer's coordinate system.
         """
-        bottom_separator = deepcopy(zfold_monolayer._bottom_separator)
-        bottom_separator.width = zfold_monolayer.anode.current_collector.x_foil_length + 4
-        bottom_separator.length = zfold_monolayer.anode.current_collector.y_foil_length + 4
+        separator = deepcopy(zfold_monolayer._canonical_separator)
+        
+        # ZFoldMonoLayer's canonical separator is non-rotated: width -> y-direction, length -> x-direction
+        # MonoLayer expects rotated separator: width -> x-direction, length -> y-direction
+        # Swap the values so after MonoLayer rotates the separator, dimensions are correct
+        if not separator._rotated_xy:
+            # Swap the values (in internal units - meters)
+            old_width = separator._width
+            old_length = separator._length
+            separator._width = old_length  # old length (x-dir) becomes new width (x-dir after rotation)
+            separator._length = old_width  # old width (y-dir) becomes new length (y-dir after rotation)
+            # Recalculate coordinates with new dimensions
+            separator._calculate_coordinates()
+        
+        # Set appropriate dimensions based on electrode geometry
+        # MonoLayer's __init__ will rotate this separator, so set dimensions accordingly
+        # width (will become x-dir after rotation) = x_foil_length + overhang
+        # length (will become y-dir after rotation) = y_foil_length + overhang
+        separator.width = zfold_monolayer.anode.current_collector.x_foil_length + 4
+        separator.length = zfold_monolayer.anode.current_collector.y_foil_length + 4
         
         return cls(
             cathode=deepcopy(zfold_monolayer.cathode),
             anode=deepcopy(zfold_monolayer.anode),
-            separator=bottom_separator,
+            separator=separator,
             electrode_orientation=deepcopy(zfold_monolayer.electrode_orientation)
         )
 
@@ -288,7 +318,7 @@ class MonoLayer(_Layup):
         # Set new parent references for propagation
         self._bottom_separator._set_parent(self, "bottom_separator")
         self._top_separator._set_parent(self, "top_separator")
-        self._canonical_separator._set_parent(self, "canonical_separator")
+        self._canonical_separator._set_parent(self, "separator")
 
     @property
     def separator_overhangs(self) -> dict:
@@ -512,6 +542,11 @@ class ZFoldMonoLayer(MonoLayer):
         if hasattr(self, '_canonical_separator') and self._canonical_separator is not None:
             self._canonical_separator._length = self._bottom_separator._length
             self._canonical_separator._calculate_coordinates()
+            
+            # Set canonical separator width range based on anode current collector dimensions
+            # For non-rotated separator: width -> y_foil_length
+            _y_foil_length = self._anode._current_collector._y_foil_length
+            self._canonical_separator._width_range = (_y_foil_length, _y_foil_length * 1.2)
 
     def _sync_separator_from_canonical(self):
         """Sync separator properties from canonical separator to internal top/bottom separators.
@@ -589,13 +624,13 @@ class ZFoldMonoLayer(MonoLayer):
         bottom.datum = (
             self._bottom_separator.datum[0],
             self._bottom_separator.datum[1],
-            bottom.datum[2],
+            self._bottom_separator.datum[2],
         )
 
         top.datum = (
             self._top_separator.datum[0],
             self._top_separator.datum[1],
-            top.datum[2],
+            self._top_separator.datum[2],
         )
 
         self._bottom_separator = bottom
@@ -604,17 +639,51 @@ class ZFoldMonoLayer(MonoLayer):
         # Set new parent references for propagation
         self._bottom_separator._set_parent(self, "bottom_separator")
         self._top_separator._set_parent(self, "top_separator")
-        self._canonical_separator._set_parent(self, "canonical_separator")
+        self._canonical_separator._set_parent(self, "separator")
 
         self._constrain_separator_geometry()
 
     @classmethod
     def from_monolayer(cls, monolayer: MonoLayer) -> "ZFoldMonoLayer":
-
+        """Create a ZFoldMonoLayer instance from a MonoLayer instance.
+        
+        Parameters
+        ----------
+        monolayer : MonoLayer
+            The MonoLayer instance to convert.
+            
+        Returns
+        -------
+        ZFoldMonoLayer
+            A new ZFoldMonoLayer instance with the same properties as the input MonoLayer.
+            
+        Notes
+        -----
+        MonoLayer uses rotated separators (_rotated_xy=True) where width -> x-direction.
+        ZFoldMonoLayer uses non-rotated separators (_rotated_xy=False) where width -> y-direction.
+        This method swaps width and length values when the source separator is rotated
+        to preserve the physical dimensions correctly.
+        """
+        separator = deepcopy(monolayer.separator)
+        
+        # If source separator is rotated, swap width/length to match ZFold's non-rotated coordinate system
+        # MonoLayer rotated: width -> x-direction, length -> y-direction
+        # ZFoldMonoLayer non-rotated: length -> x-direction, width -> y-direction
+        if separator._rotated_xy:
+            # Swap the values (in internal units - meters)
+            old_width = separator._width
+            old_length = separator._length
+            separator._width = old_length
+            separator._length = old_width
+            # Reset rotation flag since ZFoldMonoLayer expects non-rotated
+            separator._rotated_xy = False
+            # Recalculate coordinates with new dimensions
+            separator._calculate_coordinates()
+        
         return cls(
             cathode=deepcopy(monolayer.cathode),
             anode=deepcopy(monolayer.anode),
-            separator=deepcopy(monolayer.separator),
+            separator=separator,
             electrode_orientation=monolayer.electrode_orientation,
         )
 

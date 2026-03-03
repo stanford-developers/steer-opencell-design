@@ -394,6 +394,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         
         # Calculate coordinates for standard components
         for spiral_key, coords_attr_path in component_configs:
+
             self._calculate_component_right_left_coords(
                 spiral_key, 
                 coords_attr_path,
@@ -2525,6 +2526,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
     @tape.setter
     @calculate_bulk_properties
     @calculate_tape_properties
+    @calculate_coordinates
     @propagating_setter()
     def tape(self, value: Optional[Tape]) -> None:
         """Set the tape and recalculate properties.
