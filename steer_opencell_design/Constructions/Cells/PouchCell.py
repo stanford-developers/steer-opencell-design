@@ -2,6 +2,7 @@
 
 from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import ZFoldStack, PunchedStack
+from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import FlatWoundJellyRoll
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
 from steer_opencell_design.Constructions.Cells.Base import _Cell
 from steer_opencell_design.Components.Electrodes import Cathode, Anode
@@ -9,6 +10,7 @@ from steer_opencell_design.Components.Separators import Separator
 
 from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
 from steer_core.Constants.Units import *
+from steer_core.Mixins.Propagation import propagating_setter
 
 from typing import Tuple
 import warnings
@@ -595,28 +597,41 @@ class PouchCell(_Cell):
 
     @reference_electrode_assembly.setter
     @calculate_all_properties
-    def reference_electrode_assembly(self, value: ZFoldStack | PunchedStack) -> None:
+    @propagating_setter()
+    def reference_electrode_assembly(self, value: ZFoldStack | PunchedStack | FlatWoundJellyRoll) -> None:
         """Set reference electrode assembly with validation.
         
         Parameters
         ----------
-        value : ZFoldStack | PunchedStack
+        value : ZFoldStack | PunchedStack | FlatWoundJellyRoll
             New electrode assembly to set
         """
-        self.validate_type(value, (ZFoldStack, PunchedStack), "reference_electrode_assembly")
+        self.validate_type(value, (ZFoldStack, PunchedStack, FlatWoundJellyRoll), "reference_electrode_assembly")
         self._reference_electrode_assembly = value
 
     @encapsulation.setter
     @calculate_all_properties
-    def encapsulation(self, value: PouchEncapsulation) -> None:
-        """Set encapsulation with validation.
+    @propagating_setter()
+    def encapsulation(self, value) -> None:
+        """Set encapsulation with validation. Automatically converts cell type if encapsulation type changes.
         
         Parameters
         ----------
-        value : PouchEncapsulation
-            New encapsulation to set
+        value : _Container
+            New encapsulation to set. Can be any container type (Prismatic, Pouch, Cylindrical).
+            If type differs from current cell type, cell will be automatically converted.
         """
-        self.validate_type(value, PouchEncapsulation, "encapsulation")
-        self._encapsulation = value
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
+        
+        # Only allow PouchEncapsulation or PrismaticEncapsulation
+        self.validate_type(value, (PouchEncapsulation, PrismaticEncapsulation), "encapsulation")
+        
+        # Check if encapsulation type matches cell type
+        if isinstance(value, PouchEncapsulation):
+            # Same type, proceed normally
+            self._encapsulation = value
+        else:
+            # Different type, convert cell
+            self._convert_to_cell_type(value)
 
 

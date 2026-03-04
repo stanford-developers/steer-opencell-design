@@ -189,7 +189,7 @@ class TestCylindricalCell(unittest.TestCase):
         self.assertEqual(self.cell.mass, 910.08)
         self.assertEqual(self.cell.specific_energy, 136.35)
         self.assertEqual(self.cell.volumetric_energy, 261.36)
-        self.assertEqual(self.cell.cost_per_energy, 64.45)
+        self.assertEqual(self.cell.cost_per_energy, 58.02)
     
     def test_plots(self):
 
@@ -630,6 +630,211 @@ class TestCylindricalCell(unittest.TestCase):
         # fig2.show()
         # fig3.show()
 
+    def test_get_materials(self):
+        """Test that get_materials returns a dict of materials with paths."""
+        from steer_materials.Base import _Material
+
+        materials = self.cell.get_materials()
+
+        # Should return a dictionary
+        self.assertIsInstance(materials, dict)
+
+        # All keys should be _Material instances
+        for mat in materials.keys():
+            self.assertIsInstance(mat, _Material)
+
+        # All values should be lists of strings
+        for paths in materials.values():
+            self.assertIsInstance(paths, list)
+            for path in paths:
+                self.assertIsInstance(path, str)
+
+        # Should contain electrolyte
+        electrolyte_found = any(
+            "electrolyte" in path
+            for paths in materials.values()
+            for path in paths
+        )
+        self.assertTrue(electrolyte_found, "Electrolyte should be found in materials")
+
+        # Should contain cathode active material
+        cathode_am_found = any(
+            "cathode" in path and "active_materials" in path
+            for paths in materials.values()
+            for path in paths
+        )
+        self.assertTrue(cathode_am_found, "Cathode active material should be found")
+
+        # Should contain anode active material
+        anode_am_found = any(
+            "anode" in path and "active_materials" in path
+            for paths in materials.values()
+            for path in paths
+        )
+        self.assertTrue(anode_am_found, "Anode active material should be found")
+
+        # Should contain separator material
+        separator_found = any(
+            "separator" in path
+            for paths in materials.values()
+            for path in paths
+        )
+        self.assertTrue(separator_found, "Separator material should be found")
+
+        # Should contain current collector material
+        cc_found = any(
+            "current_collector" in path and "material" in path
+            for paths in materials.values()
+            for path in paths
+        )
+        self.assertTrue(cc_found, "Current collector material should be found")
+
+    def test_serialization_preserves_propagation_capability(self):
+        """Test that propagation works correctly after serialization/deserialization.
+        
+        This tests that:
+        1. A cell can be serialized and deserialized
+        2. After reassigning components through setters at each level, parent refs are established
+        3. propagate_changes() works through the full hierarchy
+        
+        Note: Deserialization bypasses setters, so parent references are not automatically
+        established. Users must reassign components through setters at each level to
+        establish the parent chain for full propagation capability.
+        """
+        warnings.filterwarnings('ignore')
+
+        # get some original properties
+        original_radius = self.cell.reference_electrode_assembly.radius 
+        original_layup_length = self.cell.reference_electrode_assembly.layup.length
+
+        # change the layup length
+        self.cell.reference_electrode_assembly.layup.length = original_layup_length + 2000
+
+        # propagate the changes
+        self.cell.reference_electrode_assembly.layup.propagate_changes()
+
+        # test that the layup length is updated
+        self.assertAlmostEqual(self.cell.reference_electrode_assembly.layup.length, original_layup_length + 2000)
+
+        # test that the radius increased
+        self.assertGreater(self.cell.reference_electrode_assembly.radius, original_radius)
+
+        # reset the layup length
+        self.cell.reference_electrode_assembly.layup.length = original_layup_length
+        self.cell.reference_electrode_assembly.layup.propagate_changes()
+
+        # test that the layup length is updated
+        self.assertAlmostEqual(self.cell.reference_electrode_assembly.layup.length, original_layup_length)
+        self.assertAlmostEqual(self.cell.reference_electrode_assembly.radius, original_radius)
+
+        # now serialize the cell
+        serialized = self.cell.serialize()
+
+        # deserialize to a new object
+        deserialized_cell = ocd.CylindricalCell.deserialize(serialized)
+
+        # test that the deserialized cell has the same properties
+        self.assertEqual(deserialized_cell.reference_electrode_assembly.radius, original_radius)
+        self.assertEqual(deserialized_cell.reference_electrode_assembly.layup.length, original_layup_length)
+
+        # Now change the layup length on the deserialized cell and propagate
+        deserialized_cell.reference_electrode_assembly.layup.length = original_layup_length + 3000
+        deserialized_cell.reference_electrode_assembly.layup.propagate_changes()
+
+        # test that the layup length is updated
+        self.assertAlmostEqual(deserialized_cell.reference_electrode_assembly.layup.length, original_layup_length + 3000)
+
+        # test that the radius increased
+        self.assertGreater(deserialized_cell.reference_electrode_assembly.radius, original_radius)
+
+    def test_material_specific_cost_change(self):
+
+        original_cell_cost = self.cell.cost
+        original_energy = self.cell.energy
+
+        fig1 = self.cell.get_capacity_plot()
+
+        # modify cathode formulation active material cost
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.specific_cost *= 10  # increase the cost
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.propagate_changes()
+
+        new_cell_cost = self.cell.cost
+
+        self.assertNotEqual(new_cell_cost, original_cell_cost, "Cell cost should change when active material cost changes")
+
+        # modify the cathode irreversible specific capacity to change the energy
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.irreversible_specific_capacity /= 10  # increase irreversible capacity
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.propagate_changes()
+
+        new_energy = self.cell.energy
+
+        self.assertNotEqual(new_energy, original_energy, "Cell energy should change when active material irreversible specific capacity changes")
+
+        fig2 = self.cell.get_capacity_plot()
+
+        # serialize and check that changes persist
+        serialized = self.cell.serialize()
+        deserialized_cell = ocd.CylindricalCell.deserialize(serialized)
+
+        self.assertEqual(deserialized_cell.cost, new_cell_cost, "Deserialized cell should have the updated cost")
+        self.assertEqual(deserialized_cell.energy, new_energy, "Deserialized cell should have the updated energy")
+
+        # modify the specific cost back down and check that it updates again
+        deserialized_cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.specific_cost /= 10  # revert cost change
+        deserialized_cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.propagate_changes()
+
+        reverted_cost = deserialized_cell.cost
+        self.assertEqual(reverted_cost, original_cell_cost, "Reverted cell cost should match original cost")
+
+        # modify the irreversible specific capacity back and check that energy updates again
+        deserialized_cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.irreversible_specific_capacity *= 10
+        deserialized_cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.propagate_changes()
+
+        fig3 = deserialized_cell.get_capacity_plot()
+
+        # fig1.show()
+        # fig2.show()
+        # fig3.show()
+
+    def test_separator_material_specific_cost_change(self):
+
+        original_cell_cost = self.cell._cost
+
+        # modify separator material cost
+        self.cell.reference_electrode_assembly.layup.top_separator.material.specific_cost *= 3  # triple the cost
+        self.cell.reference_electrode_assembly.layup.top_separator.material.propagate_changes()
+
+        new_cell_cost = self.cell._cost
+
+        self.assertGreater(new_cell_cost, original_cell_cost, "Cell cost should change when separator material cost changes")
+
+        # serialize and check that changes persist
+        serialized = self.cell.serialize()
+        deserialized_cell = ocd.CylindricalCell.deserialize(serialized)
+
+        self.assertEqual(deserialized_cell._cost, new_cell_cost, "Deserialized cell should have the updated cost")
+
+        # modify the specific cost back down and check that it updates again
+        deserialized_cell.reference_electrode_assembly.layup.top_separator.material.specific_cost /= 3  # revert cost change
+        deserialized_cell.reference_electrode_assembly.layup.top_separator.material.propagate_changes()
+
+        reverted_cost = deserialized_cell._cost
+        self.assertAlmostEqual(reverted_cost, original_cell_cost, places=10, msg="Reverted cell cost should match original cost")
+
+    def test_tape_material_specific_cost_change(self):
+        """Test that changing tape material specific cost updates cell cost via canonical tape."""
+        original_cost = self.cell.cost
+
+        # Increase tape material cost via canonical tape and use propagate_changes to update
+        self.cell.reference_electrode_assembly.tape.material.specific_cost += 10  # Increase cost by $10/kg
+        self.cell.reference_electrode_assembly.tape.material.propagate_changes()  # Should update cell cost without needing to reassign each level
+
+        # new cost
+        new_cost = self.cell.cost
+
+        # Check that cell cost increased
+        self.assertGreater(new_cost, original_cost)
+
 
 class TestCylindricalCellTabbed(unittest.TestCase):
     
@@ -823,14 +1028,14 @@ class TestCylindricalCellTabbed(unittest.TestCase):
         self.assertEqual(self.cell.mass, 920.95)
         self.assertEqual(self.cell.specific_energy, 143.66)
         self.assertEqual(self.cell.volumetric_energy, 285.58)
-        self.assertEqual(self.cell.cost_per_energy, 58.59)
+        self.assertEqual(self.cell.cost_per_energy, 52.65)
 
     def test_set_nmc(self):
     
         self.assertEqual(self.cell.maximum_operating_voltage, 4.03)
         self.assertEqual(self.cell.minimum_operating_voltage, 2.27)
         self.assertEqual(self.cell.reversible_capacity, 41.46)
-        self.assertEqual(self.cell.irreversible_capacity, 4.03)
+        self.assertEqual(self.cell.irreversible_capacity, 45.49)
 
         fig1 = self.cell.get_capacity_plot()
         self.assertIsNotNone(fig1)
@@ -994,8 +1199,8 @@ class TestStackedPouchCell(unittest.TestCase):
     def test_basics(self):
         self.assertIsInstance(self.cell, ocd.PouchCell)
         self.assertAlmostEqual(self.cell.energy, 2282.76, 1)
-        self.assertAlmostEqual(self.cell.mass, 129677.71, 0)
-        self.assertAlmostEqual(self.cell.cost, 79.82, 1)
+        self.assertAlmostEqual(self.cell.mass, 133122.64, 0)
+        self.assertAlmostEqual(self.cell.cost, 79.41, 1)
 
     def test_serialization(self):
         serialized = self.cell.serialize()
@@ -1218,6 +1423,35 @@ class TestStackedPouchCell(unittest.TestCase):
         # Both should have traces
         self.assertGreater(len(fig1.data), 0)
         self.assertGreater(len(fig2.data), 0)
+
+    def test_pouch_to_prismatic_conversion(self):
+        """Test converting PouchCell to PrismaticCell by setting prismatic encapsulation."""
+        # Record original properties
+        original_capacity = self.cell.reversible_capacity
+        original_max_voltage = self.cell.maximum_operating_voltage
+        original_min_voltage = self.cell.minimum_operating_voltage
+        original_energy = self.cell.energy
+        original_type = type(self.cell)
+
+        # Verify we start as PouchCell
+        self.assertIsInstance(self.cell, ocd.PouchCell)
+
+        # Convert to prismatic encapsulation
+        prismatic_enc = ocd.PrismaticEncapsulation.from_pouch(self.cell.encapsulation)
+        self.cell.encapsulation = prismatic_enc
+
+        # Verify cell type changed
+        self.assertIsInstance(self.cell, ocd.PrismaticCell)
+        self.assertNotEqual(type(self.cell), original_type)
+
+        # Verify electrochemical properties preserved
+        self.assertAlmostEqual(self.cell.reversible_capacity, original_capacity, places=1)
+        self.assertAlmostEqual(self.cell.maximum_operating_voltage, original_max_voltage, places=2)
+        self.assertAlmostEqual(self.cell.minimum_operating_voltage, original_min_voltage, places=2)
+        self.assertAlmostEqual(self.cell.energy, original_energy, places=0)
+
+        # Verify encapsulation changed
+        self.assertIsInstance(self.cell.encapsulation, ocd.PrismaticEncapsulation)
 
     def test_hot_pressing_geometry(self):
         """Test that hot-pressing creates cavity in laminates."""
@@ -1666,6 +1900,78 @@ class TestStackedPrismaticCell(unittest.TestCase):
         # fig1.show()
         # fig2.show()
 
+    def test_electrode_orientation_propagation_to_connector_orientation(self):
+        """Test that changing electrode_orientation on layup propagates to encapsulation connector_orientation via propagate_changes()."""
+        from steer_opencell_design.Constructions.Layups.Base import ElectrodeOrientation
+        from steer_opencell_design.Components.Containers.Prismatic import ConnectorOrientation
+        
+        # Verify initial state - should be LONGITUDINAL by default
+        self.assertEqual(
+            self.cell.reference_electrode_assembly.layup._electrode_orientation,
+            ElectrodeOrientation.LONGITUDINAL
+        )
+        self.assertEqual(
+            self.cell.encapsulation._connector_orientation,
+            ConnectorOrientation.LONGITUDINAL
+        )
+        
+        # Record original canister dimensions
+        original_width = self.cell.encapsulation.canister.width
+        original_height = self.cell.encapsulation.canister.height
+        
+        # Change electrode orientation on layup and propagate changes
+        self.cell.reference_electrode_assembly.layup.electrode_orientation = ElectrodeOrientation.TRANSVERSE
+        self.cell.reference_electrode_assembly.layup.propagate_changes()
+        
+        # Verify encapsulation connector orientation was updated
+        self.assertEqual(
+            self.cell.encapsulation._connector_orientation,
+            ConnectorOrientation.TRANSVERSE
+        )
+        
+        # Verify canister dimensions were swapped
+        self.assertAlmostEqual(self.cell.encapsulation.canister.width, original_height, places=1)
+        self.assertAlmostEqual(self.cell.encapsulation.canister.height, original_width, places=1)
+        
+        # Change back to LONGITUDINAL
+        self.cell.reference_electrode_assembly.layup.electrode_orientation = ElectrodeOrientation.LONGITUDINAL
+        self.cell.reference_electrode_assembly.layup.propagate_changes()
+        
+        # Verify it changed back
+        self.assertEqual(
+            self.cell.encapsulation._connector_orientation,
+            ConnectorOrientation.LONGITUDINAL
+        )
+
+    def test_prismatic_to_pouch_conversion(self):
+        """Test converting PrismaticCell to PouchCell by setting pouch encapsulation."""
+        # Record original properties
+        original_capacity = self.cell.reversible_capacity
+        original_max_voltage = self.cell.maximum_operating_voltage
+        original_min_voltage = self.cell.minimum_operating_voltage
+        original_energy = self.cell.energy
+        original_type = type(self.cell)
+
+        # Verify we start as PrismaticCell
+        self.assertIsInstance(self.cell, ocd.PrismaticCell)
+
+        # Convert to pouch encapsulation
+        pouch_enc = ocd.PouchEncapsulation.from_prismatic(self.cell.encapsulation)
+        self.cell.encapsulation = pouch_enc
+
+        # Verify cell type changed
+        self.assertIsInstance(self.cell, ocd.PouchCell)
+        self.assertNotEqual(type(self.cell), original_type)
+
+        # Verify electrochemical properties preserved
+        self.assertAlmostEqual(self.cell.reversible_capacity, original_capacity, places=1)
+        self.assertAlmostEqual(self.cell.maximum_operating_voltage, original_max_voltage, places=2)
+        self.assertAlmostEqual(self.cell.minimum_operating_voltage, original_min_voltage, places=2)
+        self.assertAlmostEqual(self.cell.energy, original_energy, places=0)
+
+        # Verify encapsulation changed
+        self.assertIsInstance(self.cell.encapsulation, ocd.PouchEncapsulation)
+
 
 class TestFlatJellyRollPrismatic(unittest.TestCase):
 
@@ -1840,7 +2146,7 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
 
     def test_active_material_cutoff_voltage_setter(self):
 
-        self.assertEqual(self.cell.irreversible_capacity, 13.83)
+        self.assertEqual(self.cell.irreversible_capacity, 72.65 )
         self.assertEqual(self.cell.reversible_capacity, 58.82)
         self.assertEqual(self.cell.minimum_operating_voltage, 2.0)
         self.assertEqual(self.cell.maximum_operating_voltage, 3.96)
@@ -1859,7 +2165,7 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
         fig2 = self.cell.get_capacity_plot()
         self.assertIsNotNone(fig2)
 
-        self.assertEqual(self.cell.irreversible_capacity, 15.25)
+        self.assertEqual(self.cell.irreversible_capacity, 70.24)
         self.assertEqual(self.cell.reversible_capacity, 54.98)
         self.assertEqual(self.cell.minimum_operating_voltage, 2)
         self.assertEqual(self.cell.maximum_operating_voltage, 3.96)
@@ -2210,8 +2516,71 @@ class TestFromLoadedCell(unittest.TestCase):
         # fig1.show()
 
 
+class TestCellPropagation(unittest.TestCase):
+    """Test update propagation behavior for cells with full hierarchy."""
+    
+    def setUp(self):
+        # Load a cell from database (full hierarchy)
+        # Note: from_database deserializes directly, bypassing setters.
+        # Parent references are not automatically established on deserialization.
+        self.cell = ocd.CylindricalCell.from_database(table_name="cell_references", name="LFP Cylindrical Tabless Cell")
+    
+    def test_propagate_changes_from_bottom_to_top(self):
+        """Test that propagate_changes from current collector doesn't raise."""
+        # Since deserialization bypasses setters, we work with the hierarchy that exists.
+        # The propagation should still work even if parent refs are None - it just stops bubbling.
+        cc = self.cell.reference_electrode_assembly.layup.cathode.current_collector
+        # Should not raise (will just stop at first None parent)
+        cc.propagate_changes()
+    
+    def test_update_method_exists(self):
+        """Test that update method exists on cell."""
+        self.assertTrue(hasattr(self.cell, 'update'))
+        self.assertTrue(callable(self.cell.update))
+    
+    def test_modify_deep_property_and_propagate(self):
+        """Test modifying a deep property without triggering expensive recalc."""
+        # Modify current collector thickness
+        cc = self.cell.reference_electrode_assembly.layup.cathode.current_collector
+        original_thickness = cc.thickness
+        cc.thickness = original_thickness + 1
+        
+        # Propagate - should not raise
+        cc.propagate_changes()
+        
+        # Verify the change persisted
+        self.assertAlmostEqual(cc.thickness, original_thickness + 1)
+    
+    def test_propagate_changes_from_bottom_to_top(self):
+        """Test that propagate_changes from current collector doesn't raise."""
+        # Since deserialization bypasses setters, we work with the hierarchy that exists.
+        # The propagation should still work even if parent refs are None - it just stops bubbling.
+        cc = self.cell.reference_electrode_assembly.layup.cathode.current_collector
+        # Should not raise (will just stop at first None parent)
+        cc.propagate_changes()
+    
+    def test_update_method_exists(self):
+        """Test that update method exists on cell."""
+        self.assertTrue(hasattr(self.cell, 'update'))
+        self.assertTrue(callable(self.cell.update))
+    
+    def test_modify_deep_property_and_propagate(self):
+        """Test modifying a deep property and propagating changes."""
+        # Modify current collector thickness
+        cc = self.cell.reference_electrode_assembly.layup.cathode.current_collector
+        original_thickness = cc.thickness
+        cc.thickness = original_thickness + 1
+        
+        # Propagate changes - should not raise
+        cc.propagate_changes()
+        
+        # Verify the change persisted
+        self.assertAlmostEqual(cc.thickness, original_thickness + 1)
+
+
 if __name__ == "__main__":
     unittest.main()
+
 
 
 

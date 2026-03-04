@@ -4,10 +4,12 @@ from time import time
 from steer_core.Constants.Units import *
 
 from steer_core.Mixins.Coordinates import CoordinateMixin
+from steer_core.Mixins.Datum import DatumMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Serializer import SerializerMixin
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
 from steer_core.Decorators.General import calculate_all_properties
 
@@ -19,10 +21,12 @@ import numpy as np
 
 
 class Tape(
-    CoordinateMixin, 
+    CoordinateMixin,
+    DatumMixin,
     ValidationMixin,
     DunderMixin,
     PlotterMixin,
+    PropagationMixin,
     SerializerMixin,
     ):
     """Adhesive tape used to secure the outer wraps of wound jelly roll assemblies. Manages tape geometry (width, thickness) and material properties."""
@@ -55,6 +59,9 @@ class Tape(
             Name of the tape. Defaults to 'Tape'.
         """
         self._update_properties = False
+
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
 
         self.thickness = thickness
         self.material = material
@@ -151,11 +158,6 @@ class Tape(
         return np.round(self._areal_cost, 2)
 
     @property
-    def datum(self) -> Tuple[float, float, float]:
-        """Get the datum position in mm."""
-        return tuple(round(coord * M_TO_MM, 2) for coord in self._datum)
-
-    @property
     def name(self) -> str:
         """Get the tape name."""
         return self._name
@@ -213,12 +215,6 @@ class Tape(
         new_material_specific_cost = areal_cost / (self.material._density * self._thickness)  # $/kg
         self._material.specific_cost = new_material_specific_cost
 
-    @datum.setter
-    def datum(self, datum: Tuple[float, float, float]) -> None:
-        """Set the datum position in mm."""
-        self.validate_datum(datum)
-        self._datum = tuple(coord * MM_TO_M for coord in datum)
-
     @name.setter
     def name(self, name: str) -> None:
         self.validate_string(name, "Name")
@@ -238,9 +234,10 @@ class Tape(
 
     @material.setter
     @calculate_all_properties
+    @propagating_setter(deepcopy=True)
     def material(self, material: TapeMaterial) -> None:
         self.validate_type(material, TapeMaterial, "Material")
-        self._material = deepcopy(material)
+        self._material = material  # Already a copy due to decorator
 
     @thickness.setter
     @calculate_all_properties

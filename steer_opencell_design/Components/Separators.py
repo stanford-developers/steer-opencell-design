@@ -4,10 +4,12 @@ from time import time
 from steer_core.Constants.Units import *
 
 from steer_core.Mixins.Coordinates import CoordinateMixin
+from steer_core.Mixins.Datum import DatumMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Serializer import SerializerMixin
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
 from steer_core.Decorators.Coordinates import calculate_coordinates
 from steer_core.Decorators.General import (
@@ -28,11 +30,13 @@ import plotly.graph_objects as go
 
 
 class Separator(
-    CoordinateMixin, 
+    CoordinateMixin,
+    DatumMixin,
     ValidationMixin,
     DunderMixin,
     PlotterMixin,
-    SerializerMixin
+    PropagationMixin,
+    SerializerMixin,
     ):
     """Porous separator membrane that electrically isolates the anode from the cathode while allowing ion transport. Manages separator geometry (length, width, thickness), coordinates, and Plotly visualization traces."""
 
@@ -69,6 +73,9 @@ class Separator(
         self._flipped_y = False
         self._flipped_z = False
         self._update_properties = False
+
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
 
         self.datum = datum
         self.thickness = thickness
@@ -374,7 +381,7 @@ class Separator(
 
     @property
     def areal_cost(self) -> float:
-        """Get the separator areal cost in $/cm²."""
+        """Get the separator areal cost in $/m²."""
         return np.round(self._areal_cost, 2)
     
     @property
@@ -395,30 +402,6 @@ class Separator(
         if self._pore_volume is None:
             return None
         return np.round(self._pore_volume * M_TO_MM**3, 2)
-
-    @property
-    def datum(self) -> Tuple[float, float, float]:
-        """Get the (x, y, z) datum position in mm."""
-        return (
-            self._datum[0] * M_TO_MM,
-            self._datum[1] * M_TO_MM,
-            self._datum[2] * M_TO_MM,
-        )
-
-    @property
-    def datum_x(self) -> float:
-        """Get the x datum coordinate in mm."""
-        return np.round(self._datum[0] * M_TO_MM, 2)
-
-    @property
-    def datum_y(self) -> float:
-        """Get the y datum coordinate in mm."""
-        return np.round(self._datum[1] * M_TO_MM, 2)
-
-    @property
-    def datum_z(self) -> float:
-        """Get the z datum coordinate in mm."""
-        return np.round(self._datum[2] * M_TO_MM, 2)
 
     @property
     def name(self) -> str:
@@ -503,33 +486,21 @@ class Separator(
 
     @material.setter
     @calculate_bulk_properties
+    @propagating_setter(deepcopy=True)
     def material(self, material: SeparatorMaterial) -> None:
         self.validate_type(material, SeparatorMaterial, "Material")
-        self._material = deepcopy(material)
+        self._material = material  # Already a copy due to decorator
 
-    @datum.setter
+    # Override datum setter to use @calculate_coordinates decorator
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]) -> None:
-        # Validate datum
         self.validate_datum(datum)
-
         self._datum = (
             float(datum[0]) * MM_TO_M,
             float(datum[1]) * MM_TO_M,
             float(datum[2]) * MM_TO_M,
         )
-
-    @datum_x.setter
-    def datum_x(self, x: float) -> None:
-        self.datum = (float(x), self.datum[1], self.datum[2])
-
-    @datum_y.setter
-    def datum_y(self, y: float) -> None:
-        self.datum = (self.datum[0], float(y), self.datum[2])
-
-    @datum_z.setter
-    def datum_z(self, z: float) -> None:
-        self.datum = (self.datum[0], self.datum[1], float(z))
 
     @thickness.setter
     @calculate_all_properties

@@ -43,8 +43,8 @@ class _ActiveMaterial(
         specific_capacity_curves: Union[List[pd.DataFrame], pd.DataFrame],
         color: Optional[str] = "#2c2c2c",
         extrapolation_window: Optional[float] = 0.4,
-        reversible_specific_capacity_scaling: Optional[float] = 1.0,
-        irreversible_specific_capacity_scaling: Optional[float] = 1.0,
+        reversible_specific_capacity_scaling_percentage: Optional[float] = 0.0,
+        irreversible_specific_capacity_scaling_percentage: Optional[float] = 0.0,
         *,
         volume=None,
         mass=None,
@@ -70,10 +70,10 @@ class _ActiveMaterial(
         extrapolation_window : Optional[float]
             The extrapolation window in V. This is the amount of voltage below the maximum voltage (for CathodeMaterial) or above the minimum voltage (for AnodeMaterial)
             of the half cell curves that will be used for extrapolation. This allows for estimation of voltage profiles over a voltage window
-        reversible_specific_capacity_scaling : Optional[float]
-            Scaling factor for the reversible capacity of the material. Default is 1.0 (no scaling).
-        irreversible_specific_capacity_scaling : Optional[float]
-            Scaling factor for the irreversible capacity of the material. Default is 1.0 (no scaling).
+        reversible_specific_capacity_scaling_percentage : Optional[float]
+            Percentage adjustment for the reversible capacity of the material. Default is 0.0 (no change). Positive values increase capacity (e.g., 10 = 10% increase), negative values decrease it (e.g., -10 = 10% decrease).
+        irreversible_specific_capacity_scaling_percentage : Optional[float]
+            Percentage adjustment for the irreversible capacity of the material. Default is 0.0 (no change). Positive values increase capacity (e.g., 10 = 10% increase), negative values decrease it (e.g., -10 = 10% decrease).
         """
         super().__init__(
             name=name, 
@@ -90,8 +90,8 @@ class _ActiveMaterial(
         self.reference = reference
         self.extrapolation_window = extrapolation_window
         self.specific_capacity_curves = specific_capacity_curves
-        self.reversible_specific_capacity_scaling = reversible_specific_capacity_scaling
-        self.irreversible_specific_capacity_scaling = irreversible_specific_capacity_scaling
+        self.reversible_specific_capacity_scaling_percentage = reversible_specific_capacity_scaling_percentage
+        self.irreversible_specific_capacity_scaling_percentage = irreversible_specific_capacity_scaling_percentage
 
     @classmethod
     def _from_app_csv(
@@ -121,7 +121,7 @@ class _ActiveMaterial(
             Density of the material in g/cm^3.
         **kwargs
             Additional keyword arguments passed to the constructor (e.g., color, extrapolation_window,
-            reversible_specific_capacity_scaling, irreversible_specific_capacity_scaling).
+            reversible_specific_capacity_scaling_percentage, irreversible_specific_capacity_scaling_percentage).
 
         Returns
         -------
@@ -180,12 +180,16 @@ class _ActiveMaterial(
 
     def _calculate_specific_capacity_ranges(self) -> Tuple[Tuple[float, float], Tuple[float, float]]:
 
+        # Convert percentage ranges to multiplier ranges for internal calculations
+        irreversible_range_percentage = self.irreversible_specific_capacity_scaling_percentage_range
+        irreversible_range_multiplier = (1.0 + irreversible_range_percentage[0]/100.0, 1.0 + irreversible_range_percentage[1]/100.0)
+        
         _minimum_curve = self._apply_irreversible_specific_capacity_scaling(
-            self._specific_capacity_curve, self.irreversible_specific_capacity_scaling_range[0]
+            self._specific_capacity_curve, irreversible_range_multiplier[0]
         )
 
         _maximum_curve = self._apply_irreversible_specific_capacity_scaling(
-            self._specific_capacity_curve, self.irreversible_specific_capacity_scaling_range[1]
+            self._specific_capacity_curve, irreversible_range_multiplier[1]
         )
 
         self._irreversible_specific_capacity_range = (
@@ -193,12 +197,16 @@ class _ActiveMaterial(
             _maximum_curve[:, 0].max(),
         )
 
+        # Convert percentage ranges to multiplier ranges for internal calculations
+        reversible_range_percentage = self.reversible_specific_capacity_scaling_percentage_range
+        reversible_range_multiplier = (1.0 + reversible_range_percentage[0]/100.0, 1.0 + reversible_range_percentage[1]/100.0)
+        
         _minimum_curve = self._apply_reversible_specific_capacity_scaling(
-            self._specific_capacity_curve, self.reversible_specific_capacity_scaling_range[0]
+            self._specific_capacity_curve, reversible_range_multiplier[0]
         )
 
         _maximum_curve = self._apply_reversible_specific_capacity_scaling(
-            self._specific_capacity_curve, self.reversible_specific_capacity_scaling_range[1]
+            self._specific_capacity_curve, reversible_range_multiplier[1]
         )
 
         discharge_mask = self._specific_capacity_curve[:, 2] == -1
@@ -616,32 +624,32 @@ class _ActiveMaterial(
         )
 
     @property
-    def irreversible_specific_capacity_scaling(self) -> float:
+    def irreversible_specific_capacity_scaling_percentage(self) -> float:
         if self._irreversible_specific_capacity_scaling is None:
-            return 1.0
-        return np.round(self._irreversible_specific_capacity_scaling, 2)
+            return 0.0
+        return np.round((self._irreversible_specific_capacity_scaling - 1.0) * 100, 1)
 
     @property
-    def irreversible_specific_capacity_scaling_range(self) -> Tuple:
-        return 0.8, 1.3
+    def irreversible_specific_capacity_scaling_percentage_range(self) -> Tuple:
+        return -30.0, 30.0
 
     @property
-    def irreversible_specific_capacity_scaling_hard_range(self) -> Tuple:
-        return 0, 2
+    def irreversible_specific_capacity_scaling_percentage_hard_range(self) -> Tuple:
+        return -100.0, 100.0
 
     @property
-    def reversible_specific_capacity_scaling(self) -> float:
+    def reversible_specific_capacity_scaling_percentage(self) -> float:
         if self._reversible_specific_capacity_scaling is None:
-            return 1.0
-        return np.round(self._reversible_specific_capacity_scaling, 2)
+            return 0.0
+        return np.round((self._reversible_specific_capacity_scaling - 1.0) * 100, 1)
 
     @property
-    def reversible_specific_capacity_scaling_range(self) -> Tuple:
-        return 0.8, 1.3
+    def reversible_specific_capacity_scaling_percentage_range(self) -> Tuple:
+        return -30.0, 30.0
 
     @property
-    def reversible_specific_capacity_scaling_hard_range(self) -> Tuple:
-        return 0, 2
+    def reversible_specific_capacity_scaling_percentage_hard_range(self) -> Tuple:
+        return -100.0, 100.0
 
     @property
     def irreversible_specific_capacity(self) -> float:
@@ -694,8 +702,9 @@ class _ActiveMaterial(
         # Calculate new scaling factor to achieve target capacity
         new_scaling = target_capacity / base_capacity
 
-        # apply the scaling factor
-        self.irreversible_specific_capacity_scaling = new_scaling
+        # Convert to percentage and apply
+        new_percentage = (new_scaling - 1.0) * 100
+        self.irreversible_specific_capacity_scaling_percentage = new_percentage
 
     @reversible_specific_capacity.setter
     def reversible_specific_capacity(self, capacity: float):
@@ -711,29 +720,34 @@ class _ActiveMaterial(
         # Calculate new scaling factor to achieve target capacity
         new_scaling = target_capacity / base_capacity
 
-        # apply the scaling factor
-        self.reversible_specific_capacity_scaling = new_scaling
+        # Convert to percentage and apply
+        new_percentage = (new_scaling - 1.0) * 100
+        self.reversible_specific_capacity_scaling_percentage = new_percentage
 
     @reference.setter
     def reference(self, reference: str):
         self.validate_electrochemical_reference(reference)
         self._reference = reference
 
-    @reversible_specific_capacity_scaling.setter
+    @reversible_specific_capacity_scaling_percentage.setter
     @calculate_all_properties
-    def reversible_specific_capacity_scaling(self, scaling: Optional[float]):
+    def reversible_specific_capacity_scaling_percentage(self, percentage: Optional[float]):
         """
-        Set the reversible capacity scaling factor.
+        Set the reversible capacity scaling percentage.
 
-        :param scaling: float: scaling factor for reversible capacity
+        :param percentage: float: percentage adjustment for reversible capacity (e.g., 10 for 10% increase, -10 for 10% decrease)
         """
-        if scaling is None:
+        if percentage is None:
             self._reversible_specific_capacity_scaling = None
             return
 
-        # validate input
-        self.validate_positive_float(scaling, "Reversible capacity scaling")
+        # validate input - percentage can be negative, zero, or positive
+        if not isinstance(percentage, (int, float)):
+            raise TypeError("Reversible capacity scaling percentage must be a number")
 
+        # convert percentage to scaling factor (multiplier)
+        scaling = 1.0 + (percentage / 100.0)
+        
         # apply the scaling factor
         self._reversible_specific_capacity_scaling = scaling
 
@@ -769,21 +783,25 @@ class _ActiveMaterial(
             self._voltage_cutoff = voltage
             return 
         
-    @irreversible_specific_capacity_scaling.setter
+    @irreversible_specific_capacity_scaling_percentage.setter
     @calculate_all_properties
-    def irreversible_specific_capacity_scaling(self, scaling: Optional[float]):
+    def irreversible_specific_capacity_scaling_percentage(self, percentage: Optional[float]):
         """
-        Set the irreversible capacity scaling factor.
+        Set the irreversible capacity scaling percentage.
 
-        :param scaling: float: scaling factor for irreversible capacity
+        :param percentage: float: percentage adjustment for irreversible capacity (e.g., 10 for 10% increase, -10 for 10% decrease)
         """
-        if scaling is None:
+        if percentage is None:
             self._irreversible_specific_capacity_scaling = None
             return
         
-        # validate input
-        self.validate_positive_float(scaling, "Irreversible capacity scaling")
+        # validate input - percentage can be negative, zero, or positive
+        if not isinstance(percentage, (int, float)):
+            raise TypeError("Irreversible capacity scaling percentage must be a number")
 
+        # convert percentage to scaling factor (multiplier)
+        scaling = 1.0 + (percentage / 100.0)
+        
         # apply the scaling factor
         self._irreversible_specific_capacity_scaling = scaling
 
@@ -861,8 +879,8 @@ class CathodeMaterial(_ActiveMaterial):
         color: str = "#2c2c2c",
         voltage_cutoff: Optional[float] = None,
         extrapolation_window: float = 0.4,
-        reversible_specific_capacity_scaling: float = 1.0,
-        irreversible_specific_capacity_scaling: float = 1.0,
+        reversible_specific_capacity_scaling_percentage: float = 0.0,
+        irreversible_specific_capacity_scaling_percentage: float = 0.0,
         *,
         volume=None,
         mass=None,
@@ -890,10 +908,10 @@ class CathodeMaterial(_ActiveMaterial):
             This is useful for cathode materials where the voltage can go below 0V, e.g., for Li-ion batteries.
         color : str
             Color of the material, used for plotting.
-        reversible_specific_capacity_scaling : float
-            Scaling factor for the reversible capacity of the material. Default is 1.0 (no scaling).
-        irreversible_specific_capacity_scaling : float
-            Scaling factor for the irreversible capacity of the material. Default is 1.0 (no scaling).
+        reversible_specific_capacity_scaling_percentage : float
+            Percentage adjustment for the reversible capacity of the material. Default is 0.0 (no change). Positive values increase capacity (e.g., 10 = 10% increase), negative values decrease it (e.g., -10 = 10% decrease).
+        irreversible_specific_capacity_scaling_percentage : float
+            Percentage adjustment for the irreversible capacity of the material. Default is 0.0 (no change). Positive values increase capacity (e.g., 10 = 10% increase), negative values decrease it (e.g., -10 = 10% decrease).
         """
         super().__init__(
             name=name,
@@ -903,8 +921,8 @@ class CathodeMaterial(_ActiveMaterial):
             specific_capacity_curves=specific_capacity_curves,
             color=color,
             extrapolation_window=extrapolation_window,
-            reversible_specific_capacity_scaling=reversible_specific_capacity_scaling,
-            irreversible_specific_capacity_scaling=irreversible_specific_capacity_scaling,
+            reversible_specific_capacity_scaling_percentage=reversible_specific_capacity_scaling_percentage,
+            irreversible_specific_capacity_scaling_percentage=irreversible_specific_capacity_scaling_percentage,
             volume=volume,
             mass=mass,
             **kwargs,
@@ -945,8 +963,8 @@ class AnodeMaterial(_ActiveMaterial):
         specific_capacity_curves: Union[List[pd.DataFrame], pd.DataFrame],
         color: str = "#2c2c2c",
         extrapolation_window: float = 0.05,
-        reversible_specific_capacity_scaling: float = 1.0,
-        irreversible_specific_capacity_scaling: float = 1.0,
+        reversible_specific_capacity_scaling_percentage: float = 0.0,
+        irreversible_specific_capacity_scaling_percentage: float = 0.0,
         *,
         volume=None,
         mass=None,
@@ -972,10 +990,10 @@ class AnodeMaterial(_ActiveMaterial):
         extrapolation_window : float
             The positive voltage extrapolation window in V. This is the amount of voltage above the maximum voltage of the half cell curves that will be used for extrapolation.
             This is useful for anode materials where the voltage can go above 0V, e.g., for Li-ion batteries.
-        reversible_specific_capacity_scaling : float
-            Scaling factor for the reversible capacity of the material. Default is 1.0 (no scaling).
-        irreversible_specific_capacity_scaling : float
-            Scaling factor for the irreversible capacity of the material. Default is 1.0 (no scaling).
+        reversible_specific_capacity_scaling_percentage : float
+            Percentage adjustment for the reversible capacity of the material. Default is 0.0 (no change). Positive values increase capacity (e.g., 10 = 10% increase), negative values decrease it (e.g., -10 = 10% decrease).
+        irreversible_specific_capacity_scaling_percentage : float
+            Percentage adjustment for the irreversible capacity of the material. Default is 0.0 (no change). Positive values increase capacity (e.g., 10 = 10% increase), negative values decrease it (e.g., -10 = 10% decrease).
         """
         super().__init__(
             name=name,
@@ -985,8 +1003,8 @@ class AnodeMaterial(_ActiveMaterial):
             specific_capacity_curves=specific_capacity_curves,
             color=color,
             extrapolation_window=extrapolation_window,
-            reversible_specific_capacity_scaling=reversible_specific_capacity_scaling,
-            irreversible_specific_capacity_scaling=irreversible_specific_capacity_scaling,
+            reversible_specific_capacity_scaling_percentage=reversible_specific_capacity_scaling_percentage,
+            irreversible_specific_capacity_scaling_percentage=irreversible_specific_capacity_scaling_percentage,
             volume=volume,
             mass=mass,
             **kwargs,

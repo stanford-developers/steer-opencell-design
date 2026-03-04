@@ -334,6 +334,51 @@ class TestCylindricalTerminalConnector(unittest.TestCase):
         self.assertEqual(connector.radius, 15.0)
         self.assertNotEqual(connector.mass, original_mass)  # Should be different due to size change
 
+    def test_serialization_preserves_property_dependencies(self):
+        """Test that property dependencies work correctly after serialization/deserialization.
+        
+        Tests that changing radius affects mass, cost, and volume both before
+        and after serialization.
+        """
+        connector = self.connector_standard
+        
+        # Get original properties
+        original_radius = connector.radius
+        original_mass = connector.mass
+        original_cost = connector._cost
+        original_volume = connector.volume
+        
+        # Increase radius
+        new_radius = original_radius * 1.5
+        connector.radius = new_radius
+        
+        # Verify dependent properties changed
+        self.assertEqual(connector.radius, new_radius)
+        self.assertGreater(connector.mass, original_mass)
+        self.assertGreater(connector._cost, original_cost)
+        self.assertGreater(connector.volume, original_volume)
+        modified_mass = connector.mass
+        
+        # Reset
+        connector.radius = original_radius
+        self.assertEqual(connector.radius, original_radius)
+        self.assertAlmostEqual(connector.mass, original_mass, places=2)
+        
+        # Serialize and deserialize
+        serialized = connector.serialize()
+        deserialized_connector = CylindricalTerminalConnector.deserialize(serialized)
+        
+        # Verify deserialized has same properties
+        self.assertEqual(deserialized_connector.radius, original_radius)
+        self.assertAlmostEqual(deserialized_connector.mass, original_mass, places=2)
+        
+        # Increase radius on deserialized object
+        deserialized_connector.radius = new_radius
+        
+        # Verify dependent properties changed on deserialized object
+        self.assertEqual(deserialized_connector.radius, new_radius)
+        self.assertAlmostEqual(deserialized_connector.mass, modified_mass, places=2)
+
 
 class TestCylindricalLidAssembly(unittest.TestCase):
     def setUp(self):
@@ -1405,6 +1450,250 @@ class TestCylindricalEncapsulation(unittest.TestCase):
             # Check that calculations are reasonable
             self.assertGreater(test_encapsulation.mass_breakdown["Canister"], 0)
 
+    def test_from_prismatic_conversion(self):
+        """Test conversion from PrismaticEncapsulation to CylindricalEncapsulation."""
+        from steer_opencell_design.Components.Containers.Prismatic import (
+            PrismaticTerminalConnector,
+            PrismaticLidAssembly,
+            PrismaticCanister,
+            PrismaticEncapsulation
+        )
+        
+        # Create a prismatic encapsulation
+        material = PrismaticContainerMaterial.from_database("Aluminum")
+        
+        prismatic_cathode = PrismaticTerminalConnector(
+            material=material,
+            thickness=2.0,
+            fill_factor=0.8
+        )
+        
+        prismatic_anode = PrismaticTerminalConnector(
+            material=material,
+            thickness=3.0,
+            fill_factor=0.7
+        )
+        
+        prismatic_lid = PrismaticLidAssembly(
+            material=material,
+            thickness=4.0,
+            fill_factor=0.9
+        )
+        
+        prismatic_canister = PrismaticCanister(
+            material=material,
+            width=100.0,
+            length=150.0,
+            height=200.0,
+            wall_thickness=2.0
+        )
+        
+        prismatic_enc = PrismaticEncapsulation(
+            cathode_terminal_connector=prismatic_cathode,
+            anode_terminal_connector=prismatic_anode,
+            lid_assembly=prismatic_lid,
+            canister=prismatic_canister
+        )
+        
+        # Convert to cylindrical
+        cylindrical_enc = CylindricalEncapsulation.from_prismatic(prismatic_enc)
+        
+        # Verify returned type
+        self.assertIsInstance(cylindrical_enc, CylindricalEncapsulation)
+        
+        # Verify height is preserved
+        self.assertEqual(cylindrical_enc.canister.height, prismatic_canister.height)
+        
+        # Verify materials transferred correctly
+        self.assertEqual(cylindrical_enc.canister.material.name, material.name)
+
+    def test_from_prismatic_volume_preservation(self):
+        """Test that internal volume is approximately preserved during prismatic conversion."""
+        from steer_opencell_design.Components.Containers.Prismatic import (
+            PrismaticTerminalConnector,
+            PrismaticLidAssembly,
+            PrismaticCanister,
+            PrismaticEncapsulation
+        )
+        
+        # Create a prismatic encapsulation with known dimensions
+        material = PrismaticContainerMaterial.from_database("Aluminum")
+        
+        prismatic_canister = PrismaticCanister(
+            material=material,
+            width=100.0,  # mm
+            length=150.0,  # mm
+            height=200.0,  # mm
+            wall_thickness=2.0  # mm
+        )
+        
+        prismatic_enc = PrismaticEncapsulation(
+            cathode_terminal_connector=PrismaticTerminalConnector(
+                material=material, thickness=2.0, fill_factor=0.8
+            ),
+            anode_terminal_connector=PrismaticTerminalConnector(
+                material=material, thickness=3.0, fill_factor=0.7
+            ),
+            lid_assembly=PrismaticLidAssembly(
+                material=material, thickness=4.0, fill_factor=0.9
+            ),
+            canister=prismatic_canister
+        )
+        
+        # Convert to cylindrical
+        cylindrical_enc = CylindricalEncapsulation.from_prismatic(prismatic_enc)
+        
+        # Calculate internal volumes
+        # Prismatic internal volume
+        prismatic_internal_volume = (
+            prismatic_enc._internal_width * 
+            prismatic_enc._internal_length * 
+            prismatic_enc._internal_height
+        )
+        
+        # Cylindrical internal volume
+        cylindrical_internal_radius = cylindrical_enc.canister.inner_radius / 1000  # Convert to meters
+        cylindrical_internal_volume = (
+            np.pi * cylindrical_internal_radius**2 * 
+            cylindrical_enc._internal_height
+        )
+        
+        # Verify volumes are approximately equal (within 1% tolerance)
+        volume_ratio = cylindrical_internal_volume / prismatic_internal_volume
+        self.assertAlmostEqual(volume_ratio, 1.0, delta=0.01)
+
+    def test_from_pouch_conversion(self):
+        """Test conversion from PouchEncapsulation to CylindricalEncapsulation."""
+        from steer_opencell_design.Components.Containers.Pouch import (
+            PouchEncapsulation, PouchTerminal, LaminateSheet
+        )
+        
+        # Create a pouch encapsulation
+        material = PrismaticContainerMaterial.from_database("Aluminum")
+        
+        cathode_terminal = PouchTerminal(
+            material=material,
+            width=10,
+            length=30,
+            thickness=1.0
+        )
+        
+        anode_terminal = PouchTerminal(
+            material=material,
+            width=10,
+            length=30,
+            thickness=1.0
+        )
+        
+        top_laminate = LaminateSheet(
+            areal_cost=2.5,
+            density=920,
+            thickness=50
+        )
+        
+        bottom_laminate = LaminateSheet(
+            areal_cost=2.5,
+            density=920,
+            thickness=50
+        )
+        
+        pouch_enc = PouchEncapsulation(
+            cathode_terminal=cathode_terminal,
+            anode_terminal=anode_terminal,
+            top_laminate=top_laminate,
+            bottom_laminate=bottom_laminate,
+            width=150.0,
+            height=200.0,
+            thickness=5.0
+        )
+        
+        # Convert to cylindrical
+        cylindrical_enc = CylindricalEncapsulation.from_pouch(pouch_enc)
+        
+        # Verify returned type
+        self.assertIsInstance(cylindrical_enc, CylindricalEncapsulation)
+        
+        # Verify height is preserved (pouch height maps to cylindrical height)
+        self.assertEqual(cylindrical_enc.canister.height, pouch_enc.height)
+        
+        # Verify canister material is aluminum (per specification)
+        self.assertEqual(cylindrical_enc.canister.material.name, "Aluminum")
+        
+        # Verify wall thickness is 1.0 mm (per specification)
+        self.assertEqual(cylindrical_enc.canister.wall_thickness, 1.0)
+
+    def test_from_pouch_defaults(self):
+        """Test that .from_pouch() uses appropriate default values."""
+        from steer_opencell_design.Components.Containers.Pouch import (
+            PouchEncapsulation, PouchTerminal, LaminateSheet
+        )
+        
+        # Create a simple pouch encapsulation
+        material = PrismaticContainerMaterial.from_database("Aluminum")
+        
+        pouch_enc = PouchEncapsulation(
+            cathode_terminal=PouchTerminal(material=material, width=10, length=30, thickness=1.0),
+            anode_terminal=PouchTerminal(material=material, width=10, length=30, thickness=1.0),
+            top_laminate=LaminateSheet(areal_cost=2.5, density=920, thickness=50),
+            bottom_laminate=LaminateSheet(areal_cost=2.5, density=920, thickness=50),
+            width=150.0,
+            height=200.0,
+            thickness=5.0
+        )
+        
+        # Convert to cylindrical
+        cylindrical_enc = CylindricalEncapsulation.from_pouch(pouch_enc)
+        
+        # Verify all components use aluminum
+        self.assertEqual(cylindrical_enc.canister.material.name, "Aluminum")
+        self.assertEqual(cylindrical_enc.cathode_terminal_connector.material.name, "Aluminum")
+        self.assertEqual(cylindrical_enc.anode_terminal_connector.material.name, "Aluminum")
+        self.assertEqual(cylindrical_enc.lid_assembly.material.name, "Aluminum")
+        
+        # Verify terminal thicknesses are set (0.5 mm default)
+        self.assertEqual(cylindrical_enc.cathode_terminal_connector.thickness, 0.5)
+        self.assertEqual(cylindrical_enc.anode_terminal_connector.thickness, 0.5)
+        
+        # Verify lid thickness is set (0.5 mm default)
+        self.assertEqual(cylindrical_enc.lid_assembly.thickness, 0.5)
+        
+        # Verify fill factors are set (0.7 default)
+        self.assertEqual(cylindrical_enc.cathode_terminal_connector.fill_factor, 0.7)
+        self.assertEqual(cylindrical_enc.anode_terminal_connector.fill_factor, 0.7)
+        self.assertEqual(cylindrical_enc.lid_assembly.fill_factor, 0.7)
+        
+        # Verify auto-sizing works (terminals should be 90% of inner radius)
+        expected_terminal_radius = cylindrical_enc.canister.inner_radius * 0.9
+        self.assertAlmostEqual(
+            cylindrical_enc.cathode_terminal_connector.radius, 
+            expected_terminal_radius, 
+            places=1  # Allow for rounding differences
+        )
+
+    def test_from_prismatic_invalid_type(self):
+        """Test that .from_prismatic() raises error for invalid input type."""
+        # Pass an invalid object type
+        with self.assertRaises(TypeError):
+            CylindricalEncapsulation.from_prismatic("invalid_string")
+        
+        with self.assertRaises(TypeError):
+            CylindricalEncapsulation.from_prismatic(self.encapsulation)
+        
+        with self.assertRaises(TypeError):
+            CylindricalEncapsulation.from_prismatic(123)
+
+    def test_from_pouch_invalid_type(self):
+        """Test that .from_pouch() raises error for invalid input type."""
+        # Pass an invalid object type
+        with self.assertRaises(TypeError):
+            CylindricalEncapsulation.from_pouch("invalid_string")
+        
+        with self.assertRaises(TypeError):
+            CylindricalEncapsulation.from_pouch(self.encapsulation)
+        
+        with self.assertRaises(TypeError):
+            CylindricalEncapsulation.from_pouch(123)
+
 
 class TestLaminateSheet(unittest.TestCase):
     """Test suite for LaminateSheet class."""
@@ -2403,6 +2692,201 @@ class TestPouchEncapsulation(unittest.TestCase):
             self.assertEqual(self.encapsulation.top_laminate.height, height)
             self.assertEqual(self.encapsulation.bottom_laminate.height, height)
 
+    def test_from_prismatic_conversion(self):
+        """Test that .from_prismatic() creates a valid PouchEncapsulation."""
+        from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
+        from steer_opencell_design.Components.Containers.Prismatic import (
+            PrismaticEncapsulation, PrismaticCanister, PrismaticLidAssembly, PrismaticTerminalConnector
+        )
+        
+        # Create a prismatic encapsulation for testing
+        material = PrismaticContainerMaterial.from_database("Aluminum")
+        canister = PrismaticCanister(material=material, width=100, length=150, height=50, wall_thickness=1.0)
+        lid = PrismaticLidAssembly(material=material, width=100, length=150, thickness=0.5, fill_factor=0.7)
+        cathode_conn = PrismaticTerminalConnector(material=material, thickness=0.5, fill_factor=0.7)
+        anode_conn = PrismaticTerminalConnector(material=material, thickness=0.5, fill_factor=0.7)
+        
+        prismatic_enc = PrismaticEncapsulation(
+            canister=canister,
+            lid_assembly=lid,
+            cathode_terminal_connector=cathode_conn,
+            anode_terminal_connector=anode_conn
+        )
+        
+        # Convert to pouch
+        pouch_enc = PouchEncapsulation.from_prismatic(prismatic_enc)
+        
+        # Verify it's a PouchEncapsulation
+        self.assertIsInstance(pouch_enc, PouchEncapsulation)
+        
+        # Verify dimensions are mapped correctly
+        self.assertEqual(pouch_enc.width, prismatic_enc.width)
+        self.assertEqual(pouch_enc.height, prismatic_enc.length)
+        self.assertAlmostEqual(pouch_enc.thickness, prismatic_enc.internal_height, places=5)
+
+    def test_from_prismatic_dimension_mapping(self):
+        """Test that .from_prismatic() correctly maps dimensions."""
+        from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
+        from steer_opencell_design.Components.Containers.Prismatic import (
+            PrismaticEncapsulation, PrismaticCanister, PrismaticLidAssembly, PrismaticTerminalConnector
+        )
+        
+        material = PrismaticContainerMaterial.from_database("Aluminum")
+        canister = PrismaticCanister(material=material, width=100, length=150, height=50, wall_thickness=1.0)
+        lid = PrismaticLidAssembly(material=material, width=100, length=150, thickness=0.5, fill_factor=0.7)
+        cathode_conn = PrismaticTerminalConnector(material=material, thickness=0.5, fill_factor=0.7)
+        anode_conn = PrismaticTerminalConnector(material=material, thickness=0.5, fill_factor=0.7)
+        
+        prismatic_enc = PrismaticEncapsulation(
+            canister=canister,
+            lid_assembly=lid,
+            cathode_terminal_connector=cathode_conn,
+            anode_terminal_connector=anode_conn
+        )
+        
+        pouch_enc = PouchEncapsulation.from_prismatic(prismatic_enc)
+        
+        # pouch width = prismatic width
+        self.assertEqual(pouch_enc.width, 100)
+        # pouch height = prismatic length
+        self.assertEqual(pouch_enc.height, 150)
+        # pouch thickness = prismatic internal height
+        self.assertAlmostEqual(pouch_enc.thickness, prismatic_enc.internal_height, places=5)
+
+    def test_from_prismatic_material_transfer(self):
+        """Test that .from_prismatic() transfers material from canister to terminals."""
+        from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
+        from steer_opencell_design.Components.Containers.Prismatic import (
+            PrismaticEncapsulation, PrismaticCanister, PrismaticLidAssembly, PrismaticTerminalConnector
+        )
+        
+        material = PrismaticContainerMaterial.from_database("Aluminum")
+        canister = PrismaticCanister(material=material, width=100, length=150, height=50, wall_thickness=1.0)
+        lid = PrismaticLidAssembly(material=material, width=100, length=150, thickness=0.5, fill_factor=0.7)
+        cathode_conn = PrismaticTerminalConnector(material=material, thickness=0.5, fill_factor=0.7)
+        anode_conn = PrismaticTerminalConnector(material=material, thickness=0.5, fill_factor=0.7)
+        
+        prismatic_enc = PrismaticEncapsulation(
+            canister=canister,
+            lid_assembly=lid,
+            cathode_terminal_connector=cathode_conn,
+            anode_terminal_connector=anode_conn
+        )
+        
+        pouch_enc = PouchEncapsulation.from_prismatic(prismatic_enc)
+        
+        # Verify terminals use the same material as the canister
+        self.assertEqual(pouch_enc.cathode_terminal.material.name, "Aluminum")
+        self.assertEqual(pouch_enc.anode_terminal.material.name, "Aluminum")
+
+    def test_from_prismatic_invalid_type(self):
+        """Test that .from_prismatic() raises error for invalid input type."""
+        from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
+        
+        with self.assertRaises(TypeError):
+            PouchEncapsulation.from_prismatic("invalid_string")
+        
+        with self.assertRaises(TypeError):
+            PouchEncapsulation.from_prismatic(123)
+
+    def test_from_cylindrical_conversion(self):
+        """Test that .from_cylindrical() creates a valid PouchEncapsulation."""
+        from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
+        from steer_opencell_design.Components.Containers.Cylindrical import (
+            CylindricalEncapsulation, CylindricalCanister, CylindricalLidAssembly, CylindricalTerminalConnector
+        )
+        
+        # Create a cylindrical encapsulation for testing
+        material = PrismaticContainerMaterial.from_database("Aluminum")
+        canister = CylindricalCanister(material=material, outer_radius=25, height=65, wall_thickness=1.0)
+        lid = CylindricalLidAssembly(material=material, radius=25, thickness=0.5, fill_factor=0.7)
+        cathode_conn = CylindricalTerminalConnector(material=material, radius=5, thickness=0.5, fill_factor=0.7)
+        anode_conn = CylindricalTerminalConnector(material=material, radius=5, thickness=0.5, fill_factor=0.7)
+        
+        cylindrical_enc = CylindricalEncapsulation(
+            canister=canister,
+            lid_assembly=lid,
+            cathode_terminal_connector=cathode_conn,
+            anode_terminal_connector=anode_conn
+        )
+        
+        # Convert to pouch
+        pouch_enc = PouchEncapsulation.from_cylindrical(cylindrical_enc)
+        
+        # Verify it's a PouchEncapsulation
+        self.assertIsInstance(pouch_enc, PouchEncapsulation)
+        
+        # Verify dimensions are mapped correctly
+        expected_diameter = 2 * cylindrical_enc.radius
+        self.assertAlmostEqual(pouch_enc.width, expected_diameter, places=5)
+        self.assertEqual(pouch_enc.height, cylindrical_enc.height)
+        self.assertAlmostEqual(pouch_enc.thickness, expected_diameter, places=5)
+
+    def test_from_cylindrical_dimension_mapping(self):
+        """Test that .from_cylindrical() correctly maps dimensions."""
+        from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
+        from steer_opencell_design.Components.Containers.Cylindrical import (
+            CylindricalEncapsulation, CylindricalCanister, CylindricalLidAssembly, CylindricalTerminalConnector
+        )
+        
+        material = PrismaticContainerMaterial.from_database("Aluminum")
+        canister = CylindricalCanister(material=material, outer_radius=25, height=65, wall_thickness=1.0)
+        lid = CylindricalLidAssembly(material=material, radius=25, thickness=0.5, fill_factor=0.7)
+        cathode_conn = CylindricalTerminalConnector(material=material, radius=5, thickness=0.5, fill_factor=0.7)
+        anode_conn = CylindricalTerminalConnector(material=material, radius=5, thickness=0.5, fill_factor=0.7)
+        
+        cylindrical_enc = CylindricalEncapsulation(
+            canister=canister,
+            lid_assembly=lid,
+            cathode_terminal_connector=cathode_conn,
+            anode_terminal_connector=anode_conn
+        )
+        
+        pouch_enc = PouchEncapsulation.from_cylindrical(cylindrical_enc)
+        
+        # pouch width = diameter
+        self.assertAlmostEqual(pouch_enc.width, 50, places=5)
+        # pouch height = cylindrical height
+        self.assertEqual(pouch_enc.height, 65)
+        # pouch thickness = diameter
+        self.assertAlmostEqual(pouch_enc.thickness, 50, places=5)
+
+    def test_from_cylindrical_material_transfer(self):
+        """Test that .from_cylindrical() transfers material from canister to terminals."""
+        from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
+        from steer_opencell_design.Components.Containers.Cylindrical import (
+            CylindricalEncapsulation, CylindricalCanister, CylindricalLidAssembly, CylindricalTerminalConnector
+        )
+        
+        material = PrismaticContainerMaterial.from_database("Aluminum")
+        canister = CylindricalCanister(material=material, outer_radius=25, height=65, wall_thickness=1.0)
+        lid = CylindricalLidAssembly(material=material, radius=25, thickness=0.5, fill_factor=0.7)
+        cathode_conn = CylindricalTerminalConnector(material=material, radius=5, thickness=0.5, fill_factor=0.7)
+        anode_conn = CylindricalTerminalConnector(material=material, radius=5, thickness=0.5, fill_factor=0.7)
+        
+        cylindrical_enc = CylindricalEncapsulation(
+            canister=canister,
+            lid_assembly=lid,
+            cathode_terminal_connector=cathode_conn,
+            anode_terminal_connector=anode_conn
+        )
+        
+        pouch_enc = PouchEncapsulation.from_cylindrical(cylindrical_enc)
+        
+        # Verify terminals use the same material as the canister
+        self.assertEqual(pouch_enc.cathode_terminal.material.name, "Aluminum")
+        self.assertEqual(pouch_enc.anode_terminal.material.name, "Aluminum")
+
+    def test_from_cylindrical_invalid_type(self):
+        """Test that .from_cylindrical() raises error for invalid input type."""
+        from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
+        
+        with self.assertRaises(TypeError):
+            PouchEncapsulation.from_cylindrical("invalid_string")
+        
+        with self.assertRaises(TypeError):
+            PouchEncapsulation.from_cylindrical(123)
+
 
 class TestPrismaticTerminalConnector(unittest.TestCase):
     def setUp(self):
@@ -2974,6 +3458,71 @@ class TestPrismaticEncapsulation(unittest.TestCase):
         # Total height should have increased by same amount
         self.assertAlmostEqual(enc.height, original_height + 20.0, places=1)
 
+    def test_internal_height_setter_transverse(self):
+        """Test internal height setter adjusts canister width in transverse mode.
+        
+        In TRANSVERSE orientation, internal_height derives from canister._inner_width,
+        so setting internal_height should adjust canister.width (not height).
+        """
+        enc = self.encapsulation
+        enc.connector_orientation = 'transverse'
+        
+        original_canister_width = enc.canister.width
+        original_canister_height = enc.canister.height
+        original_internal_height = enc.internal_height
+        
+        # Increase internal height by 20mm
+        new_internal = original_internal_height + 20.0
+        enc.internal_height = new_internal
+        
+        self.assertAlmostEqual(enc.internal_height, new_internal, places=1)
+        # Canister width should have increased (not height)
+        self.assertAlmostEqual(enc.canister.width, original_canister_width + 20.0, places=1)
+        # Canister height should remain unchanged
+        self.assertAlmostEqual(enc.canister.height, original_canister_height, places=1)
+
+    def test_internal_width_setter_longitudinal(self):
+        """Test internal width setter adjusts canister width in longitudinal mode."""
+        enc = self.encapsulation
+        # Default is longitudinal
+        
+        original_canister_width = enc.canister.width
+        original_canister_height = enc.canister.height
+        original_internal_width = enc.internal_width
+        
+        # Increase internal width by 15mm
+        new_internal = original_internal_width + 15.0
+        enc.internal_width = new_internal
+        
+        self.assertAlmostEqual(enc.internal_width, new_internal, places=1)
+        # Canister width should have increased
+        self.assertAlmostEqual(enc.canister.width, original_canister_width + 15.0, places=1)
+        # Canister height should remain unchanged
+        self.assertAlmostEqual(enc.canister.height, original_canister_height, places=1)
+
+    def test_internal_width_setter_transverse(self):
+        """Test internal width setter adjusts canister height in transverse mode.
+        
+        In TRANSVERSE orientation, internal_width derives from canister._inner_height,
+        so setting internal_width should adjust canister.height (not width).
+        """
+        enc = self.encapsulation
+        enc.connector_orientation = 'transverse'
+        
+        original_canister_width = enc.canister.width
+        original_canister_height = enc.canister.height
+        original_internal_width = enc.internal_width
+        
+        # Increase internal width by 15mm
+        new_internal = original_internal_width + 15.0
+        enc.internal_width = new_internal
+        
+        self.assertAlmostEqual(enc.internal_width, new_internal, places=1)
+        # Canister height should have increased (not width)
+        self.assertAlmostEqual(enc.canister.height, original_canister_height + 15.0, places=1)
+        # Canister width should remain unchanged
+        self.assertAlmostEqual(enc.canister.width, original_canister_width, places=1)
+
     def test_datum_setter(self):
         """Test datum setter updates all components"""
         enc = self.encapsulation
@@ -3064,6 +3613,217 @@ class TestPrismaticEncapsulation(unittest.TestCase):
         # fig1.show()
         # fig2.show()
         # fig3.show()
+
+    def test_from_cylindrical_conversion(self):
+        """Test conversion from CylindricalEncapsulation to PrismaticEncapsulation."""
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
+        
+        # Create a cylindrical encapsulation
+        material = PrismaticContainerMaterial.from_database("Aluminum")
+        
+        cylindrical_canister = CylindricalCanister(
+            material=material,
+            outer_radius=20.0,
+            height=200.0,
+            wall_thickness=2.0
+        )
+        
+        cylindrical_enc = CylindricalEncapsulation(
+            cathode_terminal_connector=CylindricalTerminalConnector(
+                material=material, thickness=2.0, fill_factor=0.8
+            ),
+            anode_terminal_connector=CylindricalTerminalConnector(
+                material=material, thickness=3.0, fill_factor=0.7
+            ),
+            lid_assembly=CylindricalLidAssembly(
+                material=material, thickness=4.0, fill_factor=0.9
+            ),
+            canister=cylindrical_canister
+        )
+        
+        # Convert to prismatic
+        prismatic_enc = PrismaticEncapsulation.from_cylindrical(cylindrical_enc)
+        
+        # Verify returned type
+        self.assertIsInstance(prismatic_enc, PrismaticEncapsulation)
+        
+        # Verify height is preserved
+        self.assertEqual(prismatic_enc.canister.height, cylindrical_canister.height)
+        
+        # Verify materials transferred correctly
+        self.assertEqual(prismatic_enc.canister.material.name, material.name)
+
+    def test_from_cylindrical_volume_preservation(self):
+        """Test that internal volume is approximately preserved during cylindrical conversion."""
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
+        
+        # Create a cylindrical encapsulation with known dimensions
+        material = PrismaticContainerMaterial.from_database("Aluminum")
+        
+        cylindrical_enc = CylindricalEncapsulation(
+            cathode_terminal_connector=CylindricalTerminalConnector(
+                material=material, thickness=2.0, fill_factor=0.8
+            ),
+            anode_terminal_connector=CylindricalTerminalConnector(
+                material=material, thickness=3.0, fill_factor=0.7
+            ),
+            lid_assembly=CylindricalLidAssembly(
+                material=material, thickness=4.0, fill_factor=0.9
+            ),
+            canister=CylindricalCanister(
+                material=material,
+                outer_radius=20.0,  # mm
+                height=200.0,  # mm
+                wall_thickness=2.0  # mm
+            )
+        )
+        
+        # Convert to prismatic
+        prismatic_enc = PrismaticEncapsulation.from_cylindrical(cylindrical_enc)
+        
+        # Calculate internal volumes
+        # Cylindrical internal volume
+        cylindrical_internal_radius = cylindrical_enc.canister.inner_radius / 1000  # Convert to meters
+        cylindrical_internal_volume = (
+            np.pi * cylindrical_internal_radius**2 * 
+            cylindrical_enc._internal_height
+        )
+        
+        # Prismatic internal volume
+        prismatic_internal_volume = (
+            prismatic_enc._internal_width * 
+            prismatic_enc._internal_length * 
+            prismatic_enc._internal_height
+        )
+        
+        # Verify volumes are approximately equal (within 1% tolerance)
+        volume_ratio = prismatic_internal_volume / cylindrical_internal_volume
+        self.assertAlmostEqual(volume_ratio, 1.0, delta=0.01)
+
+    def test_from_cylindrical_aspect_ratio(self):
+        """Test that converted prismatic has 2:3 aspect ratio."""
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
+        
+        material = PrismaticContainerMaterial.from_database("Aluminum")
+        
+        cylindrical_enc = CylindricalEncapsulation(
+            cathode_terminal_connector=CylindricalTerminalConnector(
+                material=material, thickness=2.0, fill_factor=0.8
+            ),
+            anode_terminal_connector=CylindricalTerminalConnector(
+                material=material, thickness=3.0, fill_factor=0.7
+            ),
+            lid_assembly=CylindricalLidAssembly(
+                material=material, thickness=4.0, fill_factor=0.9
+            ),
+            canister=CylindricalCanister(
+                material=material, outer_radius=20.0, height=200.0, wall_thickness=2.0
+            )
+        )
+        
+        prismatic_enc = PrismaticEncapsulation.from_cylindrical(cylindrical_enc)
+        
+        # Check aspect ratio is approximately 2:3
+        aspect_ratio = prismatic_enc._internal_width / prismatic_enc._internal_length
+        expected_ratio = 2 / 3
+        self.assertAlmostEqual(aspect_ratio, expected_ratio, delta=0.01)
+
+    def test_from_pouch_conversion(self):
+        """Test conversion from PouchEncapsulation to PrismaticEncapsulation."""
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
+        from steer_opencell_design.Components.Containers.Pouch import (
+            PouchEncapsulation, PouchTerminal, LaminateSheet
+        )
+        
+        # Create a pouch encapsulation
+        material = PrismaticContainerMaterial.from_database("Aluminum")
+        
+        pouch_enc = PouchEncapsulation(
+            cathode_terminal=PouchTerminal(material=material, width=10, length=30, thickness=1.0),
+            anode_terminal=PouchTerminal(material=material, width=10, length=30, thickness=1.0),
+            top_laminate=LaminateSheet(areal_cost=2.5, density=920, thickness=50),
+            bottom_laminate=LaminateSheet(areal_cost=2.5, density=920, thickness=50),
+            width=150.0,
+            height=200.0,
+            thickness=5.0
+        )
+        
+        # Convert to prismatic
+        prismatic_enc = PrismaticEncapsulation.from_pouch(pouch_enc)
+        
+        # Verify returned type
+        self.assertIsInstance(prismatic_enc, PrismaticEncapsulation)
+        
+        # Verify canister material is aluminum (per specification)
+        self.assertEqual(prismatic_enc.canister.material.name, "Aluminum")
+        
+        # Verify wall thickness is 1.0 mm (per specification)
+        self.assertEqual(prismatic_enc.canister.wall_thickness, 1.0)
+
+    def test_from_pouch_defaults(self):
+        """Test that .from_pouch() uses appropriate default values."""
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
+        from steer_opencell_design.Components.Containers.Pouch import (
+            PouchEncapsulation, PouchTerminal, LaminateSheet
+        )
+        
+        material = PrismaticContainerMaterial.from_database("Aluminum")
+        
+        pouch_enc = PouchEncapsulation(
+            cathode_terminal=PouchTerminal(material=material, width=10, length=30, thickness=1.0),
+            anode_terminal=PouchTerminal(material=material, width=10, length=30, thickness=1.0),
+            top_laminate=LaminateSheet(areal_cost=2.5, density=920, thickness=50),
+            bottom_laminate=LaminateSheet(areal_cost=2.5, density=920, thickness=50),
+            width=150.0,
+            height=200.0,
+            thickness=5.0
+        )
+        
+        prismatic_enc = PrismaticEncapsulation.from_pouch(pouch_enc)
+        
+        # Verify all components use aluminum
+        self.assertEqual(prismatic_enc.canister.material.name, "Aluminum")
+        self.assertEqual(prismatic_enc.cathode_terminal_connector.material.name, "Aluminum")
+        self.assertEqual(prismatic_enc.anode_terminal_connector.material.name, "Aluminum")
+        self.assertEqual(prismatic_enc.lid_assembly.material.name, "Aluminum")
+        
+        # Verify terminal thicknesses are set (0.5 mm default)
+        self.assertEqual(prismatic_enc.cathode_terminal_connector.thickness, 0.5)
+        self.assertEqual(prismatic_enc.anode_terminal_connector.thickness, 0.5)
+        
+        # Verify lid thickness is set (3 mm default)
+        self.assertEqual(prismatic_enc.lid_assembly.thickness, 3)
+        
+        # Verify fill factors are set (0.7 default)
+        self.assertEqual(prismatic_enc.cathode_terminal_connector.fill_factor, 0.7)
+        self.assertEqual(prismatic_enc.anode_terminal_connector.fill_factor, 0.7)
+        self.assertEqual(prismatic_enc.lid_assembly.fill_factor, 0.7)
+
+    def test_from_cylindrical_invalid_type(self):
+        """Test that .from_cylindrical() raises error for invalid input type."""
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
+        
+        with self.assertRaises(TypeError):
+            PrismaticEncapsulation.from_cylindrical("invalid_string")
+        
+        with self.assertRaises(TypeError):
+            PrismaticEncapsulation.from_cylindrical(self.encapsulation)
+        
+        with self.assertRaises(TypeError):
+            PrismaticEncapsulation.from_cylindrical(123)
+
+    def test_from_pouch_invalid_type(self):
+        """Test that .from_pouch() raises error for invalid input type."""
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
+        
+        with self.assertRaises(TypeError):
+            PrismaticEncapsulation.from_pouch("invalid_string")
+        
+        with self.assertRaises(TypeError):
+            PrismaticEncapsulation.from_pouch(self.encapsulation)
+        
+        with self.assertRaises(TypeError):
+            PrismaticEncapsulation.from_pouch(123)
 
 
 class TestFlexFrameEncapsulation(unittest.TestCase):
