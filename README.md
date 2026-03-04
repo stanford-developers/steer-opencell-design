@@ -300,15 +300,72 @@ Higher-level assemblies that combine components.
 | Volumetric energy density | Wh/L |
 | Cost per energy | $/kWh |
 
-## Updating Sub-Components
+## Propagating Changes Through the Hierarchy
 
-When modifying a nested property (e.g., changing an active material inside a cell's formulation), changes must be propagated up the hierarchy by re-assigning each parent component:
+`steer-opencell-design` uses a hierarchical object model where child components are nested inside parent components:
+
+```
+Cell
+└── ElectrodeAssembly (JellyRoll, Stack)
+    └── Layup (Laminate, MonoLayer)
+        ├── Cathode
+        │   ├── Formulation
+        │   │   └── ActiveMaterials, Binders, etc.
+        │   └── CurrentCollector
+        ├── Anode
+        │   ├── Formulation
+        │   └── CurrentCollector
+        └── Separators
+```
+
+When you modify a property deep in the hierarchy (e.g., changing the cathode's mass loading), parent objects need to recalculate their derived properties. There are two methods to handle this:
+
+### Method 1: `propagate_changes()` (Recommended)
+
+The simplest approach is to modify the property and then call `propagate_changes()` on that object. This bubbles the recalculation up through all parent objects automatically:
+
+```python
+# Modify a property low in the hierarchy
+cell.reference_electrode_assembly.layup.cathode.mass_loading = 15
+
+# Propagate changes up to the cell level
+cell.reference_electrode_assembly.layup.cathode.propagate_changes()
+
+# Now the cell's energy, mass, cost, etc. are all updated
+print(cell.energy)  # Reflects the new mass loading
+```
+
+You can call `propagate_changes()` from any level in the hierarchy:
+
+```python
+# Modify current collector thickness
+cell.reference_electrode_assembly.layup.cathode.current_collector.thickness = 12
+
+# Propagate from the current collector level - goes through:
+# CurrentCollector → Cathode → Layup → JellyRoll → Cell
+cell.reference_electrode_assembly.layup.cathode.current_collector.propagate_changes()
+```
+
+### Method 2: `update()` (Single Level)
+
+If you only need to recalculate a single object without propagating to parents, use `update()`:
+
+```python
+# Recalculate just the cathode's properties
+cathode.update()
+```
+
+This is useful when making multiple changes before triggering a full recalculation, or when working with standalone components not yet attached to a parent.
+
+### Method 3: Re-assignment (Manual Propagation)
+
+You can also trigger recalculation by re-assigning each component through its parent's setter:
 
 ```python
 # Modify the active material
 cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1 = new_material
 
-# Propagate changes up the hierarchy to trigger recalculation
+# Propagate changes up the hierarchy by re-assigning each level
 cell.reference_electrode_assembly.layup.cathode.formulation = (
     cell.reference_electrode_assembly.layup.cathode.formulation
 )
@@ -323,7 +380,20 @@ cell.reference_electrode_assembly = (
 )
 ```
 
-This pattern triggers recalculation at each level of the hierarchy, ensuring all derived properties (energy, mass, cost, capacity curves, etc.) are updated consistently.
+This approach gives you explicit control but is more verbose. The `propagate_changes()` method is generally preferred.
+
+### After Deserialization
+
+When loading a cell from serialized data or a database, parent references may not be established automatically. The `propagate_changes()` method still works - it simply stops at the first level without a parent. To ensure full propagation after deserialization, changes will propagate correctly as you access and modify nested components.
+
+```python
+# Load from database
+cell = ocd.CylindricalCell.from_database(table_name="cell_references", name="My Cell")
+
+# Modify and propagate - works correctly
+cell.reference_electrode_assembly.layup.cathode.mass_loading = 14
+cell.reference_electrode_assembly.layup.cathode.propagate_changes()
+```
 
 ## Serialization
 
@@ -372,4 +442,4 @@ If you use this software in your research, please cite it using the metadata in 
 
 ## License
 
-MIT License. See [LICENCE.txt](LICENCE.txt) for details.
+This project is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. See [LICENCE.txt](LICENCE.txt) for details.

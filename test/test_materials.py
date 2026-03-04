@@ -154,11 +154,11 @@ class TestLFPSingleCurve(unittest.TestCase):
             density=3.6,
             specific_capacity_curves=half_cell,
             voltage_cutoff=4.0,
-            reversible_specific_capacity_scaling=0.5,
+            reversible_specific_capacity_scaling_percentage=-50,
         )
 
     def test_attributes(self):
-        self.assertEqual(self.material.irreversible_specific_capacity_scaling, 1.0)
+        self.assertEqual(self.material.irreversible_specific_capacity_scaling_percentage, 0.0)
         self.assertEqual(self.material.irreversible_specific_capacity, 156.64)
 
     def test_instantiation(self):
@@ -225,12 +225,12 @@ class TestLFPSingleCurve(unittest.TestCase):
         self.material = CathodeMaterial.from_database("LFP")
         self.assertTrue(isinstance(self.material, CathodeMaterial))
 
-    def test_irreversible_specific_capacity_scaling(self):
+    def test_irreversible_specific_capacity_scaling_percentage(self):
         """
-        Test irreversible capacity scaling
+        Test irreversible capacity scaling percentage
         """
         self.material.voltage_cutoff = 4
-        self.material.irreversible_specific_capacity_scaling = 0.5
+        self.material.irreversible_specific_capacity_scaling_percentage = -50
 
         data = self.material.specific_capacity_curve
         figure = self.material.plot_specific_capacity_curve()
@@ -258,12 +258,12 @@ class TestLFPSingleCurve(unittest.TestCase):
 
         # figure.show()
 
-    def test_reversible_specific_capacity_scaling(self):
+    def test_reversible_specific_capacity_scaling_percentage(self):
         """
-        Test reversible capacity scaling
+        Test reversible capacity scaling percentage
         """
         self.material.voltage_cutoff = 4
-        self.material.reversible_specific_capacity_scaling = 0.5
+        self.material.reversible_specific_capacity_scaling_percentage = -50
 
         data = self.material.specific_capacity_curve
         figure = self.material.plot_specific_capacity_curve()
@@ -308,14 +308,14 @@ class TestLFPSingleCurve(unittest.TestCase):
         Test switching values
         """
         self.material.voltage_cutoff = 4.0
-        self.material.reversible_specific_capacity_scaling = 0.5
-        self.material.irreversible_specific_capacity_scaling = 0.5
-        self.material.reversible_specific_capacity_scaling = 0.2
-        self.material.irreversible_specific_capacity_scaling = 0.2
+        self.material.reversible_specific_capacity_scaling_percentage = -50
+        self.material.irreversible_specific_capacity_scaling_percentage = -50
+        self.material.reversible_specific_capacity_scaling_percentage = -80
+        self.material.irreversible_specific_capacity_scaling_percentage = -80
         self.material.voltage_cutoff = 4.1
         self.material.voltage_cutoff = 4.0
-        self.material.reversible_specific_capacity_scaling = 1
-        self.material.irreversible_specific_capacity_scaling = 1
+        self.material.reversible_specific_capacity_scaling_percentage = 0
+        self.material.irreversible_specific_capacity_scaling_percentage = 0
 
         data = self.material.specific_capacity_curve
 
@@ -340,6 +340,47 @@ class TestLFPSingleCurve(unittest.TestCase):
             ),
             155.19,
         )
+
+    def test_serialization_preserves_property_dependencies(self):
+        """Test that property dependencies work correctly after serialization/deserialization.
+        
+        Tests that changing voltage_cutoff affects specific_capacity_curve data
+        both before and after serialization.
+        """
+        # Get original properties
+        original_cutoff = self.material.voltage_cutoff
+        original_curve_max_voltage = self.material.specific_capacity_curve["Voltage (V)"].max()
+        
+        # Change voltage cutoff
+        new_cutoff = original_cutoff - 0.1
+        self.material.voltage_cutoff = new_cutoff
+        
+        # Verify capacity curve reflects new cutoff
+        new_curve_max_voltage = self.material.specific_capacity_curve["Voltage (V)"].max()
+        self.assertAlmostEqual(new_curve_max_voltage, new_cutoff, places=1)
+        self.assertLess(new_curve_max_voltage, original_curve_max_voltage)
+        
+        # Reset
+        self.material.voltage_cutoff = original_cutoff
+        reset_curve_max = self.material.specific_capacity_curve["Voltage (V)"].max()
+        self.assertAlmostEqual(reset_curve_max, original_curve_max_voltage, places=1)
+        
+        # Serialize and deserialize
+        serialized = self.material.serialize()
+        deserialized_material = CathodeMaterial.deserialize(serialized)
+        
+        # Verify deserialized has same properties
+        self.assertAlmostEqual(deserialized_material.voltage_cutoff, original_cutoff, places=1)
+        des_curve_max = deserialized_material.specific_capacity_curve["Voltage (V)"].max()
+        self.assertAlmostEqual(des_curve_max, original_curve_max_voltage, places=1)
+        
+        # Change voltage cutoff on deserialized object
+        deserialized_material.voltage_cutoff = new_cutoff
+        
+        # Verify capacity curve updated on deserialized object
+        des_new_curve_max = deserialized_material.specific_capacity_curve["Voltage (V)"].max()
+        self.assertAlmostEqual(des_new_curve_max, new_cutoff, places=1)
+        self.assertLess(des_new_curve_max, original_curve_max_voltage)
 
 
 class TestNMMMultiCurve(unittest.TestCase):
@@ -1079,11 +1120,11 @@ class TestHardCarbon(unittest.TestCase):
 
         # figure.show()
 
-    def test_reversible_specific_capacity_scaling(self):
+    def test_reversible_specific_capacity_scaling_percentage(self):
         """
-        Test reversible capacity scaling
+        Test reversible capacity scaling percentage
         """
-        self.material.reversible_specific_capacity_scaling = 0.5
+        self.material.reversible_specific_capacity_scaling_percentage = -50
         data = self.material.specific_capacity_curve
         figure = self.material.plot_specific_capacity_curve()
 

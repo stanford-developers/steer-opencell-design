@@ -641,6 +641,24 @@ class SpiralCalculator:
         assert ds_target is not None, "ds_target must be set from kwargs or argument"
         ds_target = float(ds_target)
 
+        # Validate geometry for potential issues with squat (low aspect ratio) racetracks
+        aspect_ratio = straight_length / mandrel_radius if mandrel_radius > 0 else float('inf')
+        if aspect_ratio < 0.5:
+            import warnings
+            warnings.warn(
+                f"Very squat racetrack geometry detected (aspect_ratio={aspect_ratio:.2f}, "
+                f"straight_length={straight_length*1e3:.2f}mm, mandrel_radius={mandrel_radius*1e3:.2f}mm). "
+                f"This may cause rendering issues with straight sections. Consider increasing mandrel width.",
+                UserWarning
+            )
+        elif aspect_ratio < 2.0:
+            import warnings
+            warnings.warn(
+                f"Squat racetrack geometry detected (aspect_ratio={aspect_ratio:.2f}). "
+                f"Adaptive downsampling will be used to maintain straight section rendering quality.",
+                UserWarning
+            )
+
         total_length = laminate._total_length  # meters
 
         # Build fast thickness interpolator (vectorized, avoids per-step Python method calls)
@@ -758,16 +776,40 @@ class SpiralCalculator:
              (arc_lengths <= 2.0 * semi_arc_fractions + straight_length))
         )
         
-        # Build mask for points to keep
-        downsample_factor = 5
+        # Build mask for points to keep with adaptive downsampling
         keep_mask = np.zeros(len(spiral_array), dtype=bool)
         keep_mask[0] = True
         keep_mask[-1] = True
         keep_mask[is_curved] = True
         
-        # For straight sections, keep every Nth point
+        # For straight sections, use adaptive downsampling based on geometry
         straight_indices = np.where(~is_curved)[0]
         if len(straight_indices) > 0:
+            # Calculate actual point density on straight sections
+            num_straight_points = len(straight_indices)
+            # Estimate straight sections total length (2 straights per turn, approximate from total turns)
+            if len(spiral_array) > 0:
+                max_turns = spiral_array[-1, TURNS_COL]
+                total_straight_length = 2.0 * straight_length * max_turns if max_turns > 0 else straight_length
+            else:
+                total_straight_length = straight_length
+            
+            # Calculate density and adaptive downsample factor
+            if total_straight_length > 0:
+                actual_density = num_straight_points / total_straight_length  # points per meter
+                # Target: maintain at least 1000 points/m on straights, or 2000 points/m for very short straights
+                if straight_length < 0.005:  # Less than 5mm
+                    target_density = 2000.0
+                elif straight_length < 0.010:  # Less than 10mm
+                    target_density = 1500.0
+                else:
+                    target_density = 1000.0
+                
+                # Calculate adaptive downsample factor (minimum 1, no downsampling for sparse straights)
+                downsample_factor = max(1, int(actual_density / target_density))
+            else:
+                downsample_factor = 5  # Default fallback
+            
             keep_mask[straight_indices[::downsample_factor]] = True
         
         return spiral_array[keep_mask]

@@ -688,6 +688,53 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertFalse(self.layup.bottom_separator._flipped_z)
         self.assertFalse(self.layup.top_separator._flipped_z)
 
+    def test_serialization_preserves_propagation_capability(self):
+        """Test that propagate_changes() works correctly after serialization/deserialization.
+        
+        Tests that:
+        1. Modifying a property low in the hierarchy (cathode.mass_loading)
+        2. Calling propagate_changes() on that child object
+        3. Updates a property at a higher level (layup.thickness)
+        
+        This should work both before and after serialization.
+        """
+        # Get original properties
+        original_thickness = self.layup.thickness
+        original_mass_loading = self.layup.cathode.mass_loading
+        
+        # Modify low in hierarchy (cathode mass loading)
+        self.layup.cathode.mass_loading = original_mass_loading * 1.5
+        
+        # Call propagate_changes() to bubble up the change
+        self.layup.cathode.propagate_changes()
+        
+        # Verify parent property (thickness) changed
+        self.assertGreater(self.layup.thickness, original_thickness)
+        modified_thickness = self.layup.thickness
+        
+        # Reset and verify
+        self.layup.cathode.mass_loading = original_mass_loading
+        self.layup.cathode.propagate_changes()
+        self.assertAlmostEqual(self.layup.thickness, original_thickness, places=1)
+        
+        # Serialize and deserialize
+        serialized = self.layup.serialize()
+        deserialized_layup = Laminate.deserialize(serialized)
+        
+        # Verify deserialized has same properties
+        self.assertAlmostEqual(deserialized_layup.thickness, original_thickness, places=1)
+        self.assertEqual(deserialized_layup.cathode.mass_loading, original_mass_loading)
+        
+        # Modify low in hierarchy on deserialized object
+        deserialized_layup.cathode.mass_loading = original_mass_loading * 1.5
+        
+        # Call propagate_changes() on deserialized object
+        deserialized_layup.cathode.propagate_changes()
+        
+        # Verify parent property changed on deserialized object
+        self.assertGreater(deserialized_layup.thickness, original_thickness)
+        self.assertAlmostEqual(deserialized_layup.thickness, modified_thickness, places=1)
+
 
 class TestSimpleMonoLayer(unittest.TestCase):
 
@@ -778,59 +825,59 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.assertTrue(condition)
 
         fig = self.monolayer.get_top_down_view(opacity=0.2)
-        # fig.show()
+        # fig.show(renderer="browser")
 
     def test_width_and_height_setter(self):
 
-        self.assertEqual(self.monolayer.height, 324)
-        self.assertEqual(self.monolayer.width, 304)
+        self.assertEqual(self.monolayer.height, 326)
+        self.assertEqual(self.monolayer.width, 310)
         self.assertEqual(self.monolayer.anode.current_collector.height, 324)
         self.assertEqual(self.monolayer.anode.current_collector.width, 304)
         self.assertEqual(self.monolayer.cathode.current_collector.height, 320)
         self.assertEqual(self.monolayer.cathode.current_collector.width, 300)
-        self.assertEqual(self.monolayer.top_separator.length, 326)
-        self.assertEqual(self.monolayer.top_separator.width, 310)
-        self.assertEqual(self.monolayer.bottom_separator.length, 326)
-        self.assertEqual(self.monolayer.bottom_separator.width, 310)
+        self.assertEqual(self.monolayer._top_separator.length, 326)
+        self.assertEqual(self.monolayer._top_separator.width, 310)
+        self.assertEqual(self.monolayer._bottom_separator.length, 326)
+        self.assertEqual(self.monolayer._bottom_separator.width, 310)
         fig1 = self.monolayer.get_top_down_view(opacity=0.2)
 
         self.monolayer.height = 500
         self.assertEqual(self.monolayer.height, 500)
-        self.assertEqual(self.monolayer.width, 304)
-        self.assertEqual(self.monolayer.anode.current_collector.height, 500)
+        self.assertEqual(self.monolayer.width, 310)
+        self.assertEqual(self.monolayer.anode.current_collector.height, 498)
         self.assertEqual(self.monolayer.anode.current_collector.width, 304)
-        self.assertEqual(self.monolayer.cathode.current_collector.height, 496)
+        self.assertEqual(self.monolayer.cathode.current_collector.height, 494)
         self.assertEqual(self.monolayer.cathode.current_collector.width, 300)
-        self.assertEqual(self.monolayer.top_separator.length, 502)
-        self.assertEqual(self.monolayer.top_separator.width, 310)
-        self.assertEqual(self.monolayer.bottom_separator.length, 502)
-        self.assertEqual(self.monolayer.bottom_separator.width, 310)
+        self.assertEqual(self.monolayer._top_separator.length, 500)
+        self.assertEqual(self.monolayer._top_separator.width, 310)
+        self.assertEqual(self.monolayer._bottom_separator.length, 500)
+        self.assertEqual(self.monolayer._bottom_separator.width, 310)
         fig2 = self.monolayer.get_top_down_view(opacity=0.2)
 
         self.monolayer.width = 400
         self.assertEqual(self.monolayer.height, 500)
         self.assertEqual(self.monolayer.width, 400)
-        self.assertEqual(self.monolayer.anode.current_collector.height, 500)
-        self.assertEqual(self.monolayer.anode.current_collector.width, 400)
-        self.assertEqual(self.monolayer.cathode.current_collector.height, 496)
-        self.assertEqual(self.monolayer.cathode.current_collector.width, 396)
-        self.assertEqual(self.monolayer.top_separator.length, 502)
-        self.assertEqual(self.monolayer.top_separator.width, 406)
-        self.assertEqual(self.monolayer.bottom_separator.length, 502)
-        self.assertEqual(self.monolayer.bottom_separator.width, 406)
+        self.assertEqual(self.monolayer.anode.current_collector.height, 498)
+        self.assertEqual(self.monolayer.anode.current_collector.width, 394)
+        self.assertEqual(self.monolayer.cathode.current_collector.height, 494)
+        self.assertEqual(self.monolayer.cathode.current_collector.width, 390)
+        self.assertEqual(self.monolayer._top_separator.length, 500)
+        self.assertEqual(self.monolayer._top_separator.width, 400)
+        self.assertEqual(self.monolayer._bottom_separator.length, 500)
+        self.assertEqual(self.monolayer._bottom_separator.width, 400)
         fig3 = self.monolayer.get_top_down_view(opacity=0.2)
 
         self.monolayer.width = 350
         self.assertEqual(self.monolayer.height, 500)
         self.assertEqual(self.monolayer.width, 350)
-        self.assertEqual(self.monolayer.anode.current_collector.height, 500)
-        self.assertEqual(self.monolayer.anode.current_collector.width, 350)
-        self.assertEqual(self.monolayer.cathode.current_collector.height, 496)
-        self.assertEqual(self.monolayer.cathode.current_collector.width, 346)
-        self.assertEqual(self.monolayer.top_separator.length, 502)
-        self.assertEqual(self.monolayer.top_separator.width, 356)
-        self.assertEqual(self.monolayer.bottom_separator.length, 502)
-        self.assertEqual(self.monolayer.bottom_separator.width, 356)
+        self.assertEqual(self.monolayer.anode.current_collector.height, 498)
+        self.assertEqual(self.monolayer.anode.current_collector.width, 344)
+        self.assertEqual(self.monolayer.cathode.current_collector.height, 494)
+        self.assertEqual(self.monolayer.cathode.current_collector.width, 340)
+        self.assertEqual(self.monolayer._top_separator.length, 500)
+        self.assertEqual(self.monolayer._top_separator.width, 350)
+        self.assertEqual(self.monolayer._bottom_separator.length, 500)
+        self.assertEqual(self.monolayer._bottom_separator.width, 350)
         fig4 = self.monolayer.get_top_down_view(opacity=0.2)
 
         # fig1.show()
@@ -1015,8 +1062,8 @@ class TestSimpleMonoLayer(unittest.TestCase):
         old_layup_datum = self.monolayer.datum
         old_cathode_datum = self.monolayer.cathode.datum
         old_anode_datum = self.monolayer.anode.datum
-        old_top_sep_datum = self.monolayer.top_separator.datum
-        old_bottom_sep_datum = self.monolayer.bottom_separator.datum
+        old_top_sep_datum = self.monolayer._top_separator.datum
+        old_bottom_sep_datum = self.monolayer._bottom_separator.datum
 
         figure_old = self.monolayer.get_top_down_view(opacity=0.2)
 
@@ -1034,8 +1081,8 @@ class TestSimpleMonoLayer(unittest.TestCase):
 
         assert_shift(old_cathode_datum, self.monolayer.cathode.datum)
         assert_shift(old_anode_datum, self.monolayer.anode.datum)
-        assert_shift(old_top_sep_datum, self.monolayer.top_separator.datum)
-        assert_shift(old_bottom_sep_datum, self.monolayer.bottom_separator.datum)
+        assert_shift(old_top_sep_datum, self.monolayer._top_separator.datum)
+        assert_shift(old_bottom_sep_datum, self.monolayer._bottom_separator.datum)
 
         # Layup datum should equal cathode datum
         self.assertEqual(self.monolayer.datum, self.monolayer.cathode.datum)
@@ -1156,8 +1203,8 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.assertTrue(self.monolayer._flipped_z)
         self.assertTrue(self.monolayer.cathode._flipped_z)
         self.assertTrue(self.monolayer.anode._flipped_z)
-        self.assertTrue(self.monolayer.bottom_separator._flipped_z)
-        self.assertTrue(self.monolayer.top_separator._flipped_z)
+        self.assertTrue(self.monolayer._bottom_separator._flipped_z)
+        self.assertTrue(self.monolayer._top_separator._flipped_z)
         
         # Flip back
         self.monolayer._flip("z")
@@ -1166,8 +1213,8 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.assertFalse(self.monolayer._flipped_z)
         self.assertFalse(self.monolayer.cathode._flipped_z)
         self.assertFalse(self.monolayer.anode._flipped_z)
-        self.assertFalse(self.monolayer.bottom_separator._flipped_z)
-        self.assertFalse(self.monolayer.top_separator._flipped_z)
+        self.assertFalse(self.monolayer._bottom_separator._flipped_z)
+        self.assertFalse(self.monolayer._top_separator._flipped_z)
 
 
 class TestZFoldMonoLayer(unittest.TestCase):
@@ -1262,59 +1309,59 @@ class TestZFoldMonoLayer(unittest.TestCase):
         condition = self.zfoldmonolayer == temp_layup
         self.assertTrue(condition)
         fig1 = self.zfoldmonolayer.get_top_down_view()
-        # fig1.show()
+        # fig1.show(renderer="browser")
 
     def test_width_and_height_setter(self):
 
-        self.assertEqual(self.zfoldmonolayer.height, 324)
-        self.assertEqual(self.zfoldmonolayer.width, 304)
+        self.assertEqual(self.zfoldmonolayer.height, 326)
+        self.assertEqual(self.zfoldmonolayer.width, 304.05)
         self.assertEqual(self.zfoldmonolayer.anode.current_collector.height, 324)
         self.assertEqual(self.zfoldmonolayer.anode.current_collector.width, 304)
         self.assertEqual(self.zfoldmonolayer.cathode.current_collector.height, 320)
         self.assertEqual(self.zfoldmonolayer.cathode.current_collector.width, 300)
-        self.assertEqual(self.zfoldmonolayer.top_separator.length, 304.05)
-        self.assertEqual(self.zfoldmonolayer.top_separator.width, 326.0)
-        self.assertEqual(self.zfoldmonolayer.bottom_separator.length, 300.05)
-        self.assertEqual(self.zfoldmonolayer.bottom_separator.width, 326)
+        self.assertEqual(self.zfoldmonolayer._top_separator.length, 304.05)
+        self.assertEqual(self.zfoldmonolayer._top_separator.width, 326.0)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator.length, 300.05)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator.width, 326)
         fig1 = self.zfoldmonolayer.get_top_down_view(opacity=0.2)
 
         self.zfoldmonolayer.height = 500
         self.assertEqual(self.zfoldmonolayer.height, 500)
-        self.assertEqual(self.zfoldmonolayer.width, 304)
-        self.assertEqual(self.zfoldmonolayer.anode.current_collector.height, 500)
+        self.assertEqual(self.zfoldmonolayer.width, 304.05)
+        self.assertEqual(self.zfoldmonolayer.anode.current_collector.height, 498)
         self.assertEqual(self.zfoldmonolayer.anode.current_collector.width, 304)
-        self.assertEqual(self.zfoldmonolayer.cathode.current_collector.height, 496)
+        self.assertEqual(self.zfoldmonolayer.cathode.current_collector.height, 494)
         self.assertEqual(self.zfoldmonolayer.cathode.current_collector.width, 300)
-        self.assertEqual(self.zfoldmonolayer.top_separator.length, 304.05)
-        self.assertEqual(self.zfoldmonolayer.top_separator.width, 502)
-        self.assertEqual(self.zfoldmonolayer.bottom_separator.length, 300.05)
-        self.assertEqual(self.zfoldmonolayer.bottom_separator.width, 502)
+        self.assertEqual(self.zfoldmonolayer._top_separator.length, 304.05)
+        self.assertEqual(self.zfoldmonolayer._top_separator.width, 500)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator.length, 300.05)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator.width, 500)
         fig2 = self.zfoldmonolayer.get_top_down_view(opacity=0.2)
 
         self.zfoldmonolayer.width = 400
         self.assertEqual(self.zfoldmonolayer.height, 500)
         self.assertEqual(self.zfoldmonolayer.width, 400)
-        self.assertEqual(self.zfoldmonolayer.anode.current_collector.height, 500)
-        self.assertEqual(self.zfoldmonolayer.anode.current_collector.width, 400)
-        self.assertEqual(self.zfoldmonolayer.cathode.current_collector.height, 496)
-        self.assertEqual(self.zfoldmonolayer.cathode.current_collector.width, 396)
-        self.assertEqual(self.zfoldmonolayer.top_separator.length, 400.05)
-        self.assertEqual(self.zfoldmonolayer.top_separator.width, 502)
-        self.assertEqual(self.zfoldmonolayer.bottom_separator.length, 396.05)
-        self.assertEqual(self.zfoldmonolayer.bottom_separator.width, 502)
+        self.assertEqual(self.zfoldmonolayer.anode.current_collector.height, 498)
+        self.assertEqual(self.zfoldmonolayer.anode.current_collector.width, 399.95)
+        self.assertEqual(self.zfoldmonolayer.cathode.current_collector.height, 494)
+        self.assertEqual(self.zfoldmonolayer.cathode.current_collector.width, 395.95)
+        self.assertEqual(self.zfoldmonolayer._top_separator.length, 400)
+        self.assertEqual(self.zfoldmonolayer._top_separator.width, 500)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator.length, 396)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator.width, 500)
         fig3 = self.zfoldmonolayer.get_top_down_view(opacity=0.2)
 
         self.zfoldmonolayer.width = 350
         self.assertEqual(self.zfoldmonolayer.height, 500)
         self.assertEqual(self.zfoldmonolayer.width, 350)
-        self.assertEqual(self.zfoldmonolayer.anode.current_collector.height, 500)
-        self.assertEqual(self.zfoldmonolayer.anode.current_collector.width, 350)
-        self.assertEqual(self.zfoldmonolayer.cathode.current_collector.height, 496)
-        self.assertEqual(self.zfoldmonolayer.cathode.current_collector.width, 346)
-        self.assertEqual(self.zfoldmonolayer.top_separator.length, 350.05)
-        self.assertEqual(self.zfoldmonolayer.top_separator.width, 502.0)
-        self.assertEqual(self.zfoldmonolayer.bottom_separator.length, 346.05)
-        self.assertEqual(self.zfoldmonolayer.bottom_separator.width, 502)
+        self.assertEqual(self.zfoldmonolayer.anode.current_collector.height, 498)
+        self.assertEqual(self.zfoldmonolayer.anode.current_collector.width, 349.95)
+        self.assertEqual(self.zfoldmonolayer.cathode.current_collector.height, 494)
+        self.assertEqual(self.zfoldmonolayer.cathode.current_collector.width, 345.95)
+        self.assertEqual(self.zfoldmonolayer._top_separator.length, 350)
+        self.assertEqual(self.zfoldmonolayer._top_separator.width, 500)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator.length, 346)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator.width, 500)
         fig4 = self.zfoldmonolayer.get_top_down_view(opacity=0.2)
 
         # fig1.show()
@@ -1409,41 +1456,6 @@ class TestZFoldMonoLayer(unittest.TestCase):
 
         # fig1.show()
         # fig2.show()
-
-    def test_unified_separator_property(self):
-        """Test the unified separator property interface."""
-        # Get separator should return the bottom separator as canonical reference
-        separator = self.zfoldmonolayer.separator
-        self.assertEqual(separator, self.zfoldmonolayer._bottom_separator)
-
-        # Test setting via unified interface
-        original_separator = self.zfoldmonolayer.separator
-
-        # Create new separator
-        new_separator = Separator(
-            material=original_separator.material,
-            thickness=15,  # Different thickness
-            width=350,  # Different width
-            name="New Z-Fold Separator",
-        )
-
-        # Set via unified interface
-        self.zfoldmonolayer.separator = new_separator
-
-        # Both separators should be updated with correct lengths
-        expected_bottom_length = (self.zfoldmonolayer.cathode.current_collector._x_foil_length + 2 * new_separator._thickness) * M_TO_MM
-        expected_top_length = (self.zfoldmonolayer.anode.current_collector._x_foil_length + 2 * new_separator._thickness) * M_TO_MM
-
-        self.assertAlmostEqual(
-            self.zfoldmonolayer._bottom_separator.length,
-            expected_bottom_length,
-            places=1,
-        )
-        self.assertAlmostEqual(self.zfoldmonolayer._top_separator.length, expected_top_length, places=1)
-        self.assertEqual(self.zfoldmonolayer.separator.name, "New Z-Fold Separator")
-
-        fig1 = self.zfoldmonolayer.get_top_down_view()
-        # fig1.show()
 
     def test_unified_separator_overhang_properties_fixed_component(self):
         """Test the unified separator overhang properties."""
@@ -1626,16 +1638,16 @@ class TestZFoldMonoLayer(unittest.TestCase):
         # The layup and separators should have the same flip state
         # Note: Individual electrodes may have different internal flip states due to Z-fold initialization
         self.assertTrue(self.zfoldmonolayer._flipped_y)
-        self.assertTrue(self.zfoldmonolayer.bottom_separator._flipped_y)
-        self.assertTrue(self.zfoldmonolayer.top_separator._flipped_y)
+        self.assertTrue(self.zfoldmonolayer._bottom_separator._flipped_y)
+        self.assertTrue(self.zfoldmonolayer._top_separator._flipped_y)
         
         # Flip back
         self.zfoldmonolayer._flip("y")
         
         # All should be False
         self.assertFalse(self.zfoldmonolayer._flipped_y)
-        self.assertFalse(self.zfoldmonolayer.bottom_separator._flipped_y)
-        self.assertFalse(self.zfoldmonolayer.top_separator._flipped_y)
+        self.assertFalse(self.zfoldmonolayer._bottom_separator._flipped_y)
+        self.assertFalse(self.zfoldmonolayer._top_separator._flipped_y)
 
     def test_flip_maintains_zfold_geometry(self):
         """Test that flipping maintains Z-fold specific geometric relationships"""
@@ -1651,6 +1663,211 @@ class TestZFoldMonoLayer(unittest.TestCase):
         # The separator lengths should remain the same after flipping
         self.assertAlmostEqual(self.zfoldmonolayer._bottom_separator.length, original_bottom_sep_length, places=1)
         self.assertAlmostEqual(self.zfoldmonolayer._top_separator.length, original_top_sep_length, places=1)
+
+    def test_separator_thickness_setter_syncs_both_separators(self):
+        """Test that changing separator.thickness updates both _top_separator and _bottom_separator."""
+        # Get initial thicknesses
+        original_thickness = self.zfoldmonolayer.separator.thickness
+        self.assertEqual(self.zfoldmonolayer._top_separator.thickness, original_thickness)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator.thickness, original_thickness)
+
+        # Change the canonical separator's thickness
+        new_thickness = 30
+        self.zfoldmonolayer.separator.thickness = new_thickness
+        self.zfoldmonolayer.separator.propagate_changes()
+
+        # Verify both internal separators are updated
+        self.assertEqual(self.zfoldmonolayer.separator.thickness, new_thickness)
+        self.assertEqual(self.zfoldmonolayer._top_separator.thickness, new_thickness)
+        self.assertEqual(self.zfoldmonolayer._bottom_separator.thickness, new_thickness)
+
+
+class TestLayupPropagation(unittest.TestCase):
+    """Test update propagation behavior for layups."""
+    
+    def setUp(self):
+        # Create cathode
+        material = CathodeMaterial.from_database("LFP")
+        material.specific_cost = 6
+        material.density = 3.6
+
+        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+
+        formulation = CathodeFormulation(
+            active_materials={material: 95},
+            binders={binder: 2},
+            conductive_additives={conductive_additive: 3},
+        )
+
+        current_collector_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
+
+        cathode_cc = NotchedCurrentCollector(
+            material=current_collector_material,
+            length=4500,
+            width=300,
+            thickness=8,
+            tab_width=60,
+            tab_spacing=200,
+            tab_height=18,
+            insulation_width=6,
+            coated_tab_height=2,
+        )
+
+        insulation = InsulationMaterial.from_database("Aluminium Oxide, 99.5%")
+
+        self.cathode = Cathode(
+            formulation=formulation,
+            mass_loading=6.2,
+            current_collector=cathode_cc,
+            calender_density=2.60,
+            insulation_material=insulation,
+            insulation_thickness=10,
+        )
+
+        # Create anode
+        anode_material = AnodeMaterial.from_database("Synthetic Graphite")
+        anode_material.specific_cost = 4
+        anode_material.density = 2.2
+
+        anode_formulation = AnodeFormulation(
+            active_materials={anode_material: 90},
+            binders={binder: 5},
+            conductive_additives={conductive_additive: 5},
+        )
+
+        anode_cc = NotchedCurrentCollector(
+            material=current_collector_material,
+            length=4500,
+            width=306,
+            thickness=8,
+            tab_width=60,
+            tab_spacing=100,
+            tab_height=18,
+            insulation_width=6,
+            coated_tab_height=2,
+        )
+
+        self.anode = Anode(
+            formulation=anode_formulation,
+            mass_loading=10,
+            current_collector=anode_cc,
+            calender_density=1.60,
+            insulation_material=insulation,
+            insulation_thickness=10,
+        )
+
+        # Create separator
+        separator_material = SeparatorMaterial(name="PE", specific_cost=1.5, density=1.0, color="#EEEEEE", porosity=40)
+        self.top_separator = Separator(
+            material=separator_material,
+            thickness=12,
+            length=4550,
+            width=310,
+        )
+        self.bottom_separator = Separator(
+            material=separator_material,
+            thickness=12,
+            length=4550,
+            width=310,
+        )
+
+        # Create laminate
+        self.laminate = Laminate(
+            cathode=self.cathode,
+            anode=self.anode,
+            top_separator=self.top_separator,
+            bottom_separator=self.bottom_separator,
+        )
+    
+    def test_cathode_parent_reference(self):
+        """Test that layup's cathode has parent reference to layup.
+        
+        Note: Layup makes a deepcopy of components, so we check the layup's copy,
+        not the original object passed to the constructor.
+        """
+        parent = self.laminate.cathode._get_parent()
+        self.assertIsNotNone(parent)
+        self.assertIs(parent, self.laminate)
+    
+    def test_anode_parent_reference(self):
+        """Test that layup's anode has parent reference to layup.
+        
+        Note: Layup makes a deepcopy of components, so we check the layup's copy,
+        not the original object passed to the constructor.
+        """
+        parent = self.laminate.anode._get_parent()
+        self.assertIsNotNone(parent)
+        self.assertIs(parent, self.laminate)
+    
+    def test_separator_parent_reference(self):
+        """Test that layup's separator has parent reference to layup.
+        
+        Note: Layup makes a deepcopy of components, so we check the layup's copy,
+        not the original object passed to the constructor.
+        """
+        parent = self.laminate.top_separator._get_parent()
+        self.assertIsNotNone(parent)
+        self.assertIs(parent, self.laminate)
+    
+    def test_replace_cathode_clears_old_parent(self):
+        """Test that replacing cathode clears old electrode's parent.
+        
+        Note: Layup makes deepcopies, so we track the layup's copy of the cathode.
+        """
+        # Get the layup's copy of the original cathode
+        old_cathode_in_layup = self.laminate.cathode
+        
+        # Create new cathode
+        material = CathodeMaterial.from_database("LFP")
+        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+        formulation = CathodeFormulation(
+            active_materials={material: 95},
+            binders={binder: 2.5},
+            conductive_additives={conductive_additive: 2.5},
+        )
+        current_collector_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
+        cathode_cc = NotchedCurrentCollector(
+            material=current_collector_material,
+            length=4000,
+            width=280,
+            thickness=8,
+            tab_width=50,
+            tab_spacing=180,
+            tab_height=16,
+            insulation_width=5,
+            coated_tab_height=2,
+        )
+        insulation = InsulationMaterial.from_database("Aluminium Oxide, 99.5%")
+        new_cathode = Cathode(
+            formulation=formulation,
+            mass_loading=5.5,
+            current_collector=cathode_cc,
+            calender_density=2.50,
+            insulation_material=insulation,
+            insulation_thickness=8,
+        )
+        
+        # Replace
+        self.laminate.cathode = new_cathode
+        
+        # Old layup's copy should have no parent after replacement
+        self.assertIsNone(old_cathode_in_layup._get_parent())
+        # New layup's copy (not the original new_cathode) should have parent
+        self.assertIs(self.laminate.cathode._get_parent(), self.laminate)
+    
+    def test_propagate_changes_from_electrode_to_layup(self):
+        """Test that propagate_changes from electrode reaches layup."""
+        # This should not raise - use layup's copies since originals aren't parented
+        self.laminate.cathode.propagate_changes()
+        self.laminate.anode.propagate_changes()
+    
+    def test_propagate_changes_from_current_collector(self):
+        """Test that propagate_changes from current collector bubbles up through electrode to layup."""
+        # Should not raise - propagates CC -> Electrode -> Layup
+        # Use layup's copy of cathode since that's what has the parent reference
+        self.laminate.cathode.current_collector.propagate_changes()
 
 
 if __name__ == "__main__":

@@ -6,15 +6,17 @@ from steer_opencell_design.Components.Containers.Base import _Container
 from steer_core.Constants.Units import *
 
 from steer_core.Mixins.Coordinates import CoordinateMixin
+from steer_core.Mixins.Datum import DatumMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Serializer import SerializerMixin
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
 from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Decorators.Coordinates import calculate_coordinates
 
-from steer_opencell_design.Materials.Other import PrismaticContainerMaterial
+from steer_opencell_design.Materials.Other import CurrentCollectorMaterial, PrismaticContainerMaterial
 
 from typing import Tuple
 from copy import deepcopy
@@ -24,8 +26,10 @@ import plotly.graph_objects as go
 
 
 class LaminateSheet(
-    CoordinateMixin, 
+    CoordinateMixin,
+    DatumMixin,
     ValidationMixin,
+    PropagationMixin,
     DunderMixin,
     PlotterMixin,
     SerializerMixin,
@@ -62,6 +66,9 @@ class LaminateSheet(
         self._update_properties = False
 
         self._hot_pressed = False
+
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
 
         self.areal_cost = areal_cost
         self.density = density
@@ -387,11 +394,6 @@ class LaminateSheet(
         return (0, 1)
 
     @property
-    def datum(self) -> Tuple[float, float, float]:
-        """Get the datum position in mm."""
-        return tuple(np.round(coord * M_TO_MM, 2) for coord in self._datum)
-
-    @property
     def name(self) -> str:
         return self._name
 
@@ -575,7 +577,8 @@ class LaminateSheet(
         self.validate_positive_float(density, "Density")
         self._density = float(density) * G_TO_KG / CM_TO_M**3
 
-    @datum.setter
+    # Override datum setter to use decorator
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]) -> None:
         """Set the datum position in mm."""
@@ -608,7 +611,9 @@ class LaminateSheet(
 
 class PouchTerminal(
     CoordinateMixin,
+    DatumMixin,
     ValidationMixin,
+    PropagationMixin,
     DunderMixin,
     PlotterMixin,
     SerializerMixin
@@ -654,6 +659,9 @@ class PouchTerminal(
             If width, length, or thickness <= 0 when provided.
         """
         self._update_properties = False
+
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
 
         self.material = material
         self.width = width
@@ -790,11 +798,6 @@ class PouchTerminal(
         return (0, 50)
 
     @property
-    def datum(self) -> Tuple[float, float, float]:
-        """Datum position in mm."""
-        return tuple(round(coord * M_TO_MM, 2) for coord in self._datum)
-
-    @property
     def name(self) -> str:
         """Component name."""
         return self._name
@@ -840,8 +843,13 @@ class PouchTerminal(
         return trace
 
     @material.setter
-    def material(self, material: PrismaticContainerMaterial) -> None:
+    @propagating_setter(deepcopy=True)
+    def material(self, material: PrismaticContainerMaterial | CurrentCollectorMaterial | None) -> None:
         """Set material."""
+
+        if material is not None:
+            self.validate_type(material, (PrismaticContainerMaterial, CurrentCollectorMaterial), "Material")
+
         self._material = material
 
     @width.setter
@@ -865,7 +873,8 @@ class PouchTerminal(
         self.validate_positive_float(thickness, "Thickness")
         self._thickness = float(thickness) * MM_TO_M
 
-    @datum.setter
+    # Override datum setter to use decorator
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]) -> None:
         """Set datum position in mm."""
@@ -879,7 +888,7 @@ class PouchTerminal(
         self._name = name
 
 
-class PouchEncapsulation(_Container):
+class PouchEncapsulation(_Container, DatumMixin):
     """Complete pouch cell encapsulation combining top/bottom laminate sheets and terminals.
 
     Manages pouch geometry, hot-pressing cavity formation, and provides mass/cost breakdowns.
@@ -900,6 +909,9 @@ class PouchEncapsulation(_Container):
 
         self._update_properties = False
         self._terminals_positioned = False
+        
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
         
         # Initialize volume to None
         self._volume = None
@@ -1080,11 +1092,6 @@ class PouchEncapsulation(_Container):
         return np.round(self._cost, 2)
 
     @property
-    def datum(self) -> Tuple[float, float, float]:
-        """Datum position in mm."""
-        return tuple(round(coord * M_TO_MM, 2) for coord in self._datum)
-
-    @property
     def name(self) -> str:
         """Encapsulation name."""
         return self._name
@@ -1150,8 +1157,9 @@ class PouchEncapsulation(_Container):
             return
         self.validate_positive_float(thickness, "Thickness")
         self._thickness = float(thickness) * MM_TO_M
-    
-    @datum.setter
+
+    # Override datum setter to use decorator
+    @DatumMixin.datum.setter
     @calculate_all_properties
     def datum(self, value: Tuple[float, float, float]) -> None:
         """Set datum position in mm."""
@@ -1163,9 +1171,10 @@ class PouchEncapsulation(_Container):
         """Set encapsulation name."""
         self.validate_string(name, "Name")
         self._name = name
-
+            
     @cathode_terminal.setter
     @calculate_all_properties
+    @propagating_setter()
     def cathode_terminal(self, terminal: PouchTerminal) -> None:
         """Set cathode terminal."""
 
@@ -1178,6 +1187,7 @@ class PouchEncapsulation(_Container):
 
     @anode_terminal.setter
     @calculate_all_properties
+    @propagating_setter()
     def anode_terminal(self, terminal: PouchTerminal) -> None:
         """Set anode terminal."""
 
@@ -1190,6 +1200,7 @@ class PouchEncapsulation(_Container):
 
     @top_laminate.setter
     @calculate_all_properties
+    @propagating_setter()
     def top_laminate(self, laminate: LaminateSheet) -> None:
         """Set top laminate sheet."""
         self.validate_type(laminate, LaminateSheet, "Top Laminate")
@@ -1197,6 +1208,7 @@ class PouchEncapsulation(_Container):
 
     @bottom_laminate.setter
     @calculate_all_properties
+    @propagating_setter()
     def bottom_laminate(self, laminate: LaminateSheet) -> None:
         """Set bottom laminate sheet."""
         self.validate_type(laminate, LaminateSheet, "Bottom Laminate")
@@ -1223,6 +1235,247 @@ class PouchEncapsulation(_Container):
         self.validate_positive_float(height, "Height")
         self._top_laminate.height = height
         self._bottom_laminate.height = height
+
+    @classmethod
+    def from_prismatic(
+        cls,
+        prismatic_encapsulation,
+        terminal_width: float = None,
+        terminal_length: float = None,
+        terminal_thickness: float = None,
+        laminate_areal_cost: float = 2.5,
+        laminate_density: float = 920.0,
+        laminate_thickness: float = 50.0,
+    ):
+        """Create a PouchEncapsulation from a PrismaticEncapsulation.
+
+        Converts a prismatic encapsulation to pouch format by removing rigid structure
+        and creating flexible laminate packaging. Dimensions are mapped to preserve
+        internal volume:
+        - pouch width = prismatic width
+        - pouch height = prismatic length
+        - pouch thickness = prismatic internal height
+
+        Parameters
+        ----------
+        prismatic_encapsulation : PrismaticEncapsulation
+            The prismatic encapsulation to convert from.
+        terminal_width : float, optional
+            Width of pouch terminals in mm. Defaults to pouch_width / 6 if not specified.
+        terminal_length : float, optional
+            Length of pouch terminals in mm. Defaults to pouch_height / 10 if not specified.
+        terminal_thickness : float, optional
+            Thickness of pouch terminals in mm. Defaults to 1.0 if not specified.
+        laminate_areal_cost : float, optional
+            Areal cost of laminate sheets in $/m². Defaults to 2.5.
+        laminate_density : float, optional
+            Density of laminate sheets in g/cm³. Defaults to 920.0.
+        laminate_thickness : float, optional
+            Thickness of laminate sheets in µm. Defaults to 50.0.
+
+        Returns
+        -------
+        PouchEncapsulation
+            A new pouch encapsulation with dimensions mapped from prismatic.
+
+        Raises
+        ------
+        TypeError
+            If prismatic_encapsulation is not a PrismaticEncapsulation instance.
+
+        Examples
+        --------
+        >>> from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
+        >>> prismatic = PrismaticEncapsulation(...)
+        >>> pouch = PouchEncapsulation.from_prismatic(prismatic)
+        """
+        # Import here to avoid circular dependency
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
+
+        if not isinstance(prismatic_encapsulation, PrismaticEncapsulation):
+            raise TypeError(
+                f"Expected PrismaticEncapsulation, got {type(prismatic_encapsulation).__name__}"
+            )
+
+        # Get material from prismatic encapsulation (use canister material)
+        terminal_material = prismatic_encapsulation.canister.material
+
+        # Map dimensions: width->width, length->height, internal_height->thickness
+        pouch_width = prismatic_encapsulation.width
+        pouch_height = prismatic_encapsulation.length
+        pouch_thickness = prismatic_encapsulation.internal_height
+
+        # Derive terminal dimensions from pouch dimensions if not specified
+        if terminal_width is None:
+            terminal_width = pouch_width / 6
+        if terminal_length is None:
+            terminal_length = pouch_height / 10
+        if terminal_thickness is None:
+            terminal_thickness = 1.0
+
+        # Create terminals
+        cathode_terminal = PouchTerminal(
+            material=terminal_material,
+            width=terminal_width,
+            length=terminal_length,
+            thickness=terminal_thickness,
+            name="Cathode Terminal"
+        )
+
+        anode_terminal = PouchTerminal(
+            material=terminal_material,
+            width=terminal_width,
+            length=terminal_length,
+            thickness=terminal_thickness,
+            name="Anode Terminal"
+        )
+
+        # Create laminate sheets
+        top_laminate = LaminateSheet(
+            areal_cost=laminate_areal_cost,
+            density=laminate_density,
+            thickness=laminate_thickness,
+            name="Top Laminate"
+        )
+
+        bottom_laminate = LaminateSheet(
+            areal_cost=laminate_areal_cost,
+            density=laminate_density,
+            thickness=laminate_thickness,
+            name="Bottom Laminate"
+        )
+
+        # Create and return pouch encapsulation
+        return cls(
+            cathode_terminal=cathode_terminal,
+            anode_terminal=anode_terminal,
+            top_laminate=top_laminate,
+            bottom_laminate=bottom_laminate,
+            width=pouch_width,
+            height=pouch_height,
+            thickness=pouch_thickness,
+        )
+
+    @classmethod
+    def from_cylindrical(
+        cls,
+        cylindrical_encapsulation,
+        terminal_width: float = None,
+        terminal_length: float = None,
+        terminal_thickness: float = None,
+        laminate_areal_cost: float = 2.5,
+        laminate_density: float = 920.0,
+        laminate_thickness: float = 50.0,
+    ):
+        """Create a PouchEncapsulation from a CylindricalEncapsulation.
+
+        Converts a cylindrical encapsulation to pouch format by removing rigid structure
+        and creating flexible laminate packaging. Dimensions are mapped to preserve
+        internal volume:
+        - pouch width = 2 × radius (cylinder diameter)
+        - pouch height = cylinder height
+        - pouch thickness = 2 × radius (cylinder diameter)
+
+        Parameters
+        ----------
+        cylindrical_encapsulation : CylindricalEncapsulation
+            The cylindrical encapsulation to convert from.
+        terminal_width : float, optional
+            Width of pouch terminals in mm. Defaults to pouch_width / 6 if not specified.
+        terminal_length : float, optional
+            Length of pouch terminals in mm. Defaults to pouch_height / 10 if not specified.
+        terminal_thickness : float, optional
+            Thickness of pouch terminals in mm. Defaults to 1.0 if not specified.
+        laminate_areal_cost : float, optional
+            Areal cost of laminate sheets in $/m². Defaults to 2.5.
+        laminate_density : float, optional
+            Density of laminate sheets in g/cm³. Defaults to 920.0.
+        laminate_thickness : float, optional
+            Thickness of laminate sheets in µm. Defaults to 50.0.
+
+        Returns
+        -------
+        PouchEncapsulation
+            A new pouch encapsulation with dimensions mapped from cylindrical.
+
+        Raises
+        ------
+        TypeError
+            If cylindrical_encapsulation is not a CylindricalEncapsulation instance.
+
+        Examples
+        --------
+        >>> from steer_opencell_design.Components.Containers.Cylindrical import CylindricalEncapsulation
+        >>> cylindrical = CylindricalEncapsulation(...)
+        >>> pouch = PouchEncapsulation.from_cylindrical(cylindrical)
+        """
+        # Import here to avoid circular dependency
+        from steer_opencell_design.Components.Containers.Cylindrical import CylindricalEncapsulation
+
+        if not isinstance(cylindrical_encapsulation, CylindricalEncapsulation):
+            raise TypeError(
+                f"Expected CylindricalEncapsulation, got {type(cylindrical_encapsulation).__name__}"
+            )
+
+        # Get material from cylindrical encapsulation (use canister material)
+        terminal_material = cylindrical_encapsulation.canister.material
+
+        # Map dimensions: diameter for both width and thickness, height->height
+        diameter = 2 * cylindrical_encapsulation.radius
+        pouch_width = diameter
+        pouch_height = cylindrical_encapsulation.height
+        pouch_thickness = diameter
+
+        # Derive terminal dimensions from pouch dimensions if not specified
+        if terminal_width is None:
+            terminal_width = pouch_width / 6
+        if terminal_length is None:
+            terminal_length = pouch_height / 10
+        if terminal_thickness is None:
+            terminal_thickness = 1.0
+
+        # Create terminals
+        cathode_terminal = PouchTerminal(
+            material=terminal_material,
+            width=terminal_width,
+            length=terminal_length,
+            thickness=terminal_thickness,
+            name="Cathode Terminal"
+        )
+
+        anode_terminal = PouchTerminal(
+            material=terminal_material,
+            width=terminal_width,
+            length=terminal_length,
+            thickness=terminal_thickness,
+            name="Anode Terminal"
+        )
+
+        # Create laminate sheets
+        top_laminate = LaminateSheet(
+            areal_cost=laminate_areal_cost,
+            density=laminate_density,
+            thickness=laminate_thickness,
+            name="Top Laminate"
+        )
+
+        bottom_laminate = LaminateSheet(
+            areal_cost=laminate_areal_cost,
+            density=laminate_density,
+            thickness=laminate_thickness,
+            name="Bottom Laminate"
+        )
+
+        # Create and return pouch encapsulation
+        return cls(
+            cathode_terminal=cathode_terminal,
+            anode_terminal=anode_terminal,
+            top_laminate=top_laminate,
+            bottom_laminate=bottom_laminate,
+            width=pouch_width,
+            height=pouch_height,
+            thickness=pouch_thickness,
+        )
 
 
 
