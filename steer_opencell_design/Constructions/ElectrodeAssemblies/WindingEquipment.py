@@ -3,9 +3,11 @@
 from copy import deepcopy
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
+from steer_core.Mixins.Datum import DatumMixin
 
 from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Decorators.Coordinates import calculate_coordinates
@@ -22,10 +24,12 @@ from typing import Tuple
 
 
 class _Mandrel(
+    PropagationMixin,
     SerializerMixin,
     ValidationMixin,
     DunderMixin,
     CoordinateMixin,
+    DatumMixin,
     PlotterMixin
 ):
     """Abstract base class for winding mandrels used in jelly roll assembly."""
@@ -39,6 +43,9 @@ class _Mandrel(
         ):
 
         self._update_properties = False
+
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
 
         self.length = length
         self.datum = datum
@@ -117,6 +124,11 @@ class _Mandrel(
             first_row = coordinates.iloc[0:1].copy()
             coordinates = pd.concat([coordinates, first_row], ignore_index=True)
         
+        if self.material is None:
+            fill_color = "rgba(0,0,0,0)"  # Transparent if no material
+        else:
+            fill_color = self.material.color
+
         # make the coated area trace
         trace = go.Scatter(
             x=coordinates["x"],
@@ -124,7 +136,7 @@ class _Mandrel(
             mode="lines",
             name=self.name,
             line=dict(width=1, color="black"),
-            fillcolor=self.material.color,
+            fillcolor=fill_color,
             fill="toself"
         )
 
@@ -147,6 +159,11 @@ class _Mandrel(
         first_row = first_circle_ordered.iloc[0:1].copy()
         first_circle_ordered = pd.concat([first_circle_ordered, first_row], ignore_index=True)
 
+        if self.material is None:
+            fill_color = "rgba(0,0,0,0)"  # Transparent if no material
+        else:
+            fill_color = self.material.color
+
         # make the coated area trace using x and z coordinates (bottom-up view)
         trace = go.Scatter(
             x=first_circle_ordered["x"],
@@ -154,7 +171,7 @@ class _Mandrel(
             mode="lines",
             name=self.name,
             line=dict(width=1, color="black", shape="spline", smoothing=1.3),
-            fillcolor=self.material.color,
+            fillcolor=fill_color,
             fill="toself"
         )
 
@@ -166,32 +183,22 @@ class _Mandrel(
         self._name = value
 
     @material.setter
-    def material(self, value: CurrentCollectorMaterial):
+    @calculate_all_properties
+    @propagating_setter(deepcopy=True)
+    def material(self, material: CurrentCollectorMaterial | None) -> None:
 
-        if value is None:
-            self._material = CurrentCollectorMaterial.from_database("Aluminum")
+        if material is not None:
+            self.validate_type(material, CurrentCollectorMaterial, "Material")
 
-        else:
-            self.validate_type(value, CurrentCollectorMaterial, "material")
-            self._material = deepcopy(value)
+        self._material = material  # Already a copy due to decorator
 
     @property
     def length(self) -> float:
         """Return the mandrel length in mm."""
         return np.round(self._length * M_TO_MM, 2)
 
-    @property
-    def datum(self) -> Tuple[float, float, float]:
-        """
-        Get the datum of the current collector.
-        """
-        return (
-            np.round(self._datum[0] * M_TO_MM, 2),
-            np.round(self._datum[1] * M_TO_MM, 2),
-            np.round(self._datum[2] * M_TO_MM, 2),
-        )
-    
-    @datum.setter
+    # Override datum setter to use decorator
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, value: Tuple[float, float, float]):
         
@@ -411,7 +418,18 @@ class FlatMandrel(_Mandrel):
     @property
     def width_range(self) -> Tuple[float, float]:
         """Return the mandrel width range as a tuple (min, max) in mm."""
-        return (1, 100)
+        return (
+            self.height * 3, 
+            self.height * 20
+        )
+    
+    @property
+    def width_hard(self) -> Tuple[float, float]:
+        """Return the mandrel width range as a tuple (min, max) in mm."""
+        return (
+            self.height * 2, 
+            self.height * 80
+        )
 
     @property
     def height(self) -> float:

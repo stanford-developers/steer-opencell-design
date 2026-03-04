@@ -3,12 +3,14 @@
 from steer_opencell_design.Constructions.Layups.Base import _Layup
 
 from steer_core.Mixins.Coordinates import CoordinateMixin
+from steer_core.Mixins.Datum import DatumMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Mixins.Colors import ColorMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Data import DataMixin
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
 from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Decorators.Coordinates import calculate_coordinates
@@ -33,13 +35,15 @@ DIRECTION_COL = 2
 
 class _ElectrodeAssembly(
     ABC,
-    CoordinateMixin, 
+    CoordinateMixin,
+    DatumMixin,
     ValidationMixin, 
+    PropagationMixin,
     SerializerMixin, 
     ColorMixin, 
     DunderMixin,
     PlotterMixin,
-    DataMixin
+    DataMixin,
 ):
     """Abstract base class for electrode assemblies (jelly rolls, stacks). Provides common properties for mass, cost, pore volume, and capacity curves, as well as visualization methods for breakdowns and capacity plots."""
     
@@ -64,6 +68,10 @@ class _ElectrodeAssembly(
             If layup is invalid or None
         """
         self._update_properties = False
+        
+        # Initialize _datum early; will be properly set from layup or calculated later
+        self._datum = (0.0, 0.0, 0.0)
+        
         self.layup = layup
         self.name = name
 
@@ -109,23 +117,28 @@ class _ElectrodeAssembly(
         pass
 
     def _calculate_capacity_curves(self):
-        """Calculate full cell voltage curve of the electrode assembly."""
+        """Calculate full cell voltage curve of the electrode assembly.
+        
+        Uses .copy() instead of deepcopy() for numpy arrays as we only need
+        shallow copies for scaling operations - significantly faster.
+        """
         if hasattr(self._layup, "_areal_capacity_curve") and self._layup._areal_capacity_curve is not None:
-            _capacity_curve = deepcopy(self._layup._areal_capacity_curve)
-            _capacity_curve[:, 0] = _capacity_curve[:, 0] * self._interfacial_area
+            # Use .copy() instead of deepcopy() - arrays only need shallow copy for scaling
+            _capacity_curve = self._layup._areal_capacity_curve.copy()
+            _capacity_curve[:, 0] *= self._interfacial_area
             self._capacity_curve = _capacity_curve
 
         if hasattr(self._layup._cathode, "_areal_capacity_curve") and self._layup._cathode._areal_capacity_curve is not None:
-            # also calculate capacity curve for cathode
-            _cathode_capacity_curve = deepcopy(self._layup._cathode._areal_capacity_curve)
-            _cathode_capacity_curve[:, 0] = _cathode_capacity_curve[:, 0] * self._interfacial_area
-            self._cathode_capacity_curve = np.column_stack([_cathode_capacity_curve[:, 0], _cathode_capacity_curve[:,1], _cathode_capacity_curve[:,2]])
+            # Use .copy() instead of deepcopy() for cathode curve
+            _cathode_capacity_curve = self._layup._cathode._areal_capacity_curve.copy()
+            _cathode_capacity_curve[:, 0] *= self._interfacial_area
+            self._cathode_capacity_curve = _cathode_capacity_curve
 
         if hasattr(self._layup._anode, "_areal_capacity_curve") and self._layup._anode._areal_capacity_curve is not None:
-            # also calculate capacity curve for anode
-            _anode_capacity_curve = deepcopy(self._layup._anode._areal_capacity_curve)
-            _anode_capacity_curve[:, 0] = _anode_capacity_curve[:, 0] * self._interfacial_area
-            self._anode_capacity_curve = np.column_stack([_anode_capacity_curve[:,0], _anode_capacity_curve[:,1], _anode_capacity_curve[:,2]])
+            # Use .copy() instead of deepcopy() for anode curve
+            _anode_capacity_curve = self._layup._anode._areal_capacity_curve.copy()
+            _anode_capacity_curve[:, 0] *= self._interfacial_area
+            self._anode_capacity_curve = _anode_capacity_curve
 
         return self._capacity_curve, self._cathode_capacity_curve, self._anode_capacity_curve
     
@@ -205,11 +218,6 @@ class _ElectrodeAssembly(
         )
 
         return fig
-
-    @property
-    def datum(self) -> Tuple[float, float, float]:
-        """Return the datum coordinates of the electrode assembly."""
-        return tuple(round(d * M_TO_MM, 2) for d in self._datum)
 
     @property
     def pore_volume(self) -> float:
@@ -373,11 +381,11 @@ class _ElectrodeAssembly(
 
         return _convert_and_round_recursive(self._mass_breakdown)
 
-    @datum.setter
-    @calculate_coordinates
+    # Override datum setter to sync with layup
+    @DatumMixin.datum.setter
     def datum(self, value: Tuple[float, float, float]) -> None:
         """Set the datum coordinates of the electrode assembly with validation."""
-        self.validate_datum(value, "datum")
+        self.validate_datum(value)
         self._layup.datum = value
         self._datum = tuple(float(v) * MM_TO_M for v in value)
 
@@ -389,6 +397,7 @@ class _ElectrodeAssembly(
 
     @layup.setter
     @calculate_all_properties
+    @propagating_setter()
     def layup(self, value: _Layup) -> None:
         """
         Set the layup with validation and property recalculation.

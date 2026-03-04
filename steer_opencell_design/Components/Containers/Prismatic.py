@@ -6,6 +6,7 @@ from steer_opencell_design.Materials.Other import PrismaticContainerMaterial
 from steer_core.Constants.Units import *
 from steer_core.Decorators.General import calculate_bulk_properties, calculate_all_properties
 from steer_core.Decorators.Coordinates import calculate_coordinates
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
 import numpy as np
 import pandas as pd
@@ -22,6 +23,7 @@ from steer_core import (
     DunderMixin,
     PlotterMixin,
 )
+from steer_core.Mixins.Datum import DatumMixin
 
 
 # Module-level constants for prismatic components
@@ -76,6 +78,8 @@ class ConnectorOrientation(Enum):
 class _PrismaticComponent(
     ABC,
     CoordinateMixin,
+    DatumMixin,
+    PropagationMixin,
     ColorMixin,
     ValidationMixin,
     SerializerMixin,
@@ -149,6 +153,9 @@ class _PrismaticComponent(
         self._rotated_x = False
         self._rotated_y = False
         self._rotated_z = False
+
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
 
         self.material = material
         self.thickness = thickness
@@ -426,14 +433,6 @@ class _PrismaticComponent(
         return self._name
 
     @property
-    def datum(self) -> Tuple[float, float, float]:
-        return (
-            np.round(self._datum[0] * M_TO_MM, DIMENSION_PRECISION), 
-            np.round(self._datum[1] * M_TO_MM, DIMENSION_PRECISION), 
-            np.round(self._datum[2] * M_TO_MM, DIMENSION_PRECISION)
-        )
-
-    @property
     def material(self) -> PrismaticContainerMaterial:
         return self._material
     
@@ -537,29 +536,20 @@ class _PrismaticComponent(
         self.validate_type(name, str, "Name")
         self._name = name
 
-    @datum.setter
+    # Override datum setter to use decorator
+    @DatumMixin.datum.setter
+    @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]) -> None:
+        """Set datum position, triggering coordinate recalculation."""
         self.validate_datum(datum)
-        
-        if self._update_properties and hasattr(self, '_datum'):
-            # Calculate translation vector in meters
-            translation_vector = np.array([
-                float(datum[0]) * MM_TO_M - self._datum[0],
-                float(datum[1]) * MM_TO_M - self._datum[1],
-                float(datum[2]) * MM_TO_M - self._datum[2],
-            ])
-            
-            # Apply translation to coordinates if they exist
-            if self._coordinates is not None:
-                self._coordinates = self._coordinates + translation_vector
-        
         self._datum = tuple(coord * MM_TO_M for coord in datum)
 
     @material.setter
     @calculate_bulk_properties
+    @propagating_setter(deepcopy=True)
     def material(self, material: PrismaticContainerMaterial) -> None:
         self.validate_type(material, PrismaticContainerMaterial, "Material")
-        self._material = deepcopy(material)
+        self._material = material  # Already a copy due to decorator
 
     @width.setter
     @calculate_all_properties
@@ -798,7 +788,9 @@ class PrismaticLidAssembly(_PrismaticComponent):
 
 
 class PrismaticCanister(
-    CoordinateMixin, 
+    CoordinateMixin,
+    DatumMixin,
+    PropagationMixin,
     SerializerMixin,
     ValidationMixin,
     PlotterMixin
@@ -841,6 +833,9 @@ class PrismaticCanister(
         """
         self._update_properties = False
         self._rotated_z = False
+
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
 
         self.material = material
         self.width = width
@@ -1151,14 +1146,6 @@ class PrismaticCanister(
         return self._name
     
     @property
-    def datum(self) -> Tuple[float, float, float]:
-        return (
-            np.round(self._datum[0] * M_TO_MM, DIMENSION_PRECISION), 
-            np.round(self._datum[1] * M_TO_MM, DIMENSION_PRECISION), 
-            np.round(self._datum[2] * M_TO_MM, DIMENSION_PRECISION)
-        )
-    
-    @property
     def material(self) -> PrismaticContainerMaterial:
         return self._material
     
@@ -1227,32 +1214,20 @@ class PrismaticCanister(
         self.validate_type(name, str, "Name")
         self._name = name
 
-    @datum.setter
+    # Override datum setter to use decorator
+    @DatumMixin.datum.setter
+    @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]) -> None:
+        """Set datum position, triggering coordinate recalculation."""
         self.validate_datum(datum)
-        
-        if self._update_properties and hasattr(self, '_datum'):
-            # Calculate translation vector in meters
-            translation_vector = np.array([
-                float(datum[0]) * MM_TO_M - self._datum[0],
-                float(datum[1]) * MM_TO_M - self._datum[1],
-                float(datum[2]) * MM_TO_M - self._datum[2],
-            ])
-            
-            # Apply translation to coordinate arrays if they exist
-            if hasattr(self, '_right_left_coordinates') and self._right_left_coordinates is not None:
-                self._right_left_coordinates = self._right_left_coordinates + np.array([translation_vector[1], translation_vector[2]])
-            
-            if hasattr(self, '_top_down_coordinates') and self._top_down_coordinates is not None:
-                self._top_down_coordinates = self._top_down_coordinates + np.array([translation_vector[0], translation_vector[1]])
-        
         self._datum = tuple(coord * MM_TO_M for coord in datum)
 
     @material.setter
     @calculate_bulk_properties
+    @propagating_setter(deepcopy=True)
     def material(self, material: PrismaticContainerMaterial) -> None:
         self.validate_type(material, PrismaticContainerMaterial, "Material")
-        self._material = deepcopy(material)
+        self._material = material  # Already a copy due to decorator
 
     @width.setter
     @calculate_all_properties
@@ -1313,7 +1288,7 @@ class PrismaticCanister(
             self._get_right_left_coordinates()  # Recalculate after rotation state changes
 
 
-class PrismaticEncapsulation(_Container):
+class PrismaticEncapsulation(_Container, DatumMixin):
     """A prismatic encapsulation with rectangular geometry.
     
     This class combines a rectangular canister with a lid assembly and two
@@ -1360,6 +1335,10 @@ class PrismaticEncapsulation(_Container):
             Center position in mm as (x, y, z) coordinates
         """
         self._update_properties = False
+        
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
+        
         self.connector_orientation = connector_orientation
         self.cathode_terminal_connector_position = cathode_terminal_connector_position
         self.anode_terminal_connector_position = anode_terminal_connector_position
@@ -1373,6 +1352,226 @@ class PrismaticEncapsulation(_Container):
 
         self._calculate_all_properties()
         self._update_properties = True
+
+    @classmethod
+    def from_cylindrical(cls, cylindrical_encapsulation) -> "PrismaticEncapsulation":
+        """Create a PrismaticEncapsulation from a CylindricalEncapsulation.
+        
+        Converts a cylindrical encapsulation to prismatic (rectangular) form by calculating
+        equivalent width and length that preserve internal volume. The conversion uses a 2:3
+        aspect ratio (width:length) which is common for prismatic battery cells.
+        
+        Parameters
+        ----------
+        cylindrical_encapsulation : CylindricalEncapsulation
+            The cylindrical encapsulation to convert
+            
+        Returns
+        -------
+        PrismaticEncapsulation
+            A new prismatic encapsulation with equivalent internal volume
+            
+        Notes
+        -----
+        - Internal volume is preserved through equivalent cross-sectional area conversion
+        - Aspect ratio is 2:3 (width:length), common for prismatic cells
+        - Conversion formulas:
+          - width = radius × sqrt(2π/3)
+          - length = radius × sqrt(3π/2)
+        - Height maps directly from cylindrical to prismatic
+        - Materials and thicknesses are transferred from the cylindrical components
+        - Connector orientation defaults to LONGITUDINAL
+        
+        Examples
+        --------
+        >>> cylindrical_enc = CylindricalEncapsulation(...)
+        >>> prismatic_enc = PrismaticEncapsulation.from_cylindrical(cylindrical_enc)
+        """
+        from steer_opencell_design.Components.Containers.Cylindrical import CylindricalEncapsulation
+        
+        # Validate input type
+        cls.validate_type(cylindrical_encapsulation, CylindricalEncapsulation, "cylindrical_encapsulation")
+        
+        # Extract internal radius and height from cylindrical encapsulation (in meters)
+        internal_radius = cylindrical_encapsulation._canister._inner_radius
+        internal_height = cylindrical_encapsulation._internal_height
+        
+        # Calculate equivalent width and length with 2:3 aspect ratio to preserve cross-sectional area
+        # Area: π × r² = width × length
+        # With width:length = 2:3, we get:
+        # width = r × sqrt(2π/3)
+        # length = r × sqrt(3π/2)
+        internal_width = internal_radius * np.sqrt(2 * np.pi / 3)
+        internal_length = internal_radius * np.sqrt(3 * np.pi / 2)
+        
+        # Get wall thickness and height from cylindrical canister (in meters)
+        wall_thickness = cylindrical_encapsulation._canister._wall_thickness
+        height = cylindrical_encapsulation._canister._height
+        
+        # Calculate outer dimensions (in meters)
+        outer_width = internal_width + 2 * wall_thickness
+        outer_length = internal_length + 2 * wall_thickness
+        
+        # Convert dimensions to mm for component creation
+        outer_width_mm = outer_width * M_TO_MM
+        outer_length_mm = outer_length * M_TO_MM
+        height_mm = height * M_TO_MM
+        wall_thickness_mm = wall_thickness * M_TO_MM
+        
+        # Create prismatic canister with transferred material and dimensions
+        prismatic_canister = PrismaticCanister(
+            material=cylindrical_encapsulation._canister._material,
+            width=outer_width_mm,
+            length=outer_length_mm,
+            height=height_mm,
+            wall_thickness=wall_thickness_mm,
+            datum=cylindrical_encapsulation._canister.datum,  # Use property (returns mm)
+        )
+        
+        # Create prismatic terminal connectors with transferred materials
+        # Size them proportionally to the new canister (30% width × 80% length is typical)
+        cathode_terminal_connector = PrismaticTerminalConnector(
+            material=cylindrical_encapsulation._cathode_terminal_connector._material,
+            thickness=cylindrical_encapsulation._cathode_terminal_connector.thickness,  # Use property (returns mm)
+            fill_factor=cylindrical_encapsulation._cathode_terminal_connector._fill_factor,
+        )
+        
+        anode_terminal_connector = PrismaticTerminalConnector(
+            material=cylindrical_encapsulation._anode_terminal_connector._material,
+            thickness=cylindrical_encapsulation._anode_terminal_connector.thickness,  # Use property (returns mm)
+            fill_factor=cylindrical_encapsulation._anode_terminal_connector._fill_factor,
+        )
+        
+        # Create prismatic lid assembly with transferred material
+        prismatic_lid = PrismaticLidAssembly(
+            material=cylindrical_encapsulation._lid_assembly._material,
+            thickness=cylindrical_encapsulation._lid_assembly.thickness,  # Use property (returns mm)
+            fill_factor=cylindrical_encapsulation._lid_assembly._fill_factor,
+        )
+        
+        # Create and return the prismatic encapsulation
+        return cls(
+            cathode_terminal_connector=cathode_terminal_connector,
+            anode_terminal_connector=anode_terminal_connector,
+            lid_assembly=prismatic_lid,
+            canister=prismatic_canister,
+            connector_orientation=ConnectorOrientation.LONGITUDINAL,
+            datum=cylindrical_encapsulation.datum  # Use property (returns mm)
+        )
+
+    @classmethod
+    def from_pouch(cls, pouch_encapsulation) -> "PrismaticEncapsulation":
+        """Create a PrismaticEncapsulation from a PouchEncapsulation.
+        
+        Converts a pouch encapsulation to prismatic form by creating rigid container
+        components with default aluminum material. The pouch dimensions map to prismatic
+        dimensions while adding structural rigidity.
+        
+        Parameters
+        ----------
+        pouch_encapsulation : PouchEncapsulation
+            The pouch encapsulation to convert
+            
+        Returns
+        -------
+        PrismaticEncapsulation
+            A new prismatic encapsulation with aluminum components
+            
+        Notes
+        -----
+        Default parameters for rigid components:
+        - Canister material: Aluminum (from database)
+        - Wall thickness: 1.0 mm
+        - Terminal thickness: 0.5 mm
+        - Lid thickness: 0.5 mm
+        - Fill factor: 0.7 (standard)
+        - Connector orientation: LONGITUDINAL
+        
+        The conversion maps pouch dimensions as follows:
+        - pouch width → prismatic width
+        - pouch thickness → prismatic length
+        - pouch height → prismatic height
+        
+        Since pouches lack rigid components, all structural parts are created
+        with aluminum defaults.
+        
+        Examples
+        --------
+        >>> pouch_enc = PouchEncapsulation(...)
+        >>> prismatic_enc = PrismaticEncapsulation.from_pouch(pouch_enc)
+        """
+        from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
+        
+        # Validate input type
+        cls.validate_type(pouch_encapsulation, PouchEncapsulation, "pouch_encapsulation")
+        
+        # Extract dimensions from pouch encapsulation (all in meters internally)
+        # Pouch stores width/height in the laminate, thickness in the encapsulation
+        width = pouch_encapsulation._top_laminate._width
+        thickness = pouch_encapsulation._thickness
+        height = pouch_encapsulation._top_laminate._height
+        
+        # Define default parameters for rigid components
+        wall_thickness = 1.0 * MM_TO_M  # 1.0 mm converted to meters
+        terminal_thickness_mm = 0.5  # mm
+        lid_thickness_mm = 3  # mm
+        fill_factor = 0.7  # standard default
+        
+        # Map pouch dimensions to prismatic dimensions
+        # width → width, thickness → length, height → height
+        # Add wall thickness for outer dimensions
+        outer_width = width + 2 * wall_thickness
+        outer_length = thickness + 2 * wall_thickness
+        outer_height = height + wall_thickness
+        
+        # Convert dimensions to mm for component creation
+        outer_width_mm = outer_width * M_TO_MM
+        outer_length_mm = outer_length * M_TO_MM
+        outer_height_mm = outer_height * M_TO_MM
+        wall_thickness_mm = wall_thickness * M_TO_MM
+        
+        # Get aluminum material from database
+        aluminum_material = PrismaticContainerMaterial.from_database("Aluminum")
+        
+        # Create prismatic canister with aluminum
+        prismatic_canister = PrismaticCanister(
+            material=aluminum_material,
+            width=outer_width_mm,
+            length=outer_length_mm,
+            height=outer_height_mm,
+            wall_thickness=wall_thickness_mm,
+            datum=pouch_encapsulation.datum,  # Use property (returns mm)
+        )
+        
+        # Create prismatic terminal connectors with aluminum
+        cathode_terminal_connector = PrismaticTerminalConnector(
+            material=aluminum_material,
+            thickness=terminal_thickness_mm,
+            fill_factor=fill_factor,
+        )
+        
+        anode_terminal_connector = PrismaticTerminalConnector(
+            material=aluminum_material,
+            thickness=terminal_thickness_mm,
+            fill_factor=fill_factor,
+        )
+        
+        # Create prismatic lid assembly with aluminum
+        prismatic_lid = PrismaticLidAssembly(
+            material=aluminum_material,
+            thickness=lid_thickness_mm,
+            fill_factor=fill_factor,
+        )
+        
+        # Create and return the prismatic encapsulation
+        return cls(
+            cathode_terminal_connector=cathode_terminal_connector,
+            anode_terminal_connector=anode_terminal_connector,
+            lid_assembly=prismatic_lid,
+            canister=prismatic_canister,
+            connector_orientation=ConnectorOrientation.LONGITUDINAL,
+            datum=pouch_encapsulation.datum  # Use property (returns mm)
+        )
 
     def _calculate_all_properties(self):
         """Calculate all encapsulation properties."""
@@ -1619,6 +1818,7 @@ class PrismaticEncapsulation(_Container):
             self._lid_assembly._thickness - 
             max_connector_thickness
         )
+
         self._internal_width = self._canister._inner_width
         self._internal_length = self._canister._inner_length
     
@@ -1738,6 +1938,150 @@ class PrismaticEncapsulation(_Container):
 
         return figure
     
+    def _get_assembly_dimensions(self, assembly):
+        """Extract width, length, and height dimensions from an electrode assembly.
+        
+        Returns dimensions mapped to encapsulation internal dimensions. The orientation
+        does NOT affect this mapping - it only affects how internal_* setters map to
+        canister dimensions.
+        
+        Parameters
+        ----------
+        assembly : FlatWoundJellyRoll | ZFoldStack | PunchedStack
+            The electrode assembly
+            
+        Returns
+        -------
+        tuple
+            (width_dim, length_dim, height_dim) in mm
+        """
+        from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import FlatWoundJellyRoll
+        from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import ZFoldStack, PunchedStack
+        
+        self.validate_type(assembly, (FlatWoundJellyRoll, ZFoldStack, PunchedStack), "assembly")
+        
+        if isinstance(assembly, FlatWoundJellyRoll):
+            # FlatWoundJellyRoll (always TRANSVERSE orientation):
+            # - encapsulation width ← jelly_roll.width (racetrack X span)
+            # - encapsulation length ← jelly_roll.thickness (racetrack Z depth)
+            # - encapsulation height ← jelly_roll.height (= laminate.width, Y dimension)
+            return (
+                assembly.width,      # → internal_width
+                assembly.thickness,  # → internal_length
+                assembly.height      # → internal_height (= layup/laminate width)
+            )
+        else:
+            # Stacked assemblies (ZFoldStack, PunchedStack)
+            # - layup.width: maps to encapsulation width
+            # - layup.height: maps to encapsulation height
+            # - thickness: stack thickness/depth
+            #
+            # Mapping:
+            # - encapsulation width ← layup.width
+            # - encapsulation length ← stack thickness
+            # - encapsulation height ← layup.height
+            return (
+                assembly.layup.width,    # → internal_width
+                assembly.thickness,      # → internal_length
+                assembly.layup.height    # → internal_height
+            )
+    
+    def fit_height(self, assembly, clearance: float = 0) -> None:
+        """Set the internal height to fit an electrode assembly's height dimension.
+        
+        For stacks: uses layup.height + cathode current collector tab height
+        For FlatWoundJellyRoll: uses jelly_roll.height (= layup.width)
+        
+        Parameters
+        ----------
+        assembly : FlatWoundJellyRoll | ZFoldStack | PunchedStack
+            The electrode assembly to fit
+        clearance : float, optional
+            Additional clearance in mm (default: 0)
+        """
+        from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import FlatWoundJellyRoll
+        
+        _, _, assembly_height = self._get_assembly_dimensions(assembly)
+        
+        # For stacked assemblies, add the cathode tab height
+        if not isinstance(assembly, FlatWoundJellyRoll):
+            tab_height = assembly.layup.cathode.current_collector.tab_height
+            assembly_height += tab_height
+        
+        target_height = assembly_height + clearance
+        self.internal_height = target_height
+    
+    def fit_width(self, assembly, clearance: float = 0) -> None:
+        """Set the internal width to fit an electrode assembly's width dimension.
+        
+        For stacks: uses layup.width
+        For FlatWoundJellyRoll: uses jelly_roll.width (racetrack X span)
+        
+        Parameters
+        ----------
+        assembly : FlatWoundJellyRoll | ZFoldStack | PunchedStack
+            The electrode assembly to fit
+        clearance : float, optional
+            Additional clearance in mm (default: 0)
+        """
+        assembly_width, _, _ = self._get_assembly_dimensions(assembly)
+        target_width = assembly_width + clearance
+        self.internal_width = target_width
+    
+    def fit_length(self, assembly, clearance: float = 0, n_electrode_assembly: int = 1) -> None:
+        """Set the internal length to fit electrode assembly thickness.
+        
+        For all assembly types: uses assembly.thickness × n_electrode_assembly
+        
+        Parameters
+        ----------
+        assembly : FlatWoundJellyRoll | ZFoldStack | PunchedStack
+            The electrode assembly to fit
+        clearance : float, optional
+            Additional clearance in mm (default: 0)
+        n_electrode_assembly : int, optional
+            Number of electrode assemblies to fit (default: 1). The total length
+            will be assembly_thickness × n_electrode_assembly + clearance.
+        """
+        _, assembly_thickness, _ = self._get_assembly_dimensions(assembly)
+        target_length = assembly_thickness * n_electrode_assembly + clearance
+        self.internal_length = target_length
+
+    def fit_to_electrode_assembly(self, assembly, clearance: float = 0) -> None:
+        """Adjust all encapsulation dimensions to fit a given electrode assembly.
+        
+        Resizes the canister's inner dimensions to accommodate the electrode assembly
+        with a specified clearance margin.
+        
+        Parameters
+        ----------
+        assembly : FlatWoundJellyRoll | ZFoldStack | PunchedStack
+            The electrode assembly to fit the encapsulation to
+        clearance : float, optional
+            Additional clearance in mm around the assembly (default: 0)
+            
+        Notes
+        -----
+        Dimension mapping:
+        
+        For stacked assemblies (ZFoldStack, PunchedStack):
+            - encapsulation width ← layup.width
+            - encapsulation length ← assembly.thickness
+            - encapsulation height ← layup.height
+            
+        For FlatWoundJellyRoll:
+            - encapsulation width ← jelly_roll.width (racetrack X span)
+            - encapsulation length ← jelly_roll.thickness
+            - encapsulation height ← jelly_roll.height (= layup.width)
+        
+        The connector_orientation affects how internal dimensions map to canister
+        dimensions (TRANSVERSE rotates the canister 90°), but does not change
+        the assembly→encapsulation dimension mapping.
+        """
+        self.fit_width(assembly, clearance)
+        self.fit_length(assembly, clearance)
+        self.fit_height(assembly, clearance)
+    
     @property
     def connector_orientation(self) -> ConnectorOrientation:
         return self._connector_orientation
@@ -1758,11 +2102,39 @@ class PrismaticEncapsulation(_Container):
         return (INTERNAL_HEIGHT_RANGE_MIN, INTERNAL_HEIGHT_RANGE_MAX)
 
     @property
-    def datum(self) -> Tuple[float, float, float]:
+    def internal_width(self) -> float:
+        """Internal width available for cell contents in mm."""
+        return np.round(self._internal_width * M_TO_MM, 2)
+    
+    @property
+    def internal_length(self) -> float:
+        """Internal length available for cell contents in mm."""
+        return np.round(self._internal_length * M_TO_MM, 2)
+
+    @property
+    def internal_width_range(self) -> Tuple[float, float]:
+        """Valid internal width range in mm, rounded to 2 decimal places."""
         return (
-            np.round(self._datum[0] * M_TO_MM, DIMENSION_PRECISION), 
-            np.round(self._datum[1] * M_TO_MM, DIMENSION_PRECISION), 
-            np.round(self._datum[2] * M_TO_MM, DIMENSION_PRECISION)
+            WIDTH_RANGE_MIN + 2 * self._canister._wall_thickness * M_TO_MM, 
+            WIDTH_RANGE_MAX - 2 * self._canister._wall_thickness * M_TO_MM
+        )
+    
+    @property
+    def width_range(self) -> Tuple[float, float]:
+        """Valid width range in mm, rounded to 2 decimal places."""
+        return (WIDTH_RANGE_MIN, WIDTH_RANGE_MAX)
+    
+    @property
+    def height_range(self) -> Tuple[float, float]:
+        """Valid height range in mm, rounded to 2 decimal places."""
+        return (HEIGHT_RANGE_MIN, HEIGHT_RANGE_MAX)
+
+    @property
+    def internal_length_range(self) -> Tuple[float, float]:
+        """Valid internal length range in mm, rounded to 2 decimal places."""
+        return (
+            LENGTH_RANGE_MIN + 2 * self._canister._wall_thickness * M_TO_MM, 
+            LENGTH_RANGE_MAX - 2 * self._canister._wall_thickness * M_TO_MM
         )
         
     @property
@@ -1825,7 +2197,10 @@ class PrismaticEncapsulation(_Container):
     @property
     def width(self) -> float:
         """Outer width of the encapsulation in mm."""
-        return self._canister.width
+        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            return self._canister.width
+        else:  # TRANSVERSE
+            return self._canister.height
     
     @property
     def length(self) -> float:
@@ -1840,7 +2215,10 @@ class PrismaticEncapsulation(_Container):
     @property
     def height(self) -> float:
         """Total height of the encapsulation in mm."""
-        return self._canister.height
+        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            return self._canister.height
+        else:  # TRANSVERSE
+            return self._canister.width
     
     @property
     def cathode_terminal_connector_position(self) -> float:
@@ -1899,13 +2277,88 @@ class PrismaticEncapsulation(_Container):
     @internal_height.setter
     @calculate_all_properties
     def internal_height(self, internal_height: float) -> None:
-        """Set internal height and adjust canister height accordingly."""
+        """Set internal height and adjust canister dimensions accordingly.
+        
+        For LONGITUDINAL orientation: adjusts canister height (internal_height comes from canister._inner_height)
+        For TRANSVERSE orientation: adjusts canister width (internal_height comes from canister._inner_width)
+        """
         self.validate_positive_float(internal_height, "Internal Height")
         _current_internal_height = self._internal_height
         _asked_for_height = internal_height * MM_TO_M
         _height_difference = _asked_for_height - _current_internal_height
-        new_height = self._canister._height + _height_difference
-        self._canister.height = new_height * M_TO_MM
+        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            new_height = self._canister._height + _height_difference
+            self._canister.height = new_height * M_TO_MM
+        else:  # TRANSVERSE
+            new_width = self._canister._width + _height_difference
+            self._canister.width = new_width * M_TO_MM
+
+    @internal_width.setter
+    @calculate_all_properties
+    def internal_width(self, internal_width: float) -> None:
+        """Set internal width and adjust canister dimensions accordingly.
+        
+        For LONGITUDINAL orientation: adjusts canister width (internal_width comes from canister._inner_width)
+        For TRANSVERSE orientation: adjusts canister height (internal_width comes from canister._inner_height)
+        """
+        self.validate_positive_float(internal_width, "Internal Width")
+        _current_internal_width = self._internal_width
+        _asked_for_width = internal_width * MM_TO_M
+        _width_difference = _asked_for_width - _current_internal_width
+        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            new_width = self._canister._width + _width_difference
+            self._canister.width = new_width * M_TO_MM
+        else:  # TRANSVERSE
+            new_height = self._canister._height + _width_difference
+            self._canister.height = new_height * M_TO_MM
+
+    @internal_length.setter
+    @calculate_all_properties
+    def internal_length(self, internal_length: float) -> None:
+        """Set internal length and adjust canister length accordingly.
+        
+        Also scales terminal connectors proportionally to maintain their ratio relative to the length.
+        """
+        self.validate_positive_float(internal_length, "Internal Length")
+        
+        # Calculate new outer length needed
+        _current_internal_length = self._internal_length
+        _asked_for_length = internal_length * MM_TO_M
+        _length_difference = _asked_for_length - _current_internal_length
+        new_length_mm = (self._canister._length + _length_difference) * M_TO_MM
+        
+        # Use helper method to set length and scale connectors
+        self._set_length_and_scale_connectors(new_length_mm)
+    
+    def _set_length_and_scale_connectors(self, length: float) -> None:
+        """Set canister length and scale terminal connectors proportionally.
+        
+        This helper method maintains the ratio of terminal connector dimensions
+        to canister length when the length changes.
+        
+        Parameters
+        ----------
+        length : float
+            New canister length in mm
+        """
+        # Store connector ratios before changing length
+        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            cathode_length_ratio = self._cathode_terminal_connector._length / self._canister._length
+            anode_length_ratio = self._anode_terminal_connector._length / self._canister._length
+        else:  # TRANSVERSE
+            cathode_length_ratio = self._cathode_terminal_connector._width / self._canister._length
+            anode_length_ratio = self._anode_terminal_connector._width / self._canister._length
+        
+        # Set the new canister length
+        self._canister.length = length
+        
+        # Scale terminal connectors to maintain ratio
+        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            self._cathode_terminal_connector.length = self._canister._length * cathode_length_ratio * M_TO_MM
+            self._anode_terminal_connector.length = self._canister._length * anode_length_ratio * M_TO_MM
+        else:  # TRANSVERSE
+            self._cathode_terminal_connector.width = self._canister._length * cathode_length_ratio * M_TO_MM
+            self._anode_terminal_connector.width = self._canister._length * anode_length_ratio * M_TO_MM
     
     def _translate_component(self, component, translation_vector: Tuple[float, float, float]):
         """Apply translation vector to a component's datum.
@@ -1935,20 +2388,13 @@ class PrismaticEncapsulation(_Container):
         self._translate_component(self._lid_assembly, translation_vector)
         self._translate_component(self._cathode_terminal_connector, translation_vector)
         self._translate_component(self._anode_terminal_connector, translation_vector)
-    
-    @datum.setter
+
+    # Override datum setter to use decorator
+    @DatumMixin.datum.setter
+    @calculate_coordinates
     def datum(self, value: Tuple[float, float, float]) -> None:
-        """Set datum position for the encapsulation."""
+        """Set datum position, triggering coordinate recalculation."""
         self.validate_datum(value)
-        
-        if self._update_properties:
-            translation_vector = (
-                float(value[0]) * MM_TO_M - self._datum[0],
-                float(value[1]) * MM_TO_M - self._datum[1],
-                float(value[2]) * MM_TO_M - self._datum[2],
-            )
-            self._translate_all_components(translation_vector)
-        
         self._datum = (
             float(value[0]) * MM_TO_M,
             float(value[1]) * MM_TO_M,
@@ -1957,6 +2403,7 @@ class PrismaticEncapsulation(_Container):
 
     @cathode_terminal_connector.setter
     @calculate_all_properties
+    @propagating_setter()
     def cathode_terminal_connector(self, connector: PrismaticTerminalConnector) -> None:
         """Set cathode terminal connector."""
 
@@ -1969,6 +2416,7 @@ class PrismaticEncapsulation(_Container):
 
     @anode_terminal_connector.setter
     @calculate_all_properties
+    @propagating_setter()
     def anode_terminal_connector(self, connector: PrismaticTerminalConnector) -> None:
         """Set anode terminal connector."""
 
@@ -1976,11 +2424,12 @@ class PrismaticEncapsulation(_Container):
 
         if 'anode' not in connector.name.lower():
             connector.name = f"{connector.name} (Anode)"
-            
+
         self._anode_terminal_connector = connector
 
     @lid_assembly.setter
     @calculate_all_properties
+    @propagating_setter()
     def lid_assembly(self, lid: PrismaticLidAssembly) -> None:
         """Set lid assembly."""
         self.validate_type(lid, PrismaticLidAssembly, "Lid Assembly")
@@ -1988,13 +2437,10 @@ class PrismaticEncapsulation(_Container):
 
     @canister.setter
     @calculate_all_properties
+    @propagating_setter()
     def canister(self, canister: PrismaticCanister) -> None:
         """Set canister."""
-
-        # Validate type
         self.validate_type(canister, PrismaticCanister, "Canister")
-
-        # set internal canister value
         self._canister = canister
 
     @width.setter
@@ -2002,46 +2448,29 @@ class PrismaticEncapsulation(_Container):
     def width(self, width: float) -> None:
         """Set outer width of the encapsulation."""
         self.validate_positive_float(width, "Width")
-        self._canister.width = width
+        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            self._canister.width = width
+        else:  # TRANSVERSE
+            self._canister.height = width
 
     @length.setter
     @calculate_all_properties
     def length(self, length: float) -> None:
-        """Set outer length of the encapsulation."""
-
-        # Validate input
+        """Set outer length of the encapsulation.
+        
+        Also scales terminal connectors proportionally to maintain their ratio relative to the length.
+        """
         self.validate_positive_float(length, "Length")
-
-        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
-
-            # get the ratio of canister length and connector length to maintain when adjusting length
-            cathode_length_ratio = self._cathode_terminal_connector._length / self._canister._length
-            anode_length_ratio = self._anode_terminal_connector._length / self._canister._length
-
-            # set the length of the canister
-            self._canister.length = length
-
-            # adjust the length of the connectors to maintain the same ratio
-            self._cathode_terminal_connector.length = self._canister._length * cathode_length_ratio * M_TO_MM
-            self._anode_terminal_connector.length = self._canister._length * anode_length_ratio * M_TO_MM
-
-        elif self._connector_orientation == ConnectorOrientation.TRANSVERSE:
-            
-            # get the ratio of canister length and connector length to maintain when adjusting length
-            cathode_length_ratio = self._cathode_terminal_connector._width / self._canister._length
-            anode_length_ratio = self._anode_terminal_connector._width / self._canister._length
-
-            # set the length of the canister
-            self._canister.length = length
-
-            # adjust the length of the connectors to maintain the same ratio
-            self._cathode_terminal_connector.width = self._canister._length * cathode_length_ratio * M_TO_MM
-            self._anode_terminal_connector.width = self._canister._length * anode_length_ratio * M_TO_MM
+        self._set_length_and_scale_connectors(length)
 
     @height.setter
     @calculate_all_properties
     def height(self, height: float) -> None:
         """Set total height of the encapsulation."""
         self.validate_positive_float(height, "Height")
-        self._canister.height = height
+        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            self._canister.height = height
+        else:  # TRANSVERSE
+            self._canister.width = height
+
 

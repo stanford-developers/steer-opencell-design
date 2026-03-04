@@ -3,10 +3,10 @@
 import math
 from steer_opencell_design.Constructions.Layups.MonoLayers import MonoLayer, ZFoldMonoLayer
 
-from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
+from steer_core.Decorators.General import calculate_all_properties
 
 from steer_core.Constants.Units import *
-from steer_core.Constants.Universal import PI
+from steer_core.Mixins.Propagation import propagating_setter
 
 from steer_opencell_design.Components.Electrodes import Cathode, Anode
 from steer_opencell_design.Components.Separators import Separator
@@ -513,44 +513,33 @@ class _Stack(_ElectrodeAssembly):
         """Return the underlying layup instance."""
         return self._layup
 
-    @property
-    def datum(self) -> Tuple[float, float, float]:
-        """Get the datum position in mm."""
-        return tuple(round(coord * M_TO_MM, 2) for coord in self._datum)
-
-    @datum.setter
-    def datum(self, value: Tuple[float, float, float]):
-
-        # Validate input
+    # Override datum setter to translate stack components and sync with layup
+    @_ElectrodeAssembly.datum.setter
+    def datum(self, value: Tuple[float, float, float]) -> None:
+        """Set datum position, translating all stack components.
+        
+        Translates all stack components and the layup by the difference
+        between the new and current datum positions.
+        """
         self.validate_datum(value)
-
-        # value in m
-        _value = tuple(coord * MM_TO_M for coord in value)
-
-        # get the translation vector
-        _translation_vector = (
-            _value[0] - self._datum[0],
-            _value[1] - self._datum[1],
-            _value[2] - self._datum[2],
-        )
-
-        # go through each component and apply the translation
+        
+        # Compute translation vector from current datum to new datum
+        translation = self._compute_datum_translation(value)
+        
+        # Translate each component in the stack
         for component in self._stack.values():
             component.datum = (
-                (component._datum[0] + _translation_vector[0]) * M_TO_MM,
-                (component._datum[1] + _translation_vector[1]) * M_TO_MM,
-                (component._datum[2] + _translation_vector[2]) * M_TO_MM,
+                (component._datum[0] + translation[0]) * M_TO_MM,
+                (component._datum[1] + translation[1]) * M_TO_MM,
+                (component._datum[2] + translation[2]) * M_TO_MM,
             )
 
-        # translate the layup
-        self._layup.datum = (
-            (self._layup._cathode._datum[0] + _translation_vector[0]) * M_TO_MM,
-            (self._layup._cathode._datum[1] + _translation_vector[1]) * M_TO_MM,
-            (self._layup._cathode._datum[2] + _translation_vector[2]) * M_TO_MM,
-        )
-
-        # update the stack datum
-        self._datum = _value
+        # Translate the layup by setting its datum to the new value
+        # (layup propagates to its children)
+        self._layup.datum = value
+        
+        # Update assembly's datum
+        self._datum = tuple(float(v) * MM_TO_M for v in value)
 
     @n_layers.setter
     @calculate_all_properties
@@ -602,8 +591,34 @@ class _Stack(_ElectrodeAssembly):
         self.n_layers = calculated_n_layers
 
     @layup.setter
-    @calculate_all_properties  
+    @calculate_all_properties
+    @propagating_setter()
     def layup(self, value: Union[MonoLayer, ZFoldMonoLayer]):
+        """Set layup and convert stack type if needed."""
+        self.validate_type(value, (MonoLayer, ZFoldMonoLayer), "layup")
+        
+        if self._update_properties:
+            # If layup type changed, convert the entire stack
+            current_layup_type = type(self._layup)
+            new_layup_type = type(value)
+            
+            if current_layup_type != new_layup_type:
+                # Create new stack of appropriate type
+                converted_stack = self.from_layup(
+                    layup=value,
+                    n_layers=self.n_layers,
+                    name=self.name
+                )
+                
+                # Replace current instance with converted stack
+                self.__class__ = converted_stack.__class__
+                self.__dict__.update(converted_stack.__dict__)
+                
+                # Restore parent references so children point to self, not converted_stack
+                self._restore_child_parent_refs()
+                return
+            
+        # Same type or not updating, just update layup
         self._layup = value
 
 
@@ -713,41 +728,6 @@ class ZFoldStack(_Stack):
         # set the value
         self._additional_separator_wraps = value
 
-    @property
-    def layup(self) -> MonoLayer:
-        """Return the underlying Z-fold layup instance."""
-        return self._layup
-    
-    @layup.setter
-    @calculate_all_properties  
-    def layup(self, value: Union[MonoLayer, ZFoldMonoLayer]):
-
-        """Set layup and convert stack type if needed."""
-        self.validate_type(value, (MonoLayer, ZFoldMonoLayer), "layup")
-        
-        if self._update_properties:
-
-            # If layup type changed, convert the entire stack
-            current_layup_type = type(self._layup)
-            new_layup_type = type(value)
-            
-            if current_layup_type != new_layup_type:
-        
-                # Create new stack of appropriate type
-                converted_stack = self.from_layup(
-                    layup=value,
-                    n_layers=self.n_layers,
-                    name=self.name
-                )
-                
-                # Replace current instance with converted stack
-                self.__class__ = converted_stack.__class__
-                self.__dict__.update(converted_stack.__dict__)
-            
-        else:
-            # Same type, just update layup
-            self._layup = value
-
 
 class PunchedStack(_Stack):
     """
@@ -773,40 +753,3 @@ class PunchedStack(_Stack):
         super().__init__(layup, n_layers, name=name)
         self._calculate_all_properties()
         self._update_properties = True
-    
-    @property
-    def layup(self) -> MonoLayer:
-        """Return the underlying mono-layer layup instance."""
-        return self._layup
-    
-    @layup.setter
-    @calculate_all_properties  
-    def layup(self, value: Union[MonoLayer, ZFoldMonoLayer]):
-
-        """Set layup and convert stack type if needed."""
-        self.validate_type(value, (MonoLayer, ZFoldMonoLayer), "layup")
-        
-        if self._update_properties:
-
-            # If layup type changed, convert the entire stack
-            current_layup_type = type(self._layup)
-            new_layup_type = type(value)
-            
-            if current_layup_type != new_layup_type:
-        
-                # Create new stack of appropriate type
-                converted_stack = self.from_layup(
-                    layup=value,
-                    n_layers=self.n_layers,
-                    name=self.name
-                )
-                
-                # Replace current instance with converted stack
-                self.__class__ = converted_stack.__class__
-                self.__dict__.update(converted_stack.__dict__)
-            
-        else:
-            # Same type, just update layup
-            self._layup = value
-
-

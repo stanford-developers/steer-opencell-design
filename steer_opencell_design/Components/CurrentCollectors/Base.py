@@ -13,23 +13,27 @@ import plotly.graph_objects as go
 # Core STEER imports
 from steer_core.Constants.Units import *
 from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
-from steer_core.Decorators.Coordinates import calculate_areas, calculate_coordinates
+from steer_core.Decorators.Coordinates import calculate_areas
 from steer_core.Mixins.Coordinates import CoordinateMixin
+from steer_core.Mixins.Datum import DatumMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Serializer import SerializerMixin
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
 from steer_opencell_design.Materials.Other import CurrentCollectorMaterial
 
 
 class _CurrentCollector(
     ABC, 
-    CoordinateMixin, 
+    CoordinateMixin,
+    DatumMixin,
     ValidationMixin,
     DunderMixin,
     PlotterMixin,
-    SerializerMixin
+    PropagationMixin,
+    SerializerMixin,
     ):
     """
     Abstract base class for all current collector implementations.
@@ -149,6 +153,9 @@ class _CurrentCollector(
             Additional keyword args.
         """
         self._update_properties = False
+
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
 
         # properties
         self.datum = datum
@@ -366,6 +373,14 @@ class _CurrentCollector(
                 self._flipped_z = not self._flipped_z
 
         return self
+
+    # Override datum setter to recalculate all properties (including weld tabs for TabWeldedCurrentCollector)
+    @DatumMixin.datum.setter
+    @calculate_all_properties
+    def datum(self, value: Tuple[float, float, float]) -> None:
+        """Set datum position in millimeters, triggering property recalculation."""
+        self.validate_datum(value)
+        self._datum = (float(value[0]) * MM_TO_M, float(value[1]) * MM_TO_M, float(value[2]) * MM_TO_M)
 
     def _translate(self, vector: Iterable[float]) -> None:
 
@@ -781,52 +796,6 @@ class _CurrentCollector(
         return "a" if z_a > z_b else "b"
 
     @property
-    def datum(self) -> Tuple[float, float, float]:
-        """
-        Get the datum of the current collector.
-        """
-        return (
-            np.round(self._datum[0] * M_TO_MM, 2),
-            np.round(self._datum[1] * M_TO_MM, 2),
-            np.round(self._datum[2] * M_TO_MM, 2),
-        )
-
-    @property
-    def datum_x(self) -> float:
-        """
-        Get the x-coordinate of the datum in mm.
-        """
-        return np.round(self._datum[0] * M_TO_MM, 2)
-
-    @property
-    def datum_x_range(self) -> Tuple[float, float]:
-        """
-        Get the x-coordinate range of the datum in mm.
-        """
-        return (-100, 100)
-
-    @property
-    def datum_y(self) -> float:
-        """
-        Get the y-coordinate of the datum in mm.
-        """
-        return np.round(self._datum[1] * M_TO_MM, 2)
-
-    @property
-    def datum_y_range(self) -> Tuple[float, float]:
-        """
-        Get the y-coordinate range of the datum in mm.
-        """
-        return (-100, 100)
-
-    @property
-    def datum_z(self) -> float:
-        """
-        Get the z-coordinate of the datum in mm.
-        """
-        return np.round(self._datum[2] * M_TO_MM, 2)
-
-    @property
     def material(self) -> CurrentCollectorMaterial:
         """
         Get the material of the current collector.
@@ -980,47 +949,13 @@ class _CurrentCollector(
     def width_hard_range(self) -> Tuple[float, float]:
         return (0, 5000)
 
-    @datum.setter
-    def datum(self, datum: Tuple[float, float, float]) -> None:
-
-        # validate the datum
-        self.validate_datum(datum)
-
-        if self._update_properties:
-            # calculate the translation vector in m
-            translation_vector = (
-                float(datum[0]) * MM_TO_M - self._datum[0],
-                float(datum[1]) * MM_TO_M - self._datum[1],
-                float(datum[2]) * MM_TO_M - self._datum[2],
-            )
-
-            # translate all coordinates
-            self._translate(translation_vector)
-
-        self._datum = (
-            float(datum[0]) * MM_TO_M,
-            float(datum[1]) * MM_TO_M,
-            float(datum[2]) * MM_TO_M,
-        )
-
     @material.setter
     @calculate_bulk_properties
+    @propagating_setter(deepcopy=True)
     def material(self, material: CurrentCollectorMaterial) -> None:
         self.validate_type(material, CurrentCollectorMaterial, "material")
-        self._material = deepcopy(material)
+        self._material = material  # Already a copy due to decorator
         self._calculate_fill_patterns()
-
-    @datum_x.setter
-    def datum_x(self, x: float) -> None:
-        self.datum = (x, self.datum_y, self.datum_z)
-
-    @datum_y.setter
-    def datum_y(self, y: float) -> None:
-        self.datum = (self.datum_x, y, self.datum_z)
-
-    @datum_z.setter
-    def datum_z(self, z: float) -> None:
-        self.datum = (self.datum_x, self.datum_y, z)
 
     @x_foil_length.setter
     @calculate_all_properties

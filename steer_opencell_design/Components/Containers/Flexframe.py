@@ -1,6 +1,8 @@
 """Flex-frame cell container components."""
 
 from steer_core import CoordinateMixin, PlotterMixin, ValidationMixin, DunderMixin, SerializerMixin
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
+from steer_core.Mixins.Datum import DatumMixin
 from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Decorators.Coordinates import calculate_coordinates
 from steer_core.Constants.Units import *
@@ -28,7 +30,9 @@ PLOT_LINE_COLOR = "black"
 
 class FlexFrame(
     CoordinateMixin,
+    DatumMixin,
     ValidationMixin,
+    PropagationMixin,
     SerializerMixin,
     DunderMixin,
     PlotterMixin,
@@ -73,6 +77,9 @@ class FlexFrame(
             Name of the flex frame, by default "Flex Frame".
         """
         self._update_properties = False
+        
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
         
         self.material = material
         self.width = width
@@ -319,14 +326,6 @@ class FlexFrame(
             fillcolor=self._material.color,
             showlegend=True,
         )
-    
-    @property
-    def datum(self) -> tuple:
-        return (
-            np.round(self._datum[0] * M_TO_MM, DIMENSION_PRECISION),
-            np.round(self._datum[1] * M_TO_MM, DIMENSION_PRECISION),
-            np.round(self._datum[2] * M_TO_MM, DIMENSION_PRECISION),
-        )
 
     @property
     def name(self) -> str:
@@ -367,8 +366,9 @@ class FlexFrame(
     @property
     def cost(self) -> float:
         return np.round(self._cost, DIMENSION_PRECISION)
-    
-    @datum.setter
+
+    # Override datum setter to use decorator
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, datum: tuple) -> None:
         self.validate_datum(datum)
@@ -380,6 +380,7 @@ class FlexFrame(
     
     @material.setter
     @calculate_all_properties
+    @propagating_setter(deepcopy=True)
     def material(self, material: FlexFrameMaterial) -> None:
         self.validate_type(material, FlexFrameMaterial, "Material")
         self._material = material
@@ -420,7 +421,7 @@ class FlexFrame(
         self._name = name
 
 
-class FlexFrameEncapsulation(_Container):
+class FlexFrameEncapsulation(_Container, DatumMixin):
     """Complete flex-frame cell encapsulation combining the flex frame, laminate sheet, and terminals."""
 
     def __init__(
@@ -435,6 +436,9 @@ class FlexFrameEncapsulation(_Container):
         
         self._update_properties = False
         self._terminals_positioned = False
+
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
 
         self._volume = None
 
@@ -590,11 +594,6 @@ class FlexFrameEncapsulation(_Container):
         return np.round(self._cost, 2)
 
     @property
-    def datum(self) -> Tuple[float, float, float]:
-        """Datum position in mm."""
-        return tuple(round(coord * M_TO_MM, 2) for coord in self._datum)
-
-    @property
     def name(self) -> str:
         """Encapsulation name."""
         return self._name
@@ -651,7 +650,12 @@ class FlexFrameEncapsulation(_Container):
     def flex_frame(self, flex_frame: FlexFrame) -> None:
         """Set flex frame component."""
         self.validate_type(flex_frame, FlexFrame, "Flex Frame")
+        # Clear parent reference on old flex frame if exists
+        if hasattr(self, '_flex_frame') and self._flex_frame is not None:
+            self._flex_frame._set_parent(None)
         self._flex_frame = flex_frame
+        # Set parent reference on new flex frame
+        flex_frame._set_parent(self)
 
     @thickness.setter
     @calculate_all_properties
@@ -682,8 +686,9 @@ class FlexFrameEncapsulation(_Container):
         _new_flexframe_height = _new_height - 2 * _laminate_thickness
         new_flexframe_height = _new_flexframe_height * M_TO_MM
         self._flex_frame.height = new_flexframe_height
-    
-    @datum.setter
+
+    # Override datum setter to use decorator
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, value: Tuple[float, float, float]) -> None:
         """Set datum position in mm."""
@@ -698,6 +703,7 @@ class FlexFrameEncapsulation(_Container):
 
     @cathode_terminal.setter
     @calculate_all_properties
+    @propagating_setter()
     def cathode_terminal(self, terminal: PouchTerminal) -> None:
         """Set cathode terminal."""
 
@@ -710,6 +716,7 @@ class FlexFrameEncapsulation(_Container):
 
     @anode_terminal.setter
     @calculate_all_properties
+    @propagating_setter()
     def anode_terminal(self, terminal: PouchTerminal) -> None:
         """Set anode terminal."""
 
@@ -722,6 +729,7 @@ class FlexFrameEncapsulation(_Container):
 
     @laminate_sheet.setter
     @calculate_all_properties
+    @propagating_setter()
     def laminate_sheet(self, laminate: LaminateSheet) -> None:
         """Set laminate sheet."""
         self.validate_type(laminate, LaminateSheet, "Laminate Sheet")
