@@ -1,5 +1,6 @@
 """Base classes and enums for electrode layup configurations."""
 
+from abc import ABC, abstractmethod
 from copy import copy, deepcopy
 from enum import Enum
 from typing import Tuple
@@ -15,10 +16,12 @@ from steer_core.Decorators.General import calculate_all_properties
 
 from steer_core.Mixins.Colors import ColorMixin
 from steer_core.Mixins.Coordinates import CoordinateMixin
+from steer_core.Mixins.Datum import DatumMixin
 from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Plotter import PlotterMixin
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
 from steer_opencell_design.Components.Separators import Separator
@@ -26,7 +29,6 @@ from steer_opencell_design.Constructions.Layups.OverhangUtils import OverhangMix
 from steer_opencell_design.Constructions.Layups.ArealCapacityCurveUtils import ArealCapacityCurveMixin
 from steer_opencell_design.Utils.Decorators import calculate_electrochemical_properties
 from steer_opencell_design.Components.CurrentCollectors.Base import _TapeCurrentCollector
-from steer_opencell_design.Components.CurrentCollectors.Punched import PunchedCurrentCollector
 
 
 # Module-level constants for overhang ranges and plotting parameters
@@ -63,8 +65,11 @@ class ElectrodeOrientation(Enum):
 
 
 class _Layup(
-    CoordinateMixin, 
+    ABC,
+    CoordinateMixin,
+    DatumMixin,
     ValidationMixin, 
+    PropagationMixin,
     SerializerMixin, 
     ColorMixin, 
     DunderMixin,
@@ -115,9 +120,10 @@ class _Layup(
         self.np_ratio_control_mode = NPRatioControlMode.FIXED_ANODE
 
         self.cathode = cathode
-        self.bottom_separator = bottom_separator
+        self._datum = cathode._datum  # Initialize datum from cathode
+        self._set_bottom_separator(bottom_separator)
         self.anode = anode
-        self.top_separator = top_separator
+        self._set_top_separator(top_separator)
         self.electrode_orientation = electrode_orientation
         self.name = name
 
@@ -127,6 +133,7 @@ class _Layup(
         self._calculate_electrochemical_properties()
         self._calculate_voltage_limits()
 
+    @abstractmethod
     def _calculate_bulk_properties(self):
         pass
 
@@ -614,24 +621,12 @@ class _Layup(
 
         Returns
         -------
-        (x, y, z) in mm: The cathode datum coordinates.
+        (x, y, z) in mm: The datum coordinates.
         """
-        return self.cathode.datum
-
-    @property
-    def datum_x(self) -> float:
-        """Get the x-coordinate of the layup datum in mm."""
-        return self.datum[0]
-    
-    @property
-    def datum_y(self) -> float:
-        """Get the y-coordinate of the layup datum in mm."""
-        return self.datum[1]
-
-    @property
-    def datum_z(self) -> float:
-        """Get the z-coordinate of the layup datum in mm."""
-        return self.datum[2]
+        # Initialize _datum from cathode if not yet set
+        if not hasattr(self, '_datum') or self._datum is None:
+            self._datum = self.cathode._datum
+        return DatumMixin.datum.fget(self)
 
     @property
     def np_ratio(self) -> float:
@@ -704,16 +699,8 @@ class _Layup(
         return self._cathode
 
     @property
-    def bottom_separator(self):
-        return self._bottom_separator
-
-    @property
     def anode(self):
         return self._anode
-
-    @property
-    def top_separator(self):
-        return self._top_separator
 
     @property
     def np_ratio_control_mode(self) -> NPRatioControlMode:
@@ -750,7 +737,8 @@ class _Layup(
         """Minimum operating voltage in volts."""
         return np.round(self._operating_voltage_window[0], VOLTAGE_PRECISION)
 
-    @datum.setter
+    # Override datum setter to sync with child components and use decorator
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, new_datum: Tuple[float, float, float]):
         """Shift entire layup so cathode datum becomes ``new_datum``.
@@ -765,6 +753,10 @@ class _Layup(
         """
         self.validate_datum(new_datum)
 
+        # Initialize _datum from cathode if not yet set
+        if not hasattr(self, '_datum') or self._datum is None:
+            self._datum = self.cathode._datum
+
         old = self.cathode.datum
 
         dx = new_datum[0] - old[0]
@@ -775,31 +767,21 @@ class _Layup(
         self.cathode.datum = new_datum
 
         # Components to shift (if present)
-        for comp_attr in ["anode", "bottom_separator", "top_separator"]:
+        for comp_attr in ["anode", "_bottom_separator", "_top_separator"]:
             comp = getattr(self, comp_attr)
             cx, cy, cz = comp.datum
             comp.datum = (cx + dx, cy + dy, cz + dz)
 
-    @datum_x.setter
-    def datum_x(self, new_x: float):
-        """Set the x-coordinate of the layup datum in mm."""
-        self.validate_coordinate(new_x, "datum_x")
-        self.datum = (new_x, self.datum[1], self.datum[2])
-
-    @datum_y.setter
-    def datum_y(self, new_y: float):
-        """Set the y-coordinate of the layup datum in mm."""
-        self.validate_coordinate(new_y, "datum_y")
-        self.datum = (self.datum[0], new_y, self.datum[2])
-
-    @datum_z.setter
-    def datum_z(self, new_z: float):
-        """Set the z-coordinate of the layup datum in mm."""
-        self.validate_coordinate(new_z, "datum_z")
-        self.datum = (self.datum[0], self.datum[1], new_z)
+        # Store own datum
+        self._datum = (
+            float(new_datum[0]) * MM_TO_M,
+            float(new_datum[1]) * MM_TO_M,
+            float(new_datum[2]) * MM_TO_M,
+        )
 
     @cathode.setter
     @calculate_all_properties
+    @propagating_setter()
     def cathode(self, cathode: Cathode):
         """Set the cathode and update dependent components."""
         # validate the type
@@ -814,10 +796,8 @@ class _Layup(
         # set the cathode to self
         self._cathode = cathode
 
-    @bottom_separator.setter
-    @calculate_volumes
-    def bottom_separator(self, bottom_separator: Separator):
-
+    def _set_bottom_separator(self, bottom_separator: Separator):
+        """Internal method to set the bottom separator with validation and parent management."""
         # validate the type
         self.validate_type(bottom_separator, Separator, "Bottom Separator")
 
@@ -833,47 +813,21 @@ class _Layup(
         elif self._update_properties:
 
             bottom_separator._datum = (
-                self.bottom_separator._datum[0],
-                self.bottom_separator._datum[1],
+                self._bottom_separator._datum[0],
+                self._bottom_separator._datum[1],
                 bottom_separator._datum[2],
             )
 
+        # Clear parent reference on old separator if exists
+        if hasattr(self, '_bottom_separator') and self._bottom_separator is not None:
+            self._bottom_separator._set_parent(None)
         # assign to self
         self._bottom_separator = bottom_separator
+        # Set parent reference on new separator
+        bottom_separator._set_parent(self)
 
-    @anode.setter
-    @calculate_all_properties
-    def anode(self, anode: Anode):
-
-        # validate type
-        self.validate_type(anode, Anode, "Anode")
-
-        # make a deep copy of the anode
-        anode = deepcopy(anode)
-
-        if isinstance(anode.current_collector, _TapeCurrentCollector):
-            self.cathode.current_collector.set_ranges_from_reference_bare_lengths(anode)
-
-        # set the ranges on the anode current collector based on the cathode current collector
-        anode.current_collector.set_ranges_from_reference(self.cathode.current_collector)
-
-        # modify the anodes datum position
-        if not self._update_properties:
-            anode.datum = (self.cathode.datum[0], self.cathode.datum[1], anode.datum[2])
-        elif self._update_properties:
-            anode.datum = (anode.datum[0], anode.datum[1], anode.datum[2])
-
-        # if there is an anode, update its ranges
-        if self._update_properties:
-            self._update_separator_sizes(anode)
-
-        # assign to self
-        self._anode = anode
-
-    @top_separator.setter
-    @calculate_volumes
-    def top_separator(self, top_separator: Separator):
-
+    def _set_top_separator(self, top_separator: Separator):
+        """Internal method to set the top separator with validation and parent management."""
         # validate the type
         self.validate_type(top_separator, Separator, "Top Separator")
         
@@ -886,13 +840,46 @@ class _Layup(
             )
         elif self._update_properties:
             top_separator.datum = (
-                self.top_separator.datum[0],
-                self.top_separator.datum[1],
+                self._top_separator.datum[0],
+                self._top_separator.datum[1],
                 top_separator.datum[2],
             )
 
+        # Clear parent reference on old separator if exists
+        if hasattr(self, '_top_separator') and self._top_separator is not None:
+            self._top_separator._set_parent(None)
         # assign to self
         self._top_separator = top_separator
+        # Set parent reference on new separator
+        top_separator._set_parent(self)
+
+    @anode.setter
+    @calculate_all_properties
+    @propagating_setter(deepcopy=True)
+    def anode(self, anode: Anode):
+
+        # validate type
+        self.validate_type(anode, Anode, "Anode")
+
+        # assign to self (decorator handles deepcopy and parent refs)
+        self._anode = anode
+
+        # Post-assignment logic operates on self._anode (the copy)
+        if isinstance(self._anode.current_collector, _TapeCurrentCollector):
+            self.cathode.current_collector.set_ranges_from_reference_bare_lengths(self._anode)
+
+        # set the ranges on the anode current collector based on the cathode current collector
+        self._anode.current_collector.set_ranges_from_reference(self.cathode.current_collector)
+
+        # modify the anodes datum position
+        if not self._update_properties:
+            self._anode.datum = (self.cathode.datum[0], self.cathode.datum[1], self._anode.datum[2])
+        else:
+            self._anode.datum = (self._anode.datum[0], self._anode.datum[1], self._anode.datum[2])
+
+        # if there is an anode, update its ranges
+        if self._update_properties:
+            self._update_separator_sizes(self._anode)
 
     @np_ratio.setter
     @calculate_all_properties

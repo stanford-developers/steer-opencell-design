@@ -10,9 +10,11 @@ from steer_core.Decorators.General import (
 
 from steer_core.Mixins.TypeChecker import ValidationMixin
 from steer_core.Mixins.Coordinates import CoordinateMixin
+from steer_core.Mixins.Datum import DatumMixin
 from steer_core.Mixins.Serializer import SerializerMixin
 from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Dunder import DunderMixin
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
 from steer_core.Constants.Units import *
 
@@ -57,11 +59,13 @@ def calculate_areal_capacity_curve(func):
 
 
 class _Electrode(
-    ValidationMixin, 
-    CoordinateMixin, 
+    ValidationMixin,
+    CoordinateMixin,
+    DatumMixin,
+    PropagationMixin,
     SerializerMixin, 
     PlotterMixin,
-    DunderMixin
+    DunderMixin,
     ):
     """
     Base class for electrodes, representing the common properties and methods of an electrode.
@@ -101,6 +105,9 @@ class _Electrode(
         """
         self._update_properties = False
 
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
+
         self.name = name
         self.formulation = formulation
         self.current_collector = current_collector
@@ -109,6 +116,13 @@ class _Electrode(
         self.insulation_thickness = insulation_thickness
         self.mass_loading = mass_loading
         self.calender_density = calender_density
+
+        # Validate that insulation material is provided when current collector has insulation area
+        if self.current_collector.insulation_area > 0 and self.insulation_material is None:
+            raise ValueError(
+                f"Current collector has insulation area ({self.current_collector.insulation_area} cm²) "
+                f"but no insulation material was provided. Please specify an insulation_material."
+            )
 
         # Calculate initial properties
         self._calculate_all_properties()
@@ -824,19 +838,6 @@ class _Electrode(
         return trace
 
     @property
-    def _datum(self) -> Tuple[float, float, float]:
-        return self.current_collector._datum
-
-    @property
-    def datum(self) -> Tuple[float, float, float]:
-        """
-        Get the datum of the electrode.
-
-        :return: Tuple containing the x, y, z coordinates of the electrode's datum.
-        """
-        return self.current_collector.datum
-
-    @property
     def formulation(self) -> _ElectrodeFormulation:
         """Get the electrode formulation."""
         return self._formulation
@@ -1121,27 +1122,6 @@ class _Electrode(
         return (min, max)
 
     @property
-    def datum_x(self) -> float:
-        """
-        Get the x-coordinate of the datum in mm.
-        """
-        return self.datum[0]
-
-    @property
-    def datum_y(self) -> float:
-        """
-        Get the y-coordinate of the datum in mm.
-        """
-        return self.datum[1]
-
-    @property
-    def datum_z(self) -> float:
-        """
-        Get the z-coordinate of the datum in mm.
-        """
-        return self.datum[2]
-
-    @property
     def porosity_hard_range(self) -> Tuple[float, float]:
         """Get the hard allowable porosity range in %."""
         return (10, 80)
@@ -1153,18 +1133,6 @@ class _Electrode(
     def voltage_cutoff(self, voltage_cutoff: float):
         self.validate_positive_float(voltage_cutoff, "voltage cutoff")
         self._formulation.voltage_cutoff = voltage_cutoff
-
-    @datum_x.setter
-    def datum_x(self, x: float) -> None:
-        self.datum = (x, self.datum_y, self.datum_z)
-
-    @datum_y.setter
-    def datum_y(self, y: float) -> None:
-        self.datum = (self.datum_x, y, self.datum_z)
-
-    @datum_z.setter
-    def datum_z(self, z: float) -> None:
-        self.datum = (self.datum_x, self.datum_y, z)
 
     @thickness.setter
     def thickness(self, thickness: float):
@@ -1200,6 +1168,7 @@ class _Electrode(
 
     @formulation.setter
     @calculate_all_properties
+    @propagating_setter()
     def formulation(self, formulation: _ElectrodeFormulation):
         self.validate_type(formulation, _ElectrodeFormulation, "formulation")
         self._formulation = formulation
@@ -1215,16 +1184,20 @@ class _Electrode(
 
     @insulation_material.setter
     @calculate_bulk_properties
+    @propagating_setter(deepcopy=True)
     def insulation_material(self, insulation_material: InsulationMaterial | None):
-        self.validate_type(insulation_material, InsulationMaterial, "insulation material") if insulation_material else None
 
-        if self._current_collector.insulation_area != 0 and insulation_material is None:
-            raise ValueError("Insulation material must be provided if the current collector has an insulation width")
+        if insulation_material is not None:
 
-        if self._current_collector.insulation_area == 0 and insulation_material is not None:
-            raise ValueError("Insulation material cannot be provided if the current collector does not have an insulation area")
+            self.validate_type(insulation_material, InsulationMaterial, "insulation material") if insulation_material else None
 
-        self._insulation_material = deepcopy(insulation_material)
+            if self._current_collector.insulation_area != 0 and insulation_material is None:
+                raise ValueError("Insulation material must be provided if the current collector has an insulation width")
+
+            if self._current_collector.insulation_area == 0 and insulation_material is not None:
+                raise ValueError("Insulation material cannot be provided if the current collector does not have an insulation area")
+
+        self._insulation_material = insulation_material  # Already a copy due to decorator
 
     @insulation_thickness.setter
     @calculate_volumes
@@ -1244,27 +1217,31 @@ class _Electrode(
     @current_collector.setter
     @calculate_bulk_properties
     @calculate_coordinates
+    @propagating_setter()
     def current_collector(self, current_collector: _CurrentCollector):
+
         # validate the current collector
         self.validate_type(current_collector, _CurrentCollector, "current collector")
 
         # assign the current collector
         self._current_collector = current_collector
 
-        # if the current collector has insulation, load up a default material if none is provided
-        if self._current_collector.insulation_area != 0:
-            if not hasattr(self, "_insulation_material") or self._insulation_material is None:
-                self._insulation_material = InsulationMaterial.from_database("Aluminium Oxide, 95%")
-
     @name.setter
     def name(self, name: str):
         self.validate_string(name, "name")
         self._name = name
 
-    @datum.setter
+    # Override datum setter to sync with current_collector and use decorator
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]):
         self.validate_datum(datum)
+        self._datum = (
+            float(datum[0]) * MM_TO_M,
+            float(datum[1]) * MM_TO_M,
+            float(datum[2]) * MM_TO_M,
+        )
+        # Sync datum to current collector
         self.current_collector.datum = datum
 
 

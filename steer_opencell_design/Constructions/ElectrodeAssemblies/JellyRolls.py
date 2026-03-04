@@ -13,6 +13,7 @@ from steer_core.Constants.Units import *
 from steer_core.Constants.Universal import PI
 from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
 from steer_core.Decorators.Coordinates import calculate_coordinates
+from steer_core.Mixins.Propagation import propagating_setter
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Base import _ElectrodeAssembly
 from steer_opencell_design.Constructions.ElectrodeAssemblies.WindingEquipment import RoundMandrel, FlatMandrel
 from steer_opencell_design.Constructions.ElectrodeAssemblies.SpiralUtils import SpiralCalculator
@@ -393,6 +394,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         
         # Calculate coordinates for standard components
         for spiral_key, coords_attr_path in component_configs:
+
             self._calculate_component_right_left_coords(
                 spiral_key, 
                 coords_attr_path,
@@ -2398,17 +2400,6 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             Total unwrapped length of the layup in millimeters
         """
         return self._layup.total_length
-
-    @property
-    def datum(self) -> Tuple[float, float, float]:
-        """Return the jelly roll datum point.
-        
-        Returns
-        -------
-        Tuple[float, float, float]
-            (x, y, z) coordinates of the jelly roll datum in millimeters
-        """
-        return tuple(round(d * M_TO_MM, 2) for d in self._datum)
     
     @property
     def total_height(self) -> float:
@@ -2421,49 +2412,52 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         """
         return np.round(self._total_height * M_TO_MM, 2)
 
-    @datum.setter
+    # Override datum setter to translate all jelly roll components
+    @_ElectrodeAssembly.datum.setter
     def datum(self, value: Tuple[float, float, float]) -> None:
+        """Set datum position, translating all jelly roll components.
         
-        # validate
+        Translates spiral coordinates, mandrel, and layup by the difference
+        between the new and current datum positions.
+        
+        Parameters
+        ----------
+        value : Tuple[float, float, float]
+            New datum position in millimeters (x, y, z).
+        """
         self.validate_datum(value)
+        
+        # Compute translation vector from current datum to new datum
+        translation = self._compute_datum_translation(value)
+        
+        # Convert to mm for component updates
+        translation_mm = tuple(t * M_TO_MM for t in translation)
+        
+        # Translate spirals (uses meters internally)
+        self._translate_spirals_xz(translation[0], translation[2])
 
-        # current datum
-        _current_datum = self._datum
+        # Translate top-down coordinates (uses meters internally)
+        self._translate_top_down_coordinates(translation[0], translation[1])
 
-        # translation vector
-        _value = tuple(v * MM_TO_M for v in value)
-        _translation_vector = (
-            _value[0] - _current_datum[0],
-            _value[1] - _current_datum[1],
-            _value[2] - _current_datum[2]
-        )
-        translation_vector = tuple(t * M_TO_MM for t in _translation_vector)
+        # Translate right-left coordinates (uses meters internally)
+        self._translate_right_left_coordinates(translation[1], translation[2])
 
-        # translate spirals
-        self._translate_spirals_xz(_translation_vector[0], _translation_vector[2])
-
-        # translate top-down coordinates
-        self._translate_top_down_coordinates(_translation_vector[0], _translation_vector[1])
-
-        # translate right-left coordinates
-        self._translate_right_left_coordinates(_translation_vector[1], _translation_vector[2])
-
-        # translate mandrel
+        # Translate mandrel (expects mm)
         self._mandrel.datum = (
-            self._mandrel.datum[0] + translation_vector[0],
-            self._mandrel.datum[1] + translation_vector[1],
-            self._mandrel.datum[2] + translation_vector[2],
+            self._mandrel.datum[0] + translation_mm[0],
+            self._mandrel.datum[1] + translation_mm[1],
+            self._mandrel.datum[2] + translation_mm[2],
         )
 
-        # translate the layup
+        # Translate the layup (expects mm)
         self._layup.datum = (
-            self._layup.datum[0] + translation_vector[0],
-            self._layup.datum[1] + translation_vector[1],
-            self._layup.datum[2] + translation_vector[2],
+            self._layup.datum[0] + translation_mm[0],
+            self._layup.datum[1] + translation_mm[1],
+            self._layup.datum[2] + translation_mm[2],
         )
-
-        # set datum
-        self._datum = tuple(d * MM_TO_M for d in value)
+        
+        # Update assembly's datum
+        self._datum = tuple(float(v) * MM_TO_M for v in value)
 
     @tape_length_driver.setter
     def tape_length_driver(self, value: TapeDriver) -> None:
@@ -2524,6 +2518,8 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
     @tape.setter
     @calculate_bulk_properties
     @calculate_tape_properties
+    @calculate_coordinates
+    @propagating_setter()
     def tape(self, value: Optional[Tape]) -> None:
         """Set the tape and recalculate properties.
         
@@ -2543,7 +2539,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
         # validate type
         self.validate_type(value, Tape, "tape")
-    
+
         # set the tape width to at least the current collector y-foil length
         if value._width is None or value._width < self._layup._anode._current_collector._y_foil_length:
             value.width = self._layup._anode._current_collector._y_foil_length * M_TO_MM
@@ -2564,6 +2560,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
     @mandrel.setter
     @calculate_all_properties
+    @propagating_setter()
     def mandrel(self, value: Union[RoundMandrel, FlatMandrel]) -> None:
         """Set the mandrel and recalculate properties.
         
@@ -2585,6 +2582,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
     @layup.setter
     @calculate_all_properties
+    @propagating_setter()
     def layup(self, value: Laminate) -> None:
         """Set the layup and recalculate properties.
         
@@ -2976,7 +2974,7 @@ class WoundJellyRoll(_JellyRoll):
         )
 
     @classmethod
-    def from_flat_wound_jelly_roll(
+    def from_flat_jelly_roll(
             cls,
             flat_jelly_roll: 'FlatWoundJellyRoll',
         ) -> 'WoundJellyRoll':
@@ -3004,7 +3002,7 @@ class WoundJellyRoll(_JellyRoll):
         Examples
         --------
         >>> flat_roll = FlatWoundJellyRoll(layup, flat_mandrel)
-        >>> wound_roll = WoundJellyRoll.from_FlatWoundJellyRoll(flat_roll)
+        >>> wound_roll = WoundJellyRoll.from_flat_jelly_roll(flat_roll)
         """        
         # Validate inputs
         cls.validate_type(flat_jelly_roll, FlatWoundJellyRoll, "flat_jelly_roll")
@@ -3706,6 +3704,7 @@ class FlatWoundJellyRoll(_JellyRoll):
     def from_round_jelly_roll(
             cls,
             round_jelly_roll: 'WoundJellyRoll',
+            width: float = None,
         ) -> 'FlatWoundJellyRoll':
         """Create a FlatWoundJellyRoll from an existing WoundJellyRoll.
         
@@ -3717,6 +3716,10 @@ class FlatWoundJellyRoll(_JellyRoll):
         ----------
         round_jelly_roll : WoundJellyRoll
             The wound jelly roll to convert from
+        width : float, optional
+            The width of the flat mandrel in mm. If not provided, defaults to
+            diameter * 11 (creating a flat mandrel with a straight section of
+            10x the diameter).
             
         Returns
         -------
@@ -3732,6 +3735,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         --------
         >>> wound_roll = WoundJellyRoll(layup, round_mandrel)
         >>> flat_roll = FlatWoundJellyRoll.from_round_jelly_roll(wound_roll)
+        >>> flat_roll_custom = FlatWoundJellyRoll.from_round_jelly_roll(wound_roll, width=50)
         """        
         # Validate inputs
         cls.validate_type(round_jelly_roll, WoundJellyRoll, "round_jelly_roll")
@@ -3743,12 +3747,13 @@ class FlatWoundJellyRoll(_JellyRoll):
         round_mandrel = deepcopy(round_jelly_roll._mandrel)
         
         # Use the round mandrel's diameter as the flat mandrel's height to maintain radius
-        # Set a default straight length (can be adjusted based on requirements)
-        default_straight_length = round_mandrel.diameter * 10
+        # If width not provided, default to diameter * 11 (diameter + 10x diameter straight)
+        mandrel_height = round_mandrel.diameter
+        mandrel_width = width if width is not None else round_mandrel.diameter * 11
         
         flat_mandrel = FlatMandrel(
-            height=round_mandrel.diameter,
-            width=round_mandrel.diameter + default_straight_length,
+            height=mandrel_height,
+            width=mandrel_width,
             length=round_mandrel.length,
             datum=round_mandrel.datum,
             material=round_mandrel.material
@@ -3948,4 +3953,4 @@ class FlatWoundJellyRoll(_JellyRoll):
         # Set the optimized length and run full pipeline once
         self._layup.length = optimal_length
         self.layup = self._layup
- 
+

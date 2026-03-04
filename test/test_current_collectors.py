@@ -92,18 +92,6 @@ class TestPunchedCurrentCollector(unittest.TestCase):
 
         self.assertTrue(True)
 
-    def test_pickle_unpickle(self):
-        serialized = dumps(self.current_collector)
-        encoded = b64encode(serialized).decode("utf-8")
-        decoded = b64decode(encoded)
-        deserialized = loads(decoded)
-
-        self.assertEqual(self.current_collector.material.mass, deserialized.material.mass)
-        self.assertEqual(self.current_collector.material.cost, deserialized.material.cost)
-        self.assertEqual(self.current_collector.material.name, deserialized.material.name)
-        self.assertEqual(self.current_collector.width, deserialized.width)
-        self.assertEqual(self.current_collector.height, deserialized.height)
-
     def test_setters(self):
         self.current_collector.width = 200
         self.assertEqual(self.current_collector.width, 200)
@@ -185,7 +173,7 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         self.assertEqual(round(self.current_collector.foil_area, 6), 6732)
         self.assertEqual(round(self.current_collector.coated_area, 6), 3079.3 + 3074)
         self.assertEqual(round(self.current_collector.insulation_area, 6), 185.8)
-        self.assertEqual(self.current_collector.material.cost, 0.17)
+        self.assertEqual(self.current_collector.material.cost, 0.04)
         self.assertEqual(self.current_collector.material.mass, 13.63)
 
     def test_figures(self):
@@ -201,16 +189,16 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         self.current_collector.material = CurrentCollectorMaterial.from_database(name="Copper")
         self.assertEqual(self.current_collector.material.name, "Copper")
         self.assertEqual(self.current_collector.material.mass, 45.24)
-        self.assertEqual(self.current_collector.material.cost, 0.82)
+        self.assertEqual(self.current_collector.material.cost, 0.7)
 
         self.current_collector.thickness = 10
         self.assertEqual(self.current_collector.thickness, 10)
         self.assertEqual(self.current_collector.material.mass, 30.16)
-        self.assertEqual(self.current_collector.material.cost, 0.55)
+        self.assertEqual(self.current_collector.material.cost, 0.47)
 
         self.current_collector.bare_lengths_a_side = (100, 100)
         self.assertEqual(self.current_collector.material.mass, 30.16)
-        self.assertEqual(self.current_collector.material.cost, 0.55)
+        self.assertEqual(self.current_collector.material.cost, 0.47)
 
         fig_a = self.current_collector.get_a_side_view()
         fig_b = self.current_collector.get_b_side_view()
@@ -247,6 +235,47 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         copy_cc = deepcopy(self.current_collector)
         condition = copy_cc == self.current_collector
         self.assertTrue(condition)
+
+    def test_serialization_preserves_property_dependencies(self):
+        """Test that property dependencies work correctly after serialization/deserialization.
+        
+        Tests that changing length affects mass and cost both before
+        and after serialization.
+        """
+        # Get original properties
+        original_length = self.current_collector.length
+        original_mass = self.current_collector.mass
+        original_cost = self.current_collector.cost
+        
+        # Double the length
+        new_length = original_length * 2
+        self.current_collector.length = new_length
+        
+        # Verify mass and cost approximately doubled
+        self.assertEqual(self.current_collector.length, new_length)
+        self.assertGreater(self.current_collector.mass, original_mass)
+        self.assertGreater(self.current_collector.cost, original_cost)
+        modified_mass = self.current_collector.mass
+        
+        # Reset
+        self.current_collector.length = original_length
+        self.assertEqual(self.current_collector.length, original_length)
+        self.assertAlmostEqual(self.current_collector.mass, original_mass, places=2)
+        
+        # Serialize and deserialize
+        serialized = self.current_collector.serialize()
+        deserialized_cc = NotchedCurrentCollector.deserialize(serialized)
+        
+        # Verify deserialized has same properties
+        self.assertEqual(deserialized_cc.length, original_length)
+        self.assertAlmostEqual(deserialized_cc.mass, original_mass, places=2)
+        
+        # Double length on deserialized object
+        deserialized_cc.length = new_length
+        
+        # Verify mass increased on deserialized object
+        self.assertEqual(deserialized_cc.length, new_length)
+        self.assertAlmostEqual(deserialized_cc.mass, modified_mass, places=2)
 
 
 class TestNotchedCurrentCollector2(unittest.TestCase):

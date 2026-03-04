@@ -21,13 +21,17 @@ from steer_core import (
     DunderMixin,
     PlotterMixin,
 )
+from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
+from steer_core.Mixins.Datum import DatumMixin
 
 
 class _CylindricalComponent(
     ABC,
     CoordinateMixin,
+    DatumMixin,
     ColorMixin,
     ValidationMixin,
+    PropagationMixin,
     SerializerMixin,
     DunderMixin,
     PlotterMixin,
@@ -91,6 +95,9 @@ class _CylindricalComponent(
             If material is not a PrismaticContainerMaterial instance
         """
         self._update_properties = False
+
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
 
         self.material = material
         self.thickness = thickness
@@ -289,14 +296,6 @@ class _CylindricalComponent(
         return self._name
 
     @property
-    def datum(self) -> Tuple[float, float, float]:
-        return (
-            np.round(self._datum[0] * M_TO_MM, 2), 
-            np.round(self._datum[1] * M_TO_MM, 2), 
-            np.round(self._datum[2] * M_TO_MM, 2)
-        )
-
-    @property
     def material(self) -> PrismaticContainerMaterial:
         return self._material
     
@@ -371,7 +370,8 @@ class _CylindricalComponent(
         self.validate_type(name, str, "Name")
         self._name = name
 
-    @datum.setter
+    # Override datum setter to use decorator
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]) -> None:
         self.validate_datum(datum)
@@ -379,9 +379,10 @@ class _CylindricalComponent(
 
     @material.setter
     @calculate_bulk_properties
+    @propagating_setter(deepcopy=True)
     def material(self, material: PrismaticContainerMaterial) -> None:
         self.validate_type(material, PrismaticContainerMaterial, "Material")
-        self._material = deepcopy(material)
+        self._material = material  # Already a copy due to decorator
 
     @radius.setter
     def radius(self, radius: float) -> None:
@@ -731,11 +732,13 @@ class CylindricalLidAssembly(_CylindricalComponent):
 
 
 class CylindricalCanister(
-    CoordinateMixin, 
-    SerializerMixin,
+    CoordinateMixin,
+    DatumMixin,
     ValidationMixin,
+    PropagationMixin,
+    SerializerMixin,
     PlotterMixin,
-    DunderMixin
+    DunderMixin,
 ):
     """A cylindrical can with concentric circular walls.
     
@@ -791,6 +794,9 @@ class CylindricalCanister(
             If material is not a PrismaticContainerMaterial instance
         """
         self._update_properties = False
+
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
 
         self.material = material
         self.outer_radius = outer_radius
@@ -1033,14 +1039,6 @@ class CylindricalCanister(
         return self._name
     
     @property
-    def datum(self) -> Tuple[float, float, float]:
-        return (
-            np.round(self._datum[0] * M_TO_MM, 2), 
-            np.round(self._datum[1] * M_TO_MM, 2), 
-            np.round(self._datum[2] * M_TO_MM, 2)
-        )
-    
-    @property
     def material(self) -> PrismaticContainerMaterial:
         return self._material
     
@@ -1099,7 +1097,8 @@ class CylindricalCanister(
         self.validate_type(name, str, "Name")
         self._name = name
 
-    @datum.setter
+    # Override datum setter to use decorator
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, datum: Tuple[float, float, float]) -> None:
         self.validate_datum(datum)
@@ -1107,9 +1106,10 @@ class CylindricalCanister(
 
     @material.setter
     @calculate_bulk_properties
+    @propagating_setter(deepcopy=True)
     def material(self, material: PrismaticContainerMaterial) -> None:
         self.validate_type(material, PrismaticContainerMaterial, "Material")
-        self._material = deepcopy(material)
+        self._material = material  # Already a copy due to decorator
 
     @outer_radius.setter
     @calculate_all_properties
@@ -1156,7 +1156,7 @@ class CylindricalCanister(
         self.height = new_height
 
 
-class CylindricalEncapsulation(_Container):
+class CylindricalEncapsulation(_Container, DatumMixin):
     """Complete cylindrical cell encapsulation combining canister, lid assembly, and terminal connectors.
 
     Manages the overall cylindrical geometry and provides mass/cost breakdowns.
@@ -1174,6 +1174,9 @@ class CylindricalEncapsulation(_Container):
 
         self._update_properties = False
         
+        # Initialize _datum early so mixin properties work during component setup
+        self._datum = tuple(float(d) * MM_TO_M for d in datum)
+        
         self.cathode_terminal_connector = cathode_terminal_connector
         self.anode_terminal_connector = anode_terminal_connector
         self.lid_assembly = lid_assembly
@@ -1183,6 +1186,220 @@ class CylindricalEncapsulation(_Container):
 
         self._update_properties = True
         self._calculate_all_properties()
+
+    @classmethod
+    def from_prismatic(cls, prismatic_encapsulation) -> "CylindricalEncapsulation":
+        """Create a CylindricalEncapsulation from a PrismaticEncapsulation.
+        
+        Converts a prismatic (rectangular) encapsulation to cylindrical form by calculating
+        an equivalent radius that preserves internal volume. The conversion uses the formula
+        r = sqrt(width × length / π) to maintain the same cross-sectional area, and maps
+        height directly from prismatic to cylindrical.
+        
+        Parameters
+        ----------
+        prismatic_encapsulation : PrismaticEncapsulation
+            The prismatic encapsulation to convert
+            
+        Returns
+        -------
+        CylindricalEncapsulation
+            A new cylindrical encapsulation with equivalent internal volume
+            
+        Notes
+        -----
+        - Internal volume is preserved through equivalent cross-sectional area conversion
+        - Height maps directly from prismatic to cylindrical
+        - Materials and thicknesses are transferred from the prismatic components
+        - Terminal connectors and lid are auto-sized to fit the new canister (90% inner radius)
+        
+        Examples
+        --------
+        >>> prismatic_enc = PrismaticEncapsulation(...)
+        >>> cylindrical_enc = CylindricalEncapsulation.from_prismatic(prismatic_enc)
+        """
+        from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
+        
+        # Validate input type
+        cls.validate_type(prismatic_encapsulation, PrismaticEncapsulation, "prismatic_encapsulation")
+        
+        # Extract internal dimensions from prismatic encapsulation
+        internal_width = prismatic_encapsulation._internal_width
+        internal_length = prismatic_encapsulation._internal_length
+        internal_height = prismatic_encapsulation._internal_height
+        
+        # Calculate equivalent internal radius to preserve cross-sectional area (and thus volume)
+        # Using formula: π × r² = width × length  =>  r = sqrt(width × length / π)
+        internal_radius = np.sqrt(internal_width * internal_length / np.pi)
+        
+        # Get wall thickness from prismatic canister (in meters)
+        wall_thickness = prismatic_encapsulation._canister._wall_thickness
+        
+        # Calculate outer radius (in meters)
+        outer_radius = internal_radius + wall_thickness
+        
+        # Get height from prismatic canister (in meters)
+        height = prismatic_encapsulation._canister._height
+        
+        # Convert dimensions to mm for component creation
+        outer_radius_mm = outer_radius * M_TO_MM
+        height_mm = height * M_TO_MM
+        wall_thickness_mm = wall_thickness * M_TO_MM
+        
+        # Create cylindrical canister with transferred material and dimensions
+        cylindrical_canister = CylindricalCanister(
+            material=prismatic_encapsulation._canister._material,
+            outer_radius=outer_radius_mm,
+            height=height_mm,
+            wall_thickness=wall_thickness_mm,
+            datum=prismatic_encapsulation._canister.datum,  # Use property (returns mm)
+        )
+        
+        # Create cylindrical terminal connectors with transferred materials
+        # Set radius=None to trigger auto-sizing by encapsulation (90% of inner radius)
+        cathode_terminal_connector = CylindricalTerminalConnector(
+            material=prismatic_encapsulation._cathode_terminal_connector._material,
+            thickness=prismatic_encapsulation._cathode_terminal_connector.thickness,  # Use property (returns mm)
+            radius=None,
+            fill_factor=prismatic_encapsulation._cathode_terminal_connector._fill_factor,
+        )
+        
+        anode_terminal_connector = CylindricalTerminalConnector(
+            material=prismatic_encapsulation._anode_terminal_connector._material,
+            thickness=prismatic_encapsulation._anode_terminal_connector.thickness,  # Use property (returns mm)
+            radius=None,
+            fill_factor=prismatic_encapsulation._anode_terminal_connector._fill_factor,
+        )
+        
+        # Create cylindrical lid assembly with transferred material
+        # Set radius=None to trigger auto-sizing by encapsulation (matches inner radius)
+        lid_assembly = CylindricalLidAssembly(
+            material=prismatic_encapsulation._lid_assembly._material,
+            thickness=prismatic_encapsulation._lid_assembly.thickness,  # Use property (returns mm)
+            radius=None,
+            fill_factor=prismatic_encapsulation._lid_assembly._fill_factor,
+        )
+        
+        # Create and return the cylindrical encapsulation
+        return cls(
+            cathode_terminal_connector=cathode_terminal_connector,
+            anode_terminal_connector=anode_terminal_connector,
+            lid_assembly=lid_assembly,
+            canister=cylindrical_canister,
+            datum=prismatic_encapsulation.datum  # Use property (returns mm)
+        )
+
+    @classmethod
+    def from_pouch(cls, pouch_encapsulation) -> "CylindricalEncapsulation":
+        """Create a CylindricalEncapsulation from a PouchEncapsulation.
+        
+        Converts a pouch encapsulation to cylindrical form by calculating an equivalent
+        radius from the pouch dimensions and creating rigid container components with
+        default aluminum material. This conversion is useful for comparing flexible
+        pouch designs with rigid cylindrical implementations.
+        
+        Parameters
+        ----------
+        pouch_encapsulation : PouchEncapsulation
+            The pouch encapsulation to convert
+            
+        Returns
+        -------
+        CylindricalEncapsulation
+            A new cylindrical encapsulation with aluminum components
+            
+        Notes
+        -----
+        Default parameters for rigid components:
+        - Canister material: Aluminum (from database)
+        - Wall thickness: 1.0 mm
+        - Terminal thickness: 0.5 mm
+        - Lid thickness: 0.5 mm  
+        - Fill factor: 0.7 (standard)
+        
+        The conversion calculates equivalent radius using r = sqrt(width × thickness / π)
+        and maps pouch height to cylindrical height. Since pouches lack rigid components,
+        all structural parts are created with aluminum defaults.
+        
+        Examples
+        --------
+        >>> pouch_enc = PouchEncapsulation(...)
+        >>> cylindrical_enc = CylindricalEncapsulation.from_pouch(pouch_enc)
+        """
+        from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
+        
+        # Validate input type
+        cls.validate_type(pouch_encapsulation, PouchEncapsulation, "pouch_encapsulation")
+        
+        # Extract dimensions from pouch encapsulation (all in meters internally)
+        # Pouch stores width/height in the laminate, thickness in the encapsulation
+        width = pouch_encapsulation._top_laminate._width
+        thickness = pouch_encapsulation._thickness
+        height = pouch_encapsulation._top_laminate._height
+        
+        # Calculate equivalent internal radius from pouch dimensions
+        # Using width and thickness (laminate separation) as the rectangular cross-section
+        internal_radius = np.sqrt(width * thickness / np.pi)
+        
+        # Define default parameters for rigid components (per user specification)
+        wall_thickness = 1.0 * MM_TO_M  # 1.0 mm converted to meters
+        terminal_thickness_mm = 0.5  # mm
+        lid_thickness_mm = 0.5  # mm
+        fill_factor = 0.7  # standard default
+        
+        # Calculate outer radius (in meters)
+        outer_radius = internal_radius + wall_thickness
+        
+        # Convert dimensions to mm for component creation
+        outer_radius_mm = outer_radius * M_TO_MM
+        height_mm = height * M_TO_MM
+        wall_thickness_mm = wall_thickness * M_TO_MM
+        
+        # Get aluminum material from database (per user specification)
+        aluminum_material = PrismaticContainerMaterial.from_database("Aluminum")
+        
+        # Create cylindrical canister with aluminum
+        cylindrical_canister = CylindricalCanister(
+            material=aluminum_material,
+            outer_radius=outer_radius_mm,
+            height=height_mm,
+            wall_thickness=wall_thickness_mm,
+            datum=pouch_encapsulation.datum,  # Use property (returns mm)
+        )
+        
+        # Create cylindrical terminal connectors with aluminum
+        # Set radius=None to trigger auto-sizing by encapsulation (90% of inner radius)
+        cathode_terminal_connector = CylindricalTerminalConnector(
+            material=aluminum_material,
+            thickness=terminal_thickness_mm,
+            radius=None,
+            fill_factor=fill_factor,
+        )
+        
+        anode_terminal_connector = CylindricalTerminalConnector(
+            material=aluminum_material,
+            thickness=terminal_thickness_mm,
+            radius=None,
+            fill_factor=fill_factor,
+        )
+        
+        # Create cylindrical lid assembly with aluminum
+        # Set radius=None to trigger auto-sizing by encapsulation (matches inner radius)
+        lid_assembly = CylindricalLidAssembly(
+            material=aluminum_material,
+            thickness=lid_thickness_mm,
+            radius=None,
+            fill_factor=fill_factor,
+        )
+        
+        # Create and return the cylindrical encapsulation
+        return cls(
+            cathode_terminal_connector=cathode_terminal_connector,
+            anode_terminal_connector=anode_terminal_connector,
+            lid_assembly=lid_assembly,
+            canister=cylindrical_canister,
+            datum=pouch_encapsulation.datum  # Use property (returns mm)
+        )
 
     def _calculate_all_properties(self):
         self._calculate_bulk_properties()
@@ -1312,6 +1529,54 @@ class CylindricalEncapsulation(_Container):
 
         return figure
     
+    def fit_radius(self, assembly, clearance: float = 0) -> None:
+        """Set the internal radius to fit an electrode assembly's radius dimension.
+        
+        Parameters
+        ----------
+        assembly : WoundJellyRoll
+            The electrode assembly to fit
+        clearance : float, optional
+            Additional clearance in mm (default: 0)
+        """
+        from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import WoundJellyRoll
+        
+        self.validate_type(assembly, WoundJellyRoll, "assembly")
+        target_radius = assembly.radius + clearance
+        self.internal_radius = target_radius
+    
+    def fit_height(self, assembly, clearance: float = 0) -> None:
+        """Set the internal height to fit an electrode assembly's height dimension.
+        
+        Parameters
+        ----------
+        assembly : WoundJellyRoll
+            The electrode assembly to fit
+        clearance : float, optional
+            Additional clearance in mm (default: 0)
+        """
+        from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import WoundJellyRoll
+        
+        self.validate_type(assembly, WoundJellyRoll, "assembly")
+        target_height = assembly.height + clearance
+        self.internal_height = target_height
+    
+    def fit_to_electrode_assembly(self, assembly, clearance: float = 0) -> None:
+        """Adjust all encapsulation dimensions to fit a given electrode assembly.
+        
+        Resizes the canister's inner dimensions to accommodate the electrode assembly
+        with a specified clearance margin. Calls fit_radius and fit_height.
+        
+        Parameters
+        ----------
+        assembly : WoundJellyRoll
+            The electrode assembly to fit the encapsulation to
+        clearance : float, optional
+            Additional clearance in mm around the assembly (default: 0)
+        """
+        self.fit_radius(assembly, clearance)
+        self.fit_height(assembly, clearance)
+    
     @property
     def volume(self) -> float:
         return np.round(self._volume * M_TO_MM**3, 2)
@@ -1353,12 +1618,14 @@ class CylindricalEncapsulation(_Container):
         return (np.round(min_height, 2), np.round(max_height, 2))
 
     @property
-    def datum(self) -> Tuple[float, float, float]:
-        return (
-            np.round(self._datum[0] * M_TO_MM, 2), 
-            np.round(self._datum[1] * M_TO_MM, 2), 
-            np.round(self._datum[2] * M_TO_MM, 2)
-        )
+    def internal_radius(self) -> float:
+        """Internal radius available for cell contents in mm."""
+        return self._canister.inner_radius
+    
+    @property
+    def internal_radius_range(self) -> Tuple[float, float]:
+        """Valid internal radius range in mm."""
+        return self._canister.inner_radius_range
         
     @property
     def name(self) -> str:
@@ -1467,13 +1734,21 @@ class CylindricalEncapsulation(_Container):
         new_height = self._canister._height + _height_difference
         self._canister.height = new_height * M_TO_MM
     
+    @internal_radius.setter
+    @calculate_all_properties
+    def internal_radius(self, internal_radius: float) -> None:
+        """Set internal radius and adjust canister dimensions accordingly."""
+        self.validate_positive_float(internal_radius, "Internal Radius")
+        self._canister.inner_radius = internal_radius
+    
     @height.setter
     @calculate_all_properties
     def height(self, height: float) -> None:
         self.validate_positive_float(height, "Height")
         self._canister.height = height
-    
-    @datum.setter
+
+    # Override datum setter to use decorator and sync to canister
+    @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, value: Tuple[float, float, float]) -> None:
 
@@ -1488,6 +1763,7 @@ class CylindricalEncapsulation(_Container):
 
     @cathode_terminal_connector.setter
     @calculate_all_properties
+    @propagating_setter()
     def cathode_terminal_connector(self, connector: CylindricalTerminalConnector) -> None:
         
         self.validate_type(connector, CylindricalTerminalConnector, "Cathode Terminal Connector")
@@ -1499,6 +1775,7 @@ class CylindricalEncapsulation(_Container):
 
     @anode_terminal_connector.setter
     @calculate_all_properties
+    @propagating_setter()
     def anode_terminal_connector(self, connector: CylindricalTerminalConnector) -> None:
 
         self.validate_type(connector, CylindricalTerminalConnector, "Anode Terminal Connector")
@@ -1510,12 +1787,14 @@ class CylindricalEncapsulation(_Container):
 
     @lid_assembly.setter
     @calculate_all_properties
+    @propagating_setter()
     def lid_assembly(self, lid: CylindricalLidAssembly) -> None:
         self.validate_type(lid, CylindricalLidAssembly, "Lid Assembly")
         self._lid_assembly = lid
 
     @canister.setter
     @calculate_all_properties
+    @propagating_setter()
     def canister(self, canister: CylindricalCanister) -> None:
         self.validate_type(canister, CylindricalCanister, "Canister")
         self._canister = canister

@@ -4,10 +4,10 @@ from steer_opencell_design.Components.Containers.Flexframe import FlexFrameEncap
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import PunchedStack
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
 from steer_opencell_design.Constructions.Cells.Base import _Cell
-from steer_opencell_design.Components.Electrodes import Cathode, Anode
 
-from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
+from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Constants.Units import *
+from steer_core.Mixins.Propagation import propagating_setter
 
 from typing import Tuple
 import plotly.graph_objects as go
@@ -318,6 +318,7 @@ class FlexFrameCell(_Cell):
 
     @electrode_assembly.setter
     @calculate_all_properties
+    @propagating_setter('reference_electrode_assembly')
     def electrode_assembly(self, value: PunchedStack) -> None:
         """Set electrode assembly with validation.
         
@@ -331,6 +332,7 @@ class FlexFrameCell(_Cell):
 
     @encapsulation.setter
     @calculate_all_properties
+    @propagating_setter()
     def encapsulation(self, value: FlexFrameEncapsulation) -> None:
         """Set encapsulation with validation.
         

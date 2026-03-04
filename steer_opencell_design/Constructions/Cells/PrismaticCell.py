@@ -1,12 +1,13 @@
 """Prismatic battery cell implementation."""
 
 from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation, ConnectorOrientation
-from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import FlatWoundJellyRoll
+from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import FlatWoundJellyRoll, WoundJellyRoll
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import ZFoldStack, PunchedStack, _Stack
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
 from steer_opencell_design.Constructions.Cells.Base import _Cell
 
 from steer_core.Decorators.General import calculate_all_properties
+from steer_core.Mixins.Propagation import propagating_setter
 from steer_core.Constants.Units import *
 
 from typing import Tuple
@@ -87,6 +88,7 @@ class PrismaticCell(_Cell):
 
     def _calculate_all_properties(self) -> None:
         """Calculate all cell properties and position encapsulation."""
+        self._sync_connector_orientation()
         self._make_assemblies()
         self._position_assemblies()
         self._clip_tabs()
@@ -360,6 +362,56 @@ class PrismaticCell(_Cell):
             np.round(maximum_height, 2)
         )
 
+    @height.setter
+    @calculate_all_properties
+    def height(self, value: float) -> None:
+        """Set the cell height by adjusting the layup and encapsulation dimensions.
+
+        Parameters
+        ----------
+        value : float
+            Desired cell height in millimeters
+        """
+        from steer_opencell_design.Constructions.Layups.Laminate import Laminate
+
+        # validate input
+        self.validate_positive_float(value, "height")
+
+        # get the height difference
+        current_height = self.height
+        height_difference = value - current_height
+
+        if isinstance(self._reference_electrode_assembly, _Stack):
+            # For stacked assemblies, update layup height directly
+            layup = self._reference_electrode_assembly.layup
+            if isinstance(layup, Laminate):
+                # Laminate uses width for y-dimension
+                new_layup_width = layup.width + height_difference
+                layup.width = new_layup_width
+            else:
+                # MonoLayer uses height
+                new_layup_height = layup.height + height_difference
+                layup.height = new_layup_height
+            self._reference_electrode_assembly.layup = self._reference_electrode_assembly.layup
+
+        elif type(self._reference_electrode_assembly) == FlatWoundJellyRoll:
+            # For flat wound jelly rolls, use the assembly's height setter
+            # which internally adjusts layup.width and tape width
+            _original_assembly_thickness = self._reference_electrode_assembly._thickness
+            new_assembly_height = self._reference_electrode_assembly.height + height_difference
+            self._reference_electrode_assembly.height = new_assembly_height
+            _new_assembly_thickness = self._reference_electrode_assembly._thickness
+            encapsulation_length_difference = (_new_assembly_thickness - _original_assembly_thickness) * self._n_electrode_assembly * M_TO_MM
+            self._encapsulation.length += encapsulation_length_difference
+
+        # update the encapsulation height or width depending on connector orientation
+        if self._encapsulation._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            new_canister_height = self._encapsulation.height + height_difference
+            self._encapsulation.height = new_canister_height
+        elif self._encapsulation._connector_orientation == ConnectorOrientation.TRANSVERSE:
+            new_canister_width = self._encapsulation.width + height_difference
+            self._encapsulation.width = new_canister_width
+
     @property
     def clipped_tab_length(self) -> float:
         """Get clipped tab length."""
@@ -489,69 +541,104 @@ class PrismaticCell(_Cell):
 
         self._clipped_tab_length = float(value) * MM_TO_M
 
+    def _sync_connector_orientation(self) -> None:
+        """Synchronize encapsulation connector orientation with electrode assembly orientation.
+        
+        This method ensures the encapsulation's connector_orientation matches the
+        electrode assembly's layup electrode_orientation. If they differ, it updates
+        the connector_orientation and swaps the canister's height and width dimensions.
+        """
+        from steer_opencell_design.Constructions.Layups.MonoLayers import ElectrodeOrientation
+        from steer_opencell_design.Components.Containers.Prismatic import ConnectorOrientation
+        
+        if not self._update_properties:
+            return
+            
+        layup_orientation = self._reference_electrode_assembly._layup._electrode_orientation
+        
+        if layup_orientation == ElectrodeOrientation.LONGITUDINAL:
+            if self._encapsulation._connector_orientation != ConnectorOrientation.LONGITUDINAL:
+                self._encapsulation.connector_orientation = ConnectorOrientation.LONGITUDINAL
+                # Swap height and width to match orientation change
+                _original_height = self._encapsulation._canister._height
+                _original_width = self._encapsulation._canister._width
+                self._encapsulation._canister.height = _original_width * M_TO_MM
+                self._encapsulation._canister.width = _original_height * M_TO_MM
+                self._encapsulation.canister = self._encapsulation.canister
+                
+        elif layup_orientation == ElectrodeOrientation.TRANSVERSE:
+            if self._encapsulation._connector_orientation != ConnectorOrientation.TRANSVERSE:
+                self._encapsulation.connector_orientation = ConnectorOrientation.TRANSVERSE
+                # Swap height and width to match orientation change
+                _original_height = self._encapsulation._canister._height
+                _original_width = self._encapsulation._canister._width
+                self._encapsulation._canister.height = _original_width * M_TO_MM
+                self._encapsulation._canister.width = _original_height * M_TO_MM
+                self._encapsulation.canister = self._encapsulation.canister
+
     @reference_electrode_assembly.setter
     @calculate_all_properties
-    def reference_electrode_assembly(self, value: ZFoldStack | PunchedStack) -> None:
+    @propagating_setter()
+    def reference_electrode_assembly(self, value: ZFoldStack | PunchedStack | FlatWoundJellyRoll | WoundJellyRoll) -> None:
         """Set reference electrode assembly with validation.
+        
+        If a WoundJellyRoll is provided, the cell will be automatically converted
+        to a CylindricalCell with an appropriately sized encapsulation.
         
         Parameters
         ----------
-        value : ZFoldStack | PunchedStack
-            New electrode assembly to set
+        value : ZFoldStack | PunchedStack | FlatWoundJellyRoll | WoundJellyRoll
+            New electrode assembly to set. If WoundJellyRoll, cell converts to CylindricalCell.
         """
-        self.validate_type(value, (ZFoldStack, PunchedStack, FlatWoundJellyRoll), "reference_electrode_assembly")
+        self.validate_type(value, (ZFoldStack, PunchedStack, FlatWoundJellyRoll, WoundJellyRoll), "reference_electrode_assembly")
+        
+        # If WoundJellyRoll is provided, convert to CylindricalCell
+        if isinstance(value, WoundJellyRoll):
+            self._convert_to_cylindrical_cell(value)
+            return
+        
         self._reference_electrode_assembly = value
 
         # Ensure encapsulation connector orientation matches electrode orientation
-        from steer_opencell_design.Constructions.Layups.MonoLayers import ElectrodeOrientation
-        from steer_opencell_design.Components.Containers.Prismatic import ConnectorOrientation
-        
-        if self._update_properties:
-            if self._reference_electrode_assembly._layup._electrode_orientation == ElectrodeOrientation.LONGITUDINAL:
-                if self._encapsulation._connector_orientation != ConnectorOrientation.LONGITUDINAL:
-                    self._encapsulation.connector_orientation = ConnectorOrientation.LONGITUDINAL
-
-                    # Swap height and length to match orientation change
-                    _original_height = self._encapsulation._canister._height
-                    _original_width = self._encapsulation._canister._width
-                    self._encapsulation._canister.height = _original_width * M_TO_MM
-                    self._encapsulation._canister.width = _original_height * M_TO_MM
-                    self._encapsulation.canister = self._encapsulation.canister
-
-            elif self._reference_electrode_assembly._layup._electrode_orientation == ElectrodeOrientation.TRANSVERSE:
-                if self._encapsulation._connector_orientation != ConnectorOrientation.TRANSVERSE:
-                    self._encapsulation.connector_orientation = ConnectorOrientation.TRANSVERSE
-                    
-                    # Swap height and length to match orientation change
-                    _original_height = self._encapsulation._canister._height
-                    _original_width = self._encapsulation._canister._width
-                    self._encapsulation._canister.height = _original_width * M_TO_MM
-                    self._encapsulation._canister.width = _original_height * M_TO_MM
-                    self._encapsulation.canister = self._encapsulation.canister
+        self._sync_connector_orientation()
 
     @encapsulation.setter
     @calculate_all_properties
-    def encapsulation(self, value: PrismaticEncapsulation) -> None:
-        """Set encapsulation with validation.
+    @propagating_setter()
+    def encapsulation(self, value) -> None:
+        """Set encapsulation with validation. Automatically converts cell type if encapsulation type changes.
         
         Parameters
         ----------
-        value : PrismaticEncapsulation
-            New encapsulation to set
+        value : _Container
+            New encapsulation to set. Can be any container type (Prismatic, Pouch, Cylindrical).
+            If type differs from current cell type, cell will be automatically converted.
         """
-        self.validate_type(value, PrismaticEncapsulation, "encapsulation")
-        self._encapsulation = value
+        from steer_opencell_design.Components.Containers.Base import _Container
+        from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
+        from steer_opencell_design.Components.Containers.Cylindrical import CylindricalEncapsulation
+        
+        # Only allow PrismaticEncapsulation or PouchEncapsulation
+        self.validate_type(value, (PrismaticEncapsulation, PouchEncapsulation), "encapsulation")
+        
+        # Check if encapsulation type matches cell type
+        if isinstance(value, PrismaticEncapsulation):
+            # Same type, proceed normally
+            self._encapsulation = value
 
-        # Ensure encapsulation connector orientation matches electrode orientation
-        from steer_opencell_design.Constructions.Layups.MonoLayers import ElectrodeOrientation
-        from steer_opencell_design.Components.Containers.Prismatic import ConnectorOrientation
-        if self._update_properties:
-            if self._encapsulation._connector_orientation == ConnectorOrientation.LONGITUDINAL:
-                if self._reference_electrode_assembly._layup._electrode_orientation != ElectrodeOrientation.LONGITUDINAL:
-                    self._reference_electrode_assembly._layup._electrode_orientation = ElectrodeOrientation.LONGITUDINAL
-            elif self._encapsulation._connector_orientation == ConnectorOrientation.TRANSVERSE:
-                if self._reference_electrode_assembly._layup._electrode_orientation != ElectrodeOrientation.TRANSVERSE:
-                    self._reference_electrode_assembly._layup._electrode_orientation = ElectrodeOrientation.TRANSVERSE
+            # Ensure encapsulation connector orientation matches electrode orientation
+            from steer_opencell_design.Constructions.Layups.MonoLayers import ElectrodeOrientation
+            from steer_opencell_design.Components.Containers.Prismatic import ConnectorOrientation
+            if self._update_properties:
+                if self._encapsulation._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+                    if self._reference_electrode_assembly._layup._electrode_orientation != ElectrodeOrientation.LONGITUDINAL:
+                        self._reference_electrode_assembly._layup._electrode_orientation = ElectrodeOrientation.LONGITUDINAL
+                elif self._encapsulation._connector_orientation == ConnectorOrientation.TRANSVERSE:
+                    if self._reference_electrode_assembly._layup._electrode_orientation != ElectrodeOrientation.TRANSVERSE:
+                        self._reference_electrode_assembly._layup._electrode_orientation = ElectrodeOrientation.TRANSVERSE
+        else:
+            # Different type, convert cell
+            self._convert_to_cell_type(value)
 
     @n_electrode_assembly.setter
     @calculate_all_properties
@@ -571,4 +658,81 @@ class PrismaticCell(_Cell):
 
         # update the reference electrode assembly thickness by the same ratio to maintain fit
         self._n_electrode_assembly = value
+
+    def fit_encapsulation_height_to_assemblies(self, clearance: float = 0) -> None:
+        """Fit the encapsulation height to the electrode assemblies.
+        
+        Delegates to PrismaticEncapsulation.fit_height() using the first
+        electrode assembly (which has clipped tabs).
+        
+        Parameters
+        ----------
+        clearance : float, optional
+            Additional clearance in mm (default: 0)
+        """
+        self._encapsulation.fit_height(self.electrode_assemblies[0], clearance)
+    
+    def fit_encapsulation_width_to_assemblies(self, clearance: float = 0) -> None:
+        """Fit the encapsulation width to the electrode assemblies.
+        
+        Delegates to PrismaticEncapsulation.fit_width() using the reference
+        electrode assembly.
+        
+        Parameters
+        ----------
+        clearance : float, optional
+            Additional clearance in mm (default: 0)
+        """
+        self._encapsulation.fit_width(self._reference_electrode_assembly, clearance)
+    
+    def fit_encapsulation_length_to_assemblies(self, clearance: float = 0) -> None:
+        """Fit the encapsulation length to the electrode assemblies.
+        
+        Delegates to PrismaticEncapsulation.fit_length() using the reference
+        electrode assembly and n_electrode_assembly.
+        
+        Parameters
+        ----------
+        clearance : float, optional
+            Additional clearance in mm (default: 0)
+        """
+        self._encapsulation.fit_length(
+            self._reference_electrode_assembly, 
+            clearance, 
+            n_electrode_assembly=self._n_electrode_assembly
+        )
+
+    def _convert_to_cylindrical_cell(self, wound_jelly_roll: WoundJellyRoll) -> None:
+        """Convert this PrismaticCell to a CylindricalCell with the given WoundJellyRoll.
+        
+        Parameters
+        ----------
+        wound_jelly_roll : WoundJellyRoll
+            The wound jelly roll to use as the reference electrode assembly
+        """
+        from steer_opencell_design.Components.Containers.Cylindrical import CylindricalEncapsulation
+        from steer_opencell_design.Constructions.Cells.CylindricalCell import CylindricalCell
+        
+        # Convert encapsulation to CylindricalEncapsulation
+        cylindrical_encapsulation = CylindricalEncapsulation.from_prismatic(self._encapsulation)
+        
+        # Fit the cylindrical container to the wound jelly roll
+        cylindrical_encapsulation.fit_to_electrode_assembly(wound_jelly_roll)
+        
+        # Create new CylindricalCell with the wound jelly roll
+        new_cell = CylindricalCell(
+            reference_electrode_assembly=wound_jelly_roll,
+            encapsulation=cylindrical_encapsulation,
+            electrolyte=self._electrolyte,
+            operating_voltage_window=self._operating_voltage_window,
+            electrolyte_overfill=self._electrolyte_overfill,
+            name=self._name,
+        )
+        
+        # Copy all attributes from new cell to self (in-place conversion)
+        self.__class__ = CylindricalCell
+        self.__dict__.update(new_cell.__dict__)
+        
+        # Restore parent references so children point to self, not new_cell
+        self._restore_child_parent_refs()
 
