@@ -192,13 +192,18 @@ class _Layup(
         # set the minimum operating voltage range
         self._minimum_operating_voltage_range = (_lower_voltage_minimum, _lower_voltage_top_limit)
 
-    def _compute_voltage_and_capacity_at_cutoff(self, layup, voltage_cutoff: float) -> Tuple[float, float]:
+    def _compute_voltage_and_capacity_at_cutoff(self, layup_or_formulation, voltage_cutoff: float) -> Tuple[float, float]:
         """Helper method to compute max voltage and reversible capacity at a given voltage cutoff.
+        
+        Can operate on either a layup copy (legacy) or a formulation copy (lightweight).
+        When a formulation copy is provided, the cathode areal curve is recomputed
+        from the formulation's capacity curve and the original cathode's coated area.
         
         Parameters
         ----------
-        layup : _Layup
-            Layup copy to modify
+        layup_or_formulation : _Layup | _ElectrodeFormulation
+            Either a layup copy whose cathode will be modified, or a formulation
+            copy that will be used to compute the areal curve directly.
         voltage_cutoff : float
             Cathode voltage cutoff to apply
             
@@ -207,13 +212,31 @@ class _Layup(
         Tuple[float, float]
             Maximum voltage and reversible areal capacity at the given cutoff
         """
-        layup._cathode._formulation.voltage_cutoff = voltage_cutoff
-        layup._cathode.formulation = layup._cathode._formulation
-        
-        _, areal_curve = self._compute_areal_full_cell_curve(
-            layup._cathode._areal_capacity_curve,
-            layup._anode._areal_capacity_curve,
-        )
+        # Check if we received a formulation copy (lightweight path)
+        if hasattr(layup_or_formulation, '_specific_capacity_curve') and not hasattr(layup_or_formulation, '_cathode'):
+            formulation = layup_or_formulation
+            formulation.voltage_cutoff = voltage_cutoff
+
+            # Compute cathode areal curve from formulation capacity curve
+            curve = formulation._capacity_curve.copy()
+            coated_area = self._cathode._current_collector._coated_area
+            areal_cap = curve[:, 0] / coated_area
+            cathode_areal = np.column_stack([areal_cap, curve[:, 1], curve[:, 2]])
+
+            _, areal_curve = self._compute_areal_full_cell_curve(
+                cathode_areal,
+                self._anode._areal_capacity_curve,
+            )
+        else:
+            # Legacy path: full layup copy
+            layup = layup_or_formulation
+            layup._cathode._formulation.voltage_cutoff = voltage_cutoff
+            layup._cathode.formulation = layup._cathode._formulation
+
+            _, areal_curve = self._compute_areal_full_cell_curve(
+                layup._cathode._areal_capacity_curve,
+                layup._anode._areal_capacity_curve,
+            )
         
         discharge_mask = areal_curve[:, 2] == -1
         discharge_curve = areal_curve[discharge_mask]
@@ -228,25 +251,30 @@ class _Layup(
         
         Determines the upper voltage bounds by testing the cathode's voltage cutoff range
         and observing the resulting maximum voltages in the capacity curve.
+        
+        Uses a deep copy of the cathode formulation only (not the entire layup)
+        to avoid copying coordinate arrays, separators, and current collectors.
         """
         # Get voltage cutoff range bounds
         _voltage_cutoff_range = self._cathode._formulation._voltage_operation_window
         _formulation_min_voltage, _formulation_max_voltage = min(_voltage_cutoff_range), max(_voltage_cutoff_range)
 
-        # Create a single layup copy for all calculations
-        _layup = deepcopy(self)
+        # Copy only the formulation — much lighter than the entire layup
+        _formulation = deepcopy(self._cathode._formulation)
+        _formulation._parent = None
+        _formulation._parent_attr_name = None
 
         # Get the current layup cutoff voltage
-        _voltage_cutoff, _ = self._compute_voltage_and_capacity_at_cutoff(_layup, _layup._cathode._formulation.voltage_cutoff)
+        _voltage_cutoff, _ = self._compute_voltage_and_capacity_at_cutoff(_formulation, _formulation.voltage_cutoff)
 
         # Get upper voltage max (at maximum formulation voltage)
         _upper_voltage_max, _upper_areal_reversible_capacity_max = self._compute_voltage_and_capacity_at_cutoff(
-            _layup, _formulation_max_voltage
+            _formulation, _formulation_max_voltage
         )
 
         # Get lower voltage min (at minimum formulation voltage)
         _upper_voltage_min, _upper_areal_reversible_capacity_min = self._compute_voltage_and_capacity_at_cutoff(
-            _layup, _formulation_min_voltage
+            _formulation, _formulation_min_voltage
         )
 
         # Set the maximum and minimum operating voltage ranges

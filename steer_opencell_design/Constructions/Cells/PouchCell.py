@@ -8,14 +8,13 @@ from steer_opencell_design.Constructions.Cells.Base import _Cell
 from steer_opencell_design.Components.Electrodes import Cathode, Anode
 from steer_opencell_design.Components.Separators import Separator
 
-from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
+from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties, recalculate
 from steer_core.Constants.Units import *
 from steer_core.Mixins.Propagation import propagating_setter
 
 from typing import Tuple
 import warnings
 import plotly.graph_objects as go
-from functools import wraps
 import numpy as np
 
 
@@ -23,20 +22,7 @@ import numpy as np
 TAB_ALIGNMENT_TOLERANCE = 5e-6  # 5 micron tolerance for tab-terminal alignment (meters)
 
 
-def calculate_encapsulation_properties(func):
-    """
-    Decorator to recalculate both spatial and bulk properties after a method call.
-    This is useful for methods that modify both geometry and material properties.
-    """
-
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        result = func(self, *args, **kwargs)
-        if hasattr(self, "_update_properties") and self._update_properties:
-            self._calculate_encapsulation_properties()
-        return result
-
-    return wrapper
+calculate_encapsulation_properties = recalculate("encapsulation_properties")
 
 
 class PouchCell(_Cell):
@@ -211,8 +197,8 @@ class PouchCell(_Cell):
         seals, and thickness accounts for the stack and laminate thicknesses.
         """
         top_assembly = self._electrode_assemblies[0]
-        cathodes = [c for c in top_assembly._stack.values() if isinstance(c, Cathode)]
-        anodes = [a for a in top_assembly._stack.values() if isinstance(a, Anode)]
+        cathodes = [c for c in top_assembly._stack if isinstance(c, Cathode)]
+        anodes = [a for a in top_assembly._stack if isinstance(a, Anode)]
         max_y = cathodes[0]._current_collector._foil_coordinates[:, 1].max()
         min_y = anodes[0]._current_collector._foil_coordinates[:, 1].min()
         _encapsulation_height = max_y - min_y + self._top_seal_thickness + self._bottom_seal_thickness

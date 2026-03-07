@@ -1,11 +1,10 @@
 """Electrode definitions combining formulations with current collectors and coating parameters."""
 
-from functools import wraps
 from steer_core.Decorators.Coordinates import calculate_coordinates, calculate_volumes
-
 from steer_core.Decorators.General import (
     calculate_all_properties,
     calculate_bulk_properties,
+    recalculate,
 )
 
 from steer_core.Mixins.TypeChecker import ValidationMixin
@@ -17,6 +16,7 @@ from steer_core.Mixins.Dunder import DunderMixin
 from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
 from steer_core.Constants.Units import *
+from steer_core.Utils import round_dict_recursive
 
 from steer_opencell_design.Materials.Formulations import (
     CathodeFormulation,
@@ -44,18 +44,7 @@ class ElectrodeControlMode(Enum):
     MAINTAIN_COATING_THICKNESS = "maintain_coating_thickness"  # Keep coating thickness constant
 
 
-def calculate_areal_capacity_curve(func):
-    """
-    Decorator to recalculate half-cell curve properties after a method call.
-    This is useful for methods that modify the half-cell curve data.
-    """
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        result = func(self, *args, **kwargs)
-        if hasattr(self, '_update_properties') and self._update_properties:
-            self._calculate_areal_capacity_curve()
-        return result
-    return wrapper
+calculate_areal_capacity_curve = recalculate("areal_capacity_curve")
 
 
 class _Electrode(
@@ -916,13 +905,7 @@ class _Electrode(
         :return: Dictionary containing the cost breakdown.
         """
 
-        def _round_recursive(obj):
-            if isinstance(obj, dict):
-                return {k: _round_recursive(v) for k, v in obj.items()}
-            else:
-                return np.round(obj, 2)
-
-        return _round_recursive(self._cost_breakdown)
+        return round_dict_recursive(self._cost_breakdown, 2)
 
     @property
     def mass_breakdown(self) -> Dict[str, Any]:
@@ -932,13 +915,7 @@ class _Electrode(
         :return: Dictionary containing the mass breakdown.
         """
 
-        def _convert_and_round_recursive(obj):
-            if isinstance(obj, dict):
-                return {k: _convert_and_round_recursive(v) for k, v in obj.items()}
-            else:
-                return np.round(obj * KG_TO_G, 2)
-
-        return _convert_and_round_recursive(self._mass_breakdown)
+        return round_dict_recursive(self._mass_breakdown, 2, KG_TO_G)
 
     @property
     def porosity(self) -> float:

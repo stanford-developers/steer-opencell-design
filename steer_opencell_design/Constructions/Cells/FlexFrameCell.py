@@ -5,13 +5,12 @@ from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import Punch
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
 from steer_opencell_design.Constructions.Cells.Base import _Cell
 
-from steer_core.Decorators.General import calculate_all_properties
+from steer_core.Decorators.General import calculate_all_properties, recalculate
 from steer_core.Constants.Units import *
 from steer_core.Mixins.Propagation import propagating_setter
 
 from typing import Tuple
 import plotly.graph_objects as go
-from functools import wraps
 import numpy as np
 
 
@@ -19,20 +18,7 @@ import numpy as np
 TAB_ALIGNMENT_TOLERANCE = 5e-6  # 5 micron tolerance for tab-terminal alignment (meters)
 
 
-def calculate_encapsulation_properties(func):
-    """
-    Decorator to recalculate both spatial and bulk properties after a method call.
-    This is useful for methods that modify both geometry and material properties.
-    """
-
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        result = func(self, *args, **kwargs)
-        if hasattr(self, "_update_properties") and self._update_properties:
-            self._calculate_encapsulation_properties()
-        return result
-
-    return wrapper
+calculate_encapsulation_properties = recalculate("encapsulation_properties")
 
 
 class FlexFrameCell(_Cell):

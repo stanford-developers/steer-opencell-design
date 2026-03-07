@@ -2,40 +2,16 @@
 
 import numpy as np
 from typing import List, Type
-from functools import wraps
 
+from steer_core.Decorators.General import recalculate
 from steer_core.Mixins.Data import DataMixin
 from steer_core.Constants.Units import H_TO_S, mA_TO_A, G_TO_KG
 
 
-def calculate_specific_capacity_curve(func):
-    """
-    Decorator to recalculate half-cell curve properties after a method call.
-    This is useful for methods that modify the half-cell curve data.
-    """
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        result = func(self, *args, **kwargs)
-        if hasattr(self, '_update_properties') and self._update_properties:
-            self._calculate_specific_capacity_curve()
-        return result
-    return wrapper
-
-def calculate_capacity_curve(func):
-    """
-    Decorator to recalculate the absolute capacity curve after a method call.
-
-    Unlike ``calculate_specific_capacity_curve``, this also verifies that the
-    object has a ``_mass`` attribute before calling ``_calculate_capacity_curve``,
-    which scales the specific capacity curve by mass.
-    """
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        result = func(self, *args, **kwargs)
-        if hasattr(self, '_update_properties') and self._update_properties and hasattr(self, '_mass') and self._mass is not None:
-            self._calculate_capacity_curve()
-        return result
-    return wrapper
+calculate_specific_capacity_curve = recalculate("specific_capacity_curve")
+calculate_capacity_curve = recalculate(
+    "capacity_curve", requires={"_mass": lambda v: v is not None}
+)
 
 
 class CapacityCurveMixin:

@@ -19,6 +19,7 @@ classifiers = [
 dependencies = [
     "steer-core==0.2.5",
     "steer-materials==0.1.34",
+    "numba>=0.59",
 ]
 
 [project.urls]
