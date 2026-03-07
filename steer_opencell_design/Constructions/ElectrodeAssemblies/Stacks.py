@@ -50,13 +50,13 @@ class _Stack(_ElectrodeAssembly):
 
     def _calculate_geometry_parameters(self) -> None:
         """Calculate geometry parameters - placeholder for implementation."""
-        self._thickness = sum(component._thickness for component in self._stack.values())
+        self._thickness = sum(component._thickness for component in self._stack)
 
     def _calculate_datum(self): 
 
-        _x_datums = [c._datum[0] for c in self._stack.values()]
-        _y_datums = [c._datum[1] for c in self._stack.values()]
-        _z_datums = [c._datum[2] for c in self._stack.values()]
+        _x_datums = [c._datum[0] for c in self._stack]
+        _y_datums = [c._datum[1] for c in self._stack]
+        _z_datums = [c._datum[2] for c in self._stack]
 
         _datum = (
             np.mean(_x_datums),
@@ -79,10 +79,10 @@ class _Stack(_ElectrodeAssembly):
         self._calculate_geometry_parameters()
         self._calculate_datum()
 
-    def _calculate_stack(self) -> Dict[int, Any]:
+    def _calculate_stack(self) -> list:
         
-        # Initialize dictionaries for components
-        stack = {}
+        # Initialize list for components
+        stack = []
 
         # set the starting z datum
         z_datum = 0
@@ -104,6 +104,11 @@ class _Stack(_ElectrodeAssembly):
         z_datum, stack = self.add_layer(stack, self.layup._top_separator, z_datum)
 
         self._stack = stack
+
+        # Cache component groups for fast access
+        self._anodes = [a for a in self._stack if isinstance(a, Anode)]
+        self._cathodes = [c for c in self._stack if isinstance(c, Cathode)]
+        self._separators = [s for s in self._stack if isinstance(s, Separator)]
 
         return self._stack
 
@@ -152,8 +157,7 @@ class _Stack(_ElectrodeAssembly):
             single_layer_interfacial_area = intersection_polygon.area
 
             # Count cathodes to determine number of interfaces
-            cathodes = [c for c in self._stack.values() if isinstance(c, Cathode)]
-            n_interfaces = len(cathodes) * 2  # Each cathode has two interfaces
+            n_interfaces = len(self._cathodes) * 2  # Each cathode has two interfaces
 
             # Calculate total interfacial area
             self._interfacial_area = single_layer_interfacial_area * n_interfaces
@@ -165,17 +169,14 @@ class _Stack(_ElectrodeAssembly):
 
     def _get_component_groups(self) -> Tuple[list, list, list]:
         """
-        Extract component groups from the stack.
+        Return cached component groups from the stack.
         
         Returns
         -------
         Tuple[list, list, list]
             Anodes, cathodes, and separators lists
         """
-        anodes = [a for a in self._stack.values() if isinstance(a, Anode)]
-        cathodes = [c for c in self._stack.values() if isinstance(c, Cathode)]
-        separators = [s for s in self._stack.values() if isinstance(s, Separator)]
-        return anodes, cathodes, separators
+        return self._anodes, self._cathodes, self._separators
 
     def _calculate_mass_properties(self) -> float:
         """Calculate mass properties for all components in the stack."""
@@ -215,11 +216,8 @@ class _Stack(_ElectrodeAssembly):
 
     def _calculate_pore_volume(self):
         
-        _cathodes = [c for c in self._stack.values() if isinstance(c, Cathode)]
-        _anodes = [a for a in self._stack.values() if isinstance(a, Anode)]
-
-        _cathode_pore_volume = sum([c._pore_volume for c in _cathodes])
-        _anode_pore_volume = sum([a._pore_volume for a in _anodes])
+        _cathode_pore_volume = sum(c._pore_volume for c in self._cathodes)
+        _anode_pore_volume = sum(a._pore_volume for a in self._anodes)
 
         self._pore_volume = _cathode_pore_volume + _anode_pore_volume
 
@@ -234,10 +232,8 @@ class _Stack(_ElectrodeAssembly):
         Tuple[float, float, float]
             (x, y, z) coordinates of the center point in millimeters
         """
-        cathodes = [c for c in self._stack.values() if isinstance(c, Cathode)]
-        anodes = [a for a in self._stack.values() if isinstance(a, Anode)]
-        current_collectors = [c._current_collector for c in cathodes + anodes]
-        separators = [s for s in self._stack.values() if isinstance(s, Separator)]
+        current_collectors = [c._current_collector for c in self._cathodes + self._anodes]
+        separators = self._separators
 
         # Get the overall coordinates
         _cc_coordinates = np.vstack([cc._foil_coordinates for cc in current_collectors])
@@ -284,10 +280,10 @@ class _Stack(_ElectrodeAssembly):
         go.Figure
             Plotly figure showing the stack side view
         """
-        # Group components by type
-        cathodes = [c for c in self._stack.values() if isinstance(c, Cathode)]
-        anodes = [a for a in self._stack.values() if isinstance(a, Anode)]
-        separators = [s for s in self._stack.values() if isinstance(s, Separator)]
+        # Use cached component groups
+        cathodes = self._cathodes
+        anodes = self._anodes
+        separators = self._separators
         
         traces = []
         
@@ -335,13 +331,13 @@ class _Stack(_ElectrodeAssembly):
         return self._layup.get_top_down_view(**kwargs)
 
     @staticmethod
-    def add_layer(stack: Dict[int, Any], component: Any, z_datum: float) -> Tuple[float, Dict[int, Any]]:
+    def add_layer(stack: list, component: Any, z_datum: float) -> Tuple[float, list]:
         """
         Add a layer component to the stack at specified z-datum.
         
         Parameters
         ----------
-        stack : Dict[int, Any]
+        stack : list
             Current stack of components
         component : Any
             Component to add to the stack
@@ -350,7 +346,7 @@ class _Stack(_ElectrodeAssembly):
             
         Returns
         -------
-        Tuple[float, Dict[int, Any]]
+        Tuple[float, list]
             Updated z_datum and stack with new component
             
         Raises
@@ -361,7 +357,6 @@ class _Stack(_ElectrodeAssembly):
         if component is None:
             raise ValueError("Component cannot be None")
             
-        stack_size = len(stack)
         new_component = deepcopy(component)
 
         # if electrode then clear its cached data
@@ -371,12 +366,12 @@ class _Stack(_ElectrodeAssembly):
         # Calculate new z-datum based on component thickness
         component_half_thickness = new_component._thickness * M_TO_MM / 2
         
-        if stack_size == 0:
+        if len(stack) == 0:
             # First component: place at z_datum + half thickness
             new_z_datum = z_datum + component_half_thickness
         else:
             # Subsequent components: account for previous component thickness
-            prev_component = stack[stack_size - 1]
+            prev_component = stack[-1]
             prev_half_thickness = prev_component._thickness * M_TO_MM / 2
             new_z_datum = z_datum + component_half_thickness + prev_half_thickness
 
@@ -388,7 +383,7 @@ class _Stack(_ElectrodeAssembly):
         )
         
         # Add component to stack
-        stack[len(stack)] = new_component
+        stack.append(new_component)
 
         return new_z_datum, stack
 
@@ -456,24 +451,10 @@ class _Stack(_ElectrodeAssembly):
     def thickness_range(self) -> Tuple[float, float]:
         """Return the valid range for stack thicknesses in mm as a tuple (min, max)."""
         min_n_layers, max_n_layers = self.n_layers_range
-        
-        # Calculate thickness for n_layers = 1 and n_layers = 2
-        stack_1 = deepcopy(self)
-        stack_1.n_layers = 1
-        thickness_1 = stack_1._thickness
-        
-        stack_2 = deepcopy(self)
-        stack_2.n_layers = 2
-        thickness_2 = stack_2._thickness
-        
-        # Linear extrapolation: thickness = base + slope * n_layers
-        # From two points: (1, thickness_1) and (2, thickness_2)
-        slope = thickness_2 - thickness_1
-        base = thickness_1 - slope  # thickness at n_layers = 0
-        
-        # Calculate min and max thickness using linear relationship
-        _min_thickness = base + slope * min_n_layers
-        _max_thickness = base + slope * max_n_layers
+        base, per_layer = self._compute_thickness_components()
+
+        _min_thickness = base + per_layer * min_n_layers
+        _max_thickness = base + per_layer * max_n_layers
 
         return (
             math.ceil(_min_thickness * M_TO_MM * 100) / 100,
@@ -484,29 +465,37 @@ class _Stack(_ElectrodeAssembly):
     def thickness_hard_range(self) -> Tuple[float, float]:
         """Return the valid range for stack thicknesses in mm as a tuple (min, max)."""
         min_n_layers, max_n_layers = self.n_layers_hard_range
-        
-        # Calculate thickness for n_layers = 1 and n_layers = 2
-        stack_1 = deepcopy(self)
-        stack_1.n_layers = 1
-        thickness_1 = stack_1._thickness
-        
-        stack_2 = deepcopy(self)
-        stack_2.n_layers = 2
-        thickness_2 = stack_2._thickness
-        
-        # Linear extrapolation: thickness = base + slope * n_layers
-        # From two points: (1, thickness_1) and (2, thickness_2)
-        slope = thickness_2 - thickness_1
-        base = thickness_1 - slope  # thickness at n_layers = 0
-        
-        # Calculate min and max thickness using linear relationship
-        _min_thickness = base + slope * min_n_layers
-        _max_thickness = base + slope * max_n_layers
+        base, per_layer = self._compute_thickness_components()
+
+        _min_thickness = base + per_layer * min_n_layers
+        _max_thickness = base + per_layer * max_n_layers
 
         return (
             math.ceil(_min_thickness * M_TO_MM * 100) / 100,
             math.floor(_max_thickness * M_TO_MM * 100) / 100
         )
+
+    def _compute_thickness_components(self) -> Tuple[float, float]:
+        """Compute base thickness and per-layer thickness analytically.
+
+        The stack structure is:
+            fixed: bottom_sep + anode + top_sep
+            per layer: bottom_sep + cathode + bottom_sep + anode
+
+        Returns
+        -------
+        Tuple[float, float]
+            (base_thickness, per_layer_thickness) in meters.
+        """
+        sep_t = self._layup._bottom_separator._thickness
+        top_sep_t = self._layup._top_separator._thickness
+        anode_t = self._layup._anode._thickness
+        cathode_t = self._layup._cathode._thickness
+
+        base = sep_t + anode_t + top_sep_t
+        per_layer = sep_t + cathode_t + sep_t + anode_t
+
+        return base, per_layer
 
     @property
     def layup(self) -> ZFoldMonoLayer | MonoLayer:
@@ -527,7 +516,7 @@ class _Stack(_ElectrodeAssembly):
         translation = self._compute_datum_translation(value)
         
         # Translate each component in the stack
-        for component in self._stack.values():
+        for component in self._stack:
             component.datum = (
                 (component._datum[0] + translation[0]) * M_TO_MM,
                 (component._datum[1] + translation[1]) * M_TO_MM,
@@ -664,8 +653,8 @@ class ZFoldStack(_Stack):
             ((self.n_layers * 2 + 1) + 2 * self.additional_separator_wraps) * self.layup._bottom_separator._thickness
         ) * M_TO_MM
 
-        # Initialize dictionaries for components
-        stack = {}
+        # Initialize list for components
+        stack = []
 
         # set the starting z datum
         z_datum = 0
@@ -699,6 +688,11 @@ class ZFoldStack(_Stack):
             z_datum, stack = self.add_layer(stack, top_separator_copy, z_datum)
 
         self._stack = stack
+
+        # Cache component groups for fast access
+        self._anodes = [a for a in self._stack if isinstance(a, Anode)]
+        self._cathodes = [c for c in self._stack if isinstance(c, Cathode)]
+        self._separators = [s for s in self._stack if isinstance(s, Separator)]
 
         return self._stack
 

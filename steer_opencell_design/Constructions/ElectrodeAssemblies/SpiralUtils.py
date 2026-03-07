@@ -1,13 +1,26 @@
 """Static utility methods for spiral and racetrack geometry calculations used in jelly roll winding."""
 
 from steer_opencell_design.Constructions.Layups.Laminate import Laminate
-from steer_core.Constants.Universal import PI
+from steer_core.Constants.Universal import PI, TWO_PI
 from steer_core.Constants.Units import *
 import numpy as np
 import pandas as pd
+import math
 from typing import Optional
 
-from steer_core.Mixins.Coordinates import CoordinateMixin
+
+try:
+    from numba import njit
+    HAS_NUMBA = True
+except ImportError:
+    HAS_NUMBA = False
+    # Provide a no-op decorator so the code still runs without numba
+    def njit(*args, **kwargs):
+        def decorator(func):
+            return func
+        if len(args) == 1 and callable(args[0]):
+            return args[0]
+        return decorator
 
 # Constants for array column indices
 THETA_COL = 0
@@ -18,14 +31,507 @@ Z_COORD_COL = 4
 TURNS_COL = 5
 
 # Constants for calculations
-TWO_PI = 2.0 * PI
 TARGET_ERROR = 5e-5
 MAX_ITERATIONS = 500000
 MAX_POINTS = 120000
 
+# ─── Numba-accelerated core loops ────────────────────────────────────────────
+
+@njit(cache=True)
+def _thickness_at_jit(x, t_grid, n_grid_m1, dx_inv, total_length):
+    """Fast linear interpolation on a uniform grid (numba-compiled)."""
+    if x <= 0.0:
+        return t_grid[0]
+    if x >= total_length:
+        return t_grid[n_grid_m1]
+    idx_f = x * dx_inv
+    idx = int(idx_f)
+    if idx >= n_grid_m1:
+        return t_grid[n_grid_m1]
+    frac = idx_f - idx
+    return t_grid[idx] + frac * (t_grid[idx + 1] - t_grid[idx])
+
+
+@njit(cache=True)
+def _rk4_spiral_loop(t_grid, n_grid_m1, dx_inv, total_length,
+                     r0, h_max_init, h_min_init, target_err,
+                     max_iterations, max_points, dt_dx, x_grid, max_grad):
+    """Adaptive RK4 integration loop for variable-thickness Archimedean spiral.
+
+    Returns arrays (theta_arr, r_arr, x_arr) with the integrated spiral path.
+    This is the hot inner loop, compiled with numba for ~10-30x speedup.
+    """
+    _TWO_PI = 2.0 * math.pi
+    growth = 1.5
+    shrink = 0.5
+
+    # Pre-allocate output arrays (trimmed at the end)
+    theta_out = np.empty(max_points, dtype=np.float64)
+    r_out = np.empty(max_points, dtype=np.float64)
+    x_out = np.empty(max_points, dtype=np.float64)
+
+    theta = math.pi / 2.0
+    r = r0
+    x_unwrapped = 0.0
+    h_max = h_max_init
+    h_min = h_min_init
+    h = h_max
+
+    theta_out[0] = theta
+    r_out[0] = r
+    x_out[0] = x_unwrapped
+    n_pts = 1
+    iterations = 0
+
+    while x_unwrapped < total_length and iterations < max_iterations and n_pts < max_points:
+        iterations += 1
+
+        # --- Adaptive h_max based on progress and radius ---
+        progress_factor = x_unwrapped / total_length
+        if progress_factor > 0.7:
+            end_reduction = 1.0 - 0.6 * ((progress_factor - 0.7) / 0.3)
+        else:
+            end_reduction = 1.0
+        radius_factor = min(1.0, r0 / max(r, r0))
+        radius_reduction = 0.3 + 0.7 * radius_factor
+        combined_factor = min(end_reduction, radius_reduction)
+        current_h_max = h_max * combined_factor
+        h = min(h, current_h_max)
+
+        # Clamp step to avoid large overshoot
+        remaining = total_length - x_unwrapped
+        if r * h > 1.5 * remaining:
+            h = max(remaining / (r + 1e-12), h_min)
+
+        # --- RK4 full step ---
+        t1 = _thickness_at_jit(x_unwrapped, t_grid, n_grid_m1, dx_inv, total_length)
+        dr1 = t1 / _TWO_PI
+        dx1 = math.sqrt(r * r + dr1 * dr1)
+
+        r2_ = r + 0.5 * h * dr1
+        x2_ = x_unwrapped + 0.5 * h * dx1
+        t2 = _thickness_at_jit(x2_, t_grid, n_grid_m1, dx_inv, total_length)
+        dr2 = t2 / _TWO_PI
+        dx2 = math.sqrt(r2_ * r2_ + dr2 * dr2)
+
+        r3_ = r + 0.5 * h * dr2
+        x3_ = x_unwrapped + 0.5 * h * dx2
+        t3 = _thickness_at_jit(x3_, t_grid, n_grid_m1, dx_inv, total_length)
+        dr3 = t3 / _TWO_PI
+        dx3 = math.sqrt(r3_ * r3_ + dr3 * dr3)
+
+        r4_ = r + h * dr3
+        x4_ = x_unwrapped + h * dx3
+        t4 = _thickness_at_jit(x4_, t_grid, n_grid_m1, dx_inv, total_length)
+        dr4 = t4 / _TWO_PI
+        dx4 = math.sqrt(r4_ * r4_ + dr4 * dr4)
+
+        r_full = r + (h / 6.0) * (dr1 + 2.0 * dr2 + 2.0 * dr3 + dr4)
+        x_full = x_unwrapped + (h / 6.0) * (dx1 + 2.0 * dx2 + 2.0 * dx3 + dx4)
+
+        # --- Two half-steps ---
+        h2 = 0.5 * h
+        # First half (reuse dr1, dx1)
+        r2h = r + 0.5 * h2 * dr1
+        x2h = x_unwrapped + 0.5 * h2 * dx1
+        t2h = _thickness_at_jit(x2h, t_grid, n_grid_m1, dx_inv, total_length)
+        dr2h = t2h / _TWO_PI
+        dx2h = math.sqrt(r2h * r2h + dr2h * dr2h)
+
+        r3h = r + 0.5 * h2 * dr2h
+        x3h = x_unwrapped + 0.5 * h2 * dx2h
+        t3h = _thickness_at_jit(x3h, t_grid, n_grid_m1, dx_inv, total_length)
+        dr3h = t3h / _TWO_PI
+        dx3h = math.sqrt(r3h * r3h + dr3h * dr3h)
+
+        r4h = r + h2 * dr3h
+        x4h = x_unwrapped + h2 * dx3h
+        t4h = _thickness_at_jit(x4h, t_grid, n_grid_m1, dx_inv, total_length)
+        dr4h = t4h / _TWO_PI
+        dx4h = math.sqrt(r4h * r4h + dr4h * dr4h)
+
+        r_half = r + (h2 / 6.0) * (dr1 + 2.0 * dr2h + 2.0 * dr3h + dr4h)
+        x_half = x_unwrapped + (h2 / 6.0) * (dx1 + 2.0 * dx2h + 2.0 * dx3h + dx4h)
+
+        # Second half
+        ts1 = _thickness_at_jit(x_half, t_grid, n_grid_m1, dx_inv, total_length)
+        dr1s = ts1 / _TWO_PI
+        dx1s = math.sqrt(r_half * r_half + dr1s * dr1s)
+
+        r2s = r_half + 0.5 * h2 * dr1s
+        x2s = x_half + 0.5 * h2 * dx1s
+        ts2 = _thickness_at_jit(x2s, t_grid, n_grid_m1, dx_inv, total_length)
+        dr2s = ts2 / _TWO_PI
+        dx2s = math.sqrt(r2s * r2s + dr2s * dr2s)
+
+        r3s = r_half + 0.5 * h2 * dr2s
+        x3s = x_half + 0.5 * h2 * dx2s
+        ts3 = _thickness_at_jit(x3s, t_grid, n_grid_m1, dx_inv, total_length)
+        dr3s = ts3 / _TWO_PI
+        dx3s = math.sqrt(r3s * r3s + dr3s * dr3s)
+
+        r4s = r_half + h2 * dr3s
+        x4s = x_half + h2 * dx3s
+        ts4 = _thickness_at_jit(x4s, t_grid, n_grid_m1, dx_inv, total_length)
+        dr4s = ts4 / _TWO_PI
+        dx4s = math.sqrt(r4s * r4s + dr4s * dr4s)
+
+        r_two_half = r_half + (h2 / 6.0) * (dr1s + 2.0 * dr2s + 2.0 * dr3s + dr4s)
+        x_two_half = x_half + (h2 / 6.0) * (dx1s + 2.0 * dx2s + 2.0 * dx3s + dx4s)
+
+        # --- Error estimate ---
+        err_r = abs(r_full - r_two_half)
+        err_x = abs(x_full - x_two_half)
+        scale_r = max(abs(r), abs(r_two_half), 1e-9)
+        scale_x = max(abs(x_unwrapped), abs(x_two_half), 1e-9)
+        rel_err = max(err_r / scale_r, err_x / scale_x)
+
+        if rel_err > target_err and h > h_min * 1.01:
+            h = max(h * shrink * max(0.2, (target_err / (rel_err + 1e-14)) ** 0.25), h_min)
+            continue
+
+        # Accept step (use the more-accurate two-half-steps result)
+        r = r_two_half
+        x_unwrapped = x_two_half
+        theta -= h
+
+        theta_out[n_pts] = theta
+        r_out[n_pts] = r
+        x_out[n_pts] = x_unwrapped
+        n_pts += 1
+
+        if rel_err < target_err / 8.0 and h < h_max / 0.6:
+            h = min(h * growth * min(2.0, (target_err / (rel_err + 1e-14)) ** 0.20), h_max)
+
+        # Gradient-based step modulation
+        if 0.0 < x_unwrapped < total_length:
+            # Manual linear interp for gradient lookup (avoid np.interp in numba)
+            idx_f = x_unwrapped * (len(x_grid) - 1) / total_length
+            idx = int(idx_f)
+            if idx >= len(dt_dx) - 1:
+                local_grad = abs(dt_dx[-1])
+            else:
+                frac = idx_f - idx
+                local_grad = abs(dt_dx[idx] + frac * (dt_dx[idx + 1] - dt_dx[idx]))
+        else:
+            local_grad = 0.0
+        grad_factor = 1.0 + 5.0 * (local_grad / max_grad)
+        h = max(h / grad_factor, h_min)
+
+    return theta_out[:n_pts], r_out[:n_pts], x_out[:n_pts]
+
+
+@njit(cache=True)
+def _rk4_racetrack_loop(t_grid, n_grid_m1, dx_inv, total_length,
+                        mandrel_radius, straight_length,
+                        r0, h_max_init, h_min_init, target_err,
+                        max_iterations, max_points, dt_dx, x_grid, max_grad):
+    """Adaptive RK4 integration loop for variable-thickness racetrack spiral.
+
+    The ODE system for a racetrack:
+        dr_accumulated/dtheta = t(x) / (2*pi)      (thickness buildup per full turn)
+        ds/dtheta = perimeter(r) / (2*pi)           (arc length per radian)
+    where perimeter(r) = 2*pi*r + 2*straight_length
+
+    We parametrize by a "normalised angle" theta that increases by 2*pi per full turn.
+
+    Returns arrays (theta_arr, r_arr, x_arr) with the integrated racetrack path.
+    """
+    _TWO_PI = 2.0 * math.pi
+    _PI = math.pi
+    growth = 1.5
+    shrink = 0.5
+
+    theta_out = np.empty(max_points, dtype=np.float64)
+    r_out = np.empty(max_points, dtype=np.float64)
+    x_out = np.empty(max_points, dtype=np.float64)
+
+    theta = 0.0  # cumulative angle traveled (increases)
+    accumulated_thickness = 0.0
+    x_unwrapped = 0.0
+    h_max = h_max_init
+    h_min = h_min_init
+    h = h_max
+
+    theta_out[0] = theta
+    r_out[0] = mandrel_radius + accumulated_thickness
+    x_out[0] = x_unwrapped
+    n_pts = 1
+    iterations = 0
+
+    while x_unwrapped < total_length and iterations < max_iterations and n_pts < max_points:
+        iterations += 1
+
+        current_radius = mandrel_radius + accumulated_thickness
+
+        # Adaptive h_max
+        progress_factor = x_unwrapped / total_length
+        if progress_factor > 0.7:
+            end_reduction = 1.0 - 0.6 * ((progress_factor - 0.7) / 0.3)
+        else:
+            end_reduction = 1.0
+        radius_factor = min(1.0, mandrel_radius / max(current_radius, mandrel_radius))
+        radius_reduction = 0.3 + 0.7 * radius_factor
+        combined_factor = min(end_reduction, radius_reduction)
+        current_h_max = h_max * combined_factor
+        h = min(h, current_h_max)
+
+        # Clamp step
+        remaining = total_length - x_unwrapped
+        perimeter_est = _TWO_PI * current_radius + 2.0 * straight_length
+        ds_per_rad = perimeter_est / _TWO_PI
+        if ds_per_rad * h > 1.5 * remaining:
+            h = max(remaining / (ds_per_rad + 1e-12), h_min)
+
+        # Curvature-aware step limit: ensure at least ~30 points per semicircle.
+        # In normalised theta, one semicircle spans:
+        #   delta_theta_semi = 2*pi * (pi*r) / (2*pi*r + 2*S)
+        # We require h <= delta_theta_semi / min_pts_per_semi.
+        if current_radius > 0.0 and straight_length > 0.0:
+            theta_semi = _TWO_PI * _PI * current_radius / perimeter_est
+            h_curvature = theta_semi / 30.0
+            if h > h_curvature:
+                h = max(h_curvature, h_min)
+
+        # Derivative: given (accumulated_thickness, x_unwrapped) at some theta
+        #   d(accum)/dtheta = t(x) / (2*pi)
+        #   dx/dtheta = perimeter(mandrel_radius + accum) / (2*pi)
+        # --- Using inline derivatives (numba doesn't support nested closures well) ---
+
+        # Full RK4 step
+        t1 = _thickness_at_jit(x_unwrapped, t_grid, n_grid_m1, dx_inv, total_length)
+        da1 = t1 / _TWO_PI
+        peri1 = _TWO_PI * (mandrel_radius + accumulated_thickness) + 2.0 * straight_length
+        ds1 = peri1 / _TWO_PI
+
+        a2 = accumulated_thickness + 0.5 * h * da1
+        x2_ = x_unwrapped + 0.5 * h * ds1
+        t2 = _thickness_at_jit(x2_, t_grid, n_grid_m1, dx_inv, total_length)
+        da2 = t2 / _TWO_PI
+        peri2 = _TWO_PI * (mandrel_radius + a2) + 2.0 * straight_length
+        ds2 = peri2 / _TWO_PI
+
+        a3 = accumulated_thickness + 0.5 * h * da2
+        x3_ = x_unwrapped + 0.5 * h * ds2
+        t3 = _thickness_at_jit(x3_, t_grid, n_grid_m1, dx_inv, total_length)
+        da3 = t3 / _TWO_PI
+        peri3 = _TWO_PI * (mandrel_radius + a3) + 2.0 * straight_length
+        ds3 = peri3 / _TWO_PI
+
+        a4 = accumulated_thickness + h * da3
+        x4_ = x_unwrapped + h * ds3
+        t4 = _thickness_at_jit(x4_, t_grid, n_grid_m1, dx_inv, total_length)
+        da4 = t4 / _TWO_PI
+        peri4 = _TWO_PI * (mandrel_radius + a4) + 2.0 * straight_length
+        ds4 = peri4 / _TWO_PI
+
+        a_full = accumulated_thickness + (h / 6.0) * (da1 + 2.0 * da2 + 2.0 * da3 + da4)
+        x_full = x_unwrapped + (h / 6.0) * (ds1 + 2.0 * ds2 + 2.0 * ds3 + ds4)
+
+        # Two half-steps
+        h2 = 0.5 * h
+        a2h = accumulated_thickness + 0.5 * h2 * da1
+        x2h = x_unwrapped + 0.5 * h2 * ds1
+        t2h = _thickness_at_jit(x2h, t_grid, n_grid_m1, dx_inv, total_length)
+        da2h = t2h / _TWO_PI
+        peri2h = _TWO_PI * (mandrel_radius + a2h) + 2.0 * straight_length
+        ds2h = peri2h / _TWO_PI
+
+        a3h = accumulated_thickness + 0.5 * h2 * da2h
+        x3h = x_unwrapped + 0.5 * h2 * ds2h
+        t3h = _thickness_at_jit(x3h, t_grid, n_grid_m1, dx_inv, total_length)
+        da3h = t3h / _TWO_PI
+        peri3h = _TWO_PI * (mandrel_radius + a3h) + 2.0 * straight_length
+        ds3h = peri3h / _TWO_PI
+
+        a4h = accumulated_thickness + h2 * da3h
+        x4h = x_unwrapped + h2 * ds3h
+        t4h = _thickness_at_jit(x4h, t_grid, n_grid_m1, dx_inv, total_length)
+        da4h = t4h / _TWO_PI
+        peri4h = _TWO_PI * (mandrel_radius + a4h) + 2.0 * straight_length
+        ds4h = peri4h / _TWO_PI
+
+        a_half = accumulated_thickness + (h2 / 6.0) * (da1 + 2.0 * da2h + 2.0 * da3h + da4h)
+        x_half = x_unwrapped + (h2 / 6.0) * (ds1 + 2.0 * ds2h + 2.0 * ds3h + ds4h)
+
+        # Second half
+        ts1 = _thickness_at_jit(x_half, t_grid, n_grid_m1, dx_inv, total_length)
+        da1s = ts1 / _TWO_PI
+        peris1 = _TWO_PI * (mandrel_radius + a_half) + 2.0 * straight_length
+        ds1s = peris1 / _TWO_PI
+
+        a2s = a_half + 0.5 * h2 * da1s
+        x2s = x_half + 0.5 * h2 * ds1s
+        ts2 = _thickness_at_jit(x2s, t_grid, n_grid_m1, dx_inv, total_length)
+        da2s = ts2 / _TWO_PI
+        peris2 = _TWO_PI * (mandrel_radius + a2s) + 2.0 * straight_length
+        ds2s = peris2 / _TWO_PI
+
+        a3s = a_half + 0.5 * h2 * da2s
+        x3s = x_half + 0.5 * h2 * ds2s
+        ts3 = _thickness_at_jit(x3s, t_grid, n_grid_m1, dx_inv, total_length)
+        da3s = ts3 / _TWO_PI
+        peris3 = _TWO_PI * (mandrel_radius + a3s) + 2.0 * straight_length
+        ds3s = peris3 / _TWO_PI
+
+        a4s = a_half + h2 * da3s
+        x4s = x_half + h2 * ds3s
+        ts4 = _thickness_at_jit(x4s, t_grid, n_grid_m1, dx_inv, total_length)
+        da4s = ts4 / _TWO_PI
+        peris4 = _TWO_PI * (mandrel_radius + a4s) + 2.0 * straight_length
+        ds4s = peris4 / _TWO_PI
+
+        a_two_half = a_half + (h2 / 6.0) * (da1s + 2.0 * da2s + 2.0 * da3s + da4s)
+        x_two_half = x_half + (h2 / 6.0) * (ds1s + 2.0 * ds2s + 2.0 * ds3s + ds4s)
+
+        # Error estimate
+        err_a = abs(a_full - a_two_half)
+        err_x = abs(x_full - x_two_half)
+        scale_a = max(abs(accumulated_thickness), abs(a_two_half), 1e-9)
+        scale_x = max(abs(x_unwrapped), abs(x_two_half), 1e-9)
+        rel_err = max(err_a / scale_a, err_x / scale_x)
+
+        if rel_err > target_err and h > h_min * 1.01:
+            h = max(h * shrink * max(0.2, (target_err / (rel_err + 1e-14)) ** 0.25), h_min)
+            continue
+
+        # Accept step
+        accumulated_thickness = a_two_half
+        x_unwrapped = x_two_half
+        theta += h
+
+        theta_out[n_pts] = theta
+        r_out[n_pts] = mandrel_radius + accumulated_thickness
+        x_out[n_pts] = x_unwrapped
+        n_pts += 1
+
+        if rel_err < target_err / 8.0 and h < h_max / 0.6:
+            h = min(h * growth * min(2.0, (target_err / (rel_err + 1e-14)) ** 0.20), h_max)
+
+        # Gradient-based step modulation
+        if 0.0 < x_unwrapped < total_length:
+            idx_f = x_unwrapped * (len(x_grid) - 1) / total_length
+            idx = int(idx_f)
+            if idx >= len(dt_dx) - 1:
+                local_grad = abs(dt_dx[-1])
+            else:
+                frac = idx_f - idx
+                local_grad = abs(dt_dx[idx] + frac * (dt_dx[idx + 1] - dt_dx[idx]))
+        else:
+            local_grad = 0.0
+        grad_factor = 1.0 + 5.0 * (local_grad / max_grad)
+        h = max(h / grad_factor, h_min)
+
+    return theta_out[:n_pts], r_out[:n_pts], x_out[:n_pts]
+
+
+@njit(cache=True)
+def _racetrack_positions_batch(thetas, radii, straight_length):
+    """Vectorised racetrack position calculation (numba-compiled).
+
+    Maps parametric angles to (x, z) Cartesian coordinates on a racetrack shape.
+    Operates on arrays for batch processing.
+    """
+    _TWO_PI = 2.0 * math.pi
+    n = len(thetas)
+    x_out = np.empty(n, dtype=np.float64)
+    z_out = np.empty(n, dtype=np.float64)
+
+    for i in range(n):
+        theta = thetas[i] % _TWO_PI
+        radius = radii[i]
+
+        semi_arc = math.pi * radius
+        total_perimeter = 2.0 * semi_arc + 2.0 * straight_length
+        clockwise_fraction = (_TWO_PI - theta) / _TWO_PI
+        arc_length = clockwise_fraction * total_perimeter
+
+        if arc_length <= semi_arc:
+            phi = arc_length / radius if radius > 0 else 0.0
+            x_out[i] = straight_length / 2.0 + radius * math.cos(math.pi / 2.0 - phi)
+            z_out[i] = radius * math.sin(math.pi / 2.0 - phi)
+        elif arc_length <= semi_arc + straight_length:
+            progress = (arc_length - semi_arc) / straight_length if straight_length > 0 else 0.0
+            x_out[i] = straight_length / 2.0 - progress * straight_length
+            z_out[i] = -radius
+        elif arc_length <= 2.0 * semi_arc + straight_length:
+            phi = (arc_length - semi_arc - straight_length) / radius if radius > 0 else 0.0
+            angle = -math.pi / 2.0 - phi
+            x_out[i] = -straight_length / 2.0 + radius * math.cos(angle)
+            z_out[i] = radius * math.sin(angle)
+        else:
+            progress = (arc_length - 2.0 * semi_arc - straight_length) / straight_length if straight_length > 0 else 0.0
+            x_out[i] = -straight_length / 2.0 + progress * straight_length
+            z_out[i] = radius
+
+    return x_out, z_out
+
 
 class SpiralCalculator:
     """Utility class providing static methods for spiral and racetrack geometry calculations. Computes variable-thickness spirals, builds component-level spiral coordinates, and handles racetrack (flat-wound) geometry for FlatWoundJellyRoll assemblies."""
+
+    @staticmethod
+    def _insert_segment_gaps(
+        data: np.ndarray,
+        column_index: int,
+        tolerance_multiplier: float = 10.0,
+    ) -> np.ndarray:
+        """Insert NaN rows at real discontinuities in a spiral array.
+
+        Uses the **median** absolute step size (robust to the non-uniform
+        spacing produced by adaptive RK4) instead of the mean that the
+        generic ``CoordinateMixin.insert_gaps_with_nans`` method uses.
+        A gap is declared when a step exceeds
+        ``median(abs_steps) * tolerance_multiplier``.
+
+        Parameters
+        ----------
+        data : np.ndarray
+            2-D array of spiral data.
+        column_index : int
+            Column whose consecutive differences are tested for gaps.
+        tolerance_multiplier : float, optional
+            Factor applied to the median step to get the gap threshold
+            (default 10.0).
+
+        Returns
+        -------
+        np.ndarray
+            Copy of *data* with NaN rows inserted at detected gaps.
+        """
+        if data.size == 0 or data.shape[0] < 2:
+            return data.copy()
+
+        col = data[:, column_index]
+        valid = col[~np.isnan(col)]
+        if len(valid) < 2:
+            return data.copy()
+
+        abs_steps = np.abs(np.diff(valid))
+        median_step = np.median(abs_steps)
+        if median_step == 0:
+            return data.copy()
+
+        threshold = median_step * tolerance_multiplier
+
+        # Evaluate gaps on the original (possibly NaN-containing) column
+        diffs = np.abs(np.diff(col))
+        gap_mask = diffs > threshold  # True where a NaN row should follow
+        gap_indices = np.flatnonzero(gap_mask)
+
+        if gap_indices.size == 0:
+            return data.copy()
+
+        # Build result by interleaving original rows and NaN rows
+        nan_row = np.full((1, data.shape[1]), np.nan)
+        parts = []
+        prev = 0
+        for idx in gap_indices:
+            parts.append(data[prev : idx + 1])  # rows up to and including the gap start
+            parts.append(nan_row)
+            prev = idx + 1
+        parts.append(data[prev:])
+        return np.vstack(parts)
 
     @staticmethod
     def calculate_variable_thickness_spiral(
@@ -79,13 +585,11 @@ class SpiralCalculator:
         r0 = start_radius
             
         # Build interpolation grid for thickness (vectorized)
-        # Heuristic: finer where dtheta small or mandrel small
         base_dl = max(dtheta * r0 / 8.0, 0.00025)
         n_grid = min(6000, max(400, int(total_length / base_dl) + 2))
         x_grid = np.linspace(0.0, total_length, n_grid)
 
         # Vectorized thickness grid: inline the laminate interpolation
-        # instead of calling get_thickness_at_x() in a Python loop
         surface_xs = laminate._top_surface[:, 0]
         surface_zs = laminate._top_surface[:, 1]
         baseline_z = getattr(laminate, "_baseline_z", None)
@@ -96,168 +600,53 @@ class SpiralCalculator:
             else:
                 baseline_z = 0.0
         top_z = np.interp(x_grid, surface_xs, surface_zs)
-        t_grid = np.maximum(top_z - baseline_z, 0.0).astype(float)
+        t_grid = np.maximum(top_z - baseline_z, 0.0).astype(np.float64)
 
         t_min, t_max = float(t_grid.min()), float(t_grid.max())
 
-        # Fast uniform-grid interpolation using direct index math
-        # (x_grid is uniform so we can compute the index directly)
-        _t_grid = t_grid  # local reference for closure
-        _n_grid_m1 = n_grid - 1
-        _dx_inv = _n_grid_m1 / total_length if total_length > 0 else 0.0
-        _t0 = float(t_grid[0])
-        _t_last = float(t_grid[-1])
+        # ── Uniform-thickness fast path ──────────────────────────────────
+        # When thickness variation is negligible, use the fully-vectorized
+        # analytic Archimedean spiral (orders of magnitude faster).
+        if t_max > 0 and (t_max - t_min) / t_max < 0.001:
+            avg_thickness = float(t_grid.mean())
+            simple = SpiralCalculator.calculate_simple_spiral(
+                start_radius=r0,
+                thickness=avg_thickness,
+                target_length=total_length,
+                points_per_turn=max(100, int(1.0 / dtheta * TWO_PI)),
+            )
+            return simple
 
-        def thickness_at(x):
-            if x <= 0.0: return _t0
-            if x >= total_length: return _t_last
-            idx_f = x * _dx_inv
-            idx = int(idx_f)
-            if idx >= _n_grid_m1: return _t_last
-            frac = idx_f - idx
-            return _t_grid[idx] + frac * (_t_grid[idx + 1] - _t_grid[idx])
+        # ── Adaptive RK4 integration via numba-compiled loop ─────────────
+        n_grid_m1 = n_grid - 1
+        dx_inv = float(n_grid_m1 / total_length) if total_length > 0 else 0.0
 
-        # Adaptive RK4 integration (θ decreases)
-        # State: (r, x); derivatives w.r.t θ
-        def deriv(r, x):
-            tloc = thickness_at(x)
-            dr_dth = tloc / TWO_PI
-            ds_dth = np.sqrt(r*r + dr_dth*dr_dth)
-            return dr_dth, ds_dth
-
-        theta = np.pi/2  # start top
-        r = r0
-        x_unwrapped = 0.0
         h_max = abs(dtheta)
         h_min = h_max / 64.0
-        target_err = TARGET_ERROR
-        max_points = MAX_POINTS
-        max_iterations = MAX_ITERATIONS
-        growth = 1.5
-        shrink = 0.5
-        
-        # Adaptive step size reduction towards end of spiral
-        def adaptive_h_max(x_progress, r_current):
-            """Reduce maximum step size as spiral progresses and radius increases."""
-            progress_factor = x_progress / total_length  # 0 to 1
-            # Reduce step size in final 30% of spiral
-            if progress_factor > 0.7:
-                end_reduction = 1.0 - 0.6 * ((progress_factor - 0.7) / 0.3)  # Linear reduction to 40% of original
-            else:
-                end_reduction = 1.0
-            
-            # Also reduce step size as radius increases (arc length per angular step grows)
-            radius_factor = min(1.0, r0 / max(r_current, r0))  # Smaller factor for larger radius
-            radius_reduction = 0.3 + 0.7 * radius_factor  # Range: 30% to 100% of original
-            
-            # Apply both reductions
-            combined_factor = min(end_reduction, radius_reduction)
-            return h_max * combined_factor
 
-        theta_list = [theta]
-        r_list = [r]
-        x_list = [x_unwrapped]
-
-        iterations = 0
-        h = h_max
         # Pre-compute rough gradient to modulate minimal step
-        dt_dx = np.gradient(t_grid, x_grid)
-        max_grad = np.max(np.abs(dt_dx)) + 1e-12
+        dt_dx = np.gradient(t_grid, x_grid).astype(np.float64)
+        max_grad = float(np.max(np.abs(dt_dx))) + 1e-12
 
-        while x_unwrapped < total_length and iterations < max_iterations and len(theta_list) < max_points:
-            iterations += 1
-            
-            # Update maximum step size based on progress and radius
-            current_h_max = adaptive_h_max(x_unwrapped, r)
-            h = min(h, current_h_max)  # Don't exceed adaptive maximum
-            
-            # Clamp step not to overshoot total_length (rough estimate)
-            # Predict ds ≈ r * h; adjust if would exceed remaining length by large margin
-            remaining = total_length - x_unwrapped
-            if r * h > 1.5 * remaining:
-                h = max(remaining / (r + 1e-12), h_min)
-
-            # Single RK4 full step size h
-            dr1, dx1 = deriv(r, x_unwrapped)
-            r2 = r + 0.5*h*dr1; x2 = x_unwrapped + 0.5*h*dx1
-            dr2, dx2 = deriv(r2, x2)
-            r3 = r + 0.5*h*dr2; x3 = x_unwrapped + 0.5*h*dx2
-            dr3, dx3 = deriv(r3, x3)
-            r4 = r + h*dr3; x4 = x_unwrapped + h*dx3
-            dr4, dx4 = deriv(r4, x4)
-            r_full = r + (h/6.0)*(dr1 + 2*dr2 + 2*dr3 + dr4)
-            x_full = x_unwrapped + (h/6.0)*(dx1 + 2*dx2 + 2*dx3 + dx4)
-
-            # Two half steps (h/2 + h/2)
-            h2 = 0.5 * h
-            # First half
-            dr1h, dx1h = dr1, dx1  # same as above first evaluation
-            r2h = r + 0.5*h2*dr1h; x2h = x_unwrapped + 0.5*h2*dx1h
-            dr2h, dx2h = deriv(r2h, x2h)
-            r3h = r + 0.5*h2*dr2h; x3h = x_unwrapped + 0.5*h2*dx2h
-            dr3h, dx3h = deriv(r3h, x3h)
-            r4h = r + h2*dr3h; x4h = x_unwrapped + h2*dx3h
-            dr4h, dx4h = deriv(r4h, x4h)
-            r_half = r + (h2/6.0)*(dr1h + 2*dr2h + 2*dr3h + dr4h)
-            x_half = x_unwrapped + (h2/6.0)*(dx1h + 2*dx2h + 2*dx3h + dx4h)
-            # Second half from (r_half, x_half)
-            dr1s, dx1s = deriv(r_half, x_half)
-            r2s = r_half + 0.5*h2*dr1s; x2s = x_half + 0.5*h2*dx1s
-            dr2s, dx2s = deriv(r2s, x2s)
-            r3s = r_half + 0.5*h2*dr2s; x3s = x_half + 0.5*h2*dx2s
-            dr3s, dx3s = deriv(r3s, x3s)
-            r4s = r_half + h2*dr3s; x4s = x_half + h2*dx3s
-            dr4s, dx4s = deriv(r4s, x4s)
-            r_two_half = r_half + (h2/6.0)*(dr1s + 2*dr2s + 2*dr3s + dr4s)
-            x_two_half = x_half + (h2/6.0)*(dx1s + 2*dx2s + 2*dx3s + dx4s)
-
-            # Error estimate (local): difference between full and two half steps (O(h^5))
-            err_r = abs(r_full - r_two_half)
-            err_x = abs(x_full - x_two_half)
-            scale_r = max(abs(r), abs(r_two_half), 1e-9)
-            scale_x = max(abs(x_unwrapped), abs(x_two_half), 1e-9)
-            rel_err = max(err_r/scale_r, err_x/scale_x)
-
-            if rel_err > target_err and h > h_min * 1.01:
-                # Reject step, shrink and retry
-                h = max(h * shrink * max(0.2, (target_err / (rel_err + 1e-14))**0.25), h_min)
-                continue
-
-            # Accept step -> use higher accuracy two half-steps solution
-            r = r_two_half
-            x_unwrapped = x_two_half
-            theta -= h  # clockwise (θ decreasing)
-
-            theta_list.append(theta)
-            r_list.append(r)
-            x_list.append(x_unwrapped)
-
-            if rel_err < target_err / 8.0 and h < h_max / 0.6:
-                h = min(h * growth * min(2.0, (target_err / (rel_err + 1e-14))**0.20), h_max)
-
-            # Enforce minimal step if local thickness gradient high
-            local_grad = abs(interp_grad := (np.interp(x_unwrapped, x_grid, dt_dx) if 0 < x_unwrapped < total_length else 0.0))
-            grad_factor = 1.0 + 5.0 * (local_grad / max_grad)
-            h = max(h / grad_factor, h_min)
+        theta_arr, r_arr, x_unwrapped_arr = _rk4_spiral_loop(
+            t_grid, n_grid_m1, dx_inv, total_length,
+            r0, h_max, h_min, TARGET_ERROR,
+            MAX_ITERATIONS, MAX_POINTS,
+            dt_dx, x_grid.astype(np.float64), max_grad,
+        )
 
         # Interpolate final point if overshoot
-        if x_list[-1] > total_length and len(x_list) > 1:
-            x_prev, x_curr = x_list[-2], x_list[-1]
-            f = (total_length - x_prev)/(x_curr - x_prev + 1e-14)
-            r_prev, r_curr = r_list[-2], r_list[-1]
-            th_prev, th_curr = theta_list[-2], theta_list[-1]
-            x_list[-1] = total_length
-            r_list[-1] = r_prev + f*(r_curr - r_prev)
-            theta_list[-1] = th_prev + f*(th_curr - th_prev)
-
-        theta_arr = np.array(theta_list)
-        x_unwrapped_arr = np.array(x_list)
-        r_arr = np.array(r_list)
+        if len(x_unwrapped_arr) > 1 and x_unwrapped_arr[-1] > total_length:
+            x_prev, x_curr = x_unwrapped_arr[-2], x_unwrapped_arr[-1]
+            f = (total_length - x_prev) / (x_curr - x_prev + 1e-14)
+            x_unwrapped_arr[-1] = total_length
+            r_arr[-1] = r_arr[-2] + f * (r_arr[-1] - r_arr[-2])
+            theta_arr[-1] = theta_arr[-2] + f * (theta_arr[-1] - theta_arr[-2])
 
         # Calculate number of turns: cumulative rotations from start (theta decreases from π/2)
-        theta_start = np.pi/2
-        theta_traveled = theta_start - theta_arr  # Total angle traveled `(positive)
-        turns_arr = theta_traveled / TWO_PI  # Number of complete turns
+        theta_start = np.pi / 2.0
+        theta_traveled = theta_start - theta_arr  # positive
+        turns_arr = theta_traveled / TWO_PI
 
         x_coords = r_arr * np.cos(theta_arr)
         z_coords = r_arr * np.sin(theta_arr)
@@ -359,8 +748,8 @@ class SpiralCalculator:
             theta_traveled_component = theta_start_component - component_spiral[:, THETA_COL]  # Angle traveled from component start
             component_spiral[:, TURNS_COL] = theta_traveled_component / TWO_PI  # Turns relative to component start
 
-            # insert nan rows every time there is a gap
-            component_spiral = CoordinateMixin.insert_gaps_with_nans(component_spiral, X_UNWRAPPED_COL)
+            # insert nan rows at real segment discontinuities
+            component_spiral = SpiralCalculator._insert_segment_gaps(component_spiral, X_UNWRAPPED_COL)
             
             component_spirals[component_name] = component_spiral
 
@@ -676,142 +1065,109 @@ class SpiralCalculator:
         n_t_grid = min(6000, n_t_grid)
         t_x_grid = np.linspace(0.0, total_length, n_t_grid)
         t_z_interp = np.interp(t_x_grid, surface_xs, surface_zs)
-        t_grid = np.maximum(t_z_interp - baseline_z, 0.0).astype(float)
-        _n_grid_m1 = n_t_grid - 1
-        _dx_inv = _n_grid_m1 / total_length if total_length > 0 else 0.0
-        _t0 = float(t_grid[0])
-        _t_last = float(t_grid[-1])
+        t_grid = np.maximum(t_z_interp - baseline_z, 0.0).astype(np.float64)
 
-        def thickness_at_fast(x):
-            if x <= 0.0: return _t0
-            if x >= total_length: return _t_last
-            idx_f = x * _dx_inv
-            idx = int(idx_f)
-            if idx >= _n_grid_m1: return _t_last
-            frac = idx_f - idx
-            return t_grid[idx] + frac * (t_grid[idx + 1] - t_grid[idx])
+        t_min, t_max = float(t_grid.min()), float(t_grid.max())
 
-        # Local references for speed in tight loop
-        _racetrack_position = SpiralCalculator.racetrack_position
-        _racetrack_curvature = SpiralCalculator.racetrack_curvature
+        # ── Uniform-thickness fast path ──────────────────────────────────
+        if t_max > 0 and (t_max - t_min) / t_max < 0.001:
+            avg_thickness = float(t_grid.mean())
+            simple = SpiralCalculator.calculate_simple_racetrack(
+                start_radius=mandrel_radius,
+                straight_length=straight_length,
+                thickness=avg_thickness,
+                target_length=total_length,
+                points_per_turn=300,
+            )
+            return simple
 
-        # Initialize arrays for spiral path
-        positions = []
-        x_unwrapped = 0.0
-        accumulated_thickness = 0.0  # Track actual thickness buildup
-        turn_count = 0.0
-        
-        # Start at top of right semicircle (theta=2π in racetrack coordinates, will decrease clockwise)
-        theta_racetrack = TWO_PI
-        
-        while x_unwrapped < total_length:
-            # Get thickness at current unwrapped position (fast interpolation)
-            thickness = thickness_at_fast(x_unwrapped)
-            current_radius = mandrel_radius + accumulated_thickness
-            
-            # Calculate position on current racetrack
-            x_pos, z_pos = _racetrack_position(theta_racetrack, current_radius, straight_length)
-            
-            # Calculate normalized theta for clockwise motion (starting from 2π, decreasing)
-            theta_traveled = (TWO_PI - theta_racetrack) + turn_count * TWO_PI
-            total_turns = theta_traveled / TWO_PI
-            
-            # Store position data
-            positions.append([
-                theta_traveled,   # Normalized theta representing cumulative angle traveled clockwise
-                x_unwrapped,      # Cumulative unwrapped length
-                current_radius,   # Distance from center to current layer
-                x_pos,           # Cartesian x coordinate
-                z_pos,           # Cartesian z coordinate  
-                total_turns      # Total number of turns (fractional)
-            ])
-            
-            # Calculate step size based on local curvature and thickness
-            curvature = _racetrack_curvature(theta_racetrack, current_radius, straight_length)
-            if curvature > 0:
-                # On curved sections, limit step by curvature
-                ds_max = min(ds_target, 0.1 / curvature)
-            else:
-                # On straight sections, use target step size
-                ds_max = ds_target
-            
-            ds_actual = min(ds_max, total_length - x_unwrapped)
-            
-            # Calculate how much thickness to add based on this step
-            perimeter_current = TWO_PI * current_radius + 2 * straight_length
-            dtheta = ds_actual * TWO_PI / perimeter_current
-            
-            # Add thickness proportional to angular progress
-            thickness_increment = thickness * dtheta / TWO_PI
-            accumulated_thickness += thickness_increment
-            
-            # Move clockwise (decrease theta)
-            theta_racetrack -= dtheta
-            x_unwrapped += ds_actual
-            
-            # Update turn count when completing full loops (theta goes below 0)
-            if theta_racetrack < 0:
-                full_turns = (-theta_racetrack) // TWO_PI + 1
-                turn_count += full_turns
-                theta_racetrack = theta_racetrack + full_turns * TWO_PI
+        # ── Adaptive RK4 integration via numba-compiled loop ─────────────
+        n_grid_m1 = n_t_grid - 1
+        dx_inv = float(n_grid_m1 / total_length) if total_length > 0 else 0.0
 
-        # Convert to numpy array
-        spiral_array = np.array(positions)
-        
-        # Vectorized downsampling: determine curved vs straight from theta values
-        # instead of calling racetrack_curvature() per point in a Python loop
-        thetas_col = spiral_array[:, 0]  # cumulative theta
+        # Convert ds_target to an angular step for h_max
+        perimeter_start = TWO_PI * mandrel_radius + 2.0 * straight_length
+        h_max = min(0.5, ds_target * TWO_PI / (perimeter_start + 1e-12))
+        h_min = h_max / 64.0
+
+        dt_dx = np.gradient(t_grid, t_x_grid).astype(np.float64)
+        max_grad = float(np.max(np.abs(dt_dx))) + 1e-12
+
+        theta_arr, r_arr, x_unwrapped_arr = _rk4_racetrack_loop(
+            t_grid, n_grid_m1, dx_inv, total_length,
+            mandrel_radius, straight_length,
+            mandrel_radius, h_max, h_min, TARGET_ERROR,
+            MAX_ITERATIONS, MAX_POINTS,
+            dt_dx, t_x_grid.astype(np.float64), max_grad,
+        )
+
+        # Interpolate final point if overshoot
+        if len(x_unwrapped_arr) > 1 and x_unwrapped_arr[-1] > total_length:
+            x_prev, x_curr = x_unwrapped_arr[-2], x_unwrapped_arr[-1]
+            f = (total_length - x_prev) / (x_curr - x_prev + 1e-14)
+            x_unwrapped_arr[-1] = total_length
+            r_arr[-1] = r_arr[-2] + f * (r_arr[-1] - r_arr[-2])
+            theta_arr[-1] = theta_arr[-2] + f * (theta_arr[-1] - theta_arr[-2])
+
+        # theta_arr from the racetrack loop is cumulative angle traveled (positive, increasing)
+        # Convert to racetrack parametric theta for position calculation
+        # Use TWO_PI - (theta % TWO_PI) to get the racetrack angle
+        turns_arr = theta_arr / TWO_PI
+
+        # Calculate Cartesian coordinates using batch racetrack position
+        # The racetrack_positions_batch expects parametric theta in [0, 2π], clockwise from 2π
+        racetrack_thetas = TWO_PI - (theta_arr % TWO_PI)
+        # Handle edge: when theta_arr % TWO_PI == 0, racetrack_theta = TWO_PI
+        racetrack_thetas = np.where(racetrack_thetas < 1e-14, TWO_PI, racetrack_thetas)
+        x_coords, z_coords = _racetrack_positions_batch(racetrack_thetas, r_arr, straight_length)
+
+        spiral_array = np.column_stack([
+            theta_arr, x_unwrapped_arr, r_arr, x_coords, z_coords, turns_arr
+        ])
+
+        # ── Vectorized downsampling ──────────────────────────────────────
+        thetas_col = spiral_array[:, 0]
         radii_col = spiral_array[:, 2]
-        
-        # Normalize theta to [0, 2π) for each point
+
         thetas_mod = thetas_col % TWO_PI
         semi_arc_fractions = np.pi * radii_col
         total_perimeters = 2.0 * semi_arc_fractions + 2.0 * straight_length
         arc_lengths = (thetas_mod / TWO_PI) * total_perimeters
-        
-        # Point is on curved section when arc_length is in [0, semi_arc] or [semi_arc+straight, 2*semi_arc+straight]
+
         is_curved = (
             (arc_lengths <= semi_arc_fractions) |
-            ((semi_arc_fractions + straight_length <= arc_lengths) & 
+            ((semi_arc_fractions + straight_length <= arc_lengths) &
              (arc_lengths <= 2.0 * semi_arc_fractions + straight_length))
         )
-        
-        # Build mask for points to keep with adaptive downsampling
+
         keep_mask = np.zeros(len(spiral_array), dtype=bool)
         keep_mask[0] = True
         keep_mask[-1] = True
         keep_mask[is_curved] = True
-        
-        # For straight sections, use adaptive downsampling based on geometry
+
         straight_indices = np.where(~is_curved)[0]
         if len(straight_indices) > 0:
-            # Calculate actual point density on straight sections
             num_straight_points = len(straight_indices)
-            # Estimate straight sections total length (2 straights per turn, approximate from total turns)
             if len(spiral_array) > 0:
                 max_turns = spiral_array[-1, TURNS_COL]
                 total_straight_length = 2.0 * straight_length * max_turns if max_turns > 0 else straight_length
             else:
                 total_straight_length = straight_length
-            
-            # Calculate density and adaptive downsample factor
+
             if total_straight_length > 0:
-                actual_density = num_straight_points / total_straight_length  # points per meter
-                # Target: maintain at least 1000 points/m on straights, or 2000 points/m for very short straights
-                if straight_length < 0.005:  # Less than 5mm
+                actual_density = num_straight_points / total_straight_length
+                if straight_length < 0.005:
                     target_density = 2000.0
-                elif straight_length < 0.010:  # Less than 10mm
+                elif straight_length < 0.010:
                     target_density = 1500.0
                 else:
                     target_density = 1000.0
-                
-                # Calculate adaptive downsample factor (minimum 1, no downsampling for sparse straights)
                 downsample_factor = max(1, int(actual_density / target_density))
             else:
-                downsample_factor = 5  # Default fallback
-            
+                downsample_factor = 5
+
             keep_mask[straight_indices[::downsample_factor]] = True
-        
+
         return spiral_array[keep_mask]
 
     @staticmethod
@@ -895,30 +1251,17 @@ class SpiralCalculator:
         accumulated_thickness = (thickness / TWO_PI) * angle_traveled
         current_radii = start_radius + accumulated_thickness
         
-        # Calculate unwrapped length along racetrack path
+        # Calculate unwrapped length along racetrack path (vectorized)
         x_unwrapped_arr = np.zeros_like(theta_arr)
         if len(theta_arr) > 1:
-            # Calculate incremental arc lengths
-            for i in range(1, len(theta_arr)):
-                # Use average radius for this segment
-                avg_radius = (current_radii[i-1] + current_radii[i]) / 2
-                dtheta = abs(theta_arr[i] - theta_arr[i-1])
-                
-                # Calculate perimeter at average radius
-                perimeter_avg = TWO_PI * avg_radius + 2 * straight_length
-                
-                # Arc length increment proportional to angle increment
-                ds = (dtheta / TWO_PI) * perimeter_avg
-                x_unwrapped_arr[i] = x_unwrapped_arr[i-1] + ds
+            avg_radii = (current_radii[:-1] + current_radii[1:]) / 2.0
+            dthetas = np.abs(np.diff(theta_arr))
+            perimeters_avg = TWO_PI * avg_radii + 2.0 * straight_length
+            ds_increments = (dthetas / TWO_PI) * perimeters_avg
+            x_unwrapped_arr[1:] = np.cumsum(ds_increments)
         
-        # Calculate Cartesian coordinates for each point
-        x_coords = np.zeros_like(theta_arr)
-        z_coords = np.zeros_like(theta_arr)
-        
-        for i, (theta, radius) in enumerate(zip(theta_arr, current_radii)):
-            x_pos, z_pos = SpiralCalculator.racetrack_position(theta, radius, straight_length)
-            x_coords[i] = x_pos
-            z_coords[i] = z_pos
+        # Calculate Cartesian coordinates (vectorized batch)
+        x_coords, z_coords = _racetrack_positions_batch(theta_arr, current_radii, straight_length)
         
         # Calculate number of turns completed
         turns_arr = turns_completed
@@ -1191,37 +1534,25 @@ class SpiralCalculator:
         tuple
             (outer_spiral, inner_spiral) as numpy arrays
         """
-        # Initialize outer and inner spirals
         outer_spiral = center_spiral.copy()
         inner_spiral = center_spiral.copy()
         
-        # Process each point to apply thickness in correct direction
-        for i in range(len(center_spiral)):
-            current_x = center_spiral[i, 3]  # Current x position
-            current_z = center_spiral[i, 4]  # Current z position
-            
-            # Get the direction vector for thickness application based on coordinates
-            direction_vector = SpiralCalculator.get_coordinate_based_adjustment_direction(
-                current_x, current_z, mandrel_radius, straight_length
-            )
-            
-            # Calculate outer position (center + half_thickness in direction)
-            outer_x = center_spiral[i, 3] + half_thickness * direction_vector[0]
-            outer_z = center_spiral[i, 4] + half_thickness * direction_vector[1]
-            
-            # Calculate inner position (center - half_thickness in direction)
-            inner_x = center_spiral[i, 3] - half_thickness * direction_vector[0]
-            inner_z = center_spiral[i, 4] - half_thickness * direction_vector[1]
-            
-            # Update outer spiral
-            outer_spiral[i, 3] = outer_x
-            outer_spiral[i, 4] = outer_z
-            outer_spiral[i, 2] = np.sqrt(outer_x**2 + outer_z**2)  # Update effective radius
-            
-            # Update inner spiral
-            inner_spiral[i, 3] = inner_x
-            inner_spiral[i, 4] = inner_z
-            inner_spiral[i, 2] = np.sqrt(inner_x**2 + inner_z**2)  # Update effective radius
+        xs = center_spiral[:, 3]
+        zs = center_spiral[:, 4]
+        
+        # Vectorized direction computation
+        dir_x, dir_z = SpiralCalculator._get_adjustment_directions_batch(
+            xs, zs, mandrel_radius, straight_length
+        )
+        
+        # Apply thickness offset in batch
+        outer_spiral[:, 3] = xs + half_thickness * dir_x
+        outer_spiral[:, 4] = zs + half_thickness * dir_z
+        outer_spiral[:, 2] = np.sqrt(outer_spiral[:, 3]**2 + outer_spiral[:, 4]**2)
+        
+        inner_spiral[:, 3] = xs - half_thickness * dir_x
+        inner_spiral[:, 4] = zs - half_thickness * dir_z
+        inner_spiral[:, 2] = np.sqrt(inner_spiral[:, 3]**2 + inner_spiral[:, 4]**2)
         
         return outer_spiral, inner_spiral
 
@@ -1249,58 +1580,76 @@ class SpiralCalculator:
         np.ndarray
             Unit vector [dx, dz] indicating direction for height adjustment
         """
-        # Define the centers of the semicircular ends
-        right_center_x = straight_length / 2
-        left_center_x = -straight_length / 2
-        center_z = 0.0
+        # Delegate to batch function for a single point
+        dx, dz = SpiralCalculator._get_adjustment_directions_batch(
+            np.array([x]), np.array([z]), mandrel_radius, straight_length
+        )
+        return np.array([dx[0], dz[0]])
+
+    @staticmethod
+    def _get_adjustment_directions_batch(xs: np.ndarray, zs: np.ndarray,
+                                         mandrel_radius: float,
+                                         straight_length: float):
+        """Vectorized direction computation for all points at once.
         
-        # Tolerance for determining if we're on a straight section
+        Classifies each point into right-semicircle, left-semicircle,
+        top-straight, or bottom-straight using boolean masks and computes
+        the outward-normal direction vector in one pass.
+        
+        Parameters
+        ----------
+        xs : np.ndarray
+            X coordinates of all points
+        zs : np.ndarray
+            Z coordinates of all points
+        mandrel_radius : float
+            Radius of semicircular ends
+        straight_length : float
+            Length of straight sections
+            
+        Returns
+        -------
+        tuple of (np.ndarray, np.ndarray)
+            (direction_x, direction_z) arrays
+        """
+        n = len(xs)
+        dir_x = np.zeros(n)
+        dir_z = np.zeros(n)
+        
+        right_center_x = straight_length / 2.0
+        left_center_x = -straight_length / 2.0
         straight_tolerance = mandrel_radius * 0.1
         
-        # Check if we're on the right semicircle
-        if x > (straight_length / 2 - straight_tolerance):
-            # Distance from right semicircle center
-            dx_from_center = x - right_center_x
-            dz_from_center = z - center_z
-            distance_from_center = np.sqrt(dx_from_center**2 + dz_from_center**2)
-            
-            if distance_from_center > 1e-12:  # Avoid division by zero
-                # Unit vector pointing radially outward from right center
-                direction_x = dx_from_center / distance_from_center
-                direction_z = dz_from_center / distance_from_center
-            else:
-                # Fallback: assume we're at the center, point upward
-                direction_x = 0.0
-                direction_z = 1.0
-                
-        # Check if we're on the left semicircle
-        elif x < (-straight_length / 2 + straight_tolerance):
-            # Distance from left semicircle center
-            dx_from_center = x - left_center_x
-            dz_from_center = z - center_z
-            distance_from_center = np.sqrt(dx_from_center**2 + dz_from_center**2)
-            
-            if distance_from_center > 1e-12:  # Avoid division by zero
-                # Unit vector pointing radially outward from left center
-                direction_x = dx_from_center / distance_from_center
-                direction_z = dz_from_center / distance_from_center
-            else:
-                # Fallback: assume we're at the center, point upward
-                direction_x = 0.0
-                direction_z = 1.0
-                
-        # We're on a straight section
-        else:
-            if z > 0:
-                # Top straight section: directly upward
-                direction_x = 0.0
-                direction_z = 1.0
-            else:
-                # Bottom straight section: directly downward
-                direction_x = 0.0
-                direction_z = -1.0
+        # Right semicircle
+        right_mask = xs > (straight_length / 2.0 - straight_tolerance)
+        if np.any(right_mask):
+            dx_r = xs[right_mask] - right_center_x
+            dz_r = zs[right_mask]
+            dist_r = np.sqrt(dx_r**2 + dz_r**2)
+            safe_r = np.where(dist_r > 1e-12, dist_r, 1.0)
+            dir_x[right_mask] = np.where(dist_r > 1e-12, dx_r / safe_r, 0.0)
+            dir_z[right_mask] = np.where(dist_r > 1e-12, dz_r / safe_r, 1.0)
         
-        return np.array([direction_x, direction_z])
+        # Left semicircle
+        left_mask = (~right_mask) & (xs < (-straight_length / 2.0 + straight_tolerance))
+        if np.any(left_mask):
+            dx_l = xs[left_mask] - left_center_x
+            dz_l = zs[left_mask]
+            dist_l = np.sqrt(dx_l**2 + dz_l**2)
+            safe_l = np.where(dist_l > 1e-12, dist_l, 1.0)
+            dir_x[left_mask] = np.where(dist_l > 1e-12, dx_l / safe_l, 0.0)
+            dir_z[left_mask] = np.where(dist_l > 1e-12, dz_l / safe_l, 1.0)
+        
+        # Straight sections (everything else)
+        straight_mask = (~right_mask) & (~left_mask)
+        if np.any(straight_mask):
+            top = straight_mask & (zs > 0)
+            bottom = straight_mask & (zs <= 0)
+            dir_z[top] = 1.0
+            dir_z[bottom] = -1.0
+            # dir_x stays 0.0 for straight sections
+        
+        return dir_x, dir_z
 
     @staticmethod
     def get_thickness_of_racetrack(coords: np.ndarray) -> float:
@@ -1478,8 +1827,8 @@ class SpiralCalculator:
             theta_traveled_component = component_spiral[:, 0] - theta_start_component  # Angle traveled from component start
             component_spiral[:, 5] = theta_traveled_component / (2 * np.pi)  # Turns relative to component start
 
-            # insert nan rows every time there is a gap
-            component_spiral = CoordinateMixin.insert_gaps_with_nans(component_spiral, X_UNWRAPPED_COL)
+            # insert nan rows at real segment discontinuities
+            component_spiral = SpiralCalculator._insert_segment_gaps(component_spiral, X_UNWRAPPED_COL)
         
             component_spirals[component_name] = component_spiral
 
@@ -1505,27 +1854,16 @@ class SpiralCalculator:
         np.ndarray
             Modified spiral array
         """
-        # Process each point to determine adjustment direction
-        for i in range(len(spiral)):
-            current_x = spiral[i, 3]  # Current x position
-            current_z = spiral[i, 4]  # Current z position
-            height_adj = height_adjustments[i]
-            
-            # Determine position type and adjustment direction based on actual coordinates
-            adjustment_vector = SpiralCalculator.get_coordinate_based_adjustment_direction(
-                current_x, current_z, mandrel_radius, straight_length
-            )
-            
-            # Apply height adjustment in the correct direction
-            new_x = current_x + height_adj * adjustment_vector[0]
-            new_z = current_z + height_adj * adjustment_vector[1]
-            
-            # Update spiral coordinates
-            spiral[i, 3] = new_x  # x coordinate
-            spiral[i, 4] = new_z  # z coordinate
-            
-            # Update effective radius (distance from origin)
-            spiral[i, 2] = np.sqrt(new_x**2 + new_z**2)
+        xs = spiral[:, 3]
+        zs = spiral[:, 4]
+        
+        dir_x, dir_z = SpiralCalculator._get_adjustment_directions_batch(
+            xs, zs, mandrel_radius, straight_length
+        )
+        
+        spiral[:, 3] = xs + height_adjustments * dir_x
+        spiral[:, 4] = zs + height_adjustments * dir_z
+        spiral[:, 2] = np.sqrt(spiral[:, 3]**2 + spiral[:, 4]**2)
 
         return spiral
 
