@@ -123,6 +123,11 @@ class _ElectrodeAssembly(
         Uses .copy() instead of deepcopy() for numpy arrays as we only need
         shallow copies for scaling operations - significantly faster.
         """
+        # Initialize to None so anode-free (where anode curve is absent) doesn't crash
+        self._capacity_curve = None
+        self._cathode_capacity_curve = None
+        self._anode_capacity_curve = None
+
         if hasattr(self._layup, "_areal_capacity_curve") and self._layup._areal_capacity_curve is not None:
             # Use .copy() instead of deepcopy() - arrays only need shallow copy for scaling
             _capacity_curve = self._layup._areal_capacity_curve.copy()
@@ -207,6 +212,9 @@ class _ElectrodeAssembly(
             self.capacity_curve_trace
         ]
 
+        # Filter out None traces (e.g. anode-free has no anode curve trace)
+        traces = [t for t in traces if t is not None]
+
         fig.add_traces(traces)    
 
         # Enhanced layout with zero lines and faint grid
@@ -215,7 +223,7 @@ class _ElectrodeAssembly(
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             xaxis={**self.SCATTER_X_AXIS, "title": "Capacity (Ah)"},
-            yaxis={**self.SCATTER_Y_AXIS, "title": "Voltage (V)"},
+            yaxis={**self.SCATTER_Y_AXIS, "title": "Voltage (V)", "rangemode": "tozero"},
             hovermode="closest",
         )
 

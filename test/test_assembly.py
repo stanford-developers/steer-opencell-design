@@ -1,6 +1,7 @@
 import time
 import unittest
 import pandas as pd
+import plotly.graph_objects as go
 from copy import deepcopy
 
 from steer_opencell_design import (
@@ -1711,6 +1712,397 @@ class TestAssemblyPropagation(unittest.TestCase):
         # Should not raise - propagates CC -> Electrode -> Layup -> Assembly
         # Use assembly's copies
         self.jelly_roll.layup.cathode.current_collector.propagate_changes()
+
+
+class TestAnodeFreeRoundJellyRoll(unittest.TestCase):
+    """Tests for a WoundJellyRoll built with an anode-free anode (no formulation)."""
+
+    def setUp(self):
+        # --- cathode (normal) ---
+        material = CathodeMaterial.from_database("LFP")
+        material.specific_cost = 6
+        material.density = 3.6
+
+        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+
+        formulation = CathodeFormulation(
+            active_materials={material: 95},
+            binders={binder: 2},
+            conductive_additives={conductive_additive: 3},
+        )
+
+        cc_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
+
+        cathode_cc = NotchedCurrentCollector(
+            material=cc_material,
+            length=4500,
+            width=300,
+            thickness=8,
+            tab_width=60,
+            tab_spacing=200,
+            tab_height=18,
+            insulation_width=6,
+            coated_tab_height=2,
+        )
+
+        insulation = InsulationMaterial.from_database("Aluminium Oxide, 99.5%")
+
+        cathode = Cathode(
+            formulation=formulation,
+            mass_loading=12,
+            current_collector=cathode_cc,
+            calender_density=2.60,
+            insulation_material=insulation,
+            insulation_thickness=10,
+        )
+
+        # --- anode-free anode ---
+        anode_cc = NotchedCurrentCollector(
+            material=cc_material,
+            length=4500,
+            width=306,
+            thickness=8,
+            tab_width=60,
+            tab_spacing=100,
+            tab_height=18,
+            insulation_width=6,
+            coated_tab_height=2,
+        )
+
+        anode = Anode(current_collector=anode_cc)
+
+        # --- separator ---
+        separator_material = SeparatorMaterial(
+            name="Polyethylene",
+            specific_cost=2,
+            density=0.94,
+            color="#FDFDB7",
+            porosity=45,
+        )
+        top_separator = Separator(material=separator_material, thickness=25, width=310, length=5000)
+        bottom_separator = Separator(material=separator_material, thickness=25, width=310, length=7000)
+
+        layup = Laminate(
+            anode=anode,
+            cathode=cathode,
+            top_separator=top_separator,
+            bottom_separator=bottom_separator,
+        )
+
+        mandrel = RoundMandrel(diameter=5, length=350)
+
+        tape_material = TapeMaterial.from_database("Kapton")
+        tape_material.density = 1.42
+        tape_material.specific_cost = 70
+        tape = Tape(material=tape_material, thickness=30)
+
+        self.my_jellyroll = WoundJellyRoll(
+            laminate=layup,
+            mandrel=mandrel,
+            tape=tape,
+            additional_tape_wraps=5,
+        )
+
+    # --- construction ---
+
+    def test_construction(self):
+        """WoundJellyRoll with anode-free anode should construct without error."""
+        self.assertIsInstance(self.my_jellyroll, WoundJellyRoll)
+        self.assertTrue(self.my_jellyroll._layup._anode._is_anode_free)
+
+    def test_basic_properties(self):
+        """Basic geometry properties should be computable for anode-free."""
+        self.assertGreater(self.my_jellyroll.radius, 0)
+        self.assertGreater(self.my_jellyroll.diameter, 0)
+        self.assertGreater(self.my_jellyroll.mass, 0)
+        self.assertGreater(self.my_jellyroll.cost, 0)
+        self.assertGreater(self.my_jellyroll.interfacial_area, 0)
+
+    # --- spiral ---
+
+    def test_spiral_dataframe(self):
+        """Spiral DataFrame should be computable."""
+        self.assertIsInstance(self.my_jellyroll.spiral, pd.DataFrame)
+
+    def test_spiral_plot(self):
+        """Spiral plot should render without error."""
+        fig = self.my_jellyroll.get_spiral_plot()
+        self.assertIsInstance(fig, go.Figure)
+        self.assertGreater(len(fig.data), 0)
+        # Should not contain anode coating traces
+        for trace in fig.data:
+            if hasattr(trace, 'name') and trace.name is not None:
+                self.assertNotIn("Anode a-side Coating", trace.name)
+                self.assertNotIn("Anode b-side Coating", trace.name)
+        # fig.show()
+
+    def test_spiral_plot_layered(self):
+        """Layered spiral plot should render without error."""
+        fig = self.my_jellyroll.get_spiral_plot(layered=False)
+        self.assertIsInstance(fig, go.Figure)
+        # fig.show()
+
+    # --- views ---
+
+    def test_top_down_view(self):
+        """Top-down view should render without error."""
+        fig = self.my_jellyroll.get_top_down_view()
+        self.assertIsInstance(fig, go.Figure)
+        self.assertGreater(len(fig.data), 0)
+        # fig.show()
+
+    def test_side_view(self):
+        """Side view should render without error."""
+        fig = self.my_jellyroll.get_side_view()
+        self.assertIsInstance(fig, go.Figure)
+        self.assertGreater(len(fig.data), 0)
+        # fig.show()
+
+    # --- capacity ---
+
+    def test_capacity_plot(self):
+        """Capacity plot should render (no anode curve)."""
+        fig = self.my_jellyroll.get_capacity_plot()
+        self.assertIsInstance(fig, go.Figure)
+        # Should have cathode + full-cell but no anode
+        trace_names = [t.name for t in fig.data if t.name]
+        has_anode = any("Anode" in n for n in trace_names)
+        self.assertFalse(has_anode, "Anode capacity trace should not appear for anode-free")
+        fig.show()
+
+    # --- breakdowns ---
+
+    def test_mass_breakdown(self):
+        """Mass breakdown should not include anode coating entries."""
+        breakdown = self.my_jellyroll.mass_breakdown
+        self.assertIsInstance(breakdown, dict)
+        # Anode key should still exist (current collector contributes)
+        self.assertIn("Anode", breakdown)
+        self.assertIn("Current Collector", breakdown["Anode"])
+        # Coating sub-dict should be empty or absent
+        coating = breakdown["Anode"].get("Coating", {})
+        self.assertEqual(len(coating), 0, "Anode coating breakdown should be empty for anode-free")
+
+    def test_cost_breakdown(self):
+        """Cost breakdown should not include anode coating entries."""
+        breakdown = self.my_jellyroll.cost_breakdown
+        self.assertIsInstance(breakdown, dict)
+        self.assertIn("Anode", breakdown)
+        coating = breakdown["Anode"].get("Coating", {})
+        self.assertEqual(len(coating), 0, "Anode coating cost should be empty for anode-free")
+
+    def test_mass_breakdown_plot(self):
+        """Mass breakdown plot should render."""
+        fig = self.my_jellyroll.plot_mass_breakdown()
+        self.assertIsInstance(fig, go.Figure)
+        # fig.show()
+
+    def test_cost_breakdown_plot(self):
+        """Cost breakdown plot should render."""
+        fig = self.my_jellyroll.plot_cost_breakdown()
+        self.assertIsInstance(fig, go.Figure)
+        # fig.show()
+
+    # --- serialization ---
+
+    def test_serialization(self):
+        """Serialize → deserialize should preserve anode-free state."""
+        serialized = self.my_jellyroll.serialize()
+        deserialized = WoundJellyRoll.deserialize(serialized)
+        self.assertTrue(deserialized._layup._anode._is_anode_free)
+        self.assertAlmostEqual(deserialized.radius, self.my_jellyroll.radius, places=2)
+
+    # --- conversion ---
+
+    def test_to_flat_jelly_roll(self):
+        """Conversion to FlatWoundJellyRoll should work for anode-free."""
+        flat_jr = FlatWoundJellyRoll.from_round_jelly_roll(self.my_jellyroll)
+        self.assertIsInstance(flat_jr, FlatWoundJellyRoll)
+        self.assertTrue(flat_jr._layup._anode._is_anode_free)
+        self.assertGreater(flat_jr.thickness, 0)
+        self.assertGreater(flat_jr.width, 0)
+        # fig = flat_jr.get_spiral_plot()
+        # fig.show()
+
+    def test_roll_properties(self):
+        """Roll properties DataFrame should be computable."""
+        props = self.my_jellyroll.roll_properties
+        self.assertIsInstance(props, pd.DataFrame)
+        # Anode coating turns should be 0 (no coating)
+        for name in props.index:
+            if "Anode" in name and "Coating" in name:
+                self.assertAlmostEqual(props.loc[name, "Turns"], 0, places=1,
+                                       msg=f"{name} should have 0 turns for anode-free")
+
+
+class TestAnodeFreePunchedStack(unittest.TestCase):
+    """Tests for a PunchedStack built with an anode-free anode (no formulation)."""
+
+    def setUp(self):
+        # --- cathode (normal) ---
+        cathode_active = CathodeMaterial.from_database("LFP")
+        cathode_active.specific_cost = 6
+        cathode_active.density = 3.6
+
+        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+
+        cathode_formulation = CathodeFormulation(
+            active_materials={cathode_active: 95},
+            binders={binder: 2},
+            conductive_additives={conductive_additive: 3},
+        )
+
+        cathode_cc_material = CurrentCollectorMaterial(name="Copper", specific_cost=5, density=2.7, color="#FFAE00")
+
+        cathode_cc = PunchedCurrentCollector(
+            material=cathode_cc_material,
+            width=300,
+            height=320,
+            thickness=8,
+            tab_width=60,
+            tab_height=18,
+            tab_position=50,
+        )
+
+        cathode = Cathode(
+            formulation=cathode_formulation,
+            mass_loading=14.2,
+            current_collector=cathode_cc,
+            calender_density=2.60,
+        )
+
+        # --- anode-free anode ---
+        cc_material = CurrentCollectorMaterial(name="Aluminium", specific_cost=5, density=2.7, color="#717171")
+
+        anode_cc = PunchedCurrentCollector(
+            material=cc_material,
+            width=304,
+            height=324,
+            thickness=8,
+            tab_width=60,
+            tab_height=18,
+            tab_position=250,
+        )
+
+        anode = Anode(current_collector=anode_cc)
+
+        # --- separator ---
+        separator_material = SeparatorMaterial(
+            name="Polyethylene",
+            specific_cost=2,
+            density=0.94,
+            color="#FDFDB7",
+            porosity=45,
+        )
+        separator = Separator(material=separator_material, thickness=25, width=310, length=326)
+
+        monolayer = MonoLayer(
+            anode=anode,
+            cathode=cathode,
+            separator=separator,
+        )
+
+        self.stack = PunchedStack(
+            layup=monolayer,
+            n_layers=20,
+        )
+
+    # --- construction ---
+
+    def test_construction(self):
+        """PunchedStack with anode-free should construct without error."""
+        self.assertIsInstance(self.stack, PunchedStack)
+        self.assertTrue(self.stack._layup._anode._is_anode_free)
+
+    def test_basic_properties(self):
+        """Basic geometry properties should be computable."""
+        self.assertGreater(self.stack.thickness, 0)
+        self.assertGreater(self.stack.mass, 0)
+        self.assertGreater(self.stack.cost, 0)
+        self.assertGreater(self.stack.pore_volume, 0)
+
+    # --- stacking ---
+
+    def test_stack_structure(self):
+        """Stack should contain expected number of layers."""
+        self.assertGreater(len(self.stack.stack), 0)
+
+    def test_interfacial_area(self):
+        """Interfacial area should be computable (uses CC foil for anode-free)."""
+        self.assertGreater(self.stack.interfacial_area, 0)
+
+    # --- views ---
+
+    def test_side_view(self):
+        """Side view should render without anode coating traces."""
+        fig = self.stack.get_side_view()
+        self.assertIsInstance(fig, go.Figure)
+        self.assertGreater(len(fig.data), 0)
+        # Should not contain anode coating traces
+        for trace in fig.data:
+            if hasattr(trace, 'name') and trace.name is not None:
+                self.assertNotIn("Anode A Side", trace.name)
+                self.assertNotIn("Anode B Side", trace.name)
+        # fig.show()
+
+    # --- capacity ---
+
+    def test_capacity_plot(self):
+        """Capacity plot should render (no anode curve)."""
+        fig = self.stack.get_capacity_plot()
+        self.assertIsInstance(fig, go.Figure)
+        trace_names = [t.name for t in fig.data if t.name]
+        has_anode = any("Anode" in n for n in trace_names)
+        self.assertFalse(has_anode, "Anode capacity trace should not appear for anode-free")
+        # fig.show()
+
+    # --- breakdowns ---
+
+    def test_mass_breakdown(self):
+        """Mass breakdown should not include anode coating entries."""
+        breakdown = self.stack.mass_breakdown
+        self.assertIsInstance(breakdown, dict)
+        self.assertIn("Anodes", breakdown)
+        self.assertIn("Current Collector", breakdown["Anodes"])
+        coating = breakdown["Anodes"].get("Coating", {})
+        self.assertEqual(len(coating), 0, "Anode coating breakdown should be empty for anode-free")
+
+    def test_cost_breakdown(self):
+        """Cost breakdown should not include anode coating entries."""
+        breakdown = self.stack.cost_breakdown
+        self.assertIsInstance(breakdown, dict)
+        self.assertIn("Anodes", breakdown)
+        coating = breakdown["Anodes"].get("Coating", {})
+        self.assertEqual(len(coating), 0, "Anode coating cost should be empty for anode-free")
+
+    def test_breakdown_plots(self):
+        """Breakdown plots should render."""
+        fig_mass = self.stack.plot_mass_breakdown()
+        fig_cost = self.stack.plot_cost_breakdown()
+        self.assertIsInstance(fig_mass, go.Figure)
+        self.assertIsInstance(fig_cost, go.Figure)
+        # fig_mass.show()
+        # fig_cost.show()
+
+    # --- serialization ---
+
+    def test_serialization(self):
+        """Serialize → deserialize should preserve anode-free state."""
+        serialized = self.stack.serialize()
+        deserialized = PunchedStack.deserialize(serialized)
+        self.assertTrue(deserialized._layup._anode._is_anode_free)
+        self.assertAlmostEqual(deserialized.thickness, self.stack.thickness, places=2)
+
+    # --- propagation ---
+
+    def test_propagate_changes(self):
+        """Propagating cathode changes should update assembly."""
+        old_mass = self.stack.mass
+        self.stack.layup.cathode.mass_loading = 20
+        self.stack.layup.cathode.propagate_changes()
+        self.assertGreater(self.stack.mass, old_mass)
 
 
 if __name__ == "__main__":
