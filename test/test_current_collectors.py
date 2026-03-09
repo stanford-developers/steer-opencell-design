@@ -11,6 +11,9 @@ from steer_opencell_design.Components.CurrentCollectors.Tabless import TablessCu
 
 import plotly.graph_objects as go
 
+import os
+os.environ["OPENCELL_ENV"] = "development"
+
 
 class TestPunchedCurrentCollector(unittest.TestCase):
     def setUp(self):

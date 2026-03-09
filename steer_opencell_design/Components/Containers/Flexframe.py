@@ -9,6 +9,7 @@ from steer_core.Constants.Units import *
 
 from steer_opencell_design.Materials.Other import FlexFrameMaterial
 from steer_opencell_design.Components.Containers.Base import _Container
+from steer_core.Utils import round_dict_recursive
 from steer_opencell_design.Components.Containers.Pouch import PouchTerminal, LaminateSheet
 
 import numpy as np
@@ -626,24 +627,12 @@ class FlexFrameEncapsulation(_Container, DatumMixin):
     @property
     def mass_breakdown(self) -> dict:
         """Mass breakdown by component in g."""
-        def _convert_and_round_recursive(obj):
-            if isinstance(obj, dict):
-                return {k: _convert_and_round_recursive(v) for k, v in obj.items()}
-            else:
-                return np.round(obj * KG_TO_G, 2)
-        
-        return _convert_and_round_recursive(self._mass_breakdown)
+        return round_dict_recursive(self._mass_breakdown, 2, KG_TO_G)
 
     @property
     def cost_breakdown(self) -> dict:
         """Cost breakdown by component in $."""
-        def _round_recursive(obj):
-            if isinstance(obj, dict):
-                return {k: _round_recursive(v) for k, v in obj.items()}
-            else:
-                return np.round(obj, 2)
-        
-        return _round_recursive(self._cost_breakdown)
+        return round_dict_recursive(self._cost_breakdown, 2)
     
     @flex_frame.setter
     @calculate_all_properties

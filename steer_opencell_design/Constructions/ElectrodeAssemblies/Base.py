@@ -1,6 +1,7 @@
 """Base class for electrode assemblies."""
 
 from steer_opencell_design.Constructions.Layups.Base import _Layup
+from steer_core.Utils import round_dict_recursive
 
 from steer_core.Mixins.Coordinates import CoordinateMixin
 from steer_core.Mixins.Datum import DatumMixin
@@ -122,20 +123,22 @@ class _ElectrodeAssembly(
         Uses .copy() instead of deepcopy() for numpy arrays as we only need
         shallow copies for scaling operations - significantly faster.
         """
-        if hasattr(self._layup, "_areal_capacity_curve") and self._layup._areal_capacity_curve is not None:
-            # Use .copy() instead of deepcopy() - arrays only need shallow copy for scaling
+        # Initialize to None so anode-free (where anode curve is absent) doesn't crash
+        self._capacity_curve = None
+        self._cathode_capacity_curve = None
+        self._anode_capacity_curve = None
+
+        if self._layup._areal_capacity_curve is not None:
             _capacity_curve = self._layup._areal_capacity_curve.copy()
             _capacity_curve[:, 0] *= self._interfacial_area
             self._capacity_curve = _capacity_curve
 
-        if hasattr(self._layup._cathode, "_areal_capacity_curve") and self._layup._cathode._areal_capacity_curve is not None:
-            # Use .copy() instead of deepcopy() for cathode curve
+        if self._layup._cathode._areal_capacity_curve is not None:
             _cathode_capacity_curve = self._layup._cathode._areal_capacity_curve.copy()
             _cathode_capacity_curve[:, 0] *= self._interfacial_area
             self._cathode_capacity_curve = _cathode_capacity_curve
 
-        if hasattr(self._layup._anode, "_areal_capacity_curve") and self._layup._anode._areal_capacity_curve is not None:
-            # Use .copy() instead of deepcopy() for anode curve
+        if self._layup._anode._areal_capacity_curve is not None:
             _anode_capacity_curve = self._layup._anode._areal_capacity_curve.copy()
             _anode_capacity_curve[:, 0] *= self._interfacial_area
             self._anode_capacity_curve = _anode_capacity_curve
@@ -154,7 +157,8 @@ class _ElectrodeAssembly(
         self._layup.anode._areal_capacity_curve = None
         
         self._layup.cathode._formulation._clear_cached_data()
-        self._layup.anode._formulation._clear_cached_data()
+        if not self._layup.anode._is_anode_free:
+            self._layup.anode._formulation._clear_cached_data()
 
     def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:
         """Generate a sunburst mass breakdown chart."""
@@ -205,6 +209,9 @@ class _ElectrodeAssembly(
             self.capacity_curve_trace
         ]
 
+        # Filter out None traces (e.g. anode-free has no anode curve trace)
+        traces = [t for t in traces if t is not None]
+
         fig.add_traces(traces)    
 
         # Enhanced layout with zero lines and faint grid
@@ -213,7 +220,7 @@ class _ElectrodeAssembly(
             paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
             plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             xaxis={**self.SCATTER_X_AXIS, "title": "Capacity (Ah)"},
-            yaxis={**self.SCATTER_Y_AXIS, "title": "Voltage (V)"},
+            yaxis={**self.SCATTER_Y_AXIS, "title": "Voltage (V)", "rangemode": "tozero"},
             hovermode="closest",
         )
 
@@ -353,13 +360,7 @@ class _ElectrodeAssembly(
         :return: Dictionary containing the cost breakdown.
         """
 
-        def _round_recursive(obj):
-            if isinstance(obj, dict):
-                return {k: _round_recursive(v) for k, v in obj.items()}
-            else:
-                return np.round(obj, 2)
-
-        return _round_recursive(self._cost_breakdown)
+        return round_dict_recursive(self._cost_breakdown, 2)
 
     @property
     def mass(self) -> float:
@@ -373,13 +374,7 @@ class _ElectrodeAssembly(
 
         :return: Dictionary containing the mass breakdown.
         """
-        def _convert_and_round_recursive(obj):
-            if isinstance(obj, dict):
-                return {k: _convert_and_round_recursive(v) for k, v in obj.items()}
-            else:
-                return np.round(obj * KG_TO_G, 2)
-
-        return _convert_and_round_recursive(self._mass_breakdown)
+        return round_dict_recursive(self._mass_breakdown, 2, KG_TO_G)
 
     # Override datum setter to sync with layup
     @DatumMixin.datum.setter
