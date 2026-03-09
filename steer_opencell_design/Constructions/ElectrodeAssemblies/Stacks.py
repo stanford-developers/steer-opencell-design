@@ -131,7 +131,11 @@ class _Stack(_ElectrodeAssembly):
         
         try:
             # Get anode polygon from top surface coordinates
-            anode_coords = self._layup._anode._a_side_coating_coordinates
+            # For anode-free, use the current collector foil as the interface surface
+            if self._layup._anode._is_anode_free:
+                anode_coords = self._layup._anode._current_collector._foil_coordinates
+            else:
+                anode_coords = self._layup._anode._a_side_coating_coordinates
             if len(anode_coords) == 0:
                 raise ValueError("Anode coordinates are empty")
                 
@@ -292,11 +296,18 @@ class _Stack(_ElectrodeAssembly):
             (cathodes, '_a_side_coating_coordinates', "Cathode A Side", lambda c: c._formulation._color),
             (cathodes, '_current_collector._foil_coordinates', "Cathode Current Collector", lambda c: c._current_collector._material._color),
             (cathodes, '_b_side_coating_coordinates', "Cathode B Side", lambda c: c._formulation._color),
-            (anodes, '_a_side_coating_coordinates', "Anode A Side", lambda a: a._formulation._color),
-            (anodes, '_current_collector._foil_coordinates', "Anode Current Collector", lambda a: a._current_collector._material._color),
-            (anodes, '_b_side_coating_coordinates', "Anode B Side", lambda a: a._formulation._color),
-            (separators, '_coordinates', "Separator", lambda s: s._material._color),
         ]
+
+        # Only add anode coating traces if the anode has a formulation
+        if not self._layup._anode._is_anode_free:
+            trace_configs.append((anodes, '_a_side_coating_coordinates', "Anode A Side", lambda a: a._formulation._color))
+
+        trace_configs.append((anodes, '_current_collector._foil_coordinates', "Anode Current Collector", lambda a: a._current_collector._material._color))
+
+        if not self._layup._anode._is_anode_free:
+            trace_configs.append((anodes, '_b_side_coating_coordinates', "Anode B Side", lambda a: a._formulation._color))
+
+        trace_configs.append((separators, '_coordinates', "Separator", lambda s: s._material._color))
         
         # Process each trace configuration
         for components, coord_attr, name, color_func in trace_configs:
