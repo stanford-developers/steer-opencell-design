@@ -6,6 +6,9 @@ from steer_opencell_design.Components.Containers.Flexframe import FlexFrameEncap
 from steer_opencell_design.Components.Containers.Pouch import PouchTerminal
 from steer_core.Mixins.Serializer import SerializerMixin
 
+import os
+os.environ["OPENCELL_ENV"] = "development"
+
 
 class TestCylindricalCell(unittest.TestCase):
     
@@ -2237,7 +2240,7 @@ class TestFlexFrameCell(unittest.TestCase):
         STACK_THICKNESS = FLEXFRAME_THICKNESS                                   # mm
         TAB_HEIGHT = 8                                                          # mm
         CATHODE_TAB_POSITION = CATHODE_WIDTH / 4                                # mm
-        ANODE_TAB_POSITION = ANODE_WIDTH * 3 / 4                                # mm
+        ANODE_TAB_POSITION = ANODE_WIDTH / 4                                # mm
         TAB_WIDTH = 16                                                          # mm
 
         CATHODE_CURRENT_COLLECTOR_THICKNESS = 12                                # mm
@@ -2465,7 +2468,7 @@ class TestFlexFrameCell(unittest.TestCase):
         #################
 
         self.cell = ocd.FlexFrameCell(
-            electrode_assembly=stack,
+            reference_electrode_assembly=stack,
             encapsulation=encapsulation,
             catholyte=catholyte,
             clipped_tab_length=8
@@ -2479,7 +2482,7 @@ class TestFlexFrameCell(unittest.TestCase):
 
     def test_plots(self):
         fig1 = self.cell.get_top_down_view()
-        fig2 = self.cell.electrode_assembly.get_side_view()
+        fig2 = self.cell.reference_electrode_assembly.get_side_view()
         self.assertIsNotNone(fig1)
         self.assertIsNotNone(fig2)
         # fig1.show()
