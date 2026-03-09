@@ -1,5 +1,6 @@
 from copy import deepcopy
 import unittest
+import pandas as pd
 import plotly.graph_objects as go
 
 from steer_opencell_design.Materials.Formulations import CathodeFormulation, AnodeFormulation
@@ -14,6 +15,10 @@ from steer_opencell_design.Materials.Other import CurrentCollectorMaterial, Insu
 from steer_opencell_design.Materials.ActiveMaterials import CathodeMaterial, AnodeMaterial
 from steer_opencell_design.Materials.Binders import Binder
 from steer_opencell_design.Materials.ConductiveAdditives import ConductiveAdditive
+
+
+import os
+os.environ["OPENCELL_ENV"] = "development"
 
 
 class TestAnodeNoInsulation(unittest.TestCase):
@@ -168,6 +173,53 @@ class TestAnodeNoInsulation(unittest.TestCase):
         # Verify parent property changed on deserialized object
         self.assertGreater(deserialized_anode.mass, original_mass)
         self.assertAlmostEqual(deserialized_anode.mass, modified_mass, places=1)
+
+    def test_set_formulation_to_none_makes_anode_free(self):
+        """Setting formulation=None on a normal anode should turn it anode-free."""
+        # Verify it starts as a normal anode
+        self.assertFalse(self.anode._is_anode_free)
+        self.assertIsNotNone(self.anode.formulation)
+        self.assertIsNotNone(self.anode._areal_capacity_curve)
+
+        # Set formulation to None
+        self.anode.formulation = None
+
+        # Verify it became anode-free
+        self.assertTrue(self.anode._is_anode_free)
+        self.assertIsNone(self.anode.formulation)
+        self.assertIsNone(self.anode._areal_capacity_curve)
+        self.assertEqual(self.anode.coating_thickness, 0.0)
+        self.assertEqual(self.anode.mass_loading, 0.0)
+        self.assertEqual(self.anode.calender_density, 0.0)
+        self.assertEqual(self.anode.porosity, 0.0)
+        self.assertAlmostEqual(self.anode.mass, self.anode.current_collector.mass, places=4)
+
+    def test_set_formulation_back_restores_anode(self):
+        """Setting a formulation on an anode-free anode should restore normal behavior."""
+        # Save original state
+        original_formulation = self.anode.formulation
+        original_mass_loading = self.anode.mass_loading
+        original_calender_density = self.anode.calender_density
+        original_mass = self.anode.mass
+        original_thickness = self.anode.thickness
+        original_porosity = self.anode.porosity
+
+        # Make it anode-free
+        self.anode.formulation = None
+        self.assertTrue(self.anode._is_anode_free)
+
+        # Restore formulation and coating parameters
+        self.anode.formulation = original_formulation
+        self.anode.mass_loading = original_mass_loading
+        self.anode.calender_density = original_calender_density
+
+        # Verify it is no longer anode-free and properties are restored
+        self.assertFalse(self.anode._is_anode_free)
+        self.assertIsNotNone(self.anode.formulation)
+        self.assertIsNotNone(self.anode._areal_capacity_curve)
+        self.assertAlmostEqual(self.anode.mass, original_mass, places=1)
+        self.assertAlmostEqual(self.anode.thickness, original_thickness, places=1)
+        self.assertAlmostEqual(self.anode.porosity, original_porosity, places=1)
 
 
 class TestCathodePunchedCurrentCollector(unittest.TestCase):
@@ -917,6 +969,193 @@ class TestElectrodePropagation(unittest.TestCase):
         self.current_collector.propagate_changes()
 
 
+class TestAnodeFree(unittest.TestCase):
+    """Tests for anode-free electrode design (formulation=None)."""
+
+    def setUp(self):
+        """Create an anode-free Anode: bare current collector, no formulation."""
+        cc_material = CurrentCollectorMaterial.from_database("Copper")
+
+        self.current_collector = TablessCurrentCollector(
+            material=cc_material,
+            width=132,
+            length=2427,
+            coated_width=127,
+            thickness=10,
+        )
+
+        self.anode = Anode(
+            current_collector=self.current_collector,
+        )
+
+    # --- basic identity ---
+
+    def test_creation(self):
+        """Anode-free electrode should be an Anode and report _is_anode_free=True."""
+        self.assertIsInstance(self.anode, Anode)
+        self.assertTrue(self.anode._is_anode_free)
+
+    def test_formulation_is_none(self):
+        """Formulation should be None."""
+        self.assertIsNone(self.anode.formulation)
+
+    # --- coating-related properties should be zero ---
+
+    def test_no_coating_properties(self):
+        """Coating thickness, mass loading, calender density, and porosity should all be zero."""
+        self.assertEqual(self.anode.coating_thickness, 0.0)
+        self.assertEqual(self.anode.mass_loading, 0.0)
+        self.assertEqual(self.anode.calender_density, 0.0)
+        self.assertEqual(self.anode.porosity, 0.0)
+
+    # --- mass / cost / thickness are CC-only ---
+
+    def test_mass_is_cc_only(self):
+        """Total mass should equal the current collector mass."""
+        self.assertAlmostEqual(self.anode.mass, self.anode.current_collector.mass, places=4)
+
+    def test_cost_is_cc_only(self):
+        """Total cost should equal the current collector cost."""
+        self.assertAlmostEqual(self.anode.cost, self.anode.current_collector.cost, places=4)
+
+    def test_thickness_is_cc_only(self):
+        """Total thickness should equal the current collector thickness."""
+        self.assertAlmostEqual(self.anode.thickness, self.anode.current_collector.thickness, places=4)
+
+    def test_mass_breakdown(self):
+        """Mass breakdown should only contain 'Current Collector'."""
+        breakdown = self.anode.mass_breakdown
+        self.assertIn("Current Collector", breakdown)
+        self.assertNotIn("Coating", breakdown)
+
+    def test_cost_breakdown(self):
+        """Cost breakdown should only contain 'Current Collector'."""
+        breakdown = self.anode.cost_breakdown
+        self.assertIn("Current Collector", breakdown)
+        self.assertNotIn("Coating", breakdown)
+
+    # --- areal capacity curve should be None ---
+
+    def test_areal_capacity_curve_is_none(self):
+        """Areal capacity curve should be None for anode-free (V=0 integration handled in Layup)."""
+        self.assertIsNone(self.anode.areal_capacity_curve)
+        self.assertIsNone(self.anode._areal_capacity_curve)
+
+    def test_areal_capacity_curve_trace_is_none(self):
+        """Areal capacity curve trace should be None for anode-free."""
+        self.assertIsNone(self.anode.areal_capacity_curve_trace)
+
+    # --- visualisation ---
+
+    def test_plot_areal_capacity_curve(self):
+        """plot_areal_capacity_curve should return None for anode-free."""
+        fig = self.anode.plot_areal_capacity_curve()
+        self.assertIsNone(fig)
+
+    def test_top_down_view(self):
+        """Top-down view should be a Figure with no coating traces."""
+        fig = self.anode.get_top_down_view()
+        self.assertIsInstance(fig, go.Figure)
+        for trace in fig.data:
+            self.assertNotIn("Coating", trace.name)
+        # fig.show()
+
+    def test_right_left_view(self):
+        """Right-left view should be a Figure with no coating traces."""
+        fig = self.anode.get_right_left_view()
+        self.assertIsInstance(fig, go.Figure)
+        for trace in fig.data:
+            self.assertNotIn("Coated Area", trace.name)
+        # fig.show()
+
+    def test_cross_section(self):
+        """Cross-section should return a Figure."""
+        fig = self.anode.get_cross_section()
+        self.assertIsInstance(fig, go.Figure)
+        # fig.show()
+
+    # --- properties dict ---
+
+    def test_properties_dict(self):
+        """Properties dict should include 'Anode-free' key."""
+        props = self.anode.properties
+        self.assertIn("Anode-free", props)
+        self.assertEqual(props["Anode-free"], "Yes")
+        self.assertNotIn("Coating mass", props)
+
+    def test_voltage_cutoff_is_zero(self):
+        """Voltage cutoff should be 0.0 for anode-free."""
+        self.assertEqual(self.anode.voltage_cutoff, 0.0)
+
+    # --- setters should silently no-op for anode-free ---
+
+    def test_mass_loading_setter_noop(self):
+        """Setting mass_loading on anode-free should silently no-op."""
+        self.anode.mass_loading = 5.0
+        self.assertEqual(self.anode.mass_loading, 0.0)
+        self.assertTrue(self.anode._is_anode_free)
+
+    def test_calender_density_setter_noop(self):
+        """Setting calender_density on anode-free should silently no-op."""
+        self.anode.calender_density = 2.0
+        self.assertEqual(self.anode.calender_density, 0.0)
+        self.assertTrue(self.anode._is_anode_free)
+
+    def test_porosity_setter_noop(self):
+        """Setting porosity on anode-free should silently no-op."""
+        self.anode.porosity = 30.0
+        self.assertEqual(self.anode.porosity, 0.0)
+        self.assertTrue(self.anode._is_anode_free)
+
+    def test_voltage_cutoff_setter_noop(self):
+        """Setting voltage_cutoff on anode-free should silently no-op."""
+        self.anode.voltage_cutoff = 0.1
+        self.assertEqual(self.anode.voltage_cutoff, 0.0)
+        self.assertTrue(self.anode._is_anode_free)
+
+    def test_coating_thickness_setter_noop(self):
+        """Setting coating_thickness on anode-free should silently no-op."""
+        self.anode.coating_thickness = 50.0
+        self.assertEqual(self.anode.coating_thickness, 0.0)
+        self.assertTrue(self.anode._is_anode_free)
+
+    # --- insulation enforcement ---
+
+    def test_anode_free_rejects_insulation(self):
+        """Anode-free electrode must not have insulation material."""
+        cc_material = CurrentCollectorMaterial.from_database("Copper")
+        cc = PunchedCurrentCollector(
+            material=cc_material,
+            width=300,
+            height=280,
+            thickness=12,
+            tab_width=50,
+            tab_height=30,
+            tab_position=50,
+            coated_tab_height=3,
+            insulation_width=10,
+        )
+        insulation = InsulationMaterial.from_database("Aluminium Oxide, 95%")
+        with self.assertRaises(ValueError):
+            Anode(
+                formulation=None,
+                current_collector=cc,
+                insulation_material=insulation,
+                insulation_thickness=10,
+            )
+
+    # --- serialization round-trip ---
+
+    def test_serialization(self):
+        """Serialize → deserialize should produce an equal anode-free Anode."""
+        serialized = self.anode.serialize()
+        deserialized = Anode.deserialize(serialized)
+
+        self.assertTrue(deserialized._is_anode_free)
+        self.assertIsNone(deserialized.formulation)
+        self.assertAlmostEqual(deserialized.mass, self.anode.mass, places=4)
+        self.assertAlmostEqual(deserialized.cost, self.anode.cost, places=4)
+        self.assertAlmostEqual(deserialized.thickness, self.anode.thickness, places=4)
 
 
 
