@@ -459,12 +459,15 @@ class _Cell(
         
         Returns
         -------
-        np.ndarray
-            Anode capacity curve scaled by number of electrode assemblies
+        np.ndarray or None
+            Anode capacity curve scaled by number of electrode assemblies,
+            or None for anode-free designs.
         """
-        _anode_capacity_curve = self._reference_electrode_assembly._anode_capacity_curve.copy()
-        _anode_capacity_curve[:, 0] = _anode_capacity_curve[:, 0] * self._n_electrode_assembly
-        self._anode_capacity_curve = _anode_capacity_curve
+        self._anode_capacity_curve = None
+        if self._reference_electrode_assembly._anode_capacity_curve is not None:
+            _anode_capacity_curve = self._reference_electrode_assembly._anode_capacity_curve.copy()
+            _anode_capacity_curve[:, 0] = _anode_capacity_curve[:, 0] * self._n_electrode_assembly
+            self._anode_capacity_curve = _anode_capacity_curve
         return self._anode_capacity_curve
 
     def _calculate_reversible_capacity(self) -> float:
@@ -753,6 +756,9 @@ class _Cell(
                     self.maximum_voltage_guide_trace,
                 ])
 
+        # Filter out None traces (e.g. anode-free has no anode curve trace)
+        traces = [t for t in traces if t is not None]
+
         # Add all traces at once for better performance
         fig.add_traces(traces)
 
@@ -910,6 +916,10 @@ class _Cell(
         
         cathode_reference_chemistry = cathode_reference_chemistries[0]
         anode_reference_chemistry = anode_reference_chemistries[0]
+
+        # For anode-free, skip the cross-check — return cathode reference directly
+        if anode_reference_chemistry == "Anode-free":
+            return cathode_reference_chemistry
 
         # check if the cathode and anode reference chemistries are compatible
         if cathode_reference_chemistry != anode_reference_chemistry:
@@ -1099,9 +1109,12 @@ class _Cell(
         
         Returns
         -------
-        pd.DataFrame
-            DataFrame with columns: Capacity (Ah), Voltage (V), Direction, direction
+        pd.DataFrame or None
+            DataFrame with columns: Capacity (Ah), Voltage (V), Direction, direction,
+            or None for anode-free designs.
         """
+        if self._anode_capacity_curve is None:
+            return None
         return self._format_curve_for_display(self._anode_capacity_curve)
 
     @property
@@ -1133,7 +1146,12 @@ class _Cell(
     
     @property
     def anode_capacity_curve_trace(self) -> go.Scatter:
-        """Plotly trace for the anode half-cell capacity curve."""
+        """Plotly trace for the anode half-cell capacity curve.
+        
+        Returns None for anode-free designs.
+        """
+        if self._anode_capacity_curve is None:
+            return None
 
         return go.Scatter(
             x=self.anode_capacity_curve["Capacity (Ah)"],

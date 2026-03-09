@@ -2581,6 +2581,221 @@ class TestCellPropagation(unittest.TestCase):
         self.assertAlmostEqual(cc.thickness, original_thickness + 1)
 
 
+class TestAnodeFreePouchCell(unittest.TestCase):
+    """Tests for a PouchCell built with an anode-free anode (no formulation)."""
+
+    def setUp(self):
+        # --- cathode (normal) ---
+        cathode_active = ocd.CathodeMaterial.from_database("LFP")
+        cathode_active.specific_cost = 6
+        cathode_active.density = 3.6
+
+        conductive_additive = ocd.ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = ocd.Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+
+        cathode_formulation = ocd.CathodeFormulation(
+            active_materials={cathode_active: 95},
+            binders={binder: 2},
+            conductive_additives={conductive_additive: 3},
+        )
+
+        cathode_cc_material = ocd.CurrentCollectorMaterial(name="Copper", specific_cost=5, density=2.7, color="#FFAE00")
+
+        cathode_cc = ocd.PunchedCurrentCollector(
+            material=cathode_cc_material,
+            width=300,
+            height=800,
+            thickness=8,
+            tab_width=60,
+            tab_height=18,
+            tab_position=50,
+        )
+
+        cathode = ocd.Cathode(
+            formulation=cathode_formulation,
+            mass_loading=28.2,
+            current_collector=cathode_cc,
+            calender_density=2.60,
+        )
+
+        # --- anode-free anode ---
+        cc_material = ocd.CurrentCollectorMaterial(name="Aluminium", specific_cost=5, density=2.7, color="#717171")
+
+        anode_cc = ocd.PunchedCurrentCollector(
+            material=cc_material,
+            width=300,
+            height=800,
+            thickness=8,
+            tab_width=60,
+            tab_height=18,
+            tab_position=250,
+        )
+
+        anode = ocd.Anode(current_collector=anode_cc)
+
+        # --- separator ---
+        separator_material = ocd.SeparatorMaterial(
+            name="Polyethylene",
+            specific_cost=2,
+            density=0.94,
+            color="#FDFDB7",
+            porosity=45,
+        )
+        separator = ocd.Separator(material=separator_material, thickness=25, width=310, length=326)
+
+        monolayer = ocd.MonoLayer(
+            anode=anode,
+            cathode=cathode,
+            separator=separator,
+            electrode_orientation='transverse',
+        )
+
+        stack = ocd.PunchedStack(
+            layup=monolayer,
+            n_layers=20,
+        )
+
+        # --- encapsulation ---
+        top_laminate_sheet = ocd.LaminateSheet(
+            areal_cost=10,
+            thickness=150,
+            density=1500,
+        )
+
+        bottom_laminate_sheet = ocd.LaminateSheet(
+            areal_cost=10,
+            thickness=150,
+            density=1500,
+        )
+
+        cathode_terminal = ocd.PouchTerminal(
+            material=cc_material,
+            thickness=2,
+            width=50,
+            length=40,
+        )
+
+        anode_terminal = ocd.PouchTerminal(
+            material=cc_material,
+            thickness=2,
+            width=50,
+            length=40,
+        )
+
+        encapsulation = ocd.PouchEncapsulation(
+            top_laminate=top_laminate_sheet,
+            bottom_laminate=bottom_laminate_sheet,
+            cathode_terminal=cathode_terminal,
+            anode_terminal=anode_terminal,
+            width=320,
+            height=340,
+        )
+
+        electrolyte = ocd.Electrolyte(
+            name="1M LiPF6 in EC:DMC (1:1)",
+            density=1.2,
+            specific_cost=5.0,
+            color="#00FF00",
+        )
+
+        self.cell = ocd.PouchCell(
+            reference_electrode_assembly=stack,
+            n_electrode_assembly=2,
+            encapsulation=encapsulation,
+            electrolyte=electrolyte,
+            electrolyte_overfill=20,
+            clipped_tab_length=10,
+        )
+
+    # --- construction ---
+
+    def test_construction(self):
+        """PouchCell with anode-free should construct without error."""
+        self.assertIsInstance(self.cell, ocd.PouchCell)
+        self.assertTrue(self.cell._reference_electrode_assembly._layup._anode._is_anode_free)
+
+    def test_basic_properties(self):
+        """Basic cell properties should be computable."""
+        self.assertGreater(self.cell.energy, 0)
+        self.assertGreater(self.cell.mass, 0)
+        self.assertGreater(self.cell.cost, 0)
+
+    # --- reference chemistry ---
+
+    def test_reference_chemistry(self):
+        """reference_chemistry should return cathode ref without raising for anode-free."""
+        ref = self.cell.reference_chemistry
+        self.assertIsInstance(ref, str)
+        self.assertNotEqual(ref, "Anode-free")  # should be cathode's ref (e.g. "Li/Li+")
+
+    # --- capacity ---
+
+    def test_capacity_plot(self):
+        """Capacity plot should render (no anode curve)."""
+        import plotly.graph_objects as go
+        fig = self.cell.get_capacity_plot()
+        self.assertIsInstance(fig, go.Figure)
+        self.assertGreater(len(fig.data), 0)
+        # Should have no anode trace
+        trace_names = [t.name for t in fig.data if t.name]
+        has_anode = any("Anode" in n for n in trace_names if "Half-Cell" in n)
+        self.assertFalse(has_anode, "Anode capacity trace should not appear for anode-free")
+        # fig.show()
+
+    def test_capacity_plot_no_guides(self):
+        """Capacity plot without guides should render."""
+        import plotly.graph_objects as go
+        fig = self.cell.get_capacity_plot(include_guides=False)
+        self.assertIsInstance(fig, go.Figure)
+        # fig.show()
+
+    # --- breakdowns ---
+
+    def test_mass_breakdown(self):
+        """Mass breakdown should not include anode coating entries."""
+        breakdown = self.cell.mass_breakdown
+        self.assertIsInstance(breakdown, dict)
+
+    def test_cost_breakdown(self):
+        """Cost breakdown should not include anode coating entries."""
+        breakdown = self.cell.cost_breakdown
+        self.assertIsInstance(breakdown, dict)
+
+    def test_breakdown_plots(self):
+        """Breakdown plots should render."""
+        import plotly.graph_objects as go
+        fig_mass = self.cell.plot_mass_breakdown()
+        fig_cost = self.cell.plot_cost_breakdown()
+        self.assertIsInstance(fig_mass, go.Figure)
+        self.assertIsInstance(fig_cost, go.Figure)
+        # fig_mass.show()
+        # fig_cost.show()
+
+    # --- views ---
+
+    def test_side_view(self):
+        """Side view should render."""
+        import plotly.graph_objects as go
+        fig = self.cell.get_side_view()
+        self.assertIsInstance(fig, go.Figure)
+        # fig.show()
+
+    def test_top_down_view(self):
+        """Top-down view should render."""
+        import plotly.graph_objects as go
+        fig = self.cell.get_top_down_view(opacity=0.6)
+        self.assertIsInstance(fig, go.Figure)
+        # fig.show()
+
+    # --- serialization ---
+
+    def test_serialization(self):
+        """Serialize → deserialize should preserve anode-free state."""
+        serialized = self.cell.serialize()
+        deserialized = ocd.PouchCell.deserialize(serialized)
+        self.assertTrue(deserialized._reference_electrode_assembly._layup._anode._is_anode_free)
+
+
 if __name__ == "__main__":
     unittest.main()
 
