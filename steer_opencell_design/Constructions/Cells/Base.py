@@ -894,8 +894,11 @@ class _Cell(
 
         # get the reference chemistries from the anode materials
         anode_reference_chemistries = []
-        for am in self._reference_electrode_assembly._layup._anode._formulation._active_materials.keys():
-            anode_reference_chemistries.append(am._reference)
+        if self._reference_electrode_assembly._layup._anode._is_anode_free:
+            anode_reference_chemistries.append("Anode-free")
+        else:
+            for am in self._reference_electrode_assembly._layup._anode._formulation._active_materials.keys():
+                anode_reference_chemistries.append(am._reference)
 
         # check if all the cathode materials have the same reference chemistry
         if len(set(cathode_reference_chemistries)) != 1:
