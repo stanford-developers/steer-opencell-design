@@ -3,6 +3,7 @@
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Base import _ElectrodeAssembly
 from steer_opencell_design.Components.Containers.Base import _Container
 from steer_opencell_design.Utils.Decorators import calculate_electrochemical_properties
+from steer_core.Utils import round_dict_recursive
 from steer_opencell_design.Components.Electrodes import Cathode, Anode
 from steer_opencell_design.Components.Separators import Separator
 
@@ -24,12 +25,11 @@ from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Constants.Units import *
 
 from abc import ABC, abstractmethod
-from contextlib import contextmanager
 from copy import deepcopy
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from typing import Any, Dict, List, Tuple, Generator
+from typing import Any, Dict, List, Tuple
 import re
 from scipy.optimize import brentq
 
@@ -46,11 +46,6 @@ CAPACITY_PRECISION = 2
 VOLTAGE_PRECISION = 2
 CURVE_PRECISION = 4
 COST_PRECISION = 2
-
-# Unit conversion factors
-ENERGY_CONVERSION_FACTOR = S_TO_H
-VOLUMETRIC_ENERGY_CONVERSION = S_TO_H / M_TO_DM**3
-NORMALISED_COST_CONVERSION = 1 / (ENERGY_CONVERSION_FACTOR * W_TO_KW)
 
 
 class _Cell(
@@ -91,40 +86,6 @@ class _Cell(
         self._calculate_bulk_properties()
         self._calculate_electrochemical_properties()
         self._calculate_capacity_ranges()  # Cache ranges to avoid recalculation on property access
-
-    @contextmanager
-    def batch_updates(self) -> Generator[None, None, None]:
-        """Context manager for efficient batch property updates.
-        
-        Temporarily disables automatic recalculation during property changes,
-        then performs a single recalculation when exiting the context.
-        
-        Use this when setting multiple properties at once to avoid redundant
-        recalculations that would otherwise occur after each property change.
-        
-        Examples
-        --------
-        >>> with cell.batch_updates():
-        ...     cell.n_electrode_assembly = 2
-        ...     cell.electrolyte_overfill = 30
-        ...     cell.operating_voltage_window = (2.5, 4.2)
-        # Single recalculation happens here
-        
-        Yields
-        ------
-        None
-        """
-        # Store and disable update flag
-        original_update_flag = self._update_properties
-        self._update_properties = False
-        
-        try:
-            yield
-        finally:
-            # Restore flag and trigger single recalculation
-            self._update_properties = original_update_flag
-            if original_update_flag:
-                self._calculate_all_properties()
 
     def _convert_to_cell_type(self, new_encapsulation: _Container) -> None:
         """Convert cell to appropriate type based on encapsulation type.
@@ -498,12 +459,15 @@ class _Cell(
         
         Returns
         -------
-        np.ndarray
-            Anode capacity curve scaled by number of electrode assemblies
+        np.ndarray or None
+            Anode capacity curve scaled by number of electrode assemblies,
+            or None for anode-free designs.
         """
-        _anode_capacity_curve = self._reference_electrode_assembly._anode_capacity_curve.copy()
-        _anode_capacity_curve[:, 0] = _anode_capacity_curve[:, 0] * self._n_electrode_assembly
-        self._anode_capacity_curve = _anode_capacity_curve
+        self._anode_capacity_curve = None
+        if self._reference_electrode_assembly._anode_capacity_curve is not None:
+            _anode_capacity_curve = self._reference_electrode_assembly._anode_capacity_curve.copy()
+            _anode_capacity_curve[:, 0] = _anode_capacity_curve[:, 0] * self._n_electrode_assembly
+            self._anode_capacity_curve = _anode_capacity_curve
         return self._anode_capacity_curve
 
     def _calculate_reversible_capacity(self) -> float:
@@ -528,52 +492,161 @@ class _Cell(
     def _calculate_capacity_ranges(self) -> None:
         """Calculate and cache reversible and irreversible capacity ranges.
         
-        This method computes both ranges by creating temporary cell copies at
-        voltage extremes. Using deepcopy ensures the full property chain is
-        triggered (including Brent's method optimization for cathode cutoff)
-        without modifying the original cell state.
+        Uses targeted temporary state mutation instead of full deepcopy.
+        Only the electrochemical state (voltage cutoffs, capacity curves) is
+        saved and restored, avoiding the cost of copying the entire cell
+        hierarchy (encapsulation, coordinate arrays, etc.).
         """
-        # Get voltage ranges
         max_v_lower, max_v_upper = self._maximum_operating_voltage_range
         min_v_lower, min_v_upper = self._minimum_operating_voltage_range
 
-        # Calculate irreversible capacity range (varies with max operating voltage)
-        # Higher max voltage → more capacity accessed → higher irreversible capacity
-        cell_copy = deepcopy(self)
-        cell_copy.maximum_operating_voltage = max_v_upper
-        irr_at_high_voltage = cell_copy.irreversible_capacity
+        layup = self._reference_electrode_assembly._layup
+        assembly = self._reference_electrode_assembly
 
-        cell_copy.maximum_operating_voltage = max_v_lower
-        irr_at_low_voltage = cell_copy.irreversible_capacity
-        
-        # Cache irreversible range (min, max)
+        # Save electrochemical state that will be modified during probing
+        saved = self._snapshot_electrochemical_state()
+
+        # Break parent chain at layup level so Brent's method
+        # does not propagate recalculations up to assembly/cell
+        old_layup_parent = layup._parent
+        old_layup_parent_attr = layup._parent_attr_name
+        layup._parent = None
+        layup._parent_attr_name = None
+
+        try:
+            # --- Probe irreversible capacity at max voltage boundaries ---
+            # The max voltage setter runs Brent's method to find the
+            # cathode cutoff, then recomputes layup areal curves.
+            layup.maximum_operating_voltage = max_v_upper
+            assembly._calculate_capacity_curves()
+            self._calculate_capacity_curve()
+            self._calculate_irreversible_capacity()
+            irr_at_high_voltage = self.irreversible_capacity
+
+            layup.maximum_operating_voltage = max_v_lower
+            assembly._calculate_capacity_curves()
+            self._calculate_capacity_curve()
+            self._calculate_irreversible_capacity()
+            irr_at_low_voltage = self.irreversible_capacity
+
+            # Restore before min-voltage probing (needs original curves)
+            self._restore_electrochemical_state(saved)
+
+            # --- Probe reversible capacity / capacity loss at min voltage boundaries ---
+            # Minimum voltage only controls where the discharge curve is
+            # truncated in the cell curve — no Brent's or curve recomputation.
+            layup._minimum_operating_voltage = min_v_upper
+            self._calculate_capacity_curve()
+            self._calculate_reversible_capacity()
+            self._calculate_capacity_loss()
+            rev_at_high_min_voltage = self.reversible_capacity
+            loss_at_high_min_voltage = self.capacity_loss
+
+            layup._minimum_operating_voltage = min_v_lower
+            self._calculate_capacity_curve()
+            self._calculate_reversible_capacity()
+            self._calculate_capacity_loss()
+            rev_at_low_min_voltage = self.reversible_capacity
+            loss_at_low_min_voltage = self.capacity_loss
+
+        finally:
+            # Always restore original state + parent chain
+            self._restore_electrochemical_state(saved)
+            layup._parent = old_layup_parent
+            layup._parent_attr_name = old_layup_parent_attr
+
+        # Cache ranges
         self._irreversible_capacity_range_cache = (
             np.round(min(irr_at_low_voltage, irr_at_high_voltage), CAPACITY_PRECISION),
             np.round(max(irr_at_low_voltage, irr_at_high_voltage), CAPACITY_PRECISION)
         )
-
-        # Calculate reversible capacity and capacity loss ranges (both vary with min operating voltage)
-        # Lower min voltage → deeper discharge → higher reversible capacity, smaller capacity loss
-        cell_copy = deepcopy(self)
-        cell_copy.minimum_operating_voltage = min_v_upper
-        rev_at_high_min_voltage = cell_copy.reversible_capacity
-        loss_at_high_min_voltage = cell_copy.capacity_loss
-
-        cell_copy.minimum_operating_voltage = min_v_lower
-        rev_at_low_min_voltage = cell_copy.reversible_capacity
-        loss_at_low_min_voltage = cell_copy.capacity_loss
-        
-        # Cache reversible range (min, max)
         self._reversible_capacity_range_cache = (
             np.round(min(rev_at_high_min_voltage, rev_at_low_min_voltage), CAPACITY_PRECISION),
             np.round(max(rev_at_high_min_voltage, rev_at_low_min_voltage), CAPACITY_PRECISION)
         )
-        
-        # Cache capacity loss range (min, max)
         self._capacity_loss_range_cache = (
             np.round(min(loss_at_high_min_voltage, loss_at_low_min_voltage), CAPACITY_PRECISION),
             np.round(max(loss_at_high_min_voltage, loss_at_low_min_voltage), CAPACITY_PRECISION)
         )
+
+    def _snapshot_electrochemical_state(self) -> dict:
+        """Save the minimal electrochemical state needed to restore after probing."""
+        layup = self._reference_electrode_assembly._layup
+        assembly = self._reference_electrode_assembly
+        cathode = layup._cathode
+        formulation = cathode._formulation
+
+        return {
+            # Layup scalars
+            'layup_max_v': layup._maximum_operating_voltage,
+            'layup_min_v': layup._minimum_operating_voltage,
+            'layup_op_window': layup._operating_voltage_window,
+            'layup_np_ratio': getattr(layup, '_np_ratio', None),
+            # Formulation state (modified by Brent's method)
+            'formulation_cutoff': formulation._voltage_cutoff,
+            'formulation_spec_curve': formulation._specific_capacity_curve.copy()
+                if getattr(formulation, '_specific_capacity_curve', None) is not None else None,
+            'formulation_cap_curve': formulation._capacity_curve.copy()
+                if getattr(formulation, '_capacity_curve', None) is not None else None,
+            # Areal curves
+            'cathode_areal': cathode._areal_capacity_curve.copy()
+                if getattr(cathode, '_areal_capacity_curve', None) is not None else None,
+            'layup_areal': layup._areal_capacity_curve.copy()
+                if getattr(layup, '_areal_capacity_curve', None) is not None else None,
+            # Assembly curves
+            'assembly_curve': assembly._capacity_curve.copy()
+                if getattr(assembly, '_capacity_curve', None) is not None else None,
+            'assembly_cathode_curve': assembly._cathode_capacity_curve.copy()
+                if getattr(assembly, '_cathode_capacity_curve', None) is not None else None,
+            # Cell curves & scalars
+            'cell_curve': self._capacity_curve.copy()
+                if getattr(self, '_capacity_curve', None) is not None else None,
+            'cell_max_v': self._maximum_operating_voltage,
+            'cell_min_v': self._minimum_operating_voltage,
+            'cell_op_window': self._operating_voltage_window,
+            # Derived scalars (modified during probing)
+            'cell_reversible_cap': self._reversible_capacity,
+            'cell_irreversible_cap': self._irreversible_capacity,
+            'cell_capacity_loss': self._capacity_loss,
+        }
+
+    def _restore_electrochemical_state(self, s: dict) -> None:
+        """Restore electrochemical state from a snapshot."""
+        layup = self._reference_electrode_assembly._layup
+        assembly = self._reference_electrode_assembly
+        cathode = layup._cathode
+        formulation = cathode._formulation
+
+        # Restore in reverse order of dependencies
+        formulation._voltage_cutoff = s['formulation_cutoff']
+        if s['formulation_spec_curve'] is not None:
+            formulation._specific_capacity_curve = s['formulation_spec_curve']
+        if s['formulation_cap_curve'] is not None:
+            formulation._capacity_curve = s['formulation_cap_curve']
+        if s['cathode_areal'] is not None:
+            cathode._areal_capacity_curve = s['cathode_areal']
+
+        layup._maximum_operating_voltage = s['layup_max_v']
+        layup._minimum_operating_voltage = s['layup_min_v']
+        layup._operating_voltage_window = s['layup_op_window']
+        if s['layup_np_ratio'] is not None:
+            layup._np_ratio = s['layup_np_ratio']
+        if s['layup_areal'] is not None:
+            layup._areal_capacity_curve = s['layup_areal']
+
+        if s['assembly_curve'] is not None:
+            assembly._capacity_curve = s['assembly_curve']
+        if s['assembly_cathode_curve'] is not None:
+            assembly._cathode_capacity_curve = s['assembly_cathode_curve']
+
+        if s['cell_curve'] is not None:
+            self._capacity_curve = s['cell_curve']
+        self._maximum_operating_voltage = s['cell_max_v']
+        self._minimum_operating_voltage = s['cell_min_v']
+        self._operating_voltage_window = s['cell_op_window']
+        self._reversible_capacity = s['cell_reversible_cap']
+        self._irreversible_capacity = s['cell_irreversible_cap']
+        self._capacity_loss = s['cell_capacity_loss']
 
     def _calculate_mass_properties(self) -> tuple[float, Dict]:
         
@@ -682,6 +755,9 @@ class _Cell(
                     self.minimum_voltage_guide_trace,
                     self.maximum_voltage_guide_trace,
                 ])
+
+        # Filter out None traces (e.g. anode-free has no anode curve trace)
+        traces = [t for t in traces if t is not None]
 
         # Add all traces at once for better performance
         fig.add_traces(traces)
@@ -824,8 +900,11 @@ class _Cell(
 
         # get the reference chemistries from the anode materials
         anode_reference_chemistries = []
-        for am in self._reference_electrode_assembly._layup._anode._formulation._active_materials.keys():
-            anode_reference_chemistries.append(am._reference)
+        if self._reference_electrode_assembly._layup._anode._is_anode_free:
+            anode_reference_chemistries.append("Anode-free")
+        else:
+            for am in self._reference_electrode_assembly._layup._anode._formulation._active_materials.keys():
+                anode_reference_chemistries.append(am._reference)
 
         # check if all the cathode materials have the same reference chemistry
         if len(set(cathode_reference_chemistries)) != 1:
@@ -837,6 +916,10 @@ class _Cell(
         
         cathode_reference_chemistry = cathode_reference_chemistries[0]
         anode_reference_chemistry = anode_reference_chemistries[0]
+
+        # For anode-free, skip the cross-check — return cathode reference directly
+        if anode_reference_chemistry == "Anode-free":
+            return cathode_reference_chemistry
 
         # check if the cathode and anode reference chemistries are compatible
         if cathode_reference_chemistry != anode_reference_chemistry:
@@ -942,13 +1025,7 @@ class _Cell(
         Dict[str, Any]
             Nested dictionary containing cost breakdown by component
         """
-        def _round_recursive(obj):
-            if isinstance(obj, dict):
-                return {k: _round_recursive(v) for k, v in obj.items()}
-            else:
-                return np.round(obj, MASS_PRECISION)
-
-        return _round_recursive(self._cost_breakdown)
+        return round_dict_recursive(self._cost_breakdown, MASS_PRECISION)
 
     @property
     def mass_breakdown(self) -> Dict[str, Any]:
@@ -959,13 +1036,7 @@ class _Cell(
         Dict[str, Any]
             Nested dictionary containing mass breakdown by component
         """
-        def _convert_and_round_recursive(obj):
-            if isinstance(obj, dict):
-                return {k: _convert_and_round_recursive(v) for k, v in obj.items()}
-            else:
-                return np.round(obj * KG_TO_G, MASS_PRECISION)
-
-        return _convert_and_round_recursive(self._mass_breakdown)
+        return round_dict_recursive(self._mass_breakdown, MASS_PRECISION, KG_TO_G)
 
     @property
     def reversible_capacity(self) -> float:
@@ -1038,9 +1109,12 @@ class _Cell(
         
         Returns
         -------
-        pd.DataFrame
-            DataFrame with columns: Capacity (Ah), Voltage (V), Direction, direction
+        pd.DataFrame or None
+            DataFrame with columns: Capacity (Ah), Voltage (V), Direction, direction,
+            or None for anode-free designs.
         """
+        if self._anode_capacity_curve is None:
+            return None
         return self._format_curve_for_display(self._anode_capacity_curve)
 
     @property
@@ -1072,7 +1146,12 @@ class _Cell(
     
     @property
     def anode_capacity_curve_trace(self) -> go.Scatter:
-        """Plotly trace for the anode half-cell capacity curve."""
+        """Plotly trace for the anode half-cell capacity curve.
+        
+        Returns None for anode-free designs.
+        """
+        if self._anode_capacity_curve is None:
+            return None
 
         return go.Scatter(
             x=self.anode_capacity_curve["Capacity (Ah)"],

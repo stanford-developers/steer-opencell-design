@@ -5,13 +5,12 @@ from steer_opencell_design.Constructions.ElectrodeAssemblies.Stacks import Punch
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
 from steer_opencell_design.Constructions.Cells.Base import _Cell
 
-from steer_core.Decorators.General import calculate_all_properties
+from steer_core.Decorators.General import calculate_all_properties, recalculate
 from steer_core.Constants.Units import *
 from steer_core.Mixins.Propagation import propagating_setter
 
 from typing import Tuple
 import plotly.graph_objects as go
-from functools import wraps
 import numpy as np
 
 
@@ -19,20 +18,7 @@ import numpy as np
 TAB_ALIGNMENT_TOLERANCE = 5e-6  # 5 micron tolerance for tab-terminal alignment (meters)
 
 
-def calculate_encapsulation_properties(func):
-    """
-    Decorator to recalculate both spatial and bulk properties after a method call.
-    This is useful for methods that modify both geometry and material properties.
-    """
-
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        result = func(self, *args, **kwargs)
-        if hasattr(self, "_update_properties") and self._update_properties:
-            self._calculate_encapsulation_properties()
-        return result
-
-    return wrapper
+calculate_encapsulation_properties = recalculate("encapsulation_properties")
 
 
 class FlexFrameCell(_Cell):
@@ -40,7 +26,7 @@ class FlexFrameCell(_Cell):
 
     def __init__(
         self,
-        electrode_assembly: PunchedStack,
+        reference_electrode_assembly: PunchedStack,
         encapsulation: FlexFrameEncapsulation,
         catholyte: Electrolyte,
         operating_voltage_window: Tuple[float, float] = (None, None),
@@ -51,7 +37,7 @@ class FlexFrameCell(_Cell):
 
         Parameters
         ----------
-        electrode_assembly : PunchedStack
+        reference_electrode_assembly : PunchedStack
             Electrochemical stack defining cell capacity and voltage behavior
         encapsulation : FlexFrameEncapsulation
             Mechanical housing (canister, lid, terminals) defining external geometry
@@ -60,10 +46,10 @@ class FlexFrameCell(_Cell):
         operating_voltage_window : Tuple[float, float]
             Operating voltage window (min_voltage, max_voltage) in volts
         name : str, optional
-            Display name for the cell (default: "FlexFrame Cell")
+            Display name for the cell (default: "FlexFrame Solid State Cell")
         """
         super().__init__(
-            reference_electrode_assembly=electrode_assembly,
+            reference_electrode_assembly=reference_electrode_assembly,
             encapsulation=encapsulation,
             n_electrode_assembly=1,
             electrolyte=catholyte,
@@ -79,6 +65,7 @@ class FlexFrameCell(_Cell):
     def _calculate_all_properties(self) -> None:
         """Calculate all cell properties and position encapsulation."""
         self._make_assemblies()
+        self._position_assemblies()
         self._clip_tabs()
         self._calculate_encapsulation_properties()
         super()._calculate_all_properties()
@@ -104,11 +91,21 @@ class FlexFrameCell(_Cell):
         for assembly in self._electrode_assemblies:
             assembly._clip_current_collector_tabs(self._clipped_tab_length)
 
-    def _position_encapsulation(self) -> None:
-        """Position encapsulation centered around electrode assemblies.
+    def _position_assemblies(self) -> None:
+        """Position electrode assemblies with datum at the origin.
         
-        Uses the _get_center_point method from each assembly to calculate the
-        geometric center, then positions the encapsulation accordingly.
+        For flex frame cells, assemblies are positioned with their datum at
+        (0, 0, 0) since there is always exactly one assembly.
+        """
+        for assembly in self._electrode_assemblies:
+            assembly.datum = (0, 0, 0)
+
+    def _position_encapsulation(self) -> None:
+        """Position encapsulation so the cutout center aligns with the assembly.
+        
+        The FlexFrame footprint is already constructed with the cutout center at
+        the frame's datum origin. Setting the encapsulation datum to (0, 0, mid_z)
+        aligns the cutout center with the assembly at the origin.
         """
         # Calculate z-position as midpoint between all assemblies
         assembly_z_datums = [assembly._datum[2] for assembly in self._electrode_assemblies]
@@ -116,12 +113,8 @@ class FlexFrameCell(_Cell):
         min_z = min(assembly_z_datums) - (self._reference_electrode_assembly._thickness) / 2
         mid_z = (max_z + min_z) / 2 * M_TO_MM
 
-        # Position the encapsulation centered around the electrode assembly stack
-        self._encapsulation.datum = (
-            self._reference_electrode_assembly._layup._cathode._current_collector._datum[0] * M_TO_MM,
-            self._reference_electrode_assembly._layup._cathode._current_collector._datum[1] * M_TO_MM,
-            mid_z
-        )
+        # Position the encapsulation with cutout center at (0, 0)
+        self._encapsulation.datum = (0, 0, mid_z)
 
     def _position_terminals(self) -> None:
         """Position cathode and anode terminals at tab locations.
@@ -168,7 +161,7 @@ class FlexFrameCell(_Cell):
         self._encapsulation._terminals_positioned = True
 
     def get_side_view(self, **kwargs) -> go.Figure:
-        """Get side view figure of the pouch cell.
+        """Get side view figure of the flex frame cell.
 
         Parameters
         ----------
@@ -178,7 +171,7 @@ class FlexFrameCell(_Cell):
         Returns
         -------
         go.Figure
-            Plotly figure object representing the side view of the pouch cell
+            Plotly figure object representing the side view of the flex frame cell
         """
         figure = go.Figure()
 
@@ -209,7 +202,7 @@ class FlexFrameCell(_Cell):
         return figure
     
     def get_top_down_view(self, opacity = 0.3, **kwargs) -> go.Figure:
-        """Get top-down view figure of the pouch cell.
+        """Get top-down view figure of the flex frame cell.
 
         Parameters
         ----------
@@ -221,7 +214,7 @@ class FlexFrameCell(_Cell):
         Returns
         -------
         go.Figure
-            Plotly figure object representing the top-down view of the pouch cell
+            Plotly figure object representing the top-down view of the flex frame cell
         """
         figure = go.Figure()
 
@@ -254,14 +247,126 @@ class FlexFrameCell(_Cell):
         return figure
 
     @property
-    def electrode_assembly(self) -> PunchedStack:
-        """Get electrode assembly."""
+    def reference_electrode_assembly(self) -> PunchedStack:
+        """Get reference electrode assembly."""
         return self._reference_electrode_assembly
     
     @property
     def encapsulation(self) -> FlexFrameEncapsulation:
         """Get encapsulation."""
         return self._encapsulation
+
+    @property
+    def n_electrode_assembly(self) -> int:
+        """Get the number of electrode assemblies (always 1 for flex frame)."""
+        return 1
+
+    @n_electrode_assembly.setter
+    def n_electrode_assembly(self, value: int) -> None:
+        """Set number of electrode assemblies with validation."""
+        if value != 1:
+            raise ValueError("FlexFrame cells can only have 1 electrode assembly.")
+        self._n_electrode_assembly = value
+
+    @property
+    def height(self) -> float:
+        """Get the total cell height in mm (encapsulation height)."""
+        return self._encapsulation.height
+
+    @property
+    def height_range(self) -> Tuple[float, float]:
+        """Get the valid range for cell height in mm."""
+        layup_height_range = self._reference_electrode_assembly._layup.height_range
+        laminate_thickness = self._encapsulation._laminate_sheet._thickness * M_TO_MM
+        overhead = 2 * laminate_thickness
+        return (layup_height_range[0] + overhead, layup_height_range[1] + overhead)
+
+    @property
+    def height_hard_range(self) -> Tuple[float, float]:
+        """Get the hard limit range for cell height in mm."""
+        layup_height_hard_range = self._reference_electrode_assembly._layup.height_hard_range
+        laminate_thickness = self._encapsulation._laminate_sheet._thickness * M_TO_MM
+        overhead = 2 * laminate_thickness
+        return (layup_height_hard_range[0] + overhead, layup_height_hard_range[1] + overhead)
+
+    @property
+    def width(self) -> float:
+        """Get the total cell width in mm (encapsulation width)."""
+        return self._encapsulation.width
+
+    @property
+    def width_range(self) -> Tuple[float, float]:
+        """Get the valid range for cell width in mm."""
+        layup_width_range = self._reference_electrode_assembly._layup.width_range
+        laminate_thickness = self._encapsulation._laminate_sheet._thickness * M_TO_MM
+        overhead = 2 * laminate_thickness
+        return (layup_width_range[0] + overhead, layup_width_range[1] + overhead)
+
+    @property
+    def width_hard_range(self) -> Tuple[float, float]:
+        """Get the hard limit range for cell width in mm."""
+        layup_width_hard_range = self._reference_electrode_assembly._layup.width_hard_range
+        laminate_thickness = self._encapsulation._laminate_sheet._thickness * M_TO_MM
+        overhead = 2 * laminate_thickness
+        return (layup_width_hard_range[0] + overhead, layup_width_hard_range[1] + overhead)
+
+    @property
+    def thickness(self) -> float:
+        """Get the total cell thickness in mm (assembly + laminates)."""
+        _assembly_thickness = self._reference_electrode_assembly._thickness
+        _laminate_thickness = self._encapsulation._laminate_sheet._thickness * 2
+        _total_thickness = _assembly_thickness + _laminate_thickness
+        return np.round(_total_thickness * M_TO_MM, 2)
+
+    @property
+    def thickness_range(self) -> Tuple[float, float]:
+        """Get the valid range for cell thickness in mm."""
+        assembly_thickness_range = self._reference_electrode_assembly.thickness_range
+        laminate_thickness = self._encapsulation._laminate_sheet._thickness * 2 * M_TO_MM
+        min_thickness = np.round(assembly_thickness_range[0] + laminate_thickness, 2)
+        max_thickness = np.round(assembly_thickness_range[1] + laminate_thickness, 2)
+        return (min_thickness, max_thickness)
+
+    @property
+    def thickness_hard_range(self) -> Tuple[float, float]:
+        """Get the hard limit range for cell thickness in mm."""
+        assembly_thickness_hard_range = self._reference_electrode_assembly.thickness_hard_range
+        laminate_thickness = self._encapsulation._laminate_sheet._thickness * 2 * M_TO_MM
+        min_thickness = np.round(assembly_thickness_hard_range[0] + laminate_thickness, 2)
+        max_thickness = np.round(assembly_thickness_hard_range[1] + laminate_thickness, 2)
+        return (min_thickness, max_thickness)
+
+    @height.setter
+    def height(self, value: float) -> None:
+        """Set cell height by adjusting the layup height."""
+        self.validate_positive_float(value, "height")
+        current_height = self.height
+        height_diff = value - current_height
+        new_layup_height = self._reference_electrode_assembly._layup.height + height_diff
+        self._reference_electrode_assembly._layup.height = new_layup_height
+        self._reference_electrode_assembly.layup = self._reference_electrode_assembly._layup
+        self.reference_electrode_assembly = self.reference_electrode_assembly
+
+    @width.setter
+    def width(self, value: float) -> None:
+        """Set cell width by adjusting the layup width."""
+        self.validate_positive_float(value, "width")
+        current_width = self.width
+        width_diff = value - current_width
+        new_layup_width = self._reference_electrode_assembly._layup.width + width_diff
+        self._reference_electrode_assembly._layup.width = new_layup_width
+        self._reference_electrode_assembly.layup = self._reference_electrode_assembly._layup
+        self.reference_electrode_assembly = self.reference_electrode_assembly
+
+    @thickness.setter
+    def thickness(self, value: float) -> None:
+        """Set cell thickness by adjusting the assembly thickness."""
+        self.validate_positive_float(value, "thickness")
+        current_thickness = self.thickness
+        thickness_diff = value - current_thickness
+        new_assembly_thickness = (self._reference_electrode_assembly._thickness * M_TO_MM) + thickness_diff
+        self._reference_electrode_assembly.thickness = new_assembly_thickness
+        self.reference_electrode_assembly = self.reference_electrode_assembly
     
     @property
     def clipped_tab_length(self) -> float:
@@ -316,18 +421,18 @@ class FlexFrameCell(_Cell):
 
         self._clipped_tab_length = float(value) * MM_TO_M
 
-    @electrode_assembly.setter
+    @reference_electrode_assembly.setter
     @calculate_all_properties
-    @propagating_setter('reference_electrode_assembly')
-    def electrode_assembly(self, value: PunchedStack) -> None:
-        """Set electrode assembly with validation.
+    @propagating_setter()
+    def reference_electrode_assembly(self, value: PunchedStack) -> None:
+        """Set reference electrode assembly with validation.
         
         Parameters
         ----------
-        value : ZFoldStack | PunchedStack
+        value : PunchedStack
             New electrode assembly to set
         """
-        self.validate_type(value, (PunchedStack), "electrode_assembly")
+        self.validate_type(value, (PunchedStack), "reference_electrode_assembly")
         self._reference_electrode_assembly = value
 
     @encapsulation.setter

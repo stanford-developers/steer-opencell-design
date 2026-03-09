@@ -273,7 +273,7 @@ class Laminate(_Layup):
         tuple
             (total_length, x_start_position) both in meters
         """
-        # Collect all coordinate arrays
+        # Collect all coordinate arrays (filter out None for anode-free)
         coordinate_arrays = [
             self._bottom_separator._coordinates,
             self._anode._current_collector._foil_coordinates,
@@ -284,6 +284,7 @@ class Laminate(_Layup):
             self._cathode._b_side_coating_coordinates,
             self._top_separator._coordinates
         ]
+        coordinate_arrays = [c for c in coordinate_arrays if c is not None]
         
         # Stack all coordinates and find global bounds
         all_coords = np.vstack(coordinate_arrays)

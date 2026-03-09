@@ -5,13 +5,12 @@ import pandas as pd
 import numpy as np
 from scipy.optimize import brentq
 import plotly.graph_objects as go
-from functools import wraps
 from enum import Enum
 
 from steer_opencell_design.Constructions.Layups.Laminate import Laminate
 from steer_core.Constants.Units import *
-from steer_core.Constants.Universal import PI
-from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties
+from steer_core.Constants.Universal import PI, TWO_PI
+from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties, recalculate
 from steer_core.Decorators.Coordinates import calculate_coordinates
 from steer_core.Mixins.Propagation import propagating_setter
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Base import _ElectrodeAssembly
@@ -30,7 +29,6 @@ Z_COORD_COL = 4
 TURNS_COL = 5
 
 # Constants for calculations
-TWO_PI = 2.0 * PI
 DEFAULT_PRESSED_HEIGHT = 0.0008
 
 
@@ -44,36 +42,7 @@ class TapeDriver(Enum):
     TAPE_DRIVEN = "tape"
 
 
-def calculate_tape_properties(func):
-    """Decorator to recalculate tape-related properties after method execution.
-    
-    This decorator is used on methods that modify tape properties or geometry
-    and ensures that tape roll calculations and bulk properties are updated
-    automatically after the method completes.
-    
-    Parameters
-    ----------
-    func : callable
-        The method to be decorated
-        
-    Returns
-    -------
-    callable
-        Wrapped method that triggers tape property recalculation
-        
-    Notes
-    -----
-    Only triggers recalculation if the instance has _update_properties=True
-    and a tape with additional wraps configured.
-    """
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        result = func(self, *args, **kwargs)
-        if hasattr(self, "_update_properties") and self._update_properties:
-            self._calculate_tape_roll()
-        return result
-
-    return wrapper
+calculate_tape_properties = recalculate("tape_roll")
 
 
 class _JellyRoll(_ElectrodeAssembly, ABC):
@@ -276,7 +245,11 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         
         # Get spiral diameter
         spiral = self._extruded_spirals.get(spiral_key)
+        if spiral is None or len(spiral) == 0:
+            return
         spiral_clean = spiral[~np.isnan(spiral[:, RADIUS_COL])]
+        if len(spiral_clean) == 0:
+            return
         max_x = spiral_clean[:, X_COORD_COL].max()
         min_x = spiral_clean[:, X_COORD_COL].min()
         diameter = (max_x - min_x)
@@ -286,6 +259,10 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         for attr in coords_attr_path.split('.'):
             coords = getattr(coords, attr)
         
+        # Skip components with no coordinates (e.g. anode-free coating)
+        if coords is None:
+            return
+
         # Get Y bounds, filtering out NaN values
         coords_clean = coords[~np.isnan(coords[:, 1])]
         max_y = coords_clean[:, 1].max()
@@ -434,7 +411,11 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         """
         # Get spiral diameter
         spiral = self._extruded_spirals.get(spiral_key)
+        if spiral is None or len(spiral) == 0:
+            return
         spiral_clean = spiral[~np.isnan(spiral[:, RADIUS_COL])]
+        if len(spiral_clean) == 0:
+            return
         max_z = spiral_clean[:, Z_COORD_COL].max()
         min_z = spiral_clean[:, Z_COORD_COL].min()
         diameter = (max_z - min_z)
@@ -444,6 +425,10 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         for attr in coords_attr_path.split('.'):
             coords = getattr(coords, attr)
         
+        # Skip components with no coordinates (e.g. anode-free coating)
+        if coords is None:
+            return
+
         # Get Y bounds, filtering out NaN values
         coords_clean = coords[~np.isnan(coords[:, 1])]
         max_y = coords_clean[:, 1].max()
@@ -1243,29 +1228,43 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         component_spirals = copy(self._component_spirals)
         component_names = [n for n in component_spirals.keys()]
         
-        # Validate required components exist
-        required_components = ["anode_a_side_coating", "anode_b_side_coating"]
-        missing_components = [comp for comp in required_components if comp not in component_spirals]
-        if missing_components:
-            raise KeyError(f"Missing required components: {missing_components}")
+        is_anode_free = self._layup._anode._is_anode_free
+
+        # Validate required components exist (skip anode coating for anode-free)
+        if not is_anode_free:
+            required_components = ["anode_a_side_coating", "anode_b_side_coating"]
+            missing_components = [comp for comp in required_components if comp not in component_spirals]
+            if missing_components:
+                raise KeyError(f"Missing required components: {missing_components}")
         
         # Calculate basic turn counts for all components
         for name in component_names:
             spiral_data = component_spirals[name]
             if len(spiral_data) > 0:
-                roll_properties[f"{name}_turns"] = np.max(spiral_data[:, TURNS_COL])
+                roll_properties[f"{name}_turns"] = np.nanmax(spiral_data[:, TURNS_COL])
             else:
                 roll_properties[f"{name}_turns"] = 0.0
 
-        # Get anode theta boundaries
-        anode_a_spiral = component_spirals["anode_a_side_coating"]
-        anode_b_spiral = component_spirals["anode_b_side_coating"]
-        
-        if len(anode_a_spiral) == 0 or len(anode_b_spiral) == 0:
-            raise ValueError("Empty anode spiral data")
+        # Get anode theta boundaries for separator inner/outer turn calculations
+        # For anode-free, use anode current collector boundaries instead of coating
+        if is_anode_free:
+            anode_ref_key = "anode_current_collector"
+            if anode_ref_key not in component_spirals:
+                raise KeyError(f"Missing required component: {anode_ref_key}")
+            anode_ref_spiral = component_spirals[anode_ref_key]
+            if len(anode_ref_spiral) == 0:
+                raise ValueError("Empty anode current collector spiral data")
+            roll_start_theta = anode_ref_spiral[0, THETA_COL]
+            roll_end_theta = anode_ref_spiral[-1, THETA_COL]
+        else:
+            anode_a_spiral = component_spirals["anode_a_side_coating"]
+            anode_b_spiral = component_spirals["anode_b_side_coating"]
             
-        roll_start_theta = anode_a_spiral[0, THETA_COL]
-        roll_end_theta = anode_b_spiral[-1, THETA_COL]
+            if len(anode_a_spiral) == 0 or len(anode_b_spiral) == 0:
+                raise ValueError("Empty anode spiral data")
+                
+            roll_start_theta = anode_a_spiral[0, THETA_COL]
+            roll_end_theta = anode_b_spiral[-1, THETA_COL]
         
         # Process both separators with the same logic
         for sep_name in ["bottom_separator", "top_separator"]:
@@ -1289,12 +1288,12 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
                 inner_mask = separator_spiral[:, THETA_COL] < roll_start_theta
                 outer_mask = separator_spiral[:, THETA_COL] > roll_end_theta
             
-            inner_turns = np.max(separator_spiral[inner_mask, TURNS_COL]) if np.any(inner_mask) else 0.0
+            inner_turns = np.nanmax(separator_spiral[inner_mask, TURNS_COL]) if np.any(inner_mask) else 0.0
             
             # Outer turns: separator region before anode ends (turn range)
             if np.any(outer_mask):
                 outer_spiral = separator_spiral[outer_mask, TURNS_COL]
-                outer_turns = np.max(outer_spiral) - np.min(outer_spiral) if len(outer_spiral) > 0 else 0.0
+                outer_turns = np.nanmax(outer_spiral) - np.nanmin(outer_spiral) if len(outer_spiral) > 0 else 0.0
             else:
                 outer_turns = 0.0
             
@@ -1575,7 +1574,9 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
                 extruded_traces.append(self.tape_extruded_spiral_trace)
                 line_traces.append(self.tape_spiral_trace)
             
-            fig = go.Figure(data=extruded_traces + line_traces)
+            # Filter out None traces (e.g. anode-free has no coating traces)
+            all_traces = [t for t in extruded_traces + line_traces if t is not None]
+            fig = go.Figure(data=all_traces)
             
         else:
 
@@ -1946,6 +1947,8 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
     
     @property
     def anode_a_side_coating_spiral_trace(self) -> Optional[go.Scatter]:
+        if self._layup._anode._is_anode_free:  # anode-free: no coating to visualise
+            return None
         return self._format_spiral_trace("anode_a_side_coating_spiral", self._layup._anode.formulation._color, f"Anode a-side Coating")
     
     @property
@@ -1954,6 +1957,8 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
     
     @property
     def anode_b_side_coating_spiral_trace(self) -> Optional[go.Scatter]:
+        if self._layup._anode._is_anode_free:
+            return None
         return self._format_spiral_trace("anode_b_side_coating_spiral", self._layup._anode.formulation._color, f"Anode b-side Coating")
     
     @property
@@ -1982,6 +1987,8 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
     @property
     def anode_a_side_coating_extruded_spiral_trace(self) -> Optional[go.Scatter]:
+        if self._layup._anode._is_anode_free:
+            return None
         return self._format_extruded_spiral_trace("anode_a_side_coating_extruded_spiral", self._layup._anode._formulation._color, f"Anode a-side Coating")
 
     @property
@@ -1990,6 +1997,8 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
     @property
     def anode_b_side_coating_extruded_spiral_trace(self) -> Optional[go.Scatter]:
+        if self._layup._anode._is_anode_free:
+            return None
         return self._format_extruded_spiral_trace("anode_b_side_coating_extruded_spiral", self._layup._anode.formulation._color, f"Anode b-side Coating")
 
     @property
@@ -2071,6 +2080,8 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
     @property
     def anode_b_side_coating_top_down_trace(self) -> Optional[go.Scatter]:
         """Get anode b-side coating trace for top-down view."""
+        if self._layup._anode._is_anode_free:
+            return None
         if 'anode_b_side_coating' not in self._component_top_down_coordinates:
             return None
         coords = self._component_top_down_coordinates['anode_b_side_coating']
@@ -2103,6 +2114,8 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
     @property
     def anode_a_side_coating_top_down_trace(self) -> Optional[go.Scatter]:
         """Get anode a-side coating trace for top-down view."""
+        if self._layup._anode._is_anode_free:
+            return None
         if 'anode_a_side_coating' not in self._component_top_down_coordinates:
             return None
         coords = self._component_top_down_coordinates['anode_a_side_coating']
@@ -2255,6 +2268,8 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
     @property
     def anode_b_side_coating_right_left_trace(self) -> Optional[go.Scatter]:
         """Get anode b-side coating trace for right-left view."""
+        if self._layup._anode._is_anode_free:
+            return None
         if 'anode_b_side_coating' not in self._component_right_left_coordinates:
             return None
         coords = self._component_right_left_coordinates['anode_b_side_coating']
@@ -2287,6 +2302,8 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
     @property
     def anode_a_side_coating_right_left_trace(self) -> Optional[go.Scatter]:
         """Get anode a-side coating trace for right-left view."""
+        if self._layup._anode._is_anode_free:
+            return None
         if 'anode_a_side_coating' not in self._component_right_left_coordinates:
             return None
         coords = self._component_right_left_coordinates['anode_a_side_coating']
