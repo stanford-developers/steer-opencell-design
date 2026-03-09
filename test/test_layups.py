@@ -24,6 +24,9 @@ from steer_opencell_design.Materials.ConductiveAdditives import ConductiveAdditi
 
 from steer_core.Constants.Units import *
 
+import os
+os.environ["OPENCELL_ENV"] = "development"
+
 
 class TestSimpleLaminate(unittest.TestCase):
     
@@ -1868,6 +1871,435 @@ class TestLayupPropagation(unittest.TestCase):
         # Should not raise - propagates CC -> Electrode -> Layup
         # Use layup's copy of cathode since that's what has the parent reference
         self.laminate.cathode.current_collector.propagate_changes()
+
+
+class TestAnodeFreeMonoLayer(unittest.TestCase):
+    """Tests for a MonoLayer with an anode-free anode (formulation=None)."""
+
+    def setUp(self):
+        # --- cathode (normal) ---
+        material = CathodeMaterial.from_database("LFP")
+        material.specific_cost = 6
+        material.density = 3.6
+
+        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+
+        formulation = CathodeFormulation(
+            active_materials={material: 95},
+            binders={binder: 2},
+            conductive_additives={conductive_additive: 3},
+        )
+
+        cc_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
+
+        cathode_cc = PunchedCurrentCollector(
+            material=cc_material,
+            width=300,
+            height=320,
+            thickness=8,
+            tab_width=60,
+            tab_height=18,
+            tab_position=50,
+        )
+
+        self.cathode = Cathode(
+            formulation=formulation,
+            mass_loading=6.2,
+            current_collector=cathode_cc,
+            calender_density=2.60,
+        )
+
+        # --- anode-free anode ---
+        anode_cc = PunchedCurrentCollector(
+            material=cc_material,
+            width=304,
+            height=324,
+            thickness=8,
+            tab_width=60,
+            tab_height=18,
+            tab_position=250,
+        )
+
+        self.anode_free = Anode(
+            current_collector=anode_cc,
+        )
+
+        # --- separator ---
+        separator_material = SeparatorMaterial(
+            name="Polyethylene",
+            specific_cost=2,
+            density=0.94,
+            color="#FDFDB7",
+            porosity=45,
+        )
+        separator = Separator(material=separator_material, thickness=25, width=310, length=326)
+
+        self.monolayer = MonoLayer(
+            cathode=self.cathode,
+            anode=self.anode_free,
+            separator=separator,
+            electrode_orientation=ElectrodeOrientation.TRANSVERSE,
+        )
+
+    # --- construction ---
+
+    def test_construction(self):
+        """MonoLayer with anode-free anode should construct without error."""
+        self.assertIsInstance(self.monolayer, MonoLayer)
+        self.assertTrue(self.monolayer.anode._is_anode_free)
+
+    # --- areal capacity curve ---
+
+    def test_full_cell_curve_matches_cathode(self):
+        """Full-cell voltage should equal cathode voltage (V_anode = 0)."""
+        import numpy as np
+        full_curve = self.monolayer._areal_capacity_curve
+        self.assertIsNotNone(full_curve)
+
+        # The full-cell discharge voltage should be close to cathode discharge voltage
+        discharge_mask = full_curve[:, 2] == -1
+        full_discharge_max_v = full_curve[discharge_mask, 1].max()
+
+        cathode_discharge_mask = self.monolayer.cathode._areal_capacity_curve[:, 2] == -1
+        cathode_discharge_max_v = self.monolayer.cathode._areal_capacity_curve[cathode_discharge_mask, 1].max()
+
+        # Should be very close since V_full = V_cathode - 0
+        self.assertAlmostEqual(full_discharge_max_v, cathode_discharge_max_v, places=2)
+
+    def test_np_ratio_is_inf(self):
+        """N/P ratio should be infinity for anode-free."""
+        import math
+        self.assertTrue(math.isinf(self.monolayer._np_ratio))
+
+    # --- voltage limits ---
+
+    def test_voltage_limits_exist(self):
+        """Voltage limit attributes should be computed for anode-free layup."""
+        self.assertTrue(hasattr(self.monolayer, "_minimum_operating_voltage_range"))
+        self.assertTrue(hasattr(self.monolayer, "_maximum_operating_voltage_range"))
+        self.assertIsNotNone(self.monolayer._minimum_operating_voltage_range)
+        self.assertIsNotNone(self.monolayer._maximum_operating_voltage_range)
+
+    # --- np_ratio setter no-op ---
+
+    def test_np_ratio_setter_noop(self):
+        """Setting np_ratio on anode-free layup should silently no-op."""
+        import math
+        self.monolayer.np_ratio = 1.2
+        self.assertTrue(math.isinf(self.monolayer._np_ratio))
+
+    # --- visualization ---
+
+    def test_top_down_view(self):
+        """Top-down view should produce a Figure with anode CC traces but no anode coating traces."""
+        fig = self.monolayer.get_top_down_view()
+        self.assertIsInstance(fig, go.Figure)
+        self.assertGreater(len(fig.data), 0)
+        # Should not contain anode coating traces
+        for trace in fig.data:
+            self.assertNotIn("Coating (Anode)", trace.name,
+                             "Anode coating trace should not appear for anode-free")
+        # fig.show()
+
+    def test_top_down_view_with_opacity(self):
+        """Top-down view with custom opacity should produce a Figure."""
+        fig = self.monolayer.get_top_down_view(opacity=0.3)
+        self.assertIsInstance(fig, go.Figure)
+        self.assertGreater(len(fig.data), 0)
+        # fig.show()
+
+    def test_down_top_view(self):
+        """Down-top (bottom-up) view should produce a Figure."""
+        fig = self.monolayer.get_down_top_view()
+        self.assertIsInstance(fig, go.Figure)
+        self.assertGreater(len(fig.data), 0)
+        # fig.show()
+
+    def test_down_top_view_with_opacity(self):
+        """Down-top view with custom opacity should produce a Figure."""
+        fig = self.monolayer.get_down_top_view(opacity=0.4)
+        self.assertIsInstance(fig, go.Figure)
+        self.assertGreater(len(fig.data), 0)
+        # fig.show()
+
+    def test_areal_capacity_plot(self):
+        """Areal capacity plot should work with anode-free (anode trace filtered out)."""
+        fig = self.monolayer.get_areal_capacity_plot()
+        self.assertIsInstance(fig, go.Figure)
+        # Should have cathode trace + full-cell trace (no anode trace)
+        trace_names = [t.name for t in fig.data]
+        has_full_cell = any("Full-Cell" in n for n in trace_names)
+        self.assertTrue(has_full_cell)
+        # Anode trace should not be present (it's None and filtered out)
+        has_anode_trace = any("Anode" in n for n in trace_names)
+        self.assertFalse(has_anode_trace, "Anode areal capacity trace should be absent for anode-free")
+        # fig.show()
+
+    def test_areal_capacity_plot_has_cathode_trace(self):
+        """Areal capacity plot should include the cathode half-cell trace."""
+        fig = self.monolayer.get_areal_capacity_plot()
+        trace_names = [t.name for t in fig.data]
+        has_cathode = any("Cathode" in n for n in trace_names)
+        self.assertTrue(has_cathode, "Cathode areal capacity trace should be present")
+        # fig.show()
+
+    # --- anode has no curve ---
+
+    def test_anode_areal_curve_is_none(self):
+        """The anode inside the layup should still have None areal capacity curve."""
+        self.assertIsNone(self.monolayer.anode._areal_capacity_curve)
+        self.assertIsNone(self.monolayer.anode.areal_capacity_curve)
+
+    # --- properties ---
+
+    def test_areal_capacity_curve_property(self):
+        """Public areal_capacity_curve property should return a DataFrame."""
+        import pandas as pd
+        curve = self.monolayer.areal_capacity_curve
+        self.assertIsNotNone(curve)
+        self.assertIsInstance(curve, pd.DataFrame)
+
+    def test_serialization(self):
+        """Serialize → deserialize should produce an equal anode-free MonoLayer."""
+        serialized = self.monolayer.serialize()
+        deserialized = MonoLayer.deserialize(serialized)
+        self.assertTrue(deserialized.anode._is_anode_free)
+        self.assertIsNone(deserialized.anode.formulation)
+
+
+class TestAnodeFreeLaminate(unittest.TestCase):
+    """Tests for a Laminate with an anode-free anode (formulation=None)."""
+
+    def setUp(self):
+        # --- cathode (normal) ---
+        material = CathodeMaterial.from_database("LFP")
+        material.specific_cost = 6
+        material.density = 3.6
+
+        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+
+        formulation = CathodeFormulation(
+            active_materials={material: 95},
+            binders={binder: 2},
+            conductive_additives={conductive_additive: 3},
+        )
+
+        cc_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
+
+        cathode_cc = NotchedCurrentCollector(
+            material=cc_material,
+            length=4500,
+            width=300,
+            thickness=8,
+            tab_width=60,
+            tab_spacing=200,
+            tab_height=18,
+            insulation_width=6,
+            coated_tab_height=2,
+            bare_lengths_a_side=(1000, 2000),
+            bare_lengths_b_side=(500, 1500),
+        )
+
+        insulation = InsulationMaterial.from_database("Aluminium Oxide, 99.5%")
+
+        self.cathode = Cathode(
+            formulation=formulation,
+            mass_loading=6.2,
+            current_collector=cathode_cc,
+            calender_density=2.60,
+            insulation_material=insulation,
+            insulation_thickness=10,
+        )
+
+        # --- anode-free anode (tape CC for laminate) ---
+        anode_cc = NotchedCurrentCollector(
+            material=cc_material,
+            length=5000,
+            width=306,
+            thickness=8,
+            tab_width=60,
+            tab_spacing=100,
+            tab_height=18,
+            insulation_width=6,
+            coated_tab_height=2,
+            bare_lengths_a_side=(1500, 2500),
+            bare_lengths_b_side=(800, 1800),
+        )
+
+        self.anode_free = Anode(current_collector=anode_cc)
+
+        # --- separators ---
+        separator_material = SeparatorMaterial(
+            name="Polyethylene",
+            specific_cost=2,
+            density=0.94,
+            color="#FDFDB7",
+            porosity=45,
+        )
+
+        top_separator = Separator(material=separator_material, thickness=25, width=310, length=8000)
+        bottom_separator = Separator(material=separator_material, thickness=25, width=310, length=6000)
+
+        self.laminate = Laminate(
+            cathode=self.cathode,
+            anode=self.anode_free,
+            top_separator=top_separator,
+            bottom_separator=bottom_separator,
+        )
+
+    # --- construction ---
+
+    def test_construction(self):
+        """Laminate with anode-free anode should construct without error."""
+        self.assertIsInstance(self.laminate, Laminate)
+        self.assertTrue(self.laminate.anode._is_anode_free)
+
+    def test_anode_has_no_formulation(self):
+        """The anode should have no formulation."""
+        self.assertIsNone(self.laminate.anode.formulation)
+
+    # --- geometry ---
+
+    def test_length_and_width(self):
+        """Laminate length/width should be driven by the shorter electrode."""
+        self.assertGreater(self.laminate.length, 0)
+        self.assertGreater(self.laminate.width, 0)
+
+    def test_thickness(self):
+        """Thickness should reflect separators + cathode + anode CC only."""
+        self.assertGreater(self.laminate.thickness, 0)
+
+    def test_overhangs(self):
+        """Anode overhangs should still be computed from CC geometry."""
+        overhangs = self.laminate.anode_overhangs
+        self.assertIsInstance(overhangs, dict)
+        self.assertIn("left", overhangs)
+
+    # --- areal capacity curves ---
+
+    def test_full_cell_curve_matches_cathode(self):
+        """Full-cell voltage should equal cathode voltage (V_anode = 0)."""
+        import numpy as np
+        full_curve = self.laminate._areal_capacity_curve
+        self.assertIsNotNone(full_curve)
+
+        # The full-cell discharge voltage should be close to cathode discharge voltage
+        discharge_mask = full_curve[:, 2] == -1
+        full_discharge_max_v = full_curve[discharge_mask, 1].max()
+
+        cathode_discharge_mask = self.laminate.cathode._areal_capacity_curve[:, 2] == -1
+        cathode_discharge_max_v = self.laminate.cathode._areal_capacity_curve[cathode_discharge_mask, 1].max()
+
+        self.assertAlmostEqual(full_discharge_max_v, cathode_discharge_max_v, places=2)
+
+    def test_np_ratio_is_inf(self):
+        """N/P ratio should be infinity for anode-free."""
+        import math
+        self.assertTrue(math.isinf(self.laminate._np_ratio))
+
+    def test_anode_areal_curve_is_none(self):
+        """The anode inside the laminate should still have None areal capacity curve."""
+        self.assertIsNone(self.laminate.anode._areal_capacity_curve)
+
+    def test_areal_capacity_curve_property(self):
+        """Public areal_capacity_curve property should return a DataFrame."""
+        import pandas as pd
+        curve = self.laminate.areal_capacity_curve
+        self.assertIsNotNone(curve)
+        self.assertIsInstance(curve, pd.DataFrame)
+
+    # --- voltage limits ---
+
+    def test_voltage_limits_exist(self):
+        """Voltage limit attributes should be computed for anode-free laminate."""
+        self.assertIsNotNone(self.laminate._minimum_operating_voltage_range)
+        self.assertIsNotNone(self.laminate._maximum_operating_voltage_range)
+        self.assertIsNotNone(self.laminate.operating_reversible_areal_capacity)
+
+    def test_voltage_maximum_setter(self):
+        """Voltage maximum setter should work on anode-free laminate."""
+        initial_max = self.laminate.maximum_operating_voltage
+        self.laminate.maximum_operating_voltage = initial_max - 0.1
+        self.assertAlmostEqual(self.laminate.maximum_operating_voltage, initial_max - 0.1, places=1)
+
+    # --- np_ratio setter no-op ---
+
+    def test_np_ratio_setter_noop(self):
+        """Setting np_ratio on anode-free laminate should silently no-op."""
+        import math
+        self.laminate.np_ratio = 1.2
+        self.assertTrue(math.isinf(self.laminate._np_ratio))
+
+    # --- visualization ---
+
+    def test_top_down_view(self):
+        """Top-down view should produce a Figure without anode coating traces."""
+        fig = self.laminate.get_top_down_view()
+        self.assertIsInstance(fig, go.Figure)
+        self.assertGreater(len(fig.data), 0)
+        for trace in fig.data:
+            self.assertNotIn("Coating (Anode)", trace.name,
+                             "Anode coating trace should not appear for anode-free")
+        # fig.show()
+
+    def test_down_top_view(self):
+        """Down-top (bottom-up) view should produce a Figure."""
+        fig = self.laminate.get_down_top_view()
+        self.assertIsInstance(fig, go.Figure)
+        self.assertGreater(len(fig.data), 0)
+        # fig.show()
+
+    def test_areal_capacity_plot(self):
+        """Areal capacity plot should work with anode trace filtered out."""
+        fig = self.laminate.get_areal_capacity_plot()
+        self.assertIsInstance(fig, go.Figure)
+        trace_names = [t.name for t in fig.data]
+        has_full_cell = any("Full-Cell" in n for n in trace_names)
+        self.assertTrue(has_full_cell)
+        has_anode_trace = any("Anode" in n for n in trace_names)
+        self.assertFalse(has_anode_trace, "Anode areal capacity trace should be absent for anode-free")
+        # fig.show()
+
+    def test_areal_capacity_plot_has_cathode_trace(self):
+        """Areal capacity plot should include the cathode half-cell trace."""
+        fig = self.laminate.get_areal_capacity_plot()
+        trace_names = [t.name for t in fig.data]
+        has_cathode = any("Cathode" in n for n in trace_names)
+        self.assertTrue(has_cathode, "Cathode areal capacity trace should be present")
+        # fig.show()
+
+    def test_areal_capacity_plot_yaxis_starts_at_zero(self):
+        """Areal capacity plot y-axis should start at 0 V."""
+        fig = self.laminate.get_areal_capacity_plot()
+        yaxis = fig.layout.yaxis
+        self.assertEqual(yaxis.rangemode, "tozero")
+
+    # --- flattened center lines ---
+
+    def test_flattened_center_lines(self):
+        """Flattened center lines should skip anode coating layers."""
+        lines = self.laminate.calculate_flattened_center_lines()
+        self.assertIsInstance(lines, dict)
+        self.assertIn("baseline", lines)
+        # Anode coating layers should not appear (empty center lines filtered)
+        self.assertNotIn("anode_a_side_coating", lines)
+        self.assertNotIn("anode_b_side_coating", lines)
+        # CC and separators should still appear
+        self.assertIn("anode_current_collector", lines)
+        self.assertIn("cathode_current_collector", lines)
+        self.assertIn("bottom_separator", lines)
+        self.assertIn("top_separator", lines)
+
+    # --- serialization ---
+
+    def test_serialization(self):
+        """Serialize → deserialize should produce an equal anode-free Laminate."""
+        serialized = self.laminate.serialize()
+        deserialized = Laminate.deserialize(serialized)
+        self.assertTrue(deserialized.anode._is_anode_free)
+        self.assertIsNone(deserialized.anode.formulation)
 
 
 if __name__ == "__main__":
