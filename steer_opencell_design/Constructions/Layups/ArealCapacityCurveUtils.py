@@ -1,7 +1,7 @@
 """Utilities for computing full-cell areal capacity curves from half-cell data."""
 
 import numpy as np
-from typing import Tuple
+from typing import Tuple, Optional
 
 
 CAPACITY_INTERPOLATION_POINTS = 100  # Number of points for capacity curve interpolation
@@ -9,6 +9,51 @@ CAPACITY_INTERPOLATION_POINTS = 100  # Number of points for capacity curve inter
 
 class ArealCapacityCurveMixin:
     """Mixin for computing full-cell areal capacity curves by combining cathode and anode half-cell curves with N/P ratio adjustments."""
+
+    @staticmethod
+    def _build_zero_voltage_anode_proxy(cathode_areal_curve: np.ndarray) -> np.ndarray:
+        """Build a synthetic V=0 anode half-cell curve that spans the cathode capacity range.
+
+        Used for anode-free cells where the anode contributes no voltage.
+        The resulting curve has the same shape (n, 3) as a real anode curve
+        but with all voltages set to zero.
+
+        Parameters
+        ----------
+        cathode_areal_curve : np.ndarray
+            Cathode half-cell curve with shape (n, 3) containing
+            [capacity, voltage, direction].
+
+        Returns
+        -------
+        np.ndarray
+            Synthetic anode curve with shape (2*n_points, 3) where voltage
+            is 0.0 for both charge and discharge directions.
+        """
+        n_points = CAPACITY_INTERPOLATION_POINTS
+
+        # Use the cathode capacity range as the anode range
+        charge_mask = cathode_areal_curve[:, 2] == 1
+        discharge_mask = cathode_areal_curve[:, 2] == -1
+
+        charge_cap_min = cathode_areal_curve[charge_mask, 0].min()
+        charge_cap_max = cathode_areal_curve[charge_mask, 0].max()
+        discharge_cap_min = cathode_areal_curve[discharge_mask, 0].min()
+        discharge_cap_max = cathode_areal_curve[discharge_mask, 0].max()
+
+        proxy = np.empty((2 * n_points, 3))
+
+        # Charge half: capacity ascending, V=0
+        proxy[:n_points, 0] = np.linspace(charge_cap_min, charge_cap_max, n_points)
+        proxy[:n_points, 1] = 0.0
+        proxy[:n_points, 2] = 1  # charge
+
+        # Discharge half: capacity descending, V=0
+        proxy[n_points:, 0] = np.linspace(discharge_cap_max, discharge_cap_min, n_points)
+        proxy[n_points:, 1] = 0.0
+        proxy[n_points:, 2] = -1  # discharge
+
+        return proxy
 
     @staticmethod
     def _compute_areal_full_cell_curve(cathode_areal_curve: np.ndarray, anode_areal_curve: np.ndarray) -> Tuple[float, np.ndarray]:

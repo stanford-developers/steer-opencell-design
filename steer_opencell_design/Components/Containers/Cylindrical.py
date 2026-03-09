@@ -3,6 +3,7 @@
 from copy import deepcopy
 from steer_opencell_design.Components.Containers.Base import _Container
 from steer_opencell_design.Materials.Other import PrismaticContainerMaterial
+from steer_core.Utils import round_dict_recursive
 from steer_core.Constants.Units import *
 from steer_core.Decorators.General import calculate_bulk_properties, calculate_all_properties
 from steer_core.Decorators.Coordinates import calculate_coordinates
@@ -1660,13 +1661,7 @@ class CylindricalEncapsulation(_Container, DatumMixin):
         :return: Dictionary containing the cost breakdown.
         """
 
-        def _round_recursive(obj):
-            if isinstance(obj, dict):
-                return {k: _round_recursive(v) for k, v in obj.items()}
-            else:
-                return np.round(obj, 2)
-
-        return _round_recursive(self._cost_breakdown)
+        return round_dict_recursive(self._cost_breakdown, 2)
 
     @property
     def mass_breakdown(self) -> Dict[str, Any]:
@@ -1676,13 +1671,7 @@ class CylindricalEncapsulation(_Container, DatumMixin):
         :return: Dictionary containing the mass breakdown.
         """
 
-        def _convert_and_round_recursive(obj):
-            if isinstance(obj, dict):
-                return {k: _convert_and_round_recursive(v) for k, v in obj.items()}
-            else:
-                return np.round(obj * KG_TO_G, 2)
-
-        return _convert_and_round_recursive(self._mass_breakdown)
+        return round_dict_recursive(self._mass_breakdown, 2, KG_TO_G)
     
     @property
     def radius(self) -> float:

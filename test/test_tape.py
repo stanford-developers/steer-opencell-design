@@ -9,6 +9,9 @@ import pandas as pd
 
 pio.renderers.default = "browser"
 
+import os
+os.environ["OPENCELL_ENV"] = "development"
+
 
 class TestSimpleTape(unittest.TestCase):
     """Test Tape class with minimal initialization (no width/length)."""

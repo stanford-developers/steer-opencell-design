@@ -13,7 +13,7 @@ from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Decorators.Coordinates import calculate_coordinates
 
 from steer_core.Constants.Units import *
-from steer_core.Constants.Universal import PI
+from steer_core.Constants.Universal import TWO_PI
 
 from steer_opencell_design.Materials.Other import CurrentCollectorMaterial
 
@@ -247,7 +247,7 @@ class RoundMandrel(_Mandrel):
         n_circumferential = 32  # Number of points around circumference
         
         # Generate angular positions around circumference (include endpoint to close circle)
-        theta = np.linspace(0, 2 * PI, n_circumferential + 1, endpoint=True)
+        theta = np.linspace(0, TWO_PI, n_circumferential + 1, endpoint=True)
         
         # Define the two y positions for the circles (start and end of mandrel)
         y_start = -self._length / 2
