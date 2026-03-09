@@ -226,7 +226,10 @@ class _Electrode(
         self._calculate_coordinates()
 
     def _calculate_areal_capacity_curve(self) -> None:
+        """Compute the areal capacity curve from the formulation.
 
+        For anode-free electrodes the curve is set to ``None``.
+        """
         if self._is_anode_free:
             self._areal_capacity_curve = None
             return
@@ -262,7 +265,11 @@ class _Electrode(
         self._calculate_cost_properties()
 
     def _calculate_coordinates(self) -> None:
-        """Calculate coating and insulation coordinates for both sides of the electrode."""
+        """Calculate coating and insulation coordinates for both sides of the electrode.
+
+        For anode-free electrodes all coating and insulation coordinates are
+        set to ``None``; downstream consumers must guard accordingly.
+        """
         if self._is_anode_free:
             self._a_side_coating_coordinates = None
             self._b_side_coating_coordinates = None
@@ -401,7 +408,7 @@ class _Electrode(
 
     def _clear_cached_data(self) -> None:
         self._areal_capacity_curve = None
-        if self._formulation is not None:
+        if not self._is_anode_free:
             self._formulation._clear_cached_data()
 
     # === VIEWS ===
@@ -1194,7 +1201,7 @@ class _Electrode(
     @voltage_cutoff.setter
     @calculate_areal_capacity_curve
     def voltage_cutoff(self, voltage_cutoff: float):
-        if self._is_anode_free:
+        if self._is_anode_free:  # no-op: anode-free has no coating
             return
         self.validate_positive_float(voltage_cutoff, "voltage cutoff")
         self._formulation.voltage_cutoff = voltage_cutoff
@@ -1213,7 +1220,7 @@ class _Electrode(
 
         :param coating_thickness: Coating thickness of the electrode in micrometers.
         """
-        if self._is_anode_free:
+        if self._is_anode_free:  # no-op: anode-free has no coating
             return
         self.validate_positive_float(coating_thickness, "coating thickness")
         self._coating_thickness = coating_thickness * UM_TO_M
@@ -1228,7 +1235,7 @@ class _Electrode(
 
         :param porosity: Porosity of the electrode in percentage.
         """
-        if self._is_anode_free:
+        if self._is_anode_free:  # no-op: anode-free has no coating
             return
         self.validate_percentage(porosity, "porosity")
         porosity_fraction = porosity / 100
@@ -1252,7 +1259,7 @@ class _Electrode(
     @calender_density.setter
     @calculate_all_properties
     def calender_density(self, calender_density: float):
-        if self._is_anode_free:
+        if self._is_anode_free:  # no-op: anode-free has no coating
             return
         self.validate_positive_float(calender_density, "calender density")
         self._calender_density = calender_density * (G_TO_KG / CM_TO_M**3)
@@ -1289,7 +1296,7 @@ class _Electrode(
     @mass_loading.setter
     @calculate_all_properties
     def mass_loading(self, mass_loading: float):
-        if self._is_anode_free:
+        if self._is_anode_free:  # no-op: anode-free has no coating
             return
         self.validate_positive_float(mass_loading, "mass loading")
         self._mass_loading = mass_loading * (MG_TO_KG / CM_TO_M**2)
