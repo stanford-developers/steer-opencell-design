@@ -1947,7 +1947,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
     
     @property
     def anode_a_side_coating_spiral_trace(self) -> Optional[go.Scatter]:
-        if self._layup._anode._is_anode_free:
+        if self._layup._anode._is_anode_free:  # anode-free: no coating to visualise
             return None
         return self._format_spiral_trace("anode_a_side_coating_spiral", self._layup._anode.formulation._color, f"Anode a-side Coating")
     

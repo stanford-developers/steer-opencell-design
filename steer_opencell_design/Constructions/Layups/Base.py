@@ -223,11 +223,7 @@ class _Layup(
             areal_cap = curve[:, 0] / coated_area
             cathode_areal = np.column_stack([areal_cap, curve[:, 1], curve[:, 2]])
 
-            # Determine anode curve (real or V=0 proxy for anode-free)
-            if self._anode._is_anode_free:
-                anode_curve = self._build_zero_voltage_anode_proxy(cathode_areal)
-            else:
-                anode_curve = self._anode._areal_capacity_curve
+            anode_curve = self._resolve_anode_areal_curve(cathode_areal)
 
             _, areal_curve = self._compute_areal_full_cell_curve(
                 cathode_areal,
@@ -239,11 +235,7 @@ class _Layup(
             layup._cathode._formulation.voltage_cutoff = voltage_cutoff
             layup._cathode.formulation = layup._cathode._formulation
 
-            # Determine anode curve (real or V=0 proxy for anode-free)
-            if self._anode._is_anode_free:
-                anode_curve = self._build_zero_voltage_anode_proxy(layup._cathode._areal_capacity_curve)
-            else:
-                anode_curve = layup._anode._areal_capacity_curve
+            anode_curve = self._resolve_anode_areal_curve(layup._cathode._areal_capacity_curve)
 
             _, areal_curve = self._compute_areal_full_cell_curve(
                 layup._cathode._areal_capacity_curve,
@@ -324,6 +316,23 @@ class _Layup(
             _top_separator_z * M_TO_MM,
         )
 
+    def _resolve_anode_areal_curve(self, cathode_areal_curve: np.ndarray) -> np.ndarray:
+        """Return the anode areal curve, or a V=0 proxy for anode-free designs.
+
+        Parameters
+        ----------
+        cathode_areal_curve : np.ndarray
+            Cathode half-cell curve used to construct the proxy when anode-free.
+
+        Returns
+        -------
+        np.ndarray
+            Real anode areal curve, or a synthetic V=0 proxy.
+        """
+        if self._anode._is_anode_free:
+            return self._build_zero_voltage_anode_proxy(cathode_areal_curve)
+        return self._anode._areal_capacity_curve
+
     def _calculate_areal_capacity_curves(self) -> Tuple[float, np.ndarray]:
         """
         Calculate the half-cell curves for the cathode and anode.
@@ -346,13 +355,10 @@ class _Layup(
 
         cathode_areal_curve = self._cathode._areal_capacity_curve
 
-        # Determine the anode curve (real or V=0 proxy)
-        if self._anode._is_anode_free:
-            anode_areal_curve = self._build_zero_voltage_anode_proxy(cathode_areal_curve)
-        elif hasattr(self._anode, '_areal_capacity_curve') and self._anode._areal_capacity_curve is not None:
-            anode_areal_curve = self._anode._areal_capacity_curve
-        else:
+        # Determine the anode curve (real or V=0 proxy for anode-free)
+        if not self._anode._is_anode_free and self._anode._areal_capacity_curve is None:
             return self._np_ratio, self._areal_capacity_curve
+        anode_areal_curve = self._resolve_anode_areal_curve(cathode_areal_curve)
 
         # Call the static helper method to compute the full-cell curve
         self._np_ratio, self._areal_capacity_curve = self._compute_areal_full_cell_curve(cathode_areal_curve, anode_areal_curve)
@@ -691,6 +697,8 @@ class _Layup(
     def np_ratio(self) -> float:
         """
         Get the n/p ratio of the layup (anode to cathode capacity ratio).
+
+        Returns ``inf`` for anode-free designs.
         """
         return np.round(self._np_ratio, 3)
 
@@ -1165,10 +1173,7 @@ class _Layup(
 
             # get the electrode curves
             _cathode_areal_curve = _cathode._areal_capacity_curve
-            if self._anode._is_anode_free:
-                _anode_areal_curve = self._build_zero_voltage_anode_proxy(_cathode_areal_curve)
-            else:
-                _anode_areal_curve = self._anode._areal_capacity_curve
+            _anode_areal_curve = self._resolve_anode_areal_curve(_cathode_areal_curve)
 
             # compute the full-cell curve
             _, full_cell_curve = self._compute_areal_full_cell_curve(

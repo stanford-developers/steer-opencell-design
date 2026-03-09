@@ -128,20 +128,17 @@ class _ElectrodeAssembly(
         self._cathode_capacity_curve = None
         self._anode_capacity_curve = None
 
-        if hasattr(self._layup, "_areal_capacity_curve") and self._layup._areal_capacity_curve is not None:
-            # Use .copy() instead of deepcopy() - arrays only need shallow copy for scaling
+        if self._layup._areal_capacity_curve is not None:
             _capacity_curve = self._layup._areal_capacity_curve.copy()
             _capacity_curve[:, 0] *= self._interfacial_area
             self._capacity_curve = _capacity_curve
 
-        if hasattr(self._layup._cathode, "_areal_capacity_curve") and self._layup._cathode._areal_capacity_curve is not None:
-            # Use .copy() instead of deepcopy() for cathode curve
+        if self._layup._cathode._areal_capacity_curve is not None:
             _cathode_capacity_curve = self._layup._cathode._areal_capacity_curve.copy()
             _cathode_capacity_curve[:, 0] *= self._interfacial_area
             self._cathode_capacity_curve = _cathode_capacity_curve
 
-        if hasattr(self._layup._anode, "_areal_capacity_curve") and self._layup._anode._areal_capacity_curve is not None:
-            # Use .copy() instead of deepcopy() for anode curve
+        if self._layup._anode._areal_capacity_curve is not None:
             _anode_capacity_curve = self._layup._anode._areal_capacity_curve.copy()
             _anode_capacity_curve[:, 0] *= self._interfacial_area
             self._anode_capacity_curve = _anode_capacity_curve
@@ -160,7 +157,7 @@ class _ElectrodeAssembly(
         self._layup.anode._areal_capacity_curve = None
         
         self._layup.cathode._formulation._clear_cached_data()
-        if self._layup.anode._formulation is not None:
+        if not self._layup.anode._is_anode_free:
             self._layup.anode._formulation._clear_cached_data()
 
     def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:

@@ -1869,7 +1869,7 @@ class TestAnodeFreeRoundJellyRoll(unittest.TestCase):
         trace_names = [t.name for t in fig.data if t.name]
         has_anode = any("Anode" in n for n in trace_names)
         self.assertFalse(has_anode, "Anode capacity trace should not appear for anode-free")
-        fig.show()
+        # fig.show()
 
     # --- breakdowns ---
 
