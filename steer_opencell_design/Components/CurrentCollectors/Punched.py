@@ -94,7 +94,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
     -------
     get_footprint()
         Returns the 2D outline coordinates of the collector
-    get_a_side_view()
+    plot_a_side_view()
         Generates plotly figure of the collector from above
     get_properties()
         Returns dictionary of all geometric and electrical properties
@@ -132,7 +132,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
     Visualize the collector geometry:
 
-    >>> fig = collector.get_a_side_view()
+    >>> fig = collector.plot_a_side_view()
     >>> fig.show()  # Interactive plotly visualization
 
     See Also

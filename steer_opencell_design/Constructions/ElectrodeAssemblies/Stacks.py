@@ -276,7 +276,7 @@ class _Stack(_ElectrodeAssembly):
         # set the new layup to self
         self.layup = self._layup
 
-    def get_side_view(self, **kwargs):
+    def plot_side_view(self, **kwargs) -> go.Figure:
         """
         Generate an optimized side view of the stack with grouped component traces.
         
@@ -338,9 +338,9 @@ class _Stack(_ElectrodeAssembly):
         
         return figure
 
-    def get_top_down_view(self, **kwargs):
+    def plot_top_down_view(self, **kwargs):
         """Generate a top-down Plotly figure of the stack."""
-        return self._layup.get_top_down_view(**kwargs)
+        return self._layup.plot_top_down_view(**kwargs)
 
     @staticmethod
     def add_layer(stack: list, component: Any, z_datum: float) -> Tuple[float, list]:

@@ -183,7 +183,7 @@ class _CylindricalComponent(
         """
         self._radius_range = (0.0, canister._inner_radius)
 
-    def get_bottom_up_plot(self, **kwargs) -> go.Figure:
+    def plot_bottom_up_view(self, **kwargs) -> go.Figure:
         """Generate a bottom-up view plot of the component.
         
         Creates a Plotly figure showing the component profile from below,
@@ -212,7 +212,7 @@ class _CylindricalComponent(
 
         return figure
     
-    def get_top_down_plot(self, **kwargs) -> go.Figure:
+    def plot_top_down_view(self, **kwargs) -> go.Figure:
         """Generate a top-down view plot of the component.
         
         Creates a Plotly figure showing the component from above,
@@ -905,7 +905,7 @@ class CylindricalCanister(
         
         self._top_down_coordinates = np.vstack((np.column_stack((x_outer, z_outer)), np.column_stack((x_inner, z_inner))))
 
-    def get_top_down_plot(self, **kwargs) -> go.Figure:
+    def plot_top_down_view(self, **kwargs) -> go.Figure:
         """Generate a top-down view plot of the can."""
         figure = go.Figure()
         figure.add_trace(self.top_down_cross_section_trace)
@@ -920,7 +920,7 @@ class CylindricalCanister(
 
         return figure
     
-    def get_side_cross_section_plot(self, **kwargs) -> go.Figure:
+    def plot_side_cross_section(self, **kwargs) -> go.Figure:
         """Generate a side cross-section plot of the can."""
         figure = go.Figure()
         figure.add_trace(self.side_cross_section_trace)

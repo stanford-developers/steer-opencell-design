@@ -174,19 +174,22 @@ class PouchCell(_Cell):
         _datum_y = ref_assembly._layup._cathode._datum[1]
         _datum = (_datum_x, _datum_y)
 
-        self._encapsulation._top_laminate._hot_press(
+        self._encapsulation._top_laminate._set_hot_press_state(
             -_hot_press_depth_thickness,
             _hot_press_width,
             _hot_press_height,
             _datum
         )
 
-        self._encapsulation._bottom_laminate._hot_press(
+        self._encapsulation._bottom_laminate._set_hot_press_state(
             _hot_press_depth_thickness,
             _hot_press_width,
             _hot_press_height,
             _datum
         )
+
+        self._encapsulation._top_laminate._calculate_coordinates()
+        self._encapsulation._bottom_laminate._calculate_coordinates()
 
     def _size_encapsulation(self) -> None:
         """Calculate and set encapsulation dimensions.
@@ -211,11 +214,12 @@ class PouchCell(_Cell):
         encapsulation_height = _encapsulation_height * M_TO_MM
         encapsulation_thickness = _encapsulation_thickness * M_TO_MM
 
-        self._encapsulation.width = encapsulation_width
-        self._encapsulation.height = encapsulation_height
-        self._encapsulation.thickness = encapsulation_thickness
+        with self._encapsulation.batch_updates():
+            self._encapsulation.width = encapsulation_width
+            self._encapsulation.height = encapsulation_height
+            self._encapsulation.thickness = encapsulation_thickness
 
-    def get_side_view(self, **kwargs) -> go.Figure:
+    def plot_side_view(self, **kwargs) -> go.Figure:
         """Get side view figure of the pouch cell.
 
         Parameters
@@ -233,14 +237,14 @@ class PouchCell(_Cell):
         traces = []
 
         for i, assembly in enumerate(self.electrode_assemblies):
-            assembly_traces = assembly.get_side_view().data
+            assembly_traces = assembly.plot_side_view().data
             # Only show legend for first assembly
             if i > 0:
                 for trace in assembly_traces:
                     trace.showlegend = False
             traces.extend(assembly_traces)
 
-        encapsulation_traces = self.encapsulation.get_side_view().data
+        encapsulation_traces = self.encapsulation.plot_side_view().data
         traces.extend(encapsulation_traces)
 
         figure.add_traces(traces)
@@ -256,7 +260,7 @@ class PouchCell(_Cell):
 
         return figure
     
-    def get_top_down_view(self, opacity = 0.3, **kwargs) -> go.Figure:
+    def plot_top_down_view(self, opacity = 0.3, **kwargs) -> go.Figure:
         """Get top-down view figure of the pouch cell.
 
         Parameters
@@ -275,12 +279,12 @@ class PouchCell(_Cell):
 
         traces = []
 
-        # Pass opacity to layup's get_top_down_view
+        # Pass opacity to layup's plot_top_down_view
         first_assembly = self._electrode_assemblies[0]
-        layup_traces = first_assembly._layup.get_top_down_view(opacity=opacity).data
+        layup_traces = first_assembly._layup.plot_top_down_view(opacity=opacity).data
         traces.extend(layup_traces)
 
-        encapsulation_traces = self.encapsulation.get_top_down_view().data
+        encapsulation_traces = self.encapsulation.plot_top_down_view().data
         
         # Apply opacity only to encapsulation traces
         for trace in encapsulation_traces:
