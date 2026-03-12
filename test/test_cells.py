@@ -194,6 +194,27 @@ class TestCylindricalCell(unittest.TestCase):
         self.assertEqual(self.cell.volumetric_energy, 261.36)
         self.assertEqual(self.cell.cost_per_energy, 65.3)
     
+    def test_formulation_voltage(self):
+
+        self.cell.maximum_operating_voltage = 3.8
+
+        fig1 = self.cell.reference_electrode_assembly.layup.cathode.formulation.plot_specific_capacity_curve(add_materials=True)
+        original_formulation_voltage_cutoff = self.cell.reference_electrode_assembly.layup.cathode.formulation.voltage_cutoff
+        original_cathode_active_material_voltage_cutoff = self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.voltage_cutoff
+
+        self.cell.reference_electrode_assembly.layup.cathode.mass_loading = 10
+        self.cell.reference_electrode_assembly.layup.cathode.propagate_changes()
+
+        fig2 = self.cell.reference_electrode_assembly.layup.cathode.formulation.plot_specific_capacity_curve(add_materials=True)
+        new_formulation_voltage_cutoff = self.cell.reference_electrode_assembly.layup.cathode.formulation.voltage_cutoff
+        new_cathode_active_material_voltage_cutoff = self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.voltage_cutoff
+
+        self.assertEqual(original_formulation_voltage_cutoff, new_formulation_voltage_cutoff)
+        self.assertEqual(original_cathode_active_material_voltage_cutoff, new_cathode_active_material_voltage_cutoff)
+
+        # fig1.show()
+        # fig2.show()
+
     def test_plots(self):
 
         fig1 = self.cell.plot_mass_breakdown()
