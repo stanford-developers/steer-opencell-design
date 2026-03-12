@@ -258,7 +258,7 @@ class CylindricalCell(_Cell):
         self._encapsulation.fit_height(self._reference_electrode_assembly, clearance)
         self._position_encapsulation()
 
-    def get_top_down_view(self, **kwargs) -> go.Figure:
+    def plot_top_down_view(self, **kwargs) -> go.Figure:
         """Generate top down view plot showing encapsulation and jelly roll cross-section.
         
         Parameters
@@ -272,7 +272,7 @@ class CylindricalCell(_Cell):
             Plotly figure with combined encapsulation and jelly roll traces
         """
         encapsulation_plot = self._encapsulation.plot_side_view()
-        jellyroll_plot = self._reference_electrode_assembly.get_top_down_view()
+        jellyroll_plot = self._reference_electrode_assembly.plot_top_down_view()
         encapsulation_traces = encapsulation_plot['data']
         jellyroll_traces = jellyroll_plot['data']
         traces = encapsulation_traces + jellyroll_traces
@@ -289,10 +289,10 @@ class CylindricalCell(_Cell):
 
         return figure
     
-    def get_cross_section(self, **kwargs) -> go.Figure:
+    def plot_cross_section(self, **kwargs) -> go.Figure:
         """Generate cross-section view showing the spiral winding and canister."""
 
-        spiral_plot = self._reference_electrode_assembly.get_spiral_plot()
+        spiral_plot = self._reference_electrode_assembly.plot_spiral()
         spiral_traces = spiral_plot['data']
         encapsulation_trace = self._encapsulation._canister.top_down_cross_section_trace
         traces = spiral_traces + (encapsulation_trace,)

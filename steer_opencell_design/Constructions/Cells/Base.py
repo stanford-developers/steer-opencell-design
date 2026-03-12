@@ -713,7 +713,7 @@ class _Cell(
         # get normalised cost
         self._cost_per_energy = self._cost / self._energy
      
-    def get_capacity_plot(
+    def plot_capacity_curve(
         self,
         include_guides: bool = True,
         show_operating_window: bool = True,

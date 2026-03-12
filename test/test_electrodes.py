@@ -76,12 +76,12 @@ class TestAnodeNoInsulation(unittest.TestCase):
         old_datum = self.anode.datum
         shift_x = 100.0  # mm
 
-        fig1 = self.anode.get_top_down_view()
+        fig1 = self.anode.plot_top_down_view()
 
         # Apply datum shift
         self.anode.datum = (old_datum[0] + shift_x, old_datum[1], old_datum[2])
 
-        fig2 = self.anode.get_top_down_view()
+        fig2 = self.anode.plot_top_down_view()
 
         # Get new coordinates
         coating_trace_after = self.anode.top_down_coating_trace
@@ -108,12 +108,12 @@ class TestAnodeNoInsulation(unittest.TestCase):
         old_datum = self.anode.datum
         shift_y = 75.0  # mm
 
-        fig1 = self.anode.get_top_down_view()
+        fig1 = self.anode.plot_top_down_view()
 
         # Apply datum shift (y only)
         self.anode.datum = (old_datum[0], old_datum[1] + shift_y, old_datum[2])
 
-        fig2 = self.anode.get_top_down_view()
+        fig2 = self.anode.plot_top_down_view()
 
         coating_trace_after = self.anode.top_down_coating_trace
         ys_after = list(coating_trace_after.y)
@@ -320,12 +320,12 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
 
     def test_views(self):
 
-        figure0 = self.cathode.get_top_down_view()
-        figure1 = self.cathode.get_top_down_view()
-        figure2 = self.cathode.get_a_side_view()
-        figure3 = self.cathode.get_b_side_view()
-        figure4 = self.cathode.get_right_left_view()
-        figure5 = self.cathode.get_cross_section()
+        figure0 = self.cathode.plot_top_down_view()
+        figure1 = self.cathode.plot_top_down_view()
+        figure2 = self.cathode.plot_a_side_view()
+        figure3 = self.cathode.plot_b_side_view()
+        figure4 = self.cathode.plot_right_left_view()
+        figure5 = self.cathode.plot_cross_section()
 
         # figure0.show()
         # figure1.show()
@@ -336,11 +336,11 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
 
     def test_flip(self):
 
-        figure1 = self.cathode.get_top_down_view()
+        figure1 = self.cathode.plot_top_down_view()
         self.cathode._flip("x")
-        figure2 = self.cathode.get_top_down_view()
+        figure2 = self.cathode.plot_top_down_view()
         self.cathode._flip("y")
-        figure3 = self.cathode.get_top_down_view()
+        figure3 = self.cathode.plot_top_down_view()
 
         # figure1.show()
         # figure2.show()
@@ -348,7 +348,7 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
 
     def test_datum_setter(self):
 
-        figure1 = self.cathode.get_top_down_view()
+        figure1 = self.cathode.plot_top_down_view()
 
         new_datum = (
             self.cathode._current_collector.x_foil_length,
@@ -358,22 +358,22 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
 
         self.cathode.datum = new_datum
 
-        figure2 = self.cathode.get_top_down_view()
+        figure2 = self.cathode.plot_top_down_view()
 
         figure_top = go.Figure(data=figure1.data + figure2.data)
 
         # figure_top.show()
 
     def test_flip_and_setter(self):
-        fig1 = self.cathode.get_top_down_view()
+        fig1 = self.cathode.plot_top_down_view()
 
         self.cathode._flip("y")
-        fig2 = self.cathode.get_top_down_view()
+        fig2 = self.cathode.plot_top_down_view()
 
         current_collector = deepcopy(self.cathode.current_collector)
         current_collector.width = 400
         self.cathode.current_collector = current_collector
-        fig3 = self.cathode.get_top_down_view()
+        fig3 = self.cathode.plot_top_down_view()
 
         # fig1.show()
         # fig2.show()
@@ -383,7 +383,7 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         """Changing the cathode datum x should translate top-down coating coordinates x values by the same delta.
 
         Uses full top-down figure before and after to validate shift visually (data-level)."""
-        fig_before = self.cathode.get_top_down_view()
+        fig_before = self.cathode.plot_top_down_view()
         # Extract coating trace x values (trace name contains 'Coating')
         xs_before = None
         for trace in fig_before.data:
@@ -396,7 +396,7 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         shift_x = 42.5  # mm
         self.cathode.datum = (old_datum[0] + shift_x, old_datum[1], old_datum[2])
 
-        fig_after = self.cathode.get_top_down_view()
+        fig_after = self.cathode.plot_top_down_view()
         xs_after = None
         for trace in fig_after.data:
             if 'Coating' in trace.name:
@@ -417,7 +417,7 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         """Changing the cathode datum y should translate top-down coating coordinates y values by the same delta.
 
         Uses full top-down figure before and after to validate shift visually (data-level)."""
-        fig_before = self.cathode.get_top_down_view()
+        fig_before = self.cathode.plot_top_down_view()
         ys_before = None
         for trace in fig_before.data:
             if 'Coating' in trace.name:
@@ -429,7 +429,7 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         shift_y = 33.3  # mm
         self.cathode.datum = (old_datum[0], old_datum[1] + shift_y, old_datum[2])
 
-        fig_after = self.cathode.get_top_down_view()
+        fig_after = self.cathode.plot_top_down_view()
         ys_after = None
         for trace in fig_after.data:
             if 'Coating' in trace.name:
@@ -541,8 +541,8 @@ class TestCathodeTwoMaterialNotched(unittest.TestCase):
         # figure2.show()
 
     def test_views(self):
-        figure1 = self.cathode.get_a_side_view()
-        figure2 = self.cathode.get_b_side_view()
+        figure1 = self.cathode.plot_a_side_view()
+        figure2 = self.cathode.plot_b_side_view()
         # figure1.show()
         # figure2.show()
 
@@ -626,9 +626,9 @@ class testAnodeTabWelded(unittest.TestCase):
         # figure1.show()
 
     def test_views(self):
-        figure1 = self.anode.get_a_side_view()
-        figure2 = self.anode.get_b_side_view()
-        figure3 = self.anode.get_top_down_view()
+        figure1 = self.anode.plot_a_side_view()
+        figure2 = self.anode.plot_b_side_view()
+        figure3 = self.anode.plot_top_down_view()
 
         # figure1.show()
         # figure2.show()
@@ -1054,7 +1054,7 @@ class TestAnodeFree(unittest.TestCase):
 
     def test_top_down_view(self):
         """Top-down view should be a Figure with no coating traces."""
-        fig = self.anode.get_top_down_view()
+        fig = self.anode.plot_top_down_view()
         self.assertIsInstance(fig, go.Figure)
         for trace in fig.data:
             self.assertNotIn("Coating", trace.name)
@@ -1062,7 +1062,7 @@ class TestAnodeFree(unittest.TestCase):
 
     def test_right_left_view(self):
         """Right-left view should be a Figure with no coating traces."""
-        fig = self.anode.get_right_left_view()
+        fig = self.anode.plot_right_left_view()
         self.assertIsInstance(fig, go.Figure)
         for trace in fig.data:
             self.assertNotIn("Coated Area", trace.name)
@@ -1070,7 +1070,7 @@ class TestAnodeFree(unittest.TestCase):
 
     def test_cross_section(self):
         """Cross-section should return a Figure."""
-        fig = self.anode.get_cross_section()
+        fig = self.anode.plot_cross_section()
         self.assertIsInstance(fig, go.Figure)
         # fig.show()
 

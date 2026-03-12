@@ -302,7 +302,7 @@ class _PrismaticComponent(
             center=self._datum
         )
 
-    def get_top_down_view(self, **kwargs) -> go.Figure:
+    def plot_top_down_view(self, **kwargs) -> go.Figure:
         """Generate a top-down view plot of the component.
         
         Creates a Plotly figure showing the component from above,
@@ -331,7 +331,7 @@ class _PrismaticComponent(
 
         return figure
 
-    def get_right_left_plot(self, **kwargs) -> go.Figure:
+    def plot_right_left_view(self, **kwargs) -> go.Figure:
         """Generate a right-left view plot of the component.
         
         Creates a Plotly figure showing the component from the side,
@@ -1010,7 +1010,7 @@ class PrismaticCanister(
         
         self._right_left_coordinates = np.column_stack((x_coords, y_coords))
 
-    def get_top_down_view(self, **kwargs) -> go.Figure:
+    def plot_top_down_view(self, **kwargs) -> go.Figure:
         """Generate a top-down view plot of the canister."""
         figure = go.Figure()
         figure.add_trace(self.top_down_trace)
@@ -1025,7 +1025,7 @@ class PrismaticCanister(
 
         return figure
     
-    def get_right_left_view(self, **kwargs) -> go.Figure:
+    def plot_right_left_view(self, **kwargs) -> go.Figure:
         """Generate a right-left view plot of the canister."""
         figure = go.Figure()
         figure.add_trace(self.right_left_trace)
@@ -1889,7 +1889,7 @@ class PrismaticEncapsulation(_Container, DatumMixin):
         )
         return fig
     
-    def get_right_left_view(self, **kwargs) -> go.Figure:
+    def plot_right_left_view(self, **kwargs) -> go.Figure:
         """Generate a side view plot showing all components."""
         figure = go.Figure()
         traces = []
@@ -1914,7 +1914,7 @@ class PrismaticEncapsulation(_Container, DatumMixin):
 
         return figure
     
-    def get_top_down_view(self, opacity=0.8, **kwargs) -> go.Figure:
+    def plot_top_down_view(self, opacity=0.8, **kwargs) -> go.Figure:
         """Generate a top-down view plot showing all components."""
         figure = go.Figure()
         traces = []
