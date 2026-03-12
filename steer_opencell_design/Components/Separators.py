@@ -296,7 +296,7 @@ class Separator(
             x=coordinates["x"],
             y=coordinates["y"],
             mode="lines",
-            name="Tab",
+            name=self.name,
             line=dict(color="black", width=1),
             fill="toself",
             fillcolor=self._material.color,

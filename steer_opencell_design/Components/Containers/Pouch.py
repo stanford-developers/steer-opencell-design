@@ -427,7 +427,7 @@ class LaminateSheet(
 
     @property
     def density(self) -> float:
-        """Density in kg/m³."""
+        """Density in g/cm³."""
         return np.round(self._density * KG_TO_G / M_TO_CM**3, 2)
     
     @property

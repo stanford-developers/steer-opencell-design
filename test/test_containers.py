@@ -1339,16 +1339,16 @@ class TestCylindricalEncapsulation(unittest.TestCase):
         # Create encapsulation with different materials
         mixed_encapsulation = CylindricalEncapsulation(
             cathode_terminal_connector=CylindricalTerminalConnector(
-                material=self.aluminum, thickness=50.0, fill_factor=0.8
+                material=self.aluminum, thickness=0.5, fill_factor=0.8
             ),
             anode_terminal_connector=CylindricalTerminalConnector(
-                material=self.copper, thickness=50.0, fill_factor=0.8
+                material=self.copper, thickness=0.5, fill_factor=0.8
             ),
             lid_assembly=CylindricalLidAssembly(
-                material=steel, thickness=100.0, fill_factor=0.9
+                material=steel, thickness=0.1, fill_factor=0.9
             ),
             canister=CylindricalCanister(
-                material=self.aluminum, outer_radius=15.0, height=40.0, wall_thickness=1000.0
+                material=self.aluminum, outer_radius=15.0, height=40.0, wall_thickness=1
             )
         )
         
@@ -1421,12 +1421,13 @@ class TestCylindricalEncapsulation(unittest.TestCase):
     def test_different_canister_sizes(self):
         """Test behavior with different canister sizes"""
         test_cases = [
-            {"outer_radius": 10.0, "height": 30.0, "wall_thickness": 200.0},
-            {"outer_radius": 25.0, "height": 60.0, "wall_thickness": 1000.0},
-            {"outer_radius": 50.0, "height": 100.0, "wall_thickness": 2000.0},
+            {"outer_radius": 10.0, "height": 30.0, "wall_thickness": 0.2},
+            {"outer_radius": 25.0, "height": 60.0, "wall_thickness": 1.0},
+            {"outer_radius": 50.0, "height": 100.0, "wall_thickness": 2.0},
         ]
         
         for case in test_cases:
+
             test_canister = CylindricalCanister(
                 material=self.aluminum,
                 **case
