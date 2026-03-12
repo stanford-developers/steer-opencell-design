@@ -2,6 +2,7 @@
 
 # import core units
 from steer_core.Constants.Units import *
+from steer_core.Decorators.Coordinates import calculate_coordinates
 
 # import materials
 from steer_opencell_design.Materials.Other import CurrentCollectorMaterial
@@ -384,6 +385,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         return np.round(self._tab_position * M_TO_MM, 1)
 
     @tab_position.setter
+    @calculate_coordinates
     def tab_position(self, tab_position: float) -> None:
         self.validate_positive_float(tab_position, "tab_position")
 
@@ -392,11 +394,8 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         if self._tab_position - self._tab_width / 2 < 0:
             self._tab_position = self._tab_width / 2
 
-        if self._tab_position + self._tab_width / 2 > self.x_foil_length:
-            self._tab_position = self.x_foil_length - self._tab_width / 2
-
-        if self._update_properties:
-            self._calculate_coordinates()
+        if self._tab_position + self._tab_width / 2 > self._x_foil_length:
+            self._tab_position = self._x_foil_length - self._tab_width / 2
 
     @width.setter
     def width(self, width: float) -> None:

@@ -616,9 +616,9 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             y_datum = (self._datum[1] + self._y_foil_length / 2 + self._tab_overhang - new_weld_tab._length / 2) * M_TO_MM
 
             if self._tab_weld_side == "a":
-                z_datum = (self._datum[2] + self._thickness * UM_TO_MM / 2 + new_weld_tab._thickness * UM_TO_MM / 2) * M_TO_MM
+                z_datum = (self._datum[2] + self._thickness / 2 + new_weld_tab._thickness / 2) * M_TO_MM
             elif self._tab_weld_side == "b":
-                z_datum = (self._datum[2] - self._thickness * UM_TO_MM / 2 - new_weld_tab._thickness * UM_TO_MM / 2) * M_TO_MM
+                z_datum = (self._datum[2] - self._thickness / 2 - new_weld_tab._thickness / 2) * M_TO_MM
 
             new_weld_tab.datum = (x_datum, y_datum, z_datum)
             self._weld_tabs.append(new_weld_tab)
@@ -913,12 +913,6 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             raise ValueError("Weld tab positions cannot be greater than the length of the current collector.")
 
         self._weld_tab_positions = [float(pos) * MM_TO_M for pos in sorted(weld_tab_positions)]
-
-    @tab_overhang.setter
-    @calculate_weld_tab_properties
-    def tab_overhang(self, tab_overhang: float) -> None:
-        self.validate_positive_float(tab_overhang, "tab_overhang")
-        self._tab_overhang = float(tab_overhang) * MM_TO_M
 
     @skip_coat_width.setter
     @calculate_areas
