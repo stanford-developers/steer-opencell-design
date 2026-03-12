@@ -141,6 +141,7 @@ class _ElectrodeFormulation(
         self._check_formulation()
 
         self._get_voltage_operation_window()
+        self._validate_and_set_voltage_cutoff()
         self._calculate_specific_capacity_curve()
 
         if hasattr(self, '_mass') and self._mass is not None:
@@ -279,9 +280,11 @@ class _ElectrodeFormulation(
             elif self._voltage_cutoff > max_voltage:
                 self._voltage_cutoff = max_voltage
 
-        # Set the voltage cutoff for each active material
+        # Set the voltage cutoff for each active material (skip if already in sync
+        # to avoid triggering unnecessary @calculate_all_properties on materials)
         for material in self._active_materials.keys():
-            material.voltage_cutoff = self._voltage_cutoff
+            if material._voltage_cutoff != self._voltage_cutoff:
+                material.voltage_cutoff = self._voltage_cutoff
 
     def _check_formulation(self) -> None:
         """
