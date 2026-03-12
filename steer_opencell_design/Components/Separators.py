@@ -210,7 +210,7 @@ class Separator(
 
         return self
 
-    def get_top_down_view(self, **kwargs) -> go.Figure:
+    def plot_top_down_view(self, **kwargs) -> go.Figure:
         """Generate a top-down Plotly figure of the separator."""
         if self._coordinates is None:
             raise ValueError("Cannot generate top-down view: length not set")
@@ -228,7 +228,7 @@ class Separator(
 
         return fig
     
-    def get_right_left_view(self, **kwargs):
+    def plot_right_left_view(self, **kwargs) -> go.Figure:
         """Generate a right-left (side) Plotly figure of the separator."""
         if self._coordinates is None:
             raise ValueError("Cannot generate right-left view: length not set")
@@ -247,7 +247,7 @@ class Separator(
 
         return fig
 
-    def get_bottom_up_view(self, **kwargs):
+    def plot_bottom_up_view(self, **kwargs) -> go.Figure:
         """Generate a bottom-up Plotly figure of the separator."""
         if self._coordinates is None:
             raise ValueError("Cannot generate bottom-up view: length not set")

@@ -424,7 +424,7 @@ class _Electrode(
 
     # === VIEWS ===
 
-    def get_right_left_view(self, set_z_zero: bool = False, **kwargs) -> pd.DataFrame:
+    def plot_right_left_view(self, set_z_zero: bool = False, **kwargs) -> go.Figure:
         """Generate a right-left (side) Plotly figure of the electrode."""
         if set_z_zero:
             if self.datum_z == 0.0:
@@ -435,7 +435,7 @@ class _Electrode(
         else:
             electrode = self
 
-        figure = electrode._current_collector.get_right_left_view(**kwargs)
+        figure = electrode._current_collector.plot_right_left_view(**kwargs)
         figure.data = [trace for trace in figure.data if trace.name == "Foil" or trace.name == "Tab"]
 
         if not electrode._is_anode_free:
@@ -479,9 +479,9 @@ class _Electrode(
 
         return fig
 
-    def get_top_down_view(self, **kwargs) -> go.Figure:
+    def plot_top_down_view(self, **kwargs) -> go.Figure:
         """Generate a top-down Plotly figure of the electrode."""
-        figure = self.current_collector.get_top_down_view(**kwargs)
+        figure = self.current_collector.plot_top_down_view(**kwargs)
         figure.data = [trace for trace in figure.data if trace.name == "Foil" or trace.name == "Tab"]
 
         if not self._is_anode_free:
@@ -497,27 +497,27 @@ class _Electrode(
 
         return figure
 
-    def get_a_side_view(self, **kwargs) -> go.Figure:
+    def plot_a_side_view(self, **kwargs) -> go.Figure:
         """Generate a Plotly figure of the A-side of the electrode."""
         if self.top_side == "a":
-            return self.get_top_down_view(**kwargs)
+            return self.plot_top_down_view(**kwargs)
         else:
             self._flip("y")
-            figure = self.get_top_down_view(**kwargs)
+            figure = self.plot_top_down_view(**kwargs)
             self._flip("y")
             return figure
 
-    def get_b_side_view(self, **kwargs) -> go.Figure:
+    def plot_b_side_view(self, **kwargs) -> go.Figure:
         """Generate a Plotly figure of the B-side of the electrode."""
         if self.top_side == "b":
-            return self.get_top_down_view(**kwargs)
+            return self.plot_top_down_view(**kwargs)
         else:
             self._flip("y")
-            figure = self.get_top_down_view(**kwargs)
+            figure = self.plot_top_down_view(**kwargs)
             self._flip("y")
             return figure
 
-    def get_cross_section(self, **kwargs) -> go.Figure:
+    def plot_cross_section(self, **kwargs) -> go.Figure:
         """
         Get a cross-section view of the electrode, zoomed in around the datum.
         
@@ -529,12 +529,12 @@ class _Electrode(
         """
         # For anode-free electrodes, return the current collector cross-section directly
         if self._is_anode_free:
-            figure = self._current_collector.get_right_left_view(**kwargs)
+            figure = self._current_collector.plot_right_left_view(**kwargs)
             figure.data = [trace for trace in figure.data if trace.name == "Foil" or trace.name == "Tab"]
             return figure
 
-        # Get base figure using get_right_left_view (includes current collector and coating traces)
-        figure = self.get_right_left_view(**kwargs)
+        # Get base figure using plot_right_left_view (includes current collector and coating traces)
+        figure = self.plot_right_left_view(**kwargs)
         
         # Note: Insulation traces are intentionally excluded from cross-section view
         # Remove insulation traces if they exist

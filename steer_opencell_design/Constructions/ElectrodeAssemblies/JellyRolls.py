@@ -1531,7 +1531,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
         return min_y + anode_tab_deduction
 
-    def get_spiral_plot(self, layered: bool = True,**kwargs: Any) -> go.Figure:
+    def plot_spiral(self, layered: bool = True,**kwargs: Any) -> go.Figure:
         """Generate interactive spiral plot using Plotly.
         
         Parameters
@@ -1596,7 +1596,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
         return fig
         
-    def get_top_down_view(self, opacity: float = 0.5, **kwargs) -> go.Figure:
+    def plot_top_down_view(self, opacity: float = 0.5, **kwargs) -> go.Figure:
         """Generate top-down view of the jelly roll with all component layers.
         
         Parameters
@@ -1656,7 +1656,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
         return figure
 
-    def get_side_view(self, opacity: float = 0.5, **kwargs) -> go.Figure:
+    def plot_side_view(self, opacity: float = 0.5, **kwargs) -> go.Figure:
         """Generate right-left side view of the jelly roll with all component layers.
         
         Parameters

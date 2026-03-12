@@ -66,10 +66,10 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         self.assertTrue(condition)
 
     def test_figures_and_datum_setter(self):
-        fig_a = self.current_collector.get_top_down_view()
+        fig_a = self.current_collector.plot_top_down_view()
 
         self.current_collector.datum = (100, 50, 0)
-        fig_b = self.current_collector.get_top_down_view()
+        fig_b = self.current_collector.plot_top_down_view()
 
         # fig_a.show()
         # fig_b.show()
@@ -78,8 +78,8 @@ class TestPunchedCurrentCollector(unittest.TestCase):
 
     def test_flip_about_y_axis(self):
         self.current_collector.datum = (1000, 1000, 500)
-        fig_a = self.current_collector.get_top_down_view()
-        fig_b = self.current_collector._flip("y").get_top_down_view()
+        fig_a = self.current_collector.plot_top_down_view()
+        fig_b = self.current_collector._flip("y").plot_top_down_view()
 
         # fig_a.show()
         # fig_b.show()
@@ -87,8 +87,8 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         self.assertTrue(True)
 
     def test_views(self):
-        fig_a = self.current_collector.get_a_side_view()
-        fig_b = self.current_collector.get_b_side_view()
+        fig_a = self.current_collector.plot_a_side_view()
+        fig_b = self.current_collector.plot_b_side_view()
 
         # fig_a.show()
         # fig_b.show()
@@ -100,9 +100,9 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         self.assertEqual(self.current_collector.width, 200)
 
     def test_rotate(self):
-        figure1 = self.current_collector.get_top_down_view()
+        figure1 = self.current_collector.plot_top_down_view()
         self.current_collector.rotate_90()
-        figure2 = self.current_collector.get_top_down_view()
+        figure2 = self.current_collector.plot_top_down_view()
 
         # figure1.show()
         # figure2.show()
@@ -116,13 +116,13 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         self.assertNotEqual(self.current_collector.insulation_area, old_insulation_area)
 
     def test_flip_and_setter(self):
-        fig1 = self.current_collector.get_top_down_view()
+        fig1 = self.current_collector.plot_top_down_view()
 
         self.current_collector._flip("y")
-        fig2 = self.current_collector.get_top_down_view()
+        fig2 = self.current_collector.plot_top_down_view()
 
         self.current_collector.width = 200
-        fig3 = self.current_collector.get_top_down_view()
+        fig3 = self.current_collector.plot_top_down_view()
 
         # fig1.show()
         # fig2.show()
@@ -180,9 +180,9 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         self.assertEqual(self.current_collector.material.mass, 13.63)
 
     def test_figures(self):
-        fig_b = self.current_collector.get_top_down_view()
-        fig_c = self.current_collector.get_a_side_view()
-        fig_d = self.current_collector.get_b_side_view()
+        fig_b = self.current_collector.plot_top_down_view()
+        fig_c = self.current_collector.plot_a_side_view()
+        fig_d = self.current_collector.plot_b_side_view()
 
         # fig_b.show(renderer='browser')
         # fig_c.show(renderer='browser')
@@ -203,18 +203,18 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         self.assertEqual(self.current_collector.material.mass, 30.16)
         self.assertEqual(self.current_collector.material.cost, 0.47)
 
-        fig_a = self.current_collector.get_a_side_view()
-        fig_b = self.current_collector.get_b_side_view()
+        fig_a = self.current_collector.plot_a_side_view()
+        fig_b = self.current_collector.plot_b_side_view()
 
         # fig_a.show()
         # fig_b.show()
 
     def test_datum_shifter(self):
         self.current_collector.length = 300
-        fig11 = self.current_collector.get_top_down_view()
+        fig11 = self.current_collector.plot_top_down_view()
 
         self.current_collector.datum = (200, 150, 50)
-        fig21 = self.current_collector.get_top_down_view()
+        fig21 = self.current_collector.plot_top_down_view()
 
         figure1 = go.Figure(data=fig11.data + fig21.data)
 
@@ -226,10 +226,10 @@ class TestNotchedCurrentCollector(unittest.TestCase):
 
     def test_flip_and_set_datum(self):
         self.current_collector.length = 300
-        fig11 = self.current_collector.get_top_down_view()
+        fig11 = self.current_collector.plot_top_down_view()
         self.current_collector._flip("y")
         self.current_collector.datum = (200, 150, 50)
-        fig21 = self.current_collector.get_top_down_view()
+        fig21 = self.current_collector.plot_top_down_view()
 
         figure1 = go.Figure(data=fig11.data + fig21.data)
         # figure1.show()
@@ -335,8 +335,8 @@ class TestNotchedCurrentCollector2(unittest.TestCase):
         self.assertEqual(round(self.current_collector.insulation_area, 6), 69.7)
 
     def test_figures(self):
-        fig_a = self.current_collector.get_a_side_view()
-        fig_b = self.current_collector.get_b_side_view()
+        fig_a = self.current_collector.plot_a_side_view()
+        fig_b = self.current_collector.plot_b_side_view()
 
         # fig_a.show()
         # fig_b.show()
@@ -377,11 +377,11 @@ class TestNotchedCurrentCollector3(unittest.TestCase):
         """
         Test figures
         """
-        fig1 = self.current_collector.get_top_down_view()
+        fig1 = self.current_collector.plot_top_down_view()
 
         self.current_collector.insulation_width = 4
         self.current_collector.coated_tab_height = 2
-        fig2 = self.current_collector.get_top_down_view()
+        fig2 = self.current_collector.plot_top_down_view()
 
         # fig1.show()
         # fig2.show()
@@ -425,10 +425,10 @@ class TestTablessCurrentCollector(unittest.TestCase):
         self.assertEqual(round(self.current_collector._coated_width, 6), 0.1)
 
     def test_figures(self):
-        fig_a = self.current_collector.get_a_side_view()
-        fig_b = self.current_collector.get_b_side_view()
-        fig_c = self.current_collector.get_right_left_view()
-        fig_d = self.current_collector.get_top_down_view()
+        fig_a = self.current_collector.plot_a_side_view()
+        fig_b = self.current_collector.plot_b_side_view()
+        fig_c = self.current_collector.plot_right_left_view()
+        fig_d = self.current_collector.plot_top_down_view()
 
         # fig_a.show(renderer='browser')
         # fig_b.show(renderer='browser')
@@ -439,11 +439,11 @@ class TestTablessCurrentCollector(unittest.TestCase):
         """
         Test width setter
         """
-        fig1 = self.current_collector.get_top_down_view()
+        fig1 = self.current_collector.plot_top_down_view()
         self.assertEqual(self.current_collector.coated_width, 100)
 
         self.current_collector.width = 208
-        fig2 = self.current_collector.get_top_down_view()
+        fig2 = self.current_collector.plot_top_down_view()
         self.assertEqual(self.current_collector.width, 208)
         self.assertEqual(self.current_collector.coated_width, 200)
 
@@ -454,11 +454,11 @@ class TestTablessCurrentCollector(unittest.TestCase):
         """
         Test tab height setter
         """
-        fig1 = self.current_collector.get_top_down_view()
+        fig1 = self.current_collector.plot_top_down_view()
         self.assertEqual(self.current_collector.tab_height, 8)
 
         self.current_collector.tab_height = 20
-        fig2 = self.current_collector.get_top_down_view()
+        fig2 = self.current_collector.plot_top_down_view()
         self.assertEqual(self.current_collector.tab_height, 20)
 
         # fig1.show()
@@ -500,8 +500,8 @@ class TestWeldTab(unittest.TestCase):
         """
         Test plots
         """
-        fig1 = self.weldtab.get_view()
-        fig2 = self.weldtab.get_side_view()
+        fig1 = self.weldtab.plot_view()
+        fig2 = self.weldtab.plot_side_view()
 
         # fig1.show()
         # fig2.show()
@@ -564,9 +564,9 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         """
         Test plots
         """
-        fig1 = self.current_collector.get_top_down_view()
-        fig2 = self.current_collector.get_a_side_view()
-        fig3 = self.current_collector.get_b_side_view()
+        fig1 = self.current_collector.plot_top_down_view()
+        fig2 = self.current_collector.plot_a_side_view()
+        fig3 = self.current_collector.plot_b_side_view()
 
         # fig1.show()
         # fig2.show()
@@ -575,7 +575,7 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
     def test_length_setter(self):
         self.current_collector.length = 2000
         self.assertEqual(self.current_collector.length, 2000)
-        fig1 = self.current_collector.get_top_down_view()
+        fig1 = self.current_collector.plot_top_down_view()
         # fig1.show()
 
     def test_material_setter(self):
@@ -585,18 +585,18 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         self.current_collector.weld_tab = tab
         self.assertEqual(self.current_collector.weld_tab.material.name, "Aluminum")
 
-        fig1 = self.current_collector.get_a_side_view()
+        fig1 = self.current_collector.plot_a_side_view()
         # fig1.show()
 
     def test_to_notched(self):
         new_current_collector = NotchedCurrentCollector.from_tab_welded(self.current_collector)
         self.assertIsInstance(new_current_collector, NotchedCurrentCollector)
 
-        fig1 = new_current_collector.get_top_down_view()
+        fig1 = new_current_collector.plot_top_down_view()
 
         new_current_collector.insulation_width = 4
         new_current_collector.coated_tab_height = 2
-        fig2 = new_current_collector.get_top_down_view()
+        fig2 = new_current_collector.plot_top_down_view()
 
         # fig1.show()
         # fig2.show()
@@ -606,19 +606,19 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         self.assertIsInstance(new_current_collector, TablessCurrentCollector)
 
     def test_flip(self):
-        fig1 = self.current_collector.get_top_down_view()
+        fig1 = self.current_collector.plot_top_down_view()
         self.current_collector._flip("y")
-        fig2 = self.current_collector.get_top_down_view()
+        fig2 = self.current_collector.plot_top_down_view()
 
         # fig1.show()
         # fig2.show()
 
     def test_flip_and_set_datum(self):
         self.current_collector.length = 300
-        fig11 = self.current_collector.get_top_down_view()
+        fig11 = self.current_collector.plot_top_down_view()
         self.current_collector._flip("y")
         self.current_collector.datum = (200, 150, 50)
-        fig21 = self.current_collector.get_top_down_view()
+        fig21 = self.current_collector.plot_top_down_view()
 
         figure1 = go.Figure(data=fig11.data + fig21.data)
         # figure1.show()

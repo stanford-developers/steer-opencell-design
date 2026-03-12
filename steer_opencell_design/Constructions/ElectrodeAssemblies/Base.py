@@ -182,7 +182,7 @@ class _ElectrodeAssembly(
 
         return fig
 
-    def get_capacity_plot(self, **kwargs) -> go.Figure:
+    def plot_capacity_curve(self, **kwargs) -> go.Figure:
         """
         Generate capacity plot for the assembly.
 
