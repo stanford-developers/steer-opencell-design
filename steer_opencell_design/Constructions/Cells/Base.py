@@ -584,6 +584,16 @@ class _Cell(
             'layup_np_ratio': getattr(layup, '_np_ratio', None),
             # Formulation state (modified by Brent's method)
             'formulation_cutoff': formulation._voltage_cutoff,
+            'material_states': {
+                mat: {
+                    'voltage_cutoff': mat._voltage_cutoff,
+                    'specific_capacity_curve': mat._specific_capacity_curve.copy()
+                        if getattr(mat, '_specific_capacity_curve', None) is not None else None,
+                    'specific_capacity_curves': mat._specific_capacity_curves.copy()
+                        if getattr(mat, '_specific_capacity_curves', None) is not None else None,
+                }
+                for mat in formulation._active_materials.keys()
+            },
             'formulation_spec_curve': formulation._specific_capacity_curve.copy()
                 if getattr(formulation, '_specific_capacity_curve', None) is not None else None,
             'formulation_cap_curve': formulation._capacity_curve.copy()
@@ -619,6 +629,12 @@ class _Cell(
 
         # Restore in reverse order of dependencies
         formulation._voltage_cutoff = s['formulation_cutoff']
+        for mat, state in s['material_states'].items():
+            mat._voltage_cutoff = state['voltage_cutoff']
+            if state['specific_capacity_curve'] is not None:
+                mat._specific_capacity_curve = state['specific_capacity_curve']
+            if state['specific_capacity_curves'] is not None:
+                mat._specific_capacity_curves = state['specific_capacity_curves']
         if s['formulation_spec_curve'] is not None:
             formulation._specific_capacity_curve = s['formulation_spec_curve']
         if s['formulation_cap_curve'] is not None:

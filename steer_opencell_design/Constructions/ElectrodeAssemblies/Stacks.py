@@ -219,11 +219,12 @@ class _Stack(_ElectrodeAssembly):
         return self._cost
 
     def _calculate_pore_volume(self):
-        
+
         _cathode_pore_volume = sum(c._pore_volume for c in self._cathodes)
         _anode_pore_volume = sum(a._pore_volume for a in self._anodes)
+        _separator_pore_volume = sum(s._pore_volume for s in self._separators)
 
-        self._pore_volume = _cathode_pore_volume + _anode_pore_volume
+        self._pore_volume = _cathode_pore_volume + _anode_pore_volume + _separator_pore_volume
 
     def _get_center_point(self) -> Tuple[float, float, float]:
         """Get the center point of the stack assembly.

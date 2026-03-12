@@ -61,7 +61,8 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
     def test_serialization(self):
         serialized = self.cathode_formulation.serialize()
         deserialized = CathodeFormulation.deserialize(serialized)
-        self.assertEqual(self.cathode_formulation, deserialized)
+        condition = self.cathode_formulation == deserialized
+        self.assertTrue(condition)
 
     def test_mass_setter(self):
 
@@ -207,6 +208,63 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
         new_cutoff_voltage = self.cathode_formulation.voltage_cutoff
 
         self.assertNotEqual(old_cutoff_voltage, new_cutoff_voltage)
+
+    def test_voltage_cutoff_stays_synced_after_recalculation(self):
+        """Regression: material voltage cutoffs must stay in sync with formulation
+        after _calculate_all_properties is triggered (e.g. by a cell geometry change)."""
+        formulation = self.cathode_formulation
+        material = self.cathode_active_material1
+
+        original_cutoff = formulation.voltage_cutoff
+
+        new_cutoff = original_cutoff - 0.1
+        formulation.voltage_cutoff = new_cutoff
+
+        self.assertAlmostEqual(formulation._voltage_cutoff, material._voltage_cutoff, places=6)
+
+        fig_before = formulation.plot_specific_capacity_curve(add_materials=True)
+        formulation_max_v_before = max(fig_before.data[0].y)
+        material_max_v_before = max(fig_before.data[1].y)
+        self.assertAlmostEqual(formulation_max_v_before, material_max_v_before, places=3)
+
+        formulation._calculate_all_properties()
+
+        self.assertAlmostEqual(formulation._voltage_cutoff, material._voltage_cutoff, places=6,
+                               msg="Material voltage cutoff drifted after _calculate_all_properties")
+
+        fig_after = formulation.plot_specific_capacity_curve(add_materials=True)
+        formulation_max_v_after = max(fig_after.data[0].y)
+        material_max_v_after = max(fig_after.data[1].y)
+        self.assertAlmostEqual(formulation_max_v_after, material_max_v_after, places=3,
+                               msg="Material curve voltage range differs from formulation after recalculation")
+
+        self.assertAlmostEqual(formulation_max_v_before, formulation_max_v_after, places=3,
+                               msg="Formulation curve changed unexpectedly after recalculation")
+
+    def test_voltage_cutoff_stays_synced_with_mass_change(self):
+        """Regression: changing formulation mass (as happens when cell geometry changes)
+        must not desync material voltage cutoffs."""
+        formulation = self.cathode_formulation
+        material = self.cathode_active_material1
+
+        formulation.voltage_cutoff = formulation.voltage_cutoff - 0.15
+
+        self.assertAlmostEqual(formulation._voltage_cutoff, material._voltage_cutoff, places=6)
+
+        formulation.mass = 0.5
+
+        self.assertAlmostEqual(formulation._voltage_cutoff, material._voltage_cutoff, places=6)
+
+        formulation.mass = 0.8
+
+        self.assertAlmostEqual(formulation._voltage_cutoff, material._voltage_cutoff, places=6,
+                               msg="Material voltage cutoff drifted after mass change")
+
+        fig = formulation.plot_specific_capacity_curve(add_materials=True)
+        formulation_max_v = max(fig.data[0].y)
+        material_max_v = max(fig.data[1].y)
+        self.assertAlmostEqual(formulation_max_v, material_max_v, places=3,
+                               msg="Material curve voltage range differs from formulation after mass change")
 
 
 class TestMultiCathodeFormulation(unittest.TestCase):
