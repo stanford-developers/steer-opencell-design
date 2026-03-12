@@ -141,6 +141,7 @@ class _ElectrodeFormulation(
         self._check_formulation()
 
         self._get_voltage_operation_window()
+        self._validate_and_set_voltage_cutoff()
         self._calculate_specific_capacity_curve()
 
         if hasattr(self, '_mass') and self._mass is not None:
@@ -242,37 +243,29 @@ class _ElectrodeFormulation(
     def _get_voltage_operation_window(self) -> None:
         """
         Get the voltage operation window from each active material.
-        Note: Voltage cutoff compatibility is now handled in active_materials.setter
+        Recalculates every time so that changes to active materials are reflected.
+
+        Computes the intersection of all material voltage ranges and stores
+        the result as (lower_bound, upper_bound) regardless of formulation type.
         """
-        if not hasattr(self, "_voltage_operation_window"):
-            # If voltage operation window hasn't been set yet (during initialization)
-            voltage_operation_windows = [material._voltage_operation_window for material in self._active_materials.keys()]
-            starts, middles, ends = zip(*voltage_operation_windows)
+        voltage_operation_windows = [material._voltage_operation_window for material in self._active_materials.keys()]
 
-            if type(self) == CathodeFormulation:
-                common_start = max(starts)
-                common_end = min(ends)
-            else:  # AnodeFormulation
-                common_start = min(starts)
-                common_end = max(ends)
+        lower_bounds = [min(w) for w in voltage_operation_windows]
+        upper_bounds = [max(w) for w in voltage_operation_windows]
 
-            self._voltage_operation_window = (common_start, common_end)
+        common_lower = max(lower_bounds)
+        common_upper = min(upper_bounds)
+
+        self._voltage_operation_window = (common_lower, common_upper)
 
         return self._voltage_operation_window
 
     def _validate_and_set_voltage_cutoff(self) -> None:
         """
         Validate formulation voltage cutoff against common voltage range and set material cutoffs.
+        The stored _voltage_operation_window is always (lower_bound, upper_bound).
         """
-        common_start, common_end = self._voltage_operation_window
-
-        # Determine the valid range boundaries based on formulation type
-        if type(self) == CathodeFormulation:
-            min_voltage = common_start
-            max_voltage = common_end
-        else:  # AnodeFormulation
-            min_voltage = common_end  # For anodes, end is actually lower
-            max_voltage = common_start  # For anodes, start is actually higher
+        min_voltage, max_voltage = self._voltage_operation_window
 
         # If no voltage cutoff is set, use the appropriate boundary
         if not hasattr(self, "_voltage_cutoff") or self._voltage_cutoff is None:
@@ -287,9 +280,11 @@ class _ElectrodeFormulation(
             elif self._voltage_cutoff > max_voltage:
                 self._voltage_cutoff = max_voltage
 
-        # Set the voltage cutoff for each active material
+        # Set the voltage cutoff for each active material (skip if already in sync
+        # to avoid triggering unnecessary @calculate_all_properties on materials)
         for material in self._active_materials.keys():
-            material.voltage_cutoff = self._voltage_cutoff
+            if material._voltage_cutoff != self._voltage_cutoff:
+                material.voltage_cutoff = self._voltage_cutoff
 
     def _check_formulation(self) -> None:
         """
@@ -447,63 +442,40 @@ class _ElectrodeFormulation(
     def _handle_voltage_cutoff_compatibility(self) -> None:
         """
         Check if current voltage cutoff is compatible with new materials and adjust if necessary.
+        Uses intersection of actual voltage ranges regardless of formulation type.
         """
-        # First, calculate the new voltage operation window
         voltage_operation_windows = [material._voltage_operation_window for material in self._active_materials.keys()]
-        starts, middles, ends = zip(*voltage_operation_windows)
 
-        # Determine the common voltage operation window
-        if type(self) == CathodeFormulation:
-            common_start = max(starts)
-            common_end = min(ends)
-            valid_range = common_start <= common_end
-        else:  # AnodeFormulation
-            common_start = min(starts)
-            common_end = max(ends)
-            valid_range = common_start >= common_end
+        lower_bounds = [min(w) for w in voltage_operation_windows]
+        upper_bounds = [max(w) for w in voltage_operation_windows]
 
-        # Check if there's a valid common range
+        min_voltage = max(lower_bounds)
+        max_voltage = min(upper_bounds)
+
+        valid_range = min_voltage <= max_voltage
+
         if not valid_range:
             material_ranges = [f"{mat.name}: {mat._voltage_operation_window}" for mat in self._active_materials.keys()]
             raise ValueError(f"The active materials have incompatible voltage operation windows.\n" f"Material ranges: {material_ranges}\n" f"No common voltage range exists for these materials.")
 
-        # Store the new voltage operation window
-        self._voltage_operation_window = (common_start, common_end)
-
-        # Determine the valid range boundaries based on formulation type
-        if type(self) == CathodeFormulation:
-            min_voltage = common_start
-            max_voltage = common_end
-        else:  # AnodeFormulation
-            min_voltage = common_end  # For anodes, end is actually lower
-            max_voltage = common_start  # For anodes, start is actually higher
+        self._voltage_operation_window = (min_voltage, max_voltage)
 
         # Check if we have an existing voltage cutoff
         if hasattr(self, "_voltage_cutoff") and self._voltage_cutoff is not None:
-            # Check if current voltage cutoff is compatible with new materials
             if min_voltage <= self._voltage_cutoff <= max_voltage:
-                # Current voltage cutoff is compatible - keep it and set it to materials
                 for material in self._active_materials.keys():
                     material.voltage_cutoff = self._voltage_cutoff
             else:
-                # Current voltage cutoff is incompatible - adjust to nearest boundary
-                if self._voltage_cutoff < min_voltage:
-                    new_voltage = min_voltage
-                else:  # self._voltage_cutoff > max_voltage
-                    new_voltage = max_voltage
-
-                # Update formulation voltage cutoff and set to materials
+                new_voltage = min_voltage if self._voltage_cutoff < min_voltage else max_voltage
                 self._voltage_cutoff = new_voltage
                 for material in self._active_materials.keys():
                     material.voltage_cutoff = self._voltage_cutoff
         else:
-            # No existing voltage cutoff - set to appropriate boundary
             if type(self) == CathodeFormulation:
-                self._voltage_cutoff = max_voltage  # Use upper bound for cathodes
+                self._voltage_cutoff = max_voltage
             else:
-                self._voltage_cutoff = min_voltage  # Use lower bound for anodes
+                self._voltage_cutoff = min_voltage
 
-            # Set voltage cutoff to all materials
             for material in self._active_materials.keys():
                 material.voltage_cutoff = self._voltage_cutoff
 
@@ -654,6 +626,9 @@ class _ElectrodeFormulation(
 
     @property
     def specific_capacity_curve_trace(self) -> go.Scatter:
+
+        if self._specific_capacity_curve is None:
+            return None
 
         return go.Scatter(
             x=self.specific_capacity_curve["Specific Capacity (mAh/g)"],
@@ -1035,23 +1010,20 @@ class _ElectrodeFormulation(
     
     @property
     def capacity_curve(self) -> pd.DataFrame:
-        """Get the capacity curve with proper units and formatting."""
+        """Get the absolute capacity curve (specific capacity * mass) with proper units and formatting."""
 
-        if self._specific_capacity_curve is None:
+        if getattr(self, "_capacity_curve", None) is None:
             return None
 
-        # Pre-compute unit conversion factor
+        # Pre-compute unit conversion factor (A·s → mAh)
         capacity_conversion = S_TO_H * A_TO_mA
 
-        # original curve
-        curve = self._specific_capacity_curve.copy()
+        curve = self._capacity_curve.copy()
         
-        # compute the columns
         capacity = np.round(curve[:, 0] * capacity_conversion, 4)
         voltage = np.round(curve[:, 1], 4)
         direction = np.where(curve[:, 2] == 1, "charge", "discharge")
 
-        # Create DataFrame with converted values directly
         return pd.DataFrame({
             "Capacity (mAh)": capacity,
             "Voltage (V)": voltage,
@@ -1683,7 +1655,7 @@ class _ElectrodeFormulation(
             else:
                 voltage = min(self._voltage_operation_window)
 
-        self.validate_positive_float(voltage, "Voltage cutoff")
+        self.validate_number(voltage, "Voltage cutoff")
 
         # Store the requested voltage cutoff
         self._voltage_cutoff = voltage

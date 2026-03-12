@@ -794,7 +794,8 @@ class PrismaticCanister(
     PropagationMixin,
     SerializerMixin,
     ValidationMixin,
-    PlotterMixin
+    PlotterMixin,
+    DunderMixin
 ):
     """A prismatic (rectangular) container with walls.
     
