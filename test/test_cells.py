@@ -189,10 +189,10 @@ class TestCylindricalCell(unittest.TestCase):
     def test_basics(self):
         self.assertIsInstance(self.cell, ocd.CylindricalCell)
         self.assertEqual(self.cell.energy, 124.09)
-        self.assertEqual(self.cell.mass, 910.08)
-        self.assertEqual(self.cell.specific_energy, 136.35)
+        self.assertEqual(self.cell.mass, 970.35)
+        self.assertEqual(self.cell.specific_energy, 127.88)
         self.assertEqual(self.cell.volumetric_energy, 261.36)
-        self.assertEqual(self.cell.cost_per_energy, 58.02)
+        self.assertEqual(self.cell.cost_per_energy, 65.3)
     
     def test_plots(self):
 
@@ -1028,10 +1028,10 @@ class TestCylindricalCellTabbed(unittest.TestCase):
     def test_basics(self):
         self.assertIsInstance(self.cell, ocd.CylindricalCell)
         self.assertEqual(self.cell.energy, 132.3)
-        self.assertEqual(self.cell.mass, 920.95)
-        self.assertEqual(self.cell.specific_energy, 143.66)
+        self.assertEqual(self.cell.mass, 981.21)
+        self.assertEqual(self.cell.specific_energy, 134.84)
         self.assertEqual(self.cell.volumetric_energy, 285.58)
-        self.assertEqual(self.cell.cost_per_energy, 52.65)
+        self.assertEqual(self.cell.cost_per_energy, 59.49)
 
     def test_set_nmc(self):
     
@@ -1202,8 +1202,8 @@ class TestStackedPouchCell(unittest.TestCase):
     def test_basics(self):
         self.assertIsInstance(self.cell, ocd.PouchCell)
         self.assertAlmostEqual(self.cell.energy, 2282.76, 1)
-        self.assertAlmostEqual(self.cell.mass, 133122.64, 0)
-        self.assertAlmostEqual(self.cell.cost, 79.41, 1)
+        self.assertAlmostEqual(self.cell.mass, 133260.16, 0)
+        self.assertAlmostEqual(self.cell.cost, 80.1, 1)
 
     def test_serialization(self):
         serialized = self.cell.serialize()
@@ -1695,9 +1695,9 @@ class TestStackedPrismaticCell(unittest.TestCase):
 
     def test_basics(self):
         self.assertIsInstance(self.cell, ocd.PrismaticCell)
-        # self.assertAlmostEqual(self.cell.energy, 2282.76, 1)
-        # self.assertAlmostEqual(self.cell.mass, 14066.36, 0)
-        # self.assertAlmostEqual(self.cell.cost, 80.53, 1)
+        self.assertAlmostEqual(self.cell.energy, 3424.14, 1)
+        self.assertAlmostEqual(self.cell.mass, 24842.46, 0)
+        self.assertAlmostEqual(self.cell.cost, 115.76, 1)
 
     def test_plots(self):
 

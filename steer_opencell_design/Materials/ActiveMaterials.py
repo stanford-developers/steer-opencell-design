@@ -343,9 +343,9 @@ class _ActiveMaterial(
 
         fig = go.Figure()
         fig.add_traces(self.specific_capacity_curves_traces)
-        XAXIS = self.SCATTER_X_AXIS
+        XAXIS = self.SCATTER_X_AXIS.copy()
         XAXIS['title'] = 'Specific Capacity (mAh/g)'
-        YAXIS = self.SCATTER_Y_AXIS
+        YAXIS = self.SCATTER_Y_AXIS.copy()
         YAXIS['title'] = 'Voltage (V)'
 
         fig.update_layout(
@@ -364,9 +364,9 @@ class _ActiveMaterial(
 
         fig = go.Figure()
         fig.add_trace(self.specific_capacity_curve_trace)
-        XAXIS = self.SCATTER_X_AXIS
+        XAXIS = self.SCATTER_X_AXIS.copy()
         XAXIS['title'] = 'Specific Capacity (mAh/g)'
-        YAXIS = self.SCATTER_Y_AXIS
+        YAXIS = self.SCATTER_Y_AXIS.copy()
         YAXIS['title'] = 'Voltage (V)'
 
         fig.update_layout(
@@ -693,6 +693,12 @@ class _ActiveMaterial(
         # validate input
         self.validate_positive_float(capacity, "Irreversible specific capacity")
 
+        if self._irreversible_specific_capacity_scaling == 0:
+            raise ZeroDivisionError(
+                "Cannot set irreversible specific capacity when scaling is -100% (zero). "
+                "Reset the scaling percentage first."
+            )
+
         # convert to SI units
         target_capacity = capacity * (mA_TO_A * H_TO_S / G_TO_KG)
 
@@ -710,6 +716,12 @@ class _ActiveMaterial(
     def reversible_specific_capacity(self, capacity: float):
         # validate input
         self.validate_positive_float(capacity, "Reversible specific capacity")
+
+        if self._reversible_specific_capacity_scaling == 0:
+            raise ZeroDivisionError(
+                "Cannot set reversible specific capacity when scaling is -100% (zero). "
+                "Reset the scaling percentage first."
+            )
 
         # convert to SI units
         target_capacity = capacity * (mA_TO_A * H_TO_S / G_TO_KG)
