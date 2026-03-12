@@ -98,11 +98,11 @@ class WeldTab(PropagationMixin, ValidationMixin, CoordinateMixin, DatumMixin, Du
     Visualize tab geometry and validate design:
 
     >>> # Generate visualization plots
-    >>> top_view = heavy_duty_tab.get_view(
+    >>> top_view = heavy_duty_tab.plot_view(
     ...     title="Heavy Duty Tab - Top View",
     ...     paper_bgcolor='lightgray'
     ... )
-    >>> side_view = heavy_duty_tab.get_side_view(
+    >>> side_view = heavy_duty_tab.plot_side_view(
     ...     title="Heavy Duty Tab - Side View"
     ... )
     >>>
@@ -206,7 +206,7 @@ class WeldTab(PropagationMixin, ValidationMixin, CoordinateMixin, DatumMixin, Du
         self.validate_datum(value)
         self._datum = (float(value[0]) * MM_TO_M, float(value[1]) * MM_TO_M, float(value[2]) * MM_TO_M)
 
-    def get_view(self, **kwargs) -> go.Figure:
+    def plot_view(self, **kwargs) -> go.Figure:
         """
         Returns a Plotly Figure representing the weld tab.
         """
@@ -223,7 +223,7 @@ class WeldTab(PropagationMixin, ValidationMixin, CoordinateMixin, DatumMixin, Du
 
         return figure
 
-    def get_side_view(self, **kwargs) -> go.Figure:
+    def plot_side_view(self, **kwargs) -> go.Figure:
         """
         Returns a Plotly Figure representing the side view of the weld tab.
         """
@@ -623,9 +623,9 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             new_weld_tab.datum = (x_datum, y_datum, z_datum)
             self._weld_tabs.append(new_weld_tab)
 
-    def _get_full_view(self, side="a", aspect_ratio: float = 3, **kwargs) -> go.Figure:
+    def _plot_full_view(self, side="a", aspect_ratio: float = 3, **kwargs) -> go.Figure:
         # Get the base figure from the parent class
-        figure = super()._get_full_view(side=side, aspect_ratio=aspect_ratio, **kwargs)
+        figure = super()._plot_full_view(side=side, aspect_ratio=aspect_ratio, **kwargs)
 
         # Add the weld‐tab traces but group them under one legend entry
         for i, tab in enumerate(self._weld_tabs):

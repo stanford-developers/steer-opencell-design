@@ -55,8 +55,8 @@ class TestSeparator(unittest.TestCase):
         """
         Test right and left side views
         """
-        fig_right = self.separator.get_right_left_view()
-        fig_bottom = self.separator.get_bottom_up_view()
+        fig_right = self.separator.plot_right_left_view()
+        fig_bottom = self.separator.plot_bottom_up_view()
         # fig_right.show()
         # fig_bottom.show()
         
@@ -77,7 +77,7 @@ class TestSeparator(unittest.TestCase):
         self.assertEqual(self.separator.width, 50)
         self.assertEqual(self.separator.length, 100)
 
-        fig = self.separator.get_top_down_view()
+        fig = self.separator.plot_top_down_view()
         # fig.show()
 
     # ========== SETTER TESTS ==========
@@ -267,7 +267,7 @@ class TestSeparator(unittest.TestCase):
         self.assertNotEqual(original_coords["x"].mean(), new_coords["x"].mean())
         self.assertNotEqual(original_coords["y"].mean(), new_coords["y"].mean())
 
-        # self.separator.get_top_down_view().show()
+        # self.separator.plot_top_down_view().show()
 
     # ========== OPTIONAL LENGTH TESTS ==========
 
@@ -340,15 +340,15 @@ class TestSeparator(unittest.TestCase):
         self.assertGreater(separator_no_length.mass, 0)
         self.assertGreater(separator_no_length.cost, 0)
 
-    def test_get_top_down_view_without_length_raises_error(self):
-        """Test that get_top_down_view raises error when length not set"""
+    def test_plot_top_down_view_without_length_raises_error(self):
+        """Test that plot_top_down_view raises error when length not set"""
         separator_material = SeparatorMaterial.from_database(name="Nafion")
 
         separator_no_length = Separator(material=separator_material, thickness=25, width=50)
 
         # Should raise ValueError when trying to get top-down view without length
         with self.assertRaises(ValueError) as context:
-            separator_no_length.get_top_down_view()
+            separator_no_length.plot_top_down_view()
 
         self.assertIn("length not set", str(context.exception))
 
@@ -431,16 +431,16 @@ class TestSeparator(unittest.TestCase):
 
     def test_rotate(self):
         """Test rotating the separator 90 degrees in the XY plane"""
-        fig1 = self.separator.get_top_down_view()
+        fig1 = self.separator.plot_top_down_view()
 
         self.separator._rotate_90_xy()
-        fig2 = self.separator.get_top_down_view()
+        fig2 = self.separator.plot_top_down_view()
 
         self.separator.length = 200
-        fig3 = self.separator.get_top_down_view()
+        fig3 = self.separator.plot_top_down_view()
 
         self.separator.width = 10
-        fig4 = self.separator.get_top_down_view()
+        fig4 = self.separator.plot_top_down_view()
 
         # fig1.show()
         # fig2.show()
@@ -624,9 +624,9 @@ class TestSeparator(unittest.TestCase):
         self.separator._flip("y")
         
         # Test that all visualization methods work after flipping
-        fig_top = self.separator.get_top_down_view()
-        fig_right = self.separator.get_right_left_view()
-        fig_bottom = self.separator.get_bottom_up_view()
+        fig_top = self.separator.plot_top_down_view()
+        fig_right = self.separator.plot_right_left_view()
+        fig_bottom = self.separator.plot_bottom_up_view()
         
         # Verify figures were created
         self.assertIsInstance(fig_top, go.Figure)

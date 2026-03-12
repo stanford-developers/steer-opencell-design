@@ -262,7 +262,7 @@ class FlexFrame(
         
         return footprint
     
-    def get_top_down_view(self, **kwargs) -> go.Figure:
+    def plot_top_down_view(self, **kwargs) -> go.Figure:
         """Generate a top-down view plot of the component.
         
         Creates a Plotly figure showing the component from above,
@@ -520,7 +520,7 @@ class FlexFrameEncapsulation(_Container, DatumMixin):
             "Flex Frame": flex_frame_cost
         }
     
-    def get_top_down_view(self, **kwargs) -> go.Figure:
+    def plot_top_down_view(self, **kwargs) -> go.Figure:
         """Get a Plotly Figure showing the top view of the pouch encapsulation."""        
         traces = []
         traces.append(self._cathode_terminal.top_down_trace)

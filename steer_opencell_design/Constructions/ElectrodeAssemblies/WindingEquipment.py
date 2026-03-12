@@ -62,7 +62,7 @@ class _Mandrel(
     def _calculate_coordinates(self):
         pass
 
-    def get_top_down_view(self, **kwargs) -> go.Figure:
+    def plot_top_down_view(self, **kwargs) -> go.Figure:
         """Generate a top-down Plotly figure of the mandrel."""
         figure = go.Figure()
         figure.add_trace(self.top_down_trace)
@@ -77,7 +77,7 @@ class _Mandrel(
 
         return figure
 
-    def get_bottom_up_view(self, **kwargs) -> go.Figure:
+    def plot_bottom_up_view(self, **kwargs) -> go.Figure:
         """Generate a bottom-up Plotly figure of the mandrel."""
         figure = go.Figure()
         figure.add_trace(self.bottom_up_trace)
