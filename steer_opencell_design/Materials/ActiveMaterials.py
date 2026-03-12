@@ -779,7 +779,7 @@ class _ActiveMaterial(
             return
             
         else:
-            self.validate_positive_float(voltage, "Voltage cutoff")
+            self.validate_number(voltage, "Voltage cutoff")
             self._voltage_cutoff = voltage
             return 
         

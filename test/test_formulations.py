@@ -61,7 +61,8 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
     def test_serialization(self):
         serialized = self.cathode_formulation.serialize()
         deserialized = CathodeFormulation.deserialize(serialized)
-        self.assertEqual(self.cathode_formulation, deserialized)
+        condition = self.cathode_formulation == deserialized
+        self.assertTrue(condition)
 
     def test_mass_setter(self):
 
