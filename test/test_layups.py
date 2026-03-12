@@ -164,17 +164,17 @@ class TestSimpleLaminate(unittest.TestCase):
         self.layup.maximum_operating_voltage = 3.8
         self.assertEqual(self.layup.maximum_operating_voltage, 3.8)
         self.assertAlmostEqual(self.layup._areal_capacity_curve[:,1].max(), 3.8, places=4)
-        figure1 = self.layup.get_areal_capacity_plot()
+        figure1 = self.layup.plot_areal_capacity_curve()
 
         self.layup.maximum_operating_voltage = 4.0
         self.assertEqual(self.layup.maximum_operating_voltage, 4.0)
         self.assertAlmostEqual(self.layup._areal_capacity_curve[:,1].max(), 4.0, places=4)
-        figure2 = self.layup.get_areal_capacity_plot()
+        figure2 = self.layup.plot_areal_capacity_curve()
 
         self.layup.maximum_operating_voltage = 3.5
         self.assertEqual(self.layup.maximum_operating_voltage, 3.53)
         self.assertAlmostEqual(self.layup._areal_capacity_curve[:,1].max(), 3.53, places=2)
-        figure3 = self.layup.get_areal_capacity_plot()
+        figure3 = self.layup.plot_areal_capacity_curve()
 
         # figure1.show()
         # figure2.show()
@@ -184,7 +184,7 @@ class TestSimpleLaminate(unittest.TestCase):
 
         self.layup.operating_reversible_areal_capacity = 0.83
         self.assertEqual(self.layup.operating_reversible_areal_capacity, 0.83)
-        figure1 = self.layup.get_areal_capacity_plot()
+        figure1 = self.layup.plot_areal_capacity_curve()
         # figure1.show()
 
     def test_length_width_setter(self):
@@ -199,8 +199,8 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertEqual(self.layup.top_separator.width, 310)
         self.assertEqual(self.layup.bottom_separator.length, 6000)
         self.assertEqual(self.layup.bottom_separator.width, 310)
-        fig1 = self.layup.get_top_down_view(opacity=0.2)
-        fig11 = self.layup.get_down_top_view(opacity=0.2)
+        fig1 = self.layup.plot_top_down_view(opacity=0.2)
+        fig11 = self.layup.plot_down_top_view(opacity=0.2)
 
         self.layup.length = 6000
         self.assertEqual(self.layup.length, 6000)
@@ -213,7 +213,7 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertEqual(self.layup.top_separator.width, 310)
         self.assertEqual(self.layup.bottom_separator.length, 7500)
         self.assertEqual(self.layup.bottom_separator.width, 310)
-        fig2 = self.layup.get_top_down_view(opacity=0.2)
+        fig2 = self.layup.plot_top_down_view(opacity=0.2)
 
         self.layup.width = 400
         self.assertEqual(self.layup.length, 6000)
@@ -226,7 +226,7 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertEqual(self.layup.top_separator.width, 410)
         self.assertEqual(self.layup.bottom_separator.length, 7500)
         self.assertEqual(self.layup.bottom_separator.width, 410)
-        fig3 = self.layup.get_top_down_view(opacity=0.2)
+        fig3 = self.layup.plot_top_down_view(opacity=0.2)
 
         # fig1.show()
         # fig11.show()
@@ -248,15 +248,15 @@ class TestSimpleLaminate(unittest.TestCase):
 
     def test_plots(self):
 
-        fig1 = self.layup.anode.get_top_down_view()
-        fig2 = self.layup.cathode.get_top_down_view()
-        fig3 = self.layup.get_top_down_view(opacity=0.2)
-        fig4 = self.layup.get_areal_capacity_plot()
-        fig5 = self.layup.get_down_top_view()
+        fig1 = self.layup.anode.plot_top_down_view()
+        fig2 = self.layup.cathode.plot_top_down_view()
+        fig3 = self.layup.plot_top_down_view(opacity=0.2)
+        fig4 = self.layup.plot_areal_capacity_curve()
+        fig5 = self.layup.plot_down_top_view()
 
         self.layup.datum = (self.layup.total_length/2, 0, self.layup.cathode.thickness/2 * UM_TO_MM)
 
-        fig6 = self.layup.get_down_top_view()
+        fig6 = self.layup.plot_down_top_view()
 
         # fig1.show()
         # fig2.show()
@@ -268,21 +268,21 @@ class TestSimpleLaminate(unittest.TestCase):
     def test_change_anode_material(self):
 
         anode = deepcopy(self.layup.anode)
-        fig1 = anode.get_top_down_view()
+        fig1 = anode.plot_top_down_view()
 
         new_cc_material = CurrentCollectorMaterial.from_database("Copper")
         current_collector = anode.current_collector
         current_collector.material = new_cc_material
         anode.current_collector = current_collector
         self.layup.anode = anode
-        fig2 = self.layup.anode.get_top_down_view()
+        fig2 = self.layup.anode.plot_top_down_view()
 
         new_new_cc_material = CurrentCollectorMaterial.from_database("Aluminum")
         current_collector = anode.current_collector
         current_collector.material = new_new_cc_material
         anode.current_collector = current_collector
         self.layup.anode = anode
-        fig3 = self.layup.anode.get_top_down_view()
+        fig3 = self.layup.anode.plot_top_down_view()
 
         # fig1.show()
         # fig2.show()
@@ -297,7 +297,7 @@ class TestSimpleLaminate(unittest.TestCase):
         self.layup.anode.current_collector = deepcopy(self.layup.anode.current_collector)
         self.layup.anode = deepcopy(self.layup.anode)
 
-        fig1 = self.layup.anode.get_top_down_view()
+        fig1 = self.layup.anode.plot_top_down_view()
 
         # fig1.show()
 
@@ -318,8 +318,8 @@ class TestSimpleLaminate(unittest.TestCase):
             cathode_coated_width,
         )
 
-        fig1 = self.layup.anode.get_top_down_view()
-        fig2 = self.layup.cathode.get_top_down_view()
+        fig1 = self.layup.anode.plot_top_down_view()
+        fig2 = self.layup.cathode.plot_top_down_view()
 
         # fig1.show()
         # fig2.show()
@@ -330,21 +330,21 @@ class TestSimpleLaminate(unittest.TestCase):
 
         self.layup.anode_overhang_top = 6
         self.assertEqual(self.layup.anode_overhangs, {"left": 250, "right": 250, "top": 6, "bottom": 0})
-        fig1 = self.layup.get_top_down_view()
+        fig1 = self.layup.plot_top_down_view()
 
         # fig1.show()
 
     def test_anode_overhang_setters_fixed_overhangs(self):
         self.layup.overhang_control_mode = OverhangControlMode.FIXED_OVERHANGS
 
-        fig1 = self.layup.get_top_down_view()
+        fig1 = self.layup.plot_top_down_view()
 
         self.layup.bottom_separator_overhang_left = 10
         self.assertEqual(
             self.layup.bottom_separator_overhangs,
             {"left": 10, "right": 750, "top": 5, "bottom": 5},
         )
-        fig2 = self.layup.get_top_down_view()
+        fig2 = self.layup.plot_top_down_view()
 
         # fig1.show()
         # fig2.show()
@@ -650,9 +650,9 @@ class TestSimpleLaminate(unittest.TestCase):
         self.layup._flip("y")
         
         # Test that all visualization methods work after flipping
-        fig_top = self.layup.get_top_down_view(opacity=0.2)
-        fig_capacity = self.layup.get_areal_capacity_plot()
-        fig_bottom = self.layup.get_down_top_view(opacity=0.2)
+        fig_top = self.layup.plot_top_down_view(opacity=0.2)
+        fig_capacity = self.layup.plot_areal_capacity_curve()
+        fig_bottom = self.layup.plot_down_top_view(opacity=0.2)
         
         # Verify figures were created
         self.assertIsInstance(fig_top, go.Figure)
@@ -827,7 +827,7 @@ class TestSimpleMonoLayer(unittest.TestCase):
         condition = self.monolayer == temp_layup
         self.assertTrue(condition)
 
-        fig = self.monolayer.get_top_down_view(opacity=0.2)
+        fig = self.monolayer.plot_top_down_view(opacity=0.2)
         # fig.show(renderer="browser")
 
     def test_width_and_height_setter(self):
@@ -842,7 +842,7 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.assertEqual(self.monolayer._top_separator.width, 310)
         self.assertEqual(self.monolayer._bottom_separator.length, 326)
         self.assertEqual(self.monolayer._bottom_separator.width, 310)
-        fig1 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig1 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         self.monolayer.height = 500
         self.assertEqual(self.monolayer.height, 500)
@@ -855,7 +855,7 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.assertEqual(self.monolayer._top_separator.width, 310)
         self.assertEqual(self.monolayer._bottom_separator.length, 500)
         self.assertEqual(self.monolayer._bottom_separator.width, 310)
-        fig2 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig2 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         self.monolayer.width = 400
         self.assertEqual(self.monolayer.height, 500)
@@ -868,7 +868,7 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.assertEqual(self.monolayer._top_separator.width, 400)
         self.assertEqual(self.monolayer._bottom_separator.length, 500)
         self.assertEqual(self.monolayer._bottom_separator.width, 400)
-        fig3 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig3 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         self.monolayer.width = 350
         self.assertEqual(self.monolayer.height, 500)
@@ -881,7 +881,7 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.assertEqual(self.monolayer._top_separator.width, 350)
         self.assertEqual(self.monolayer._bottom_separator.length, 500)
         self.assertEqual(self.monolayer._bottom_separator.width, 350)
-        fig4 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig4 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         # fig1.show()
         # fig2.show()
@@ -892,7 +892,7 @@ class TestSimpleMonoLayer(unittest.TestCase):
         temp_separator = deepcopy(self.monolayer.separator)
         temp_separator.width = 400
         self.monolayer.separator = temp_separator
-        # fig = self.monolayer.get_top_down_view(opacity=0.2)
+        # fig = self.monolayer.plot_top_down_view(opacity=0.2)
         # fig.show()
 
     def test_monolayer(self):
@@ -911,10 +911,10 @@ class TestSimpleMonoLayer(unittest.TestCase):
             {"left": 5, "right": 5, "top": 3, "bottom": 3},
         )
 
-        fig1 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig1 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         self.monolayer.transverse = False
-        fig2 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig2 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         # fig1.show()
         # fig2.show()
@@ -928,14 +928,14 @@ class TestSimpleMonoLayer(unittest.TestCase):
             self.monolayer.anode_overhangs,
             {"left": 4, "right": 0, "top": 2, "bottom": 2},
         )
-        fig1 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig1 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         self.monolayer.anode_overhang_top = 4
         self.assertEqual(
             self.monolayer.anode_overhangs,
             {"left": 4, "right": 0, "top": 4, "bottom": 0},
         )
-        fig2 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig2 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         # fig1.show()
         # fig2.show()
@@ -944,21 +944,21 @@ class TestSimpleMonoLayer(unittest.TestCase):
 
         self.monolayer.overhang_control_mode = OverhangControlMode.FIXED_OVERHANGS
 
-        fig1 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig1 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         self.monolayer.anode_overhang_left = 10
         self.assertEqual(
             self.monolayer.anode_overhangs,
             {"left": 10, "right": 2, "top": 2, "bottom": 2},
         )
-        fig2 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig2 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         self.monolayer.anode_overhang_top = 10
         self.assertEqual(
             self.monolayer.anode_overhangs,
             {"left": 10, "right": 2, "top": 10, "bottom": 2},
         )
-        fig3 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig3 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         # fig1.show()
         # fig2.show()
@@ -974,7 +974,7 @@ class TestSimpleMonoLayer(unittest.TestCase):
             self.monolayer.separator_overhangs,
             {"left": 8, "right": 2, "top": 3, "bottom": 3},
         )
-        fig1 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig1 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         self.monolayer.separator_overhang_top = 6
         self.assertEqual(
@@ -982,7 +982,7 @@ class TestSimpleMonoLayer(unittest.TestCase):
             {"left": 8, "right": 2, "top": 6, "bottom": 0},
         )
 
-        fig2 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig2 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         # fig1.show()
         # fig2.show()
@@ -991,21 +991,21 @@ class TestSimpleMonoLayer(unittest.TestCase):
 
         self.monolayer.overhang_control_mode = OverhangControlMode.FIXED_OVERHANGS
 
-        fig1 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig1 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         self.monolayer.bottom_separator_overhang_left = 12
         self.assertEqual(
             self.monolayer.bottom_separator_overhangs,
             {"left": 12, "right": 5, "top": 3, "bottom": 3},
         )
-        fig2 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig2 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         self.monolayer.bottom_separator_overhang_top = 8
         self.assertEqual(
             self.monolayer.bottom_separator_overhangs,
             {"left": 12, "right": 5, "top": 8, "bottom": 3},
         )
-        fig3 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig3 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         # fig1.show()
         # fig2.show()
@@ -1019,14 +1019,14 @@ class TestSimpleMonoLayer(unittest.TestCase):
             self.monolayer.top_separator_overhangs,
             {"left": 7, "right": 3, "top": 3, "bottom": 3},
         )
-        fig1 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig1 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         self.monolayer.top_separator_overhang_bottom = 5
         self.assertEqual(
             self.monolayer.top_separator_overhangs,
             {"left": 7, "right": 3, "top": 1, "bottom": 5},
         )
-        fig2 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig2 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         # fig1.show()
         # fig2.show()
@@ -1034,21 +1034,21 @@ class TestSimpleMonoLayer(unittest.TestCase):
     def test_top_separator_overhang_setters_fixed_overhangs(self):
         self.monolayer.overhang_control_mode = OverhangControlMode.FIXED_OVERHANGS
 
-        fig1 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig1 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         self.monolayer.top_separator_overhang_right = 15
         self.assertEqual(
             self.monolayer.top_separator_overhangs,
             {"left": 5, "right": 15, "top": 3, "bottom": 3},
         )
-        fig2 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig2 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         self.monolayer.top_separator_overhang_bottom = 10
         self.assertEqual(
             self.monolayer.top_separator_overhangs,
             {"left": 5, "right": 15, "top": 3, "bottom": 10},
         )
-        fig3 = self.monolayer.get_top_down_view(opacity=0.2)
+        fig3 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         # fig1.show()
         # fig2.show()
@@ -1057,7 +1057,7 @@ class TestSimpleMonoLayer(unittest.TestCase):
     def test_make_zfold_monolayer(self):
         zfold_monolayer = ZFoldMonoLayer.from_monolayer(self.monolayer)
         self.assertTrue(isinstance(zfold_monolayer, ZFoldMonoLayer))
-        fig1 = zfold_monolayer.get_top_down_view()
+        fig1 = zfold_monolayer.plot_top_down_view()
         # fig1.show()
 
     def test_datum_shift_updates_components(self):
@@ -1068,14 +1068,14 @@ class TestSimpleMonoLayer(unittest.TestCase):
         old_top_sep_datum = self.monolayer._top_separator.datum
         old_bottom_sep_datum = self.monolayer._bottom_separator.datum
 
-        figure_old = self.monolayer.get_top_down_view(opacity=0.2)
+        figure_old = self.monolayer.plot_top_down_view(opacity=0.2)
 
         dx, dy, dz = 20.0, -15.0, 5.0  # mm shifts
         new_layup_datum = (old_layup_datum[0] + dx, old_layup_datum[1] + dy, old_layup_datum[2] + dz)
 
         self.monolayer.datum = new_layup_datum
 
-        figure_new = self.monolayer.get_top_down_view(opacity=0.2)
+        figure_new = self.monolayer.plot_top_down_view(opacity=0.2)
 
         def assert_shift(old, new):
             self.assertAlmostEqual(new[0] - old[0], dx, places=6)
@@ -1178,9 +1178,9 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.monolayer._flip("y")
         
         # Test that all visualization methods work after flipping
-        fig_top = self.monolayer.get_top_down_view(opacity=0.2)
-        fig_capacity = self.monolayer.get_areal_capacity_plot()
-        fig_bottom = self.monolayer.get_down_top_view(opacity=0.2)
+        fig_top = self.monolayer.plot_top_down_view(opacity=0.2)
+        fig_capacity = self.monolayer.plot_areal_capacity_curve()
+        fig_bottom = self.monolayer.plot_down_top_view(opacity=0.2)
         
         # Verify figures were created
         self.assertIsInstance(fig_top, go.Figure)
@@ -1311,7 +1311,7 @@ class TestZFoldMonoLayer(unittest.TestCase):
         temp_layup = deepcopy(self.zfoldmonolayer)
         condition = self.zfoldmonolayer == temp_layup
         self.assertTrue(condition)
-        fig1 = self.zfoldmonolayer.get_top_down_view()
+        fig1 = self.zfoldmonolayer.plot_top_down_view()
         # fig1.show(renderer="browser")
 
     def test_width_and_height_setter(self):
@@ -1326,7 +1326,7 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.assertEqual(self.zfoldmonolayer._top_separator.width, 326.0)
         self.assertEqual(self.zfoldmonolayer._bottom_separator.length, 300.05)
         self.assertEqual(self.zfoldmonolayer._bottom_separator.width, 326)
-        fig1 = self.zfoldmonolayer.get_top_down_view(opacity=0.2)
+        fig1 = self.zfoldmonolayer.plot_top_down_view(opacity=0.2)
 
         self.zfoldmonolayer.height = 500
         self.assertEqual(self.zfoldmonolayer.height, 500)
@@ -1339,7 +1339,7 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.assertEqual(self.zfoldmonolayer._top_separator.width, 500)
         self.assertEqual(self.zfoldmonolayer._bottom_separator.length, 300.05)
         self.assertEqual(self.zfoldmonolayer._bottom_separator.width, 500)
-        fig2 = self.zfoldmonolayer.get_top_down_view(opacity=0.2)
+        fig2 = self.zfoldmonolayer.plot_top_down_view(opacity=0.2)
 
         self.zfoldmonolayer.width = 400
         self.assertEqual(self.zfoldmonolayer.height, 500)
@@ -1352,7 +1352,7 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.assertEqual(self.zfoldmonolayer._top_separator.width, 500)
         self.assertEqual(self.zfoldmonolayer._bottom_separator.length, 396)
         self.assertEqual(self.zfoldmonolayer._bottom_separator.width, 500)
-        fig3 = self.zfoldmonolayer.get_top_down_view(opacity=0.2)
+        fig3 = self.zfoldmonolayer.plot_top_down_view(opacity=0.2)
 
         self.zfoldmonolayer.width = 350
         self.assertEqual(self.zfoldmonolayer.height, 500)
@@ -1365,7 +1365,7 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.assertEqual(self.zfoldmonolayer._top_separator.width, 500)
         self.assertEqual(self.zfoldmonolayer._bottom_separator.length, 346)
         self.assertEqual(self.zfoldmonolayer._bottom_separator.width, 500)
-        fig4 = self.zfoldmonolayer.get_top_down_view(opacity=0.2)
+        fig4 = self.zfoldmonolayer.plot_top_down_view(opacity=0.2)
 
         # fig1.show()
         # fig2.show()
@@ -1439,7 +1439,7 @@ class TestZFoldMonoLayer(unittest.TestCase):
         )
         self.assertAlmostEqual(self.zfoldmonolayer._top_separator.length, expected_top_length, places=1)
 
-        fig1 = self.zfoldmonolayer.get_top_down_view()
+        fig1 = self.zfoldmonolayer.plot_top_down_view()
         # fig1.show()
 
     def test_zfold_anode_overhangs_still_work(self):
@@ -1450,12 +1450,12 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.zfoldmonolayer.anode_overhang_left = 4.0
         self.assertEqual(self.zfoldmonolayer.anode_overhang_left, 4.0)
         self.assertEqual(self.zfoldmonolayer.anode_overhang_right, 0.0)
-        fig1 = self.zfoldmonolayer.get_top_down_view()
+        fig1 = self.zfoldmonolayer.plot_top_down_view()
 
         self.zfoldmonolayer.anode_overhang_top = 4.0
         self.assertEqual(self.zfoldmonolayer.anode_overhang_top, 4.0)
         self.assertEqual(self.zfoldmonolayer.anode_overhang_bottom, 0.0)
-        fig2 = self.zfoldmonolayer.get_top_down_view()
+        fig2 = self.zfoldmonolayer.plot_top_down_view()
 
         # fig1.show()
         # fig2.show()
@@ -1474,7 +1474,7 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.assertEqual(self.zfoldmonolayer.separator_overhang_top, 6.0)
         self.assertEqual(self.zfoldmonolayer.separator_overhang_bottom, 0.0)
 
-        fig1 = self.zfoldmonolayer.get_top_down_view()
+        fig1 = self.zfoldmonolayer.plot_top_down_view()
         # fig1.show()
 
     def test_unified_separator_overhang_properties_fixed_overhangs(self):
@@ -1491,7 +1491,7 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.assertEqual(self.zfoldmonolayer.separator_overhang_top, 6.0)
         self.assertEqual(self.zfoldmonolayer.separator_overhang_bottom, 6.0)
 
-        fig1 = self.zfoldmonolayer.get_top_down_view()
+        fig1 = self.zfoldmonolayer.plot_top_down_view()
         # fig1.show()
 
     def test_make_monolayer(self):
@@ -1499,7 +1499,7 @@ class TestZFoldMonoLayer(unittest.TestCase):
         monolayer = MonoLayer.from_zfold_monolayer(self.zfoldmonolayer)
         self.assertTrue(isinstance(monolayer, MonoLayer))
 
-        fig1 = monolayer.get_top_down_view()
+        fig1 = monolayer.plot_top_down_view()
         # fig1.show()
 
     def test_overhang_control_mode_string_setter(self):
@@ -1507,22 +1507,22 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.assertEqual(self.zfoldmonolayer.overhang_control_mode, OverhangControlMode.FIXED_OVERHANGS)
 
     def test_change_anode_dimensions(self):
-        fig1 = self.zfoldmonolayer.get_top_down_view()
+        fig1 = self.zfoldmonolayer.plot_top_down_view()
         self.zfoldmonolayer.anode.current_collector.width = 400
         self.zfoldmonolayer.anode.current_collector = self.zfoldmonolayer.anode.current_collector
         self.zfoldmonolayer.anode = self.zfoldmonolayer.anode
-        fig2 = self.zfoldmonolayer.get_top_down_view()
+        fig2 = self.zfoldmonolayer.plot_top_down_view()
 
         # fig1.show()
         # fig2.show()
 
     def test_change_electrode_orientation(self):
 
-        fig1 = self.zfoldmonolayer.get_top_down_view()
+        fig1 = self.zfoldmonolayer.plot_top_down_view()
         self.zfoldmonolayer.electrode_orientation = ElectrodeOrientation.LONGITUDINAL
-        fig2 = self.zfoldmonolayer.get_top_down_view()
+        fig2 = self.zfoldmonolayer.plot_top_down_view()
         self.zfoldmonolayer.electrode_orientation = 'transverse'
-        fig3 = self.zfoldmonolayer.get_top_down_view()
+        fig3 = self.zfoldmonolayer.plot_top_down_view()
 
         # fig1.show()
         # fig2.show()
@@ -1614,9 +1614,9 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.zfoldmonolayer._flip("z")
         
         # Test that all visualization methods work after flipping
-        fig_top = self.zfoldmonolayer.get_top_down_view(opacity=0.2)
-        fig_capacity = self.zfoldmonolayer.get_areal_capacity_plot()
-        fig_bottom = self.zfoldmonolayer.get_down_top_view(opacity=0.2)
+        fig_top = self.zfoldmonolayer.plot_top_down_view(opacity=0.2)
+        fig_capacity = self.zfoldmonolayer.plot_areal_capacity_curve()
+        fig_bottom = self.zfoldmonolayer.plot_down_top_view(opacity=0.2)
         
         # Verify figures were created
         self.assertIsInstance(fig_top, go.Figure)
@@ -1993,7 +1993,7 @@ class TestAnodeFreeMonoLayer(unittest.TestCase):
 
     def test_top_down_view(self):
         """Top-down view should produce a Figure with anode CC traces but no anode coating traces."""
-        fig = self.monolayer.get_top_down_view()
+        fig = self.monolayer.plot_top_down_view()
         self.assertIsInstance(fig, go.Figure)
         self.assertGreater(len(fig.data), 0)
         # Should not contain anode coating traces
@@ -2004,28 +2004,28 @@ class TestAnodeFreeMonoLayer(unittest.TestCase):
 
     def test_top_down_view_with_opacity(self):
         """Top-down view with custom opacity should produce a Figure."""
-        fig = self.monolayer.get_top_down_view(opacity=0.3)
+        fig = self.monolayer.plot_top_down_view(opacity=0.3)
         self.assertIsInstance(fig, go.Figure)
         self.assertGreater(len(fig.data), 0)
         # fig.show()
 
     def test_down_top_view(self):
         """Down-top (bottom-up) view should produce a Figure."""
-        fig = self.monolayer.get_down_top_view()
+        fig = self.monolayer.plot_down_top_view()
         self.assertIsInstance(fig, go.Figure)
         self.assertGreater(len(fig.data), 0)
         # fig.show()
 
     def test_down_top_view_with_opacity(self):
         """Down-top view with custom opacity should produce a Figure."""
-        fig = self.monolayer.get_down_top_view(opacity=0.4)
+        fig = self.monolayer.plot_down_top_view(opacity=0.4)
         self.assertIsInstance(fig, go.Figure)
         self.assertGreater(len(fig.data), 0)
         # fig.show()
 
     def test_areal_capacity_plot(self):
         """Areal capacity plot should work with anode-free (anode trace filtered out)."""
-        fig = self.monolayer.get_areal_capacity_plot()
+        fig = self.monolayer.plot_areal_capacity_curve()
         self.assertIsInstance(fig, go.Figure)
         # Should have cathode trace + full-cell trace (no anode trace)
         trace_names = [t.name for t in fig.data]
@@ -2038,7 +2038,7 @@ class TestAnodeFreeMonoLayer(unittest.TestCase):
 
     def test_areal_capacity_plot_has_cathode_trace(self):
         """Areal capacity plot should include the cathode half-cell trace."""
-        fig = self.monolayer.get_areal_capacity_plot()
+        fig = self.monolayer.plot_areal_capacity_curve()
         trace_names = [t.name for t in fig.data]
         has_cathode = any("Cathode" in n for n in trace_names)
         self.assertTrue(has_cathode, "Cathode areal capacity trace should be present")
@@ -2236,7 +2236,7 @@ class TestAnodeFreeLaminate(unittest.TestCase):
 
     def test_top_down_view(self):
         """Top-down view should produce a Figure without anode coating traces."""
-        fig = self.laminate.get_top_down_view()
+        fig = self.laminate.plot_top_down_view()
         self.assertIsInstance(fig, go.Figure)
         self.assertGreater(len(fig.data), 0)
         for trace in fig.data:
@@ -2246,14 +2246,14 @@ class TestAnodeFreeLaminate(unittest.TestCase):
 
     def test_down_top_view(self):
         """Down-top (bottom-up) view should produce a Figure."""
-        fig = self.laminate.get_down_top_view()
+        fig = self.laminate.plot_down_top_view()
         self.assertIsInstance(fig, go.Figure)
         self.assertGreater(len(fig.data), 0)
         # fig.show()
 
     def test_areal_capacity_plot(self):
         """Areal capacity plot should work with anode trace filtered out."""
-        fig = self.laminate.get_areal_capacity_plot()
+        fig = self.laminate.plot_areal_capacity_curve()
         self.assertIsInstance(fig, go.Figure)
         trace_names = [t.name for t in fig.data]
         has_full_cell = any("Full-Cell" in n for n in trace_names)
@@ -2264,7 +2264,7 @@ class TestAnodeFreeLaminate(unittest.TestCase):
 
     def test_areal_capacity_plot_has_cathode_trace(self):
         """Areal capacity plot should include the cathode half-cell trace."""
-        fig = self.laminate.get_areal_capacity_plot()
+        fig = self.laminate.plot_areal_capacity_curve()
         trace_names = [t.name for t in fig.data]
         has_cathode = any("Cathode" in n for n in trace_names)
         self.assertTrue(has_cathode, "Cathode areal capacity trace should be present")
@@ -2272,7 +2272,7 @@ class TestAnodeFreeLaminate(unittest.TestCase):
 
     def test_areal_capacity_plot_yaxis_starts_at_zero(self):
         """Areal capacity plot y-axis should start at 0 V."""
-        fig = self.laminate.get_areal_capacity_plot()
+        fig = self.laminate.plot_areal_capacity_curve()
         yaxis = fig.layout.yaxis
         self.assertEqual(yaxis.rangemode, "tozero")
 

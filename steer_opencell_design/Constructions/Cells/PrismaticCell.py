@@ -100,7 +100,7 @@ class PrismaticCell(_Cell):
         for assembly in self._electrode_assemblies:
             assembly._clip_current_collector_tabs(self._clipped_tab_length)
 
-    def get_top_down_view(self, opacity = 0.3, **kwargs) -> go.Figure:
+    def plot_top_down_view(self, opacity = 0.3, **kwargs) -> go.Figure:
         """Get top-down view figure of the prismatic cell.
 
         Parameters
@@ -120,10 +120,10 @@ class PrismaticCell(_Cell):
         traces = []
 
         first_assembly = self._electrode_assemblies[0]
-        layup_traces = first_assembly.get_top_down_view(opacity=opacity).data
+        layup_traces = first_assembly.plot_top_down_view(opacity=opacity).data
         traces.extend(layup_traces)
 
-        encapsulation_traces = self._encapsulation.get_top_down_view(opacity=opacity).data
+        encapsulation_traces = self._encapsulation.plot_top_down_view(opacity=opacity).data
         
         # Apply opacity only to encapsulation traces
         for trace in encapsulation_traces:
@@ -144,7 +144,7 @@ class PrismaticCell(_Cell):
 
         return figure
     
-    def get_side_view(self, **kwargs) -> go.Figure:
+    def plot_side_view(self, **kwargs) -> go.Figure:
         """Get side view figure of the prismatic cell.
 
         Parameters
@@ -162,14 +162,14 @@ class PrismaticCell(_Cell):
         traces = []
 
         for i, assembly in enumerate(self.electrode_assemblies):
-            assembly_traces = assembly.get_side_view().data
+            assembly_traces = assembly.plot_side_view().data
             # Only show legend for first assembly
             if i > 0:
                 for trace in assembly_traces:
                     trace.showlegend = False
             traces.extend(assembly_traces)
 
-        encapsulation_traces = self.encapsulation.get_right_left_view().data
+        encapsulation_traces = self.encapsulation.plot_right_left_view().data
         traces.extend(encapsulation_traces)
 
         figure.add_traces(traces)

@@ -163,13 +163,13 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertIsInstance(self.my_jellyroll, WoundJellyRoll)
         self.assertTrue(type(self.my_jellyroll.spiral) == pd.DataFrame)
 
-        fig1 = self.my_jellyroll.get_spiral_plot()
-        fig3 = self.my_jellyroll.get_spiral_plot(layered=False)
-        fig4 = self.my_jellyroll.get_capacity_plot()
+        fig1 = self.my_jellyroll.plot_spiral()
+        fig3 = self.my_jellyroll.plot_spiral(layered=False)
+        fig4 = self.my_jellyroll.plot_capacity_curve()
         fig5 = self.my_jellyroll.plot_mass_breakdown()
         fig6 = self.my_jellyroll.plot_cost_breakdown()
-        fig7 = self.my_jellyroll.get_top_down_view()
-        fig8 = self.my_jellyroll.get_side_view()
+        fig7 = self.my_jellyroll.plot_top_down_view()
+        fig8 = self.my_jellyroll.plot_side_view()
 
         # fig1.show()
         # fig3.show()
@@ -189,9 +189,9 @@ class TestRoundJellyRoll(unittest.TestCase):
 
         self.assertEqual(self.my_jellyroll.datum, new_datum)
 
-        fig1 = self.my_jellyroll.get_spiral_plot()
-        fig2 = self.my_jellyroll.get_top_down_view()
-        fig3 = self.my_jellyroll.get_side_view()
+        fig1 = self.my_jellyroll.plot_spiral()
+        fig2 = self.my_jellyroll.plot_top_down_view()
+        fig3 = self.my_jellyroll.plot_side_view()
 
         # fig1.show()
         # fig2.show()
@@ -199,28 +199,28 @@ class TestRoundJellyRoll(unittest.TestCase):
 
     def test_top_down_view(self):
         
-        fig1 = self.my_jellyroll.get_top_down_view()
+        fig1 = self.my_jellyroll.plot_top_down_view()
 
         # now change the cathode cc to a tabless current collector
         cathode_current_collector = TablessCurrentCollector.from_notched(self.my_jellyroll._layup._cathode._current_collector)
         self.my_jellyroll._layup._cathode.current_collector = cathode_current_collector
         self.my_jellyroll._layup.cathode = self.my_jellyroll._layup._cathode
         self.my_jellyroll.layup = self.my_jellyroll._layup
-        fig2 = self.my_jellyroll.get_top_down_view()
+        fig2 = self.my_jellyroll.plot_top_down_view()
 
         # now change the cathode cc to a tab welded current collector
         cathode_current_collector = TabWeldedCurrentCollector.from_tabless(self.my_jellyroll._layup._cathode._current_collector)
         self.my_jellyroll._layup._cathode.current_collector = cathode_current_collector
         self.my_jellyroll._layup.cathode = self.my_jellyroll._layup._cathode
         self.my_jellyroll.layup = self.my_jellyroll._layup
-        fig3 = self.my_jellyroll.get_top_down_view()
+        fig3 = self.my_jellyroll.plot_top_down_view()
 
         # now also convert the anode cc to a tab welded current collector
         anode_current_collector = TabWeldedCurrentCollector.from_notched(self.my_jellyroll._layup._anode._current_collector)
         self.my_jellyroll._layup._anode.current_collector = anode_current_collector
         self.my_jellyroll._layup.anode = self.my_jellyroll._layup._anode
         self.my_jellyroll.layup = self.my_jellyroll._layup
-        fig4 = self.my_jellyroll.get_top_down_view()
+        fig4 = self.my_jellyroll.plot_top_down_view()
 
         # fig1.show()
         # fig2.show()
@@ -229,9 +229,9 @@ class TestRoundJellyRoll(unittest.TestCase):
 
     def test_high_res_spiral(self):
 
-        fig1 = self.my_jellyroll.get_spiral_plot()
+        fig1 = self.my_jellyroll.plot_spiral()
         self.my_jellyroll.calculate_high_resolution_roll()
-        fig2 = self.my_jellyroll.get_spiral_plot()
+        fig2 = self.my_jellyroll.plot_spiral()
 
         # fig1.show()
         # fig2.show()
@@ -302,7 +302,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(flat_jellyroll.thickness, 19.38, 1)
         self.assertAlmostEqual(flat_jellyroll.width, 75.93, 1)
 
-        figure = flat_jellyroll.get_spiral_plot()
+        figure = flat_jellyroll.plot_spiral()
         # figure.show()
 
     def test_breakdowns(self):
@@ -400,7 +400,7 @@ class TestRoundJellyRoll(unittest.TestCase):
 
         original_radius = self.my_jellyroll._radius
         original_cost = self.my_jellyroll._cost
-        original_figure = self.my_jellyroll.get_spiral_plot()
+        original_figure = self.my_jellyroll.plot_spiral()
 
         new_tape_material = TapeMaterial.from_database("Polyester")
         new_tape_material.density = 1.38
@@ -417,7 +417,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         new_radius = self.my_jellyroll._radius
         self.assertTrue(new_radius < original_radius)
 
-        new_figure = self.my_jellyroll.get_spiral_plot()
+        new_figure = self.my_jellyroll.plot_spiral()
 
         # original_figure.show()
         # new_figure.show()
@@ -425,13 +425,13 @@ class TestRoundJellyRoll(unittest.TestCase):
     def test_additional_wraps_setter(self):
         original_radius = self.my_jellyroll._radius
         original_cost = self.my_jellyroll._cost
-        original_figure = self.my_jellyroll.get_spiral_plot()
+        original_figure = self.my_jellyroll.plot_spiral()
 
         self.my_jellyroll.additional_tape_wraps = 20
 
         new_radius = self.my_jellyroll._radius
         new_cost = self.my_jellyroll._cost
-        new_figure = self.my_jellyroll.get_spiral_plot()
+        new_figure = self.my_jellyroll.plot_spiral()
 
         self.assertTrue(new_radius > original_radius)
         self.assertTrue(new_cost > original_cost)
@@ -618,13 +618,13 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertIsInstance(self.my_jellyroll, FlatWoundJellyRoll)
         self.assertTrue(type(self.my_jellyroll.spiral) == pd.DataFrame)
 
-        fig1 = self.my_jellyroll.get_spiral_plot()
-        fig3 = self.my_jellyroll.get_spiral_plot(layered=False)
-        fig4 = self.my_jellyroll.get_capacity_plot()
+        fig1 = self.my_jellyroll.plot_spiral()
+        fig3 = self.my_jellyroll.plot_spiral(layered=False)
+        fig4 = self.my_jellyroll.plot_capacity_curve()
         fig5 = self.my_jellyroll.plot_mass_breakdown()
         fig6 = self.my_jellyroll.plot_cost_breakdown()
-        fig7 = self.my_jellyroll.get_top_down_view()
-        fig8 = self.my_jellyroll.get_side_view()
+        fig7 = self.my_jellyroll.plot_top_down_view()
+        fig8 = self.my_jellyroll.plot_side_view()
 
         # fig1.show()
         # fig3.show()
@@ -644,9 +644,9 @@ class TestFlatJellyRoll(unittest.TestCase):
 
         self.assertEqual(self.my_jellyroll.datum, new_datum)
 
-        fig1 = self.my_jellyroll.get_spiral_plot()
-        fig2 = self.my_jellyroll.get_top_down_view()
-        fig3 = self.my_jellyroll.get_side_view()
+        fig1 = self.my_jellyroll.plot_spiral()
+        fig2 = self.my_jellyroll.plot_top_down_view()
+        fig3 = self.my_jellyroll.plot_side_view()
 
         # fig1.show()
         # fig2.show()
@@ -654,9 +654,9 @@ class TestFlatJellyRoll(unittest.TestCase):
 
     def test_high_res_spiral(self):
 
-        fig1 = self.my_jellyroll.get_spiral_plot()
+        fig1 = self.my_jellyroll.plot_spiral()
         self.my_jellyroll.calculate_high_resolution_roll()
-        fig2 = self.my_jellyroll.get_spiral_plot()
+        fig2 = self.my_jellyroll.plot_spiral()
 
         # fig1.show()
         # fig2.show()
@@ -738,14 +738,14 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(wound_jellyroll.radius, 20.54, 1)
         self.assertAlmostEqual(wound_jellyroll.diameter, 41.08, 1)
 
-        figure = wound_jellyroll.get_spiral_plot()
+        figure = wound_jellyroll.plot_spiral()
         # figure.show()
 
     def test_tape_setter(self):
         """Test that changing the tape material updates cost and geometry correctly."""
         original_thickness = self.my_jellyroll._thickness
         original_cost = self.my_jellyroll._cost
-        original_figure = self.my_jellyroll.get_spiral_plot()
+        original_figure = self.my_jellyroll.plot_spiral()
 
         # Change tape material to a cheaper option
         new_tape_material = TapeMaterial.from_database("Polyester")
@@ -764,7 +764,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         new_thickness = self.my_jellyroll._thickness
         self.assertTrue(new_thickness < original_thickness)
 
-        new_figure = self.my_jellyroll.get_spiral_plot()
+        new_figure = self.my_jellyroll.plot_spiral()
 
         # original_figure.show()
         # new_figure.show()
@@ -774,7 +774,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         original_thickness = self.my_jellyroll._thickness
         original_cost = self.my_jellyroll._cost
         original_tape_length = self.my_jellyroll._tape._length
-        original_figure = self.my_jellyroll.get_spiral_plot()
+        original_figure = self.my_jellyroll.plot_spiral()
 
         # Increase additional tape wraps
         self.my_jellyroll.additional_tape_wraps = 20
@@ -782,7 +782,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         new_thickness = self.my_jellyroll._thickness
         new_cost = self.my_jellyroll._cost
         new_tape_length = self.my_jellyroll._tape._length
-        new_figure = self.my_jellyroll.get_spiral_plot()
+        new_figure = self.my_jellyroll.plot_spiral()
 
         self.assertTrue(new_thickness > original_thickness)
         self.assertTrue(new_cost > original_cost)
@@ -990,12 +990,12 @@ class TestPunchedStack(unittest.TestCase):
 
     def test_right_left_view(self):
         """Test right and left side views of the punched stack."""
-        fig_right = self.stack.get_side_view()
+        fig_right = self.stack.plot_side_view()
         # fig_right.show()
 
     def test_get_capacity_curve(self):
         """Test getting the full-cell capacity curve of the punched stack."""
-        curve = self.stack.get_capacity_plot()
+        curve = self.stack.plot_capacity_curve()
         # curve.show()
 
     def test_breakdowns(self):
@@ -1209,31 +1209,31 @@ class TestZFoldStack(unittest.TestCase):
 
     def test_right_left_view(self):
         """Test right and left side views of the punched stack."""
-        fig_right = self.stack.get_side_view()
+        fig_right = self.stack.plot_side_view()
         # fig_right.show()
 
     def test_datum_set(self):
 
-        fig1 = self.stack.get_side_view()
-        fig2 = self.stack.get_top_down_view()
+        fig1 = self.stack.plot_side_view()
+        fig2 = self.stack.plot_top_down_view()
         self.stack.datum = (100.0, 200.0, 300.0)
-        fig3 = self.stack.get_side_view()
-        fig4 = self.stack.get_top_down_view()
+        fig3 = self.stack.plot_side_view()
+        fig4 = self.stack.plot_top_down_view()
         # fig1.show()
         # fig2.show()
         # fig3.show()
         # fig4.show()
 
     def test_additional_separator_wrap_setter(self):
-        fig1 = self.stack.get_side_view()
+        fig1 = self.stack.plot_side_view()
         self.stack.additional_separator_wraps = 40
-        fig2 = self.stack.get_side_view()
+        fig2 = self.stack.plot_side_view()
         # fig1.show()
         # fig2.show()
 
     def test_get_capacity_curve(self):
         """Test getting the full-cell capacity curve of the punched stack."""
-        curve = self.stack.get_capacity_plot()
+        curve = self.stack.plot_capacity_curve()
         # curve.show()
 
     def test_breakdowns(self):
@@ -1374,9 +1374,9 @@ class TestRoundJellyRollWithTabWelded(unittest.TestCase):
         self.assertIsInstance(self.my_jellyroll, WoundJellyRoll)
         self.assertTrue(type(self.my_jellyroll.spiral) == pd.DataFrame)
 
-        fig1 = self.my_jellyroll.get_spiral_plot()
-        fig3 = self.my_jellyroll.get_spiral_plot(layered=False)
-        fig4 = self.my_jellyroll.get_capacity_plot()
+        fig1 = self.my_jellyroll.plot_spiral()
+        fig3 = self.my_jellyroll.plot_spiral(layered=False)
+        fig4 = self.my_jellyroll.plot_capacity_curve()
 
         # fig1.show()
         # fig3.show()
@@ -1470,9 +1470,9 @@ class TestFlatJellyRollWithTabWelded(unittest.TestCase):
         self.assertIsInstance(self.my_jellyroll, FlatWoundJellyRoll)
         self.assertTrue(type(self.my_jellyroll.spiral) == pd.DataFrame)
 
-        fig1 = self.my_jellyroll.get_spiral_plot()
-        fig3 = self.my_jellyroll.get_spiral_plot(layered=False)
-        fig4 = self.my_jellyroll.get_capacity_plot()
+        fig1 = self.my_jellyroll.plot_spiral()
+        fig3 = self.my_jellyroll.plot_spiral(layered=False)
+        fig4 = self.my_jellyroll.plot_capacity_curve()
 
         # fig1.show()
         # fig3.show()
@@ -1827,7 +1827,7 @@ class TestAnodeFreeRoundJellyRoll(unittest.TestCase):
 
     def test_spiral_plot(self):
         """Spiral plot should render without error."""
-        fig = self.my_jellyroll.get_spiral_plot()
+        fig = self.my_jellyroll.plot_spiral()
         self.assertIsInstance(fig, go.Figure)
         self.assertGreater(len(fig.data), 0)
         # Should not contain anode coating traces
@@ -1839,7 +1839,7 @@ class TestAnodeFreeRoundJellyRoll(unittest.TestCase):
 
     def test_spiral_plot_layered(self):
         """Layered spiral plot should render without error."""
-        fig = self.my_jellyroll.get_spiral_plot(layered=False)
+        fig = self.my_jellyroll.plot_spiral(layered=False)
         self.assertIsInstance(fig, go.Figure)
         # fig.show()
 
@@ -1847,14 +1847,14 @@ class TestAnodeFreeRoundJellyRoll(unittest.TestCase):
 
     def test_top_down_view(self):
         """Top-down view should render without error."""
-        fig = self.my_jellyroll.get_top_down_view()
+        fig = self.my_jellyroll.plot_top_down_view()
         self.assertIsInstance(fig, go.Figure)
         self.assertGreater(len(fig.data), 0)
         # fig.show()
 
     def test_side_view(self):
         """Side view should render without error."""
-        fig = self.my_jellyroll.get_side_view()
+        fig = self.my_jellyroll.plot_side_view()
         self.assertIsInstance(fig, go.Figure)
         self.assertGreater(len(fig.data), 0)
         # fig.show()
@@ -1863,7 +1863,7 @@ class TestAnodeFreeRoundJellyRoll(unittest.TestCase):
 
     def test_capacity_plot(self):
         """Capacity plot should render (no anode curve)."""
-        fig = self.my_jellyroll.get_capacity_plot()
+        fig = self.my_jellyroll.plot_capacity_curve()
         self.assertIsInstance(fig, go.Figure)
         # Should have cathode + full-cell but no anode
         trace_names = [t.name for t in fig.data if t.name]
@@ -1922,7 +1922,7 @@ class TestAnodeFreeRoundJellyRoll(unittest.TestCase):
         self.assertTrue(flat_jr._layup._anode._is_anode_free)
         self.assertGreater(flat_jr.thickness, 0)
         self.assertGreater(flat_jr.width, 0)
-        # fig = flat_jr.get_spiral_plot()
+        # fig = flat_jr.plot_spiral()
         # fig.show()
 
     def test_roll_properties(self):
@@ -2037,7 +2037,7 @@ class TestAnodeFreePunchedStack(unittest.TestCase):
 
     def test_side_view(self):
         """Side view should render without anode coating traces."""
-        fig = self.stack.get_side_view()
+        fig = self.stack.plot_side_view()
         self.assertIsInstance(fig, go.Figure)
         self.assertGreater(len(fig.data), 0)
         # Should not contain anode coating traces
@@ -2051,7 +2051,7 @@ class TestAnodeFreePunchedStack(unittest.TestCase):
 
     def test_capacity_plot(self):
         """Capacity plot should render (no anode curve)."""
-        fig = self.stack.get_capacity_plot()
+        fig = self.stack.plot_capacity_curve()
         self.assertIsInstance(fig, go.Figure)
         trace_names = [t.name for t in fig.data if t.name]
         has_anode = any("Anode" in n for n in trace_names)

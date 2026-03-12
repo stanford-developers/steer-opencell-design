@@ -334,7 +334,7 @@ class LaminateSheet(
         self._cavity_coordinates = np.column_stack((x, y))
 
     # Public functions
-    def get_top_down_view(self, **kwargs):
+    def plot_top_down_view(self, **kwargs) -> go.Figure:
         """Get a Plotly Figure showing the top-down view of the laminate sheet.
         
         Returns a go.Figure with the laminate sheet footprint.
@@ -357,7 +357,7 @@ class LaminateSheet(
         
         return fig
 
-    def get_right_left_view(self, **kwargs):
+    def plot_right_left_view(self, **kwargs) -> go.Figure:
         """Get a Plotly Figure showing the right-left (side) view of the laminate sheet.
         
         Returns a go.Figure with the laminate sheet cross-section.
@@ -380,7 +380,7 @@ class LaminateSheet(
         
         return fig
 
-    def get_bottom_up_view(self, **kwargs):
+    def plot_bottom_up_view(self, **kwargs) -> go.Figure:
         """Get a Plotly Figure showing the bottom-up view of the laminate sheet.
         
         Returns a go.Figure with the laminate sheet cross-section.
@@ -1068,7 +1068,7 @@ class PouchEncapsulation(_Container, DatumMixin):
 
         self._volume = _width * _height * self._thickness
 
-    def get_side_view(self, **kwargs) -> go.Figure:
+    def plot_side_view(self, **kwargs) -> go.Figure:
         """Get a Plotly Figure showing the side view of the pouch encapsulation."""        
         traces = []
         traces.append(self._cathode_terminal.right_left_trace)
@@ -1089,7 +1089,7 @@ class PouchEncapsulation(_Container, DatumMixin):
 
         return fig
     
-    def get_top_down_view(self, **kwargs) -> go.Figure:
+    def plot_top_down_view(self, **kwargs) -> go.Figure:
         """Get a Plotly Figure showing the top view of the pouch encapsulation."""        
         traces = []
         traces.append(self._bottom_laminate.top_down_trace)

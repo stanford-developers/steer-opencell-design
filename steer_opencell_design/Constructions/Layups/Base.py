@@ -466,7 +466,7 @@ class _Layup(
         if axis == "z":
             self._flipped_z = not self._flipped_z
 
-    def get_top_down_view(self, opacity: float = 0.5, **kwargs) -> go.Figure:
+    def plot_top_down_view(self, opacity: float = 0.5, **kwargs) -> go.Figure:
 
         # Validate opacity using ColorMixin
         self.validate_opacity(opacity)
@@ -474,7 +474,7 @@ class _Layup(
         fig = go.Figure()
 
         # Get trace groups
-        cathode_fig = self._cathode.get_top_down_view()
+        cathode_fig = self._cathode.plot_top_down_view()
 
         # Check if separators have the same name and create distinct legend groups
         separators_same_name = self._bottom_separator.name == self._top_separator.name
@@ -499,7 +499,7 @@ class _Layup(
         # Use ColorMixin method to adjust trace opacity
         self.adjust_trace_opacity(bottom_separator_trace, opacity)
 
-        anode_fig = self._anode.get_top_down_view()
+        anode_fig = self._anode.plot_top_down_view()
         anode_traces = []
         for i, trace in enumerate(anode_fig.data):
             trace.name = trace.name + " (Anode)"
@@ -579,7 +579,7 @@ class _Layup(
 
         return fig
 
-    def get_areal_capacity_plot(self, **kwargs) -> go.Figure:
+    def plot_areal_capacity_curve(self, **kwargs) -> go.Figure:
         """
         Generate areal capacity plot for the layup's electrode half-cells.
 
@@ -626,7 +626,7 @@ class _Layup(
 
         return fig
 
-    def get_down_top_view(self, opacity: float = 0.2, **kwargs) -> go.Figure:
+    def plot_down_top_view(self, opacity: float = 0.2, **kwargs) -> go.Figure:
         """Generate bottom-up (cross-sectional) view of the layup.
 
         Parameters
@@ -645,7 +645,7 @@ class _Layup(
             If component trace data is missing or invalid
         """
         self._flip("x")
-        figure = self.get_top_down_view(opacity=opacity, **kwargs)
+        figure = self.plot_top_down_view(opacity=opacity, **kwargs)
         self._flip("x")
         return figure
 

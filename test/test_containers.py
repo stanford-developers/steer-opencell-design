@@ -63,13 +63,13 @@ class TestCylindricalTerminalConnector(unittest.TestCase):
 
     def test_plots(self):
 
-        fig1 = self.connector_standard.get_bottom_up_plot()
-        fig2 = self.connector_small.get_bottom_up_plot()
-        fig3 = self.connector_large.get_bottom_up_plot()
+        fig1 = self.connector_standard.plot_bottom_up_view()
+        fig2 = self.connector_small.plot_bottom_up_view()
+        fig3 = self.connector_large.plot_bottom_up_view()
 
-        fig4 = self.connector_standard.get_top_down_plot()
-        fig5 = self.connector_small.get_top_down_plot()
-        fig6 = self.connector_large.get_top_down_plot()
+        fig4 = self.connector_standard.plot_top_down_view()
+        fig5 = self.connector_small.plot_top_down_view()
+        fig6 = self.connector_large.plot_top_down_view()
 
         # fig1.show()
         # fig2.show()
@@ -432,13 +432,13 @@ class TestCylindricalLidAssembly(unittest.TestCase):
 
     def test_plots(self):
         """Test plotting functionality for different lid configurations"""
-        fig1 = self.lid_standard.get_bottom_up_plot()
-        fig2 = self.lid_small.get_bottom_up_plot()
-        fig3 = self.lid_large.get_bottom_up_plot()
+        fig1 = self.lid_standard.plot_bottom_up_view()
+        fig2 = self.lid_small.plot_bottom_up_view()
+        fig3 = self.lid_large.plot_bottom_up_view()
 
-        fig4 = self.lid_standard.get_top_down_plot()
-        fig5 = self.lid_small.get_top_down_plot()
-        fig6 = self.lid_large.get_top_down_plot()
+        fig4 = self.lid_standard.plot_top_down_view()
+        fig5 = self.lid_small.plot_top_down_view()
+        fig6 = self.lid_large.plot_top_down_view()
 
         # Verify plots are created successfully (figures have data)
         self.assertIsNotNone(fig1.data)
@@ -979,15 +979,15 @@ class TestCylindricalCanister(unittest.TestCase):
     def test_plots(self):
         """Test plotting functionality"""
         # Test that plots can be generated without errors
-        fig1 = self.can_standard.get_top_down_plot()
-        fig2 = self.can_small.get_top_down_plot()
-        fig3 = self.can_large.get_top_down_plot()
-        fig4 = self.can_thin_wall.get_top_down_plot()
+        fig1 = self.can_standard.plot_top_down_view()
+        fig2 = self.can_small.plot_top_down_view()
+        fig3 = self.can_large.plot_top_down_view()
+        fig4 = self.can_thin_wall.plot_top_down_view()
 
-        fig5 = self.can_standard.get_side_cross_section_plot()
-        fig6 = self.can_small.get_side_cross_section_plot()
-        fig7 = self.can_large.get_side_cross_section_plot()
-        fig8 = self.can_thin_wall.get_side_cross_section_plot()
+        fig5 = self.can_standard.plot_side_cross_section()
+        fig6 = self.can_small.plot_side_cross_section()
+        fig7 = self.can_large.plot_side_cross_section()
+        fig8 = self.can_thin_wall.plot_side_cross_section()
         
         # Verify plots have data
         self.assertIsNotNone(fig1.data)
@@ -2026,9 +2026,9 @@ class TestLaminateSheet(unittest.TestCase):
         self.assertIsInstance(self.laminate_sheet._cavity_coordinates, np.ndarray)
         self.assertEqual(self.laminate_sheet._cavity_coordinates.shape[1], 2)
 
-        fig1 = self.laminate_sheet.get_top_down_view()
-        fig2 = self.laminate_sheet.get_right_left_view()
-        fig3 = self.laminate_sheet.get_bottom_up_view()
+        fig1 = self.laminate_sheet.plot_top_down_view()
+        fig2 = self.laminate_sheet.plot_right_left_view()
+        fig3 = self.laminate_sheet.plot_bottom_up_view()
 
         # fig1.show()
         # fig2.show()
@@ -2053,9 +2053,9 @@ class TestLaminateSheet(unittest.TestCase):
         self.assertIsInstance(self.laminate_sheet._cavity_coordinates, np.ndarray)
         self.assertEqual(self.laminate_sheet._cavity_coordinates.shape[1], 2)
 
-        fig1 = self.laminate_sheet.get_top_down_view()
-        fig2 = self.laminate_sheet.get_right_left_view()
-        fig3 = self.laminate_sheet.get_bottom_up_view()
+        fig1 = self.laminate_sheet.plot_top_down_view()
+        fig2 = self.laminate_sheet.plot_right_left_view()
+        fig3 = self.laminate_sheet.plot_bottom_up_view()
 
         # fig1.show()
         # fig2.show()
@@ -3004,25 +3004,25 @@ class TestPrismaticTerminalConnector(unittest.TestCase):
         """Test plotting functionality"""
 
         # base case
-        fig1 = self.connector_standard.get_top_down_view()
+        fig1 = self.connector_standard.plot_top_down_view()
         self.assertIsNotNone(fig1.data)
 
         # change datum and re-plot
         self.connector_standard.datum = (10.0, 15.0, 0.0)
-        fig2 = self.connector_standard.get_top_down_view()
+        fig2 = self.connector_standard.plot_top_down_view()
         self.assertIsNotNone(fig2.data)
 
         # flip by 90 degrees along y axis and re-plot
         self.connector_standard.rotated_y = True
-        fig3 = self.connector_standard.get_top_down_view()
+        fig3 = self.connector_standard.plot_top_down_view()
 
         # unflip and re-plot
         self.connector_standard.rotated_y = False
-        fig4 = self.connector_standard.get_top_down_view()
+        fig4 = self.connector_standard.plot_top_down_view()
 
         # set to false again to ensure idempotency
         self.connector_standard.rotated_y = False
-        fig5 = self.connector_standard.get_top_down_view()
+        fig5 = self.connector_standard.plot_top_down_view()
         self.assertIsNotNone(fig5.data)
         self.assertEqual(fig4, fig5)
         
@@ -3086,7 +3086,7 @@ class TestPrismaticLidAssembly(unittest.TestCase):
 
     def test_plots(self):
         """Test plotting functionality"""
-        fig = self.lid_standard.get_top_down_view()
+        fig = self.lid_standard.plot_top_down_view()
         self.assertIsNotNone(fig.data)
 
 
@@ -3116,15 +3116,15 @@ class TestPrismaticCanister(unittest.TestCase):
 
     def test_plots_with_datums(self):
 
-        fig1 = self.canister_standard.get_top_down_view()
+        fig1 = self.canister_standard.plot_top_down_view()
         self.assertIsNotNone(fig1.data)
-        fig2 = self.canister_standard.get_right_left_view()
+        fig2 = self.canister_standard.plot_right_left_view()
         self.assertIsNotNone(fig2.data)
 
         self.canister_standard.datum = (10, 100, 20)
-        fig3 = self.canister_standard.get_top_down_view()
+        fig3 = self.canister_standard.plot_top_down_view()
         self.assertIsNotNone(fig3.data)
-        fig4 = self.canister_standard.get_right_left_view()
+        fig4 = self.canister_standard.plot_right_left_view()
         self.assertIsNotNone(fig4.data)
 
         # fig1.show()
@@ -3176,25 +3176,25 @@ class TestPrismaticCanister(unittest.TestCase):
     def test_setters(self):
         """Test dimension setters"""
         canister = self.canister_standard
-        fig1 = canister.get_right_left_view()
+        fig1 = canister.plot_right_left_view()
         self.assertIsNotNone(fig1.data)
         
         # Test width setter
         canister.length = 200.0
         self.assertEqual(canister.length, 200.0)
-        fig2 = canister.get_right_left_view()
+        fig2 = canister.plot_right_left_view()
         self.assertIsNotNone(fig2.data)
         
         # Test height setter
         canister.height = 250.0
         self.assertEqual(canister.height, 250.0)
-        fig3 = canister.get_right_left_view()
+        fig3 = canister.plot_right_left_view()
         self.assertIsNotNone(fig3.data)
 
         # Test wall thickness setter
         canister.wall_thickness = 3.0
         self.assertEqual(canister.wall_thickness, 3.0)
-        fig4 = canister.get_right_left_view()
+        fig4 = canister.plot_right_left_view()
         self.assertIsNotNone(fig4.data)
 
         # fig1.show()
@@ -3206,25 +3206,25 @@ class TestPrismaticCanister(unittest.TestCase):
         """Test that height setter updates inner height correctly"""
         canister = self.canister_standard
         canister.datum = (0, -97, 0)
-        fig1 = canister.get_right_left_view()
+        fig1 = canister.plot_right_left_view()
         self.assertIsNotNone(fig1.data)
         self.assertEqual(canister.datum, (0, -97, 0))
         
         # Set new height
         canister.height = 250.0
         self.assertEqual(canister.height, 250.0)
-        fig2 = canister.get_right_left_view()
+        fig2 = canister.plot_right_left_view()
         self.assertIsNotNone(fig2.data)
         self.assertEqual(canister.datum, (0, -97, 0))
 
         # rotate canister
         canister.rotated_z = True
-        fig3 = canister.get_top_down_view()
+        fig3 = canister.plot_top_down_view()
         self.assertIsNotNone(fig3.data)
 
         canister.height = 300.0
         self.assertEqual(canister.height, 300.0)
-        fig4 = canister.get_top_down_view()
+        fig4 = canister.plot_top_down_view()
         self.assertIsNotNone(fig4.data)
 
         # fig1.show()
@@ -3252,12 +3252,12 @@ class TestPrismaticCanister(unittest.TestCase):
     def test_plots(self):
         """Test plotting functionality"""
         # base case
-        fig1 = self.canister_standard.get_top_down_view()
+        fig1 = self.canister_standard.plot_top_down_view()
         self.assertIsNotNone(fig1.data)
         
         # rotate around y axis and re-plot
         self.canister_standard.rotated_z = True
-        fig3 = self.canister_standard.get_top_down_view()
+        fig3 = self.canister_standard.plot_top_down_view()
         self.assertIsNotNone(fig3.data)
 
         # fig1.show()
@@ -3323,24 +3323,24 @@ class TestPrismaticEncapsulation(unittest.TestCase):
         """Test plotting functionality"""
 
         # base case
-        fig1 = self.encapsulation.get_top_down_view()
-        fig2 = self.encapsulation.get_right_left_view()
+        fig1 = self.encapsulation.plot_top_down_view()
+        fig2 = self.encapsulation.plot_right_left_view()
         self.assertIsNotNone(fig1.data)
         self.assertIsNotNone(fig2.data)
 
         # set to transverse orientation and re-plot
         from steer_opencell_design.Components.Containers.Prismatic import ConnectorOrientation
         self.encapsulation.connector_orientation = ConnectorOrientation.TRANSVERSE
-        fig3 = self.encapsulation.get_top_down_view()
-        fig4 = self.encapsulation.get_right_left_view()
+        fig3 = self.encapsulation.plot_top_down_view()
+        fig4 = self.encapsulation.plot_right_left_view()
         self.assertIsNotNone(fig3.data)
         self.assertIsNotNone(fig4.data)
 
         # modify the cathode terminal connector position
         self.encapsulation.connector_orientation = ConnectorOrientation.LONGITUDINAL
         self.encapsulation.cathode_terminal_connector_position = 50.0
-        fig5 = self.encapsulation.get_top_down_view()
-        fig6 = self.encapsulation.get_right_left_view()
+        fig5 = self.encapsulation.plot_top_down_view()
+        fig6 = self.encapsulation.plot_right_left_view()
         self.assertIsNotNone(fig5.data)
         self.assertIsNotNone(fig6.data)
 
@@ -3567,15 +3567,15 @@ class TestPrismaticEncapsulation(unittest.TestCase):
     def test_modify_canister_dimensions(self):
         """Test that modifying canister dimensions updates encapsulation"""
         enc = self.encapsulation
-        fig1 = enc.canister.get_top_down_view()
-        fig2 = enc.get_top_down_view()
+        fig1 = enc.canister.plot_top_down_view()
+        fig2 = enc.plot_top_down_view()
         self.assertIsNotNone(fig1.data)
         
         # Modify canister dimensions
         enc.canister.height = 300.0
-        fig3 = enc.canister.get_top_down_view()
+        fig3 = enc.canister.plot_top_down_view()
         enc.canister = enc.canister
-        fig4 = enc.get_top_down_view()
+        fig4 = enc.plot_top_down_view()
         self.assertEqual(enc.height, 300.0)
 
         # fig1.show()
@@ -3586,15 +3586,15 @@ class TestPrismaticEncapsulation(unittest.TestCase):
     def test_modify_canister_dimensions_transverse(self):
         """Test that modifying canister dimensions updates encapsulation"""
         enc = self.encapsulation
-        fig1 = enc.get_top_down_view()
+        fig1 = enc.plot_top_down_view()
 
         enc.connector_orientation = 'transverse'
-        fig2 = enc.get_top_down_view()
+        fig2 = enc.plot_top_down_view()
 
         enc.canister.height = 300.0
-        fig3 = enc.canister.get_top_down_view()
+        fig3 = enc.canister.plot_top_down_view()
         enc.canister = enc.canister
-        fig4 = enc.get_top_down_view()
+        fig4 = enc.plot_top_down_view()
 
         # fig1.show()
         # fig2.show()
@@ -3604,15 +3604,15 @@ class TestPrismaticEncapsulation(unittest.TestCase):
     def test_modify_connector_orientation(self):
         """Test that modifying connector orientation updates encapsulation"""
         enc = self.encapsulation
-        fig1 = enc.get_right_left_view()
+        fig1 = enc.plot_right_left_view()
 
         # change datum
         enc.datum = (100, 200, 300)
-        fig2 = enc.get_right_left_view()
+        fig2 = enc.plot_right_left_view()
 
         # set to transverse orientation and re-plot
         enc.connector_orientation = 'transverse'
-        fig3 = enc.get_right_left_view()
+        fig3 = enc.plot_right_left_view()
 
         # fig1.show()
         # fig2.show()
@@ -3900,10 +3900,10 @@ class TestFlexFrameEncapsulation(unittest.TestCase):
         self.assertEqual(self.encapsulation.cost, 0.06)
 
     def test_plots(self):
-        fig1 = self.frame.get_top_down_view()
+        fig1 = self.frame.plot_top_down_view()
         self.assertIsNotNone(fig1.data)
 
-        fig2 = self.encapsulation.get_top_down_view()
+        fig2 = self.encapsulation.plot_top_down_view()
         self.assertIsNotNone(fig2.data)
 
         # fig1.show()

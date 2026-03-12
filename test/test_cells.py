@@ -219,9 +219,9 @@ class TestCylindricalCell(unittest.TestCase):
 
         fig1 = self.cell.plot_mass_breakdown()
         fig2 = self.cell.plot_cost_breakdown()
-        fig3 = self.cell.get_capacity_plot()
-        fig4 = self.cell.get_top_down_view()
-        fig5 = self.cell.get_cross_section()
+        fig3 = self.cell.plot_capacity_curve()
+        fig4 = self.cell.plot_top_down_view()
+        fig5 = self.cell.plot_cross_section()
 
         self.assertIsNotNone(fig1)
         self.assertIsNotNone(fig2)
@@ -256,7 +256,7 @@ class TestCylindricalCell(unittest.TestCase):
         # Check that energy changed
         self.assertLess(self.cell.energy, original_energy)
 
-        fig1 = self.cell.get_capacity_plot()
+        fig1 = self.cell.plot_capacity_curve()
 
         new_window = (2.3, 5.0)
         self.cell.operating_voltage_window = new_window
@@ -265,7 +265,7 @@ class TestCylindricalCell(unittest.TestCase):
         # check that energy changed
         #self.assertLess(self.cell.energy, original_energy)
 
-        fig2 = self.cell.get_capacity_plot()
+        fig2 = self.cell.plot_capacity_curve()
 
         # fig1.show()
         # fig2.show()
@@ -285,7 +285,7 @@ class TestCylindricalCell(unittest.TestCase):
         min_voltage_in_curve = discharge_curve["Voltage (V)"].min()
         self.assertAlmostEqual(min_voltage_in_curve, new_min, 1)
 
-        fig1 = self.cell.get_capacity_plot()
+        fig1 = self.cell.plot_capacity_curve()
         # fig1.show()
         
     def test_maximum_operating_voltage_setter(self):
@@ -302,7 +302,7 @@ class TestCylindricalCell(unittest.TestCase):
         self.assertIsNotNone(self.cell.energy)
         self.assertIsNotNone(self.cell.specific_energy)
 
-        fig1 = self.cell.get_capacity_plot()
+        fig1 = self.cell.plot_capacity_curve()
         # fig1.show()
         
     def test_minimum_operating_voltage_clamping(self):
@@ -505,7 +505,7 @@ class TestCylindricalCell(unittest.TestCase):
             original_layup_length_range[1],
         )
 
-        fig1 = self.cell.get_capacity_plot()
+        fig1 = self.cell.plot_capacity_curve()
         # fig1.show()
 
     def test_anode_formulation_setter(self):
@@ -542,13 +542,13 @@ class TestCylindricalCell(unittest.TestCase):
             original_layup_length_range[1],
         )
 
-        fig1 = self.cell.get_capacity_plot()
+        fig1 = self.cell.plot_capacity_curve()
         # fig1.show()
 
     def test_voltage_operating_range_after_active_material_removal(self):
         warnings.filterwarnings('ignore')
 
-        fig1 = self.cell.get_capacity_plot()
+        fig1 = self.cell.plot_capacity_curve()
 
         # step 1 - set the active material as nmc
         nmc = ocd.CathodeMaterial.from_database("NMC811")
@@ -562,7 +562,7 @@ class TestCylindricalCell(unittest.TestCase):
         self.assertEqual(self.cell.maximum_operating_voltage, 4.2)
         self.assertEqual(self.cell.maximum_operating_voltage_range[1], 4.22)
 
-        fig2 = self.cell.get_capacity_plot()
+        fig2 = self.cell.plot_capacity_curve()
 
         # step 2 - add lfp
         lfp = ocd.CathodeMaterial.from_database("LFP")
@@ -576,7 +576,7 @@ class TestCylindricalCell(unittest.TestCase):
         self.assertEqual(self.cell.maximum_operating_voltage, 4.04)
         self.assertEqual(self.cell.maximum_operating_voltage_range[1], 4.04)
 
-        fig3 = self.cell.get_capacity_plot()
+        fig3 = self.cell.plot_capacity_curve()
 
         # step 3 - remove the lfp
         self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_2 = None
@@ -588,7 +588,7 @@ class TestCylindricalCell(unittest.TestCase):
         self.assertEqual(self.cell.maximum_operating_voltage, 4.04)
         self.assertEqual(self.cell.maximum_operating_voltage_range[1], 4.22)
 
-        fig4 = self.cell.get_capacity_plot()
+        fig4 = self.cell.plot_capacity_curve()
 
         # fig1.show()
         # fig2.show()
@@ -604,7 +604,7 @@ class TestCylindricalCell(unittest.TestCase):
         baseline_energy = self.cell.energy
         self.assertIsNotNone(baseline_energy)
 
-        fig1 = self.cell.get_capacity_plot()
+        fig1 = self.cell.plot_capacity_curve()
         
         # Load second cathode material
         nmc811 = ocd.CathodeMaterial.from_database("NMC811")
@@ -627,7 +627,7 @@ class TestCylindricalCell(unittest.TestCase):
         self.assertNotEqual(blended_energy, baseline_energy, 
                             "Energy should change when adding second active material")
         
-        fig2 = self.cell.get_capacity_plot()
+        fig2 = self.cell.plot_capacity_curve()
 
         # Remove second material by setting it to None
         formulation.active_material_2 = None
@@ -648,7 +648,7 @@ class TestCylindricalCell(unittest.TestCase):
         self.assertAlmostEqual(restored_energy, baseline_energy, places=1,
                                msg="Energy should return close to baseline after removing second material")
 
-        fig3 = self.cell.get_capacity_plot()
+        fig3 = self.cell.plot_capacity_curve()
 
         # fig1.show()
         # fig2.show()
@@ -776,7 +776,7 @@ class TestCylindricalCell(unittest.TestCase):
         original_cell_cost = self.cell.cost
         original_energy = self.cell.energy
 
-        fig1 = self.cell.get_capacity_plot()
+        fig1 = self.cell.plot_capacity_curve()
 
         # modify cathode formulation active material cost
         self.cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.specific_cost *= 10  # increase the cost
@@ -794,7 +794,7 @@ class TestCylindricalCell(unittest.TestCase):
 
         self.assertNotEqual(new_energy, original_energy, "Cell energy should change when active material irreversible specific capacity changes")
 
-        fig2 = self.cell.get_capacity_plot()
+        fig2 = self.cell.plot_capacity_curve()
 
         # serialize and check that changes persist
         serialized = self.cell.serialize()
@@ -814,7 +814,7 @@ class TestCylindricalCell(unittest.TestCase):
         deserialized_cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.irreversible_specific_capacity *= 10
         deserialized_cell.reference_electrode_assembly.layup.cathode.formulation.active_material_1.propagate_changes()
 
-        fig3 = deserialized_cell.get_capacity_plot()
+        fig3 = deserialized_cell.plot_capacity_curve()
 
         # fig1.show()
         # fig2.show()
@@ -1031,10 +1031,10 @@ class TestCylindricalCellTabbed(unittest.TestCase):
 
     def test_plots(self):
 
-        fig1 = self.cell.get_top_down_view()
-        fig2 = self.cell.get_cross_section()
-        fig3 = self.cell._reference_electrode_assembly._layup.get_top_down_view()
-        fig4 = self.cell._reference_electrode_assembly.get_top_down_view()
+        fig1 = self.cell.plot_top_down_view()
+        fig2 = self.cell.plot_cross_section()
+        fig3 = self.cell._reference_electrode_assembly._layup.plot_top_down_view()
+        fig4 = self.cell._reference_electrode_assembly.plot_top_down_view()
 
         self.assertIsNotNone(fig1)
         self.assertIsNotNone(fig2)
@@ -1061,7 +1061,7 @@ class TestCylindricalCellTabbed(unittest.TestCase):
         self.assertEqual(self.cell.reversible_capacity, 41.46)
         self.assertEqual(self.cell.irreversible_capacity, 45.49)
 
-        fig1 = self.cell.get_capacity_plot()
+        fig1 = self.cell.plot_capacity_curve()
         self.assertIsNotNone(fig1)
 
         # new material
@@ -1072,7 +1072,7 @@ class TestCylindricalCellTabbed(unittest.TestCase):
         self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
         self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly 
 
-        fig2 = self.cell.get_capacity_plot()
+        fig2 = self.cell.plot_capacity_curve()
         self.assertIsNotNone(fig2)
 
         # fig1.show()
@@ -1243,9 +1243,9 @@ class TestStackedPouchCell(unittest.TestCase):
 
         fig1 = self.cell.plot_mass_breakdown()
         fig2 = self.cell.plot_cost_breakdown()
-        fig3 = self.cell.get_capacity_plot()
-        fig4 = self.cell.get_side_view()
-        fig5 = self.cell.get_top_down_view(opacity=0.6)
+        fig3 = self.cell.plot_capacity_curve()
+        fig4 = self.cell.plot_side_view()
+        fig5 = self.cell.plot_top_down_view(opacity=0.6)
 
         self.assertIsNotNone(fig1)
         self.assertIsNotNone(fig2)
@@ -1261,16 +1261,16 @@ class TestStackedPouchCell(unittest.TestCase):
 
     def test_electrode_orientation_setter(self):
 
-        fig1 = self.cell.get_side_view()
-        fig2 = self.cell.get_top_down_view()
+        fig1 = self.cell.plot_side_view()
+        fig2 = self.cell.plot_top_down_view()
         
         # Change electrode orientation
         self.cell.reference_electrode_assembly.layup.electrode_orientation = 'longitudinal'
         self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
         self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
 
-        fig3 = self.cell.get_side_view()
-        fig4 = self.cell.get_top_down_view()
+        fig3 = self.cell.plot_side_view()
+        fig4 = self.cell.plot_top_down_view()
 
         self.assertIsNotNone(fig1)
         self.assertIsNotNone(fig2)
@@ -1421,7 +1421,7 @@ class TestStackedPouchCell(unittest.TestCase):
 
     def test_side_view_legend_only_first_assembly(self):
         """Test that side view only shows legend for first assembly."""
-        fig = self.cell.get_side_view()
+        fig = self.cell.plot_side_view()
         
         # Count traces with showlegend=True
         legend_traces = [trace for trace in fig.data if trace.showlegend]
@@ -1438,8 +1438,8 @@ class TestStackedPouchCell(unittest.TestCase):
     def test_top_down_view_opacity(self):
         """Test that top-down view applies opacity correctly."""
         # Get view with different opacity values
-        fig1 = self.cell.get_top_down_view(opacity=0.3)
-        fig2 = self.cell.get_top_down_view(opacity=0.8)
+        fig1 = self.cell.plot_top_down_view(opacity=0.3)
+        fig2 = self.cell.plot_top_down_view(opacity=0.8)
         
         self.assertIsNotNone(fig1)
         self.assertIsNotNone(fig2)
@@ -1724,9 +1724,9 @@ class TestStackedPrismaticCell(unittest.TestCase):
 
         fig1 = self.cell.plot_mass_breakdown()
         fig2 = self.cell.plot_cost_breakdown()
-        fig3 = self.cell.get_capacity_plot()
-        fig4 = self.cell.get_side_view()
-        fig5 = self.cell.get_top_down_view(opacity=0.6)
+        fig3 = self.cell.plot_capacity_curve()
+        fig4 = self.cell.plot_side_view()
+        fig5 = self.cell.plot_top_down_view(opacity=0.6)
 
         self.assertIsNotNone(fig1)
         self.assertIsNotNone(fig2)
@@ -1842,7 +1842,7 @@ class TestStackedPrismaticCell(unittest.TestCase):
 
     def test_side_view_legend_only_first_assembly(self):
         """Test that side view only shows legend for first assembly."""
-        fig = self.cell.get_side_view()
+        fig = self.cell.plot_side_view()
         
         # Count traces with showlegend=True
         legend_traces = [trace for trace in fig.data if trace.showlegend]
@@ -1859,8 +1859,8 @@ class TestStackedPrismaticCell(unittest.TestCase):
     def test_top_down_view_opacity(self):
         """Test that top-down view applies opacity correctly."""
         # Get view with different opacity values
-        fig1 = self.cell.get_top_down_view(opacity=0.3)
-        fig2 = self.cell.get_top_down_view(opacity=0.8)
+        fig1 = self.cell.plot_top_down_view(opacity=0.3)
+        fig2 = self.cell.plot_top_down_view(opacity=0.8)
         
         self.assertIsNotNone(fig1)
         self.assertIsNotNone(fig2)
@@ -1892,17 +1892,17 @@ class TestStackedPrismaticCell(unittest.TestCase):
 
     def test_encapsulation_parameter_setters(self):
 
-        fig1 = self.cell.get_side_view()
+        fig1 = self.cell.plot_side_view()
 
         self.cell.encapsulation.canister.height = 600
         self.cell.encapsulation.canister = self.cell.encapsulation.canister
         self.cell.encapsulation = self.cell.encapsulation
-        fig2 = self.cell.get_side_view()
+        fig2 = self.cell.plot_side_view()
 
         self.cell.encapsulation.canister.length = 160
         self.cell.encapsulation.canister = self.cell.encapsulation.canister
         self.cell.encapsulation = self.cell.encapsulation
-        fig3 = self.cell.get_side_view()
+        fig3 = self.cell.plot_side_view()
 
         # fig1.show(renderer="browser")
         # fig2.show(renderer="browser")
@@ -1910,13 +1910,13 @@ class TestStackedPrismaticCell(unittest.TestCase):
 
     def test_assembly_orientation_setter(self):
 
-        fig1 = self.cell.get_top_down_view()
+        fig1 = self.cell.plot_top_down_view()
 
         self.cell.reference_electrode_assembly.layup.electrode_orientation = 'transverse'
         self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
         self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
 
-        fig2 = self.cell.get_top_down_view()
+        fig2 = self.cell.plot_top_down_view()
         
         self.assertIsNotNone(fig1)
         self.assertIsNotNone(fig2)
@@ -2161,9 +2161,9 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
         self.assertTrue(type(self.cell) is ocd.PrismaticCell)
 
     def test_plots(self):
-        fig1 = self.cell.get_top_down_view()
-        fig2 = self.cell.get_side_view()
-        fig3 = self.cell.get_capacity_plot()
+        fig1 = self.cell.plot_top_down_view()
+        fig2 = self.cell.plot_side_view()
+        fig3 = self.cell.plot_capacity_curve()
         # fig1.show()
         # fig2.show()
         # fig3.show()
@@ -2175,7 +2175,7 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
         self.assertEqual(self.cell.minimum_operating_voltage, 2.0)
         self.assertEqual(self.cell.maximum_operating_voltage, 3.96)
 
-        fig1 = self.cell.get_capacity_plot()
+        fig1 = self.cell.plot_capacity_curve()
         self.assertIsNotNone(fig1)
 
         # change the active material
@@ -2186,7 +2186,7 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
         self.cell.reference_electrode_assembly.layup = self.cell.reference_electrode_assembly.layup
         self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
 
-        fig2 = self.cell.get_capacity_plot()
+        fig2 = self.cell.plot_capacity_curve()
         self.assertIsNotNone(fig2)
 
         self.assertEqual(self.cell.irreversible_capacity, 70.24)
@@ -2502,8 +2502,8 @@ class TestFlexFrameCell(unittest.TestCase):
         self.assertEqual(self.cell.energy, 17.64)
 
     def test_plots(self):
-        fig1 = self.cell.get_top_down_view()
-        fig2 = self.cell.reference_electrode_assembly.get_side_view()
+        fig1 = self.cell.plot_top_down_view()
+        fig2 = self.cell.reference_electrode_assembly.plot_side_view()
         self.assertIsNotNone(fig1)
         self.assertIsNotNone(fig2)
         # fig1.show()
@@ -2535,7 +2535,7 @@ class TestFromLoadedCell(unittest.TestCase):
         self.assertAlmostEqual(self.cell.reference_electrode_assembly.radius, new_radius)
 
     def test_plot(self):
-        fig1 = self.cell.get_cross_section()
+        fig1 = self.cell.plot_cross_section()
         self.assertIsNotNone(fig1)
         # fig1.show()
 
@@ -2754,7 +2754,7 @@ class TestAnodeFreePouchCell(unittest.TestCase):
     def test_capacity_plot(self):
         """Capacity plot should render (no anode curve)."""
         import plotly.graph_objects as go
-        fig = self.cell.get_capacity_plot()
+        fig = self.cell.plot_capacity_curve()
         self.assertIsInstance(fig, go.Figure)
         self.assertGreater(len(fig.data), 0)
         # Should have no anode trace
@@ -2766,7 +2766,7 @@ class TestAnodeFreePouchCell(unittest.TestCase):
     def test_capacity_plot_no_guides(self):
         """Capacity plot without guides should render."""
         import plotly.graph_objects as go
-        fig = self.cell.get_capacity_plot(include_guides=False)
+        fig = self.cell.plot_capacity_curve(include_guides=False)
         self.assertIsInstance(fig, go.Figure)
         # fig.show()
 
@@ -2797,14 +2797,14 @@ class TestAnodeFreePouchCell(unittest.TestCase):
     def test_side_view(self):
         """Side view should render."""
         import plotly.graph_objects as go
-        fig = self.cell.get_side_view()
+        fig = self.cell.plot_side_view()
         self.assertIsInstance(fig, go.Figure)
         # fig.show()
 
     def test_top_down_view(self):
         """Top-down view should render."""
         import plotly.graph_objects as go
-        fig = self.cell.get_top_down_view(opacity=0.6)
+        fig = self.cell.plot_top_down_view(opacity=0.6)
         self.assertIsInstance(fig, go.Figure)
         # fig.show()
 

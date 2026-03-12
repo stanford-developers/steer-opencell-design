@@ -25,8 +25,8 @@ class TestMandrel(unittest.TestCase):
         self.assertEqual(self.mandrel.length, 100.0)
         self.assertEqual(self.mandrel.datum, (0.0, 0.0, 0.0))
 
-        fig1 = self.mandrel.get_top_down_view()
-        fig2 = self.mandrel.get_bottom_up_view()
+        fig1 = self.mandrel.plot_top_down_view()
+        fig2 = self.mandrel.plot_bottom_up_view()
 
         # fig1.show()
         # fig2.show()
@@ -143,8 +143,8 @@ class TestFlatMandrel(unittest.TestCase):
 
     def test_flat_mandrel_views(self):
         """Test that flat mandrel can generate views."""
-        fig1 = self.flat_mandrel.get_top_down_view()
-        fig2 = self.flat_mandrel.get_bottom_up_view()
+        fig1 = self.flat_mandrel.plot_top_down_view()
+        fig2 = self.flat_mandrel.plot_bottom_up_view()
          
         # Check that figures are created
         self.assertIsNotNone(fig1)
