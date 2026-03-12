@@ -1683,7 +1683,7 @@ class _ElectrodeFormulation(
             else:
                 voltage = min(self._voltage_operation_window)
 
-        self.validate_positive_float(voltage, "Voltage cutoff")
+        self.validate_number(voltage, "Voltage cutoff")
 
         # Store the requested voltage cutoff
         self._voltage_cutoff = voltage
