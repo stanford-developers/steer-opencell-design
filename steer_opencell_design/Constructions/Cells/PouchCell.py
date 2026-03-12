@@ -174,19 +174,22 @@ class PouchCell(_Cell):
         _datum_y = ref_assembly._layup._cathode._datum[1]
         _datum = (_datum_x, _datum_y)
 
-        self._encapsulation._top_laminate._hot_press(
+        self._encapsulation._top_laminate._set_hot_press_state(
             -_hot_press_depth_thickness,
             _hot_press_width,
             _hot_press_height,
             _datum
         )
 
-        self._encapsulation._bottom_laminate._hot_press(
+        self._encapsulation._bottom_laminate._set_hot_press_state(
             _hot_press_depth_thickness,
             _hot_press_width,
             _hot_press_height,
             _datum
         )
+
+        self._encapsulation._top_laminate._calculate_coordinates()
+        self._encapsulation._bottom_laminate._calculate_coordinates()
 
     def _size_encapsulation(self) -> None:
         """Calculate and set encapsulation dimensions.
@@ -211,9 +214,10 @@ class PouchCell(_Cell):
         encapsulation_height = _encapsulation_height * M_TO_MM
         encapsulation_thickness = _encapsulation_thickness * M_TO_MM
 
-        self._encapsulation.width = encapsulation_width
-        self._encapsulation.height = encapsulation_height
-        self._encapsulation.thickness = encapsulation_thickness
+        with self._encapsulation.batch_updates():
+            self._encapsulation.width = encapsulation_width
+            self._encapsulation.height = encapsulation_height
+            self._encapsulation.thickness = encapsulation_thickness
 
     def get_side_view(self, **kwargs) -> go.Figure:
         """Get side view figure of the pouch cell.
