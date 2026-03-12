@@ -339,7 +339,7 @@ class _ActiveMaterial(
             self._specific_capacity_curve
         )
 
-    def plot_underlying_specific_capacity_curves(self, **kwargs):
+    def plot_underlying_specific_capacity_curves(self, **kwargs) -> go.Figure:
 
         fig = go.Figure()
         fig.add_traces(self.specific_capacity_curves_traces)
@@ -360,7 +360,7 @@ class _ActiveMaterial(
 
         return fig
 
-    def plot_specific_capacity_curve(self, **kwargs):
+    def plot_specific_capacity_curve(self, **kwargs) -> go.Figure:
 
         fig = go.Figure()
         fig.add_trace(self.specific_capacity_curve_trace)
@@ -383,7 +383,7 @@ class _ActiveMaterial(
 
         return fig
 
-    def plot_specific_capacity_curve_interactive(self, n_steps: int = 20, **kwargs):
+    def plot_specific_capacity_curve_interactive(self, n_steps: int = 20, **kwargs) -> go.Figure:
         """Return a Plotly figure with a slider to explore voltage cutoff values.
 
         Parameters

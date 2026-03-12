@@ -255,7 +255,7 @@ class _CurrentCollector(
         self._a_in_fill_pattern = dict(shape="\\", size=10, solidity=0.6, fgcolor=self._material._color)
         self._b_in_fill_pattern = dict(shape="/", size=10, solidity=0.6, fgcolor=self._material._color)
 
-    def get_top_down_view(self, **kwargs) -> go.Figure:
+    def plot_top_down_view(self, **kwargs) -> go.Figure:
         
         fig = go.Figure()
 
@@ -433,7 +433,7 @@ class _CurrentCollector(
     def get_center_line(self) -> np.ndarray:
         return self.get_xz_center_line(self._foil_coordinates)
 
-    def get_a_side_view(self, **kwargs) -> go.Figure:
+    def plot_a_side_view(self, **kwargs) -> go.Figure:
         z_coords = self._foil_coordinates[:, 2]
         z_a = z_coords[self._foil_coordinates_side == "a"].mean()
         z_b = z_coords[self._foil_coordinates_side == "b"].mean()
@@ -441,14 +441,14 @@ class _CurrentCollector(
         top_side = "a" if z_a > z_b else "b"
 
         if top_side == "a":
-            return self.get_top_down_view(**kwargs)
+            return self.plot_top_down_view(**kwargs)
         else:
             self._flip("y")
-            figure = self.get_top_down_view(**kwargs)
+            figure = self.plot_top_down_view(**kwargs)
             self._flip("y")
             return figure
 
-    def get_b_side_view(self, **kwargs) -> go.Figure:
+    def plot_b_side_view(self, **kwargs) -> go.Figure:
         z_coords = self._foil_coordinates[:, 2]
         z_a = z_coords[self._foil_coordinates_side == "a"].mean()
         z_b = z_coords[self._foil_coordinates_side == "b"].mean()
@@ -456,14 +456,14 @@ class _CurrentCollector(
         top_side = "a" if z_a > z_b else "b"
 
         if top_side == "b":
-            return self.get_top_down_view(**kwargs)
+            return self.plot_top_down_view(**kwargs)
         else:
             self._flip("y")
-            figure = self.get_top_down_view(**kwargs)
+            figure = self.plot_top_down_view(**kwargs)
             self._flip("y")
             return figure
 
-    def get_right_left_view(self, **kwargs) -> go.Figure:
+    def plot_right_left_view(self, **kwargs) -> go.Figure:
         """
         Returns a Plotly Figure representing the right-left view of the punched current collector.
         The right-left view is a rectangle representing the right and left sides of the current collector.

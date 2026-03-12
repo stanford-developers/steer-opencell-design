@@ -133,70 +133,97 @@ class LaminateSheet(
 
     def _generate_bucket_cross_section(self, axis: int, start: float, end: float, perpendicular_pos: float) -> np.ndarray:
         """Generate a bucket-shaped cross-section with smooth rounded corners.
-        
+
         Creates a centerline path following the bucket profile, then extrudes it
-        to create top and bottom surfaces with constant thickness.
+        perpendicular to the surface to create top and bottom surfaces with
+        constant thickness.  Transition zones sit entirely outside the cavity
+        boundaries so the laminate reaches full depth exactly at the assembly
+        edges.  Cosine interpolation gives C1-smooth (zero-slope) endpoints.
         """
         cavity_min = self._cavity_coordinates[:, axis].min()
         cavity_max = self._cavity_coordinates[:, axis].max()
 
-        # Determine horizontal offset for the cavity based on depth direction
-        offset = self._thickness if self._cavity_depth > 0 else -self._thickness
-
-        # Smoothing parameters
         smooth_width = max(self._thickness * 0.5, abs(self._cavity_depth) * 0.2)
-        k = 8.0 / smooth_width  # steepness of sigmoid
 
-        def sigmoid(coord_array: np.ndarray, z0: float, z1: float, center: float) -> np.ndarray:
-            """Smooth transition from z0 to z1 centered at 'center'."""
-            t = 1.0 / (1.0 + np.exp(-k * (coord_array - center)))
-            return z0 + (z1 - z0) * t
+        def cosine_blend(coord_array: np.ndarray, z0: float, z1: float,
+                         x_start: float, x_end: float) -> np.ndarray:
+            """Smooth transition from z0 to z1 with zero slope at both ends."""
+            t = np.clip((coord_array - x_start) / (x_end - x_start), 0.0, 1.0)
+            blend = 0.5 * (1.0 - np.cos(np.pi * t))
+            return z0 + (z1 - z0) * blend
 
-        # Number of points per segment
-        n_pts = 30
+        # Adaptive point counts proportional to segment length
+        min_pts = 6
+        total_pts = 200
+        seg_lengths = [
+            abs(cavity_min - smooth_width - start),
+            smooth_width,
+            abs(cavity_max - cavity_min),
+            smooth_width,
+            abs(end - (cavity_max + smooth_width)),
+        ]
+        length_sum = sum(seg_lengths) or 1.0
+        seg_pts = [max(min_pts, int(round(total_pts * l / length_sum))) for l in seg_lengths]
 
-        # CENTERLINE PATH - defines the middle of the laminate sheet
         centerline_z = perpendicular_pos - self._thickness / 2
-        
-        # Segment 1: Left flat region
-        left_flat = np.linspace(start, cavity_min - smooth_width, n_pts)
-        z_left_flat = np.full(n_pts, centerline_z)
+        cavity_z = centerline_z - self._cavity_depth
 
-        # Segment 2: Left corner transition (rounding down into cavity)
-        # Transition starts at cavity edge and ends smooth_width beyond it
-        left_corner = np.linspace(cavity_min - smooth_width, cavity_min + smooth_width, n_pts)
-        # Center the sigmoid at cavity_min - smooth_width/2 so transition begins at cavity edge
-        z_left_corner = sigmoid(left_corner, centerline_z, centerline_z - self._cavity_depth, cavity_min - smooth_width / 2)
+        # Segment 1: Left flat (seal region)
+        left_flat = np.linspace(start, cavity_min - smooth_width, seg_pts[0])
+        z_left_flat = np.full(seg_pts[0], centerline_z)
 
-        # Segment 3: Cavity flat bottom (with lateral offset)
-        cavity_flat = np.linspace(cavity_min + smooth_width, cavity_max - smooth_width, n_pts)
-        z_cavity_flat = np.full(n_pts, centerline_z - self._cavity_depth)
-        cavity_flat_offset = cavity_flat + offset / 2  # Half offset on centerline
+        # Segment 2: Left transition — entirely outside cavity boundary
+        trans_left_start = cavity_min - smooth_width
+        trans_left_end = cavity_min
+        left_corner = np.linspace(trans_left_start, trans_left_end, seg_pts[1])
+        z_left_corner = cosine_blend(left_corner, centerline_z, cavity_z,
+                                     trans_left_start, trans_left_end)
 
-        # Segment 4: Right corner transition (rounding up out of cavity)
-        # Transition starts smooth_width before cavity edge and ends at cavity edge
-        right_corner = np.linspace(cavity_max - smooth_width, cavity_max + smooth_width, n_pts)
-        # Center the sigmoid at cavity_max + smooth_width/2 so transition completes at cavity edge
-        z_right_corner = sigmoid(right_corner, centerline_z - self._cavity_depth, centerline_z, cavity_max + smooth_width / 2)
+        # Segment 3: Cavity flat (spans full assembly width/height)
+        cavity_flat = np.linspace(cavity_min, cavity_max, seg_pts[2])
+        z_cavity_flat = np.full(seg_pts[2], cavity_z)
 
-        # Segment 5: Right flat region
-        right_flat = np.linspace(cavity_max + smooth_width, end, n_pts)
-        z_right_flat = np.full(n_pts, centerline_z)
+        # Segment 4: Right transition — entirely outside cavity boundary
+        trans_right_start = cavity_max
+        trans_right_end = cavity_max + smooth_width
+        right_corner = np.linspace(trans_right_start, trans_right_end, seg_pts[3])
+        z_right_corner = cosine_blend(right_corner, cavity_z, centerline_z,
+                                      trans_right_start, trans_right_end)
 
-        # Assemble centerline coordinates
-        centerline_coords = np.concatenate([left_flat, left_corner, cavity_flat_offset, right_corner, right_flat])
-        centerline_z_all = np.concatenate([z_left_flat, z_left_corner, z_cavity_flat, z_right_corner, z_right_flat])
+        # Segment 5: Right flat (seal region)
+        right_flat = np.linspace(cavity_max + smooth_width, end, seg_pts[4])
+        z_right_flat = np.full(seg_pts[4], centerline_z)
 
-        # EXTRUDE: Create top and bottom surfaces by offsetting perpendicular to centerline
-        # Top surface: +thickness/2 in z
-        top_coords = centerline_coords.copy()
-        top_z = centerline_z_all + self._thickness / 2
+        centerline_coords = np.concatenate([
+            left_flat, left_corner, cavity_flat, right_corner, right_flat
+        ])
+        centerline_z_all = np.concatenate([
+            z_left_flat, z_left_corner, z_cavity_flat, z_right_corner, z_right_flat
+        ])
 
-        # Bottom surface: -thickness/2 in z (reversed for polygon closure)
-        bot_coords = centerline_coords[::-1].copy()
-        bot_z = centerline_z_all[::-1] - self._thickness / 2
+        # Extrude perpendicular to the surface (normal-based offset)
+        half_t = self._thickness / 2
+        n = len(centerline_coords)
 
-        # Close the polygon
+        dc = np.empty(n)
+        dz = np.empty(n)
+        dc[1:-1] = centerline_coords[2:] - centerline_coords[:-2]
+        dz[1:-1] = centerline_z_all[2:] - centerline_z_all[:-2]
+        dc[0] = centerline_coords[1] - centerline_coords[0]
+        dz[0] = centerline_z_all[1] - centerline_z_all[0]
+        dc[-1] = centerline_coords[-1] - centerline_coords[-2]
+        dz[-1] = centerline_z_all[-1] - centerline_z_all[-2]
+
+        mag = np.sqrt(dc * dc + dz * dz)
+        mag[mag == 0] = 1.0
+        nx = -dz / mag
+        nz = dc / mag
+
+        top_coords = centerline_coords + half_t * nx
+        top_z = centerline_z_all + half_t * nz
+        bot_coords = centerline_coords[::-1] - half_t * nx[::-1]
+        bot_z = centerline_z_all[::-1] - half_t * nz[::-1]
+
         all_coords = np.concatenate([top_coords, bot_coords, [top_coords[0]]])
         all_z = np.concatenate([top_z, bot_z, [top_z[0]]])
 
@@ -264,8 +291,21 @@ class LaminateSheet(
         _height: float,
         _datum: Tuple[float, float] = (0.0, 0.0)
     ) -> None:
-        """Set the laminate as hot-pressed."""
+        """Set the laminate as hot-pressed and recalculate coordinates."""
+        self._set_hot_press_state(_depth, _width, _height, _datum)
 
+    def _set_hot_press_state(
+        self,
+        _depth: float,
+        _width: float,
+        _height: float,
+        _datum: Tuple[float, float] = (0.0, 0.0)
+    ) -> None:
+        """Set hot-press state without triggering coordinate recalculation.
+
+        Use this when the caller will handle coordinate recalculation
+        (e.g. during batch encapsulation updates).
+        """
         if _width > self._width or _height > self._height:
             raise ValueError("Cavity dimensions exceed laminate dimensions.")
 
@@ -294,7 +334,7 @@ class LaminateSheet(
         self._cavity_coordinates = np.column_stack((x, y))
 
     # Public functions
-    def get_top_down_view(self, **kwargs):
+    def plot_top_down_view(self, **kwargs) -> go.Figure:
         """Get a Plotly Figure showing the top-down view of the laminate sheet.
         
         Returns a go.Figure with the laminate sheet footprint.
@@ -317,7 +357,7 @@ class LaminateSheet(
         
         return fig
 
-    def get_right_left_view(self, **kwargs):
+    def plot_right_left_view(self, **kwargs) -> go.Figure:
         """Get a Plotly Figure showing the right-left (side) view of the laminate sheet.
         
         Returns a go.Figure with the laminate sheet cross-section.
@@ -340,7 +380,7 @@ class LaminateSheet(
         
         return fig
 
-    def get_bottom_up_view(self, **kwargs):
+    def plot_bottom_up_view(self, **kwargs) -> go.Figure:
         """Get a Plotly Figure showing the bottom-up view of the laminate sheet.
         
         Returns a go.Figure with the laminate sheet cross-section.
@@ -465,9 +505,8 @@ class LaminateSheet(
         if not hasattr(self, '_right_left_coordinates') or self._right_left_coordinates is None:
             return None
         
-        # Perform operations on numpy array first for speed
         coords_mm = self._right_left_coordinates * M_TO_MM
-        coords_rounded = np.round(coords_mm, 2)
+        coords_rounded = np.round(coords_mm, 5)
         return pd.DataFrame(coords_rounded, columns=['y', 'z'])
 
     @property
@@ -479,9 +518,8 @@ class LaminateSheet(
         if not hasattr(self, '_bottom_up_coordinates') or self._bottom_up_coordinates is None:
             return None
         
-        # Perform operations on numpy array first for speed
         coords_mm = self._bottom_up_coordinates * M_TO_MM
-        coords_rounded = np.round(coords_mm, 2)
+        coords_rounded = np.round(coords_mm, 5)
         return pd.DataFrame(coords_rounded, columns=['x', 'z'])
 
     @property
@@ -507,6 +545,7 @@ class LaminateSheet(
             fillcolor='rgba(211, 211, 211, 1.0)',
             legendgroup='Laminate Sheet',
             showlegend=True,
+            line_shape='spline',
         )
         
         return trace
@@ -534,6 +573,7 @@ class LaminateSheet(
             fillcolor='rgba(211, 211, 211, 1.0)',
             legendgroup='Laminate Sheet',
             showlegend=True,
+            line_shape='spline',
         )
         
         return trace
@@ -933,6 +973,8 @@ class PouchEncapsulation(_Container, DatumMixin):
 
     def _calculate_all_properties(self):
         """Calculate all properties of the pouch encapsulation."""
+        self._top_laminate._calculate_all_properties()
+        self._bottom_laminate._calculate_all_properties()
         self._calculate_bulk_properties()
         self._calculate_coordinates()
 
@@ -1026,7 +1068,7 @@ class PouchEncapsulation(_Container, DatumMixin):
 
         self._volume = _width * _height * self._thickness
 
-    def get_side_view(self, **kwargs) -> go.Figure:
+    def plot_side_view(self, **kwargs) -> go.Figure:
         """Get a Plotly Figure showing the side view of the pouch encapsulation."""        
         traces = []
         traces.append(self._cathode_terminal.right_left_trace)
@@ -1047,7 +1089,7 @@ class PouchEncapsulation(_Container, DatumMixin):
 
         return fig
     
-    def get_top_down_view(self, **kwargs) -> go.Figure:
+    def plot_top_down_view(self, **kwargs) -> go.Figure:
         """Get a Plotly Figure showing the top view of the pouch encapsulation."""        
         traces = []
         traces.append(self._bottom_laminate.top_down_trace)
@@ -1211,8 +1253,9 @@ class PouchEncapsulation(_Container, DatumMixin):
             self._width = None
             return
         self.validate_positive_float(width, "Width")
-        self._top_laminate.width = width
-        self._bottom_laminate.width = width
+        width_m = float(width) * MM_TO_M
+        self._top_laminate._width = width_m
+        self._bottom_laminate._width = width_m
 
     @height.setter
     @calculate_all_properties
@@ -1222,8 +1265,9 @@ class PouchEncapsulation(_Container, DatumMixin):
             self._height = None
             return
         self.validate_positive_float(height, "Height")
-        self._top_laminate.height = height
-        self._bottom_laminate.height = height
+        height_m = float(height) * MM_TO_M
+        self._top_laminate._height = height_m
+        self._bottom_laminate._height = height_m
 
     @classmethod
     def from_prismatic(
