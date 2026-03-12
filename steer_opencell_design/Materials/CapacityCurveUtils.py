@@ -41,6 +41,9 @@ class CapacityCurveMixin:
         charge_curve = curve[curve[:, 2] == 1]
         discharge_curve = curve[curve[:, 2] == -1]
 
+        if len(charge_curve) == 0 or len(discharge_curve) == 0:
+            return curve
+
         # check the specific capacity ranges of the curves and make sure the charge curve has the greater range
         charge_specific_capacity_range = (
             charge_curve[:, 0].max() - charge_curve[:, 0].min()
@@ -242,6 +245,10 @@ class CapacityCurveMixin:
             Array containing the interpolated curve with columns [specific_capacity, voltage, direction].
         """
         n_points = 100
+
+        # Guard: when the bounding voltages are equal, no interpolation is needed
+        if np.isclose(below_voltage_max, above_voltage_max):
+            return below_curve.copy()
 
         # Check if this is a discharge curve (direction = -1)
         is_discharge = (
@@ -582,10 +589,11 @@ class CapacityCurveMixin:
 
         # Round voltage cutoff for consistent comparison
         rounded_voltage_cutoff = np.round(voltage_cutoff, 5)
+        rounded_voltages = [round(v, 5) for v in voltages_at_max_capacity]
 
         # If the voltage cutoff corresponds to a particular curve, then return that curve
-        if rounded_voltage_cutoff in [round(v, 5) for v in voltages_at_max_capacity]:
-            curve_idx = voltages_at_max_capacity.index(voltage_cutoff)
+        if rounded_voltage_cutoff in rounded_voltages:
+            curve_idx = rounded_voltages.index(rounded_voltage_cutoff)
             specific_capacity_curve = specific_capacity_curves[curve_idx].copy()
 
         # If the voltage is between the second and third float in operating voltage range, then interpolate between the two curves

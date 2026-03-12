@@ -536,10 +536,13 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         super()._calculate_bulk_properties()
 
     def _calculate_pore_volume(self):
-        
+
         _cathode_pore_volume = self._layup._cathode._pore_volume
         _anode_pore_volume = self._layup._anode._pore_volume
-        self._pore_volume = _cathode_pore_volume + _anode_pore_volume
+        _bottom_separator_pore_volume = self._layup._bottom_separator._pore_volume
+        _top_separator_pore_volume = self._layup._top_separator._pore_volume
+
+        self._pore_volume = _cathode_pore_volume + _anode_pore_volume + _bottom_separator_pore_volume + _top_separator_pore_volume
 
     def _get_center_point(self) -> Tuple[float, float, float]:
         """Get the center point of the jelly roll assembly.

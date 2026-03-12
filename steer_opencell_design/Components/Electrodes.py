@@ -95,6 +95,7 @@ class _Electrode(
         """
         self._update_properties = False
         self._is_anode_free = False
+        self._property_cache = {}
 
         # Initialize _datum early so mixin properties work during component setup
         self._datum = tuple(float(d) * MM_TO_M for d in datum)
@@ -194,6 +195,7 @@ class _Electrode(
                 if mode.lower().replace(" ", "_") == enum_member.value:
                     self._control_mode = enum_member
                     return
+            raise ValueError(f"Invalid control mode: '{mode}'. Available modes are: {[e.value for e in ElectrodeControlMode]}")
                 
         else:
             raise ValueError(f"Invalid control mode: {mode}. Available modes are: {[e.value for e in ElectrodeControlMode]}")
@@ -212,11 +214,15 @@ class _Electrode(
     def _calculate_calender_density(self, mass_loading: float, coating_thickness: float) -> None:
         _mass_loading = mass_loading * (MG_TO_KG / CM_TO_M**2)
         _coating_thickness = coating_thickness * UM_TO_M
+        if _coating_thickness == 0:
+            self._calender_density = 0.0
+            return
         self._calender_density = _mass_loading / _coating_thickness
 
     # === CALCULATE PROPERTIES ===
 
     def _calculate_all_properties(self) -> None:
+        self._property_cache.clear()
         if self._is_anode_free:
             self._coating_thickness = 0.0
         else:
@@ -270,6 +276,8 @@ class _Electrode(
         For anode-free electrodes all coating and insulation coordinates are
         set to ``None``; downstream consumers must guard accordingly.
         """
+        if hasattr(self, "_property_cache"):
+            self._property_cache.clear()
         if self._is_anode_free:
             self._a_side_coating_coordinates = None
             self._b_side_coating_coordinates = None
@@ -401,12 +409,15 @@ class _Electrode(
 
     def _calculate_porosity(self) -> None:
         porosity = 1 - (self._formulation._specific_volume * self._calender_density)
-        self._porosity = porosity
 
         if porosity < 0:
-            warnings.warn(f"Negative porosity calculated for {self.name}.", UserWarning)
+            warnings.warn(f"Negative porosity calculated for {self.name}. Clamping to 0.", UserWarning)
+            porosity = 0.0
+
+        self._porosity = porosity
 
     def _clear_cached_data(self) -> None:
+        self._property_cache.clear()
         self._areal_capacity_curve = None
         if not self._is_anode_free:
             self._formulation._clear_cached_data()
@@ -549,7 +560,7 @@ class _Electrode(
             half_range = zoom_range / 2
             y_range = [datum_y - half_range, datum_y + half_range]
 
-        Y_AXIS = self.SCHEMATIC_Y_AXIS
+        Y_AXIS = self.SCHEMATIC_Y_AXIS.copy()
         Y_AXIS['title'] = "Thickness (µm)"
         Y_AXIS['range'] = y_range
 
@@ -591,9 +602,9 @@ class _Electrode(
         figure = go.Figure()
         figure.add_trace(self.areal_capacity_curve_trace)
 
-        XAXIS = self.SCATTER_X_AXIS
+        XAXIS = self.SCATTER_X_AXIS.copy()
         XAXIS['title'] = "Areal Capacity (mAh/cm²)"
-        YAXIS = self.SCATTER_Y_AXIS
+        YAXIS = self.SCATTER_Y_AXIS.copy()
         YAXIS['title'] = "Voltage (V)"
 
         figure.update_layout(
@@ -841,6 +852,7 @@ class _Electrode(
         axis : str
             The axis to rotate around. Must be 'x' or 'y'.
         """
+        self._property_cache.clear()
         if axis not in ["x", "y", "z"]:
             raise ValueError("Axis must be 'x', 'y', or 'z'.")
 
@@ -1049,53 +1061,42 @@ class _Electrode(
 
         return (min_calender_density, max_calender_density)
 
-    @property
-    def a_side_insulation_coordinates(self) -> pd.DataFrame:
-        """
-        Get the A side insulation coordinates of the electrode.
-        """
-        return pd.DataFrame(self._a_side_insulation_coordinates, columns=["x", "y", "z"]).assign(
+    def _get_coords_df(self, cache_key: str, raw_coords) -> pd.DataFrame:
+        """Return a cached mm-unit DataFrame for the given raw coordinate array."""
+        if raw_coords is None:
+            return None
+        if not hasattr(self, "_property_cache"):
+            self._property_cache = {}
+        cached = self._property_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        df = pd.DataFrame(raw_coords, columns=["x", "y", "z"]).assign(
             x=lambda x: (x["x"].astype(float) * M_TO_MM).round(10),
             y=lambda x: (x["y"].astype(float) * M_TO_MM).round(10),
             z=lambda x: (x["z"].astype(float) * M_TO_MM).round(10),
         )
+        self._property_cache[cache_key] = df
+        return df
+
+    @property
+    def a_side_insulation_coordinates(self) -> pd.DataFrame:
+        """Get the A side insulation coordinates of the electrode."""
+        return self._get_coords_df("a_ins_coords", self._a_side_insulation_coordinates)
 
     @property
     def b_side_insulation_coordinates(self) -> pd.DataFrame:
-        """
-        Get the B side insulation coordinates of the electrode.
-        """
-        return pd.DataFrame(self._b_side_insulation_coordinates, columns=["x", "y", "z"]).assign(
-            x=lambda x: (x["x"].astype(float) * M_TO_MM).round(10),
-            y=lambda x: (x["y"].astype(float) * M_TO_MM).round(10),
-            z=lambda x: (x["z"].astype(float) * M_TO_MM).round(10),
-        )
+        """Get the B side insulation coordinates of the electrode."""
+        return self._get_coords_df("b_ins_coords", self._b_side_insulation_coordinates)
 
     @property
     def a_side_coating_coordinates(self) -> pd.DataFrame:
-        """
-        Get the A side coating coordinates of the electrode.
-        """
-        if self._a_side_coating_coordinates is None:
-            return None
-        return pd.DataFrame(self._a_side_coating_coordinates, columns=["x", "y", "z"]).assign(
-            x=lambda x: (x["x"].astype(float) * M_TO_MM).round(10),
-            y=lambda x: (x["y"].astype(float) * M_TO_MM).round(10),
-            z=lambda x: (x["z"].astype(float) * M_TO_MM).round(10),
-        )
+        """Get the A side coating coordinates of the electrode."""
+        return self._get_coords_df("a_coat_coords", self._a_side_coating_coordinates)
 
     @property
     def b_side_coating_coordinates(self) -> pd.DataFrame:
-        """
-        Get the B side coating coordinates of the electrode.
-        """
-        if self._b_side_coating_coordinates is None:
-            return None
-        return pd.DataFrame(self._b_side_coating_coordinates, columns=["x", "y", "z"]).assign(
-            x=lambda x: (x["x"].astype(float) * M_TO_MM).round(10),
-            y=lambda x: (x["y"].astype(float) * M_TO_MM).round(10),
-            z=lambda x: (x["z"].astype(float) * M_TO_MM).round(10),
-        )
+        """Get the B side coating coordinates of the electrode."""
+        return self._get_coords_df("b_coat_coords", self._b_side_coating_coordinates)
 
     @property
     def mass_loading(self) -> float:
@@ -1288,7 +1289,7 @@ class _Electrode(
         self._insulation_material = insulation_material  # Already a copy due to decorator
 
     @insulation_thickness.setter
-    @calculate_volumes
+    @calculate_all_properties
     def insulation_thickness(self, insulation_thickness: float):
         self.validate_positive_float(insulation_thickness, "insulation thickness")
         self._insulation_thickness = insulation_thickness * UM_TO_M
