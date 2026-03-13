@@ -1036,7 +1036,7 @@ class _Cell(
     def cost_breakdown(self) -> Dict[str, Any]:
         """Cost breakdown of the cell in dollars.
 
-        Returns
+        
         -------
         Dict[str, Any]
             Nested dictionary containing cost breakdown by component

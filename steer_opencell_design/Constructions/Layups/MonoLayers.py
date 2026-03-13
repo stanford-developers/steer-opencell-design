@@ -24,6 +24,9 @@ class MonoLayer(_Layup):
     _sync_separator_length: bool = True  # Whether to sync length from canonical separator
     _require_rotated_separator: bool = True  # Whether separators should be rotated (90° in xy-plane)
 
+    # _canonical_separator is stored internally but exposed via the 'separator' property
+    _propagation_attr_map = {"_canonical_separator": "separator"}
+
     def __init__(
         self,
         cathode: Cathode,
