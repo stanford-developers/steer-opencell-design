@@ -4,8 +4,6 @@ from steer_opencell_design.Constructions.ElectrodeAssemblies.Base import _Electr
 from steer_opencell_design.Components.Containers.Base import _Container
 from steer_opencell_design.Utils.Decorators import calculate_electrochemical_properties
 from steer_core.Utils import round_dict_recursive
-from steer_opencell_design.Components.Electrodes import Cathode, Anode
-from steer_opencell_design.Components.Separators import Separator
 
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
 

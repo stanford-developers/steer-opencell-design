@@ -1115,15 +1115,31 @@ class _Layup(
 
             # return the difference from target
             return difference
-        
-        # Find optimal cutoff using Brent's method
-        optimal_cathode_cutoff = brentq(
-            voltage_objective,
-            min(self._cathode._formulation._voltage_operation_window),
-            max(self._cathode._formulation._voltage_operation_window),
-            xtol=1e-5,
-            rtol=1e-5,
-        )
+
+        vow_min = min(self._cathode._formulation._voltage_operation_window)
+        vow_max = max(self._cathode._formulation._voltage_operation_window)
+        f_lo = voltage_objective(vow_min)
+        f_hi = voltage_objective(vow_max)
+
+        # Handle boundary conditions to avoid brentq failure from floating-point precision
+        if abs(f_hi) <= 1e-10:
+            optimal_cathode_cutoff = vow_max
+        elif abs(f_lo) <= 1e-10:
+            optimal_cathode_cutoff = vow_min
+        elif f_lo * f_hi > 0:
+            raise ValueError(
+                f"Cannot achieve maximum operating voltage of {self._maximum_operating_voltage:.3f} V. "
+                f"Achievable range is [{self._maximum_operating_voltage_range[0]:.3f}, "
+                f"{self._maximum_operating_voltage_range[1]:.3f}] V"
+            )
+        else:
+            optimal_cathode_cutoff = brentq(
+                voltage_objective,
+                vow_min,
+                vow_max,
+                xtol=1e-5,
+                rtol=1e-5,
+            )
 
         # set the cathode formulation voltage cutoff
         self._cathode._formulation.voltage_cutoff = optimal_cathode_cutoff
@@ -1195,15 +1211,34 @@ class _Layup(
 
             # return the difference from target
             return difference
-        
-        # Find optimal cutoff using Brent's method
-        optimal_cathode_cutoff = brentq(
-            areal_capacity_objective,
-            min(self._cathode._formulation._voltage_operation_window),
-            max(self._cathode._formulation._voltage_operation_window),
-            xtol=1e-5,
-            rtol=1e-5,
-        )
+
+        vow_min = min(self._cathode._formulation._voltage_operation_window)
+        vow_max = max(self._cathode._formulation._voltage_operation_window)
+        f_lo = areal_capacity_objective(vow_min)
+        f_hi = areal_capacity_objective(vow_max)
+
+        # Handle boundary conditions to avoid brentq failure from floating-point precision
+        if abs(f_hi) <= 1e-10:
+            optimal_cathode_cutoff = vow_max
+        elif abs(f_lo) <= 1e-10:
+            optimal_cathode_cutoff = vow_min
+        elif f_lo * f_hi > 0:
+            range_min = min(self._maximum_areal_reversible_capacity_range)
+            range_max = max(self._maximum_areal_reversible_capacity_range)
+            capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
+            raise ValueError(
+                f"Cannot achieve operating reversible areal capacity. "
+                f"Achievable range is [{range_min * capacity_conversion:.4f}, "
+                f"{range_max * capacity_conversion:.4f}] mAh/cm²"
+            )
+        else:
+            optimal_cathode_cutoff = brentq(
+                areal_capacity_objective,
+                vow_min,
+                vow_max,
+                xtol=1e-5,
+                rtol=1e-5,
+            )
 
         # set the cathode formulation voltage cutoff
         self._cathode._formulation.voltage_cutoff = optimal_cathode_cutoff

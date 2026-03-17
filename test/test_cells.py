@@ -2514,31 +2514,71 @@ class TestFromLoadedCell(unittest.TestCase):
 
     def setUp(self):
 
-        self.cell = ocd.CylindricalCell.from_database(table_name="cell_references", name="LFP Cylindrical Tabless Cell")
+        self.lithium_metal_cell = ocd.CylindricalCell.from_database(table_name="cell_references", name="LFP Cylindrical Tabless Cell")
+        self.sodium_teardown = ocd.CylindricalCell.from_database(table_name="teardowns", name="QNAS RL NFM")
 
     def test_basics(self):
-        self.assertTrue(type(self.cell) is ocd.CylindricalCell)
-        self.assertIsNotNone(self.cell.energy)
-        self.assertIsNotNone(self.cell.mass)
-        self.assertIsNotNone(self.cell.cost)
+        self.assertTrue(type(self.lithium_metal_cell) is ocd.CylindricalCell)
+        self.assertIsNotNone(self.lithium_metal_cell.energy)
+        self.assertIsNotNone(self.lithium_metal_cell.mass)
+        self.assertIsNotNone(self.lithium_metal_cell.cost)
+        self.assertTrue(type(self.sodium_teardown) is ocd.CylindricalCell)
+        self.assertIsNotNone(self.sodium_teardown.energy)
+        self.assertIsNotNone(self.sodium_teardown.mass)
+        self.assertIsNotNone(self.sodium_teardown.cost)
 
     def test_radius_setter(self):
         import time
         new_radius = 12.3
         
         start_time = time.time()
-        self.cell.reference_electrode_assembly.radius = new_radius
+        self.lithium_metal_cell.reference_electrode_assembly.radius = new_radius
         end_time = time.time()
         print(f"Radius setter execution time: {end_time - start_time} seconds")
 
-        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
-        self.assertAlmostEqual(self.cell.reference_electrode_assembly.radius, new_radius)
+        self.lithium_metal_cell.reference_electrode_assembly = self.lithium_metal_cell.reference_electrode_assembly
+        self.assertAlmostEqual(self.lithium_metal_cell.reference_electrode_assembly.radius, new_radius)
 
     def test_plot(self):
-        fig1 = self.cell.plot_cross_section()
+        fig1 = self.lithium_metal_cell.plot_cross_section()
         self.assertIsNotNone(fig1)
         # fig1.show()
 
+    def test_sodium_teardown(self):
+
+        # preserve radius to ensure same cell dimensions and layup geometry
+        original_roll_radius = self.sodium_teardown.reference_electrode_assembly.radius
+
+        # Create a deep copy of the original cell to modify
+        new_cell = deepcopy(self.sodium_teardown)
+        
+        # apply cathode porosity and bubble to the layup
+        new_cell.reference_electrode_assembly.layup.cathode.porosity = 25.97
+        new_cell.reference_electrode_assembly.layup.cathode.update()
+
+        # apply anode porosity and bubble to the layup
+        new_cell.reference_electrode_assembly.layup.anode.porosity = 31.270000000000003
+        new_cell.reference_electrode_assembly.layup.anode.update()
+
+        # bubble to the electrode assembly
+        new_cell.reference_electrode_assembly.layup.update()
+
+        # After updating the porosities, ensure the roll radius is preserved
+        new_cell.reference_electrode_assembly.radius = original_roll_radius
+
+        # Update the cell's overall properties if necessary (e.g., mass, volume) based on the new porosities
+        new_cell.reference_electrode_assembly.update()
+
+        self.assertIsNotNone(new_cell.energy)
+        self.assertIsNotNone(new_cell.mass)
+        self.assertIsNotNone(new_cell.cost)
+        self.assertAlmostEqual(new_cell.energy, 51.81)
+        self.assertAlmostEqual(new_cell.mass, 416.07)
+        self.assertAlmostEqual(new_cell.cost, 2.8)
+
+        fig1 = new_cell.plot_cross_section()
+        self.assertIsNotNone(fig1)
+        # fig1.show()
 
 class TestCellPropagation(unittest.TestCase):
     """Test update propagation behavior for cells with full hierarchy."""
