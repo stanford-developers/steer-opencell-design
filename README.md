@@ -1359,20 +1359,7 @@ steer-opencell-design/
 
 ## Contributing
 
-Contributions are welcome! To get started:
-
-1. **Fork** the repository and clone your fork.
-2. **Create a branch** for your feature or fix.
-3. **Install** in development mode:
-   ```bash
-   pip install -e .
-   ```
-4. **Write tests** in the `test/` directory following the existing `test_<module>.py` naming convention.
-5. **Run the test suite** to make sure everything passes:
-   ```bash
-   pytest
-   ```
-6. **Open a pull request** with a clear description of the change.
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to get started.
 
 ---
 
