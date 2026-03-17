@@ -2580,6 +2580,7 @@ class TestFromLoadedCell(unittest.TestCase):
         self.assertIsNotNone(fig1)
         # fig1.show()
 
+
 class TestCellPropagation(unittest.TestCase):
     """Test update propagation behavior for cells with full hierarchy."""
     
