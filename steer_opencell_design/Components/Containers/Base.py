@@ -35,11 +35,12 @@ class _Container(
     def __init__(
             self,
             ):
-        
+        """Initialize container base state."""
         self._update_properties = False
 
     @abstractmethod
     def _calculate_all_properties(self):
+        """Calculate bulk properties and coordinates (implemented by subclasses)."""
         self._calculate_bulk_properties()
         self._calculate_coordinates()
 

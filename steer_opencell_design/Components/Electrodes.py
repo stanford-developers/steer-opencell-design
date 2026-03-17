@@ -188,6 +188,7 @@ class _Electrode(
 
     @control_mode.setter
     def control_mode(self, mode: ElectrodeControlMode | str) -> None:
+        """Set the control mode from an enum member or string value."""
 
         if isinstance(mode, ElectrodeControlMode):
             self._control_mode = mode
@@ -204,17 +205,20 @@ class _Electrode(
             raise ValueError(f"Invalid control mode: {mode}. Available modes are: {[e.value for e in ElectrodeControlMode]}")
 
     def _calculate_mass_loading(self, calender_density: float, coating_thickness: float) -> None:
+        """Derive mass loading from calender density and coating thickness."""
         _calender_density = calender_density * (G_TO_KG / CM_TO_M**3)
         _coating_thickness = coating_thickness * UM_TO_M
         self._mass_loading = _calender_density * _coating_thickness
 
     def _calculate_coating_thickness(self, _mass_loading: float, _calender_density: float) -> None:
+        """Derive coating thickness from mass loading and calender density."""
         if _calender_density == 0.0:
             self._coating_thickness = 0.0
             return
         self._coating_thickness = _mass_loading / _calender_density
 
     def _calculate_calender_density(self, mass_loading: float, coating_thickness: float) -> None:
+        """Derive calender density from mass loading and coating thickness."""
         _mass_loading = mass_loading * (MG_TO_KG / CM_TO_M**2)
         _coating_thickness = coating_thickness * UM_TO_M
         if _coating_thickness == 0:
@@ -225,6 +229,7 @@ class _Electrode(
     # === CALCULATE PROPERTIES ===
 
     def _calculate_all_properties(self) -> None:
+        """Recalculate coating thickness, bulk properties, areal curves, and coordinates."""
         self._property_cache.clear()
         if self._is_anode_free:
             self._coating_thickness = 0.0
@@ -411,6 +416,7 @@ class _Electrode(
             )
 
     def _calculate_porosity(self) -> None:
+        """Calculate coating porosity from formulation specific volume and calender density."""
         porosity = 1 - (self._formulation._specific_volume * self._calender_density)
 
         if porosity < 0:
@@ -420,6 +426,7 @@ class _Electrode(
         self._porosity = porosity
 
     def _clear_cached_data(self) -> None:
+        """Clear cached property data and downstream formulation caches."""
         self._property_cache.clear()
         self._areal_capacity_curve = None
         if not self._is_anode_free:

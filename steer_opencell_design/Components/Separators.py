@@ -109,6 +109,7 @@ class Separator(
         self._calculate_coordinates()
 
     def _calculate_areal_properties(self):
+        """Calculate areal cost from material properties and thickness."""
         self._areal_cost = self._material._specific_cost * self._material._density * self._thickness
 
     def _calculate_bulk_properties(self):
@@ -156,6 +157,7 @@ class Separator(
             self._rotate_90_xy(update_bool=False)
 
     def _rotate_90_xy(self, update_bool: bool = True) -> "Separator":
+        """Rotate the separator 90 degrees in the x-y plane."""
         if self._coordinates is None:
             raise ValueError("Cannot rotate: length not set")
 
@@ -167,6 +169,7 @@ class Separator(
         return self
 
     def _set_width_range(self, electrode: _Electrode, extended_range: float):
+        """Set the allowable width range based on an electrode's foil dimensions."""
 
         if not self._rotated_xy:
             self._width_range = (electrode._current_collector._y_foil_length, electrode._current_collector._y_foil_length + extended_range)
@@ -175,6 +178,7 @@ class Separator(
             self._width_range = (electrode._current_collector._x_foil_length, electrode._current_collector._x_foil_length + extended_range)
 
     def _set_length_range(self, electrode: _Electrode, extended_range: float):
+        """Set the allowable length range based on an electrode's foil dimensions."""
 
         if not self._rotated_xy:
             self._length_range = (electrode._current_collector._x_foil_length, electrode._current_collector._x_foil_length + extended_range)

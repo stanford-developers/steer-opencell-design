@@ -47,7 +47,7 @@ If you find a bug or have a feature request, please open an issue on GitHub with
 
 ## Code of Conduct
 
-Please be respectful and constructive in all interactions. We are committed to providing a welcoming and inclusive environment for everyone.
+This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). Please read it before participating.
 
 ## License
 

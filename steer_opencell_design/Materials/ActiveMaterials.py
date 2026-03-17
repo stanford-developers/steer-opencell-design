@@ -175,6 +175,7 @@ class _ActiveMaterial(
         )
 
     def _calculate_all_properties(self) -> None:
+        """Refresh the specific capacity curve and recalculate ranges."""
 
         self._refresh_specific_capacity_curve()
 
@@ -182,6 +183,7 @@ class _ActiveMaterial(
             self._calculate_specific_capacity_ranges()
 
     def _calculate_specific_capacity_ranges(self) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+        """Compute the irreversible and reversible specific capacity ranges by applying the scaling percentage bounds."""
 
         # Convert percentage ranges to multiplier ranges for internal calculations
         irreversible_range_percentage = self.irreversible_specific_capacity_scaling_percentage_range
@@ -302,6 +304,7 @@ class _ActiveMaterial(
         return self._voltage_operation_window
 
     def _calculate_specific_capacity_curves_properties(self):
+        """Derive operating voltage bounds and voltage operation window from the raw curves."""
 
         self._get_maximum_operating_voltage()
         self._get_minimum_operating_voltage()
@@ -343,6 +346,18 @@ class _ActiveMaterial(
         )
 
     def plot_underlying_specific_capacity_curves(self, **kwargs) -> go.Figure:
+        """Plot all raw half-cell voltage-capacity curves for this material.
+
+        Parameters
+        ----------
+        **kwargs
+            Additional keyword arguments passed to ``fig.update_layout``.
+
+        Returns
+        -------
+        go.Figure
+            Plotly figure with one trace per underlying curve.
+        """
 
         fig = go.Figure()
         fig.add_traces(self.specific_capacity_curves_traces)
@@ -364,6 +379,18 @@ class _ActiveMaterial(
         return fig
 
     def plot_specific_capacity_curve(self, **kwargs) -> go.Figure:
+        """Plot the working (cutoff-adjusted) half-cell voltage-capacity curve.
+
+        Parameters
+        ----------
+        **kwargs
+            Additional keyword arguments passed to ``fig.update_layout``.
+
+        Returns
+        -------
+        go.Figure
+            Plotly figure with the active half-cell curve.
+        """
 
         fig = go.Figure()
         fig.add_trace(self.specific_capacity_curve_trace)

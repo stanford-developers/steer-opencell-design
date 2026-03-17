@@ -136,10 +136,7 @@ class _ElectrodeFormulation(
                 self._set_parent_on_value(value, attr_name)
 
     def _calculate_all_properties(self) -> None:
-        """
-        Retrieve the properties of the electrode formulation.
-        This method is called to ensure that all properties are calculated and available.
-        """
+        """Recalculate material, bulk, and electrochemical properties."""
         self._calculate_material_properties()
         self._check_formulation()
 
@@ -151,15 +148,18 @@ class _ElectrodeFormulation(
             self._calculate_bulk_properties()
 
     def _calculate_material_properties(self) -> None:
+        """Calculate density, specific cost, and colour from individual materials."""
         self._calculate_density()
         self._calculate_specific_cost()
         self._calculate_color()
 
     def _calculate_bulk_properties(self) -> None:
+        """Calculate mass/cost breakdowns and the capacity curve."""
         self._calculate_breakdowns()
         self._calculate_capacity_curve()
 
     def _calculate_capacity_curve(self) -> np.ndarray:
+        """Scale the specific capacity curve by mass to produce an absolute capacity curve."""
 
         if hasattr(self, "_specific_capacity_curve") and self._specific_capacity_curve is not None:
 
@@ -180,6 +180,7 @@ class _ElectrodeFormulation(
             return self._capacity_curve
 
     def _calculate_breakdowns(self) -> None:
+        """Calculate mass and cost breakdowns across all components."""
         self._calculate_mass_breakdown()
         self._calculate_cost_breakdown()
 
@@ -306,6 +307,7 @@ class _ElectrodeFormulation(
         self._check_unique_names(self._conductive_additives, "conductive additives")
 
     def _check_unique_names(self, components: Dict, component_type: str) -> None:
+        """Warn if any components in *components* share the same name."""
 
         names = [comp.name for comp in components.keys()]
         duplicates = [name for name, count in Counter(names).items() if count > 1]
@@ -608,6 +610,7 @@ class _ElectrodeFormulation(
 
     @property
     def mass(self) -> Optional[float]:
+        """Formulation mass in g, or None if not set."""
         if self._mass is None:
             return None
         else:
@@ -615,6 +618,7 @@ class _ElectrodeFormulation(
         
     @property
     def volume(self) -> Optional[float]:
+        """Formulation volume in cm³, or None if not set."""
         if self._volume is None:
             return None
         else:
@@ -622,6 +626,7 @@ class _ElectrodeFormulation(
 
     @property
     def cost(self) -> Optional[float]:
+        """Formulation cost in $, or None if not set."""
         if self._cost is None:
             return None
         else:
@@ -629,6 +634,7 @@ class _ElectrodeFormulation(
 
     @property
     def specific_capacity_curve_trace(self) -> go.Scatter:
+        """Plotly trace of the formulation's specific capacity curve."""
 
         if self._specific_capacity_curve is None:
             return None
@@ -646,10 +652,12 @@ class _ElectrodeFormulation(
 
     @property
     def name(self) -> Optional[str]:
+        """Formatted display name (underscores replaced, title-cased)."""
         return self._name.replace("_", " ").title()
 
     @property
     def active_materials(self) -> Dict[_ActiveMaterial, float]:
+        """Active materials mapped to their weight percentages (0-100)."""
         return {key: value * 100 for key, value in self._active_materials.items()}
 
     @property

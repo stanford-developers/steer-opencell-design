@@ -175,6 +175,7 @@ class _CurrentCollector(
         self._flipped_z = False
 
     def _calculate_all_properties(self) -> None:
+        """Calculate coordinates, areas, and bulk properties."""
         self._calculate_coordinates()
         self._calculate_areas()
         self._calculate_bulk_properties()
@@ -200,6 +201,7 @@ class _CurrentCollector(
             self._flip("z", bool_update=False)
 
     def _calculate_areas(self) -> None:
+        """Calculate foil, coated, and insulation areas from coordinates."""
         # calculate the area of the a side
         mask = self._foil_coordinates_side == "a"
         foil_a_side_area = self.get_area_from_points(self._foil_coordinates[mask][:, 0], self._foil_coordinates[mask][:, 1])
@@ -242,6 +244,7 @@ class _CurrentCollector(
             self._insulation_area = 0
 
     def _calculate_bulk_properties(self) -> None:
+        """Calculate volume, mass, and cost from foil area and material."""
         self._volume = self._foil_area / 2 * self._thickness
         volume = self._volume * M_TO_CM**3
         self._material.volume = volume
@@ -252,6 +255,7 @@ class _CurrentCollector(
         # trigger material setter
 
     def _calculate_fill_patterns(self) -> None:
+        """Build hatching patterns for coated/insulation region visualisation."""
         # Shading patterns
         self._a_am_fill_pattern = dict(shape="/", size=20, solidity=0.6, fgcolor=self._material._color)
         self._b_am_fill_pattern = dict(shape="\\", size=20, solidity=0.6, fgcolor=self._material._color)
@@ -259,6 +263,7 @@ class _CurrentCollector(
         self._b_in_fill_pattern = dict(shape="/", size=10, solidity=0.6, fgcolor=self._material._color)
 
     def plot_top_down_view(self, **kwargs) -> go.Figure:
+        """Generate a top-down Plotly figure showing foil, coated area, and insulation."""
         
         fig = go.Figure()
 
@@ -299,6 +304,7 @@ class _CurrentCollector(
         return fig
 
     def _get_foil_coordinates(self) -> None:
+        """Calculate foil extrusion coordinates from the 2-D footprint."""
         
         if hasattr(self, "_tab_height"):
             x, y = self._get_footprint(notch_height=self._tab_height)
@@ -310,15 +316,19 @@ class _CurrentCollector(
         self._foil_coordinates_side = side
 
     def _get_a_side_coated_coordinates(self) -> Tuple[go.Scatter, float]:
+        """Calculate coated region coordinates for the a side."""
         self._a_side_coated_coordinates = self._get_coated_area_coordinates(side="a")
 
     def _get_b_side_coated_coordinates(self) -> Tuple[go.Scatter, float]:
+        """Calculate coated region coordinates for the b side."""
         self._b_side_coated_coordinates = self._get_coated_area_coordinates(side="b")
 
     def _get_a_side_insulation_coordinates(self) -> go.Scatter:
+        """Calculate insulation region coordinates for the a side."""
         self._a_side_insulation_coordinates = self._get_insulation_coordinates(side="a")
 
     def _get_b_side_insulation_coordinates(self) -> go.Scatter:
+        """Calculate insulation region coordinates for the b side."""
         self._b_side_insulation_coordinates = self._get_insulation_coordinates(side="b")
 
     def _flip(self, axis: str, bool_update: bool = True) -> None:
@@ -386,6 +396,7 @@ class _CurrentCollector(
         self._datum = (float(value[0]) * MM_TO_M, float(value[1]) * MM_TO_M, float(value[2]) * MM_TO_M)
 
     def _translate(self, vector: Iterable[float]) -> None:
+        """Translate all coordinates (foil, coated, insulation, weld tabs) by *vector*."""
 
         # convert to numpy array
         vector = np.array(vector)
@@ -434,9 +445,11 @@ class _CurrentCollector(
         return self
 
     def get_center_line(self) -> np.ndarray:
+        """Return the x-z centre-line of the foil."""
         return self.get_xz_center_line(self._foil_coordinates)
 
     def plot_a_side_view(self, **kwargs) -> go.Figure:
+        """Plot the a-side (cathode-facing) top-down view, flipping if necessary."""
         z_coords = self._foil_coordinates[:, 2]
         z_a = z_coords[self._foil_coordinates_side == "a"].mean()
         z_b = z_coords[self._foil_coordinates_side == "b"].mean()
@@ -452,6 +465,7 @@ class _CurrentCollector(
             return figure
 
     def plot_b_side_view(self, **kwargs) -> go.Figure:
+        """Plot the b-side (anode-facing) top-down view, flipping if necessary."""
         z_coords = self._foil_coordinates[:, 2]
         z_a = z_coords[self._foil_coordinates_side == "a"].mean()
         z_b = z_coords[self._foil_coordinates_side == "b"].mean()

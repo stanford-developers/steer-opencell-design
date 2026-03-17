@@ -113,6 +113,7 @@ class LaminateSheet(
         self._cost = self._areal_cost * self._area
 
     def _calculate_coordinates(self):
+        """Calculate top-down, right-left, and bottom-up view coordinates."""
 
         if self._width is None or self._height is None:
             return
@@ -122,6 +123,7 @@ class LaminateSheet(
         self._calculate_bottom_up_coordinates()
 
     def _calculate_top_down_coordinates(self):
+        """Calculate the top-down (x-y) footprint coordinates."""
         
         x, y = self.build_square_array(
             self._datum[0] - self._width / 2,
@@ -409,56 +411,67 @@ class LaminateSheet(
     # Properties
     @property
     def cost(self) -> float:
+        """Sheet cost in $."""
         if self._cost is None:
             return None
         return np.round(self._cost, 2)
 
     @property
     def mass(self) -> float:
+        """Sheet mass in g."""
         if self._mass is None:
             return None
         return np.round(self._mass * KG_TO_G, 2)
 
     @property
     def area(self) -> float:
+        """Sheet area in cm²."""
         if self._area is None:
             return None
         return np.round(self._area * M_TO_CM**2, 2)
 
     @property
     def areal_cost(self) -> float:
+        """Areal cost in $/m²."""
         return np.round(self._areal_cost, 2)
 
     @property
     def areal_cost_range(self):
+        """Valid areal cost range in $/m²."""
         return (0, 0.1)
     
     @property
     def areal_cost_hard_range(self):
+        """Hard limit areal cost range in $/m²."""
         return (0, 1)
 
     @property
     def name(self) -> str:
+        """Display name."""
         return self._name
 
     @property
     def height(self) -> float:
+        """Sheet height in mm."""
         if self._height is None:
             return None
         return np.round(self._height * M_TO_MM, 2)
     
     @property
     def height_range(self):
+        """Valid height range in mm."""
         return (0, 1000)
 
     @property
     def width(self) -> float:
+        """Sheet width in mm."""
         if self._width is None:
             return None
         return np.round(self._width * M_TO_MM, 2)
 
     @property
     def width_range(self):
+        """Valid width range in mm."""
 
         if hasattr(self, "_width_range"):
             return (
@@ -475,14 +488,17 @@ class LaminateSheet(
     
     @property
     def density_range(self):
+        """Valid density range in g/cm³."""
         return (0, 5)
 
     @property
     def thickness(self):
+        """Sheet thickness in µm."""
         return np.round(self._thickness * M_TO_UM, 2)
 
     @property
     def thickness_range(self):
+        """Valid thickness range in µm."""
         return (0, 100)
 
     @property
