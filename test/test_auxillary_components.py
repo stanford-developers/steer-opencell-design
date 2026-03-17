@@ -4,8 +4,6 @@ import numpy as np
 
 from steer_opencell_design.Constructions.ElectrodeAssemblies.WindingEquipment import RoundMandrel, FlatMandrel
 
-import os
-os.environ["OPENCELL_ENV"] = "development"
 
 class TestMandrel(unittest.TestCase):
     """Tests for the Mandrel class."""

@@ -21,9 +21,6 @@ from steer_opencell_design import (
     CurrentCollectorMaterial, SeparatorMaterial, InsulationMaterial, TapeMaterial
 )
 
-import os
-os.environ["OPENCELL_ENV"] = "development"
-
 
 class TestRoundJellyRoll(unittest.TestCase):
     
