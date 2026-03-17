@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Termination tape for wound electrode assemblies."""
 
 from time import time
@@ -92,6 +95,7 @@ class Tape(
         self._calculate_bulk_properties()
 
     def _calculate_areal_properties(self):
+        """Calculate areal cost from material and thickness."""
         self._areal_cost = self._material._specific_cost * self._material._density * self._thickness
 
     def _calculate_bulk_properties(self):
@@ -115,6 +119,7 @@ class Tape(
         self._cost = self._material._cost
 
     def _set_width_range(self, jellyroll, length_multiplier: float = 1.1):
+        """Set the valid tape width range from the anode foil length."""
 
         self._width_range = (
             jellyroll._layup._anode._current_collector._y_foil_length, 

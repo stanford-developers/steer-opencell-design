@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Stacked electrode assembly configurations (Z-fold and punched)."""
 
 import math
@@ -53,6 +56,7 @@ class _Stack(_ElectrodeAssembly):
         self._thickness = sum(component._thickness for component in self._stack)
 
     def _calculate_datum(self): 
+        """Calculate the datum as the centroid of all stack components."""
 
         _x_datums = [c._datum[0] for c in self._stack]
         _y_datums = [c._datum[1] for c in self._stack]
@@ -80,6 +84,7 @@ class _Stack(_ElectrodeAssembly):
         self._calculate_datum()
 
     def _calculate_stack(self) -> list:
+        """Build the component stack from the layup and n_layers."""
         
         # Initialize list for components
         stack = []
@@ -185,7 +190,6 @@ class _Stack(_ElectrodeAssembly):
     def _calculate_mass_properties(self) -> float:
         """Calculate mass properties for all components in the stack."""
         anodes, cathodes, separators = self._get_component_groups()
-
         self._mass = (
             sum(a._mass for a in anodes) + 
             sum(c._mass for c in cathodes) + 
@@ -203,7 +207,6 @@ class _Stack(_ElectrodeAssembly):
     def _calculate_cost_properties(self) -> float:
         """Calculate cost properties for all components in the stack."""
         anodes, cathodes, separators = self._get_component_groups()
-
         self._cost = (
             sum(a._cost for a in anodes) + 
             sum(c._cost for c in cathodes) + 
@@ -219,6 +222,7 @@ class _Stack(_ElectrodeAssembly):
         return self._cost
 
     def _calculate_pore_volume(self):
+        """Sum pore volumes from all cathodes, anodes, and separators."""
 
         _cathode_pore_volume = sum(c._pore_volume for c in self._cathodes)
         _anode_pore_volume = sum(a._pore_volume for a in self._anodes)
@@ -341,7 +345,6 @@ class _Stack(_ElectrodeAssembly):
     def plot_top_down_view(self, **kwargs):
         """Generate a top-down Plotly figure of the stack."""
         return self._layup.plot_top_down_view(**kwargs)
-
     @staticmethod
     def add_layer(stack: list, component: Any, z_datum: float) -> Tuple[float, list]:
         """

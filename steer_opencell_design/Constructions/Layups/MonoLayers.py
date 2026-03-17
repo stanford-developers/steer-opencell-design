@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Single-separator layup configurations for stacked electrode assemblies."""
 
 from copy import copy, deepcopy
@@ -23,6 +26,9 @@ class MonoLayer(_Layup):
     # Class-level behavioral attributes for separator handling
     _sync_separator_length: bool = True  # Whether to sync length from canonical separator
     _require_rotated_separator: bool = True  # Whether separators should be rotated (90° in xy-plane)
+
+    # _canonical_separator is stored internally but exposed via the 'separator' property
+    _propagation_attr_map = {"_canonical_separator": "separator"}
 
     def __init__(
         self,

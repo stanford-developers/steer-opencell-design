@@ -2514,28 +2514,69 @@ class TestFromLoadedCell(unittest.TestCase):
 
     def setUp(self):
 
-        self.cell = ocd.CylindricalCell.from_database(table_name="cell_references", name="LFP Cylindrical Tabless Cell")
+        self.lithium_metal_cell = ocd.CylindricalCell.from_database(table_name="cell_references", name="LFP Cylindrical Tabless Cell")
+        self.sodium_teardown = ocd.CylindricalCell.from_database(table_name="teardowns", name="QNAS RL NFM")
 
     def test_basics(self):
-        self.assertTrue(type(self.cell) is ocd.CylindricalCell)
-        self.assertIsNotNone(self.cell.energy)
-        self.assertIsNotNone(self.cell.mass)
-        self.assertIsNotNone(self.cell.cost)
+        self.assertTrue(type(self.lithium_metal_cell) is ocd.CylindricalCell)
+        self.assertIsNotNone(self.lithium_metal_cell.energy)
+        self.assertIsNotNone(self.lithium_metal_cell.mass)
+        self.assertIsNotNone(self.lithium_metal_cell.cost)
+        self.assertTrue(type(self.sodium_teardown) is ocd.CylindricalCell)
+        self.assertIsNotNone(self.sodium_teardown.energy)
+        self.assertIsNotNone(self.sodium_teardown.mass)
+        self.assertIsNotNone(self.sodium_teardown.cost)
 
     def test_radius_setter(self):
         import time
         new_radius = 12.3
         
         start_time = time.time()
-        self.cell.reference_electrode_assembly.radius = new_radius
+        self.lithium_metal_cell.reference_electrode_assembly.radius = new_radius
         end_time = time.time()
         print(f"Radius setter execution time: {end_time - start_time} seconds")
 
-        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
-        self.assertAlmostEqual(self.cell.reference_electrode_assembly.radius, new_radius)
+        self.lithium_metal_cell.reference_electrode_assembly = self.lithium_metal_cell.reference_electrode_assembly
+        self.assertAlmostEqual(self.lithium_metal_cell.reference_electrode_assembly.radius, new_radius)
 
     def test_plot(self):
-        fig1 = self.cell.plot_cross_section()
+        fig1 = self.lithium_metal_cell.plot_cross_section()
+        self.assertIsNotNone(fig1)
+        # fig1.show()
+
+    def test_sodium_teardown(self):
+
+        # preserve radius to ensure same cell dimensions and layup geometry
+        original_roll_radius = self.sodium_teardown.reference_electrode_assembly.radius
+
+        # Create a deep copy of the original cell to modify
+        new_cell = deepcopy(self.sodium_teardown)
+        
+        # apply cathode porosity and bubble to the layup
+        new_cell.reference_electrode_assembly.layup.cathode.porosity = 25.97
+        new_cell.reference_electrode_assembly.layup.cathode.update()
+
+        # apply anode porosity and bubble to the layup
+        new_cell.reference_electrode_assembly.layup.anode.porosity = 31.270000000000003
+        new_cell.reference_electrode_assembly.layup.anode.update()
+
+        # bubble to the electrode assembly
+        new_cell.reference_electrode_assembly.layup.update()
+
+        # After updating the porosities, ensure the roll radius is preserved
+        new_cell.reference_electrode_assembly.radius = original_roll_radius
+
+        # Update the cell's overall properties if necessary (e.g., mass, volume) based on the new porosities
+        new_cell.reference_electrode_assembly.update()
+
+        self.assertIsNotNone(new_cell.energy)
+        self.assertIsNotNone(new_cell.mass)
+        self.assertIsNotNone(new_cell.cost)
+        self.assertAlmostEqual(new_cell.energy, 51.81)
+        self.assertAlmostEqual(new_cell.mass, 416.07)
+        self.assertAlmostEqual(new_cell.cost, 2.8)
+
+        fig1 = new_cell.plot_cross_section()
         self.assertIsNotNone(fig1)
         # fig1.show()
 
@@ -2817,12 +2858,230 @@ class TestAnodeFreePouchCell(unittest.TestCase):
         self.assertTrue(deserialized._reference_electrode_assembly._layup._anode._is_anode_free)
 
 
+class TestZFoldAssemblyGapBug(unittest.TestCase):
+    """Regression tests for gaps appearing between electrode assemblies
+    when separator thickness is changed on ZFold stacked cells."""
+
+    def setUp(self):
+        cathode_active = ocd.CathodeMaterial.from_database("LFP")
+        cathode_active.specific_cost = 6
+        cathode_active.density = 3.6
+
+        conductive_additive = ocd.ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        binder = ocd.Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+
+        cathode_formulation = ocd.CathodeFormulation(
+            active_materials={cathode_active: 95},
+            binders={binder: 2},
+            conductive_additives={conductive_additive: 3},
+        )
+
+        cathode_cc_material = ocd.CurrentCollectorMaterial(name="Copper", specific_cost=5, density=2.7, color="#FFAE00")
+        cathode_cc = ocd.PunchedCurrentCollector(
+            material=cathode_cc_material, width=300, height=800, thickness=8,
+            tab_width=60, tab_height=18, tab_position=50,
+        )
+
+        cathode = ocd.Cathode(
+            formulation=cathode_formulation, mass_loading=28.2,
+            current_collector=cathode_cc, calender_density=2.60,
+        )
+
+        anode_active = ocd.AnodeMaterial.from_database("Synthetic Graphite")
+        anode_active.specific_cost = 4
+        anode_active.density = 2.2
+
+        anode_formulation = ocd.AnodeFormulation(
+            active_materials={anode_active: 90},
+            binders={binder: 5},
+            conductive_additives={conductive_additive: 5},
+        )
+
+        cc_material = ocd.CurrentCollectorMaterial(name="Aluminium", specific_cost=5, density=2.7, color="#717171")
+        anode_cc = ocd.PunchedCurrentCollector(
+            material=cc_material, width=300, height=800, thickness=8,
+            tab_width=60, tab_height=18, tab_position=250,
+        )
+
+        anode = ocd.Anode(
+            formulation=anode_formulation, mass_loading=20.68,
+            current_collector=anode_cc, calender_density=1.1,
+            insulation_thickness=10,
+        )
+
+        separator_material = ocd.SeparatorMaterial(
+            name="Polyethylene", specific_cost=2, density=0.94,
+            color="#FDFDB7", porosity=45,
+        )
+        separator = ocd.Separator(material=separator_material, thickness=25, width=310, length=326)
+
+        zfold_layup = ocd.ZFoldMonoLayer(
+            anode=anode, cathode=cathode, separator=separator,
+            electrode_orientation='transverse',
+        )
+
+        stack = ocd.ZFoldStack(layup=zfold_layup, n_layers=5)
+
+        top_laminate_sheet = ocd.LaminateSheet(areal_cost=10, thickness=150, density=1500)
+        bottom_laminate_sheet = ocd.LaminateSheet(areal_cost=10, thickness=150, density=1500)
+        cathode_terminal = ocd.PouchTerminal(material=cc_material, thickness=2, width=50, length=40)
+        anode_terminal = ocd.PouchTerminal(material=cc_material, thickness=2, width=50, length=40)
+
+        encapsulation = ocd.PouchEncapsulation(
+            top_laminate=top_laminate_sheet, bottom_laminate=bottom_laminate_sheet,
+            cathode_terminal=cathode_terminal, anode_terminal=anode_terminal,
+            width=320, height=340,
+        )
+
+        electrolyte = ocd.Electrolyte(
+            name="1M LiPF6 in EC:DMC (1:1)", density=1.2,
+            specific_cost=5.0, color="#00FF00",
+        )
+
+        self.cell = ocd.PouchCell(
+            reference_electrode_assembly=stack,
+            n_electrode_assembly=2,
+            encapsulation=encapsulation,
+            electrolyte=electrolyte,
+            electrolyte_overfill=20,
+            clipped_tab_length=10,
+        )
+
+    def _get_assembly_z_extent(self, assembly):
+        """Return (bottom_z, top_z) of an assembly in meters."""
+        z_positions = [c._datum[2] for c in assembly._stack]
+        half_thicknesses = [c._thickness / 2 for c in assembly._stack]
+        bottom = min(z - ht for z, ht in zip(z_positions, half_thicknesses))
+        top = max(z + ht for z, ht in zip(z_positions, half_thicknesses))
+        return bottom, top
+
+    def _assert_assemblies_touch(self, cell, tolerance=1e-9):
+        """Assert that adjacent assemblies touch (no gaps) in z-direction."""
+        assemblies = cell._electrode_assemblies
+        for i in range(len(assemblies) - 1):
+            _, top_i = self._get_assembly_z_extent(assemblies[i])
+            bottom_next, _ = self._get_assembly_z_extent(assemblies[i + 1])
+            gap = bottom_next - top_i
+            self.assertAlmostEqual(
+                gap, 0.0, places=9,
+                msg=f"Gap of {gap * 1e3:.6f} mm between assembly {i} and {i+1}"
+            )
+
+    def test_assemblies_touch_initially(self):
+        """Sanity check: assemblies should touch right after construction."""
+        self._assert_assemblies_touch(self.cell)
+
+    def test_separator_thickness_change_no_gap(self):
+        """Reducing separator thickness via propagate_changes must not introduce gaps."""
+        fig1 = self.cell.plot_side_view()
+        ref = self.cell.reference_electrode_assembly
+        original_thickness = ref._thickness
+
+        # Reduce separator thickness from 25 to 15 um
+        self.cell.reference_electrode_assembly.layup.separator.thickness = 1
+        self.cell.reference_electrode_assembly.layup.separator.propagate_changes()
+
+        new_thickness = self.cell.reference_electrode_assembly._thickness
+
+        # Thickness must have decreased
+        self.assertLess(new_thickness, original_thickness,
+                        "Assembly thickness should decrease when separator is thinner")
+
+        # Assemblies must still touch
+        self._assert_assemblies_touch(self.cell)
+
+        fig2 = self.cell.plot_side_view()
+        # fig1.show()
+        # fig2.show()
+
+    def test_separator_thickness_change_after_deserialization(self):
+        """Serialize → deserialize → change separator → propagate must not introduce gaps."""
+        fig1 = self.cell.plot_side_view()
+        serialized = self.cell.serialize()
+        deserialized_cell = ocd.PouchCell.deserialize(serialized)
+
+        ref = deserialized_cell.reference_electrode_assembly
+        original_thickness = ref._thickness
+
+        # Reduce separator thickness from 25 to 15 um on the deserialized cell
+        deserialized_cell.reference_electrode_assembly.layup.separator.thickness = 15
+        deserialized_cell.reference_electrode_assembly.layup.separator.propagate_changes()
+
+        new_thickness = deserialized_cell.reference_electrode_assembly._thickness
+
+        self.assertLess(new_thickness, original_thickness,
+                        "Assembly thickness should decrease when separator is thinner")
+
+        self._assert_assemblies_touch(deserialized_cell)
+
+        fig2 = deserialized_cell.plot_side_view()
+        # fig1.show()
+        # fig2.show()
+
+    def test_separator_thickness_matches_reconstruction(self):
+        """After propagation, thickness should match a fresh reconstruction."""
+        # Change separator thickness via propagation
+        self.cell.reference_electrode_assembly.layup.separator.thickness = 15
+        self.cell.reference_electrode_assembly.layup.separator.propagate_changes()
+
+        propagated_thickness = self.cell.reference_electrode_assembly._thickness
+
+        # Reconstruct from scratch
+        layup = self.cell.reference_electrode_assembly.layup
+        monolayer = ocd.MonoLayer.from_zfold_monolayer(layup)
+        zfold_layup = ocd.ZFoldMonoLayer.from_monolayer(monolayer)
+        fresh_stack = ocd.ZFoldStack(
+            layup=zfold_layup,
+            n_layers=self.cell.reference_electrode_assembly.n_layers,
+            additional_separator_wraps=self.cell.reference_electrode_assembly.additional_separator_wraps,
+        )
+
+        reconstructed_thickness = fresh_stack._thickness
+
+        self.assertAlmostEqual(
+            propagated_thickness, reconstructed_thickness, places=9,
+            msg=f"Propagated thickness ({propagated_thickness}) != reconstructed ({reconstructed_thickness})"
+        )
+
+    def test_punched_stack_separator_change_after_deserialization(self):
+        """PunchedStack: serialize → deserialize → change separator → propagate must work."""
+        # Convert to PunchedStack for this test
+        layup = self.cell.reference_electrode_assembly.layup
+        monolayer = ocd.MonoLayer.from_zfold_monolayer(layup)
+        punched_stack = ocd.PunchedStack(layup=monolayer, n_layers=5)
+
+        tl = ocd.LaminateSheet(areal_cost=10, thickness=150, density=1500)
+        bl = ocd.LaminateSheet(areal_cost=10, thickness=150, density=1500)
+        cc_mat = ocd.CurrentCollectorMaterial(name="Aluminium", specific_cost=5, density=2.7, color="#717171")
+        ct = ocd.PouchTerminal(material=cc_mat, thickness=2, width=50, length=40)
+        at = ocd.PouchTerminal(material=cc_mat, thickness=2, width=50, length=40)
+        enc = ocd.PouchEncapsulation(
+            top_laminate=tl, bottom_laminate=bl,
+            cathode_terminal=ct, anode_terminal=at, width=320, height=340,
+        )
+        elec = ocd.Electrolyte(name="LiPF6", density=1.2, specific_cost=5.0, color="#00FF00")
+        ps_cell = ocd.PouchCell(
+            reference_electrode_assembly=punched_stack, n_electrode_assembly=2,
+            encapsulation=enc, electrolyte=elec, electrolyte_overfill=20, clipped_tab_length=10,
+        )
+
+        serialized = ps_cell.serialize()
+        dc = ocd.PouchCell.deserialize(serialized)
+
+        original_thickness = dc.reference_electrode_assembly._thickness
+
+        dc.reference_electrode_assembly.layup.separator.thickness = 15
+        dc.reference_electrode_assembly.layup.separator.propagate_changes()
+
+        new_thickness = dc.reference_electrode_assembly._thickness
+
+        self.assertLess(new_thickness, original_thickness,
+                        "PunchedStack assembly thickness should decrease when separator is thinner")
+        self._assert_assemblies_touch(dc)
+
+
 if __name__ == "__main__":
     unittest.main()
-
-
-
-
 
 
 
