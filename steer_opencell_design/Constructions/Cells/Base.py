@@ -1,11 +1,12 @@
+# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Base class for complete battery cells."""
 
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Base import _ElectrodeAssembly
 from steer_opencell_design.Components.Containers.Base import _Container
 from steer_opencell_design.Utils.Decorators import calculate_electrochemical_properties
 from steer_core.Utils import round_dict_recursive
-from steer_opencell_design.Components.Electrodes import Cathode, Anode
-from steer_opencell_design.Components.Separators import Separator
 
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
 
@@ -71,6 +72,26 @@ class _Cell(
         operating_voltage_window: Tuple[float, float] = (None, None),
         name: str = "Cell",
     ):
+        """Initialize a battery cell.
+
+        Parameters
+        ----------
+        reference_electrode_assembly : _ElectrodeAssembly
+            Reference electrode assembly that is deep-copied for each assembly in the cell.
+        encapsulation : _Container
+            Cell container (canister, pouch, flex-frame, etc.).
+        n_electrode_assembly : int
+            Number of electrode assemblies in the cell.
+        electrolyte : Electrolyte
+            Electrolyte material filling the pore volume.
+        electrolyte_overfill : float
+            Fractional overfill above the calculated pore volume (e.g. 0.1 = 10 % extra).
+        operating_voltage_window : Tuple[float, float], optional
+            (min_voltage, max_voltage) operating limits in V.  ``None`` entries
+            are resolved from the layup curves.
+        name : str, optional
+            Display name for the cell (default ``'Cell'``).
+        """
         self._update_properties = False
 
         self.reference_electrode_assembly = reference_electrode_assembly
@@ -83,6 +104,7 @@ class _Cell(
     
     @abstractmethod
     def _calculate_all_properties(self) -> None:
+        """Calculate all cell properties (bulk, electrochemical, and capacity ranges)."""
         self._calculate_bulk_properties()
         self._calculate_electrochemical_properties()
         self._calculate_capacity_ranges()  # Cache ranges to avoid recalculation on property access
@@ -150,11 +172,13 @@ class _Cell(
         self._restore_child_parent_refs()
 
     def _calculate_bulk_properties(self) -> None:
+        """Calculate electrolyte, mass, and cost properties."""
         self._calculate_electrolyte_properties()
         self._calculate_mass_properties()
         self._calculate_cost_properties()
 
     def _calculate_electrochemical_properties(self) -> None:
+        """Calculate curves, voltage window, capacity, and energy properties."""
         self._calculate_curves()
         self._calculate_operating_voltage_window()
         self._calculate_upper_voltage_limit_range()
@@ -171,15 +195,18 @@ class _Cell(
         self._calculate_anode_curve()
 
     def _calculate_operating_voltage_window(self) -> None:
+        """Derive the cell operating voltage window from the layup."""
         self._minimum_operating_voltage = self._reference_electrode_assembly._layup._minimum_operating_voltage
         self._maximum_operating_voltage = self._reference_electrode_assembly._layup._maximum_operating_voltage
         self._operating_voltage_window = (self._minimum_operating_voltage, self._maximum_operating_voltage)
 
     def _calculate_upper_voltage_limit_range(self) -> None:
+        """Set the upper voltage limit range from the layup."""
         self._maximum_operating_voltage_range = self._reference_electrode_assembly._layup._maximum_operating_voltage_range
         return self._maximum_operating_voltage_range
     
     def _calculate_lower_voltage_limit_range(self) -> None:
+        """Set the lower voltage limit range from the layup."""
         self._minimum_operating_voltage_range = self._reference_electrode_assembly._layup._minimum_operating_voltage_range
         return self._minimum_operating_voltage_range
 
@@ -392,7 +419,7 @@ class _Cell(
         )
 
     def _calculate_capacity_curve(self) -> np.ndarray:
-        
+        """Calculate the full-cell capacity curve, truncated at the minimum operating voltage."""
         # get the full cell curve from the reference electrode assembly and scale it by the number of assemblies
         _capacity_curve = self._reference_electrode_assembly._capacity_curve.copy()
         _capacity_curve[:, 0] = _capacity_curve[:, 0] * self._n_electrode_assembly
@@ -471,6 +498,7 @@ class _Cell(
         return self._anode_capacity_curve
 
     def _calculate_reversible_capacity(self) -> float:
+        """Calculate reversible capacity from the discharge curve span."""
         _discharge_mask = self._capacity_curve[:, 2] == -1
         _discharge_curve = self._capacity_curve[_discharge_mask]
         _max_cap = (_discharge_curve[:, 0]).max()
@@ -1036,7 +1064,7 @@ class _Cell(
     def cost_breakdown(self) -> Dict[str, Any]:
         """Cost breakdown of the cell in dollars.
 
-        Returns
+        
         -------
         Dict[str, Any]
             Nested dictionary containing cost breakdown by component

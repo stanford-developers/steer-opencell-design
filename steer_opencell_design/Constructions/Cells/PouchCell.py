@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Pouch (soft-pack) battery cell implementation."""
 
 from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
@@ -196,17 +199,21 @@ class PouchCell(_Cell):
         
         Determines the required width, height, and thickness of the encapsulation
         based on the electrode assembly dimensions plus seal thicknesses. Height is
-        calculated from the current collector foil extents, width includes side
-        seals, and thickness accounts for the stack and laminate thicknesses.
+        the larger of the current collector foil extents and the layup height
+        (which accounts for separator overhang), width includes side seals, and
+        thickness accounts for the stack and laminate thicknesses.
         """
         top_assembly = self._electrode_assemblies[0]
         cathodes = [c for c in top_assembly._stack if isinstance(c, Cathode)]
         anodes = [a for a in top_assembly._stack if isinstance(a, Anode)]
         max_y = cathodes[0]._current_collector._foil_coordinates[:, 1].max()
         min_y = anodes[0]._current_collector._foil_coordinates[:, 1].min()
-        _encapsulation_height = max_y - min_y + self._top_seal_thickness + self._bottom_seal_thickness
+        _foil_extent_y = max_y - min_y
 
         ref_assembly = self._reference_electrode_assembly
+        _layup_height = ref_assembly._layup._height
+        _encapsulation_height = max(_foil_extent_y, _layup_height) + self._top_seal_thickness + self._bottom_seal_thickness
+
         _encapsulation_width = ref_assembly._layup._width + 2 * self._side_seal_thickness
         _encapsulation_thickness = ref_assembly._thickness * self._n_electrode_assembly + self._encapsulation._top_laminate._thickness + self._encapsulation._bottom_laminate._thickness
 

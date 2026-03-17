@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Cylindrical cell container components (canister, lid, terminal connectors, encapsulation)."""
 
 from copy import deepcopy
@@ -110,6 +113,7 @@ class _CylindricalComponent(
         self.radius = radius
 
     def _calculate_all_properties(self):
+        """Calculate bulk properties and coordinates."""
         self._calculate_bulk_properties()
         self._calculate_coordinates()
 
@@ -142,6 +146,7 @@ class _CylindricalComponent(
         self._coordinates = coordinates
 
     def _extrude_footprint(self, footprint):
+        """Extrude a 2-D footprint into 3-D using the component thickness."""
 
         x, y, z, _ = self.extrude_footprint(
             footprint[:,0],
@@ -294,10 +299,12 @@ class _CylindricalComponent(
     
     @property
     def name(self) -> str:
+        """Component display name."""
         return self._name
 
     @property
     def material(self) -> PrismaticContainerMaterial:
+        """Component material."""
         return self._material
     
     @property
@@ -810,6 +817,7 @@ class CylindricalCanister(
         self._calculate_all_properties()
         
     def _calculate_all_properties(self):
+        """Calculate geometry, mass, cost, and coordinates for the canister."""
         self._calculate_bulk_properties()
         self._calculate_coordinates()
 
@@ -1403,6 +1411,7 @@ class CylindricalEncapsulation(_Container, DatumMixin):
         )
 
     def _calculate_all_properties(self):
+        """Calculate all encapsulation properties (canister + lid + terminals)."""
         self._calculate_bulk_properties()
         self._calculate_coordinates()
 
