@@ -1,6 +1,8 @@
 # SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+"""Jelly roll electrode assemblies wound around cylindrical or flat mandrels."""
+
 from typing import Union, Dict, Tuple, Any, Optional
 from abc import ABC, abstractmethod
 from copy import copy, deepcopy

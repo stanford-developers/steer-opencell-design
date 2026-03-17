@@ -6,4 +6,7 @@
 from steer_core.Decorators.General import recalculate
 
 calculate_electrochemical_properties = recalculate("electrochemical_properties")
+"""Decorator that triggers ``_calculate_electrochemical_properties`` after the
+decorated setter runs.  Apply to setters that change electrochemical state
+(e.g. voltage cutoff, capacity scaling)."""
 
