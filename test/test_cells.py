@@ -6,9 +6,6 @@ from steer_opencell_design.Components.Containers.Flexframe import FlexFrameEncap
 from steer_opencell_design.Components.Containers.Pouch import PouchTerminal
 from steer_core.Mixins.Serializer import SerializerMixin
 
-import os
-os.environ["OPENCELL_ENV"] = "development"
-
 
 class TestCylindricalCell(unittest.TestCase):
     

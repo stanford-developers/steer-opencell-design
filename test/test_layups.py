@@ -24,9 +24,6 @@ from steer_opencell_design.Materials.ConductiveAdditives import ConductiveAdditi
 
 from steer_core.Constants.Units import *
 
-import os
-os.environ["OPENCELL_ENV"] = "development"
-
 
 class TestSimpleLaminate(unittest.TestCase):
     
