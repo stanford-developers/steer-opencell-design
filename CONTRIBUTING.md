@@ -2,6 +2,14 @@
 
 Thank you for your interest in contributing to OpenCell Design! This document provides guidelines and instructions for contributing.
 
+## Contributor License Agreement (CLA)
+
+**Before your first contribution can be merged, you must sign our [Contributor License Agreement](CLA.md).**
+
+OpenCell Design is dual-licensed under AGPL-3.0 (open source) and a separate commercial license. The CLA grants the maintainers the right to distribute your contributions under both licenses. Without a signed CLA, we cannot accept your pull request.
+
+When you open a pull request, a bot will comment with instructions to sign. Simply reply with the required statement and the check will pass automatically.
+
 ## Getting Started
 
 1. **Fork** the repository and clone your fork:
@@ -40,6 +48,7 @@ Thank you for your interest in contributing to OpenCell Design! This document pr
 1. Push your branch to your fork.
 2. Open a pull request against the `main` branch with a clear description of the change.
 3. Ensure all tests pass.
+4. Sign the CLA when prompted by the bot.
 
 ## Reporting Issues
 
@@ -51,4 +60,4 @@ This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the [AGPL-3.0](LICENCE.txt) license.
+By contributing, you agree that your contributions will be licensed under the [AGPL-3.0](LICENCE.txt) license and, per the CLA, may also be distributed under the project's commercial license.
