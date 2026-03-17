@@ -1,0 +1,104 @@
+site_name: STEER OpenCell Design
+site_description: A Python package for designing and modeling lithium-ion and sodium-ion battery cells.
+site_url: https://stanford-developers.github.io/steer-opencell-design/
+repo_url: https://github.com/stanford-developers/steer-opencell-design
+repo_name: stanford-developers/steer-opencell-design
+
+theme:
+  name: material
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.indexes
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.tabs.link
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          options:
+            show_source: false
+            show_root_heading: true
+            show_root_full_path: false
+            show_category_heading: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            members_order: source
+            docstring_style: google
+            docstring_section_style: spacy
+            merge_init_into_class: true
+            show_if_no_docstring: false
+            show_signature_annotations: true
+            separate_signature: true
+            signature_crossrefs: true
+            inherited_members: false
+            group_by_category: true
+            filters:
+              - "!^_"
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Concepts:
+      - Modeling Hierarchy: concepts/hierarchy.md
+      - Change Propagation: concepts/propagation.md
+      - Units Convention: concepts/units.md
+  - API Reference:
+      - api/index.md
+      - Materials:
+          - Active Materials: api/materials/active-materials.md
+          - Binders: api/materials/binders.md
+          - Conductive Additives: api/materials/conductive-additives.md
+          - Electrolytes: api/materials/electrolytes.md
+          - Other Materials: api/materials/other.md
+          - Formulations: api/materials/formulations.md
+      - Components:
+          - Electrodes: api/components/electrodes.md
+          - Separators: api/components/separators.md
+          - Current Collectors: api/components/current-collectors.md
+          - Containers: api/components/containers.md
+      - Constructions:
+          - Layups: api/constructions/layups.md
+          - Electrode Assemblies: api/constructions/electrode-assemblies.md
+          - Cells: api/constructions/cells.md
+      - Utilities: api/utils.md

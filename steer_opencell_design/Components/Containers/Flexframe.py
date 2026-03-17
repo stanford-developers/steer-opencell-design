@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Flex-frame cell container components."""
 
 from steer_core import CoordinateMixin, PlotterMixin, ValidationMixin, DunderMixin, SerializerMixin
@@ -95,18 +98,22 @@ class FlexFrame(
         self._calculate_all_properties()
 
     def _calculate_all_properties(self) -> None:
+        """Calculate coordinates, mass, and cost."""
         self._calculate_coordinates()
         self._calculate_bulk_properties()
 
     def _calculate_bulk_properties(self) -> None:
+        """Calculate mass and cost from geometry."""
         self._calculate_mass()
         self._calculate_cost()
 
     def _calculate_cost(self) -> None:
+        """Calculate cost from the material."""
         self._cost = self._material._cost
         return self._cost
 
     def _calculate_mass(self) -> None:
+        """Calculate mass from the frame footprint area and material density."""
         # Get outer and inner rings separately
         x_outer, y_outer = self._calculate_outer_ring()
         x_inner, y_inner = self._calculate_inner_ring()
@@ -124,6 +131,7 @@ class FlexFrame(
         return self._mass
 
     def _calculate_coordinates(self) -> None:
+        """Calculate 3-D coordinates from the 2-D footprint."""
         footprint = self._calculate_footprint()
         x, y, z, _ = self._extrude_single_footprint(x=footprint[:, 0], y=footprint[:, 1], datum=self._datum, thickness=self._thickness)
         self._coordinates = np.column_stack((x, y, z))
@@ -330,42 +338,52 @@ class FlexFrame(
 
     @property
     def name(self) -> str:
+        """Display name of the flex frame."""
         return self._name
 
     @property
     def material(self) -> FlexFrameMaterial:
+        """Flex frame material."""
         return self._material
     
     @property
     def width(self) -> float:
+        """Frame width in mm."""
         return self._width * M_TO_MM
     
     @property
     def height(self) -> float:
+        """Frame height in mm."""
         return self._height * M_TO_MM
     
     @property
     def border_thickness(self) -> float:
+        """Frame border thickness in mm."""
         return self._border_thickness * M_TO_MM
     
     @property
     def thickness(self) -> float:
+        """Frame thickness in mm."""
         return self._thickness * M_TO_MM
     
     @property
     def cutout_height(self) -> float:
+        """Height of the internal cutout in mm."""
         return self._cutout_height * M_TO_MM
     
     @property
     def mass(self) -> float:
+        """Frame mass in g."""
         return np.round(self._mass * KG_TO_G, DIMENSION_PRECISION)
     
     @property
     def volume(self) -> float:
+        """Frame volume in cm³."""
         return np.round(self._volume * M_TO_CM**3, DIMENSION_PRECISION)
     
     @property
     def cost(self) -> float:
+        """Frame cost in $."""
         return np.round(self._cost, DIMENSION_PRECISION)
 
     # Override datum setter to use decorator
@@ -434,6 +452,23 @@ class FlexFrameEncapsulation(_Container, DatumMixin):
         name: str = "Flex Frame Encapsulation",
         datum: tuple = (0, 0, 0)
         ):
+        """Initialize flex-frame encapsulation.
+
+        Parameters
+        ----------
+        flex_frame : FlexFrame
+            Rigid polymer flex frame.
+        laminate_sheet : LaminateSheet
+            Laminate sheet used for top/bottom/side coverage.
+        cathode_terminal : PouchTerminal
+            Cathode terminal connection.
+        anode_terminal : PouchTerminal
+            Anode terminal connection.
+        name : str, optional
+            Display name.
+        datum : tuple, optional
+            Reference position (x, y, z) in mm.
+        """
         
         self._update_properties = False
         self._terminals_positioned = False

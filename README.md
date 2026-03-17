@@ -2,7 +2,7 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/steer-opencell-design)](https://pypi.org/project/steer-opencell-design/)
 [![Python](https://img.shields.io/pypi/pyversions/steer-opencell-design)](https://pypi.org/project/steer-opencell-design/)
-[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 A Python package for designing and modeling lithium-ion and sodium-ion battery cells. Part of the [STEER](https://github.com/stanford-developers) platform, `steer-opencell-design` provides a hierarchical, composable API for building virtual battery cells from raw materials up to complete cell assemblies, with built-in cost, mass, and electrochemical performance calculations.
 
@@ -1352,27 +1352,14 @@ steer-opencell-design/
 ├── pyproject.toml                  # Build config & dependencies
 ├── pyrightconfig.json              # Type checking config
 ├── CITATION.cff                    # Citation metadata
-└── LICENCE.txt                     # CC BY-NC-SA 4.0
+└── LICENCE.txt                     # AGPL-3.0 (dual licensed)
 ```
 
 ---
 
 ## Contributing
 
-Contributions are welcome! To get started:
-
-1. **Fork** the repository and clone your fork.
-2. **Create a branch** for your feature or fix.
-3. **Install** in development mode:
-   ```bash
-   pip install -e .
-   ```
-4. **Write tests** in the `test/` directory following the existing `test_<module>.py` naming convention.
-5. **Run the test suite** to make sure everything passes:
-   ```bash
-   pytest
-   ```
-6. **Open a pull request** with a clear description of the change.
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to get started.
 
 ---
 
@@ -1384,4 +1371,10 @@ If you use this software in your research, please cite it using the metadata in 
 
 ## License
 
-This project is licensed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License** (CC BY-NC-SA 4.0). See [LICENCE.txt](LICENCE.txt) for details.
+OpenCell Design is dual-licensed:
+
+- **Open-source license:** [AGPL-3.0](LICENCE.txt) — free for open-source projects. If you use OpenCell Design in your software, you must release your software's source code under AGPL-3.0.
+
+- **Commercial license:** For proprietary/commercial use without the AGPL copyleft requirement, contact nsiemons@stanford.edu for a commercial license.
+
+See [LICENCE.txt](LICENCE.txt) for the full AGPL-3.0 license text.

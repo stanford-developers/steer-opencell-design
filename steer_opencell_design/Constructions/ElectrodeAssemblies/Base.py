@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Base class for electrode assemblies."""
 
 from steer_opencell_design.Constructions.Layups.Base import _Layup
@@ -88,12 +91,14 @@ class _ElectrodeAssembly(
         self._calculate_capacity_curves()
         
     def _calculate_bulk_properties(self):
+        """Calculate pore volume, mass, and cost from the layup."""
         self._calculate_pore_volume()
         self._calculate_mass_properties()
         self._calculate_cost_properties()
 
     @abstractmethod
     def _calculate_pore_volume(self):
+        """Calculate total pore volume of the assembly (implemented by subclasses)."""
         self._pore_volume = 0.0
         pass
 
@@ -146,6 +151,7 @@ class _ElectrodeAssembly(
         return self._capacity_curve, self._cathode_capacity_curve, self._anode_capacity_curve
     
     def _clear_cached_data(self) -> None:
+        """Clear cached capacity curves and downstream formulation caches."""
 
         self._capacity_curve = None
         self._cathode_capacity_curve = None

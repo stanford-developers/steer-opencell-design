@@ -1,4 +1,4 @@
-cff-version: 0.0.0
+cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 authors:
   - family-names: Siemons
@@ -6,9 +6,10 @@ authors:
     orcid: https://orcid.org/0000-0002-0755-3981
   - family-names: Yao
     given-names: Adrian
-title: "OpenCell"
-version: 0.0.0
-license: CC-BY-NC-SA-4.0
+title: "OpenCell Design"
+version: 1.0.34
+license: AGPL-3.0-or-later
+repository-code: https://github.com/stanford-developers/steer-opencell-design
 doi: 
-date-released:
+date-released: 2026-03-17
 

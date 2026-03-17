@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Abstract base class for battery cell container components."""
 
 from abc import ABC, abstractmethod
@@ -32,11 +35,12 @@ class _Container(
     def __init__(
             self,
             ):
-        
+        """Initialize container base state."""
         self._update_properties = False
 
     @abstractmethod
     def _calculate_all_properties(self):
+        """Calculate bulk properties and coordinates (implemented by subclasses)."""
         self._calculate_bulk_properties()
         self._calculate_coordinates()
 
