@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Electrode formulation definitions combining active materials, binders, and conductive additives."""
 
 from steer_core.Decorators.General import calculate_all_properties, calculate_bulk_properties

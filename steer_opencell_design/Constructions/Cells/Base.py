@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Base class for complete battery cells."""
 
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Base import _ElectrodeAssembly
