@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+"""Jelly roll electrode assemblies wound around cylindrical or flat mandrels."""
+
 from typing import Union, Dict, Tuple, Any, Optional
 from abc import ABC, abstractmethod
 from copy import copy, deepcopy
@@ -968,7 +973,13 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         # get the most negative z value
         cathode_b_side_coated_z = layup._cathode._b_side_coating_coordinates[:,2]
         cathode_b_side_coated_z = cathode_b_side_coated_z[~np.isnan(cathode_b_side_coated_z)]
-        layup_min_z = np.min(cathode_b_side_coated_z)
+
+        if len(cathode_b_side_coated_z) == 0:
+            cathode_foil_z = layup._cathode._current_collector._foil_coordinates[:,2]
+            cathode_foil_z = cathode_foil_z[~np.isnan(cathode_foil_z)]
+            layup_min_z = np.min(cathode_foil_z)
+        else:
+            layup_min_z = np.min(cathode_b_side_coated_z)
 
         # set the new x value
         new_x = (layup.datum[0] * MM_TO_M) - layup_min_x

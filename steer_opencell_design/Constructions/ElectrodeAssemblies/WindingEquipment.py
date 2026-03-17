@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Winding mandrel definitions for jelly roll electrode assemblies."""
 
 from copy import deepcopy
@@ -41,6 +44,19 @@ class _Mandrel(
             material: CurrentCollectorMaterial = None,
             name: str = "Mandrel"
         ):
+        """Initialize a winding mandrel.
+
+        Parameters
+        ----------
+        length : float
+            Mandrel length in mm.
+        datum : Tuple[float, float, float], optional
+            Reference position (x, y, z) in mm.
+        material : CurrentCollectorMaterial, optional
+            Mandrel material (used for mass and plotting colour).
+        name : str, optional
+            Display name.
+        """
 
         self._update_properties = False
 
@@ -53,13 +69,16 @@ class _Mandrel(
         self.name = name
 
     def _calculate_all_properties(self):
+        """Calculate bulk properties and coordinates."""
         self._calculate_bulk_properties()
         self._calculate_coordinates()
 
     def _calculate_bulk_properties(self):
+        """Calculate derived dimensions (overridden by subclasses)."""
         pass
 
     def _calculate_coordinates(self):
+        """Calculate 3-D coordinates (overridden by subclasses)."""
         pass
 
     def plot_top_down_view(self, **kwargs) -> go.Figure:
@@ -225,6 +244,21 @@ class RoundMandrel(_Mandrel):
             material = None, 
             name = "Mandrel"
         ):
+        """Initialize a round (cylindrical) mandrel.
+
+        Parameters
+        ----------
+        diameter : float
+            Mandrel outer diameter in mm.
+        length : float
+            Mandrel length in mm.
+        datum : Tuple[float, float, float], optional
+            Reference position (x, y, z) in mm.
+        material : CurrentCollectorMaterial, optional
+            Mandrel material.
+        name : str, optional
+            Display name.
+        """
 
         super().__init__(
             length, datum, material, name
@@ -236,6 +270,7 @@ class RoundMandrel(_Mandrel):
         self._update_properties = True
 
     def _calculate_bulk_properties(self):
+        """Calculate the mandrel radius from its diameter."""
         self._radius = self._diameter / 2
 
     def _calculate_coordinates(self):
@@ -323,6 +358,23 @@ class FlatMandrel(_Mandrel):
             material: CurrentCollectorMaterial = None,
             name: str = "Flat Mandrel"
         ):
+        """Initialize a flat (racetrack) mandrel.
+
+        Parameters
+        ----------
+        length : float
+            Mandrel length in mm (along the winding axis).
+        width : float
+            Mandrel width in mm (total racetrack width).
+        height : float
+            Mandrel height in mm (total racetrack height, defines end radius).
+        datum : Tuple[float, float, float], optional
+            Reference position (x, y, z) in mm.
+        material : CurrentCollectorMaterial, optional
+            Mandrel material.
+        name : str, optional
+            Display name.
+        """
 
         super().__init__(
             length, datum, material, name
@@ -335,6 +387,7 @@ class FlatMandrel(_Mandrel):
         self._update_properties = True
 
     def _calculate_bulk_properties(self):
+        """Calculate the end-cap radius and straight section length."""
         self._radius = self._height / 2
         self._straight_length = self._width - self._height
 
