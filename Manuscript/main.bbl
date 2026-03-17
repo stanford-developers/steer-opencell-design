@@ -1,0 +1,97 @@
+\begin{thebibliography}{14}
+\providecommand{\natexlab}[1]{#1}
+\providecommand{\url}[1]{\texttt{#1}}
+\expandafter\ifx\csname urlstyle\endcsname\relax
+  \providecommand{\doi}[1]{doi: #1}\else
+  \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
+
+\bibitem[Chu and Majumdar(2012)]{chu2012opportunities}
+Steven Chu and Arun Majumdar.
+\newblock Opportunities and challenges for a sustainable energy future.
+\newblock \emph{Nature}, 488\penalty0 (7411):\penalty0 294--303, 2012.
+
+\bibitem[Dunn et~al.(2011)Dunn, Kamath, and Tarascon]{dunn2011electrical}
+Bruce Dunn, Haresh Kamath, and Jean-Marie Tarascon.
+\newblock Electrical energy storage for the grid: A battery of choices.
+\newblock \emph{Science}, 334\penalty0 (6058):\penalty0 928--935, 2011.
+
+\bibitem[Goodenough and Park(2013)]{goodenough2013li}
+John~B Goodenough and Kyu-Sung Park.
+\newblock The {Li}-ion rechargeable battery: A perspective.
+\newblock \emph{Journal of the American Chemical Society}, 135\penalty0
+  (4):\penalty0 1167--1176, 2013.
+
+\bibitem[Blomgren(2017)]{blomgren2017development}
+George~E Blomgren.
+\newblock The development and future of lithium ion batteries.
+\newblock \emph{Journal of The Electrochemical Society}, 164\penalty0
+  (1):\penalty0 A5019--A5025, 2017.
+
+\bibitem[Nykvist and Nilsson(2015)]{nykvist2015rapidly}
+Bj{\"o}rn Nykvist and M{\aa}ns Nilsson.
+\newblock Rapidly falling costs of battery packs for electric vehicles.
+\newblock \emph{Nature Climate Change}, 5\penalty0 (4):\penalty0 329--332,
+  2015.
+
+\bibitem[Ziegler and Trancik(2021)]{ziegler2021re}
+Micah~S Ziegler and Jessika~E Trancik.
+\newblock Re-examining rates of lithium-ion battery technology improvement and
+  cost decline.
+\newblock \emph{Energy \& Environmental Science}, 14\penalty0 (4):\penalty0
+  1635--1651, 2021.
+
+\bibitem[Sulzer et~al.(2021)Sulzer, Marquis, Timms, Robinson, and
+  Chapman]{sulzer2021pybamm}
+Valentin Sulzer, Scott~G Marquis, Robert Timms, Martin Robinson, and S~Jon
+  Chapman.
+\newblock {Python Battery Mathematical Modelling (PyBaMM)}.
+\newblock \emph{Journal of the Open Research Software}, 9\penalty0
+  (1):\penalty0 14, 2021.
+
+\bibitem[Nelson et~al.(2019)Nelson, Ahmed, Gallagher, and
+  Dees]{nelson2019batpac}
+Paul~A Nelson, Shabbir Ahmed, Kevin~G Gallagher, and Dennis~W Dees.
+\newblock {BatPaC: Battery Manufacturing Cost Estimation}.
+\newblock Technical report, Argonne National Laboratory, 2019.
+
+\bibitem[{Faraday Institution}(2023)]{cams2023}
+{Faraday Institution}.
+\newblock {CAMS: Cost and Manufacturing Simulation}.
+\newblock Technical report, The Faraday Institution, 2023.
+
+\bibitem[Harris et~al.(2020)Harris, Millman, van~der Walt, Gommers, Virtanen,
+  Cournapeau, Wieser, Taylor, Berg, Smith, et~al.]{harris2020numpy}
+Charles~R Harris, K~Jarrod Millman, St{\'e}fan~J van~der Walt, Ralf Gommers,
+  Pauli Virtanen, David Cournapeau, Eric Wieser, Julian Taylor, Sebastian Berg,
+  Nathaniel~J Smith, et~al.
+\newblock Array programming with {NumPy}.
+\newblock \emph{Nature}, 585\penalty0 (7825):\penalty0 357--362, 2020.
+
+\bibitem[Virtanen et~al.(2020)Virtanen, Gommers, Oliphant, Haberland, Reddy,
+  Cournapeau, Burovski, Peterson, Weckesser, Bright, et~al.]{virtanen2020scipy}
+Pauli Virtanen, Ralf Gommers, Travis~E Oliphant, Matt Haberland, Tyler Reddy,
+  David Cournapeau, Evgeni Burovski, Pearu Peterson, Warren Weckesser, Jonathan
+  Bright, et~al.
+\newblock {SciPy 1.0: Fundamental Algorithms for Scientific Computing in
+  Python}.
+\newblock \emph{Nature Methods}, 17:\penalty0 261--272, 2020.
+
+\bibitem[{Plotly Technologies Inc.}(2015)]{plotly2015}
+{Plotly Technologies Inc.}
+\newblock {Plotly: Collaborative data science}.
+\newblock \url{https://plot.ly}, 2015.
+
+\bibitem[Lam et~al.(2015)Lam, Pitrou, and Seibert]{lam2015numba}
+Siu~Kwan Lam, Antoine Pitrou, and Stanley Seibert.
+\newblock Numba: A {LLVM}-based {Python} {JIT} compiler.
+\newblock In \emph{Proceedings of the Second Workshop on the LLVM Compiler
+  Infrastructure in HPC}, pages 1--6, 2015.
+
+\bibitem[Brent(1971)]{brent1971algorithm}
+Richard~P Brent.
+\newblock An algorithm with guaranteed convergence for finding a zero of a
+  function.
+\newblock \emph{The Computer Journal}, 14\penalty0 (4):\penalty0 422--425,
+  1971.
+
+\end{thebibliography}

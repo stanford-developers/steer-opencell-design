@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Flex-frame cell container components."""
 
 from steer_core import CoordinateMixin, PlotterMixin, ValidationMixin, DunderMixin, SerializerMixin

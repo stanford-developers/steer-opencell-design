@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Cylindrical battery cell implementation."""
 
 from steer_opencell_design.Components.Containers.Cylindrical import CylindricalEncapsulation

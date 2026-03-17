@@ -8,13 +8,14 @@ dynamic = ["version"]
 description = "STEER OpenCell Design - A Python package for designing and modeling battery cells."
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "CC BY-NC-SA 4.0"}
+license = {text = "AGPL-3.0-or-later"}
 authors = [
     {name = "Nicholas Siemons", email = "nsiemons@stanford.edu"}
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
 ]
 dependencies = [
     "steer-core==0.2.11",

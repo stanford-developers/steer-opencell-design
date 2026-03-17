@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 """Active material definitions with half-cell voltage-capacity curves."""
 
 from steer_core.Constants.Units import *
