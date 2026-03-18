@@ -15,7 +15,7 @@ from scipy.optimize import brentq
 
 from steer_core.Constants.Units import *
 from steer_core.Decorators.Coordinates import calculate_volumes, calculate_coordinates
-from steer_core.Decorators.General import calculate_all_properties
+from steer_core.Decorators.General import calculate_all_properties, recalculate
 
 from steer_core.Mixins.Colors import ColorMixin
 from steer_core.Mixins.Coordinates import CoordinateMixin
@@ -30,7 +30,6 @@ from steer_opencell_design.Components.Electrodes import Anode, Cathode
 from steer_opencell_design.Components.Separators import Separator
 from steer_opencell_design.Constructions.Layups.OverhangUtils import OverhangMixin
 from steer_opencell_design.Constructions.Layups.ArealCapacityCurveUtils import ArealCapacityCurveMixin
-from steer_opencell_design.Utils.Decorators import calculate_electrochemical_properties
 from steer_opencell_design.Components.CurrentCollectors.Base import _TapeCurrentCollector
 
 
@@ -1017,7 +1016,7 @@ class _Layup(
                     return
 
     @operating_voltage_window.setter
-    @calculate_electrochemical_properties
+    @recalculate("electrochemical_properties")
     def operating_voltage_window(self, value: Tuple[float, float]) -> None:
         """Set operating voltage window (min, max) in volts."""
         old_update_state = self._update_properties
@@ -1028,7 +1027,7 @@ class _Layup(
         self._update_properties = old_update_state
 
     @minimum_operating_voltage.setter
-    @calculate_electrochemical_properties
+    @recalculate("electrochemical_properties")
     def minimum_operating_voltage(self, value: float) -> None:
 
         range_min = min(self._minimum_operating_voltage_range)
@@ -1055,7 +1054,7 @@ class _Layup(
             )
 
     @maximum_operating_voltage.setter
-    @calculate_electrochemical_properties
+    @recalculate("electrochemical_properties")
     def maximum_operating_voltage(self, value: float) -> None:
 
         # get the minimum and maximum of the operating voltage range
@@ -1151,7 +1150,7 @@ class _Layup(
 
 
     @operating_reversible_areal_capacity.setter
-    @calculate_electrochemical_properties
+    @recalculate("electrochemical_properties")
     def operating_reversible_areal_capacity(self, value: float) -> None:
 
         # get the minimum and maximum of the operating voltage range
