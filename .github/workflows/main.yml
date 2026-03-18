@@ -21,9 +21,10 @@ jobs:
       - name: Install dependencies
         run: |
           pip install .
+          pip install pytest
 
       - name: Run unit tests
         env:
           API_URL: ${{ secrets.API_URL }}
         run: |
-          python -m unittest discover
+          pytest
