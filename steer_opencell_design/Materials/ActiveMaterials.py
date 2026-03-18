@@ -768,7 +768,8 @@ class _ActiveMaterial(
 
     @reference.setter
     def reference(self, reference: str):
-        self.validate_electrochemical_reference(reference)
+        from steer_opencell_design.Utils.Validation import validate_electrochemical_reference
+        validate_electrochemical_reference(reference)
         self._reference = reference
 
     @reversible_specific_capacity_scaling_percentage.setter
