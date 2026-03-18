@@ -9,10 +9,6 @@ import pandas as pd
 
 pio.renderers.default = "browser"
 
-import os
-os.environ["OPENCELL_ENV"] = "development"
-
-
 
 class TestSimpleSeparator(unittest.TestCase):
 

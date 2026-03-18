@@ -42,4 +42,6 @@ where = ["."]
 include = ["steer_opencell_design*"]
 
 [tool.pytest_env]
-OPENCELL_ENV = "development"
+API_URL = "https://59xitvvsf2.execute-api.us-east-2.amazonaws.com/production"
+
+

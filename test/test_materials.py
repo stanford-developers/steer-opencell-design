@@ -9,9 +9,6 @@ from steer_opencell_design.Materials.Binders import Binder
 from steer_opencell_design.Materials.ConductiveAdditives import ConductiveAdditive
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
 
-import os
-os.environ["OPENCELL_ENV"] = "development"
-
 
 class TestLFPSingleCurve(unittest.TestCase):
 
