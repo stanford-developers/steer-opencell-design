@@ -11,9 +11,6 @@ from steer_opencell_design.Components.Containers.Cylindrical import (
 
 from steer_opencell_design.Materials.Other import PrismaticContainerMaterial
 
-import os
-os.environ["OPENCELL_ENV"] = "development"
-
 
 class TestCylindricalTerminalConnector(unittest.TestCase):
     def setUp(self):
