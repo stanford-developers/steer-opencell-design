@@ -13,9 +13,8 @@ from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Serializer import SerializerMixin
 
 # import core decorators
-from steer_core.Decorators.General import calculate_all_properties
+from steer_core.Decorators.General import calculate_all_properties, recalculate
 from steer_core.Decorators.Coordinates import calculate_areas, calculate_coordinates
-from steer_core.Decorators.Objects import calculate_weld_tab_properties
 
 # import core units
 from steer_core.Constants.Units import *
@@ -865,7 +864,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
                 raise  # Re-raise other ValueError from weld_tab_positions setter
 
     @tab_overhang.setter
-    @calculate_weld_tab_properties
+    @recalculate("weld_tab_properties")
     def tab_overhang(self, tab_overhang: float) -> None:
         """
         Set the overhang of the weld tab on the current collector.
@@ -931,7 +930,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             raise ValueError("Skip coat width cannot be greater than the length of the current collector.")
 
     @tab_weld_side.setter
-    @calculate_weld_tab_properties
+    @recalculate("weld_tab_properties")
     def tab_weld_side(self, tab_weld_side: str) -> None:
         if tab_weld_side not in ["a", "b"]:
             raise ValueError("Tab weld side must be either 'a' or 'b'.")

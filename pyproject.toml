@@ -18,8 +18,8 @@ classifiers = [
     "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
 ]
 dependencies = [
-    "steer-core==0.2.11",
-    "steer-materials==0.1.38",
+    "steer-core==0.2.12",
+    "steer-materials==0.1.39",
     "numba>=0.59",
 ]
 
@@ -28,6 +28,10 @@ Homepage = "https://github.com/stanford-developers/steer-opencell-design/"
 Repository = "https://github.com/stanford-developers/steer-opencell-design/"
 
 [project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+    "pytest-cov",
+]
 docs = [
     "mkdocs>=1.5",
     "mkdocs-material>=9.0",
