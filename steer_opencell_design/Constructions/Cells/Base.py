@@ -5,7 +5,6 @@
 
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Base import _ElectrodeAssembly
 from steer_opencell_design.Components.Containers.Base import _Container
-from steer_opencell_design.Utils.Decorators import calculate_electrochemical_properties
 from steer_core.Utils import round_dict_recursive
 
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
@@ -21,7 +20,7 @@ from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Data import DataMixin
 from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
-from steer_core.Decorators.General import calculate_all_properties
+from steer_core.Decorators.General import calculate_all_properties, recalculate
 
 from steer_core.Constants.Units import *
 
@@ -1336,7 +1335,7 @@ class _Cell(
         self._reference_electrode_assembly = value
 
     @reversible_capacity.setter
-    @calculate_electrochemical_properties
+    @recalculate("electrochemical_properties")
     def reversible_capacity(self, value: float) -> None:
         """Set reversible capacity by solving for minimum operating voltage.
         
@@ -1410,7 +1409,7 @@ class _Cell(
             raise ValueError(f"Failed to solve for minimum operating voltage: {e}")
 
     @irreversible_capacity.setter
-    @calculate_electrochemical_properties
+    @recalculate("electrochemical_properties")
     def irreversible_capacity(self, value: float) -> None:
         """Set irreversible capacity by solving for maximum operating voltage.
         
@@ -1524,7 +1523,7 @@ class _Cell(
         self._name = value
 
     @operating_voltage_window.setter
-    @calculate_electrochemical_properties
+    @recalculate("electrochemical_properties")
     def operating_voltage_window(self, value: Tuple[float, float]) -> None:
 
         # Ensure value is a list for mutability
@@ -1574,7 +1573,7 @@ class _Cell(
         self.operating_voltage_window = (self._minimum_operating_voltage, value)
 
     @minimum_operating_voltage.setter
-    @calculate_electrochemical_properties
+    @recalculate("electrochemical_properties")
     def minimum_operating_voltage(self, value: float) -> None:
             
         if value is None:

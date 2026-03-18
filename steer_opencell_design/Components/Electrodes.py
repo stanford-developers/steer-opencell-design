@@ -136,9 +136,9 @@ class _Electrode(
     # === CONTROL SYSTEM ===
 
     def _update_dependent_properties(self, property_name: str, new_val: float):
-        """
-        A dictionary that maps a mode to a function via the property that has been triggered
-        """
+        """Route a property change to the correct recalculation based on control mode."""
+        from steer_core.Utils.ControlModes import dispatch_dependent_update
+
         dependency_function = {
             ElectrodeControlMode.MAINTAIN_MASS_LOADING: {
                 "mass_loading": self._calculate_coating_thickness,
@@ -175,11 +175,9 @@ class _Electrode(
             },
         }
 
-        update_function = dependency_function[self.control_mode].get(property_name)
-        inputs = dependency_inputs[self.control_mode].get(property_name)
-
-        # execute update
-        update_function(inputs[0], inputs[1])
+        dispatch_dependent_update(
+            self.control_mode, property_name, dependency_function, dependency_inputs
+        )
 
     @property
     def control_mode(self) -> ElectrodeControlMode:

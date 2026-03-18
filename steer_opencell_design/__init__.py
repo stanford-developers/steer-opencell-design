@@ -21,7 +21,12 @@ All public classes are re-exported from this top-level namespace for convenience
     cell = ocd.CylindricalCell(...)
 """
 
-__version__ = "1.0.34"
+__version__ = "1.0.35"
+
+# Register OpenCell domain tables with the base DataManager so
+# that URL routing (materials/ vs cells/) works for any DataManager instance.
+from steer_opencell_design.Data.OpenCellDataManager import register_opencell_tables as _register_tables  # noqa: E402
+_register_tables()
 
 # import materials
 from .Materials.ActiveMaterials import CathodeMaterial, AnodeMaterial
