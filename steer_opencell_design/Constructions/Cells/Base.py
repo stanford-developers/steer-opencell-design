@@ -1046,12 +1046,12 @@ class _Cell(
     
     @property
     def specific_energy(self) -> float:
-        """Cell specific energy in kWh/kg."""
+        """Cell specific energy in Wh/kg."""
         return np.round(self._specific_energy * ENERGY_CONVERSION_FACTOR, ENERGY_PRECISION)
     
     @property
     def volumetric_energy(self) -> float:
-        """Cell volumetric energy in kWh/L."""
+        """Cell volumetric energy in Wh/L."""
         return np.round(self._volumetric_energy * VOLUMETRIC_ENERGY_CONVERSION, ENERGY_PRECISION)
 
     @property
