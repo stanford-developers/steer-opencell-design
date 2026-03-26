@@ -21,7 +21,7 @@ All public classes are re-exported from this top-level namespace for convenience
     cell = ocd.CylindricalCell(...)
 """
 
-__version__ = "1.0.37"
+__version__ = "1.0.38"
 
 # Register OpenCell domain tables with the base DataManager so
 # that URL routing (materials/ vs cells/) works for any DataManager instance.
