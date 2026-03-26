@@ -1398,6 +1398,86 @@ class TestFormulationMaterialParentReferences(unittest.TestCase):
         self.assertIs(new_material._get_parent(), self.formulation)
 
 
+class TestAnodeMaterialSwapReversibility(unittest.TestCase):
+    """Swapping an anode material out and back should produce the same curve."""
+
+    def setUp(self):
+        import numpy as np
+        self.np = np
+
+        self.material_a = AnodeMaterial.from_database("Hard Carbon (Vendor D)")
+        self.material_a.density = 1.5
+        self.material_a.specific_cost = 14.27
+
+        self.material_b = AnodeMaterial.from_database("Lead")
+        self.material_b.density = 11.34
+        self.material_b.specific_cost = 2.0
+
+        self.formulation = AnodeFormulation(
+            active_materials={self.material_a: 100},
+        )
+
+    def test_swap_and_swap_back_produces_same_curve(self):
+        """Curve must be identical after A -> B -> A swap."""
+        original_curve = self.formulation.specific_capacity_curve.copy()
+        numeric_cols = original_curve.select_dtypes(include="number").columns
+        original_cutoff = self.formulation._voltage_cutoff
+
+        # Swap to material B
+        self.formulation.active_material_1 = self.material_b
+
+        # Swap back to material A
+        self.formulation.active_material_1 = self.material_a
+
+        restored_curve = self.formulation.specific_capacity_curve
+
+        self.np.testing.assert_array_almost_equal(
+            original_curve[numeric_cols].values,
+            restored_curve[numeric_cols].values,
+            decimal=10,
+            err_msg="Anode curve changed after swapping material out and back",
+        )
+        self.assertAlmostEqual(
+            self.formulation._voltage_cutoff, original_cutoff, places=10,
+            msg="Voltage cutoff changed after swapping material out and back",
+        )
+
+    def test_explicit_cutoff_preserved_across_swap(self):
+        """A user-set voltage cutoff should survive a material swap if still valid for both materials."""
+        # Pick a cutoff in the intersection of both materials' valid ranges
+        a_window = self.material_a._voltage_operation_window
+        b_window = self.material_b._voltage_operation_window
+        common_lower = max(min(a_window), min(b_window))
+        common_upper = min(max(a_window), max(b_window))
+        explicit_cutoff = common_lower  # use lower bound, valid for both
+
+        self.formulation.voltage_cutoff = explicit_cutoff
+
+        # Swap to B and back
+        self.formulation.active_material_1 = self.material_b
+        self.formulation.active_material_1 = self.material_a
+
+        self.assertAlmostEqual(
+            self.formulation._voltage_cutoff, explicit_cutoff, places=10,
+            msg="Explicitly set voltage cutoff should be preserved after swap",
+        )
+
+    def test_swap_via_active_materials_setter(self):
+        """Same reversibility guarantee via the bulk active_materials setter."""
+        original_curve = self.formulation.specific_capacity_curve.copy()
+        numeric_cols = original_curve.select_dtypes(include="number").columns
+
+        self.formulation.active_materials = {self.material_b: 100}
+        self.formulation.active_materials = {self.material_a: 100}
+
+        restored_curve = self.formulation.specific_capacity_curve
+        self.np.testing.assert_array_almost_equal(
+            original_curve[numeric_cols].values,
+            restored_curve[numeric_cols].values,
+            decimal=10,
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
 

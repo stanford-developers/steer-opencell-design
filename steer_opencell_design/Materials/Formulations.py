@@ -74,6 +74,7 @@ class _ElectrodeFormulation(
             Total volume of the electrode formulation. Defaults to None.
         """
         self._update_properties = False
+        self._user_set_voltage_cutoff = False
 
         self.active_materials = active_materials
         self.binders = binders
@@ -1186,6 +1187,10 @@ class _ElectrodeFormulation(
         for i, material in enumerate(self._active_materials.keys(), 1):
             material._set_parent(self, f"active_material_{i}")
 
+        # Reset auto-calculated cutoff so it is recalculated for the new material set
+        if not self._user_set_voltage_cutoff:
+            self._voltage_cutoff = None
+
         # Handle voltage cutoff compatibility with new materials
         self._handle_voltage_cutoff_compatibility()
 
@@ -1215,6 +1220,9 @@ class _ElectrodeFormulation(
                 for material, fraction in materials_list[1:]:
                     new_active_materials[material] = fraction
                 self._active_materials = new_active_materials
+                # Reset auto-calculated cutoff so it is recalculated for the new material set
+                if not self._user_set_voltage_cutoff:
+                    self._voltage_cutoff = None
                 # Handle voltage cutoff compatibility with remaining materials
                 self._handle_voltage_cutoff_compatibility()
             return
@@ -1238,6 +1246,10 @@ class _ElectrodeFormulation(
         # Set parent reference on new material
         new_material._set_parent(self, "active_material_1")
         
+        # Reset auto-calculated cutoff so it is recalculated for the new material set
+        if not self._user_set_voltage_cutoff:
+            self._voltage_cutoff = None
+
         # Handle voltage cutoff compatibility with new materials
         self._handle_voltage_cutoff_compatibility()
 
@@ -1272,6 +1284,9 @@ class _ElectrodeFormulation(
                 for material, fraction in materials_list[2:]:
                     new_active_materials[material] = fraction
                 self._active_materials = new_active_materials
+                # Reset auto-calculated cutoff so it is recalculated for the new material set
+                if not self._user_set_voltage_cutoff:
+                    self._voltage_cutoff = None
                 # Handle voltage cutoff compatibility with remaining materials
                 self._handle_voltage_cutoff_compatibility()
             return
@@ -1293,6 +1308,10 @@ class _ElectrodeFormulation(
         # Set parent reference on new material
         new_material._set_parent(self, "active_material_2")
             
+        # Reset auto-calculated cutoff so it is recalculated for the new material set
+        if not self._user_set_voltage_cutoff:
+            self._voltage_cutoff = None
+
         # Handle voltage cutoff compatibility with new materials
         self._handle_voltage_cutoff_compatibility()
 
@@ -1328,6 +1347,9 @@ class _ElectrodeFormulation(
                 for material, fraction in materials_list[3:]:
                     new_active_materials[material] = fraction
                 self._active_materials = new_active_materials
+                # Reset auto-calculated cutoff so it is recalculated for the new material set
+                if not self._user_set_voltage_cutoff:
+                    self._voltage_cutoff = None
                 # Handle voltage cutoff compatibility with remaining materials
                 self._handle_voltage_cutoff_compatibility()
             return
@@ -1365,6 +1387,10 @@ class _ElectrodeFormulation(
         # Set parent reference on new material
         new_material._set_parent(self, "active_material_3")
         
+        # Reset auto-calculated cutoff so it is recalculated for the new material set
+        if not self._user_set_voltage_cutoff:
+            self._voltage_cutoff = None
+
         # Handle voltage cutoff compatibility with new materials
         self._handle_voltage_cutoff_compatibility()
 
@@ -1657,6 +1683,9 @@ class _ElectrodeFormulation(
 
         :param voltage: float: voltage cutoff for the half cell curves
         """
+        # Track whether the user explicitly set a voltage cutoff
+        self._user_set_voltage_cutoff = voltage is not None
+
         # First ensure we have a voltage operation window
         self._get_voltage_operation_window()
 
