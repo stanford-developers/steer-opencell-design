@@ -300,31 +300,31 @@ class WeldTab(PropagationMixin, ValidationMixin, CoordinateMixin, DatumMixin, Du
 
     @property
     def width(self) -> float:
-        return np.round(self._width * M_TO_MM, 2)
+        return self._width * M_TO_MM
 
     @property
     def length(self) -> float:
-        return np.round(self._length * M_TO_MM, 2)
+        return self._length * M_TO_MM
 
     @property
     def thickness(self) -> float:
-        return np.round(self._thickness * M_TO_UM, 2)
+        return self._thickness * M_TO_UM
 
     @property
     def volume(self) -> float:
-        return np.round(self._volume * M_TO_CM**3, 2)
+        return self._volume * M_TO_CM**3
 
     @property
     def mass(self) -> float:
-        return np.round(self._mass * KG_TO_G, 2)
+        return self._mass * KG_TO_G
 
     @property
     def cost(self) -> float:
-        return np.round(self._cost, 2)
+        return self._cost
 
     @property
     def foil_area(self) -> float:
-        return np.round(self._foil_area * M_TO_MM**2, 2)
+        return self._foil_area * M_TO_MM**2
 
     @material.setter
     @calculate_all_properties
@@ -721,7 +721,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         Returns the width of the skip coat area in mm.
         """
-        return np.round(self._skip_coat_width * M_TO_MM, 2)
+        return self._skip_coat_width * M_TO_MM
 
     @property
     def skip_coat_width_range(self) -> Tuple[float, float]:
@@ -749,7 +749,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         Returns the overhang of the weld tab on the current collector in mm.
         """
-        return np.round(self._tab_overhang * M_TO_MM, 2)
+        return self._tab_overhang * M_TO_MM
 
     @property
     def tab_overhang_range(self) -> Tuple[float, float]:

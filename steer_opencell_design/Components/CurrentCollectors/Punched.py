@@ -325,12 +325,10 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
     def x_foil_length_range(self) -> Tuple[float, float]:
 
         if hasattr(self, "_x_foil_length_range") and self._x_foil_length_range is not None:
-
             return (
-                np.round(self._x_foil_length_range[0] * M_TO_MM, 2),
-                np.round(self._x_foil_length_range[1] * M_TO_MM, 2),
+                self._x_foil_length_range[0] * M_TO_MM,
+                self._x_foil_length_range[1] * M_TO_MM,
             )
-
         else:
             return (10, 500)
 
@@ -338,8 +336,8 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
     def y_foil_length_range(self) -> Tuple[float, float]:
         if hasattr(self, "_y_foil_length_range") and self._y_foil_length_range is not None:
             return (
-                np.round(self._y_foil_length_range[0] * M_TO_MM, 2),
-                np.round(self._y_foil_length_range[1] * M_TO_MM, 2),
+                self._y_foil_length_range[0] * M_TO_MM,
+                self._y_foil_length_range[1] * M_TO_MM,
             )
         else:
             return (10, 500)
@@ -350,7 +348,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         hyp_max = 0.1
         max = hyp_max * (1 - np.exp(-0.5 / self._mass))
 
-        return (round(min * KG_TO_G, 2), np.round(max * KG_TO_G, 2))
+        return (min * KG_TO_G, max * KG_TO_G)
 
     @property
     def width(self) -> float:
@@ -377,7 +375,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         min = 0.01
         max = self._x_foil_length - 0.01
 
-        return (round(min * M_TO_MM, 2), np.round(max * M_TO_MM, 2))
+        return (min * M_TO_MM, max * M_TO_MM)
 
     @property
     def tab_width_range(self) -> Tuple[float, float]:
@@ -385,7 +383,7 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
     @property
     def tab_position(self) -> float:
-        return np.round(self._tab_position * M_TO_MM, 1)
+        return self._tab_position * M_TO_MM
 
     @tab_position.setter
     @calculate_coordinates

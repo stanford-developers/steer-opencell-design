@@ -319,15 +319,15 @@ class FlexFrameCell(_Cell):
         _assembly_thickness = self._reference_electrode_assembly._thickness
         _laminate_thickness = self._encapsulation._laminate_sheet._thickness * 2
         _total_thickness = _assembly_thickness + _laminate_thickness
-        return np.round(_total_thickness * M_TO_MM, 2)
+        return _total_thickness * M_TO_MM
 
     @property
     def thickness_range(self) -> Tuple[float, float]:
         """Get the valid range for cell thickness in mm."""
         assembly_thickness_range = self._reference_electrode_assembly.thickness_range
         laminate_thickness = self._encapsulation._laminate_sheet._thickness * 2 * M_TO_MM
-        min_thickness = np.round(assembly_thickness_range[0] + laminate_thickness, 2)
-        max_thickness = np.round(assembly_thickness_range[1] + laminate_thickness, 2)
+        min_thickness = assembly_thickness_range[0] + laminate_thickness
+        max_thickness = assembly_thickness_range[1] + laminate_thickness
         return (min_thickness, max_thickness)
 
     @property
@@ -335,8 +335,8 @@ class FlexFrameCell(_Cell):
         """Get the hard limit range for cell thickness in mm."""
         assembly_thickness_hard_range = self._reference_electrode_assembly.thickness_hard_range
         laminate_thickness = self._encapsulation._laminate_sheet._thickness * 2 * M_TO_MM
-        min_thickness = np.round(assembly_thickness_hard_range[0] + laminate_thickness, 2)
-        max_thickness = np.round(assembly_thickness_hard_range[1] + laminate_thickness, 2)
+        min_thickness = assembly_thickness_hard_range[0] + laminate_thickness
+        max_thickness = assembly_thickness_hard_range[1] + laminate_thickness
         return (min_thickness, max_thickness)
 
     @height.setter
@@ -374,7 +374,7 @@ class FlexFrameCell(_Cell):
     @property
     def clipped_tab_length(self) -> float:
         """Get clipped tab length."""
-        return np.round(self._clipped_tab_length * M_TO_MM, 2)
+        return self._clipped_tab_length * M_TO_MM
     
     @property
     def clipped_tab_length_range(self) -> Tuple[float, float]:

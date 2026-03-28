@@ -11,6 +11,7 @@ from the built-in database via ``from_database()``.
 
 from steer_materials.Base import Metal, _Material, _VolumedMaterialMixin
 import numpy as np
+from steer_core.Constants.Units import FRACTION_TO_PERCENT
 
 
 class CurrentCollectorMaterial(_VolumedMaterialMixin, Metal):
@@ -171,7 +172,7 @@ class SeparatorMaterial(_VolumedMaterialMixin, _Material):
     @property
     def porosity(self):
         """Get the separator porosity in %."""
-        return np.round(self._porosity * 100, 2)
+        return self._porosity * FRACTION_TO_PERCENT
     
     @property
     def porosity_range(self):

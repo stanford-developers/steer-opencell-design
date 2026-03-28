@@ -1744,12 +1744,12 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
     @property
     def collector_tab_crumple_factor(self) -> float:
         """Return the collector tab crumple factor."""
-        return np.round(self._collector_tab_crumple_factor * 100, 0)
+        return self._collector_tab_crumple_factor * 100
 
     @property
     def additional_tape_wraps(self) -> float:
         """Return the number of additional tape wraps applied to the jelly roll."""
-        return np.round(self._additional_tape_wraps, 2)
+        return self._additional_tape_wraps
 
     @property
     def additional_tape_wraps_range(self) -> Tuple[float, float]:
@@ -1771,7 +1771,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             DataFrame containing roll properties with component names as index and turn counts as values.
         """
         # Create a formatted dictionary with rounded values
-        formatted_props = {key: np.round(value, 2) for key, value in self._roll_properties.items()}
+        formatted_props = dict(self._roll_properties)
         
         # Convert to DataFrame with descriptive names
         df = pd.DataFrame.from_dict(formatted_props, orient='index', columns=['Turns'])
@@ -2441,7 +2441,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         float
             Total height in millimeters, rounded to 2 decimal places
         """
-        return np.round(self._total_height * M_TO_MM, 2)
+        return self._total_height * M_TO_MM
 
     # Override datum setter to translate all jelly roll components
     @_ElectrodeAssembly.datum.setter
@@ -3073,69 +3073,42 @@ class WoundJellyRoll(_JellyRoll):
         float
             Outer radius in millimeters, rounded to 2 decimal places
         """
-        return np.round(self._radius * M_TO_MM, 2)
+        return self._radius * M_TO_MM
 
     @property
     def radius_range(self) -> Tuple[float, float]:
         return (
-            np.round(self._radius_range[0] * M_TO_MM, 2),
-            np.round(self._radius_range[1] * M_TO_MM, 2)
+            self._radius_range[0] * M_TO_MM,
+            self._radius_range[1] * M_TO_MM,
         )
-    
+
     @property
     def radius_hard_range(self) -> Tuple[float, float]:
-        """Return the hard radius range (min, max) of the wound jelly roll in mm.
-        
-        Returns
-        -------
-        Tuple[float, float]
-            (min_radius, max_radius) in millimeters, rounded to 2 decimal places
-        """
+        """Return the hard radius range (min, max) of the wound jelly roll in mm."""
         min_radius = self.radius_range[0]
         max_radius = 200
-
-        return (round(min_radius, 2), np.round(max_radius, 2))
+        return (min_radius, max_radius)
 
     @property
     def diameter(self) -> float:
-        """Return the outer diameter of the wound jelly roll in mm.
-        
-        Returns
-        -------
-        float
-            Outer diameter in millimeters, rounded to 2 decimal places
-        """
-        return np.round(self._diameter * M_TO_MM, 2)
-    
+        """Return the outer diameter of the wound jelly roll in mm."""
+        return self._diameter * M_TO_MM
+
     @property
     def diameter_range(self) -> Tuple[float, float]:
-        """Return the diameter range (min, max) of the wound jelly roll in mm.
-        
-        Returns
-        -------
-        Tuple[float, float]
-            (min_diameter, max_diameter) in millimeters, rounded to 2 decimal places
-        """
+        """Return the diameter range (min, max) of the wound jelly roll in mm."""
         radius_range = self.radius_range
         min_diameter = radius_range[0] * 2
         max_diameter = radius_range[1] * 2
+        return (min_diameter, max_diameter)
 
-        return (round(min_diameter, 2), np.round(max_diameter, 2))
-    
     @property
     def diameter_hard_range(self) -> Tuple[float, float]:
-        """Return the hard diameter range (min, max) of the wound jelly roll in mm.
-        
-        Returns
-        -------
-        Tuple[float, float]
-            (min_diameter, max_diameter) in millimeters, rounded to 2 decimal places
-        """
+        """Return the hard diameter range (min, max) of the wound jelly roll in mm."""
         radius_hard_range = self.radius_hard_range
         min_diameter = radius_hard_range[0] * 2
         max_diameter = radius_hard_range[1] * 2
-
-        return (round(min_diameter, 2), np.round(max_diameter, 2))
+        return (min_diameter, max_diameter)
 
     @diameter.setter
     def diameter(self, target_diameter: float) -> None:
@@ -3810,40 +3783,22 @@ class FlatWoundJellyRoll(_JellyRoll):
         float
             Pressed mandrel radius in millimeters, rounded to 2 decimal places
         """
-        return np.round(self._pressed_radius * M_TO_MM, 2)
-    
+        return self._pressed_radius * M_TO_MM
+
     @property
     def pressed_straight_length(self) -> float:
-        """Return the pressed mandrel straight length in mm.
-        
-        Returns
-        -------
-        float
-            Pressed mandrel straight length in millimeters, rounded to 2 decimal places
-        """
-        return np.round(self._pressed_straight_length * M_TO_MM, 2)
-    
+        """Return the pressed mandrel straight length in mm."""
+        return self._pressed_straight_length * M_TO_MM
+
     @property
     def thickness(self) -> float:
-        """Return the overall jelly roll thickness in millimeters.
-        
-        Returns
-        -------
-        float
-            Overall thickness in millimeters, rounded to 2 decimal places
-        """
-        return np.round(self._thickness * M_TO_MM, 2)
+        """Return the overall jelly roll thickness in millimeters."""
+        return self._thickness * M_TO_MM
 
     @property
     def width(self) -> float:
-        """Return the overall jelly roll width in millimeters.
-        
-        Returns
-        -------
-        float
-            Overall width in millimeters, rounded to 2 decimal places
-        """
-        return np.round(self._width * M_TO_MM, 2)
+        """Return the overall jelly roll width in millimeters."""
+        return self._width * M_TO_MM
 
     @property
     def thickness_hard_range(self) -> Tuple[float, float]:
@@ -3855,30 +3810,18 @@ class FlatWoundJellyRoll(_JellyRoll):
 
     @property
     def thickness_range(self) -> Tuple[float, float]:
-        """Return the thickness range (min, max) of the flat wound jelly roll in mm.
-        
-        Returns
-        -------
-        Tuple[float, float]
-            (min_thickness, max_thickness) in millimeters, rounded to 2 decimal places
-        """
+        """Return the thickness range (min, max) of the flat wound jelly roll in mm."""
         return (
-            np.round(self._thickness_range[0] * M_TO_MM, 2),
-            np.round(self._thickness_range[1] * M_TO_MM, 2)
+            self._thickness_range[0] * M_TO_MM,
+            self._thickness_range[1] * M_TO_MM,
         )
-    
+
     @property
     def width_range(self) -> Tuple[float, float]:
-        """Return the width range (min, max) of the flat wound jelly roll in mm.
-        
-        Returns
-        -------
-        Tuple[float, float]
-            (min_width, max_width) in millimeters, rounded to 2 decimal places
-        """
+        """Return the width range (min, max) of the flat wound jelly roll in mm."""
         return (
-            np.round(self._width_range[0] * M_TO_MM, 2),
-            np.round(self._width_range[1] * M_TO_MM, 2)
+            self._width_range[0] * M_TO_MM,
+            self._width_range[1] * M_TO_MM,
         )
     
     @thickness.setter

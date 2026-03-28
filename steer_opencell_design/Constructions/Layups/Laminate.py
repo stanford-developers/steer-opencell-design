@@ -347,7 +347,7 @@ class Laminate(_Layup):
     @property
     def length(self) -> float:
         """Get the laminate length in mm."""
-        return np.round(self._length * M_TO_MM, 2)
+        return self._length * M_TO_MM
     
     @property
     def length_range(self) -> tuple:
@@ -362,7 +362,7 @@ class Laminate(_Layup):
     @property
     def width(self) -> float:
         """Get the laminate width in mm."""
-        return np.round(self._width * M_TO_MM, 2)
+        return self._width * M_TO_MM
 
     @property
     def width_range(self) -> tuple:
@@ -403,12 +403,12 @@ class Laminate(_Layup):
     @property
     def total_length(self) -> float:
         """Return the total length of the layup in mm."""
-        return np.round(self._total_length * M_TO_MM, 2)
+        return self._total_length * M_TO_MM
 
     @property
     def thickness(self) -> float:
         """Return the total thickness of the laminate in micrometers."""
-        return np.round(self._thickness * M_TO_UM, 2)
+        return self._thickness * M_TO_UM
 
     @length.setter
     @calculate_all_properties

@@ -434,7 +434,7 @@ class _ActiveMaterial(
         # generated voltages stay strictly within the valid range
         v_min = np.ceil(float(self._voltage_operation_window[0]) * 10000) / 10000
         v_max = np.floor(float(self._voltage_operation_window[2]) * 10000) / 10000
-        voltages = np.round(np.linspace(v_min, v_max, n_steps), 4)
+        voltages = np.linspace(v_min, v_max, n_steps)
         capacity_conversion = S_TO_H * A_TO_mA / KG_TO_G
 
         # Pre-compute a curve for each voltage step and track axis ranges
@@ -449,8 +449,8 @@ class _ActiveMaterial(
                 self._voltage_operation_window,
                 type(self),
             )
-            x = np.round(curve[:, 0] * capacity_conversion, 4)
-            y = np.round(curve[:, 1], 4)
+            x = curve[:, 0] * capacity_conversion
+            y = curve[:, 1]
             
             # Track ranges across all frames
             all_x_values.extend(x)
@@ -535,8 +535,8 @@ class _ActiveMaterial(
         :return: tuple: (minimum voltage, maximum voltage)
         """
         return (
-            np.round(float(self._voltage_operation_window[0]), 2),
-            np.round(float(self._voltage_operation_window[2]), 2),
+            float(self._voltage_operation_window[0]),
+            float(self._voltage_operation_window[2]),
         )
 
     @property
@@ -568,10 +568,8 @@ class _ActiveMaterial(
         
         # Create DataFrame with converted values directly
         return pd.DataFrame({
-            "Specific Capacity (mAh/g)": np.round(
-                self._specific_capacity_curve[:, 0] * capacity_conversion, 4
-            ),
-            "Voltage (V)": np.round(self._specific_capacity_curve[:, 1], 4),
+            "Specific Capacity (mAh/g)": self._specific_capacity_curve[:, 0] * capacity_conversion,
+            "Voltage (V)": self._specific_capacity_curve[:, 1],
             "Direction": np.where(
                 self._specific_capacity_curve[:, 2] == 1, "charge", "discharge"
             ),
@@ -592,11 +590,11 @@ class _ActiveMaterial(
         for curve in self._specific_capacity_curves:
 
             # Compute max voltage once
-            max_voltage = np.round(curve[:, 1].max(), 4)
-            
+            max_voltage = curve[:, 1].max()
+
             # Create arrays directly without intermediate steps
-            capacity = np.round(curve[:, 0] * capacity_conversion, 4)
-            voltage = np.round(curve[:, 1], 4)
+            capacity = curve[:, 0] * capacity_conversion
+            voltage = curve[:, 1]
             direction = np.where(curve[:, 2] == 1, "charge", "discharge")
             
             # Create DataFrame with pre-computed arrays
@@ -657,7 +655,7 @@ class _ActiveMaterial(
     def irreversible_specific_capacity_scaling_percentage(self) -> float:
         if self._irreversible_specific_capacity_scaling is None:
             return 0.0
-        return np.round((self._irreversible_specific_capacity_scaling - 1.0) * 100, 1)
+        return (self._irreversible_specific_capacity_scaling - 1.0) * 100
 
     @property
     def irreversible_specific_capacity_scaling_percentage_range(self) -> Tuple:
@@ -671,7 +669,7 @@ class _ActiveMaterial(
     def reversible_specific_capacity_scaling_percentage(self) -> float:
         if self._reversible_specific_capacity_scaling is None:
             return 0.0
-        return np.round((self._reversible_specific_capacity_scaling - 1.0) * 100, 1)
+        return (self._reversible_specific_capacity_scaling - 1.0) * 100
 
     @property
     def reversible_specific_capacity_scaling_percentage_range(self) -> Tuple:
@@ -684,14 +682,14 @@ class _ActiveMaterial(
     @property
     def irreversible_specific_capacity(self) -> float:
         """Get the irreversible specific capacity in mAh/g."""
-        return np.round(self._irreversible_specific_capacity * (S_TO_H * A_TO_mA / KG_TO_G), 2)
-    
+        return self._irreversible_specific_capacity * (S_TO_H * A_TO_mA / KG_TO_G)
+
     @property
     def irreversible_specific_capacity_range(self) -> Tuple[float, float]:
         """Get the irreversible specific capacity range in mAh/g."""
         return (
-            np.round(self._irreversible_specific_capacity_range[0] * (S_TO_H * A_TO_mA / KG_TO_G), 2),
-            np.round(self._irreversible_specific_capacity_range[1] * (S_TO_H * A_TO_mA / KG_TO_G), 2),
+            self._irreversible_specific_capacity_range[0] * (S_TO_H * A_TO_mA / KG_TO_G),
+            self._irreversible_specific_capacity_range[1] * (S_TO_H * A_TO_mA / KG_TO_G),
         )
     
     @property
@@ -702,14 +700,14 @@ class _ActiveMaterial(
     @property
     def reversible_specific_capacity(self) -> float:
         """Get the reversible specific capacity in mAh/g."""
-        return np.round(self._reversible_specific_capacity * (S_TO_H * A_TO_mA / KG_TO_G), 2)
-    
+        return self._reversible_specific_capacity * (S_TO_H * A_TO_mA / KG_TO_G)
+
     @property
     def reversible_specific_capacity_range(self) -> Tuple[float, float]:
         """Get the reversible specific capacity range in mAh/g."""
         return (
-            np.round(self._reversible_specific_capacity_range[0] * (S_TO_H * A_TO_mA / KG_TO_G), 2),
-            np.round(self._reversible_specific_capacity_range[1] * (S_TO_H * A_TO_mA / KG_TO_G), 2),
+            self._reversible_specific_capacity_range[0] * (S_TO_H * A_TO_mA / KG_TO_G),
+            self._reversible_specific_capacity_range[1] * (S_TO_H * A_TO_mA / KG_TO_G),
         )
     
     @property

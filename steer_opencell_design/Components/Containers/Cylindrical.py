@@ -252,9 +252,9 @@ class _CylindricalComponent(
         if self._coordinates is None:
             return pd.DataFrame(columns=["x", "y", "z"])
             
-        x = np.round(self._coordinates[:, 0] * M_TO_MM, 10)
-        y = np.round(self._coordinates[:, 1] * M_TO_MM, 10)
-        z = np.round(self._coordinates[:, 2] * M_TO_MM, 10)
+        x = self._coordinates[:, 0] * M_TO_MM
+        y = self._coordinates[:, 1] * M_TO_MM
+        z = self._coordinates[:, 2] * M_TO_MM
 
         return pd.DataFrame(
             np.column_stack((x, y, z)),
@@ -309,30 +309,30 @@ class _CylindricalComponent(
     
     @property
     def radius(self) -> float:
-        """Component radius in mm, rounded to 2 decimal places. None if not set."""
+        """Component radius in mm. None if not set."""
         if self._radius is None:
             return None
-        return np.round(self._radius * M_TO_MM, 2)
-    
+        return self._radius * M_TO_MM
+
     @property
     def radius_range(self) -> Tuple[float, float]:
-        """Valid radius range in mm, rounded to 2 decimal places."""
+        """Valid radius range in mm."""
         if not hasattr(self, '_radius_range'):
             return None
         return (
-            np.round(self._radius_range[0] * M_TO_MM, 2),
-            np.round(self._radius_range[1] * M_TO_MM, 2)
+            self._radius_range[0] * M_TO_MM,
+            self._radius_range[1] * M_TO_MM,
         )
-    
+
     @property
     def thickness(self) -> float:
-        """Component thickness in mm, rounded to 2 decimal places."""
-        return np.round(self._thickness * M_TO_MM, 2)
-    
+        """Component thickness in mm."""
+        return self._thickness * M_TO_MM
+
     @property
     def fill_factor(self) -> float:
         """Fill factor (0.0-1.0) for material calculations."""
-        return np.round(self._fill_factor, 2)
+        return self._fill_factor
     
     @property
     def fill_factor_range(self) -> Tuple[float, float]:
@@ -344,34 +344,34 @@ class _CylindricalComponent(
         """Total mass in grams, accounting for fill factor. None if radius not set."""
         if self._mass is None:
             return None
-        return np.round(self._mass * KG_TO_G, 2)
-    
+        return self._mass * KG_TO_G
+
     @property
     def mass_range(self) -> Tuple[float, float]:
         """Valid mass range in grams (0 to max with fill_factor=1.0). None if radius not set."""
         if self._radius is None:
             return None
-        
+
         # Calculate maximum mass with fill_factor = 1.0
         _max_volume = np.pi * (self._radius) ** 2 * (self._thickness) * 1.0
         _max_mass = _max_volume * self._material._density
         max_mass = _max_mass * KG_TO_G
-        
-        return (0.0, np.round(max_mass, 2))
-    
+
+        return (0.0, max_mass)
+
     @property
     def cost(self) -> float:
         """Material cost in currency units. None if radius not set."""
         if self._cost is None:
             return None
-        return np.round(self._cost, 2)
-    
+        return self._cost
+
     @property
     def volume(self) -> float:
         """Effective volume in mm³, accounting for fill factor. None if radius not set."""
         if self._volume is None:
             return None
-        return np.round(self._volume * M_TO_MM**3, 2)
+        return self._volume * M_TO_MM**3
     
     @name.setter
     def name(self, name: str) -> None:
@@ -441,7 +441,7 @@ class _CylindricalComponent(
         required_fill_factor = _mass / (_volume_without_fill * self._material._density)
         
         if required_fill_factor > 1.0:
-            raise ValueError(f"Cannot achieve mass of {mass} g with current dimensions. Maximum possible mass is {np.round(_volume_without_fill * self._material._density * KG_TO_G, 2)} g")
+            raise ValueError(f"Cannot achieve mass of {mass} g with current dimensions. Maximum possible mass is {_volume_without_fill * self._material._density * KG_TO_G} g")
         
         self._fill_factor = float(required_fill_factor)
 
@@ -945,19 +945,19 @@ class CylindricalCanister(
     
     @property
     def inner_diameter(self) -> float:
-        """Inner diameter of the can in mm, rounded to 2 decimal places."""
-        return np.round(self._inner_diameter * M_TO_MM, 2)
-    
+        """Inner diameter of the can in mm."""
+        return self._inner_diameter * M_TO_MM
+
     @property
     def outer_diameter(self) -> float:
-        """Outer diameter of the can in mm, rounded to 2 decimal places."""
-        return np.round(self._outer_diameter * M_TO_MM, 2)
+        """Outer diameter of the can in mm."""
+        return self._outer_diameter * M_TO_MM
 
     @property
     def side_cross_section_coordinates(self) -> pd.DataFrame:
         """Get side cross-section coordinates of the can in mm."""
-        x = np.round(self._side_cross_section_coordinates[:, 0] * M_TO_MM, 10)
-        y = np.round(self._side_cross_section_coordinates[:, 1] * M_TO_MM, 10)
+        x = self._side_cross_section_coordinates[:, 0] * M_TO_MM
+        y = self._side_cross_section_coordinates[:, 1] * M_TO_MM
 
         return pd.DataFrame(
             np.column_stack((x, y)),
@@ -985,8 +985,8 @@ class CylindricalCanister(
     @property
     def top_down_cross_section_coordinates(self) -> pd.DataFrame:
         """Get top-down view coordinates of the can in mm."""
-        x = np.round(self._top_down_coordinates[:, 0] * M_TO_MM, 10)
-        y = np.round(self._top_down_coordinates[:, 1] * M_TO_MM, 10)
+        x = self._top_down_coordinates[:, 0] * M_TO_MM
+        y = self._top_down_coordinates[:, 1] * M_TO_MM
 
         return pd.DataFrame(
             np.column_stack((x, y)),
@@ -1013,28 +1013,28 @@ class CylindricalCanister(
     
     @property
     def inner_height(self) -> float:
-        """Inner height of the can in mm, rounded to 2 decimal places."""
-        return np.round(self._inner_height * M_TO_MM, 2)
+        """Inner height of the can in mm."""
+        return self._inner_height * M_TO_MM
 
     @property
     def cost(self) -> float:
-        """Total cost of the can in currency units, rounded to 2 decimal places."""
-        return np.round(self._cost, 2)
+        """Total cost of the can in currency units."""
+        return self._cost
 
     @property
     def mass(self) -> float:
-        """Total mass of the can in grams, rounded to 2 decimal places."""
-        return np.round(self._mass * KG_TO_G, 2)
+        """Total mass of the can in grams."""
+        return self._mass * KG_TO_G
 
     @property
     def volume(self) -> float:
-        """Total volume of the can in mm³, rounded to 2 decimal places."""
-        return np.round(self._volume * M_TO_MM**3, 2)
+        """Total volume of the can in mm³."""
+        return self._volume * M_TO_MM**3
 
     @property
     def inner_radius(self) -> float:
-        """Inner radius of the can in mm, rounded to 2 decimal places."""
-        return np.round(self._inner_radius * M_TO_MM, 2)
+        """Inner radius of the can in mm."""
+        return self._inner_radius * M_TO_MM
 
     @property
     def inner_radius_range(self) -> Tuple[float, float]:
@@ -1053,8 +1053,8 @@ class CylindricalCanister(
     
     @property
     def outer_radius(self) -> float:
-        """Outer radius of the can in mm, rounded to 2 decimal places."""
-        return np.round(self._outer_radius * M_TO_MM, 2)
+        """Outer radius of the can in mm."""
+        return self._outer_radius * M_TO_MM
     
     @property
     def outer_radius_range(self) -> Tuple[float, float]:
@@ -1068,8 +1068,8 @@ class CylindricalCanister(
     
     @property
     def height(self) -> float:
-        """Height of the can in mm, rounded to 2 decimal places."""
-        return np.round(self._height * M_TO_MM, 2)
+        """Height of the can in mm."""
+        return self._height * M_TO_MM
     
     @property
     def height_range(self) -> Tuple[float, float]:
@@ -1083,18 +1083,18 @@ class CylindricalCanister(
 
     @property
     def inner_height_range(self) -> Tuple[float, float]:
-        """Valid inner height range in mm (height_range minus wall thickness), rounded to 2 decimal places."""
+        """Valid inner height range in mm (height_range minus wall thickness)."""
         wall_thickness_mm = self._wall_thickness * M_TO_MM
         min_height, max_height = self.height_range
         return (
-            np.round(min_height - wall_thickness_mm, 2),
-            np.round(max_height - wall_thickness_mm, 2)
+            min_height - wall_thickness_mm,
+            max_height - wall_thickness_mm,
         )
 
     @property
     def wall_thickness(self) -> float:
-        """Wall thickness of the can in mm, rounded to 2 decimal places."""
-        return np.round(self._wall_thickness * M_TO_MM, 2)
+        """Wall thickness of the can in mm."""
+        return self._wall_thickness * M_TO_MM
     
     @property
     def wall_thickness_range(self) -> Tuple[float, float]:
@@ -1589,11 +1589,11 @@ class CylindricalEncapsulation(_Container, DatumMixin):
     
     @property
     def volume(self) -> float:
-        return np.round(self._volume * M_TO_MM**3, 2)
+        return self._volume * M_TO_MM**3
 
     @property
     def internal_height(self) -> float:
-        return np.round(self._internal_height * M_TO_MM, 2)
+        return self._internal_height * M_TO_MM
     
     @property
     def internal_height_range(self) -> Tuple[float, float]:
@@ -1609,8 +1609,8 @@ class CylindricalEncapsulation(_Container, DatumMixin):
             self._anode_terminal_connector.thickness_hard_range[0] - 
             self._cathode_terminal_connector.thickness_hard_range[0]
         )
-        return (np.round(min_height, 2), np.round(max_height, 2))
-    
+        return (min_height, max_height)
+
     @property
     def internal_height_hard_range(self) -> Tuple[float, float]:
         min_height = (
@@ -1625,7 +1625,7 @@ class CylindricalEncapsulation(_Container, DatumMixin):
             self._anode_terminal_connector.thickness_hard_range[0] - 
             self._cathode_terminal_connector.thickness_hard_range[0]
         )
-        return (np.round(min_height, 2), np.round(max_height, 2))
+        return (min_height, max_height)
 
     @property
     def internal_radius(self) -> float:
@@ -1670,7 +1670,7 @@ class CylindricalEncapsulation(_Container, DatumMixin):
         :return: Dictionary containing the cost breakdown.
         """
 
-        return round_dict_recursive(self._cost_breakdown, 2)
+        return round_dict_recursive(self._cost_breakdown, precision=None)
 
     @property
     def mass_breakdown(self) -> Dict[str, Any]:
@@ -1679,8 +1679,7 @@ class CylindricalEncapsulation(_Container, DatumMixin):
 
         :return: Dictionary containing the mass breakdown.
         """
-
-        return round_dict_recursive(self._mass_breakdown, 2, KG_TO_G)
+        return round_dict_recursive(self._mass_breakdown, precision=None, unit_conversion=KG_TO_G)
     
     @property
     def radius(self) -> float:

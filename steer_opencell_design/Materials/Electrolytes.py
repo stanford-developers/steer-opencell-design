@@ -82,15 +82,15 @@ class Electrolyte(_VolumedMaterialMixin, _Material):
     def volume_range(self) -> Tuple[float, float]:
         """Get the allowable electrolyte volume range in cm³."""
         return (
-            np.round(self._volume_range[0] * M_TO_CM**3, 2),
-            np.round(self._volume_range[1] * M_TO_CM**3, 2),
+            self._volume_range[0] * M_TO_CM**3,
+            self._volume_range[1] * M_TO_CM**3,
         )
 
     @property
     def mass_range(self) -> Tuple[float, float]:
         """Get the allowable electrolyte mass range in g."""
         return (
-            np.round(self._mass_range[0] * KG_TO_G, 2),
-            np.round(self._mass_range[1] * KG_TO_G, 2),
+            self._mass_range[0] * KG_TO_G,
+            self._mass_range[1] * KG_TO_G,
         )
 

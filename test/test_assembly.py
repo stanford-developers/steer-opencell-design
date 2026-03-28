@@ -251,7 +251,7 @@ class TestRoundJellyRoll(unittest.TestCase):
             'Bottom Separator Outer Turns': 11.66,
             'Top Separator Turns': 70.99,
             'Top Separator Inner Turns': 16.55,
-            'Top Separator Outer Turns': 3.94
+            'Top Separator Outer Turns': 3.89
         }
         
         expected_df = pd.DataFrame.from_dict(expected_data, orient='index', columns=['Turns'])
@@ -862,7 +862,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         
         # Verify deserialized has same properties
         self.assertAlmostEqual(deserialized_jr.thickness, original_thickness, places=1)
-        self.assertEqual(deserialized_jr.layup.length, original_length)
+        self.assertAlmostEqual(deserialized_jr.layup.length, original_length, places=5)
         
         # Modify low in hierarchy on deserialized object
         deserialized_jr.layup.length = original_length + 1000
@@ -1097,7 +1097,7 @@ class TestPunchedStack(unittest.TestCase):
         
         # Verify deserialized has same properties
         self.assertAlmostEqual(deserialized_stack.mass, original_mass, places=1)
-        self.assertEqual(deserialized_stack.layup.cathode.mass_loading, original_mass_loading)
+        self.assertAlmostEqual(deserialized_stack.layup.cathode.mass_loading, original_mass_loading, places=10)
         
         # Modify low in hierarchy on deserialized object
         deserialized_stack.layup.cathode.mass_loading = original_mass_loading * 1.5
