@@ -595,7 +595,7 @@ class _ElectrodeFormulation(
         if not hasattr(self, '_cost'):
             return {}
 
-        return round_dict_recursive(self._cost_breakdown, 2)
+        return round_dict_recursive(self._cost_breakdown, precision=None)
 
     @property
     def mass_breakdown(self) -> Dict[str, Any]:
@@ -607,7 +607,7 @@ class _ElectrodeFormulation(
         if not hasattr(self, '_mass'):
             return {}
 
-        return round_dict_recursive(self._mass_breakdown, 2, KG_TO_G)
+        return round_dict_recursive(self._mass_breakdown, precision=None, unit_conversion=KG_TO_G)
 
     @property
     def mass(self) -> Optional[float]:
@@ -615,15 +615,15 @@ class _ElectrodeFormulation(
         if self._mass is None:
             return None
         else:
-            return np.round(self._mass * KG_TO_G, 2)
-        
+            return self._mass * KG_TO_G
+
     @property
     def volume(self) -> Optional[float]:
         """Formulation volume in cm³, or None if not set."""
         if self._volume is None:
             return None
         else:
-            return np.round(self._volume * M_TO_CM**3, 2)
+            return self._volume * M_TO_CM**3
 
     @property
     def cost(self) -> Optional[float]:
@@ -631,7 +631,7 @@ class _ElectrodeFormulation(
         if self._cost is None:
             return None
         else:
-            return np.round(self._cost, 2)
+            return self._cost
 
     @property
     def specific_capacity_curve_trace(self) -> go.Scatter:
@@ -944,7 +944,7 @@ class _ElectrodeFormulation(
 
         :return: float: voltage cutoff of the half cell curves
         """
-        return np.round(self._voltage_cutoff, 3)
+        return self._voltage_cutoff
 
     @property
     def voltage_cutoff_range(self) -> tuple:
@@ -956,11 +956,11 @@ class _ElectrodeFormulation(
 
     @property
     def density(self) -> float:
-        return np.round(self._density * KG_TO_G / (M_TO_CM**3), 2)
+        return self._density * KG_TO_G / (M_TO_CM**3)
 
     @property
     def specific_cost(self) -> float:
-        return np.round(self._specific_cost, 2)
+        return self._specific_cost
 
     @property
     def specific_volume(self) -> float:
@@ -969,7 +969,7 @@ class _ElectrodeFormulation(
 
         :return: Theoretical specific volume in cm³/g.
         """
-        return np.round(self._specific_volume * (M_TO_CM**3) / KG_TO_G, 2)
+        return self._specific_volume * (M_TO_CM**3) / KG_TO_G
 
     @property
     def voltage_operation_window(self) -> tuple:
@@ -1009,8 +1009,8 @@ class _ElectrodeFormulation(
         curve = self._specific_capacity_curve.copy()
         
         # compute the columns
-        specific_capacity = np.round(curve[:, 0] * capacity_conversion, 4)
-        voltage = np.round(curve[:, 1], 4)
+        specific_capacity = curve[:, 0] * capacity_conversion
+        voltage = curve[:, 1]
         direction = np.where(curve[:, 2] == 1, "charge", "discharge")
 
         # Create DataFrame with converted values directly
@@ -1032,8 +1032,8 @@ class _ElectrodeFormulation(
 
         curve = self._capacity_curve.copy()
         
-        capacity = np.round(curve[:, 0] * capacity_conversion, 4)
-        voltage = np.round(curve[:, 1], 4)
+        capacity = curve[:, 0] * capacity_conversion
+        voltage = curve[:, 1]
         direction = np.where(curve[:, 2] == 1, "charge", "discharge")
 
         return pd.DataFrame({

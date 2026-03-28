@@ -49,8 +49,6 @@ THICKNESS_FALLBACK = 0.0  # Return value when thickness cannot be determined
 
 # Electrochemical calculation constants
 MINIMUM_VOLTAGE_RANGE_FRACTION = 0.5
-VOLTAGE_PRECISION = 2
-AREAL_CAPACITY_PRECISION = 3
 
 
 class NPRatioControlMode(Enum):
@@ -655,31 +653,31 @@ class _Layup(
     def maximum_operating_voltage_range(self) -> Tuple[float, float]:
         """Maximum operating voltage range in volts."""
         return (
-            np.round(self._maximum_operating_voltage_range[0], VOLTAGE_PRECISION),
-            np.round(self._maximum_operating_voltage_range[1], VOLTAGE_PRECISION),
+            self._maximum_operating_voltage_range[0],
+            self._maximum_operating_voltage_range[1],
         )
-    
+
     @property
     def maximum_areal_reversible_capacity_range(self) -> Tuple[float, float]:
         """Maximum areal capacity range in mAh/cm²."""
         capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
         return (
-            np.round(self._maximum_areal_reversible_capacity_range[0] * capacity_conversion, AREAL_CAPACITY_PRECISION),
-            np.round(self._maximum_areal_reversible_capacity_range[1] * capacity_conversion, AREAL_CAPACITY_PRECISION),
+            self._maximum_areal_reversible_capacity_range[0] * capacity_conversion,
+            self._maximum_areal_reversible_capacity_range[1] * capacity_conversion,
         )
-    
+
     @property
     def operating_reversible_areal_capacity(self) -> float:
         """Operating reversible areal capacity in mAh/cm²."""
         capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
-        return np.round(self._operating_reversible_areal_capacity * capacity_conversion, AREAL_CAPACITY_PRECISION)
-    
+        return self._operating_reversible_areal_capacity * capacity_conversion
+
     @property
     def minimum_operating_voltage_range(self) -> Tuple[float, float]:
         """Minimum operating voltage range in volts."""
         return (
-            np.round(self._minimum_operating_voltage_range[0], VOLTAGE_PRECISION),
-            np.round(self._minimum_operating_voltage_range[1], VOLTAGE_PRECISION),
+            self._minimum_operating_voltage_range[0],
+            self._minimum_operating_voltage_range[1],
         )
 
     @property
@@ -702,7 +700,7 @@ class _Layup(
 
         Returns ``inf`` for anode-free designs.
         """
-        return np.round(self._np_ratio, 3)
+        return self._np_ratio
 
     @property
     def np_ratio_range(self) -> Tuple[float, float]:
@@ -734,8 +732,8 @@ class _Layup(
         _curve = _curve[np.isnan(_curve).sum(axis=1) == 0]
 
         # calculate the columns 
-        areal_capacity = np.round(_curve[:, 0] * capacity_conversion, 4)
-        voltage = np.round(_curve[:, 1], 4)
+        areal_capacity = _curve[:, 0] * capacity_conversion
+        voltage = _curve[:, 1]
         direction = np.where(_curve[:, 2] == 1, "charge", "discharge")
         
         # Create DataFrame with converted values directly
@@ -792,19 +790,19 @@ class _Layup(
     def operating_voltage_window(self) -> Tuple[float, float]:
         """Operating voltage window (min, max) in volts."""
         return (
-            np.round(self._operating_voltage_window[0], VOLTAGE_PRECISION),
-            np.round(self._operating_voltage_window[1], VOLTAGE_PRECISION),
+            self._operating_voltage_window[0],
+            self._operating_voltage_window[1],
         )
-    
+
     @property
     def maximum_operating_voltage(self) -> float:
         """Maximum operating voltage in volts."""
-        return np.round(self._operating_voltage_window[1], VOLTAGE_PRECISION)
-    
+        return self._operating_voltage_window[1]
+
     @property
     def minimum_operating_voltage(self) -> float:
         """Minimum operating voltage in volts."""
-        return np.round(self._operating_voltage_window[0], VOLTAGE_PRECISION)
+        return self._operating_voltage_window[0]
 
     # Override datum setter to sync with child components and use decorator
     @DatumMixin.datum.setter

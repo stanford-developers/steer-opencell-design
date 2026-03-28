@@ -66,10 +66,10 @@ class TestSeparator(unittest.TestCase):
         """
         Test the properties of the separator with length and width set
         """
-        self.assertEqual(self.separator.areal_cost, 50)
-        self.assertEqual(self.separator.area, 50.0)
-        self.assertEqual(self.separator.cost, 0.25)
-        self.assertEqual(self.separator.mass, 0.25)
+        self.assertAlmostEqual(self.separator.areal_cost, 50, places=5)
+        self.assertAlmostEqual(self.separator.area, 50.0, places=5)
+        self.assertAlmostEqual(self.separator.cost, 0.25, places=5)
+        self.assertAlmostEqual(self.separator.mass, 0.25, places=5)
         self.assertEqual(self.separator.width, 50)
         self.assertEqual(self.separator.length, 100)
 
@@ -109,7 +109,7 @@ class TestSeparator(unittest.TestCase):
         # Verify dependent properties updated
         self.assertNotEqual(self.separator.mass, original_mass)
         self.assertNotEqual(self.separator.cost, original_cost)
-        self.assertEqual(self.separator.area, 100.0)  # 200mm * 50mm = 100 cm²
+        self.assertAlmostEqual(self.separator.area, 100.0, places=5)  # 200mm * 50mm = 100 cm²
 
         # Test integer input
         self.separator.length = 150
@@ -127,7 +127,7 @@ class TestSeparator(unittest.TestCase):
         # Verify dependent properties updates
         self.assertNotEqual(self.separator.mass, original_mass)
         self.assertNotEqual(self.separator.cost, original_cost)
-        self.assertEqual(self.separator.area, 75.0)  # 100mm * 75mm = 75 cm²
+        self.assertAlmostEqual(self.separator.area, 75.0, places=5)  # 100mm * 75mm = 75 cm²
 
         # Test integer input
         self.separator.width = 60
@@ -140,7 +140,7 @@ class TestSeparator(unittest.TestCase):
 
         # Set new thickness
         self.separator.thickness = 50.0
-        self.assertEqual(self.separator.thickness, 50.0)
+        self.assertAlmostEqual(self.separator.thickness, 50.0, places=5)
 
         # Verify dependent properties updated
         self.assertNotEqual(self.separator.mass, original_mass)
@@ -148,7 +148,7 @@ class TestSeparator(unittest.TestCase):
 
         # Test integer input
         self.separator.thickness = 30
-        self.assertEqual(self.separator.thickness, 30.0)
+        self.assertAlmostEqual(self.separator.thickness, 30.0, places=5)
 
     def test_material_setter_valid(self):
         """Test material setter with valid SeparatorMaterial"""
@@ -190,18 +190,18 @@ class TestSeparator(unittest.TestCase):
 
         # Set new areal cost
         self.separator.areal_cost = 75.0
-        self.assertEqual(self.separator.areal_cost, 75.0)
+        self.assertAlmostEqual(self.separator.areal_cost, 75.0, places=5)
 
         # Verify total cost updated
         self.assertNotEqual(self.separator.cost, original_cost)
 
         # Test integer input
         self.separator.areal_cost = 100
-        self.assertEqual(self.separator.areal_cost, 100.0)
+        self.assertAlmostEqual(self.separator.areal_cost, 100.0, places=5)
 
         # Test that we can reset to original value
         self.separator.areal_cost = original_areal_cost
-        self.assertEqual(self.separator.areal_cost, original_areal_cost)
+        self.assertAlmostEqual(self.separator.areal_cost, original_areal_cost, places=5)
 
     def test_property_dependencies(self):
         """Test that changing dimensions updates all dependent properties correctly"""
@@ -215,7 +215,7 @@ class TestSeparator(unittest.TestCase):
         self.separator.length = 200  # Double the length
 
         # Verify area doubled
-        self.assertEqual(self.separator.area, initial_area * 2)
+        self.assertAlmostEqual(self.separator.area, initial_area * 2, places=5)
 
         # Verify mass doubled (proportional to area)
         self.assertAlmostEqual(self.separator.mass, initial_mass * 2, places=1)
@@ -281,7 +281,7 @@ class TestSeparator(unittest.TestCase):
 
         # Verify it was created successfully
         self.assertIsInstance(separator_no_length, Separator)
-        self.assertEqual(separator_no_length.thickness, 25)
+        self.assertAlmostEqual(separator_no_length.thickness, 25, places=5)
         self.assertEqual(separator_no_length.width, 50)
 
     def test_properties_when_length_not_set(self):
@@ -379,7 +379,7 @@ class TestSeparator(unittest.TestCase):
         self.assertGreater(separator_no_length.areal_cost, 0)
 
         # Basic properties should be available
-        self.assertEqual(separator_no_length.thickness, 25)
+        self.assertAlmostEqual(separator_no_length.thickness, 25, places=5)
         self.assertEqual(separator_no_length.width, 50)
 
     def test_comparison_with_and_without_length(self):

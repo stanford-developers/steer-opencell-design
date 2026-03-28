@@ -23,10 +23,6 @@ from shapely.geometry import Polygon
 from typing import Tuple
 from copy import deepcopy
 
-# Precision constants
-COORDINATE_PRECISION = 10
-DIMENSION_PRECISION = 2
-
 # Plotting constants
 PLOT_LINE_WIDTH = 0.5
 PLOT_LINE_COLOR = "black"
@@ -305,9 +301,9 @@ class FlexFrame(
         if self._coordinates is None:
             return pd.DataFrame(columns=["x", "y", "z"])
             
-        x = np.round(self._coordinates[:, 0] * M_TO_MM, COORDINATE_PRECISION)
-        y = np.round(self._coordinates[:, 1] * M_TO_MM, COORDINATE_PRECISION)
-        z = np.round(self._coordinates[:, 2] * M_TO_MM, COORDINATE_PRECISION)
+        x = self._coordinates[:, 0] * M_TO_MM
+        y = self._coordinates[:, 1] * M_TO_MM
+        z = self._coordinates[:, 2] * M_TO_MM
 
         return pd.DataFrame(
             np.column_stack((x, y, z)),
@@ -374,17 +370,17 @@ class FlexFrame(
     @property
     def mass(self) -> float:
         """Frame mass in g."""
-        return np.round(self._mass * KG_TO_G, DIMENSION_PRECISION)
-    
+        return self._mass * KG_TO_G
+
     @property
     def volume(self) -> float:
         """Frame volume in cm³."""
-        return np.round(self._volume * M_TO_CM**3, DIMENSION_PRECISION)
-    
+        return self._volume * M_TO_CM**3
+
     @property
     def cost(self) -> float:
         """Frame cost in $."""
-        return np.round(self._cost, DIMENSION_PRECISION)
+        return self._cost
 
     # Override datum setter to use decorator
     @DatumMixin.datum.setter
@@ -610,24 +606,24 @@ class FlexFrameEncapsulation(_Container, DatumMixin):
     @property
     def thickness(self) -> float:
         """Get thickness of the encapsulation in mm."""
-        return np.round(self._thickness * M_TO_MM, 2)
-    
+        return self._thickness * M_TO_MM
+
     @property
     def volume(self) -> float:
         """Total volume in cm³."""
         if self._volume is None:
             return None
-        return np.round(self._volume * M_TO_CM**3, 2)
-    
+        return self._volume * M_TO_CM**3
+
     @property
     def mass(self) -> float:
         """Total mass in g."""
-        return np.round(self._mass * KG_TO_G, 2)
+        return self._mass * KG_TO_G
 
     @property
     def cost(self) -> float:
         """Total cost in $."""
-        return np.round(self._cost, 2)
+        return self._cost
 
     @property
     def name(self) -> str:
@@ -652,22 +648,22 @@ class FlexFrameEncapsulation(_Container, DatumMixin):
     @property
     def width(self) -> float:
         """Width of the laminate sheets in mm."""
-        return round(self._width * M_TO_MM, 2)
+        return self._width * M_TO_MM
 
     @property
     def height(self) -> float:
         """Height of the laminate sheets in mm."""
-        return round(self._height * M_TO_MM, 2)
-    
+        return self._height * M_TO_MM
+
     @property
     def mass_breakdown(self) -> dict:
         """Mass breakdown by component in g."""
-        return round_dict_recursive(self._mass_breakdown, 2, KG_TO_G)
+        return round_dict_recursive(self._mass_breakdown, precision=None, unit_conversion=KG_TO_G)
 
     @property
     def cost_breakdown(self) -> dict:
         """Cost breakdown by component in $."""
-        return round_dict_recursive(self._cost_breakdown, 2)
+        return round_dict_recursive(self._cost_breakdown, precision=None)
     
     @flex_frame.setter
     @calculate_all_properties

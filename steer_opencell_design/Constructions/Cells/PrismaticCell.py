@@ -194,8 +194,8 @@ class PrismaticCell(_Cell):
         _assemblies_length = self._reference_electrode_assembly._thickness * self._n_electrode_assembly
         _encapsulation_length = self._encapsulation._canister._length
         _largest_length = max(_assemblies_length, _encapsulation_length)
-        return np.round(_largest_length * M_TO_MM, 2)
-    
+        return _largest_length * M_TO_MM
+
     @property
     def length_range(self) -> float:
         """Get the valid range for cell length in mm."""
@@ -203,10 +203,10 @@ class PrismaticCell(_Cell):
         assemblies_minimum_length = assemblies_thickness_range[0] * self._n_electrode_assembly + self._encapsulation._canister._wall_thickness * 2 * M_TO_MM
         assemblies_maximum_length = assemblies_thickness_range[1] * self._n_electrode_assembly + self._encapsulation._canister._wall_thickness * 2 * M_TO_MM
         return (
-            np.round(assemblies_minimum_length, 2), 
-            np.round(assemblies_maximum_length, 2)
+            assemblies_minimum_length,
+            assemblies_maximum_length,
         )
-    
+
     @property
     def length_hard_range(self) -> float:
         """Get the hard limit range for cell length in mm."""
@@ -214,8 +214,8 @@ class PrismaticCell(_Cell):
         assemblies_minimum_length = assemblies_thickness_range[0] * self._n_electrode_assembly + self._encapsulation._canister._wall_thickness * 2 * M_TO_MM
         assemblies_maximum_length = assemblies_thickness_range[1] * self._n_electrode_assembly + self._encapsulation._canister._wall_thickness * 2 * M_TO_MM
         return (
-            np.round(assemblies_minimum_length, 2), 
-            np.round(assemblies_maximum_length, 2)
+            assemblies_minimum_length,
+            assemblies_maximum_length,
         )
     
     @property
@@ -231,8 +231,8 @@ class PrismaticCell(_Cell):
         
         _largest_width = max(_layup_width, _canister_width)
         
-        return np.round(_largest_width * M_TO_MM, 2)
-    
+        return _largest_width * M_TO_MM
+
     @property
     def width_range(self) -> Tuple[float, float]:
         """Get the valid range for cell width in mm."""
@@ -249,10 +249,7 @@ class PrismaticCell(_Cell):
         minimum_width = layup_width_range[0] + additional_width
         maximum_width = layup_width_range[1] + additional_width
 
-        return (
-            np.round(minimum_width, 2), 
-            np.round(maximum_width, 2)
-        )
+        return (minimum_width, maximum_width)
 
     @property
     def width_hard_range(self) -> Tuple[float, float]:
@@ -270,10 +267,7 @@ class PrismaticCell(_Cell):
         minimum_width = layup_width_range[0] + additional_width
         maximum_width = layup_width_range[1] + additional_width
 
-        return (
-            np.round(minimum_width, 2), 
-            np.round(maximum_width, 2)
-        )
+        return (minimum_width, maximum_width)
     
     @property
     def n_electrode_assembly(self) -> int:
@@ -299,13 +293,13 @@ class PrismaticCell(_Cell):
 
         _largest_height = max(_layup_height, _canister_height)
         
-        return np.round(_largest_height * M_TO_MM, 2)
-    
+        return _largest_height * M_TO_MM
+
     @property
     def height_range(self) -> Tuple[float, float]:
         """Get the valid range for cell height in mm."""
         from steer_opencell_design.Constructions.Layups.Laminate import Laminate
-        
+
         # Laminate uses width_range for y-dimension, MonoLayer uses height_range
         layup = self._reference_electrode_assembly.layup
         if isinstance(layup, Laminate):
@@ -321,16 +315,13 @@ class PrismaticCell(_Cell):
         minimum_height = layup_height_range[0] + additional_height
         maximum_height = layup_height_range[1] + additional_height
 
-        return (
-            np.round(minimum_height, 2), 
-            np.round(maximum_height, 2)
-        )
-    
+        return (minimum_height, maximum_height)
+
     @property
     def height_hard_range(self) -> Tuple[float, float]:
         """Get the hard limit range for cell height in mm."""
         from steer_opencell_design.Constructions.Layups.Laminate import Laminate
-        
+
         # Laminate uses width_hard_range for y-dimension, MonoLayer uses height_hard_range
         layup = self._reference_electrode_assembly.layup
         if isinstance(layup, Laminate):
@@ -346,10 +337,7 @@ class PrismaticCell(_Cell):
         minimum_height = layup_height_range[0] + additional_height
         maximum_height = layup_height_range[1] + additional_height
 
-        return (
-            np.round(minimum_height, 2), 
-            np.round(maximum_height, 2)
-        )
+        return (minimum_height, maximum_height)
 
     @height.setter
     @calculate_all_properties
@@ -406,7 +394,7 @@ class PrismaticCell(_Cell):
         """Get clipped tab length."""
         if self._clipped_tab_length is None:
             return None
-        return np.round(self._clipped_tab_length * M_TO_MM, 2)
+        return self._clipped_tab_length * M_TO_MM
     
     @property
     def clipped_tab_length_range(self) -> Tuple[float, float]:

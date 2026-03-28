@@ -39,15 +39,6 @@ VOLTAGE_GUIDE_MARGIN_LOWER = 0.95
 VOLTAGE_GUIDE_MARGIN_UPPER = 1.05
 CAPACITY_GUIDE_EXTENSION = 1.1
 
-# Precision constants for different property types
-MASS_PRECISION = 2
-ENERGY_PRECISION = 2
-CAPACITY_PRECISION = 2
-VOLTAGE_PRECISION = 2
-CURVE_PRECISION = 4
-COST_PRECISION = 2
-
-
 class _Cell(
     ABC,
     DunderMixin,
@@ -334,9 +325,6 @@ class _Cell(
         charge_curve = np.vstack((charge_curve, charge_curve[-1, :]))
         combined_curve = np.vstack((charge_curve, discharge_curve))
 
-        # round curves
-        combined_curve = np.round(combined_curve, CURVE_PRECISION)
-        
         # Create DataFrame with all columns at once (more efficient)
         return pd.DataFrame({
             "Capacity (Ah)": combined_curve[:, 0],
@@ -584,16 +572,16 @@ class _Cell(
 
         # Cache ranges
         self._irreversible_capacity_range_cache = (
-            np.round(min(irr_at_low_voltage, irr_at_high_voltage), CAPACITY_PRECISION),
-            np.round(max(irr_at_low_voltage, irr_at_high_voltage), CAPACITY_PRECISION)
+            min(irr_at_low_voltage, irr_at_high_voltage),
+            max(irr_at_low_voltage, irr_at_high_voltage),
         )
         self._reversible_capacity_range_cache = (
-            np.round(min(rev_at_high_min_voltage, rev_at_low_min_voltage), CAPACITY_PRECISION),
-            np.round(max(rev_at_high_min_voltage, rev_at_low_min_voltage), CAPACITY_PRECISION)
+            min(rev_at_high_min_voltage, rev_at_low_min_voltage),
+            max(rev_at_high_min_voltage, rev_at_low_min_voltage),
         )
         self._capacity_loss_range_cache = (
-            np.round(min(loss_at_high_min_voltage, loss_at_low_min_voltage), CAPACITY_PRECISION),
-            np.round(max(loss_at_high_min_voltage, loss_at_low_min_voltage), CAPACITY_PRECISION)
+            min(loss_at_high_min_voltage, loss_at_low_min_voltage),
+            max(loss_at_high_min_voltage, loss_at_low_min_voltage),
         )
 
     def _snapshot_electrochemical_state(self) -> dict:
@@ -930,7 +918,7 @@ class _Cell(
     @property
     def volume(self) -> float:
         """Cell volume in liters."""
-        return np.round(self._encapsulation._volume * M_TO_DM**3, MASS_PRECISION)
+        return self._encapsulation._volume * M_TO_DM**3
 
     @property
     def reference_chemistry(self) -> str:
@@ -1012,7 +1000,7 @@ class _Cell(
     @property
     def electrolyte_overfill(self) -> float:
         """Get the electrolyte overfill percentage."""
-        return np.round(self._electrolyte_overfill * FRACTION_TO_PERCENT, MASS_PRECISION)
+        return self._electrolyte_overfill * FRACTION_TO_PERCENT
     
     @property
     def electrolyte_overfill_range(self) -> Tuple[float, float]:
@@ -1032,32 +1020,32 @@ class _Cell(
     @property
     def cost(self) -> float:
         """Cell cost in dollars."""
-        return np.round(self._cost, COST_PRECISION)
+        return self._cost
 
     @property
     def mass(self) -> float:
         """Cell mass in grams."""
-        return np.round(self._mass * KG_TO_G, MASS_PRECISION)
+        return self._mass * KG_TO_G
 
     @property
     def energy(self) -> float:
         """Cell energy in kWh."""
-        return np.round(self._energy * ENERGY_CONVERSION_FACTOR, ENERGY_PRECISION)
-    
+        return self._energy * ENERGY_CONVERSION_FACTOR
+
     @property
     def specific_energy(self) -> float:
         """Cell specific energy in Wh/kg."""
-        return np.round(self._specific_energy * ENERGY_CONVERSION_FACTOR, ENERGY_PRECISION)
-    
+        return self._specific_energy * ENERGY_CONVERSION_FACTOR
+
     @property
     def volumetric_energy(self) -> float:
         """Cell volumetric energy in Wh/L."""
-        return np.round(self._volumetric_energy * VOLUMETRIC_ENERGY_CONVERSION, ENERGY_PRECISION)
+        return self._volumetric_energy * VOLUMETRIC_ENERGY_CONVERSION
 
     @property
     def cost_per_energy(self) -> float:
         """Cell cost per energy in $/kWh."""
-        return np.round(self._cost_per_energy * NORMALISED_COST_CONVERSION, MASS_PRECISION)
+        return self._cost_per_energy * NORMALISED_COST_CONVERSION
 
     @property
     def cost_breakdown(self) -> Dict[str, Any]:
@@ -1068,7 +1056,7 @@ class _Cell(
         Dict[str, Any]
             Nested dictionary containing cost breakdown by component
         """
-        return round_dict_recursive(self._cost_breakdown, MASS_PRECISION)
+        return round_dict_recursive(self._cost_breakdown, precision=None)
 
     @property
     def mass_breakdown(self) -> Dict[str, Any]:
@@ -1079,22 +1067,22 @@ class _Cell(
         Dict[str, Any]
             Nested dictionary containing mass breakdown by component
         """
-        return round_dict_recursive(self._mass_breakdown, MASS_PRECISION, KG_TO_G)
+        return round_dict_recursive(self._mass_breakdown, precision=None, unit_conversion=KG_TO_G)
 
     @property
     def reversible_capacity(self) -> float:
         """Reversible capacity in Ah."""
-        return np.round(self._reversible_capacity * S_TO_H, CAPACITY_PRECISION)
+        return self._reversible_capacity * S_TO_H
 
     @property
     def irreversible_capacity(self) -> float:
         """Irreversible (total) capacity in Ah - max capacity reached at full charge."""
-        return np.round(self._irreversible_capacity * S_TO_H, CAPACITY_PRECISION)
+        return self._irreversible_capacity * S_TO_H
 
     @property
     def capacity_loss(self) -> float:
         """Capacity loss in Ah - capacity remaining at minimum voltage."""
-        return np.round(self._capacity_loss * S_TO_H, CAPACITY_PRECISION)
+        return self._capacity_loss * S_TO_H
 
     @property
     def capacity_loss_range(self) -> Tuple[float, float]:
@@ -1288,35 +1276,35 @@ class _Cell(
     def operating_voltage_window(self) -> Tuple[float, float]:
         """Operating voltage window (min, max) in volts."""
         return (
-            np.round(self._operating_voltage_window[0], VOLTAGE_PRECISION),
-            np.round(self._operating_voltage_window[1], VOLTAGE_PRECISION),
+            self._operating_voltage_window[0],
+            self._operating_voltage_window[1],
         )
-    
+
     @property
     def maximum_operating_voltage_range(self) -> Tuple[float, float]:
         """Maximum operating voltage range in volts."""
         return (
-            np.round(self._maximum_operating_voltage_range[0], VOLTAGE_PRECISION),
-            np.round(self._maximum_operating_voltage_range[1], VOLTAGE_PRECISION),
+            self._maximum_operating_voltage_range[0],
+            self._maximum_operating_voltage_range[1],
         )
-    
+
     @property
     def maximum_operating_voltage(self) -> float:
         """Maximum operating voltage in volts."""
-        return np.round(self._maximum_operating_voltage, VOLTAGE_PRECISION)
-    
+        return self._maximum_operating_voltage
+
     @property
     def minimum_operating_voltage_range(self) -> Tuple[float, float]:
         """Minimum operating voltage range in volts."""
         return (
-            np.round(self._minimum_operating_voltage_range[0], VOLTAGE_PRECISION),
-            np.round(self._minimum_operating_voltage_range[1], VOLTAGE_PRECISION),
+            self._minimum_operating_voltage_range[0],
+            self._minimum_operating_voltage_range[1],
         )
-    
+
     @property
     def minimum_operating_voltage(self) -> float:
         """Minimum operating voltage in volts."""
-        return np.round(self._minimum_operating_voltage, VOLTAGE_PRECISION)
+        return self._minimum_operating_voltage
     
     @property
     def reference_electrode_assembly(self) -> _ElectrodeAssembly:

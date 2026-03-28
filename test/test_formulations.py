@@ -52,8 +52,8 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
         self.assertEqual(len(self.cathode_formulation._conductive_additives), 2)
         self.assertEqual(self.cathode_formulation._name, "Cathode Formulation")
         self.assertEqual(self.cathode_formulation.name, "Cathode Formulation")
-        self.assertEqual(self.cathode_formulation.density, 3.43)
-        self.assertEqual(self.cathode_formulation.specific_cost, 11.29)
+        self.assertAlmostEqual(self.cathode_formulation.density, 3.43, places=2)
+        self.assertAlmostEqual(self.cathode_formulation.specific_cost, 11.29, places=2)
 
     def test_serialization(self):
         serialized = self.cathode_formulation.serialize()
@@ -65,9 +65,9 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
 
         self.cathode_formulation.mass = 0.45
 
-        self.assertEqual(self.cathode_formulation.mass, 0.45)
-        self.assertEqual(self.cathode_formulation.cost, 0.01)
-        self.assertEqual(self.cathode_formulation.volume, 0.13)
+        self.assertAlmostEqual(self.cathode_formulation.mass, 0.45, places=10)
+        self.assertAlmostEqual(self.cathode_formulation.cost, 0.01, places=2)
+        self.assertAlmostEqual(self.cathode_formulation.volume, 0.13, places=2)
 
         material_masses = 0
         for material in self.cathode_formulation.active_materials.keys():
@@ -97,7 +97,7 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
         self.assertAlmostEqual(material_volumes, self.cathode_formulation._volume, 10)
 
         self.assertEqual(
-            self.cathode_formulation.mass_breakdown,
+            {k: round(v, 2) for k, v in self.cathode_formulation.mass_breakdown.items()},
             {
                 "NaNiMn P2-O3 Composite": 0.41,
                 "PVDF": 0.01,
@@ -108,7 +108,7 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
         )
 
         self.assertEqual(
-            self.cathode_formulation.cost_breakdown,
+            {k: round(v, 2) for k, v in self.cathode_formulation.cost_breakdown.items()},
             {
                 "NaNiMn P2-O3 Composite": 0.0,
                 "PVDF": 0.0,
@@ -135,9 +135,9 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
 
         self.cathode_formulation.volume = 0.2
 
-        self.assertEqual(self.cathode_formulation.volume, 0.2)
-        self.assertEqual(self.cathode_formulation.mass, 0.69)
-        self.assertEqual(self.cathode_formulation.cost, 0.01)
+        self.assertAlmostEqual(self.cathode_formulation.volume, 0.2, places=10)
+        self.assertAlmostEqual(self.cathode_formulation.mass, 0.69, places=2)
+        self.assertAlmostEqual(self.cathode_formulation.cost, 0.01, places=2)
 
         material_masses = 0
         for material in self.cathode_formulation.active_materials.keys():
@@ -299,8 +299,8 @@ class TestMultiCathodeFormulation(unittest.TestCase):
         self.assertEqual(len(self.cathode_formulation._conductive_additives), 2)
         self.assertEqual(self.cathode_formulation._name, "Cathode Formulation")
         self.assertEqual(self.cathode_formulation.name, "Cathode Formulation")
-        self.assertEqual(self.cathode_formulation.density, 3.37)
-        self.assertEqual(self.cathode_formulation.specific_cost, 8.64)
+        self.assertAlmostEqual(self.cathode_formulation.density, 3.37, places=2)
+        self.assertAlmostEqual(self.cathode_formulation.specific_cost, 8.64, places=2)
 
         figure = self.cathode_formulation.plot_specific_capacity_curve(add_materials=True)
 
@@ -336,8 +336,8 @@ class TestMultiCathodeFormulation(unittest.TestCase):
         self.cathode_formulation.active_materials = {self.cathode_active_material1: 90}
         self.cathode_formulation.voltage_cutoff = 4.09
 
-        self.assertEqual(self.cathode_formulation.density, 3.3)
-        self.assertEqual(self.cathode_formulation.specific_cost, 7.24)
+        self.assertAlmostEqual(self.cathode_formulation.density, 3.3, places=1)
+        self.assertAlmostEqual(self.cathode_formulation.specific_cost, 7.24, places=2)
 
         figure = self.cathode_formulation.plot_specific_capacity_curve(add_materials=True)
         # figure.show()
@@ -377,8 +377,8 @@ class TestSimpleAnodeFormulation(unittest.TestCase):
         self.assertEqual(len(self.anode_formulation._conductive_additives), 1)
         self.assertEqual(self.anode_formulation._name, "Anode Formulation")
         self.assertEqual(self.anode_formulation.name, "Anode Formulation")
-        self.assertEqual(self.anode_formulation.density, 1.53)
-        self.assertEqual(self.anode_formulation.specific_cost, 13.67)
+        self.assertAlmostEqual(self.anode_formulation.density, 1.53, places=2)
+        self.assertAlmostEqual(self.anode_formulation.specific_cost, 13.67, places=2)
 
         figure = self.anode_formulation.plot_specific_capacity_curve(add_materials=True)
         # figure.show()
@@ -426,8 +426,8 @@ class TestDualAnodeFormulation(unittest.TestCase):
         self.assertEqual(len(self.anode_formulation._conductive_additives), 1)
         self.assertEqual(self.anode_formulation._name, "Anode Formulation")
         self.assertEqual(self.anode_formulation.name, "Anode Formulation")
-        self.assertEqual(self.anode_formulation.density, 1.54)
-        self.assertEqual(self.anode_formulation.specific_cost, 5.81)
+        self.assertAlmostEqual(self.anode_formulation.density, 1.54, places=2)
+        self.assertAlmostEqual(self.anode_formulation.specific_cost, 5.81, places=2)
 
     def test_plot_specific_capacity_curve(self):
         figure = self.anode_formulation.plot_specific_capacity_curve(add_materials=True)

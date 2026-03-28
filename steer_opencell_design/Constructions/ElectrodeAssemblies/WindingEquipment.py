@@ -214,23 +214,22 @@ class _Mandrel(
     @property
     def length(self) -> float:
         """Return the mandrel length in mm."""
-        return np.round(self._length * M_TO_MM, 2)
+        return self._length * M_TO_MM
 
     # Override datum setter to use decorator
     @DatumMixin.datum.setter
     @calculate_coordinates
     def datum(self, value: Tuple[float, float, float]):
-        
         self._datum = (
-            np.round(value[0] * MM_TO_M, 6),
-            np.round(value[1] * MM_TO_M, 6),
-            np.round(value[2] * MM_TO_M, 6),
+            value[0] * MM_TO_M,
+            value[1] * MM_TO_M,
+            value[2] * MM_TO_M,
         )
 
     @length.setter
     @calculate_coordinates
     def length(self, value: float):
-        self._length = np.round(value * MM_TO_M, 6)
+        self._length = value * MM_TO_M
 
 
 class RoundMandrel(_Mandrel):
@@ -319,7 +318,7 @@ class RoundMandrel(_Mandrel):
     @property
     def radius(self) -> float:
         """Return the mandrel radius in mm."""
-        return np.round(self._radius * M_TO_MM, 2)
+        return self._radius * M_TO_MM
 
     @property
     def radius_range(self) -> Tuple[float, float]:
@@ -329,7 +328,7 @@ class RoundMandrel(_Mandrel):
     @property
     def diameter(self) -> float:
         """Return the mandrel diameter in mm."""
-        return np.round(self._diameter * M_TO_MM, 2)
+        return self._diameter * M_TO_MM
 
     @property
     def diameter_range(self) -> Tuple[float, float]:
@@ -343,7 +342,7 @@ class RoundMandrel(_Mandrel):
     @diameter.setter
     @calculate_all_properties
     def diameter(self, value: float):
-        self._diameter = np.round(value * MM_TO_M, 6)
+        self._diameter = value * MM_TO_M
 
 
 class FlatMandrel(_Mandrel):
@@ -456,17 +455,17 @@ class FlatMandrel(_Mandrel):
     @property
     def radius(self) -> float:
         """Return the mandrel radius (half of height) in mm."""
-        return np.round(self._radius * M_TO_MM, 2)
+        return self._radius * M_TO_MM
 
     @property
     def straight_length(self) -> float:
         """Return the straight segment length in mm."""
-        return np.round(self._straight_length * M_TO_MM, 2)
+        return self._straight_length * M_TO_MM
 
     @property
     def width(self) -> float:
         """Return the mandrel width in mm."""
-        return np.round(self._width * M_TO_MM, 2)
+        return self._width * M_TO_MM
 
     @property
     def width_range(self) -> Tuple[float, float]:
@@ -487,7 +486,7 @@ class FlatMandrel(_Mandrel):
     @property
     def height(self) -> float:
         """Return the mandrel height in mm."""
-        return np.round(self._height * M_TO_MM, 2)
+        return self._height * M_TO_MM
     
     @property
     def height_range(self) -> Tuple[float, float]:
@@ -498,13 +497,13 @@ class FlatMandrel(_Mandrel):
     @calculate_all_properties
     def width(self, value: float):
         self.validate_positive_float(value, "width")
-        self._width = np.round(value * MM_TO_M, 6)
+        self._width = value * MM_TO_M
 
     @height.setter
     @calculate_all_properties
     def height(self, value: float):
         self.validate_positive_float(value, "height")
-        self._height = np.round(value * MM_TO_M, 6)
+        self._height = value * MM_TO_M
 
     @radius.setter
     @calculate_all_properties

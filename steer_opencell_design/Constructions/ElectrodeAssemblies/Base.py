@@ -235,7 +235,7 @@ class _ElectrodeAssembly(
     @property
     def pore_volume(self) -> float:
         """Return the pore volume of the electrode assembly."""
-        return np.round(self._pore_volume * M_TO_CM**3, 2)
+        return self._pore_volume * M_TO_CM**3
 
     @property
     def name(self) -> str:
@@ -245,7 +245,7 @@ class _ElectrodeAssembly(
     @property
     def interfacial_area(self) -> float:
         """Return the interfacial area of the electrode assembly in cm²."""
-        return np.round(self._interfacial_area * M_TO_CM**2, 2)
+        return self._interfacial_area * M_TO_CM**2
 
     @property
     def layup(self) -> _Layup:
@@ -356,7 +356,7 @@ class _ElectrodeAssembly(
     @property
     def cost(self) -> float:
         """Return the cost of the electrode assembly in $."""
-        return np.round(self._cost, 2)
+        return self._cost
 
     @property
     def cost_breakdown(self) -> Dict[str, Any]:
@@ -365,13 +365,12 @@ class _ElectrodeAssembly(
 
         :return: Dictionary containing the cost breakdown.
         """
-
-        return round_dict_recursive(self._cost_breakdown, 2)
+        return round_dict_recursive(self._cost_breakdown, precision=None)
 
     @property
     def mass(self) -> float:
         """Return the mass of the electrode assembly in g."""
-        return np.round(self._mass * KG_TO_G, 2)
+        return self._mass * KG_TO_G
 
     @property
     def mass_breakdown(self) -> Dict[str, Any]:
@@ -380,7 +379,7 @@ class _ElectrodeAssembly(
 
         :return: Dictionary containing the mass breakdown.
         """
-        return round_dict_recursive(self._mass_breakdown, 2, KG_TO_G)
+        return round_dict_recursive(self._mass_breakdown, precision=None, unit_conversion=KG_TO_G)
 
     # Override datum setter to sync with layup
     @DatumMixin.datum.setter

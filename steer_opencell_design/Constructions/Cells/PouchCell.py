@@ -315,7 +315,7 @@ class PouchCell(_Cell):
     @property
     def side_seal_thickness(self) -> float:
         """Get side seal thickness."""
-        return np.round(self._side_seal_thickness * M_TO_MM, 2)
+        return self._side_seal_thickness * M_TO_MM
     
     @property
     def side_seal_thickness_range(self) -> Tuple[float, float]:
@@ -330,7 +330,7 @@ class PouchCell(_Cell):
     @property
     def top_seal_thickness(self) -> float:
         """Get top seal thickness."""
-        return np.round(self._top_seal_thickness * M_TO_MM, 2)
+        return self._top_seal_thickness * M_TO_MM
     
     @property
     def top_seal_thickness_range(self) -> Tuple[float, float]:
@@ -345,7 +345,7 @@ class PouchCell(_Cell):
     @property
     def bottom_seal_thickness(self) -> float:
         """Get bottom seal thickness."""
-        return np.round(self._bottom_seal_thickness * M_TO_MM, 2)
+        return self._bottom_seal_thickness * M_TO_MM
     
     @property
     def bottom_seal_thickness_range(self) -> Tuple[float, float]:
@@ -370,7 +370,7 @@ class PouchCell(_Cell):
     @property
     def clipped_tab_length(self) -> float:
         """Get clipped tab length."""
-        return np.round(self._clipped_tab_length * M_TO_MM, 2)
+        return self._clipped_tab_length * M_TO_MM
     
     @property
     def clipped_tab_length_range(self) -> Tuple[float, float]:
@@ -457,16 +457,16 @@ class PouchCell(_Cell):
         _assembly_thickness = self._reference_electrode_assembly._thickness * self._n_electrode_assembly
         _laminate_thickness = self._encapsulation._top_laminate._thickness + self._encapsulation._bottom_laminate._thickness
         _total_thickness = _assembly_thickness + _laminate_thickness
-        total_thickness = np.round(_total_thickness * M_TO_MM, 2)
+        total_thickness = _total_thickness * M_TO_MM
         return total_thickness
-    
+
     @property
     def thickness_range(self) -> float:
         """Get the valid range for cell thickness in mm."""
         assembly_thickness_range = self._reference_electrode_assembly.thickness_range
         laminate_thickness = (self._encapsulation._top_laminate._thickness + self._encapsulation._bottom_laminate._thickness) * M_TO_MM
-        min_thickness = np.round(assembly_thickness_range[0] * self._n_electrode_assembly + laminate_thickness, 2)
-        max_thickness = np.round(assembly_thickness_range[1] * self._n_electrode_assembly + laminate_thickness, 2)
+        min_thickness = assembly_thickness_range[0] * self._n_electrode_assembly + laminate_thickness
+        max_thickness = assembly_thickness_range[1] * self._n_electrode_assembly + laminate_thickness
         return (min_thickness, max_thickness)
     
     @property

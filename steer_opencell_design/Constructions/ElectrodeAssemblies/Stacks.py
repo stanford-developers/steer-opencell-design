@@ -445,7 +445,7 @@ class _Stack(_ElectrodeAssembly):
     @property
     def n_layers(self) -> int:
         """Return the number of layers in the stack."""
-        return np.round(self._n_layers, 0)
+        return self._n_layers
     
     @property
     def n_layers_range(self) -> Tuple[int, int]:
@@ -460,7 +460,7 @@ class _Stack(_ElectrodeAssembly):
     @property
     def thickness(self) -> float:
         """Return the total thickness of the stack in mm."""
-        return np.round(self._thickness * M_TO_MM, 2)
+        return self._thickness * M_TO_MM
     
     @property
     def thickness_range(self) -> Tuple[float, float]:

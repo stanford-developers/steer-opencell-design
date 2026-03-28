@@ -369,27 +369,27 @@ class Separator(
         """Get the total separator cost in $."""
         if self._cost is None:
             return None
-        return np.round(self._cost, 2)
+        return self._cost
 
     @property
     def mass(self) -> float:
         """Get the total separator mass in g."""
         if self._mass is None:
             return None
-        return np.round(self._mass * KG_TO_G, 2)
+        return self._mass * KG_TO_G
 
     @property
     def area(self) -> float:
         """Get the separator area in cm²."""
         if self._area is None:
             return None
-        return np.round(self._area * M_TO_CM**2, 2)
+        return self._area * M_TO_CM**2
 
     @property
     def areal_cost(self) -> float:
         """Get the separator areal cost in $/m²."""
-        return np.round(self._areal_cost, 2)
-    
+        return self._areal_cost
+
     @property
     def areal_cost_range(self) -> Tuple[float, float]:
         """Get the allowable areal cost range in $/cm²."""
@@ -398,8 +398,8 @@ class Separator(
         _areal_cost_minimum = _specific_cost_minimum * self.material._density * self._thickness
         _areal_cost_maximum = _specific_cost_maximum * self.material._density * self._thickness
         return (
-            np.round(_areal_cost_minimum, 2),
-            np.round(_areal_cost_maximum, 2),
+            _areal_cost_minimum,
+            _areal_cost_maximum,
         )
 
     @property
@@ -407,7 +407,7 @@ class Separator(
         """Get the separator pore volume in mm³."""
         if self._pore_volume is None:
             return None
-        return np.round(self._pore_volume * M_TO_MM**3, 2)
+        return self._pore_volume * M_TO_MM**3
 
     @property
     def name(self) -> str:
@@ -419,15 +419,15 @@ class Separator(
         """Get the separator length in mm."""
         if self._length is None:
             return None
-        return np.round(self._length * M_TO_MM, 2)
+        return self._length * M_TO_MM
 
     @property
     def length_range(self):
         """Get the allowable separator length range in mm."""
         if hasattr(self, "_length_range") and hasattr(self, "_length"):
             return (
-                np.round(self._length_range[0] * M_TO_MM, 2),
-                np.round(self._length_range[1] * M_TO_MM, 2),
+                self._length_range[0] * M_TO_MM,
+                self._length_range[1] * M_TO_MM,
             )
         else:
             return (0, 500)
@@ -437,15 +437,15 @@ class Separator(
         """Get the separator width in mm."""
         if self._width is None:
             return None
-        return np.round(self._width * M_TO_MM, 2)
+        return self._width * M_TO_MM
 
     @property
     def width_range(self):
         """Get the allowable separator width range in mm."""
         if hasattr(self, "_width_range"):
             return (
-                np.round(self._width_range[0] * M_TO_MM, 2),
-                np.round(self._width_range[1] * M_TO_MM, 2),
+                self._width_range[0] * M_TO_MM,
+                self._width_range[1] * M_TO_MM,
             )
         else:
             return (0, 300)
@@ -458,7 +458,7 @@ class Separator(
     @property
     def thickness(self):
         """Get the separator thickness in um."""
-        return np.round(self._thickness * M_TO_UM, 2)
+        return self._thickness * M_TO_UM
 
     @property
     def thickness_range(self):
