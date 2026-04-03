@@ -572,14 +572,6 @@ class _Stack(_ElectrodeAssembly):
         # Validate input
         self.validate_positive_float(target_thickness, "thickness")
         
-        # Check if target is within achievable range
-        thickness_min, thickness_max = self.thickness_range
-        if target_thickness < thickness_min or target_thickness > thickness_max:
-            raise ValueError(
-                f"Target thickness {target_thickness} mm is outside achievable range of "
-                f"{thickness_min} mm to {thickness_max} mm."
-            )
-        
         # Get the linear relationship parameters
         min_n_layers, max_n_layers = self.n_layers_hard_range
         min_thickness, max_thickness = self.thickness_hard_range
