@@ -72,6 +72,22 @@ from .Constructions.Cells.PrismaticCell import PrismaticCell
 from .Constructions.Cells.PouchCell import PouchCell
 from .Constructions.Cells.FlexFrameCell import FlexFrameCell
 
+# import simulation helpers
+from .Simulation import (
+    DFNRunner,
+    MissingPyBaMMDependencyError,
+    MissingPyBaMMParametersError,
+    PyBaMMGeometry,
+    PyBaMMIntegrationError,
+    RateCapabilityResult,
+    RateCurveResult,
+    UnsupportedCellForPyBaMMError,
+    build_pybamm_parameter_values,
+    extract_pybamm_geometry,
+    simulate_rate_capability,
+    validate_pybamm_parameter_values,
+)
+
 
 
 

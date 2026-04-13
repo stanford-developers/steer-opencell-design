@@ -32,6 +32,9 @@ test = [
     "pytest>=7.0",
     "pytest-cov",
 ]
+pybamm = [
+    "pybamm",
+]
 docs = [
     "mkdocs>=1.5",
     "mkdocs-material>=9.0",
