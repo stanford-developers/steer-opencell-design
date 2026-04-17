@@ -2931,7 +2931,11 @@ class SpiralCalculator:
 
     @staticmethod
     def rotate_spiral_to_minimize_thickness(
-        spiral_data, x_col: int = X_COORD_COL, z_col: int = Z_COORD_COL
+        spiral_data,
+        x_col: int = X_COORD_COL,
+        z_col: int = Z_COORD_COL,
+        initial_angle: Optional[float] = None,
+        bracket_width: float = np.pi / 30.0,
     ):
         """Rotate spiral data in x-z plane to minimize overall thickness.
 
@@ -2948,6 +2952,16 @@ class SpiralCalculator:
             Column index for x coordinates (default: X_COORD_COL)
         z_col : int, optional
             Column index for z coordinates (default: Z_COORD_COL)
+        initial_angle : float, optional
+            If provided, warm-starts the search with a narrow ``brent``
+            bracket of half-width ``bracket_width`` around this angle (mod π).
+            Otherwise falls back to a full ``bounded`` search over ``(0, π)``.
+            Used by the FlatWound thickness/width setters to amortize the
+            inner Brent across outer Brent iterations.
+        bracket_width : float, optional
+            Half-width of the warm-start bracket in radians (default π/30 ≈ 6°).
+            Wide enough to absorb iter-to-iter angle drift; narrow enough that
+            ``brent`` converges in ~3 evaluations.
 
         Returns
         -------
@@ -3002,11 +3016,37 @@ class SpiralCalculator:
             thickness = np.max(z_rotated) - np.min(z_rotated)
             return thickness
 
-        # Use Brent's method (via minimize_scalar) to find angle that minimizes thickness
-        result = minimize_scalar(
-            compute_thickness_at_angle, bounds=(0, np.pi), method="bounded"
-        )
-        optimal_angle = float(result.x)  # type: ignore[union-attr]
+        # Use Brent's method (via minimize_scalar) to find angle that minimizes
+        # thickness. When the caller supplies an ``initial_angle`` (warm-start
+        # from a previous outer-Brent iteration) we run a narrow ``brent``
+        # search around it instead of the full ``bounded`` sweep over (0, π).
+        # The narrow bracket converges in ~3 function evals vs ~15 for bounded.
+        if initial_angle is not None:
+            seed = float(initial_angle) % np.pi
+            lo = seed - bracket_width
+            hi = seed + bracket_width
+            try:
+                result = minimize_scalar(
+                    compute_thickness_at_angle,
+                    bracket=(lo, seed, hi),
+                    method="brent",
+                    options={"xtol": 1e-4},
+                )
+            except (ValueError, RuntimeError):
+                # Bracket failed (e.g. seed near 0/π or non-convex locally).
+                # Fall back to the robust bounded search.
+                result = minimize_scalar(
+                    compute_thickness_at_angle,
+                    bounds=(0, np.pi),
+                    method="bounded",
+                )
+        else:
+            result = minimize_scalar(
+                compute_thickness_at_angle,
+                bounds=(0, np.pi),
+                method="bounded",
+            )
+        optimal_angle = float(result.x) % np.pi  # type: ignore[union-attr]
 
         # Apply the optimal rotation to the spiral data
         c, s = np.cos(optimal_angle), np.sin(optimal_angle)
