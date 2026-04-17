@@ -4,6 +4,10 @@ from base64 import b64decode, b64encode
 from copy import deepcopy
 
 from steer_opencell_design.Materials.Other import CurrentCollectorMaterial
+from steer_opencell_design.Components.CurrentCollectors.Base import (
+    _TabbedCurrentCollector,
+    _TapeCurrentCollector,
+)
 from steer_opencell_design.Components.CurrentCollectors.Punched import PunchedCurrentCollector
 from steer_opencell_design.Components.CurrentCollectors.Notched import NotchedCurrentCollector
 from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector, WeldTab
@@ -14,6 +18,44 @@ import plotly.graph_objects as go
 import os
 
 os.environ["OPENCELL_ENV"] = "development"
+
+
+class TestNotchedMROStability(unittest.TestCase):
+    """Guard rail for the multiple-inheritance diamond in ``NotchedCurrentCollector``.
+
+    ``NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector)``
+    deliberately combines tab and tape behaviour. If either base is rearranged
+    or an extra base is slipped in, method-resolution-order surprises can
+    silently shadow tabbed behaviour with tape behaviour (or vice versa).
+
+    This test pins the MRO so that such changes show up in code review. The
+    expected ordering is: most-specific concrete class first, then tabbed
+    branch, then tape branch, then the shared abstract base chain.
+    """
+
+    def test_notched_mro_order(self):
+        mro_names = [cls.__name__ for cls in NotchedCurrentCollector.__mro__]
+        idx_tabbed = mro_names.index("_TabbedCurrentCollector")
+        idx_tape = mro_names.index("_TapeCurrentCollector")
+        idx_base = mro_names.index("_CurrentCollector")
+
+        self.assertLess(idx_tabbed, idx_tape,
+                        "_TabbedCurrentCollector must resolve before "
+                        "_TapeCurrentCollector in NotchedCurrentCollector's MRO")
+        self.assertLess(idx_tape, idx_base,
+                        "_TapeCurrentCollector must resolve before the shared "
+                        "_CurrentCollector base")
+        self.assertEqual(mro_names[0], "NotchedCurrentCollector")
+
+    def test_notched_inherits_both_branches(self):
+        self.assertTrue(issubclass(NotchedCurrentCollector, _TabbedCurrentCollector))
+        self.assertTrue(issubclass(NotchedCurrentCollector, _TapeCurrentCollector))
+
+    def test_tabless_inherits_notched_diamond(self):
+        """Tabless inherits from Notched, so the diamond propagates unchanged."""
+        self.assertTrue(issubclass(TablessCurrentCollector, NotchedCurrentCollector))
+        self.assertTrue(issubclass(TablessCurrentCollector, _TabbedCurrentCollector))
+        self.assertTrue(issubclass(TablessCurrentCollector, _TapeCurrentCollector))
 
 
 class TestPunchedCurrentCollector(unittest.TestCase):

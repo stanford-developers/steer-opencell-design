@@ -211,11 +211,11 @@ class CapacityCurveMixin:
     def _calculate_capacity_curve_properties(specific_capacity_curve):
 
         # get the irreversible capacity as the maximum capacity of the curve
-        _irreverible_capacity = specific_capacity_curve[:, 0].max()
+        _irreversible_capacity = specific_capacity_curve[:, 0].max()
 
         # get the reversible capacity as the maximum capacity of the discharge curve
         _discharge_mask = specific_capacity_curve[:, 2] == -1
-        _reversible_capacity = _irreverible_capacity - specific_capacity_curve[_discharge_mask, 0].min()
+        _reversible_capacity = _irreversible_capacity - specific_capacity_curve[_discharge_mask, 0].min()
 
         # return both capacities
-        return _irreverible_capacity, _reversible_capacity
+        return _irreversible_capacity, _reversible_capacity

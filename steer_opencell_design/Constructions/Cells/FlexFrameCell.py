@@ -17,13 +17,6 @@ import plotly.graph_objects as go
 import numpy as np
 
 
-# Tab alignment tolerance constant
-TAB_ALIGNMENT_TOLERANCE = 5e-6  # 5 micron tolerance for tab-terminal alignment (meters)
-
-
-calculate_encapsulation_properties = recalculate("encapsulation_properties")
-
-
 class FlexFrameCell(_Cell):
     """Flex-frame battery cell for solid-state or specialized designs. Uses a rigid polymer frame with laminate sealing instead of a metal canister."""
 
@@ -81,18 +74,6 @@ class FlexFrameCell(_Cell):
         """
         self._position_terminals()
         self._position_encapsulation()
-
-    def _clip_tabs(self) -> None:
-        """Clip current collector tabs to specified length.
-        
-        Applies the clipped tab length to all electrode assemblies if a clipped
-        tab length has been specified. Otherwise, leaves tabs at full length.
-        """
-        if self._clipped_tab_length is None:
-            return
-        
-        for assembly in self._electrode_assemblies:
-            assembly._clip_current_collector_tabs(self._clipped_tab_length)
 
     def _position_assemblies(self) -> None:
         """Position electrode assemblies with datum at the origin.
@@ -401,7 +382,7 @@ class FlexFrameCell(_Cell):
         return (0.0, max_clipped_tab_length)
 
     @clipped_tab_length.setter
-    @calculate_encapsulation_properties
+    @recalculate("encapsulation_properties")
     def clipped_tab_length(self, value: float) -> None:
         """Set clipped tab length with validation.
         
