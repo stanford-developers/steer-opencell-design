@@ -140,6 +140,9 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
     See Also
     --------
+    _TabbedCurrentCollector : Base class providing shared tab / foil / coating
+        parameters (``material``, ``thickness``, ``insulation_width``, ``name``,
+        ``datum``) that are inherited here.
     NotchedCurrentCollector : Collector with cutout features for tape connections
     TablessCurrentCollector : Collector without protruding tabs
     TabWeldedCurrentCollector : Collector with separately welded tabs

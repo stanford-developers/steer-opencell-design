@@ -284,7 +284,7 @@ class _ElectrodeAssembly(
             name=f"{self.name} Full-Cell",
             line=dict(color=color, width=3),  # Slightly thicker for emphasis
             customdata=self.capacity_curve["Direction"],
-            hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
+            hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} Ah<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
 
     @property
@@ -317,7 +317,7 @@ class _ElectrodeAssembly(
             name=f"{self.layup.anode.name} Half-Cell",
             line=dict(color=self.layup.anode.formulation.color, width=2.5),
             customdata=self.anode_capacity_curve["Direction"],
-            hovertemplate="<b>Anode</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
+            hovertemplate="<b>Anode</b><br>" + "Capacity: %{x:.2f} Ah<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
 
     @property
@@ -350,7 +350,7 @@ class _ElectrodeAssembly(
             name=f"{self.layup.cathode.name} Half-Cell",
             line=dict(color=self.layup.cathode.formulation.color, width=2.5),
             customdata=self.cathode_capacity_curve["Direction"],
-            hovertemplate="<b>Cathode</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
+            hovertemplate="<b>Cathode</b><br>" + "Capacity: %{x:.2f} Ah<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
 
     @property
