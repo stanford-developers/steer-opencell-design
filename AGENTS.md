@@ -42,6 +42,14 @@
      numba-compiled) — fallback when the surface is not piecewise-constant.
   3. **Adaptive RK4** (`_rk4_*_loop`, also numba) — kept as a reference
      implementation for cross-checks.
+- A second harness, `test/perf/bench_jellyroll_setters.py`, times the
+  Brent-driven dimension setters that wrap the spiral kernels:
+  `WoundJellyRoll.radius`, `FlatWoundJellyRoll.thickness`, and
+  `FlatWoundJellyRoll.width`. Same CLI as the spiral bench
+  (`--update-baseline` / `--profile`); baseline lives at
+  `test/perf/BASELINE_SETTERS.json`. The setter objective avoids the
+  invariant range / total-height calculations, reuses a single layup
+  deepcopy, and warm-starts the FlatWound rotation Brent across iterations.
 
 ## Code formatting
 - Use `black .` to format Python code.
