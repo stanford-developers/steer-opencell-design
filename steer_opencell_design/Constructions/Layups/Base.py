@@ -31,6 +31,7 @@ from steer_opencell_design.Components.Separators import Separator
 from steer_opencell_design.Constructions.Layups.OverhangUtils import OverhangMixin
 from steer_opencell_design.Constructions.Layups.ArealCapacityCurveUtils import ArealCapacityCurveMixin
 from steer_opencell_design.Components.CurrentCollectors.Base import _TapeCurrentCollector
+from steer_opencell_design.Utils.Constants import MINIMUM_VOLTAGE_RANGE_FRACTION  # noqa: F401 (re-exported)
 
 
 # Module-level constants for overhang ranges and plotting parameters
@@ -46,9 +47,6 @@ DEFAULT_X_SPACING = 0.004  # Default x-axis sampling spacing in meters (4mm)
 
 # Thickness calculation fallback
 THICKNESS_FALLBACK = 0.0  # Return value when thickness cannot be determined
-
-# Electrochemical calculation constants
-MINIMUM_VOLTAGE_RANGE_FRACTION = 0.5
 
 
 class NPRatioControlMode(Enum):
@@ -175,9 +173,12 @@ class _Layup(
 
     def _calculate_lower_voltage_limit_range(self) -> None:
         """Calculate the minimum operating voltage range from discharge curve.
-        
-        Sets the minimum voltage range as the bottom quartile of the discharge voltage range,
-        providing a safe operating window above the absolute minimum voltage.
+
+        The lower voltage limit is allowed to vary between the minimum discharge
+        voltage and ``V_min + MINIMUM_VOLTAGE_RANGE_FRACTION * (V_max - V_min)``
+        (currently 50% of the discharge voltage span). This provides a safe
+        operating window above the absolute minimum voltage of the discharge
+        curve.
         """
         # Extract discharge voltages directly using boolean indexing
         discharge_mask = self._areal_capacity_curve[:, 2] == -1
@@ -696,7 +697,20 @@ class _Layup(
     @property
     def np_ratio(self) -> float:
         """
-        Get the n/p ratio of the layup (anode to cathode capacity ratio).
+        Get the n/p ratio of the layup.
+
+        This library defines the N/P ratio as the ratio of the *maximum*
+        areal capacities on the paired areal-capacity curves::
+
+            np_ratio = max(anode areal capacity) / max(cathode areal capacity)
+
+        i.e. the ratio of the max x-axis values on the two areal-capacity
+        curves (see ``steer_core.CurveComposition`` and the
+        "Unit and curve contract" section in the package docstring).
+
+        Note that this is *not* the textbook reversible-capacity N/P unless
+        the Q_max points of anode and cathode correspond to the same SOC
+        window.
 
         Returns ``inf`` for anode-free designs.
         """

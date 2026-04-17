@@ -13,6 +13,7 @@ A Python package for designing and modeling lithium-ion and sodium-ion battery c
 - [Features](#features)
 - [Installation](#installation)
 - [Quickstart](#quickstart)
+- [PyBaMM Rate Capability](#pybamm-rate-capability)
 - [More Examples](#more-examples)
   - [Prismatic Cell](#prismatic-cell-stacked)
   - [Pouch Cell](#pouch-cell-stacked)
@@ -60,6 +61,7 @@ A Python package for designing and modeling lithium-ion and sodium-ion battery c
 - **Serialization** — serialize and deserialize full cell configurations for storage and sharing
 - **Database integration** — load reference materials and cell designs from the STEER database
 - **Change propagation** — modify any parameter and automatically recalculate all dependent properties up the hierarchy
+- **Optional PyBaMM rate capability** — map OpenCell geometry into a DFN workflow for constant-current rate sweeps
 
 ---
 
@@ -80,6 +82,16 @@ git clone https://github.com/stanford-developers/steer-opencell-design.git
 cd steer-opencell-design
 pip install -e .
 ```
+
+### Optional PyBaMM Integration
+
+Install the optional `pybamm` extra to enable DFN-backed rate capability analysis:
+
+```bash
+pip install "steer-opencell-design[pybamm]"
+```
+
+The PyBaMM workflow reuses geometry from `steer_opencell_design`, but expects the caller to provide the non-geometric transport, kinetic, and OCP parameters as a `pybamm.ParameterValues` object or an equivalent parameter dictionary.
 
 ### Database Connection
 
@@ -257,6 +269,41 @@ cell.get_capacity_plot().show()
 cell.plot_mass_breakdown().show()
 cell.plot_cost_breakdown().show()
 ```
+
+---
+
+## PyBaMM Rate Capability
+
+If you install the optional `pybamm` extra, you can run constant-current DFN rate sweeps directly from an OpenCell design. The OpenCell cell object supplies geometry, porosity, nominal capacity, and voltage limits; you supply the remaining PyBaMM chemistry parameters.
+
+```python
+import pybamm
+import steer_opencell_design as ocd
+
+# Build or load an OpenCell cell design first.
+cell = ...
+
+# Provide a full PyBaMM-ready parameter set for the chemistry you want to use.
+parameter_values = pybamm.ParameterValues("Chen2020")
+
+result = ocd.simulate_rate_capability(
+    cell,
+    parameter_values,
+    c_rates=[0.2, 0.5, 1.0, 2.0],
+)
+
+print(result.summary)
+curve_1c = result.curve_dataframe(1.0)
+```
+
+You can also inspect or reuse the derived geometry directly:
+
+```python
+geometry = ocd.extract_pybamm_geometry(cell)
+parameter_values = ocd.build_pybamm_parameter_values(cell, pybamm.ParameterValues("Chen2020"))
+```
+
+The phase-1 PyBaMM integration is intentionally scoped to liquid-electrolyte `CylindricalCell`, `PouchCell`, and `PrismaticCell` designs, and currently runs isothermal discharge sweeps only.
 
 ---
 

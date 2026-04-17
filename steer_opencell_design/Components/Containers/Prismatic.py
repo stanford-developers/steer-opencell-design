@@ -29,6 +29,13 @@ from steer_core import (
 )
 from steer_core.Mixins.Datum import DatumMixin
 
+from steer_opencell_design.Components.Containers._mixins import (
+    BulkFromVolumeMixin,
+    ExtrudedFootprintMixin,
+    SchematicPlotMixin,
+    rectangular_footprint_at_datum,
+)
+
 
 # Module-level constants for prismatic components
 DEFAULT_FILL_FACTOR = 0.7
@@ -85,6 +92,9 @@ class _PrismaticComponent(
     SerializerMixin,
     DunderMixin,
     PlotterMixin,
+    ExtrudedFootprintMixin,
+    BulkFromVolumeMixin,
+    SchematicPlotMixin,
 ):
     """Base class for prismatic components with common functionality.
     
@@ -179,15 +189,9 @@ class _PrismaticComponent(
             self._mass = None
             self._cost = None
             return
-            
-        _volume = self._width * self._length * self._thickness * self._fill_factor
-        _mass = _volume * self._material._density
-        mass = _mass * KG_TO_G
-        self._material.mass = mass
 
-        self._mass = self._material._mass
-        self._volume = self._material._volume
-        self._cost = self._material._cost
+        _volume = self._width * self._length * self._thickness * self._fill_factor
+        self._apply_bulk_from_volume(_volume)
 
     def _calculate_coordinates(self):
         """Calculate 3D coordinates if dimensions are available."""
@@ -207,33 +211,19 @@ class _PrismaticComponent(
         if self._rotated_z:
             self._rotate_z()
 
-    def _extrude_footprint(self, footprint):
-        """Extrude a 2D footprint into 3D coordinates."""
-
-        x, y, z, _ = self.extrude_footprint(
-            footprint[:,0],
-            footprint[:,1],
-            self._datum,
-            self._thickness
-        )
-
-        coordinates = np.column_stack((x, y, z))
-        
-        return coordinates
-
     @abstractmethod
     def _calculate_footprint(self):
-        """Calculate the 2D footprint of the prismatic component.
-        
+        """Calculate the 2D footprint of the component.
+
         This method must be implemented by subclasses to define the
         specific geometry of their footprint.
-        
+
         Returns
         -------
         np.ndarray
             2D footprint coordinates as (N, 2) array of [x, y] points in meters.
             Path should be closed (first and last points identical).
-            
+
         Raises
         ------
         NotImplementedError
@@ -302,62 +292,22 @@ class _PrismaticComponent(
         )
 
     def plot_top_down_view(self, **kwargs) -> go.Figure:
-        """Generate a top-down view plot of the component.
-        
-        Creates a Plotly figure showing the component from above,
-        displaying the x-y plane footprint.
-        
-        Parameters
-        ----------
-        **kwargs
-            Additional keyword arguments passed to figure.update_layout().
-            
-        Returns
-        -------
-        go.Figure
-            Interactive Plotly figure with top-down view
-        """
-        figure = go.Figure()
-        figure.add_trace(self.top_down_trace)
-
-        figure.update_layout(
+        """Generate a top-down view (x-y plane) plot of the component."""
+        return self._layout_schematic(
+            self.top_down_trace,
             xaxis=self.SCHEMATIC_X_AXIS,
             yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
         )
-
-        return figure
 
     def plot_right_left_view(self, **kwargs) -> go.Figure:
-        """Generate a right-left view plot of the component.
-        
-        Creates a Plotly figure showing the component from the side,
-        displaying the x-y plane cross-section.
-        
-        Parameters
-        ----------
-        **kwargs
-            Additional keyword arguments passed to figure.update_layout().
-            
-        Returns
-        -------
-        go.Figure
-            Interactive Plotly figure with right-left view
-        """
-        figure = go.Figure()
-        figure.add_trace(self.right_left_trace)
-
-        figure.update_layout(
+        """Generate a right-left view (x-y plane cross-section) plot."""
+        return self._layout_schematic(
+            self.right_left_trace,
             xaxis=self.SCHEMATIC_X_AXIS,
             yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
         )
-
-        return figure
 
     @property
     def coordinates(self) -> pd.DataFrame:
@@ -669,7 +619,7 @@ class PrismaticTerminalConnector(_PrismaticComponent):
 
     def _calculate_footprint(self):
         """Calculate the 2D rectangular footprint of the terminal connector.
-        
+
         Returns
         -------
         np.ndarray
@@ -677,29 +627,8 @@ class PrismaticTerminalConnector(_PrismaticComponent):
         """
         if self._width is None or self._length is None:
             raise ValueError("Cannot calculate footprint: width or length is not set")
-            
-        half_width = self._width / 2
-        half_length = self._length / 2
-        
-        # Create rectangular footprint (clockwise from bottom-left)
-        x_coords = np.array([
-            self._datum[0] - half_width,
-            self._datum[0] + half_width,
-            self._datum[0] + half_width,
-            self._datum[0] - half_width,
-            self._datum[0] - half_width,  # Close the path
-        ])
-        
-        y_coords = np.array([
-            self._datum[1] - half_length,
-            self._datum[1] - half_length,
-            self._datum[1] + half_length,
-            self._datum[1] + half_length,
-            self._datum[1] - half_length,  # Close the path
-        ])
-        
-        footprint = np.column_stack((x_coords, y_coords))
-        return footprint
+
+        return rectangular_footprint_at_datum(self._width, self._length, self._datum)
 
 
 class PrismaticLidAssembly(_PrismaticComponent):
@@ -744,7 +673,7 @@ class PrismaticLidAssembly(_PrismaticComponent):
 
     def _calculate_footprint(self):
         """Calculate the 2D rectangular footprint of the lid assembly.
-        
+
         Returns
         -------
         np.ndarray
@@ -752,29 +681,8 @@ class PrismaticLidAssembly(_PrismaticComponent):
         """
         if self._width is None or self._length is None:
             raise ValueError("Cannot calculate footprint: width or length is not set")
-            
-        half_width = self._width / 2
-        half_length = self._length / 2
-        
-        # Create rectangular footprint (clockwise from bottom-left)
-        x_coords = np.array([
-            self._datum[0] - half_width,
-            self._datum[0] + half_width,
-            self._datum[0] + half_width,
-            self._datum[0] - half_width,
-            self._datum[0] - half_width,  # Close the path
-        ])
-        
-        y_coords = np.array([
-            self._datum[1] - half_length,
-            self._datum[1] - half_length,
-            self._datum[1] + half_length,
-            self._datum[1] + half_length,
-            self._datum[1] - half_length,  # Close the path
-        ])
-        
-        footprint = np.column_stack((x_coords, y_coords))
-        return footprint
+
+        return rectangular_footprint_at_datum(self._width, self._length, self._datum)
 
     @property
     def thickness_range(self) -> Tuple[float, float]:

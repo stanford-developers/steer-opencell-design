@@ -16,7 +16,6 @@ from steer_opencell_design.Materials.CapacityCurveUtils import CapacityCurveMixi
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from plotly import graph_objects as go
 from typing import List, Tuple, Union, Optional, Type
 from copy import deepcopy
 import base64
@@ -265,15 +264,19 @@ class _ActiveMaterial(
     def _get_minimum_operating_voltage(self) -> float:
         """
         Function to get the minimum operating voltage of the half cell curves without extrapolation.
+
+        Note: ``voltage_at_max_stored_charge`` captures the voltage at the
+        Q_max point of each half-cell curve. The minimum operating voltage is
+        defined as the smallest such voltage across all curves.
         """
-        max_voltages = []
+        voltage_at_max_stored_charge = []
 
         for curve in self._specific_capacity_curves:
             max_capacity_idx = np.argmax(curve[:, 0])
             voltage_at_max_capacity = curve[max_capacity_idx, 1]
-            max_voltages.append(voltage_at_max_capacity)
+            voltage_at_max_stored_charge.append(voltage_at_max_capacity)
 
-        self._minimum_operating_voltage = np.min(max_voltages)
+        self._minimum_operating_voltage = np.min(voltage_at_max_stored_charge)
 
         return self._minimum_operating_voltage
 

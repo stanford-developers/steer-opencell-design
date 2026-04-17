@@ -631,6 +631,33 @@ class TestActiveMaterialPropertiesAndSetters(unittest.TestCase):
         self.assertIsNone(f.active_material_2)
         self.assertEqual(len(f._active_materials), 1)
 
+    def test_active_material_1_none_rejected_when_only_one_material(self):
+        """Setting ``active_material_1 = None`` must fail when it is the sole material.
+
+        A formulation must always retain at least one active material, so this
+        is the one case where ``None`` is rejected by the indexed setters.
+        """
+        f = CathodeFormulation({self.mat1: 100})
+
+        with self.assertRaises(ValueError) as context:
+            f.active_material_1 = None
+
+        self.assertIn("at least one active material", str(context.exception))
+        # Formulation must be unchanged.
+        self.assertEqual(f.active_material_1, self.mat1)
+        self.assertEqual(len(f._active_materials), 1)
+
+    def test_active_material_1_none_allowed_when_other_material_present(self):
+        """Setting ``active_material_1 = None`` is allowed if a second material exists."""
+        f = CathodeFormulation({self.mat1: 60, self.mat2: 40})
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.active_material_1 = None
+
+        self.assertEqual(f.active_material_1, self.mat2)
+        self.assertEqual(len(f._active_materials), 1)
+
 
 class TestActiveMaterialWeightPropertiesAndSetters(unittest.TestCase):
     """Test the active_material_1_weight, active_material_2_weight, and active_material_3_weight properties and setters."""
@@ -1102,6 +1129,69 @@ class TestConductiveAdditivePropertiesAndSetters(unittest.TestCase):
             f.conductive_additive_2 = self.additive2
         
         self.assertIn("no conductive additives", str(context.exception))
+
+    def test_conductive_additive_1_none_removes_material(self):
+        """Setting ``conductive_additive_1 = None`` removes the first additive."""
+        f = CathodeFormulation(
+            {self.mat1: 95},
+            conductive_additives={self.additive1: 3, self.additive2: 2},
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.conductive_additive_1 = None
+
+        self.assertEqual(f.conductive_additive_1, self.additive2)
+        self.assertIsNone(f.conductive_additive_2)
+        self.assertEqual(len(f._conductive_additives), 1)
+        self.assertNotIn(self.additive1, f._conductive_additives)
+
+    def test_conductive_additive_2_none_removes_material(self):
+        """Setting ``conductive_additive_2 = None`` removes the second additive."""
+        f = CathodeFormulation(
+            {self.mat1: 95},
+            conductive_additives={self.additive1: 3, self.additive2: 2},
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.conductive_additive_2 = None
+
+        self.assertEqual(f.conductive_additive_1, self.additive1)
+        self.assertIsNone(f.conductive_additive_2)
+        self.assertEqual(len(f._conductive_additives), 1)
+        self.assertNotIn(self.additive2, f._conductive_additives)
+
+    def test_conductive_additive_only_one_set_to_none_removes_it(self):
+        """Setting ``conductive_additive_1 = None`` is allowed even when it is the only one.
+
+        Conductive additives are optional in a formulation, unlike active
+        materials, so removing the last one must succeed.
+        """
+        f = CathodeFormulation(
+            {self.mat1: 97},
+            conductive_additives={self.additive1: 3},
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.conductive_additive_1 = None
+
+        self.assertIsNone(f.conductive_additive_1)
+        self.assertEqual(len(f._conductive_additives), 0)
+
+    def test_conductive_additive_none_with_no_material(self):
+        """Setting ``None`` on an empty additive slot is a no-op."""
+        f = CathodeFormulation(
+            {self.mat1: 97},
+            conductive_additives={self.additive1: 3},
+        )
+
+        f.conductive_additive_2 = None
+
+        self.assertEqual(f.conductive_additive_1, self.additive1)
+        self.assertIsNone(f.conductive_additive_2)
+        self.assertEqual(len(f._conductive_additives), 1)
 
     def test_conductive_additive_order_maintained_after_setter(self):
         """Test that conductive additive order is maintained correctly after using setters."""
