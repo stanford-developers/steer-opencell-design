@@ -17,12 +17,6 @@ from typing import Tuple
 import plotly.graph_objects as go
 import numpy as np
 
-# Tab alignment tolerance constant
-TAB_ALIGNMENT_TOLERANCE = 5e-6  # 5 micron tolerance for tab-terminal alignment (meters)
-
-
-calculate_encapsulation_properties = recalculate("encapsulation_properties")
-
 
 class PrismaticCell(_Cell):
     """Prismatic hard-case battery cell. Supports both stacked and flat-wound jelly roll internal constructions with a rigid metal canister."""
@@ -90,18 +84,6 @@ class PrismaticCell(_Cell):
         Orchestrates encapsulation sizing and positioning in the correct sequence.
         """
         self._position_encapsulation()
-
-    def _clip_tabs(self) -> None:
-        """Clip current collector tabs to specified length.
-        
-        Applies the clipped tab length to all electrode assemblies if a clipped
-        tab length has been specified. Otherwise, leaves tabs at full length.
-        """
-        if self._clipped_tab_length is None:
-            return
-        
-        for assembly in self._electrode_assemblies:
-            assembly._clip_current_collector_tabs(self._clipped_tab_length)
 
     def plot_top_down_view(self, opacity = 0.3, **kwargs) -> go.Figure:
         """Get top-down view figure of the prismatic cell.
@@ -495,7 +477,7 @@ class PrismaticCell(_Cell):
             self._encapsulation.height = new_canister_height
 
     @clipped_tab_length.setter
-    @calculate_encapsulation_properties
+    @recalculate("encapsulation_properties")
     def clipped_tab_length(self, value: float) -> None:
         """Set clipped tab length with validation.
         

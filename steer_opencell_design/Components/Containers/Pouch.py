@@ -20,6 +20,7 @@ from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Decorators.Coordinates import calculate_coordinates
 
+from steer_opencell_design.Components.Containers._mixins import SchematicPlotMixin
 from steer_opencell_design.Materials.Other import CurrentCollectorMaterial, PrismaticContainerMaterial
 
 from typing import Tuple
@@ -37,6 +38,7 @@ class LaminateSheet(
     DunderMixin,
     PlotterMixin,
     SerializerMixin,
+    SchematicPlotMixin,
     ):
     """Laminate film sheet for pouch cell packaging.
 
@@ -340,73 +342,46 @@ class LaminateSheet(
 
     # Public functions
     def plot_top_down_view(self, **kwargs) -> go.Figure:
-        """Get a Plotly Figure showing the top-down view of the laminate sheet.
-        
-        Returns a go.Figure with the laminate sheet footprint.
-        """
-        import plotly.graph_objects as go
-        
-        if not hasattr(self, '_top_down_coordinates') or self._top_down_coordinates is None:
-            return go.Figure()
-        
-        fig = go.Figure()
-        fig.add_trace(self.top_down_trace)
-        
-        fig.update_layout(
+        """Plotly Figure showing the top-down view (x-y) of the laminate sheet."""
+        trace = (
+            self.top_down_trace
+            if getattr(self, "_top_down_coordinates", None) is not None
+            else None
+        )
+        return self._layout_schematic(
+            trace,
             xaxis=self.SCHEMATIC_X_AXIS,
             yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
         )
-        
-        return fig
 
     def plot_right_left_view(self, **kwargs) -> go.Figure:
-        """Get a Plotly Figure showing the right-left (side) view of the laminate sheet.
-        
-        Returns a go.Figure with the laminate sheet cross-section.
-        """
-        import plotly.graph_objects as go
-        
-        if not hasattr(self, '_right_left_coordinates') or self._right_left_coordinates is None:
-            return go.Figure()
-        
-        fig = go.Figure()
-        fig.add_trace(self.right_left_trace)
-        
-        fig.update_layout(
+        """Plotly Figure showing the right-left (y-z) cross-section of the laminate sheet."""
+        trace = (
+            self.right_left_trace
+            if getattr(self, "_right_left_coordinates", None) is not None
+            else None
+        )
+        return self._layout_schematic(
+            trace,
             xaxis=self.SCHEMATIC_Y_AXIS,
             yaxis=self.SCHEMATIC_Z_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
         )
-        
-        return fig
 
     def plot_bottom_up_view(self, **kwargs) -> go.Figure:
-        """Get a Plotly Figure showing the bottom-up view of the laminate sheet.
-        
-        Returns a go.Figure with the laminate sheet cross-section.
-        """
-        import plotly.graph_objects as go
-        
-        if not hasattr(self, '_bottom_up_coordinates') or self._bottom_up_coordinates is None:
-            return go.Figure()
-        
-        fig = go.Figure()
-        fig.add_trace(self.bottom_up_trace)
-        
-        fig.update_layout(
+        """Plotly Figure showing the bottom-up (x-z) cross-section of the laminate sheet."""
+        trace = (
+            self.bottom_up_trace
+            if getattr(self, "_bottom_up_coordinates", None) is not None
+            else None
+        )
+        return self._layout_schematic(
+            trace,
             xaxis=self.SCHEMATIC_X_AXIS,
             yaxis=self.SCHEMATIC_Z_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
         )
-        
-        return fig
 
     # Properties
     @property

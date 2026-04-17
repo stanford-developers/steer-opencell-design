@@ -28,6 +28,12 @@ from steer_core import (
 from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 from steer_core.Mixins.Datum import DatumMixin
 
+from steer_opencell_design.Components.Containers._mixins import (
+    BulkFromVolumeMixin,
+    ExtrudedFootprintMixin,
+    SchematicPlotMixin,
+)
+
 
 class _CylindricalComponent(
     ABC,
@@ -39,6 +45,9 @@ class _CylindricalComponent(
     SerializerMixin,
     DunderMixin,
     PlotterMixin,
+    ExtrudedFootprintMixin,
+    BulkFromVolumeMixin,
+    SchematicPlotMixin,
 ):
     """Base class for cylindrical components with common functionality.
     
@@ -124,15 +133,9 @@ class _CylindricalComponent(
             self._mass = None
             self._cost = None
             return
-            
-        _volume = np.pi * (self._radius) ** 2 * (self._thickness) * self._fill_factor
-        _mass = _volume * self._material._density
-        mass = _mass * KG_TO_G
-        self._material.mass = mass
 
-        self._mass = self._material._mass
-        self._volume = self._material._volume
-        self._cost = self._material._cost
+        _volume = np.pi * (self._radius) ** 2 * (self._thickness) * self._fill_factor
+        self._apply_bulk_from_volume(_volume)
 
     def _calculate_coordinates(self):
         """Calculate 3D coordinates if radius is available."""
@@ -145,32 +148,19 @@ class _CylindricalComponent(
         coordinates = self.rotate_coordinates(coordinates, axis='x', angle=90, center=self._datum)
         self._coordinates = coordinates
 
-    def _extrude_footprint(self, footprint):
-        """Extrude a 2-D footprint into 3-D using the component thickness."""
-
-        x, y, z, _ = self.extrude_footprint(
-            footprint[:,0],
-            footprint[:,1],
-            self._datum,
-            self._thickness
-        )
-
-        coordinates = np.column_stack((x, y, z))
-        return coordinates
-
     @abstractmethod
     def _calculate_footprint(self):
-        """Calculate the 2D footprint of the cylindrical component.
-        
+        """Calculate the 2D footprint of the component.
+
         This method must be implemented by subclasses to define the
         specific geometry of their footprint.
-        
+
         Returns
         -------
         np.ndarray
             2D footprint coordinates as (N, 2) array of [x, y] points in meters.
             Path should be closed (first and last points identical).
-            
+
         Raises
         ------
         NotImplementedError
@@ -189,62 +179,22 @@ class _CylindricalComponent(
         self._radius_range = (0.0, canister._inner_radius)
 
     def plot_bottom_up_view(self, **kwargs) -> go.Figure:
-        """Generate a bottom-up view plot of the component.
-        
-        Creates a Plotly figure showing the component profile from below,
-        displaying the x-z plane cross-section.
-        
-        Parameters
-        ----------
-        **kwargs
-            Additional keyword arguments passed to figure.update_layout().
-            
-        Returns
-        -------
-        go.Figure
-            Interactive Plotly figure with bottom-up view
-        """
-        figure = go.Figure()
-        figure.add_trace(self.bottom_up_trace)
-
-        figure.update_layout(
+        """Generate a bottom-up view (x-z plane) plot of the component."""
+        return self._layout_schematic(
+            self.bottom_up_trace,
             xaxis=self.SCHEMATIC_X_AXIS,
             yaxis=self.SCHEMATIC_Z_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
         )
 
-        return figure
-    
     def plot_top_down_view(self, **kwargs) -> go.Figure:
-        """Generate a top-down view plot of the component.
-        
-        Creates a Plotly figure showing the component from above,
-        displaying the x-y plane footprint.
-        
-        Parameters
-        ----------
-        **kwargs
-            Additional keyword arguments passed to figure.update_layout().
-            
-        Returns
-        -------
-        go.Figure
-            Interactive Plotly figure with top-down view
-        """
-        figure = go.Figure()
-        figure.add_trace(self.top_down_trace)
-
-        figure.update_layout(
+        """Generate a top-down view (x-y plane) plot of the component."""
+        return self._layout_schematic(
+            self.top_down_trace,
             xaxis=self.SCHEMATIC_X_AXIS,
             yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
         )
-
-        return figure
 
     @property
     def coordinates(self) -> pd.DataFrame:

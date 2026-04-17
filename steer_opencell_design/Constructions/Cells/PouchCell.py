@@ -21,13 +21,6 @@ import plotly.graph_objects as go
 import numpy as np
 
 
-# Tab alignment tolerance constant
-TAB_ALIGNMENT_TOLERANCE = 5e-6  # 5 micron tolerance for tab-terminal alignment (meters)
-
-
-calculate_encapsulation_properties = recalculate("encapsulation_properties")
-
-
 class PouchCell(_Cell):
     """Pouch (soft-pack) battery cell. Combines stacked electrode assemblies with laminate film encapsulation, terminals, and electrolyte."""
 
@@ -101,18 +94,6 @@ class PouchCell(_Cell):
         self._size_encapsulation()
         self._position_encapsulation()
         self._hot_press_encapsulation()
-
-    def _clip_tabs(self) -> None:
-        """Clip current collector tabs to specified length.
-        
-        Applies the clipped tab length to all electrode assemblies if a clipped
-        tab length has been specified. Otherwise, leaves tabs at full length.
-        """
-        if self._clipped_tab_length is None:
-            return
-        
-        for assembly in self._electrode_assemblies:
-            assembly._clip_current_collector_tabs(self._clipped_tab_length)
 
     def _position_terminals(self) -> None:
         """Position cathode and anode terminals at tab locations.
@@ -552,7 +533,7 @@ class PouchCell(_Cell):
     
     @side_seal_thickness.setter
     @calculate_bulk_properties
-    @calculate_encapsulation_properties
+    @recalculate("encapsulation_properties")
     def side_seal_thickness(self, value: float) -> None:
         """Set side seal thickness with validation.
         
@@ -566,7 +547,7 @@ class PouchCell(_Cell):
 
     @top_seal_thickness.setter
     @calculate_bulk_properties
-    @calculate_encapsulation_properties
+    @recalculate("encapsulation_properties")
     def top_seal_thickness(self, value: float) -> None:
         """Set top seal thickness with validation.
         
@@ -580,7 +561,7 @@ class PouchCell(_Cell):
 
     @bottom_seal_thickness.setter
     @calculate_bulk_properties
-    @calculate_encapsulation_properties
+    @recalculate("encapsulation_properties")
     def bottom_seal_thickness(self, value: float) -> None:
         """Set bottom seal thickness with validation.
         

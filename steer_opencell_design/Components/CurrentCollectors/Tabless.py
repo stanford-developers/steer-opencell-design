@@ -97,8 +97,13 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 
     See Also
     --------
+    NotchedCurrentCollector : Direct parent class providing tab + tape behaviour.
+    _TabbedCurrentCollector : Indirect base; documents shared tab / foil /
+        coating parameters (``material``, ``thickness``, ``insulation_width``,
+        ``name``, ``datum``).
+    _TapeCurrentCollector : Indirect base; documents ``bare_lengths_a_side``
+        and ``bare_lengths_b_side`` semantics.
     PunchedCurrentCollector : Simple tabbed alternative
-    NotchedCurrentCollector : Multi-tab design with more connection points
     TabWeldedCurrentCollector : Separate welded tab approach
     """
 

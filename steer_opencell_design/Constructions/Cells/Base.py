@@ -1,7 +1,40 @@
 # SPDX-FileCopyrightText: 2024-2026 Stanford University
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Base class for complete battery cells."""
+"""Base class for complete battery cells.
+
+Two object trees
+----------------
+The cell domain is organised along two orthogonal axes:
+
+**Composition axis** (what a battery scientist thinks about)::
+
+    Cell
+    ├── encapsulation   : _Container
+    ├── electrolyte     : Electrolyte
+    └── electrode_assemblies (x n_electrode_assembly)
+        └── layup       : _Layup
+            ├── cathode : Cathode
+            │   ├── formulation        : CathodeFormulation
+            │   └── current_collector  : _CurrentCollector
+            ├── anode   : Anode (formulation=None for anode-free)
+            │   ├── formulation        : AnodeFormulation | None
+            │   └── current_collector  : _CurrentCollector
+            ├── top_separator          : Separator
+            └── bottom_separator       : Separator
+
+**Inheritance axis** (format-specific concrete classes)::
+
+    _Cell
+    ├── CylindricalCell
+    ├── PrismaticCell
+    ├── PouchCell
+    └── FlexFrameCell
+
+The *composition* tree is where quantities flow (mass, cost, capacity,
+voltage). The *inheritance* tree only adds format-specific geometry and
+packaging logic.
+"""
 
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Base import _ElectrodeAssembly
 from steer_opencell_design.Components.Containers.Base import _Container
@@ -99,26 +132,59 @@ class _Cell(
         self._calculate_electrochemical_properties()
         self._calculate_capacity_ranges()  # Cache ranges to avoid recalculation on property access
 
+    def _clip_tabs(self) -> None:
+        """Clip current collector tabs to ``self._clipped_tab_length``.
+
+        Applies the clipped tab length to all electrode assemblies if the
+        attribute is present and non-None. Cylindrical cells do not define a
+        ``_clipped_tab_length`` attribute, so this method is a no-op for them.
+        """
+        clipped_tab_length = getattr(self, "_clipped_tab_length", None)
+        if clipped_tab_length is None:
+            return
+
+        for assembly in self._electrode_assemblies:
+            assembly._clip_current_collector_tabs(clipped_tab_length)
+
     def _convert_to_cell_type(self, new_encapsulation: _Container) -> None:
         """Convert cell to appropriate type based on encapsulation type.
-        
+
         When an encapsulation of a different type is set (e.g., setting a PouchEncapsulation
         on a PrismaticCell), this method converts the cell to the appropriate type while
         preserving all electrode assembly and electrolyte properties.
-        
+
         Only conversions between PrismaticCell and PouchCell are supported, as both
         use compatible electrode assembly types (ZFoldStack, PunchedStack, FlatWoundJellyRoll).
         CylindricalCell uses WoundJellyRoll which is incompatible with the other cell types.
-        
+
         Parameters
         ----------
         new_encapsulation : _Container
             The new encapsulation that requires a different cell type
-            
+
         Notes
         -----
-        This performs an in-place conversion by copying all attributes from a newly
-        created cell of the appropriate type into self.
+        This performs an in-place conversion by reassigning ``self.__class__``
+        and replacing ``self.__dict__`` with the dict of a freshly constructed
+        cell of the target type.
+
+        .. warning::
+            Because this mutates ``__class__`` and ``__dict__`` in place, it can
+            interact poorly with the following:
+
+            - **Pickling / deepcopy**: any pickled references taken *before* the
+              conversion will refer to the old class.
+            - **Static typing / IDE inference**: external references still
+              typed as ``PrismaticCell`` may continue to call methods that no
+              longer exist after a conversion to ``PouchCell``.
+            - **Subclass-specific ``__init__`` state**: any kwarg that is not
+              forwarded through ``extra_kwargs`` below (e.g. new
+              geometry-only fields added to a subclass) will be lost at
+              conversion time. When adding a new init argument to a cell
+              subclass, update ``extra_kwargs`` accordingly.
+            - **``_parent`` pointers on child objects**: these are restored via
+              ``self._restore_child_parent_refs()``; skipping that call would
+              leave children pointing at a temporary ``new_cell`` instance.
         """
         from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
         from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
@@ -1076,12 +1142,34 @@ class _Cell(
 
     @property
     def irreversible_capacity(self) -> float:
-        """Irreversible (total) capacity in Ah - max capacity reached at full charge."""
+        """Irreversible (total) capacity in Ah.
+
+        Defined in this library as the *maximum stored charge* on the cell's
+        discharge curve — i.e. the total capacity reached at the upper voltage
+        limit.
+
+        .. warning::
+            This differs from the common battery-science use of "irreversible
+            capacity" to mean the first-cycle irreversible loss (related to
+            coulombic efficiency / SEI formation). Here the name refers to
+            the *geometric maximum* of the modelled discharge curve and is
+            independent of cycling history.
+        """
         return self._irreversible_capacity * S_TO_H
 
     @property
     def capacity_loss(self) -> float:
-        """Capacity loss in Ah - capacity remaining at minimum voltage."""
+        """Capacity loss in Ah.
+
+        Defined in this library as the *capacity remaining at the minimum
+        operating voltage* (i.e. the minimum of the discharge-curve capacity
+        axis).
+
+        .. warning::
+            This differs from common battery-science usage of "capacity loss"
+            (cycle-to-cycle fade, calendar ageing). Here it denotes a
+            geometric property of the current modelled discharge curve.
+        """
         return self._capacity_loss * S_TO_H
 
     @property
@@ -1172,7 +1260,7 @@ class _Cell(
             name=f"Full-Cell",
             line=dict(color=color, width=3, shape='spline'),  # Slightly thicker for emphasis
             customdata=self.capacity_curve["Direction"],
-            hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} mAh<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
+            hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} Ah<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
     
     @property
@@ -1191,7 +1279,7 @@ class _Cell(
             name=f"{self._reference_electrode_assembly._layup._anode.name} Half-Cell",
             line=dict(color=self._reference_electrode_assembly._layup._anode.formulation.color, width=2, shape='spline'),
             customdata=self.anode_capacity_curve["Direction"],
-            hovertemplate="<b>Anode</b><br>" + "Capacity: %{x:.2f} mAh<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
+            hovertemplate="<b>Anode</b><br>" + "Capacity: %{x:.2f} Ah<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
     
     @property
@@ -1205,7 +1293,7 @@ class _Cell(
             name=f"{self._reference_electrode_assembly._layup._cathode.name} Half-Cell",
             line=dict(color=self._reference_electrode_assembly._layup._cathode.formulation.color, width=2, shape='spline'),
             customdata=self.cathode_capacity_curve["Direction"],
-            hovertemplate="<b>Cathode</b><br>" + "Capacity: %{x:.2f} mAh<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
+            hovertemplate="<b>Cathode</b><br>" + "Capacity: %{x:.2f} Ah<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
 
     @property

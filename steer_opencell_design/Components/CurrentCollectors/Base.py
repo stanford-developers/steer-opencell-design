@@ -1028,6 +1028,12 @@ class _TabbedCurrentCollector(_CurrentCollector):
     formed as part of the main collector sheet, as opposed to separately
     welded components.
 
+    This base defines the parameter surface shared by every tabbed subclass
+    (:class:`PunchedCurrentCollector`, :class:`NotchedCurrentCollector`,
+    :class:`TablessCurrentCollector`): ``material``, foil geometry,
+    ``thickness``, ``insulation_width``, ``name`` and ``datum``. Subclasses
+    add tab-pattern-specific parameters only.
+
     Parameters
     ----------
     material : CurrentCollectorMaterial
