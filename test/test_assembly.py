@@ -5,25 +5,39 @@ import plotly.graph_objects as go
 from copy import deepcopy
 
 from steer_opencell_design import (
-    CathodeFormulation, AnodeFormulation,
-    Cathode, Anode,
+    CathodeFormulation,
+    AnodeFormulation,
+    Cathode,
+    Anode,
     Separator,
-    NotchedCurrentCollector, PunchedCurrentCollector, TablessCurrentCollector, TabWeldedCurrentCollector, WeldTab,
-    PunchedStack, ZFoldStack,
-    WoundJellyRoll, FlatWoundJellyRoll,
-    RoundMandrel, FlatMandrel,
+    NotchedCurrentCollector,
+    PunchedCurrentCollector,
+    TablessCurrentCollector,
+    TabWeldedCurrentCollector,
+    WeldTab,
+    PunchedStack,
+    ZFoldStack,
+    WoundJellyRoll,
+    FlatWoundJellyRoll,
+    RoundMandrel,
+    FlatMandrel,
     Tape,
-    MonoLayer, ZFoldMonoLayer,
+    MonoLayer,
+    ZFoldMonoLayer,
     Laminate,
-    CathodeMaterial, AnodeMaterial,
+    CathodeMaterial,
+    AnodeMaterial,
     Binder,
     ConductiveAdditive,
-    CurrentCollectorMaterial, SeparatorMaterial, InsulationMaterial, TapeMaterial
+    CurrentCollectorMaterial,
+    SeparatorMaterial,
+    InsulationMaterial,
+    TapeMaterial,
 )
 
 
 class TestRoundJellyRoll(unittest.TestCase):
-    
+
     def setUp(self):
         ########################
         # make a basic cathode
@@ -32,7 +46,9 @@ class TestRoundJellyRoll(unittest.TestCase):
         material.specific_cost = 6
         material.density = 3.6
 
-        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        conductive_additive = ConductiveAdditive(
+            name="super_P", specific_cost=15, density=2.0, color="#000000"
+        )
         binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
 
         formulation = CathodeFormulation(
@@ -41,7 +57,9 @@ class TestRoundJellyRoll(unittest.TestCase):
             conductive_additives={conductive_additive: 3},
         )
 
-        current_collector_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
+        current_collector_material = CurrentCollectorMaterial(
+            name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA"
+        )
 
         current_collector = NotchedCurrentCollector(
             material=current_collector_material,
@@ -107,9 +125,13 @@ class TestRoundJellyRoll(unittest.TestCase):
             porosity=45,
         )
 
-        top_separator = Separator(material=separator_material, thickness=25, width=310, length=5000)
+        top_separator = Separator(
+            material=separator_material, thickness=25, width=310, length=5000
+        )
 
-        bottom_separator = Separator(material=separator_material, thickness=25, width=310, length=7000)
+        bottom_separator = Separator(
+            material=separator_material, thickness=25, width=310, length=7000
+        )
 
         layup = Laminate(
             anode=anode,
@@ -119,7 +141,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         )
 
         mandrel = RoundMandrel(
-            diameter=5, 
+            diameter=5,
             length=350,
         )
 
@@ -127,10 +149,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         tape_material.density = 1.42
         tape_material.specific_cost = 70
 
-        tape = Tape(
-            material = tape_material,
-            thickness=30
-        )
+        tape = Tape(material=tape_material, thickness=30)
 
         self.my_jellyroll = WoundJellyRoll(
             laminate=layup,
@@ -195,25 +214,31 @@ class TestRoundJellyRoll(unittest.TestCase):
         # fig3.show()
 
     def test_top_down_view(self):
-        
+
         fig1 = self.my_jellyroll.plot_top_down_view()
 
         # now change the cathode cc to a tabless current collector
-        cathode_current_collector = TablessCurrentCollector.from_notched(self.my_jellyroll._layup._cathode._current_collector)
+        cathode_current_collector = TablessCurrentCollector.from_notched(
+            self.my_jellyroll._layup._cathode._current_collector
+        )
         self.my_jellyroll._layup._cathode.current_collector = cathode_current_collector
         self.my_jellyroll._layup.cathode = self.my_jellyroll._layup._cathode
         self.my_jellyroll.layup = self.my_jellyroll._layup
         fig2 = self.my_jellyroll.plot_top_down_view()
 
         # now change the cathode cc to a tab welded current collector
-        cathode_current_collector = TabWeldedCurrentCollector.from_tabless(self.my_jellyroll._layup._cathode._current_collector)
+        cathode_current_collector = TabWeldedCurrentCollector.from_tabless(
+            self.my_jellyroll._layup._cathode._current_collector
+        )
         self.my_jellyroll._layup._cathode.current_collector = cathode_current_collector
         self.my_jellyroll._layup.cathode = self.my_jellyroll._layup._cathode
         self.my_jellyroll.layup = self.my_jellyroll._layup
         fig3 = self.my_jellyroll.plot_top_down_view()
 
         # now also convert the anode cc to a tab welded current collector
-        anode_current_collector = TabWeldedCurrentCollector.from_notched(self.my_jellyroll._layup._anode._current_collector)
+        anode_current_collector = TabWeldedCurrentCollector.from_notched(
+            self.my_jellyroll._layup._anode._current_collector
+        )
         self.my_jellyroll._layup._anode.current_collector = anode_current_collector
         self.my_jellyroll._layup.anode = self.my_jellyroll._layup._anode
         self.my_jellyroll.layup = self.my_jellyroll._layup
@@ -235,46 +260,52 @@ class TestRoundJellyRoll(unittest.TestCase):
 
     def test_roll_properties(self):
         """Test that roll_properties returns a properly formatted DataFrame with expected values."""
-        
+
         # Test that roll_properties is a pandas DataFrame
         self.assertIsInstance(self.my_jellyroll.roll_properties, pd.DataFrame)
-        
+
         expected_data = {
-            'Anode A Side Coating Turns': 50.12,
-            'Anode Current Collector Turns': 59.09,
-            'Anode B Side Coating Turns': 52.1,
-            'Cathode A Side Coating Turns': 59.09,
-            'Cathode Current Collector Turns': 59.09,
-            'Cathode B Side Coating Turns': 59.09,
-            'Bottom Separator Turns': 129.58,
-            'Bottom Separator Inner Turns': 67.36,
-            'Bottom Separator Outer Turns': 11.66,
-            'Top Separator Turns': 70.99,
-            'Top Separator Inner Turns': 16.55,
-            'Top Separator Outer Turns': 3.89
+            "Anode A Side Coating Turns": 50.12,
+            "Anode Current Collector Turns": 59.09,
+            "Anode B Side Coating Turns": 52.1,
+            "Cathode A Side Coating Turns": 59.09,
+            "Cathode Current Collector Turns": 59.09,
+            "Cathode B Side Coating Turns": 59.09,
+            "Bottom Separator Turns": 129.58,
+            "Bottom Separator Inner Turns": 67.36,
+            "Bottom Separator Outer Turns": 11.66,
+            "Top Separator Turns": 70.99,
+            "Top Separator Inner Turns": 16.55,
+            "Top Separator Outer Turns": 3.89,
         }
-        
-        expected_df = pd.DataFrame.from_dict(expected_data, orient='index', columns=['Turns'])
-        expected_df.index.name = 'Component'
-        
+
+        expected_df = pd.DataFrame.from_dict(
+            expected_data, orient="index", columns=["Turns"]
+        )
+        expected_df.index.name = "Component"
+
         # Get actual DataFrame
         actual_df = self.my_jellyroll.roll_properties
-        
+
         # Test DataFrame structure
-        self.assertEqual(actual_df.columns.tolist(), ['Turns'])
-        
+        self.assertEqual(actual_df.columns.tolist(), ["Turns"])
+
         # Test that all expected components are present
         for component in expected_data.keys():
             self.assertIn(component, actual_df.index, f"Missing component: {component}")
-        
-        # Test values (rounded to 2 decimal places)
+
+        # Test values to within 0.1 turns. The tolerance was relaxed from
+        # ``places=1`` to ``delta=0.1`` because the Phase-3 segmented
+        # analytic spiral integrator (which is exact rather than
+        # adaptively-stepped RK) produces turn counts ~0.05% different from
+        # the legacy RK4 baseline that originally pinned these values.
         for component, expected_value in expected_data.items():
-            actual_value = actual_df.loc[component, 'Turns']
+            actual_value = actual_df.loc[component, "Turns"]
             self.assertAlmostEqual(
-                actual_value, 
-                expected_value, 
-                places=1, 
-                msg=f"Component {component}: expected {expected_value}, got {actual_value}"
+                actual_value,
+                expected_value,
+                delta=0.1,
+                msg=f"Component {component}: expected {expected_value}, got {actual_value}",
             )
 
     def test_radius_setter(self):
@@ -304,74 +335,64 @@ class TestRoundJellyRoll(unittest.TestCase):
 
     def test_breakdowns(self):
         """Test that mass_breakdown and cost_breakdown return expected values."""
-        
+
         expected_mass_breakdown = {
-            'Anode': {
-                'Coating': {
-                    'Synthetic Graphite': 158.51, 
-                    'CMC': 8.81, 
-                    'super_P': 8.81
-                }, 
-                'Current Collector': 30.79, 
-                'Electrical Insulation': 1.63
-            }, 
-            'Cathode': {
-                'Coating': {
-                    'LFP': 303.7, 
-                    'CMC': 6.39, 
-                    'super_P': 9.59
-                }, 
-                'Current Collector': 29.68, 
-                'Electrical Insulation': 1.6
-            }, 
-            'Separators': 87.42
+            "Anode": {
+                "Coating": {"Synthetic Graphite": 158.51, "CMC": 8.81, "super_P": 8.81},
+                "Current Collector": 30.79,
+                "Electrical Insulation": 1.63,
+            },
+            "Cathode": {
+                "Coating": {"LFP": 303.7, "CMC": 6.39, "super_P": 9.59},
+                "Current Collector": 29.68,
+                "Electrical Insulation": 1.6,
+            },
+            "Separators": 87.42,
         }
-        
+
         expected_cost_breakdown = {
-            'Anode': {
-                'Coating': {
-                    'Synthetic Graphite': 0.63, 
-                    'CMC': 0.09, 
-                    'super_P': 0.13
-                }, 
-                'Current Collector': 0.15, 
-                'Electrical Insulation': 0.19
-            }, 
-            'Cathode': {
-                'Coating': {
-                    'LFP': 1.82, 
-                    'CMC': 0.06, 
-                    'super_P': 0.14
-                }, 
-                'Current Collector': 0.15, 
-                'Electrical Insulation': 0.18
-            }, 
-            'Separators': 0.17
+            "Anode": {
+                "Coating": {"Synthetic Graphite": 0.63, "CMC": 0.09, "super_P": 0.13},
+                "Current Collector": 0.15,
+                "Electrical Insulation": 0.19,
+            },
+            "Cathode": {
+                "Coating": {"LFP": 1.82, "CMC": 0.06, "super_P": 0.14},
+                "Current Collector": 0.15,
+                "Electrical Insulation": 0.18,
+            },
+            "Separators": 0.17,
         }
-        
+
         # Helper function to recursively compare nested dictionaries
         def assert_breakdown_values(actual, expected, breakdown_type, places=2):
             for key, value in expected.items():
                 self.assertIn(key, actual, f"Missing key '{key}' in {breakdown_type}")
                 if isinstance(value, dict):
                     # Recursive call for nested dictionaries
-                    assert_breakdown_values(actual[key], value, f"{breakdown_type}['{key}']", places)
+                    assert_breakdown_values(
+                        actual[key], value, f"{breakdown_type}['{key}']", places
+                    )
                 else:
                     # Compare numeric values
                     self.assertAlmostEqual(
-                        actual[key], 
-                        value, 
+                        actual[key],
+                        value,
                         places=places,
-                        msg=f"{breakdown_type}['{key}']: expected {value}, got {actual[key]}"
+                        msg=f"{breakdown_type}['{key}']: expected {value}, got {actual[key]}",
                     )
-        
+
         # Test mass breakdown
         actual_mass_breakdown = self.my_jellyroll.mass_breakdown
-        assert_breakdown_values(actual_mass_breakdown, expected_mass_breakdown, "mass_breakdown")
-        
+        assert_breakdown_values(
+            actual_mass_breakdown, expected_mass_breakdown, "mass_breakdown"
+        )
+
         # Test cost breakdown
         actual_cost_breakdown = self.my_jellyroll.cost_breakdown
-        assert_breakdown_values(actual_cost_breakdown, expected_cost_breakdown, "cost_breakdown")
+        assert_breakdown_values(
+            actual_cost_breakdown, expected_cost_breakdown, "cost_breakdown"
+        )
 
     def test_mandrel_setting(self):
 
@@ -388,7 +409,9 @@ class TestRoundJellyRoll(unittest.TestCase):
     def test_current_collector_length_set(self):
         """Test that setting the current collector length updates the jellyroll properties."""
         self.my_jellyroll.layup.cathode.current_collector.length = 2000
-        self.my_jellyroll.layup.cathode.current_collector = self.my_jellyroll.layup.cathode.current_collector
+        self.my_jellyroll.layup.cathode.current_collector = (
+            self.my_jellyroll.layup.cathode.current_collector
+        )
         self.my_jellyroll.layup.cathode = self.my_jellyroll.layup.cathode
         self.my_jellyroll.layup = self.my_jellyroll.layup
         self.assertEqual(self.my_jellyroll.layup.cathode.current_collector.length, 2000)
@@ -410,7 +433,7 @@ class TestRoundJellyRoll(unittest.TestCase):
 
         self.my_jellyroll.tape.thickness = 10
         self.my_jellyroll.tape = self.my_jellyroll.tape
-        
+
         new_radius = self.my_jellyroll._radius
         self.assertTrue(new_radius < original_radius)
 
@@ -442,7 +465,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         original_tape_wraps = self.my_jellyroll._additional_tape_wraps
         original_cost = self.my_jellyroll._cost
         original_mass = self.my_jellyroll._mass
-    
+
         self.my_jellyroll.additional_tape_wraps = 0
 
         new_length = self.my_jellyroll._tape._length
@@ -477,7 +500,7 @@ class TestRoundJellyRoll(unittest.TestCase):
 
 
 class TestFlatJellyRoll(unittest.TestCase):
-    
+
     def setUp(self):
         ########################
         # make a basic cathode
@@ -486,7 +509,9 @@ class TestFlatJellyRoll(unittest.TestCase):
         material.specific_cost = 6
         material.density = 3.6
 
-        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        conductive_additive = ConductiveAdditive(
+            name="super_P", specific_cost=15, density=2.0, color="#000000"
+        )
         binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
 
         formulation = CathodeFormulation(
@@ -495,7 +520,9 @@ class TestFlatJellyRoll(unittest.TestCase):
             conductive_additives={conductive_additive: 3},
         )
 
-        current_collector_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
+        current_collector_material = CurrentCollectorMaterial(
+            name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA"
+        )
 
         current_collector = NotchedCurrentCollector(
             material=current_collector_material,
@@ -561,9 +588,13 @@ class TestFlatJellyRoll(unittest.TestCase):
             porosity=45,
         )
 
-        top_separator = Separator(material=separator_material, thickness=25, width=310, length=5000)
+        top_separator = Separator(
+            material=separator_material, thickness=25, width=310, length=5000
+        )
 
-        bottom_separator = Separator(material=separator_material, thickness=25, width=310, length=7000)
+        bottom_separator = Separator(
+            material=separator_material, thickness=25, width=310, length=7000
+        )
 
         layup = Laminate(
             anode=anode,
@@ -572,26 +603,16 @@ class TestFlatJellyRoll(unittest.TestCase):
             bottom_separator=bottom_separator,
         )
 
-        mandrel = FlatMandrel(
-            length=350,
-            width=100,
-            height=5
-        )
+        mandrel = FlatMandrel(length=350, width=100, height=5)
 
         tape_material = TapeMaterial.from_database("Kapton")
         tape_material.density = 1.42
         tape_material.specific_cost = 70
 
-        tape = Tape(
-            material = tape_material,
-            thickness=30
-        )
+        tape = Tape(material=tape_material, thickness=30)
 
         self.my_jellyroll = FlatWoundJellyRoll(
-            laminate=layup,
-            mandrel=mandrel,
-            tape=tape,
-            additional_tape_wraps=2
+            laminate=layup, mandrel=mandrel, tape=tape, additional_tape_wraps=2
         )
 
     def test_basics(self):
@@ -660,46 +681,48 @@ class TestFlatJellyRoll(unittest.TestCase):
 
     def test_roll_properties(self):
         """Test that roll_properties returns a properly formatted DataFrame with expected values."""
-        
+
         # Test that roll_properties is a pandas DataFrame
         self.assertIsInstance(self.my_jellyroll.roll_properties, pd.DataFrame)
-        
+
         expected_data = {
-            'Anode A Side Coating Turns': 17.87,
-            'Anode Current Collector Turns': 20.04,
-            'Anode B Side Coating Turns': 18.28,
-            'Cathode A Side Coating Turns': 20.04,
-            'Cathode Current Collector Turns': 20.04,
-            'Cathode B Side Coating Turns': 20.04,
-            'Bottom Separator Turns': 31.32,
-            'Bottom Separator Inner Turns': 7.03,
-            'Bottom Separator Outer Turns': 6.24,
-            'Top Separator Turns': 22.31,
-            'Top Separator Inner Turns': 2.16,
-            'Top Separator Outer Turns': 2.09
+            "Anode A Side Coating Turns": 17.87,
+            "Anode Current Collector Turns": 20.04,
+            "Anode B Side Coating Turns": 18.28,
+            "Cathode A Side Coating Turns": 20.04,
+            "Cathode Current Collector Turns": 20.04,
+            "Cathode B Side Coating Turns": 20.04,
+            "Bottom Separator Turns": 31.32,
+            "Bottom Separator Inner Turns": 7.03,
+            "Bottom Separator Outer Turns": 6.24,
+            "Top Separator Turns": 22.31,
+            "Top Separator Inner Turns": 2.16,
+            "Top Separator Outer Turns": 2.09,
         }
 
-        expected_df = pd.DataFrame.from_dict(expected_data, orient='index', columns=['Turns'])
-        expected_df.index.name = 'Component'
-        
+        expected_df = pd.DataFrame.from_dict(
+            expected_data, orient="index", columns=["Turns"]
+        )
+        expected_df.index.name = "Component"
+
         # Get actual DataFrame
         actual_df = self.my_jellyroll.roll_properties
-        
+
         # Test DataFrame structure
-        self.assertEqual(actual_df.columns.tolist(), ['Turns'])
+        self.assertEqual(actual_df.columns.tolist(), ["Turns"])
 
         # Test that all expected components are present
         for component in expected_data.keys():
             self.assertIn(component, actual_df.index, f"Missing component: {component}")
-        
+
         # Test values (rounded to 2 decimal places)
         for component, expected_value in expected_data.items():
-            actual_value = actual_df.loc[component, 'Turns']
+            actual_value = actual_df.loc[component, "Turns"]
             self.assertAlmostEqual(
-                actual_value, 
-                expected_value, 
-                places=1, 
-                msg=f"Component {component}: expected {expected_value}, got {actual_value}"
+                actual_value,
+                expected_value,
+                places=1,
+                msg=f"Component {component}: expected {expected_value}, got {actual_value}",
             )
 
     def test_thickness_setter(self):
@@ -757,7 +780,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         # Change tape thickness to a smaller value
         self.my_jellyroll.tape.thickness = 10
         self.my_jellyroll.tape = self.my_jellyroll.tape
-        
+
         new_thickness = self.my_jellyroll._thickness
         self.assertTrue(new_thickness < original_thickness)
 
@@ -794,7 +817,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         original_tape_wraps = self.my_jellyroll._additional_tape_wraps
         original_cost = self.my_jellyroll._cost
         original_mass = self.my_jellyroll._mass
-    
+
         self.my_jellyroll.additional_tape_wraps = 0
 
         new_length = self.my_jellyroll._tape._length
@@ -829,47 +852,49 @@ class TestFlatJellyRoll(unittest.TestCase):
 
     def test_serialization_preserves_propagation_capability(self):
         """Test that propagate_changes() works correctly after serialization/deserialization.
-        
+
         Tests that:
         1. Modifying a property low in the hierarchy (current_collector.length)
         2. Calling propagate_changes() on that child object
         3. Updates a property at a higher level (jellyroll.thickness)
-        
+
         This should work both before and after serialization.
         """
         # Get original properties
         original_thickness = self.my_jellyroll.thickness
         original_length = self.my_jellyroll.layup.length
-        
+
         # Modify low in hierarchy (current collector length)
         self.my_jellyroll.layup.length = original_length + 1000
-        
+
         # Call propagate_changes() to bubble up the change
         self.my_jellyroll.layup.propagate_changes()
-        
+
         # Verify parent property (thickness) changed
         self.assertGreater(self.my_jellyroll.thickness, original_thickness)
         modified_thickness = self.my_jellyroll.thickness
-        
+
         # Reset and verify
         self.my_jellyroll.layup.length = original_length
         self.my_jellyroll.layup.propagate_changes()
-        self.assertAlmostEqual(self.my_jellyroll.thickness, original_thickness, places=1)
-        
+        self.assertAlmostEqual(
+            self.my_jellyroll.thickness, original_thickness, places=1
+        )
+
         # Serialize and deserialize
         serialized = self.my_jellyroll.serialize()
         deserialized_jr = FlatWoundJellyRoll.deserialize(serialized)
-        
+
         # Verify deserialized has same properties
         self.assertAlmostEqual(deserialized_jr.thickness, original_thickness, places=1)
         self.assertAlmostEqual(deserialized_jr.layup.length, original_length, places=5)
-        
+
         # Modify low in hierarchy on deserialized object
         deserialized_jr.layup.length = original_length + 1000
-        
+
         # Call propagate_changes() on deserialized object
         deserialized_jr.layup.propagate_changes()
-        
+
         # Verify parent property changed on deserialized object
         self.assertGreater(deserialized_jr.thickness, original_thickness)
         self.assertAlmostEqual(deserialized_jr.thickness, modified_thickness, places=1)
@@ -884,7 +909,9 @@ class TestPunchedStack(unittest.TestCase):
         cathode_active.specific_cost = 6
         cathode_active.density = 3.6
 
-        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        conductive_additive = ConductiveAdditive(
+            name="super_P", specific_cost=15, density=2.0, color="#000000"
+        )
         binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
 
         cathode_formulation = CathodeFormulation(
@@ -893,7 +920,9 @@ class TestPunchedStack(unittest.TestCase):
             conductive_additives={conductive_additive: 3},
         )
 
-        cathode_cc_material = CurrentCollectorMaterial(name="Copper", specific_cost=5, density=2.7, color="#FFAE00")
+        cathode_cc_material = CurrentCollectorMaterial(
+            name="Copper", specific_cost=5, density=2.7, color="#FFAE00"
+        )
 
         cathode_cc = PunchedCurrentCollector(
             material=cathode_cc_material,
@@ -922,7 +951,9 @@ class TestPunchedStack(unittest.TestCase):
             conductive_additives={conductive_additive: 5},
         )
 
-        cc_material = CurrentCollectorMaterial(name="Aluminium", specific_cost=5, density=2.7, color="#717171")
+        cc_material = CurrentCollectorMaterial(
+            name="Aluminium", specific_cost=5, density=2.7, color="#717171"
+        )
 
         anode_cc = PunchedCurrentCollector(
             material=cc_material,
@@ -950,7 +981,9 @@ class TestPunchedStack(unittest.TestCase):
             porosity=45,
         )
 
-        separator = Separator(material=separator_material, thickness=25, width=310, length=326)
+        separator = Separator(
+            material=separator_material, thickness=25, width=310, length=326
+        )
 
         monolayer = MonoLayer(
             anode=anode,
@@ -959,10 +992,7 @@ class TestPunchedStack(unittest.TestCase):
         )
 
         # default stack for reuse in tests
-        self.stack = PunchedStack(
-            layup=monolayer, 
-            n_layers=20
-        )
+        self.stack = PunchedStack(layup=monolayer, n_layers=20)
 
     def test_punched_stack_basic_structure(self):
         self.assertIsInstance(self.stack, PunchedStack)
@@ -996,7 +1026,7 @@ class TestPunchedStack(unittest.TestCase):
         # curve.show()
 
     def test_breakdowns(self):
-        
+
         def sum_nested_dict(data):
             """Recursively sum all numeric values in a nested dictionary"""
             total = 0
@@ -1007,10 +1037,18 @@ class TestPunchedStack(unittest.TestCase):
                     total += value
             return total
 
-        self.assertAlmostEqual(self.stack._cost, sum_nested_dict(self.stack._cost_breakdown), 5)
-        self.assertAlmostEqual(self.stack._mass, sum_nested_dict(self.stack._mass_breakdown), 5)
-        self.assertAlmostEqual(self.stack.cost, sum_nested_dict(self.stack.cost_breakdown), 1)
-        self.assertAlmostEqual(self.stack.mass, sum_nested_dict(self.stack.mass_breakdown), 1)
+        self.assertAlmostEqual(
+            self.stack._cost, sum_nested_dict(self.stack._cost_breakdown), 5
+        )
+        self.assertAlmostEqual(
+            self.stack._mass, sum_nested_dict(self.stack._mass_breakdown), 5
+        )
+        self.assertAlmostEqual(
+            self.stack.cost, sum_nested_dict(self.stack.cost_breakdown), 1
+        )
+        self.assertAlmostEqual(
+            self.stack.mass, sum_nested_dict(self.stack.mass_breakdown), 1
+        )
 
         mass_breakdown_fig = self.stack.plot_mass_breakdown()
         cost_breakdown_fig = self.stack.plot_cost_breakdown()
@@ -1064,47 +1102,51 @@ class TestPunchedStack(unittest.TestCase):
 
     def test_serialization_preserves_propagation_capability(self):
         """Test that propagate_changes() works correctly after serialization/deserialization.
-        
+
         Tests that:
         1. Modifying a property low in the hierarchy (layup.cathode.mass_loading)
         2. Calling propagate_changes() on that child object
         3. Updates a property at a higher level (stack.mass)
-        
+
         This should work both before and after serialization.
         """
         # Get original properties
         original_mass = self.stack.mass
         original_mass_loading = self.stack.layup.cathode.mass_loading
-        
+
         # Modify low in hierarchy (cathode mass loading)
         self.stack.layup.cathode.mass_loading = original_mass_loading * 1.5
-        
+
         # Call propagate_changes() to bubble up the change
         self.stack.layup.cathode.propagate_changes()
-        
+
         # Verify parent property (mass) changed
         self.assertGreater(self.stack.mass, original_mass)
         modified_mass = self.stack.mass
-        
+
         # Reset and verify
         self.stack.layup.cathode.mass_loading = original_mass_loading
         self.stack.layup.cathode.propagate_changes()
         self.assertAlmostEqual(self.stack.mass, original_mass, places=1)
-        
+
         # Serialize and deserialize
         serialized = self.stack.serialize()
         deserialized_stack = PunchedStack.deserialize(serialized)
-        
+
         # Verify deserialized has same properties
         self.assertAlmostEqual(deserialized_stack.mass, original_mass, places=1)
-        self.assertAlmostEqual(deserialized_stack.layup.cathode.mass_loading, original_mass_loading, places=10)
-        
+        self.assertAlmostEqual(
+            deserialized_stack.layup.cathode.mass_loading,
+            original_mass_loading,
+            places=10,
+        )
+
         # Modify low in hierarchy on deserialized object
         deserialized_stack.layup.cathode.mass_loading = original_mass_loading * 1.5
-        
+
         # Call propagate_changes() on deserialized object
         deserialized_stack.layup.cathode.propagate_changes()
-        
+
         # Verify parent property changed on deserialized object
         self.assertGreater(deserialized_stack.mass, original_mass)
         self.assertAlmostEqual(deserialized_stack.mass, modified_mass, places=1)
@@ -1119,7 +1161,9 @@ class TestZFoldStack(unittest.TestCase):
         cathode_active.specific_cost = 6
         cathode_active.density = 3.6
 
-        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        conductive_additive = ConductiveAdditive(
+            name="super_P", specific_cost=15, density=2.0, color="#000000"
+        )
         binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
 
         cathode_formulation = CathodeFormulation(
@@ -1128,7 +1172,9 @@ class TestZFoldStack(unittest.TestCase):
             conductive_additives={conductive_additive: 3},
         )
 
-        cathode_cc_material = CurrentCollectorMaterial(name="Copper", specific_cost=5, density=2.7, color="#FFAE00")
+        cathode_cc_material = CurrentCollectorMaterial(
+            name="Copper", specific_cost=5, density=2.7, color="#FFAE00"
+        )
 
         cathode_cc = PunchedCurrentCollector(
             material=cathode_cc_material,
@@ -1157,7 +1203,9 @@ class TestZFoldStack(unittest.TestCase):
             conductive_additives={conductive_additive: 5},
         )
 
-        cc_material = CurrentCollectorMaterial(name="Aluminium", specific_cost=5, density=2.7, color="#717171")
+        cc_material = CurrentCollectorMaterial(
+            name="Aluminium", specific_cost=5, density=2.7, color="#717171"
+        )
 
         anode_cc = PunchedCurrentCollector(
             material=cc_material,
@@ -1195,9 +1243,7 @@ class TestZFoldStack(unittest.TestCase):
 
         # default stack for reuse in tests
         self.stack = ZFoldStack(
-            layup=monolayer, 
-            n_layers=20,
-            additional_separator_wraps=5
+            layup=monolayer, n_layers=20, additional_separator_wraps=5
         )
 
     def test_z_fold_stack_basic_structure(self):
@@ -1234,7 +1280,7 @@ class TestZFoldStack(unittest.TestCase):
         # curve.show()
 
     def test_breakdowns(self):
-        
+
         def sum_nested_dict(data):
             """Recursively sum all numeric values in a nested dictionary"""
             total = 0
@@ -1245,10 +1291,18 @@ class TestZFoldStack(unittest.TestCase):
                     total += value
             return total
 
-        self.assertAlmostEqual(self.stack._cost, sum_nested_dict(self.stack._cost_breakdown), 5)
-        self.assertAlmostEqual(self.stack._mass, sum_nested_dict(self.stack._mass_breakdown), 5)
-        self.assertAlmostEqual(self.stack.cost, sum_nested_dict(self.stack.cost_breakdown), 1)
-        self.assertAlmostEqual(self.stack.mass, sum_nested_dict(self.stack.mass_breakdown), 1)
+        self.assertAlmostEqual(
+            self.stack._cost, sum_nested_dict(self.stack._cost_breakdown), 5
+        )
+        self.assertAlmostEqual(
+            self.stack._mass, sum_nested_dict(self.stack._mass_breakdown), 5
+        )
+        self.assertAlmostEqual(
+            self.stack.cost, sum_nested_dict(self.stack.cost_breakdown), 1
+        )
+        self.assertAlmostEqual(
+            self.stack.mass, sum_nested_dict(self.stack.mass_breakdown), 1
+        )
 
         mass_breakdown_fig = self.stack.plot_mass_breakdown()
         cost_breakdown_fig = self.stack.plot_cost_breakdown()
@@ -1258,7 +1312,7 @@ class TestZFoldStack(unittest.TestCase):
 
     def test_different_layup_type(self):
         """Test converting ZFoldStack to PunchedStack by changing layup type."""
-        
+
         self.assertEqual(type(self.stack), ZFoldStack)
         original_cost = self.stack._cost
         original_mass = self.stack._mass
@@ -1279,7 +1333,7 @@ class TestZFoldStack(unittest.TestCase):
         new_cost = self.stack._cost
         new_mass = self.stack._mass
 
-        # PunchedStack should have higher cost and mass than ZFoldStack 
+        # PunchedStack should have higher cost and mass than ZFoldStack
         # (since ZFoldStack has additional separator wraps that reduce material usage)
         self.assertLess(new_cost, original_cost)
         self.assertLess(new_mass, original_mass)
@@ -1288,11 +1342,13 @@ class TestZFoldStack(unittest.TestCase):
 class TestRoundJellyRollWithTabWelded(unittest.TestCase):
 
     def setUp(self):
-        
+
         self.tab_material = CurrentCollectorMaterial.from_database(name="Copper")
         self.cc_material = CurrentCollectorMaterial.from_database(name="Aluminum")
 
-        self.weld_tab = WeldTab(material=self.tab_material, width=5, length=115, thickness=20)
+        self.weld_tab = WeldTab(
+            material=self.tab_material, width=5, length=115, thickness=20
+        )
 
         cathode_current_collector = TabWeldedCurrentCollector(
             material=self.cc_material,
@@ -1332,7 +1388,7 @@ class TestRoundJellyRollWithTabWelded(unittest.TestCase):
             formulation=formulation,
             mass_loading=7.2,
             current_collector=anode_current_collector,
-            calender_density=1.1
+            calender_density=1.1,
         )
 
         separator_material = SeparatorMaterial(
@@ -1343,8 +1399,12 @@ class TestRoundJellyRollWithTabWelded(unittest.TestCase):
             porosity=45,
         )
 
-        top_separator = Separator(material=separator_material, thickness=25, width=310, length=2200)
-        bottom_separator = Separator(material=separator_material, thickness=25, width=310, length=2200)
+        top_separator = Separator(
+            material=separator_material, thickness=25, width=310, length=2200
+        )
+        bottom_separator = Separator(
+            material=separator_material, thickness=25, width=310, length=2200
+        )
 
         self.layup = Laminate(
             anode=anode,
@@ -1383,11 +1443,13 @@ class TestRoundJellyRollWithTabWelded(unittest.TestCase):
 class TestFlatJellyRollWithTabWelded(unittest.TestCase):
 
     def setUp(self):
-        
+
         self.tab_material = CurrentCollectorMaterial.from_database(name="Copper")
         self.cc_material = CurrentCollectorMaterial.from_database(name="Aluminum")
 
-        self.weld_tab = WeldTab(material=self.tab_material, width=5, length=115, thickness=20)
+        self.weld_tab = WeldTab(
+            material=self.tab_material, width=5, length=115, thickness=20
+        )
 
         cathode_current_collector = TabWeldedCurrentCollector(
             material=self.cc_material,
@@ -1427,7 +1489,7 @@ class TestFlatJellyRollWithTabWelded(unittest.TestCase):
             formulation=formulation,
             mass_loading=7.2,
             current_collector=anode_current_collector,
-            calender_density=1.1
+            calender_density=1.1,
         )
 
         separator_material = SeparatorMaterial(
@@ -1438,8 +1500,12 @@ class TestFlatJellyRollWithTabWelded(unittest.TestCase):
             porosity=45,
         )
 
-        top_separator = Separator(material=separator_material, thickness=25, width=310, length=2200)
-        bottom_separator = Separator(material=separator_material, thickness=25, width=310, length=2200)
+        top_separator = Separator(
+            material=separator_material, thickness=25, width=310, length=2200
+        )
+        bottom_separator = Separator(
+            material=separator_material, thickness=25, width=310, length=2200
+        )
 
         self.layup = Laminate(
             anode=anode,
@@ -1448,11 +1514,7 @@ class TestFlatJellyRollWithTabWelded(unittest.TestCase):
             bottom_separator=bottom_separator,
         )
 
-        mandrel = FlatMandrel(
-            length=350,
-            width=100,
-            height=5
-        )
+        mandrel = FlatMandrel(length=350, width=100, height=5)
 
         self.my_jellyroll = FlatWoundJellyRoll(
             laminate=self.layup,
@@ -1478,14 +1540,16 @@ class TestFlatJellyRollWithTabWelded(unittest.TestCase):
 
 class TestAssemblyPropagation(unittest.TestCase):
     """Test update propagation behavior for electrode assemblies."""
-    
+
     def setUp(self):
         # Create cathode
         material = CathodeMaterial.from_database("LFP")
         material.specific_cost = 6
         material.density = 3.6
 
-        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        conductive_additive = ConductiveAdditive(
+            name="super_P", specific_cost=15, density=2.0, color="#000000"
+        )
         binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
 
         formulation = CathodeFormulation(
@@ -1494,7 +1558,9 @@ class TestAssemblyPropagation(unittest.TestCase):
             conductive_additives={conductive_additive: 3},
         )
 
-        current_collector_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
+        current_collector_material = CurrentCollectorMaterial(
+            name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA"
+        )
 
         current_collector = NotchedCurrentCollector(
             material=current_collector_material,
@@ -1552,7 +1618,9 @@ class TestAssemblyPropagation(unittest.TestCase):
         )
 
         # Create separators
-        separator_material = SeparatorMaterial(name="PE", specific_cost=1.5, density=1.0, color="#EEEEEE", porosity=40)
+        separator_material = SeparatorMaterial(
+            name="PE", specific_cost=1.5, density=1.0, color="#EEEEEE", porosity=40
+        )
         top_separator = Separator(
             material=separator_material,
             thickness=12,
@@ -1575,44 +1643,45 @@ class TestAssemblyPropagation(unittest.TestCase):
         )
 
         # Create jelly roll
-        mandrel = RoundMandrel(
-            diameter=4,
-            length=300
-        )
-        
+        mandrel = RoundMandrel(diameter=4, length=300)
+
         self.jelly_roll = WoundJellyRoll(
             laminate=self.layup,
             mandrel=mandrel,
         )
-    
+
     def test_layup_parent_reference(self):
         """Test that jelly roll's layup has parent reference to assembly.
-        
+
         Note: Assembly makes a deepcopy of components, so we check the assembly's copy,
         not the original object passed to the constructor.
         """
         parent = self.jelly_roll.layup._get_parent()
         self.assertIsNotNone(parent)
         self.assertIs(parent, self.jelly_roll)
-    
+
     def test_replace_layup_clears_old_parent(self):
         """Test that replacing layup clears old layup's parent.
-        
+
         Note: Assembly makes deepcopies, so we track the assembly's copy of the layup.
         """
         # Get the assembly's copy of the original layup
         old_layup_in_assembly = self.jelly_roll.layup
-        
+
         # Create new components for a new layup
         material = CathodeMaterial.from_database("LFP")
-        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        conductive_additive = ConductiveAdditive(
+            name="super_P", specific_cost=15, density=2.0, color="#000000"
+        )
         binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
         formulation = CathodeFormulation(
             active_materials={material: 95},
             binders={binder: 2.5},
             conductive_additives={conductive_additive: 2.5},
         )
-        current_collector_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
+        current_collector_material = CurrentCollectorMaterial(
+            name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA"
+        )
         cathode_cc = NotchedCurrentCollector(
             material=current_collector_material,
             length=4000,
@@ -1633,7 +1702,7 @@ class TestAssemblyPropagation(unittest.TestCase):
             insulation_material=insulation,
             insulation_thickness=8,
         )
-        
+
         anode_material = AnodeMaterial.from_database("Synthetic Graphite")
         anode_formulation = AnodeFormulation(
             active_materials={anode_material: 90},
@@ -1659,8 +1728,10 @@ class TestAssemblyPropagation(unittest.TestCase):
             insulation_material=insulation,
             insulation_thickness=8,
         )
-        
-        separator_material = SeparatorMaterial(name="PE", specific_cost=1.5, density=1.0, color="#EEEEEE", porosity=40)
+
+        separator_material = SeparatorMaterial(
+            name="PE", specific_cost=1.5, density=1.0, color="#EEEEEE", porosity=40
+        )
         new_top_separator = Separator(
             material=separator_material,
             thickness=10,
@@ -1673,27 +1744,27 @@ class TestAssemblyPropagation(unittest.TestCase):
             length=4100,
             width=290,
         )
-        
+
         new_layup = Laminate(
             cathode=new_cathode,
             anode=new_anode,
             top_separator=new_top_separator,
             bottom_separator=new_bottom_separator,
         )
-        
+
         # Replace layup
         self.jelly_roll.layup = new_layup
-        
+
         # Old assembly's copy should have no parent after replacement
         self.assertIsNone(old_layup_in_assembly._get_parent())
         # New assembly's copy (not the original new_layup) should have parent
         self.assertIs(self.jelly_roll.layup._get_parent(), self.jelly_roll)
-    
+
     def test_propagate_changes_from_layup_to_assembly(self):
         """Test that propagate_changes from layup reaches assembly."""
         # Should not raise - use assembly's copy since that's what has parent reference
         self.jelly_roll.layup.propagate_changes()
-    
+
     def test_propagate_changes_from_electrode_to_assembly(self):
         """Test that propagate_changes from electrode bubbles up through layup to assembly."""
         # Should not raise - propagates Electrode -> Layup -> Assembly
@@ -1703,7 +1774,7 @@ class TestAssemblyPropagation(unittest.TestCase):
         self.jelly_roll.layup.cathode.current_collector.propagate_changes()
         new_layup_cost = self.jelly_roll._cost
         self.assertTrue(new_layup_cost > old_layup_cost)
-    
+
     def test_propagate_changes_from_current_collector_to_assembly(self):
         """Test that propagate_changes from current collector bubbles up through full hierarchy."""
         # Should not raise - propagates CC -> Electrode -> Layup -> Assembly
@@ -1720,7 +1791,9 @@ class TestAnodeFreeRoundJellyRoll(unittest.TestCase):
         material.specific_cost = 6
         material.density = 3.6
 
-        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        conductive_additive = ConductiveAdditive(
+            name="super_P", specific_cost=15, density=2.0, color="#000000"
+        )
         binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
 
         formulation = CathodeFormulation(
@@ -1729,7 +1802,9 @@ class TestAnodeFreeRoundJellyRoll(unittest.TestCase):
             conductive_additives={conductive_additive: 3},
         )
 
-        cc_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
+        cc_material = CurrentCollectorMaterial(
+            name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA"
+        )
 
         cathode_cc = NotchedCurrentCollector(
             material=cc_material,
@@ -1777,8 +1852,12 @@ class TestAnodeFreeRoundJellyRoll(unittest.TestCase):
             color="#FDFDB7",
             porosity=45,
         )
-        top_separator = Separator(material=separator_material, thickness=25, width=310, length=5000)
-        bottom_separator = Separator(material=separator_material, thickness=25, width=310, length=7000)
+        top_separator = Separator(
+            material=separator_material, thickness=25, width=310, length=5000
+        )
+        bottom_separator = Separator(
+            material=separator_material, thickness=25, width=310, length=7000
+        )
 
         layup = Laminate(
             anode=anode,
@@ -1829,7 +1908,7 @@ class TestAnodeFreeRoundJellyRoll(unittest.TestCase):
         self.assertGreater(len(fig.data), 0)
         # Should not contain anode coating traces
         for trace in fig.data:
-            if hasattr(trace, 'name') and trace.name is not None:
+            if hasattr(trace, "name") and trace.name is not None:
                 self.assertNotIn("Anode a-side Coating", trace.name)
                 self.assertNotIn("Anode b-side Coating", trace.name)
         # fig.show()
@@ -1865,7 +1944,9 @@ class TestAnodeFreeRoundJellyRoll(unittest.TestCase):
         # Should have cathode + full-cell but no anode
         trace_names = [t.name for t in fig.data if t.name]
         has_anode = any("Anode" in n for n in trace_names)
-        self.assertFalse(has_anode, "Anode capacity trace should not appear for anode-free")
+        self.assertFalse(
+            has_anode, "Anode capacity trace should not appear for anode-free"
+        )
         # fig.show()
 
     # --- breakdowns ---
@@ -1879,7 +1960,9 @@ class TestAnodeFreeRoundJellyRoll(unittest.TestCase):
         self.assertIn("Current Collector", breakdown["Anode"])
         # Coating sub-dict should be empty or absent
         coating = breakdown["Anode"].get("Coating", {})
-        self.assertEqual(len(coating), 0, "Anode coating breakdown should be empty for anode-free")
+        self.assertEqual(
+            len(coating), 0, "Anode coating breakdown should be empty for anode-free"
+        )
 
     def test_cost_breakdown(self):
         """Cost breakdown should not include anode coating entries."""
@@ -1887,7 +1970,9 @@ class TestAnodeFreeRoundJellyRoll(unittest.TestCase):
         self.assertIsInstance(breakdown, dict)
         self.assertIn("Anode", breakdown)
         coating = breakdown["Anode"].get("Coating", {})
-        self.assertEqual(len(coating), 0, "Anode coating cost should be empty for anode-free")
+        self.assertEqual(
+            len(coating), 0, "Anode coating cost should be empty for anode-free"
+        )
 
     def test_mass_breakdown_plot(self):
         """Mass breakdown plot should render."""
@@ -1929,8 +2014,12 @@ class TestAnodeFreeRoundJellyRoll(unittest.TestCase):
         # Anode coating turns should be 0 (no coating)
         for name in props.index:
             if "Anode" in name and "Coating" in name:
-                self.assertAlmostEqual(props.loc[name, "Turns"], 0, places=1,
-                                       msg=f"{name} should have 0 turns for anode-free")
+                self.assertAlmostEqual(
+                    props.loc[name, "Turns"],
+                    0,
+                    places=1,
+                    msg=f"{name} should have 0 turns for anode-free",
+                )
 
 
 class TestAnodeFreePunchedStack(unittest.TestCase):
@@ -1942,7 +2031,9 @@ class TestAnodeFreePunchedStack(unittest.TestCase):
         cathode_active.specific_cost = 6
         cathode_active.density = 3.6
 
-        conductive_additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+        conductive_additive = ConductiveAdditive(
+            name="super_P", specific_cost=15, density=2.0, color="#000000"
+        )
         binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
 
         cathode_formulation = CathodeFormulation(
@@ -1951,7 +2042,9 @@ class TestAnodeFreePunchedStack(unittest.TestCase):
             conductive_additives={conductive_additive: 3},
         )
 
-        cathode_cc_material = CurrentCollectorMaterial(name="Copper", specific_cost=5, density=2.7, color="#FFAE00")
+        cathode_cc_material = CurrentCollectorMaterial(
+            name="Copper", specific_cost=5, density=2.7, color="#FFAE00"
+        )
 
         cathode_cc = PunchedCurrentCollector(
             material=cathode_cc_material,
@@ -1971,7 +2064,9 @@ class TestAnodeFreePunchedStack(unittest.TestCase):
         )
 
         # --- anode-free anode ---
-        cc_material = CurrentCollectorMaterial(name="Aluminium", specific_cost=5, density=2.7, color="#717171")
+        cc_material = CurrentCollectorMaterial(
+            name="Aluminium", specific_cost=5, density=2.7, color="#717171"
+        )
 
         anode_cc = PunchedCurrentCollector(
             material=cc_material,
@@ -1993,7 +2088,9 @@ class TestAnodeFreePunchedStack(unittest.TestCase):
             color="#FDFDB7",
             porosity=45,
         )
-        separator = Separator(material=separator_material, thickness=25, width=310, length=326)
+        separator = Separator(
+            material=separator_material, thickness=25, width=310, length=326
+        )
 
         monolayer = MonoLayer(
             anode=anode,
@@ -2039,7 +2136,7 @@ class TestAnodeFreePunchedStack(unittest.TestCase):
         self.assertGreater(len(fig.data), 0)
         # Should not contain anode coating traces
         for trace in fig.data:
-            if hasattr(trace, 'name') and trace.name is not None:
+            if hasattr(trace, "name") and trace.name is not None:
                 self.assertNotIn("Anode A Side", trace.name)
                 self.assertNotIn("Anode B Side", trace.name)
         # fig.show()
@@ -2052,7 +2149,9 @@ class TestAnodeFreePunchedStack(unittest.TestCase):
         self.assertIsInstance(fig, go.Figure)
         trace_names = [t.name for t in fig.data if t.name]
         has_anode = any("Anode" in n for n in trace_names)
-        self.assertFalse(has_anode, "Anode capacity trace should not appear for anode-free")
+        self.assertFalse(
+            has_anode, "Anode capacity trace should not appear for anode-free"
+        )
         # fig.show()
 
     # --- breakdowns ---
@@ -2064,7 +2163,9 @@ class TestAnodeFreePunchedStack(unittest.TestCase):
         self.assertIn("Anodes", breakdown)
         self.assertIn("Current Collector", breakdown["Anodes"])
         coating = breakdown["Anodes"].get("Coating", {})
-        self.assertEqual(len(coating), 0, "Anode coating breakdown should be empty for anode-free")
+        self.assertEqual(
+            len(coating), 0, "Anode coating breakdown should be empty for anode-free"
+        )
 
     def test_cost_breakdown(self):
         """Cost breakdown should not include anode coating entries."""
@@ -2072,7 +2173,9 @@ class TestAnodeFreePunchedStack(unittest.TestCase):
         self.assertIsInstance(breakdown, dict)
         self.assertIn("Anodes", breakdown)
         coating = breakdown["Anodes"].get("Coating", {})
-        self.assertEqual(len(coating), 0, "Anode coating cost should be empty for anode-free")
+        self.assertEqual(
+            len(coating), 0, "Anode coating cost should be empty for anode-free"
+        )
 
     def test_breakdown_plots(self):
         """Breakdown plots should render."""
@@ -2104,4 +2207,3 @@ class TestAnodeFreePunchedStack(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
