@@ -1568,6 +1568,102 @@ class TestAnodeMaterialSwapReversibility(unittest.TestCase):
         )
 
 
+class TestSlotFactoryEdgeCases(unittest.TestCase):
+    """Direct exercises for the indexed-slot helpers in Formulations.py.
+
+    Targets:
+      * ``_slot_material`` / ``_slot_weight`` (module-level dict accessors).
+      * ``_replace_material_slot`` (out-of-range indices, prerequisite gates).
+      * ``_remove_material_slot`` (silent no-op on out-of-range).
+    """
+
+    def setUp(self):
+        from steer_opencell_design.Materials.Formulations import (
+            _slot_material,
+            _slot_weight,
+        )
+
+        self._slot_material = _slot_material
+        self._slot_weight = _slot_weight
+
+        self.material = CathodeMaterial.from_database("LFP")
+        self.material.density = 3.6
+        self.material.specific_cost = 6
+
+        self.binder = Binder.from_database("PVDF")
+        self.binder.density = 1.7
+        self.binder.specific_cost = 15
+
+        self.additive = ConductiveAdditive.from_database("Super P")
+        self.additive.density = 1.9
+        self.additive.specific_cost = 9
+
+        self.formulation = CathodeFormulation(
+            active_materials={self.material: 95},
+            binders={self.binder: 2},
+            conductive_additives={self.additive: 3},
+        )
+
+    def test_slot_material_returns_first_key(self):
+        coll = {self.binder: 0.5, self.additive: 0.5}
+        self.assertIs(self._slot_material(coll, 0), self.binder)
+        self.assertIs(self._slot_material(coll, 1), self.additive)
+
+    def test_slot_material_out_of_range_returns_none(self):
+        self.assertIsNone(self._slot_material({}, 0))
+        self.assertIsNone(self._slot_material({self.binder: 0.5}, 7))
+
+    def test_slot_weight_returns_percent(self):
+        coll = {self.binder: 0.25}
+        # Internal storage is a fraction; helper returns it as a percent.
+        self.assertAlmostEqual(self._slot_weight(coll, 0), 25.0, places=10)
+
+    def test_slot_weight_out_of_range_returns_none(self):
+        self.assertIsNone(self._slot_weight({}, 0))
+        self.assertIsNone(self._slot_weight({self.binder: 0.5}, 7))
+
+    def test_replace_material_slot_appends_when_index_beyond_length(self):
+        """Setting ``binder_2`` when only ``binder_1`` exists must append a new slot."""
+        self.assertIsNone(self.formulation.binder_2)
+        new_binder = Binder.from_database("CMC")
+        new_binder.density = 1.5
+        new_binder.specific_cost = 10
+        self.formulation.binder_2 = new_binder
+        self.assertIs(self.formulation.binder_2, new_binder)
+        self.assertEqual(len(self.formulation._binders), 2)
+
+    def test_replace_material_slot_preserves_existing_weight(self):
+        """Replacing a slot must not touch the existing weight fraction."""
+        original_weight_pct = self.formulation.binder_1_weight
+        new_binder = Binder.from_database("CMC")
+        new_binder.density = 1.5
+        new_binder.specific_cost = 10
+        self.formulation.binder_1 = new_binder
+        self.assertAlmostEqual(
+            self.formulation.binder_1_weight, original_weight_pct, places=10
+        )
+
+    def test_remove_material_slot_is_silent_when_out_of_range(self):
+        """Setting ``binder_2 = None`` when there is no ``binder_2`` is a no-op."""
+        before = list(self.formulation._binders.items())
+        self.formulation.binder_2 = None
+        after = list(self.formulation._binders.items())
+        self.assertEqual(before, after)
+
+    def test_remove_material_slot_removes_existing_entry(self):
+        """Setting ``binder_1 = None`` must drop that entry from the dict.
+
+        Removing the binder drops the formulation total below 100 %, which
+        is expected here, so we suppress the resulting ``UserWarning``.
+        """
+        self.assertEqual(len(self.formulation._binders), 1)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            self.formulation.binder_1 = None
+        self.assertEqual(len(self.formulation._binders), 0)
+        self.assertIsNone(self.formulation.binder_1)
+
+
 if __name__ == "__main__":
     unittest.main()
 

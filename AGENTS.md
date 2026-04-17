@@ -7,12 +7,18 @@
 - Check the name field inside each package's package.json to confirm the right name—skip the top-level one.
  
 ## Testing instructions
+- Use the `STEER` conda env for all Python work in `steer-opencell-design`
+  (`conda activate STEER`). This is the env where `numpy`, `steer_core`,
+  and `pytest` versions match `pyproject.toml`.
 - Use unittests for python testing
 - Write tests in the `test` folder at the root of the repo.
 - Run `pytest` from the root of the repo to execute all tests.
 - Use `pytest -k <test_name>` to run a specific test.
 - Write tests in a file named `test_<module_name>.py` to test a specific module.
-- Avoid writing specific files for testing.  
+- Avoid writing specific files for testing.
+- Coverage is wired through `pytest-cov` (config in `pyproject.toml`):
+  `pytest` runs with `--cov-fail-under=80`. Raise this floor as coverage
+  improves so we never silently regress.
 
 ## Code formatting
 - Use `black .` to format Python code.
