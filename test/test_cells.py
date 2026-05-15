@@ -190,6 +190,38 @@ class TestCylindricalCell(unittest.TestCase):
         self.assertAlmostEqual(self.cell.volumetric_energy, 261.36, places=2)
         self.assertAlmostEqual(self.cell.cost_per_energy, 65.3, places=1)
 
+    def test_going_anode_free(self):
+        old_cost = self.cell.cost
+        old_mass = self.cell.mass
+        fig11 = self.cell.plot_cross_section()
+        fig12 = self.cell.reference_electrode_assembly.layup.plot_top_down_view()
+        old_anode_insulation_thickness = self.cell.reference_electrode_assembly.layup.anode.insulation_thickness
+        old_anode_insulation_material = self.cell.reference_electrode_assembly.layup.anode.insulation_material
+
+        self.cell.reference_electrode_assembly.layup.anode.formulation = None
+        self.cell.reference_electrode_assembly.layup.anode.propagate_changes()
+
+        new_cost = self.cell.cost
+        new_mass = self.cell.mass
+        fig21 = self.cell.plot_cross_section()
+        fig22 = self.cell.reference_electrode_assembly.layup.plot_top_down_view()
+        new_anode_insulation_thickness = self.cell.reference_electrode_assembly.layup.anode.insulation_thickness
+        new_anode_insulation_material = self.cell.reference_electrode_assembly.layup.anode.insulation_material
+
+        self.assertLess(new_cost, old_cost)
+        self.assertLess(new_mass, old_mass)
+        self.assertLess(new_anode_insulation_thickness, old_anode_insulation_thickness)
+        self.assertEqual(new_anode_insulation_thickness, 0.0)
+        self.assertEqual(new_anode_insulation_material, None)
+        self.assertIsNotNone(fig21)
+        self.assertIsNotNone(fig22)
+
+        # fig11.show()
+        # fig12.show()
+        # fig21.show()
+        # fig22.show()
+        # fig2.show()
+
     def test_formulation_voltage(self):
 
         self.cell.maximum_operating_voltage = 3.8
