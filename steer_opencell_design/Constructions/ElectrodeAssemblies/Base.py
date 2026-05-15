@@ -290,6 +290,9 @@ class _ElectrodeAssembly(
     @property
     def anode_capacity_curve(self) -> pd.DataFrame:
         """Get the anode capacity curve as a DataFrame."""
+        if self.layup.anode._is_anode_free or self.layup.anode.formulation is None:
+            return None
+
         if self._anode_capacity_curve is None:
             return None
 
@@ -307,6 +310,9 @@ class _ElectrodeAssembly(
     @property
     def anode_capacity_curve_trace(self) -> go.Scatter:
         """Get the Plotly trace for the anode capacity curve."""
+        if self.layup.anode._is_anode_free or self.layup.anode.formulation is None:
+            return None
+
         if self._anode_capacity_curve is None:
             return None
 

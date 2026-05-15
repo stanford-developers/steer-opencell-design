@@ -1254,6 +1254,13 @@ class _Electrode(
             self._is_anode_free = True
             self._mass_loading = 0.0
             self._calender_density = 0.0
+            self._coating_thickness = 0.0
+            self._porosity = 0.0
+            self._insulation_material = None
+            self._insulation_thickness = 0.0
+            self._areal_capacity_curve = None
+            if hasattr(self, "_property_cache"):
+                self._property_cache.clear()
             return
         self._is_anode_free = False
         self.validate_type(formulation, _ElectrodeFormulation, "formulation")
