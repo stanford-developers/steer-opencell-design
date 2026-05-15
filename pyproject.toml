@@ -18,8 +18,8 @@ classifiers = [
     "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
 ]
 dependencies = [
-    "steer-core==0.2.15",
-    "steer-materials==0.1.42",
+    "steer-core==0.2.17",
+    "steer-materials==0.1.43",
     "numba>=0.59",
 ]
 
