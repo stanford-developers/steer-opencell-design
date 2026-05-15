@@ -205,6 +205,10 @@ class TestCylindricalCell(unittest.TestCase):
         new_mass = self.cell.mass
         fig21 = self.cell.plot_cross_section()
         fig22 = self.cell.reference_electrode_assembly.layup.plot_top_down_view()
+        fig23 = self.cell.reference_electrode_assembly.layup.anode.plot_cross_section(
+            set_z_zero=True,
+            title="Anode Cross Section",
+        )
         new_anode_insulation_thickness = self.cell.reference_electrode_assembly.layup.anode.insulation_thickness
         new_anode_insulation_material = self.cell.reference_electrode_assembly.layup.anode.insulation_material
 
@@ -215,6 +219,8 @@ class TestCylindricalCell(unittest.TestCase):
         self.assertEqual(new_anode_insulation_material, None)
         self.assertIsNotNone(fig21)
         self.assertIsNotNone(fig22)
+        self.assertIsNotNone(fig23)
+        self.assertEqual(fig23.layout.title.text, "Anode Cross Section")
 
         # fig11.show()
         # fig12.show()
