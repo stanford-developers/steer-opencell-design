@@ -534,7 +534,7 @@ class _Electrode(
         """
         # For anode-free electrodes, return the current collector cross-section directly
         if self._is_anode_free:
-            figure = self._current_collector.plot_right_left_view(**kwargs)
+            figure = self.plot_right_left_view(**kwargs)
             figure.data = [trace for trace in figure.data if trace.name == "Foil" or trace.name == "Tab"]
             return figure
 
