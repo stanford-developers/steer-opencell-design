@@ -235,6 +235,16 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
         self.assertAlmostEqual(formulation_max_v_after, material_max_v_after, places=3,
                                msg="Material curve voltage range differs from formulation after recalculation")
 
+        material_curve_capacity = material.specific_capacity_curve[
+            "Specific Capacity (mAh/g)"
+        ].max()
+        self.assertAlmostEqual(
+            material.irreversible_specific_capacity,
+            material_curve_capacity,
+            places=5,
+            msg="Material scalar capacity differs from its current curve",
+        )
+
         self.assertAlmostEqual(formulation_max_v_before, formulation_max_v_after, places=3,
                                msg="Formulation curve changed unexpectedly after recalculation")
 

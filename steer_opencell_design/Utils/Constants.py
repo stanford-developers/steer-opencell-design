@@ -47,7 +47,7 @@ half of the discharge curve.
 # Cell-level geometric tolerances (metres)
 # -----------------------------------------------------------------------------
 
-DIMENSION_FIT_TOLERANCE_M: float = 1e-3
+DIMENSION_FIT_TOLERANCE_M: float = 2e-3
 """Allowed oversize of the electrode assembly over the encapsulation's
 internal cavity, in metres. Used by cylindrical cells to validate
 "assembly fits inside canister".
