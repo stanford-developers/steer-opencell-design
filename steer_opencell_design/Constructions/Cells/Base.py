@@ -668,6 +668,12 @@ class _Cell(
             'material_states': {
                 mat: {
                     'voltage_cutoff': mat._voltage_cutoff,
+                    'irreversible_specific_capacity': getattr(
+                        mat, '_irreversible_specific_capacity', None
+                    ),
+                    'reversible_specific_capacity': getattr(
+                        mat, '_reversible_specific_capacity', None
+                    ),
                     'specific_capacity_curve': mat._specific_capacity_curve.copy()
                         if getattr(mat, '_specific_capacity_curve', None) is not None else None,
                     'specific_capacity_curves': mat._specific_capacity_curves.copy()
@@ -712,6 +718,10 @@ class _Cell(
         formulation._voltage_cutoff = s['formulation_cutoff']
         for mat, state in s['material_states'].items():
             mat._voltage_cutoff = state['voltage_cutoff']
+            if state['irreversible_specific_capacity'] is not None:
+                mat._irreversible_specific_capacity = state['irreversible_specific_capacity']
+            if state['reversible_specific_capacity'] is not None:
+                mat._reversible_specific_capacity = state['reversible_specific_capacity']
             if state['specific_capacity_curve'] is not None:
                 mat._specific_capacity_curve = state['specific_capacity_curve']
             if state['specific_capacity_curves'] is not None:

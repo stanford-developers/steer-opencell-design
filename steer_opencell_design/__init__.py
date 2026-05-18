@@ -64,7 +64,7 @@ ranges.
 ``layup.np_ratio = inf``.
 """
 
-__version__ = "1.0.40"
+__version__ = "1.0.41"
 
 # Register OpenCell domain tables with the base DataManager so
 # that URL routing (materials/ vs cells/) works for any DataManager instance.

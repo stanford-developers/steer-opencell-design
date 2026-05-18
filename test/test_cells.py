@@ -7,6 +7,132 @@ from steer_opencell_design.Components.Containers.Pouch import PouchTerminal
 from steer_core.Mixins.Serializer import SerializerMixin
 
 
+def _build_tesla_like_nmc_cell():
+    """Build a compact Tesla-4680-like NMC cylindrical cell for regression tests."""
+    current_collector_material = ocd.CurrentCollectorMaterial.from_database("Aluminum")
+    conductive_additive = ocd.ConductiveAdditive.from_database("Super P")
+    binder = ocd.Binder.from_database("PVDF")
+    insulation_material = ocd.InsulationMaterial.from_database("Aluminium Oxide, 95%")
+    separator_material = ocd.SeparatorMaterial.from_database("Polypropylene")
+    tape_material = ocd.TapeMaterial.from_database("Kapton")
+
+    cathode_current_collector = ocd.TablessCurrentCollector(
+        material=current_collector_material,
+        width=76,
+        length=3267,
+        coated_width=75,
+        insulation_width=3,
+        thickness=13,
+    )
+    cathode_active_material = ocd.CathodeMaterial.from_database("NMC811")
+    cathode_formulation = ocd.CathodeFormulation(
+        active_materials={cathode_active_material: 95},
+        binders={binder: 2.5},
+        conductive_additives={conductive_additive: 2.5},
+    )
+    cathode = ocd.Cathode(
+        formulation=cathode_formulation,
+        current_collector=cathode_current_collector,
+        calender_density=3.28,
+        mass_loading=26.6,
+        insulation_material=insulation_material,
+        insulation_thickness=3,
+    )
+
+    anode_current_collector_material = ocd.CurrentCollectorMaterial.from_database("Copper")
+    anode_current_collector = ocd.TablessCurrentCollector(
+        material=anode_current_collector_material,
+        width=79,
+        length=3403,
+        coated_width=73,
+        insulation_width=3,
+        thickness=6.5,
+    )
+    anode_active_material = ocd.AnodeMaterial.from_database("Synthetic Graphite")
+    anode_formulation = ocd.AnodeFormulation(
+        active_materials={anode_active_material: 93},
+        binders={binder: 3.5},
+        conductive_additives={conductive_additive: 3.5},
+    )
+    anode = ocd.Anode(
+        formulation=anode_formulation,
+        current_collector=anode_current_collector,
+        calender_density=1.53,
+        mass_loading=19.6,
+        insulation_material=insulation_material,
+        insulation_thickness=3,
+    )
+
+    layup = ocd.Laminate(
+        anode=anode,
+        cathode=cathode,
+        top_separator=ocd.Separator(
+            material=separator_material,
+            width=71,
+            length=3600,
+            thickness=11,
+        ),
+        bottom_separator=ocd.Separator(
+            material=separator_material,
+            width=71,
+            length=3645,
+            thickness=11,
+        ),
+    )
+
+    jellyroll = ocd.WoundJellyRoll(
+        laminate=layup,
+        mandrel=ocd.RoundMandrel(diameter=2.5, length=130),
+        tape=ocd.Tape(material=tape_material, thickness=30),
+        additional_tape_wraps=4,
+    )
+
+    aluminum = ocd.PrismaticContainerMaterial.from_database("Aluminum")
+    steel = ocd.PrismaticContainerMaterial.from_database("Steel")
+    encapsulation = ocd.CylindricalEncapsulation(
+        cathode_terminal_connector=ocd.CylindricalTerminalConnector(
+            material=aluminum,
+            thickness=0.5,
+            radius=46 / 2,
+            fill_factor=0.6,
+        ),
+        anode_terminal_connector=ocd.CylindricalTerminalConnector(
+            material=aluminum,
+            thickness=0.5,
+            radius=46 / 2,
+            fill_factor=0.6,
+        ),
+        lid_assembly=ocd.CylindricalLidAssembly(
+            material=steel,
+            thickness=2,
+            radius=46 / 2,
+            fill_factor=0.7,
+        ),
+        canister=ocd.CylindricalCanister(
+            material=steel,
+            outer_radius=46 / 2,
+            height=80,
+            wall_thickness=0.3,
+        ),
+    )
+
+    electrolyte = ocd.Electrolyte(
+        name="Electrolyte",
+        density=1.18,
+        specific_cost=2.5,
+        color="#FFBE55",
+    )
+
+    return ocd.CylindricalCell(
+        reference_electrode_assembly=jellyroll,
+        encapsulation=encapsulation,
+        electrolyte=electrolyte,
+        operating_voltage_window=(2.5, 4.25),
+        electrolyte_overfill=20,
+        name="TESLA 4680 regression",
+    )
+
+
 class TestCylindricalCell(unittest.TestCase):
 
     def setUp(self):
@@ -359,6 +485,32 @@ class TestCylindricalCell(unittest.TestCase):
 
         fig1 = self.cell.plot_capacity_curve()
         # fig1.show()
+
+    def test_nmc_active_material_capacity_matches_formulation_curve_after_construction(self):
+        cell = _build_tesla_like_nmc_cell()
+        formulation = cell.reference_electrode_assembly.layup.cathode.formulation
+        active_material = formulation.active_material_1
+        weight_fraction = formulation.active_material_1_weight / 100
+
+        active_material_curve_max = active_material.specific_capacity_curve[
+            "Specific Capacity (mAh/g)"
+        ].max()
+        formulation_unweighted_max = (
+            formulation.specific_capacity_curve["Specific Capacity (mAh/g)"].max()
+            / weight_fraction
+        )
+
+        self.assertGreater(active_material_curve_max, 200)
+        self.assertAlmostEqual(
+            active_material.irreversible_specific_capacity,
+            active_material_curve_max,
+            places=5,
+        )
+        self.assertAlmostEqual(
+            active_material.irreversible_specific_capacity,
+            formulation_unweighted_max,
+            places=5,
+        )
 
     def test_minimum_operating_voltage_clamping(self):
         """Test that minimum voltage is clamped to valid range."""
