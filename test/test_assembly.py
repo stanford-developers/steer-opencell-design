@@ -175,7 +175,6 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertTrue(test_case)
 
     def test_plots(self):
-
         self.assertIsInstance(self.my_jellyroll, WoundJellyRoll)
         self.assertTrue(type(self.my_jellyroll.spiral) == pd.DataFrame)
 
