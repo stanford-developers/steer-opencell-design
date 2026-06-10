@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Cylindrical battery cell implementation."""
@@ -7,6 +7,7 @@ from steer_opencell_design.Components.Containers.Cylindrical import CylindricalE
 from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import WoundJellyRoll, FlatWoundJellyRoll
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
 from steer_opencell_design.Constructions.Cells.Base import _Cell
+from steer_opencell_design.Utils.Constants import DIMENSION_FIT_TOLERANCE_M
 
 from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Constants.Units import *
@@ -15,12 +16,6 @@ from steer_core.Mixins.Propagation import propagating_setter
 from typing import Tuple, Union
 import warnings
 import plotly.graph_objects as go
-
-# Tab alignment tolerance constant
-TAB_ALIGNMENT_TOLERANCE = 2e-3  # 2 mm tolerance for tab-terminal alignment (meters)
-
-# Dimension fit tolerance constant
-DIMENSION_FIT_TOLERANCE = 1e-3  # 1 mm tolerance for assembly-encapsulation fit (meters)
 
 
 class CylindricalCell(_Cell):
@@ -152,7 +147,7 @@ class CylindricalCell(_Cell):
         encapsulation : CylindricalEncapsulation
             Encapsulation to validate against
         """
-        if assembly._total_height > encapsulation._internal_height + DIMENSION_FIT_TOLERANCE:
+        if assembly._total_height > encapsulation._internal_height + DIMENSION_FIT_TOLERANCE_M:
 
             warnings.warn(
                 f"Assembly height ({assembly.total_height} mm) exceeds "
@@ -174,7 +169,7 @@ class CylindricalCell(_Cell):
         encapsulation : CylindricalEncapsulation
             Encapsulation to validate against
         """
-        if assembly._radius > encapsulation._canister._inner_radius + DIMENSION_FIT_TOLERANCE:
+        if assembly._radius > encapsulation._canister._inner_radius + DIMENSION_FIT_TOLERANCE_M:
 
             warnings.warn(
                 f"Assembly radius ({assembly.radius} mm) exceeds "

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 import unittest
 import numpy as np
 from copy import deepcopy
@@ -50,7 +53,7 @@ class TestCylindricalTerminalConnector(unittest.TestCase):
         """Test standard connector initialization"""
         connector = self.connector_standard
         self.assertEqual(connector.radius, 5)
-        self.assertEqual(connector.thickness, 0.05)
+        self.assertAlmostEqual(connector.thickness, 0.05, places=5)
         self.assertEqual(connector.fill_factor, 0.8)
 
     def test_serialization(self):
@@ -235,7 +238,7 @@ class TestCylindricalTerminalConnector(unittest.TestCase):
         """Test connector initialization without radius"""
         connector = self.connector_no_radius
         self.assertIsNone(connector.radius)
-        self.assertEqual(connector.thickness, 0.05)
+        self.assertAlmostEqual(connector.thickness, 0.05, places=5)
         self.assertEqual(connector.fill_factor, 0.8)
 
     def test_properties_when_radius_none(self):
@@ -319,7 +322,7 @@ class TestCylindricalTerminalConnector(unittest.TestCase):
         
         # Verify initial state
         self.assertIsNone(connector.radius)
-        self.assertEqual(connector.thickness, 100)
+        self.assertAlmostEqual(connector.thickness, 100, places=5)
         self.assertEqual(connector.fill_factor, 0.75)
         self.assertIsNone(connector.mass)
         
@@ -417,7 +420,7 @@ class TestCylindricalLidAssembly(unittest.TestCase):
         """Test standard lid initialization"""
         lid = self.lid_standard
         self.assertEqual(lid.radius, 5)
-        self.assertEqual(lid.thickness, 50)
+        self.assertAlmostEqual(lid.thickness, 50, places=5)
         self.assertEqual(lid.fill_factor, 0.8)
         self.assertEqual(lid.name, "Cylindrical Lid Assembly")
 
@@ -634,7 +637,7 @@ class TestCylindricalLidAssembly(unittest.TestCase):
         """Test lid initialization without radius"""
         lid = self.lid_no_radius
         self.assertIsNone(lid.radius)
-        self.assertEqual(lid.thickness, 50)
+        self.assertAlmostEqual(lid.thickness, 50, places=5)
         self.assertEqual(lid.fill_factor, 0.8)
         self.assertEqual(lid.name, "Cylindrical Lid Assembly")
 
@@ -719,7 +722,7 @@ class TestCylindricalLidAssembly(unittest.TestCase):
         
         # Verify initial state
         self.assertIsNone(lid.radius)
-        self.assertEqual(lid.thickness, 100)
+        self.assertAlmostEqual(lid.thickness, 100, places=5)
         self.assertEqual(lid.fill_factor, 0.75)
         self.assertIsNone(lid.mass)
         
@@ -757,7 +760,7 @@ class TestCylindricalLidAssembly(unittest.TestCase):
         
         # Both should have same basic properties (since same material, size, fill factor)
         self.assertEqual(lid.radius, connector.radius)
-        self.assertEqual(lid.thickness, connector.thickness) 
+        self.assertAlmostEqual(lid.thickness, connector.thickness, places=5)
         self.assertEqual(lid.fill_factor, connector.fill_factor)
         
         # Volume calculations should be identical (fill factor affects both equally)
@@ -810,10 +813,10 @@ class TestCylindricalCanister(unittest.TestCase):
     def test_initialization_standard(self):
         """Test standard can initialization"""
         can = self.can_standard
-        self.assertEqual(can.outer_radius, 10.0)
-        self.assertEqual(can.height, 50.0)
-        self.assertEqual(can.wall_thickness, 1)
-        self.assertEqual(can.inner_radius, 9.0)  # 10 - 1 = 9
+        self.assertAlmostEqual(can.outer_radius, 10.0, places=5)
+        self.assertAlmostEqual(can.height, 50.0, places=5)
+        self.assertAlmostEqual(can.wall_thickness, 1, places=5)
+        self.assertAlmostEqual(can.inner_radius, 9.0, places=5)  # 10 - 1 = 9
         self.assertEqual(can.name, "Cylindrical Canister")
 
     def test_equal(self):
@@ -839,9 +842,9 @@ class TestCylindricalCanister(unittest.TestCase):
             wall_thickness=0.05  # 0.05 mm
         )
 
-        self.assertEqual(min_can.outer_radius, 2.0)
-        self.assertEqual(min_can.inner_radius, 1.95)  # 2.0 - 0.05
-        
+        self.assertAlmostEqual(min_can.outer_radius, 2.0, places=5)
+        self.assertAlmostEqual(min_can.inner_radius, 1.95, places=5)  # 2.0 - 0.05
+
         # Test thick wall can
         thick_wall_can = CylindricalCanister(
             material=material,
@@ -850,8 +853,8 @@ class TestCylindricalCanister(unittest.TestCase):
             wall_thickness=5.0  # 5 mm
         )
 
-        self.assertEqual(thick_wall_can.outer_radius, 20.0)
-        self.assertEqual(thick_wall_can.inner_radius, 15.0)  # 20 - 5
+        self.assertAlmostEqual(thick_wall_can.outer_radius, 20.0, places=5)
+        self.assertAlmostEqual(thick_wall_can.inner_radius, 15.0, places=5)  # 20 - 5
 
     def test_inner_radius_calculation(self):
         """Test that inner radius is correctly calculated"""
@@ -886,20 +889,20 @@ class TestCylindricalCanister(unittest.TestCase):
         can.outer_radius = 15.0
         self.assertNotEqual(can.volume, original_volume)
         self.assertNotEqual(can.mass, original_mass)
-        self.assertEqual(can.outer_radius, 15.0)
-        
+        self.assertAlmostEqual(can.outer_radius, 15.0, places=5)
+
         # Change height
         original_volume = can.volume
         can.height = 75.0
         self.assertNotEqual(can.volume, original_volume)
-        self.assertEqual(can.height, 75.0)
-        
+        self.assertAlmostEqual(can.height, 75.0, places=5)
+
         # Change wall thickness
         original_volume = can.volume
         original_inner = can.inner_radius
         can.wall_thickness = 1500.0  # 1.5 mm
         self.assertNotEqual(can.inner_radius, original_inner)
-        self.assertEqual(can.wall_thickness, 1500.0)
+        self.assertAlmostEqual(can.wall_thickness, 1500.0, places=5)
 
     def test_inner_radius_setter(self):
         """Test setting inner radius updates outer radius correctly"""
@@ -910,8 +913,8 @@ class TestCylindricalCanister(unittest.TestCase):
         can.inner_radius = 8.0
         expected_outer = 8.0 + (original_wall_thickness)  # Convert μm to mm
         self.assertAlmostEqual(can.outer_radius, expected_outer, places=2)
-        self.assertEqual(can.inner_radius, 8.0)
-        self.assertEqual(can.wall_thickness, original_wall_thickness)
+        self.assertAlmostEqual(can.inner_radius, 8.0, places=5)
+        self.assertAlmostEqual(can.wall_thickness, original_wall_thickness, places=5)
 
     def test_material_dependency(self):
         """Test that different materials produce different results"""
@@ -1081,7 +1084,7 @@ class TestCylindricalCanister(unittest.TestCase):
             height=20.0,
             wall_thickness=3.0  # 3 mm
         )
-        self.assertEqual(thick_can.inner_radius, 7.0)
+        self.assertAlmostEqual(thick_can.inner_radius, 7.0, places=5)
         self.assertGreater(thick_can.volume, 0)
 
     def test_datum_positioning(self):
@@ -1390,7 +1393,7 @@ class TestCylindricalEncapsulation(unittest.TestCase):
     def test_dimensional_consistency(self):
         """Test that all dimensions are consistent and reasonable"""
         # Lid radius should match canister inner radius
-        self.assertEqual(self.encapsulation.lid_assembly.radius, self.canister.inner_radius)
+        self.assertAlmostEqual(self.encapsulation.lid_assembly.radius, self.canister.inner_radius, places=5)
         
         # Terminal radii should be 90% of canister inner radius
         expected_terminal_radius = self.canister.inner_radius * 0.9
@@ -1444,7 +1447,7 @@ class TestCylindricalEncapsulation(unittest.TestCase):
             )
             
             # Check dimensional relationships
-            self.assertEqual(test_encapsulation.lid_assembly.radius, test_canister.inner_radius)
+            self.assertAlmostEqual(test_encapsulation.lid_assembly.radius, test_canister.inner_radius, places=5)
             expected_terminal_radius = test_canister.inner_radius * 0.9
             self.assertAlmostEqual(test_encapsulation.cathode_terminal_connector.radius, expected_terminal_radius, places=2)
             
@@ -1503,7 +1506,7 @@ class TestCylindricalEncapsulation(unittest.TestCase):
         self.assertIsInstance(cylindrical_enc, CylindricalEncapsulation)
         
         # Verify height is preserved
-        self.assertEqual(cylindrical_enc.canister.height, prismatic_canister.height)
+        self.assertAlmostEqual(cylindrical_enc.canister.height, prismatic_canister.height, places=5)
         
         # Verify materials transferred correctly
         self.assertEqual(cylindrical_enc.canister.material.name, material.name)
@@ -1615,13 +1618,13 @@ class TestCylindricalEncapsulation(unittest.TestCase):
         self.assertIsInstance(cylindrical_enc, CylindricalEncapsulation)
         
         # Verify height is preserved (pouch height maps to cylindrical height)
-        self.assertEqual(cylindrical_enc.canister.height, pouch_enc.height)
-        
+        self.assertAlmostEqual(cylindrical_enc.canister.height, pouch_enc.height, places=5)
+
         # Verify canister material is aluminum (per specification)
         self.assertEqual(cylindrical_enc.canister.material.name, "Aluminum")
-        
+
         # Verify wall thickness is 1.0 mm (per specification)
-        self.assertEqual(cylindrical_enc.canister.wall_thickness, 1.0)
+        self.assertAlmostEqual(cylindrical_enc.canister.wall_thickness, 1.0, places=5)
 
     def test_from_pouch_defaults(self):
         """Test that .from_pouch() uses appropriate default values."""
@@ -1727,9 +1730,9 @@ class TestLaminateSheet(unittest.TestCase):
         """Test that laminate sheet initializes correctly with all parameters."""
         self.assertIsNotNone(self.laminate_sheet)
         self.assertEqual(self.laminate_sheet.name, "Test Laminate Sheet")
-        self.assertEqual(self.laminate_sheet.areal_cost, 2.5)
-        self.assertEqual(self.laminate_sheet.density, 920)
-        self.assertEqual(self.laminate_sheet.thickness, 50)
+        self.assertAlmostEqual(self.laminate_sheet.areal_cost, 2.5, places=5)
+        self.assertAlmostEqual(self.laminate_sheet.density, 920, places=5)
+        self.assertAlmostEqual(self.laminate_sheet.thickness, 50, places=5)
         self.assertEqual(self.laminate_sheet.width, 200)
         self.assertEqual(self.laminate_sheet.height, 300)
 
@@ -1745,29 +1748,29 @@ class TestLaminateSheet(unittest.TestCase):
         """Test that laminate sheet initializes correctly without width and length."""
         self.assertIsNotNone(self.partial_laminate_sheet)
         self.assertEqual(self.partial_laminate_sheet.name, "Partial Laminate Sheet")
-        self.assertEqual(self.partial_laminate_sheet.areal_cost, 3.0)
-        self.assertEqual(self.partial_laminate_sheet.density, 950)
-        self.assertEqual(self.partial_laminate_sheet.thickness, 60)
+        self.assertAlmostEqual(self.partial_laminate_sheet.areal_cost, 3.0, places=5)
+        self.assertAlmostEqual(self.partial_laminate_sheet.density, 950, places=5)
+        self.assertAlmostEqual(self.partial_laminate_sheet.thickness, 60, places=5)
         self.assertIsNone(self.partial_laminate_sheet.width)
         self.assertIsNone(self.partial_laminate_sheet.height)
 
     def test_areal_cost_property(self):
         """Test that areal_cost property returns correct value."""
         areal_cost = self.laminate_sheet.areal_cost
-        self.assertIsInstance(areal_cost, float)
-        self.assertEqual(areal_cost, 2.5)
+        self.assertIsInstance(areal_cost, (float, int))
+        self.assertAlmostEqual(areal_cost, 2.5, places=5)
 
     def test_density_property(self):
         """Test that density property returns correct value."""
         density = self.laminate_sheet.density
-        self.assertIsInstance(density, float)
-        self.assertEqual(density, 920)
+        self.assertIsInstance(density, (float, int))
+        self.assertAlmostEqual(density, 920, places=5)
 
     def test_thickness_property(self):
         """Test that thickness property returns correct value."""
         thickness = self.laminate_sheet.thickness
-        self.assertIsInstance(thickness, float)
-        self.assertEqual(thickness, 50)
+        self.assertIsInstance(thickness, (float, int))
+        self.assertAlmostEqual(thickness, 50, places=5)
 
     def test_width_property(self):
         """Test that width property returns correct value."""
@@ -1854,9 +1857,9 @@ class TestLaminateSheet(unittest.TestCase):
         new_areal_cost = 3.5
         
         self.laminate_sheet.areal_cost = new_areal_cost
-        
-        self.assertEqual(self.laminate_sheet.areal_cost, new_areal_cost)
-        self.assertNotEqual(self.laminate_sheet.areal_cost, original_areal_cost)
+
+        self.assertAlmostEqual(self.laminate_sheet.areal_cost, new_areal_cost, places=5)
+        self.assertNotAlmostEqual(self.laminate_sheet.areal_cost, original_areal_cost, places=5)
 
     def test_density_setter(self):
         """Test that density setter works correctly."""
@@ -1864,9 +1867,9 @@ class TestLaminateSheet(unittest.TestCase):
         new_density = 1000
         
         self.laminate_sheet.density = new_density
-        
-        self.assertEqual(self.laminate_sheet.density, new_density)
-        self.assertNotEqual(self.laminate_sheet.density, original_density)
+
+        self.assertAlmostEqual(self.laminate_sheet.density, new_density, places=5)
+        self.assertNotAlmostEqual(self.laminate_sheet.density, original_density, places=5)
 
     def test_thickness_setter(self):
         """Test that thickness setter works correctly."""
@@ -1874,9 +1877,9 @@ class TestLaminateSheet(unittest.TestCase):
         new_thickness = 70
         
         self.laminate_sheet.thickness = new_thickness
-        
-        self.assertEqual(self.laminate_sheet.thickness, new_thickness)
-        self.assertNotEqual(self.laminate_sheet.thickness, original_thickness)
+
+        self.assertAlmostEqual(self.laminate_sheet.thickness, new_thickness, places=5)
+        self.assertNotAlmostEqual(self.laminate_sheet.thickness, original_thickness, places=5)
 
     def test_width_setter(self):
         """Test that width setter works correctly."""
@@ -1979,30 +1982,30 @@ class TestLaminateSheet(unittest.TestCase):
         """Test that multiple property changes work correctly."""
         # Change areal cost
         self.laminate_sheet.areal_cost = 3.0
-        self.assertEqual(self.laminate_sheet.areal_cost, 3.0)
-        
+        self.assertAlmostEqual(self.laminate_sheet.areal_cost, 3.0, places=5)
+
         # Change density
         self.laminate_sheet.density = 1000
-        self.assertEqual(self.laminate_sheet.density, 1000)
-        
+        self.assertAlmostEqual(self.laminate_sheet.density, 1000, places=5)
+
         # Change thickness
         self.laminate_sheet.thickness = 80
-        self.assertEqual(self.laminate_sheet.thickness, 80)
-        
+        self.assertAlmostEqual(self.laminate_sheet.thickness, 80, places=5)
+
         # Change width
         self.laminate_sheet.width = 220
-        self.assertEqual(self.laminate_sheet.width, 220)
-        
+        self.assertAlmostEqual(self.laminate_sheet.width, 220, places=5)
+
         # Change height
         self.laminate_sheet.height = 350
-        self.assertEqual(self.laminate_sheet.height, 350)
-        
+        self.assertAlmostEqual(self.laminate_sheet.height, 350, places=5)
+
         # Verify all changes persisted
-        self.assertEqual(self.laminate_sheet.areal_cost, 3.0)
-        self.assertEqual(self.laminate_sheet.density, 1000)
-        self.assertEqual(self.laminate_sheet.thickness, 80)
-        self.assertEqual(self.laminate_sheet.width, 220)
-        self.assertEqual(self.laminate_sheet.height, 350)
+        self.assertAlmostEqual(self.laminate_sheet.areal_cost, 3.0, places=5)
+        self.assertAlmostEqual(self.laminate_sheet.density, 1000, places=5)
+        self.assertAlmostEqual(self.laminate_sheet.thickness, 80, places=5)
+        self.assertAlmostEqual(self.laminate_sheet.width, 220, places=5)
+        self.assertAlmostEqual(self.laminate_sheet.height, 350, places=5)
 
     def test_hot_press_basic(self):
         """Test that hot press method works with basic parameters."""
@@ -3883,18 +3886,18 @@ class TestFlexFrameEncapsulation(unittest.TestCase):
         )
 
     def test_basics(self):
-        self.assertEqual(self.frame.width, 65)
-        self.assertEqual(self.frame.height, 84)
-        self.assertEqual(self.frame.border_thickness, 2)
-        self.assertEqual(self.frame.cutout_height, 76)
-        self.assertEqual(self.frame.thickness, 4.4)
-        self.assertEqual(self.frame.mass, 4.71)
-        self.assertEqual(self.frame.cost, 0.06)
+        self.assertAlmostEqual(self.frame.width, 65, places=5)
+        self.assertAlmostEqual(self.frame.height, 84, places=5)
+        self.assertAlmostEqual(self.frame.border_thickness, 2, places=5)
+        self.assertAlmostEqual(self.frame.cutout_height, 76, places=5)
+        self.assertAlmostEqual(self.frame.thickness, 4.4, places=2)
+        self.assertAlmostEqual(self.frame.mass, 4.71, places=2)
+        self.assertAlmostEqual(self.frame.cost, 0.06, places=2)
 
-        self.assertEqual(self.encapsulation.width, 65.4)
-        self.assertEqual(self.encapsulation.height, 84.4)
-        self.assertEqual(self.encapsulation.mass, 8.4)
-        self.assertEqual(self.encapsulation.cost, 0.06)
+        self.assertAlmostEqual(self.encapsulation.width, 65.4, places=2)
+        self.assertAlmostEqual(self.encapsulation.height, 84.4, places=2)
+        self.assertAlmostEqual(self.encapsulation.mass, 8.4, places=1)
+        self.assertAlmostEqual(self.encapsulation.cost, 0.06, places=2)
 
     def test_plots(self):
         fig1 = self.frame.plot_top_down_view()

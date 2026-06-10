@@ -60,4 +60,4 @@ This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the [AGPL-3.0](LICENCE.txt) license and, per the CLA, may also be distributed under the project's commercial license.
+By contributing, you agree that your contributions will be licensed under the [AGPL-3.0](LICENSE) license and, per the CLA, may also be distributed under the project's commercial license.

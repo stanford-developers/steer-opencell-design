@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 import unittest
 from copy import deepcopy
 import numpy as np
@@ -19,8 +22,8 @@ class TestMandrel(unittest.TestCase):
     def test_mandrel_instantiation(self):
         """Test basic mandrel instantiation and properties."""
         self.assertIsInstance(self.mandrel, RoundMandrel)
-        self.assertEqual(self.mandrel.diameter, 10.0)
-        self.assertEqual(self.mandrel.length, 100.0)
+        self.assertAlmostEqual(self.mandrel.diameter, 10.0, places=5)
+        self.assertAlmostEqual(self.mandrel.length, 100.0, places=5)
         self.assertEqual(self.mandrel.datum, (0.0, 0.0, 0.0))
 
         fig1 = self.mandrel.plot_top_down_view()
@@ -132,11 +135,11 @@ class TestFlatMandrel(unittest.TestCase):
     def test_flat_mandrel_instantiation(self):
         """Test basic flat mandrel instantiation and properties."""
         self.assertIsInstance(self.flat_mandrel, FlatMandrel)
-        self.assertEqual(self.flat_mandrel.width, 20.0)
-        self.assertEqual(self.flat_mandrel.height, 2.0)
-        self.assertEqual(self.flat_mandrel.radius, 1.0)  # radius = height/2
-        self.assertEqual(self.flat_mandrel.straight_length, 18.0)  # width - height = 20 - 10 = 10
-        self.assertEqual(self.flat_mandrel.length, 100.0)
+        self.assertAlmostEqual(self.flat_mandrel.width, 20.0, places=5)
+        self.assertAlmostEqual(self.flat_mandrel.height, 2.0, places=5)
+        self.assertAlmostEqual(self.flat_mandrel.radius, 1.0, places=5)  # radius = height/2
+        self.assertAlmostEqual(self.flat_mandrel.straight_length, 18.0, places=5)  # width - height = 20 - 10 = 10
+        self.assertAlmostEqual(self.flat_mandrel.length, 100.0, places=5)
         self.assertEqual(self.flat_mandrel.datum, (0.0, 0.0, 0.0))
 
     def test_flat_mandrel_views(self):
@@ -196,7 +199,7 @@ class TestFlatMandrel(unittest.TestCase):
         self.assertLessEqual(np.abs(x_coords).max(), 0.0151)  # 15mm + tolerance in meters
         
         # Straight length should have updated
-        self.assertEqual(self.flat_mandrel.straight_length, 28.0)  # 30 - 10 = 20
+        self.assertAlmostEqual(self.flat_mandrel.straight_length, 28.0, places=5)  # 30 - 10 = 20
 
     def test_flat_mandrel_coordinates_property(self):
         """Test the coordinates property returns proper DataFrame."""
@@ -229,22 +232,22 @@ class TestFlatMandrel(unittest.TestCase):
         """Test property setters work correctly."""
         # Test width setter
         self.flat_mandrel.width = 25.0
-        self.assertEqual(self.flat_mandrel.width, 25.0)
-        self.assertEqual(self.flat_mandrel.straight_length, 23.0)  # 25 - 10 = 15
-        
+        self.assertAlmostEqual(self.flat_mandrel.width, 25.0, places=5)
+        self.assertAlmostEqual(self.flat_mandrel.straight_length, 23.0, places=5)  # 25 - 10 = 15
+
         # Test height setter
         self.flat_mandrel.height = 12.0
-        self.assertEqual(self.flat_mandrel.height, 12.0)
-        self.assertEqual(self.flat_mandrel.radius, 6.0)  # 12/2 = 6
-        
+        self.assertAlmostEqual(self.flat_mandrel.height, 12.0, places=5)
+        self.assertAlmostEqual(self.flat_mandrel.radius, 6.0, places=5)  # 12/2 = 6
+
         # Test radius setter
         self.flat_mandrel.radius = 1.0
-        self.assertEqual(self.flat_mandrel.radius, 1.0)
-        self.assertEqual(self.flat_mandrel.height, 2.0)  # 8*2 = 16
-        
+        self.assertAlmostEqual(self.flat_mandrel.radius, 1.0, places=5)
+        self.assertAlmostEqual(self.flat_mandrel.height, 2.0, places=5)  # 8*2 = 16
+
         # Test length setter
         self.flat_mandrel.length = 150.0
-        self.assertEqual(self.flat_mandrel.length, 150.0)
+        self.assertAlmostEqual(self.flat_mandrel.length, 150.0, places=5)
         
         # Test datum setter
         new_datum = (5.0, 10.0, 15.0)

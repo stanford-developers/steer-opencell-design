@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Termination tape for wound electrode assemblies."""
@@ -131,36 +131,33 @@ class Tape(
         """Get the allowable areal cost range in $/m²."""
         min = self._material._specific_cost_range[0] * self._material._density * self._thickness
         max = self._material._specific_cost_range[1] * self._material._density * self._thickness
-        return (
-            np.round(min, 2), 
-            np.round(max, 2)
-        )
-            
+        return (min, max)
+
     @property
     def cost(self) -> float:
         """Get the total tape cost in $."""
         if self._cost is None:
             return None
-        return np.round(self._cost, 2)
+        return self._cost
 
     @property
     def mass(self) -> float:
         """Get the total tape mass in g."""
         if self._mass is None:
             return None
-        return np.round(self._mass * KG_TO_G, 2)
+        return self._mass * KG_TO_G
 
     @property
     def area(self) -> float:
         """Get the total tape area in cm²."""
         if self._area is None:
             return None
-        return np.round(self._area * M_TO_CM**2, 2)
+        return self._area * M_TO_CM**2
 
     @property
     def areal_cost(self) -> float:
         """Get the areal cost of the tape in $/m²."""
-        return np.round(self._areal_cost, 2)
+        return self._areal_cost
 
     @property
     def name(self) -> str:
@@ -172,7 +169,7 @@ class Tape(
         """Get the tape length in mm."""
         if self._length is None:
             return None
-        return np.round(self._length * M_TO_MM, 2)
+        return self._length * M_TO_MM
     
     @property
     def length_range(self):
@@ -184,7 +181,7 @@ class Tape(
         """Get the tape width in mm."""
         if self._width is None:
             return None
-        return np.round(self._width * M_TO_MM, 2)
+        return self._width * M_TO_MM
 
     @property
     def width_range(self):
@@ -192,8 +189,8 @@ class Tape(
 
         if hasattr(self, "_width_range"):
             return (
-                np.round(self._width_range[0] * M_TO_MM, 2),
-                np.round(self._width_range[1] * M_TO_MM, 2),
+                self._width_range[0] * M_TO_MM,
+                self._width_range[1] * M_TO_MM,
             )
         else:
             return (0, 300)
@@ -206,7 +203,7 @@ class Tape(
     @property
     def thickness(self):
         """Get the tape thickness in µm."""
-        return np.round(self._thickness * M_TO_UM, 2)
+        return self._thickness * M_TO_UM
 
     @property
     def thickness_range(self):

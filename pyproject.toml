@@ -18,8 +18,8 @@ classifiers = [
     "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
 ]
 dependencies = [
-    "steer-core==0.2.12",
-    "steer-materials==0.1.39",
+    "steer-core==0.2.18",
+    "steer-materials==0.1.44",
     "numba>=0.59",
 ]
 
@@ -32,6 +32,9 @@ test = [
     "pytest>=7.0",
     "pytest-cov",
 ]
+# Tests also require the local reference database from steer-opencell-data
+# (not on PyPI due to its Git LFS database size). Install with:
+#   pip install git+https://github.com/stanford-developers/steer-opencell-data.git
 docs = [
     "mkdocs>=1.5",
     "mkdocs-material>=9.0",
@@ -45,7 +48,31 @@ version = {attr = "steer_opencell_design.__version__"}
 where = ["."]
 include = ["steer_opencell_design*"]
 
-[tool.pytest_env]
-API_URL = "https://api.opencell.example.com/production"
+[tool.pytest.ini_options]
+testpaths = ["test"]
+# `--cov-fail-under` enforces a hard floor on package-wide coverage.
+# Current snapshot is 86 %; the floor is 80 % to leave room for small
+# day-to-day fluctuations without false positives. Raise it as coverage
+# improves so we never silently regress.
+addopts = "--cov=steer_opencell_design --cov-report=term-missing --cov-report=xml --cov-fail-under=80"
+
+[tool.coverage.run]
+source = ["steer_opencell_design"]
+branch = false
+omit = [
+    "*/__pycache__/*",
+    "*/__init__.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "@(abc\\.)?abstractmethod",
+    "\\.\\.\\.",
+]
 
 

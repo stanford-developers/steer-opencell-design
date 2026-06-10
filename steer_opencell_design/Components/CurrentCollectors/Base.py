@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Base classes for current collector components."""
@@ -580,14 +580,14 @@ class _CurrentCollector(
         """
         Get the mass of the current collector in grams.
         """
-        return np.round(self._mass * KG_TO_G, 2)
-    
+        return self._mass * KG_TO_G
+
     @property
     def cost(self) -> float:
         """
         Get the cost of the current collector in USD.
         """
-        return np.round(self._cost, 2)
+        return self._cost
 
     @property
     def right_left_b_side_insulation_trace(self) -> pd.DataFrame:
@@ -821,21 +821,21 @@ class _CurrentCollector(
 
     @property
     def x_foil_length(self) -> float:
-        return np.round(self._x_foil_length * M_TO_MM, 2)
+        return self._x_foil_length * M_TO_MM
 
     @property
     def y_foil_length(self) -> float:
-        return np.round(self._y_foil_length * M_TO_MM, 2)
+        return self._y_foil_length * M_TO_MM
 
     @property
     def thickness(self) -> float:
-        return np.round(self._thickness * M_TO_UM, 2)
+        return self._thickness * M_TO_UM
 
     @property
     def thickness_range(self):
         min = 1e-6
         max = 20e-6
-        return (round(min * M_TO_UM, 2), np.round(max * M_TO_UM, 2))
+        return (min * M_TO_UM, max * M_TO_UM)
 
     @property
     def thickness_hard_range(self):
@@ -843,7 +843,7 @@ class _CurrentCollector(
 
     @property
     def insulation_width(self) -> float:
-        return np.round(self._insulation_width * M_TO_MM, 2)
+        return self._insulation_width * M_TO_MM
 
     @property
     def insulation_width_range(self) -> Tuple[float, float]:
@@ -853,7 +853,7 @@ class _CurrentCollector(
         min = 0
         max = self._y_foil_length / 4 - 0.001
 
-        return (round(min * M_TO_MM, 1), np.round(max * M_TO_MM, 1))
+        return (min * M_TO_MM, max * M_TO_MM)
 
     @property
     def insulation_width_hard_range(self) -> Tuple[float, float]:
@@ -884,11 +884,11 @@ class _CurrentCollector(
 
     @property
     def coated_area(self) -> float:
-        return np.round(self._coated_area * M_TO_CM**2, 1)
+        return self._coated_area * M_TO_CM**2
 
     @property
     def a_side_coated_area(self) -> float:
-        return np.round(self._a_side_coated_area * M_TO_CM**2, 2)
+        return self._a_side_coated_area * M_TO_CM**2
 
     @property
     def a_side_coated_coordinates(self) -> pd.DataFrame:
@@ -903,7 +903,7 @@ class _CurrentCollector(
 
     @property
     def b_side_coated_area(self) -> float:
-        return np.round(self._b_side_coated_area * M_TO_CM**2, 2)
+        return self._b_side_coated_area * M_TO_CM**2
 
     @property
     def b_side_coated_coordinates(self) -> pd.DataFrame:
@@ -918,11 +918,11 @@ class _CurrentCollector(
 
     @property
     def foil_area(self) -> float:
-        return np.round(self._foil_area * M_TO_CM**2, 2)
+        return self._foil_area * M_TO_CM**2
 
     @property
     def a_side_insulation_area(self) -> float:
-        return np.round(self._a_side_insulation_area * M_TO_CM**2, 2)
+        return self._a_side_insulation_area * M_TO_CM**2
 
     @property
     def a_side_insulation_coordinates(self) -> pd.DataFrame:
@@ -941,7 +941,7 @@ class _CurrentCollector(
 
     @property
     def b_side_insulation_area(self) -> float:
-        return np.round(self._b_side_insulation_area * M_TO_CM**2, 2)
+        return self._b_side_insulation_area * M_TO_CM**2
 
     @property
     def b_side_insulation_coordinates(self) -> pd.DataFrame:
@@ -960,7 +960,7 @@ class _CurrentCollector(
 
     @property
     def insulation_area(self) -> float:
-        return np.round(self._insulation_area * M_TO_CM**2, 2)
+        return self._insulation_area * M_TO_CM**2
 
     @property
     def width_hard_range(self) -> Tuple[float, float]:
@@ -1027,6 +1027,12 @@ class _TabbedCurrentCollector(_CurrentCollector):
     This class serves as a foundation for collectors where the tab is
     formed as part of the main collector sheet, as opposed to separately
     welded components.
+
+    This base defines the parameter surface shared by every tabbed subclass
+    (:class:`PunchedCurrentCollector`, :class:`NotchedCurrentCollector`,
+    :class:`TablessCurrentCollector`): ``material``, foil geometry,
+    ``thickness``, ``insulation_width``, ``name`` and ``datum``. Subclasses
+    add tab-pattern-specific parameters only.
 
     Parameters
     ----------
@@ -1208,11 +1214,11 @@ class _TabbedCurrentCollector(_CurrentCollector):
 
     @property
     def tab_width(self) -> float:
-        return np.round(self._tab_width * M_TO_MM, 2)
+        return self._tab_width * M_TO_MM
 
     @property
     def tab_height(self) -> float:
-        return np.round(self._tab_height * M_TO_MM, 2)
+        return self._tab_height * M_TO_MM
 
     @property
     def tab_height_range(self) -> Tuple[float, float]:
@@ -1224,14 +1230,14 @@ class _TabbedCurrentCollector(_CurrentCollector):
 
     @property
     def coated_tab_height(self) -> float:
-        return np.round(self._coated_tab_height * M_TO_MM, 2)
+        return self._coated_tab_height * M_TO_MM
 
     @property
     def coated_tab_height_range(self) -> Tuple[float, float]:
         min = 0
         max = self._tab_height / 2 - 0.1 * MM_TO_M
 
-        return (round(min * M_TO_MM, 1), np.round(max * M_TO_MM, 1))
+        return (min * M_TO_MM, max * M_TO_MM)
 
     @property
     def coated_tab_height_hard_range(self) -> Tuple[float, float]:
@@ -1239,7 +1245,7 @@ class _TabbedCurrentCollector(_CurrentCollector):
 
     @property
     def total_height(self) -> float:
-        return np.round(self._total_height * M_TO_MM, 2)
+        return self._total_height * M_TO_MM
 
     @property
     def tab_position_range(self) -> Tuple[float, float]:
@@ -1249,7 +1255,7 @@ class _TabbedCurrentCollector(_CurrentCollector):
     def tab_position_hard_range(self) -> Tuple[float, float]:
         min = self._tab_width / 2 + 1 * MM_TO_M
         max = self._x_foil_length - self._tab_width / 2 - 1 * MM_TO_M
-        return (round(min * M_TO_MM, 1), np.round(max * M_TO_MM, 1))
+        return (min * M_TO_MM, max * M_TO_MM)
 
     @tab_width.setter
     @calculate_all_properties
@@ -1412,22 +1418,20 @@ class _TapeCurrentCollector(_CurrentCollector):
     @property
     def x_foil_length_range(self) -> Tuple[float, float]:
         if hasattr(self, "_x_foil_length_range") and self._x_foil_length_range is not None:
-
             return (
-                np.round(self._x_foil_length_range[0] * M_TO_MM, 2),
-                np.round(self._x_foil_length_range[1] * M_TO_MM, 2),
+                self._x_foil_length_range[0] * M_TO_MM,
+                self._x_foil_length_range[1] * M_TO_MM,
             )
-
         else:
             min_length = self._calculate_total_length_with_skip_coating() * M_TO_MM
-            return (np.round(min_length, 2) + 200, 10000)
+            return (min_length + 200, 10000)
 
     @property
     def y_foil_length_range(self) -> Tuple[float, float]:
         if hasattr(self, "_y_foil_length_range") and self._y_foil_length_range is not None:
             return (
-                np.round(self._y_foil_length_range[0] * M_TO_MM, 2),
-                np.round(self._y_foil_length_range[1] * M_TO_MM, 2),
+                self._y_foil_length_range[0] * M_TO_MM,
+                self._y_foil_length_range[1] * M_TO_MM,
             )
         else:
             return (10, 300)
@@ -1447,8 +1451,8 @@ class _TapeCurrentCollector(_CurrentCollector):
         coated area, and the second float being the end point along the tape of the coated area.
         """
         return (
-            np.round(self._bare_lengths_a_side[0] * M_TO_MM, 1),
-            np.round((self._x_foil_length - self._bare_lengths_a_side[1]) * M_TO_MM, 1),
+            self._bare_lengths_a_side[0] * M_TO_MM,
+            (self._x_foil_length - self._bare_lengths_a_side[1]) * M_TO_MM,
         )
 
     @property
@@ -1469,8 +1473,8 @@ class _TapeCurrentCollector(_CurrentCollector):
         coated area, and the second float being the end point along the tape of the coated area.
         """
         return (
-            np.round(self._bare_lengths_b_side[0] * M_TO_MM, 1),
-            np.round((self._x_foil_length - self._bare_lengths_b_side[1]) * M_TO_MM, 1),
+            self._bare_lengths_b_side[0] * M_TO_MM,
+            (self._x_foil_length - self._bare_lengths_b_side[1]) * M_TO_MM,
         )
 
     @property

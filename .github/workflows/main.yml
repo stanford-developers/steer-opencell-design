@@ -20,11 +20,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install .
-          pip install pytest
+          pip install ".[test]"
+          pip install "git+https://github.com/stanford-developers/steer-opencell-data.git"
 
       - name: Run unit tests
-        env:
-          API_URL: ${{ secrets.API_URL }}
         run: |
           pytest

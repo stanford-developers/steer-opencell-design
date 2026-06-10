@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Base classes and enums for electrode layup configurations."""
@@ -31,6 +31,7 @@ from steer_opencell_design.Components.Separators import Separator
 from steer_opencell_design.Constructions.Layups.OverhangUtils import OverhangMixin
 from steer_opencell_design.Constructions.Layups.ArealCapacityCurveUtils import ArealCapacityCurveMixin
 from steer_opencell_design.Components.CurrentCollectors.Base import _TapeCurrentCollector
+from steer_opencell_design.Utils.Constants import MINIMUM_VOLTAGE_RANGE_FRACTION  # noqa: F401 (re-exported)
 
 
 # Module-level constants for overhang ranges and plotting parameters
@@ -46,11 +47,6 @@ DEFAULT_X_SPACING = 0.004  # Default x-axis sampling spacing in meters (4mm)
 
 # Thickness calculation fallback
 THICKNESS_FALLBACK = 0.0  # Return value when thickness cannot be determined
-
-# Electrochemical calculation constants
-MINIMUM_VOLTAGE_RANGE_FRACTION = 0.5
-VOLTAGE_PRECISION = 2
-AREAL_CAPACITY_PRECISION = 3
 
 
 class NPRatioControlMode(Enum):
@@ -177,9 +173,12 @@ class _Layup(
 
     def _calculate_lower_voltage_limit_range(self) -> None:
         """Calculate the minimum operating voltage range from discharge curve.
-        
-        Sets the minimum voltage range as the bottom quartile of the discharge voltage range,
-        providing a safe operating window above the absolute minimum voltage.
+
+        The lower voltage limit is allowed to vary between the minimum discharge
+        voltage and ``V_min + MINIMUM_VOLTAGE_RANGE_FRACTION * (V_max - V_min)``
+        (currently 50% of the discharge voltage span). This provides a safe
+        operating window above the absolute minimum voltage of the discharge
+        curve.
         """
         # Extract discharge voltages directly using boolean indexing
         discharge_mask = self._areal_capacity_curve[:, 2] == -1
@@ -655,31 +654,31 @@ class _Layup(
     def maximum_operating_voltage_range(self) -> Tuple[float, float]:
         """Maximum operating voltage range in volts."""
         return (
-            np.round(self._maximum_operating_voltage_range[0], VOLTAGE_PRECISION),
-            np.round(self._maximum_operating_voltage_range[1], VOLTAGE_PRECISION),
+            self._maximum_operating_voltage_range[0],
+            self._maximum_operating_voltage_range[1],
         )
-    
+
     @property
     def maximum_areal_reversible_capacity_range(self) -> Tuple[float, float]:
         """Maximum areal capacity range in mAh/cm²."""
         capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
         return (
-            np.round(self._maximum_areal_reversible_capacity_range[0] * capacity_conversion, AREAL_CAPACITY_PRECISION),
-            np.round(self._maximum_areal_reversible_capacity_range[1] * capacity_conversion, AREAL_CAPACITY_PRECISION),
+            self._maximum_areal_reversible_capacity_range[0] * capacity_conversion,
+            self._maximum_areal_reversible_capacity_range[1] * capacity_conversion,
         )
-    
+
     @property
     def operating_reversible_areal_capacity(self) -> float:
         """Operating reversible areal capacity in mAh/cm²."""
         capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
-        return np.round(self._operating_reversible_areal_capacity * capacity_conversion, AREAL_CAPACITY_PRECISION)
-    
+        return self._operating_reversible_areal_capacity * capacity_conversion
+
     @property
     def minimum_operating_voltage_range(self) -> Tuple[float, float]:
         """Minimum operating voltage range in volts."""
         return (
-            np.round(self._minimum_operating_voltage_range[0], VOLTAGE_PRECISION),
-            np.round(self._minimum_operating_voltage_range[1], VOLTAGE_PRECISION),
+            self._minimum_operating_voltage_range[0],
+            self._minimum_operating_voltage_range[1],
         )
 
     @property
@@ -698,11 +697,24 @@ class _Layup(
     @property
     def np_ratio(self) -> float:
         """
-        Get the n/p ratio of the layup (anode to cathode capacity ratio).
+        Get the n/p ratio of the layup.
+
+        This library defines the N/P ratio as the ratio of the *maximum*
+        areal capacities on the paired areal-capacity curves::
+
+            np_ratio = max(anode areal capacity) / max(cathode areal capacity)
+
+        i.e. the ratio of the max x-axis values on the two areal-capacity
+        curves (see ``steer_core.CurveComposition`` and the
+        "Unit and curve contract" section in the package docstring).
+
+        Note that this is *not* the textbook reversible-capacity N/P unless
+        the Q_max points of anode and cathode correspond to the same SOC
+        window.
 
         Returns ``inf`` for anode-free designs.
         """
-        return np.round(self._np_ratio, 3)
+        return self._np_ratio
 
     @property
     def np_ratio_range(self) -> Tuple[float, float]:
@@ -734,8 +746,8 @@ class _Layup(
         _curve = _curve[np.isnan(_curve).sum(axis=1) == 0]
 
         # calculate the columns 
-        areal_capacity = np.round(_curve[:, 0] * capacity_conversion, 4)
-        voltage = np.round(_curve[:, 1], 4)
+        areal_capacity = _curve[:, 0] * capacity_conversion
+        voltage = _curve[:, 1]
         direction = np.where(_curve[:, 2] == 1, "charge", "discharge")
         
         # Create DataFrame with converted values directly
@@ -792,19 +804,19 @@ class _Layup(
     def operating_voltage_window(self) -> Tuple[float, float]:
         """Operating voltage window (min, max) in volts."""
         return (
-            np.round(self._operating_voltage_window[0], VOLTAGE_PRECISION),
-            np.round(self._operating_voltage_window[1], VOLTAGE_PRECISION),
+            self._operating_voltage_window[0],
+            self._operating_voltage_window[1],
         )
-    
+
     @property
     def maximum_operating_voltage(self) -> float:
         """Maximum operating voltage in volts."""
-        return np.round(self._operating_voltage_window[1], VOLTAGE_PRECISION)
-    
+        return self._operating_voltage_window[1]
+
     @property
     def minimum_operating_voltage(self) -> float:
         """Minimum operating voltage in volts."""
-        return np.round(self._operating_voltage_window[0], VOLTAGE_PRECISION)
+        return self._operating_voltage_window[0]
 
     # Override datum setter to sync with child components and use decorator
     @DatumMixin.datum.setter

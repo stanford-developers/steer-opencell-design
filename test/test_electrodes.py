@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 from copy import deepcopy
 import unittest
 import pandas as pd
@@ -268,8 +271,11 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         self.assertTrue(isinstance(self.cathode.current_collector, PunchedCurrentCollector))
         self.assertTrue(isinstance(self.cathode.formulation, CathodeFormulation))
 
+        def round_nested(d, places=2):
+            return {k: round_nested(v, places) if isinstance(v, dict) else round(v, places) for k, v in d.items()}
+
         self.assertEqual(
-            self.cathode.mass_breakdown,
+            round_nested(self.cathode.mass_breakdown),
             {
                 "Coating": {
                     "NaNiMn P2-O3 Composite": 15.74,
@@ -295,12 +301,12 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
 
         self.assertAlmostEqual(self.cathode._mass, sum_nested_dict(self.cathode._mass_breakdown), 5)
 
-        self.assertEqual(self.cathode.calender_density, 2.60)
-        self.assertEqual(self.cathode.mass_loading, 10.68)
-        self.assertEqual(self.cathode.insulation_thickness, 25)
-        self.assertEqual(self.cathode.formulation.mass, 17.49)
-        self.assertEqual(self.cathode.coating_thickness, 41.08)
-        self.assertEqual(self.cathode.mass, 20.67)
+        self.assertAlmostEqual(self.cathode.calender_density, 2.60, places=2)
+        self.assertAlmostEqual(self.cathode.mass_loading, 10.68, places=2)
+        self.assertAlmostEqual(self.cathode.insulation_thickness, 25, places=5)
+        self.assertAlmostEqual(self.cathode.formulation.mass, 17.49, places=2)
+        self.assertAlmostEqual(self.cathode.coating_thickness, 41.08, places=2)
+        self.assertAlmostEqual(self.cathode.mass, 20.67, places=2)
 
     def test_breakdown_plots(self):
         plot_cost = self.cathode.plot_cost_breakdown(title="Cost Breakdown Plot")
@@ -311,7 +317,7 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
     def test_half_cell_curve(self):
         self.cathode.voltage_cutoff = 4.0
         voltage = self.cathode.formulation._capacity_curve[:, 1].max()
-        self.assertEqual(voltage, 4.0)
+        self.assertAlmostEqual(voltage, 4.0, places=5)
         figure = self.cathode.plot_areal_capacity_curve()
         # figure.show()
 
@@ -589,8 +595,11 @@ class testAnodeTabWelded(unittest.TestCase):
         self.assertTrue(isinstance(self.anode.current_collector, TabWeldedCurrentCollector))
         self.assertTrue(isinstance(self.anode.formulation, AnodeFormulation))
 
+        def round_nested(d, places=2):
+            return {k: round_nested(v, places) if isinstance(v, dict) else round(v, places) for k, v in d.items()}
+
         self.assertEqual(
-            self.anode.mass_breakdown,
+            round_nested(self.anode.mass_breakdown),
             {
                 "Coating": {
                     "Synthetic Graphite": 89.51,
