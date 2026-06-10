@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 import unittest
 from pickle import loads, dumps
 from base64 import b64decode, b64encode

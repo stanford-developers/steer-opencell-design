@@ -13,3 +13,4 @@ site/
 .coverage
 coverage.xml
 .pytest_cache/
+pyrightconfig.json

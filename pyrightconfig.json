@@ -1,8 +1,0 @@
-{
-  "extraPaths": [
-    "../steer-core",
-    "../steer-materials",
-    "../steer-opencell-data"
-  ],
-  "typeCheckingMode": "off"
-}
