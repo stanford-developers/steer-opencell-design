@@ -18,17 +18,19 @@
 
 ### Database Connection
 
-To load reference materials with `from_database()`, set the `API_URL` environment variable:
+`from_database()` loads reference materials and cell designs. The backend is selected by the `OPENCELL_ENV` environment variable:
+
+- **`development` (default)** — uses the local SQLite database shipped with the [steer-opencell-data](https://github.com/stanford-developers/steer-opencell-data) package. No network calls; works fully offline. Install it with (requires [Git LFS](https://git-lfs.com/)):
 
 ```bash
-export API_URL=https://59xitvvsf2.execute-api.us-east-2.amazonaws.com/production
+pip install git+https://github.com/stanford-developers/steer-opencell-data.git
 ```
 
-Or set it in your script before importing:
+- **`production`** — uses a deployed OpenCell REST API and requires `API_URL`:
 
-```python
-import os
-os.environ["API_URL"] = "https://59xitvvsf2.execute-api.us-east-2.amazonaws.com/production"
+```bash
+export OPENCELL_ENV=production
+export API_URL=https://api.opencell.example.com/production
 ```
 
 ---

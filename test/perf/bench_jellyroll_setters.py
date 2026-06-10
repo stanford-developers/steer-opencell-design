@@ -50,7 +50,7 @@ from typing import Any, Callable, Dict, List, Tuple
 
 import numpy as np
 
-os.environ.setdefault("OPENCELL_ENV", "production")
+os.environ.setdefault("OPENCELL_ENV", "development")
 
 # Reuse the laminate fixtures from the SpiralUtils bench.
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

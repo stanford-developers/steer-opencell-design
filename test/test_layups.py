@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 from copy import deepcopy
 import unittest
 import plotly.graph_objects as go

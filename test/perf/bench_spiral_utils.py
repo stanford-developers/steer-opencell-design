@@ -45,7 +45,7 @@ from typing import Callable, Dict, List, Tuple
 import numpy as np
 
 # Required so conftest's API caching is not used here (we don't import pytest).
-os.environ.setdefault("OPENCELL_ENV", "production")
+os.environ.setdefault("OPENCELL_ENV", "development")
 
 from steer_opencell_design.Components.CurrentCollectors.Notched import (
     NotchedCurrentCollector,

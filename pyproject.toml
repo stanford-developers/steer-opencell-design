@@ -18,8 +18,8 @@ classifiers = [
     "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
 ]
 dependencies = [
-    "steer-core==0.2.17",
-    "steer-materials==0.1.43",
+    "steer-core==0.2.18",
+    "steer-materials==0.1.44",
     "numba>=0.59",
 ]
 
@@ -32,9 +32,9 @@ test = [
     "pytest>=7.0",
     "pytest-cov",
 ]
-pybamm = [
-    "pybamm",
-]
+# Tests also require the local reference database from steer-opencell-data
+# (not on PyPI due to its Git LFS database size). Install with:
+#   pip install git+https://github.com/stanford-developers/steer-opencell-data.git
 docs = [
     "mkdocs>=1.5",
     "mkdocs-material>=9.0",
@@ -48,9 +48,6 @@ version = {attr = "steer_opencell_design.__version__"}
 where = ["."]
 include = ["steer_opencell_design*"]
 
-[tool.pytest_env]
-API_URL = "https://59xitvvsf2.execute-api.us-east-2.amazonaws.com/production"
-
 [tool.pytest.ini_options]
 testpaths = ["test"]
 # `--cov-fail-under` enforces a hard floor on package-wide coverage.
@@ -63,7 +60,6 @@ addopts = "--cov=steer_opencell_design --cov-report=term-missing --cov-report=xm
 source = ["steer_opencell_design"]
 branch = false
 omit = [
-    "*/Simulation/pybamm/*",
     "*/__pycache__/*",
     "*/__init__.py",
 ]
