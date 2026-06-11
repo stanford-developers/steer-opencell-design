@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Tab-welded current collector with discrete weld tabs."""
@@ -13,9 +13,8 @@ from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Serializer import SerializerMixin
 
 # import core decorators
-from steer_core.Decorators.General import calculate_all_properties
+from steer_core.Decorators.General import calculate_all_properties, recalculate
 from steer_core.Decorators.Coordinates import calculate_areas, calculate_coordinates
-from steer_core.Decorators.Objects import calculate_weld_tab_properties
 
 # import core units
 from steer_core.Constants.Units import *
@@ -301,31 +300,31 @@ class WeldTab(PropagationMixin, ValidationMixin, CoordinateMixin, DatumMixin, Du
 
     @property
     def width(self) -> float:
-        return np.round(self._width * M_TO_MM, 2)
+        return self._width * M_TO_MM
 
     @property
     def length(self) -> float:
-        return np.round(self._length * M_TO_MM, 2)
+        return self._length * M_TO_MM
 
     @property
     def thickness(self) -> float:
-        return np.round(self._thickness * M_TO_UM, 2)
+        return self._thickness * M_TO_UM
 
     @property
     def volume(self) -> float:
-        return np.round(self._volume * M_TO_CM**3, 2)
+        return self._volume * M_TO_CM**3
 
     @property
     def mass(self) -> float:
-        return np.round(self._mass * KG_TO_G, 2)
+        return self._mass * KG_TO_G
 
     @property
     def cost(self) -> float:
-        return np.round(self._cost, 2)
+        return self._cost
 
     @property
     def foil_area(self) -> float:
-        return np.round(self._foil_area * M_TO_MM**2, 2)
+        return self._foil_area * M_TO_MM**2
 
     @material.setter
     @calculate_all_properties
@@ -722,7 +721,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         Returns the width of the skip coat area in mm.
         """
-        return np.round(self._skip_coat_width * M_TO_MM, 2)
+        return self._skip_coat_width * M_TO_MM
 
     @property
     def skip_coat_width_range(self) -> Tuple[float, float]:
@@ -750,7 +749,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         Returns the overhang of the weld tab on the current collector in mm.
         """
-        return np.round(self._tab_overhang * M_TO_MM, 2)
+        return self._tab_overhang * M_TO_MM
 
     @property
     def tab_overhang_range(self) -> Tuple[float, float]:
@@ -865,7 +864,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
                 raise  # Re-raise other ValueError from weld_tab_positions setter
 
     @tab_overhang.setter
-    @calculate_weld_tab_properties
+    @recalculate("weld_tab_properties")
     def tab_overhang(self, tab_overhang: float) -> None:
         """
         Set the overhang of the weld tab on the current collector.
@@ -931,7 +930,7 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             raise ValueError("Skip coat width cannot be greater than the length of the current collector.")
 
     @tab_weld_side.setter
-    @calculate_weld_tab_properties
+    @recalculate("weld_tab_properties")
     def tab_weld_side(self, tab_weld_side: str) -> None:
         if tab_weld_side not in ["a", "b"]:
             raise ValueError("Tab weld side must be either 'a' or 'b'.")

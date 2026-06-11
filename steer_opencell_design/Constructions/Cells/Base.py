@@ -1,11 +1,43 @@
-# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Base class for complete battery cells."""
+"""Base class for complete battery cells.
+
+Two object trees
+----------------
+The cell domain is organised along two orthogonal axes:
+
+**Composition axis** (what a battery scientist thinks about)::
+
+    Cell
+    ├── encapsulation   : _Container
+    ├── electrolyte     : Electrolyte
+    └── electrode_assemblies (x n_electrode_assembly)
+        └── layup       : _Layup
+            ├── cathode : Cathode
+            │   ├── formulation        : CathodeFormulation
+            │   └── current_collector  : _CurrentCollector
+            ├── anode   : Anode (formulation=None for anode-free)
+            │   ├── formulation        : AnodeFormulation | None
+            │   └── current_collector  : _CurrentCollector
+            ├── top_separator          : Separator
+            └── bottom_separator       : Separator
+
+**Inheritance axis** (format-specific concrete classes)::
+
+    _Cell
+    ├── CylindricalCell
+    ├── PrismaticCell
+    ├── PouchCell
+    └── FlexFrameCell
+
+The *composition* tree is where quantities flow (mass, cost, capacity,
+voltage). The *inheritance* tree only adds format-specific geometry and
+packaging logic.
+"""
 
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Base import _ElectrodeAssembly
 from steer_opencell_design.Components.Containers.Base import _Container
-from steer_opencell_design.Utils.Decorators import calculate_electrochemical_properties
 from steer_core.Utils import round_dict_recursive
 
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
@@ -21,7 +53,7 @@ from steer_core.Mixins.Plotter import PlotterMixin
 from steer_core.Mixins.Data import DataMixin
 from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
-from steer_core.Decorators.General import calculate_all_properties
+from steer_core.Decorators.General import calculate_all_properties, recalculate
 
 from steer_core.Constants.Units import *
 
@@ -39,15 +71,6 @@ from scipy.optimize import brentq
 VOLTAGE_GUIDE_MARGIN_LOWER = 0.95
 VOLTAGE_GUIDE_MARGIN_UPPER = 1.05
 CAPACITY_GUIDE_EXTENSION = 1.1
-
-# Precision constants for different property types
-MASS_PRECISION = 2
-ENERGY_PRECISION = 2
-CAPACITY_PRECISION = 2
-VOLTAGE_PRECISION = 2
-CURVE_PRECISION = 4
-COST_PRECISION = 2
-
 
 class _Cell(
     ABC,
@@ -109,26 +132,59 @@ class _Cell(
         self._calculate_electrochemical_properties()
         self._calculate_capacity_ranges()  # Cache ranges to avoid recalculation on property access
 
+    def _clip_tabs(self) -> None:
+        """Clip current collector tabs to ``self._clipped_tab_length``.
+
+        Applies the clipped tab length to all electrode assemblies if the
+        attribute is present and non-None. Cylindrical cells do not define a
+        ``_clipped_tab_length`` attribute, so this method is a no-op for them.
+        """
+        clipped_tab_length = getattr(self, "_clipped_tab_length", None)
+        if clipped_tab_length is None:
+            return
+
+        for assembly in self._electrode_assemblies:
+            assembly._clip_current_collector_tabs(clipped_tab_length)
+
     def _convert_to_cell_type(self, new_encapsulation: _Container) -> None:
         """Convert cell to appropriate type based on encapsulation type.
-        
+
         When an encapsulation of a different type is set (e.g., setting a PouchEncapsulation
         on a PrismaticCell), this method converts the cell to the appropriate type while
         preserving all electrode assembly and electrolyte properties.
-        
+
         Only conversions between PrismaticCell and PouchCell are supported, as both
         use compatible electrode assembly types (ZFoldStack, PunchedStack, FlatWoundJellyRoll).
         CylindricalCell uses WoundJellyRoll which is incompatible with the other cell types.
-        
+
         Parameters
         ----------
         new_encapsulation : _Container
             The new encapsulation that requires a different cell type
-            
+
         Notes
         -----
-        This performs an in-place conversion by copying all attributes from a newly
-        created cell of the appropriate type into self.
+        This performs an in-place conversion by reassigning ``self.__class__``
+        and replacing ``self.__dict__`` with the dict of a freshly constructed
+        cell of the target type.
+
+        .. warning::
+            Because this mutates ``__class__`` and ``__dict__`` in place, it can
+            interact poorly with the following:
+
+            - **Pickling / deepcopy**: any pickled references taken *before* the
+              conversion will refer to the old class.
+            - **Static typing / IDE inference**: external references still
+              typed as ``PrismaticCell`` may continue to call methods that no
+              longer exist after a conversion to ``PouchCell``.
+            - **Subclass-specific ``__init__`` state**: any kwarg that is not
+              forwarded through ``extra_kwargs`` below (e.g. new
+              geometry-only fields added to a subclass) will be lost at
+              conversion time. When adding a new init argument to a cell
+              subclass, update ``extra_kwargs`` accordingly.
+            - **``_parent`` pointers on child objects**: these are restored via
+              ``self._restore_child_parent_refs()``; skipping that call would
+              leave children pointing at a temporary ``new_cell`` instance.
         """
         from steer_opencell_design.Components.Containers.Prismatic import PrismaticEncapsulation
         from steer_opencell_design.Components.Containers.Pouch import PouchEncapsulation
@@ -335,9 +391,6 @@ class _Cell(
         charge_curve = np.vstack((charge_curve, charge_curve[-1, :]))
         combined_curve = np.vstack((charge_curve, discharge_curve))
 
-        # round curves
-        combined_curve = np.round(combined_curve, CURVE_PRECISION)
-        
         # Create DataFrame with all columns at once (more efficient)
         return pd.DataFrame({
             "Capacity (Ah)": combined_curve[:, 0],
@@ -585,16 +638,16 @@ class _Cell(
 
         # Cache ranges
         self._irreversible_capacity_range_cache = (
-            np.round(min(irr_at_low_voltage, irr_at_high_voltage), CAPACITY_PRECISION),
-            np.round(max(irr_at_low_voltage, irr_at_high_voltage), CAPACITY_PRECISION)
+            min(irr_at_low_voltage, irr_at_high_voltage),
+            max(irr_at_low_voltage, irr_at_high_voltage),
         )
         self._reversible_capacity_range_cache = (
-            np.round(min(rev_at_high_min_voltage, rev_at_low_min_voltage), CAPACITY_PRECISION),
-            np.round(max(rev_at_high_min_voltage, rev_at_low_min_voltage), CAPACITY_PRECISION)
+            min(rev_at_high_min_voltage, rev_at_low_min_voltage),
+            max(rev_at_high_min_voltage, rev_at_low_min_voltage),
         )
         self._capacity_loss_range_cache = (
-            np.round(min(loss_at_high_min_voltage, loss_at_low_min_voltage), CAPACITY_PRECISION),
-            np.round(max(loss_at_high_min_voltage, loss_at_low_min_voltage), CAPACITY_PRECISION)
+            min(loss_at_high_min_voltage, loss_at_low_min_voltage),
+            max(loss_at_high_min_voltage, loss_at_low_min_voltage),
         )
 
     def _snapshot_electrochemical_state(self) -> dict:
@@ -615,6 +668,12 @@ class _Cell(
             'material_states': {
                 mat: {
                     'voltage_cutoff': mat._voltage_cutoff,
+                    'irreversible_specific_capacity': getattr(
+                        mat, '_irreversible_specific_capacity', None
+                    ),
+                    'reversible_specific_capacity': getattr(
+                        mat, '_reversible_specific_capacity', None
+                    ),
                     'specific_capacity_curve': mat._specific_capacity_curve.copy()
                         if getattr(mat, '_specific_capacity_curve', None) is not None else None,
                     'specific_capacity_curves': mat._specific_capacity_curves.copy()
@@ -659,6 +718,10 @@ class _Cell(
         formulation._voltage_cutoff = s['formulation_cutoff']
         for mat, state in s['material_states'].items():
             mat._voltage_cutoff = state['voltage_cutoff']
+            if state['irreversible_specific_capacity'] is not None:
+                mat._irreversible_specific_capacity = state['irreversible_specific_capacity']
+            if state['reversible_specific_capacity'] is not None:
+                mat._reversible_specific_capacity = state['reversible_specific_capacity']
             if state['specific_capacity_curve'] is not None:
                 mat._specific_capacity_curve = state['specific_capacity_curve']
             if state['specific_capacity_curves'] is not None:
@@ -931,7 +994,7 @@ class _Cell(
     @property
     def volume(self) -> float:
         """Cell volume in liters."""
-        return np.round(self._encapsulation._volume * M_TO_DM**3, MASS_PRECISION)
+        return self._encapsulation._volume * M_TO_DM**3
 
     @property
     def reference_chemistry(self) -> str:
@@ -1013,7 +1076,7 @@ class _Cell(
     @property
     def electrolyte_overfill(self) -> float:
         """Get the electrolyte overfill percentage."""
-        return np.round(self._electrolyte_overfill * FRACTION_TO_PERCENT, MASS_PRECISION)
+        return self._electrolyte_overfill * FRACTION_TO_PERCENT
     
     @property
     def electrolyte_overfill_range(self) -> Tuple[float, float]:
@@ -1033,32 +1096,32 @@ class _Cell(
     @property
     def cost(self) -> float:
         """Cell cost in dollars."""
-        return np.round(self._cost, COST_PRECISION)
+        return self._cost
 
     @property
     def mass(self) -> float:
         """Cell mass in grams."""
-        return np.round(self._mass * KG_TO_G, MASS_PRECISION)
+        return self._mass * KG_TO_G
 
     @property
     def energy(self) -> float:
         """Cell energy in kWh."""
-        return np.round(self._energy * ENERGY_CONVERSION_FACTOR, ENERGY_PRECISION)
-    
+        return self._energy * ENERGY_CONVERSION_FACTOR
+
     @property
     def specific_energy(self) -> float:
-        """Cell specific energy in kWh/kg."""
-        return np.round(self._specific_energy * ENERGY_CONVERSION_FACTOR, ENERGY_PRECISION)
-    
+        """Cell specific energy in Wh/kg."""
+        return self._specific_energy * ENERGY_CONVERSION_FACTOR
+
     @property
     def volumetric_energy(self) -> float:
-        """Cell volumetric energy in kWh/L."""
-        return np.round(self._volumetric_energy * VOLUMETRIC_ENERGY_CONVERSION, ENERGY_PRECISION)
+        """Cell volumetric energy in Wh/L."""
+        return self._volumetric_energy * VOLUMETRIC_ENERGY_CONVERSION
 
     @property
     def cost_per_energy(self) -> float:
         """Cell cost per energy in $/kWh."""
-        return np.round(self._cost_per_energy * NORMALISED_COST_CONVERSION, MASS_PRECISION)
+        return self._cost_per_energy * NORMALISED_COST_CONVERSION
 
     @property
     def cost_breakdown(self) -> Dict[str, Any]:
@@ -1069,7 +1132,7 @@ class _Cell(
         Dict[str, Any]
             Nested dictionary containing cost breakdown by component
         """
-        return round_dict_recursive(self._cost_breakdown, MASS_PRECISION)
+        return round_dict_recursive(self._cost_breakdown, precision=None)
 
     @property
     def mass_breakdown(self) -> Dict[str, Any]:
@@ -1080,22 +1143,44 @@ class _Cell(
         Dict[str, Any]
             Nested dictionary containing mass breakdown by component
         """
-        return round_dict_recursive(self._mass_breakdown, MASS_PRECISION, KG_TO_G)
+        return round_dict_recursive(self._mass_breakdown, precision=None, unit_conversion=KG_TO_G)
 
     @property
     def reversible_capacity(self) -> float:
         """Reversible capacity in Ah."""
-        return np.round(self._reversible_capacity * S_TO_H, CAPACITY_PRECISION)
+        return self._reversible_capacity * S_TO_H
 
     @property
     def irreversible_capacity(self) -> float:
-        """Irreversible (total) capacity in Ah - max capacity reached at full charge."""
-        return np.round(self._irreversible_capacity * S_TO_H, CAPACITY_PRECISION)
+        """Irreversible (total) capacity in Ah.
+
+        Defined in this library as the *maximum stored charge* on the cell's
+        discharge curve — i.e. the total capacity reached at the upper voltage
+        limit.
+
+        .. warning::
+            This differs from the common battery-science use of "irreversible
+            capacity" to mean the first-cycle irreversible loss (related to
+            coulombic efficiency / SEI formation). Here the name refers to
+            the *geometric maximum* of the modelled discharge curve and is
+            independent of cycling history.
+        """
+        return self._irreversible_capacity * S_TO_H
 
     @property
     def capacity_loss(self) -> float:
-        """Capacity loss in Ah - capacity remaining at minimum voltage."""
-        return np.round(self._capacity_loss * S_TO_H, CAPACITY_PRECISION)
+        """Capacity loss in Ah.
+
+        Defined in this library as the *capacity remaining at the minimum
+        operating voltage* (i.e. the minimum of the discharge-curve capacity
+        axis).
+
+        .. warning::
+            This differs from common battery-science usage of "capacity loss"
+            (cycle-to-cycle fade, calendar ageing). Here it denotes a
+            geometric property of the current modelled discharge curve.
+        """
+        return self._capacity_loss * S_TO_H
 
     @property
     def capacity_loss_range(self) -> Tuple[float, float]:
@@ -1185,7 +1270,7 @@ class _Cell(
             name=f"Full-Cell",
             line=dict(color=color, width=3, shape='spline'),  # Slightly thicker for emphasis
             customdata=self.capacity_curve["Direction"],
-            hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} mAh<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
+            hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} Ah<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
     
     @property
@@ -1204,7 +1289,7 @@ class _Cell(
             name=f"{self._reference_electrode_assembly._layup._anode.name} Half-Cell",
             line=dict(color=self._reference_electrode_assembly._layup._anode.formulation.color, width=2, shape='spline'),
             customdata=self.anode_capacity_curve["Direction"],
-            hovertemplate="<b>Anode</b><br>" + "Capacity: %{x:.2f} mAh<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
+            hovertemplate="<b>Anode</b><br>" + "Capacity: %{x:.2f} Ah<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
     
     @property
@@ -1218,7 +1303,7 @@ class _Cell(
             name=f"{self._reference_electrode_assembly._layup._cathode.name} Half-Cell",
             line=dict(color=self._reference_electrode_assembly._layup._cathode.formulation.color, width=2, shape='spline'),
             customdata=self.cathode_capacity_curve["Direction"],
-            hovertemplate="<b>Cathode</b><br>" + "Capacity: %{x:.2f} mAh<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
+            hovertemplate="<b>Cathode</b><br>" + "Capacity: %{x:.2f} Ah<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
 
     @property
@@ -1289,35 +1374,35 @@ class _Cell(
     def operating_voltage_window(self) -> Tuple[float, float]:
         """Operating voltage window (min, max) in volts."""
         return (
-            np.round(self._operating_voltage_window[0], VOLTAGE_PRECISION),
-            np.round(self._operating_voltage_window[1], VOLTAGE_PRECISION),
+            self._operating_voltage_window[0],
+            self._operating_voltage_window[1],
         )
-    
+
     @property
     def maximum_operating_voltage_range(self) -> Tuple[float, float]:
         """Maximum operating voltage range in volts."""
         return (
-            np.round(self._maximum_operating_voltage_range[0], VOLTAGE_PRECISION),
-            np.round(self._maximum_operating_voltage_range[1], VOLTAGE_PRECISION),
+            self._maximum_operating_voltage_range[0],
+            self._maximum_operating_voltage_range[1],
         )
-    
+
     @property
     def maximum_operating_voltage(self) -> float:
         """Maximum operating voltage in volts."""
-        return np.round(self._maximum_operating_voltage, VOLTAGE_PRECISION)
-    
+        return self._maximum_operating_voltage
+
     @property
     def minimum_operating_voltage_range(self) -> Tuple[float, float]:
         """Minimum operating voltage range in volts."""
         return (
-            np.round(self._minimum_operating_voltage_range[0], VOLTAGE_PRECISION),
-            np.round(self._minimum_operating_voltage_range[1], VOLTAGE_PRECISION),
+            self._minimum_operating_voltage_range[0],
+            self._minimum_operating_voltage_range[1],
         )
-    
+
     @property
     def minimum_operating_voltage(self) -> float:
         """Minimum operating voltage in volts."""
-        return np.round(self._minimum_operating_voltage, VOLTAGE_PRECISION)
+        return self._minimum_operating_voltage
     
     @property
     def reference_electrode_assembly(self) -> _ElectrodeAssembly:
@@ -1336,7 +1421,7 @@ class _Cell(
         self._reference_electrode_assembly = value
 
     @reversible_capacity.setter
-    @calculate_electrochemical_properties
+    @recalculate("electrochemical_properties")
     def reversible_capacity(self, value: float) -> None:
         """Set reversible capacity by solving for minimum operating voltage.
         
@@ -1410,7 +1495,7 @@ class _Cell(
             raise ValueError(f"Failed to solve for minimum operating voltage: {e}")
 
     @irreversible_capacity.setter
-    @calculate_electrochemical_properties
+    @recalculate("electrochemical_properties")
     def irreversible_capacity(self, value: float) -> None:
         """Set irreversible capacity by solving for maximum operating voltage.
         
@@ -1524,7 +1609,7 @@ class _Cell(
         self._name = value
 
     @operating_voltage_window.setter
-    @calculate_electrochemical_properties
+    @recalculate("electrochemical_properties")
     def operating_voltage_window(self, value: Tuple[float, float]) -> None:
 
         # Ensure value is a list for mutability
@@ -1574,7 +1659,7 @@ class _Cell(
         self.operating_voltage_window = (self._minimum_operating_voltage, value)
 
     @minimum_operating_voltage.setter
-    @calculate_electrochemical_properties
+    @recalculate("electrochemical_properties")
     def minimum_operating_voltage(self, value: float) -> None:
             
         if value is None:

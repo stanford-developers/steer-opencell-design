@@ -17,6 +17,7 @@ A Python package for designing and modeling lithium-ion and sodium-ion battery c
   - [Prismatic Cell](#prismatic-cell-stacked)
   - [Pouch Cell](#pouch-cell-stacked)
   - [Flex-Frame Cell (Solid-State)](#flex-frame-cell-solid-state)
+- [Real-World Examples](#real-world-examples)
 - [Package Overview](#package-overview)
   - [Materials](#materials-steer_opencell_designmaterials)
   - [Components](#components-steer_opencell_designcomponents)
@@ -83,20 +84,22 @@ pip install -e .
 
 ### Database Connection
 
-To use `from_database()` for loading reference materials and cell designs, set the `API_URL` environment variable to point to the STEER database:
+`from_database()` loads reference materials and cell designs. The backend is selected by the `OPENCELL_ENV` environment variable:
+
+- **`development` (default)** — uses the local SQLite database shipped with the [steer-opencell-data](https://github.com/stanford-developers/steer-opencell-data) package. No network calls; works fully offline. Install it with (requires [Git LFS](https://git-lfs.com/)):
 
 ```bash
+pip install git+https://github.com/stanford-developers/steer-opencell-data.git
+```
+
+- **`production`** — uses a deployed OpenCell REST API. Requires the `API_URL` environment variable:
+
+```bash
+export OPENCELL_ENV=production
 export API_URL=https://api.opencell.example.com/production
 ```
 
-You can add this to your shell profile (e.g., `~/.bashrc`, `~/.zshrc`) or set it in your Python script before importing:
-
-```python
-import os
-os.environ["API_URL"] = "https://api.opencell.example.com/production"
-
-import steer_opencell_design as ocd
-```
+No configuration is needed for the default development mode — just install `steer-opencell-data` and call `from_database()`.
 
 ---
 
@@ -105,9 +108,6 @@ import steer_opencell_design as ocd
 The following example builds a complete **cylindrical cell** from scratch. The workflow follows the natural hierarchy: **Materials → Formulations → Electrodes → Layup → Assembly → Cell**.
 
 ```python
-import os
-os.environ["API_URL"] = "https://api.opencell.example.com/production"
-
 import steer_opencell_design as ocd
 
 # ── 1. Materials ──────────────────────────────────────────────────
@@ -268,9 +268,6 @@ cell.plot_cost_breakdown().show()
 <summary>Build a prismatic cell with punched stacked electrodes</summary>
 
 ```python
-import os
-os.environ["API_URL"] = "https://api.opencell.example.com/production"
-
 import steer_opencell_design as ocd
 
 # ── Materials ─────────────────────────────────────────────────────
@@ -384,9 +381,6 @@ print(f"Energy: {cell.energy:.2f} Wh | Mass: {cell.mass:.2f} g | Specific energy
 <summary>Build a pouch cell with punched stacked electrodes</summary>
 
 ```python
-import os
-os.environ["API_URL"] = "https://api.opencell.example.com/production"
-
 import steer_opencell_design as ocd
 
 # ── Materials & Formulations (same as prismatic example above) ───
@@ -446,9 +440,6 @@ cell.get_top_down_view().show()
 <summary>Build a solid-state flex-frame cell with lithium metal anode</summary>
 
 ```python
-import os
-os.environ["API_URL"] = "https://api.opencell.example.com/production"
-
 import steer_opencell_design as ocd
 import pandas as pd
 
@@ -558,6 +549,18 @@ print(f"Energy: {cell.energy:.2f} Wh | Mass: {cell.mass:.2f} g | Cost: ${cell.co
 ```
 
 </details>
+
+---
+
+## Real-World Examples
+
+The [steer-opencell-data](https://github.com/stanford-developers/steer-opencell-data) repository contains a large collection of complete, runnable scripts that build real cell designs with this package — it is the best place to see `steer-opencell-design` used in practice:
+
+- **`cell_references/`** — 9 generic reference designs covering cylindrical, prismatic, pouch, and flex-frame formats across multiple chemistries (LFP, NMC, sodium-ion, solid-state)
+- **`cell_teardowns/`** — 10 models of commercial cells reconstructed from published teardown data, complete with measured dimensions, formulations, and materials
+- **`default_materials/`** — scripts that create every material in the database (active materials, current collectors, separators, electrolytes, binders, additives), showing how to define materials from raw property data
+
+These scripts double as the build pipeline for the STEER database: each one constructs cells or materials and serializes them into the local SQLite database that `from_database()` reads in development mode.
 
 ---
 
@@ -1280,7 +1283,7 @@ The serialized output is a plain Python dict that can be converted to JSON for f
 
 ## Loading from Database
 
-Reference cells and materials can be loaded from the STEER database. Make sure the `API_URL` environment variable is set (see [Installation](#database-connection)).
+Reference cells and materials can be loaded from the STEER database. In the default development mode this only requires the `steer-opencell-data` package to be installed (see [Installation](#database-connection)).
 
 ```python
 # Load a pre-configured cell
@@ -1305,8 +1308,9 @@ separator_mat = ocd.SeparatorMaterial.from_database("Polyethylene")
 | [`steer-core`](https://pypi.org/project/steer-core/) | Provides the mixin framework shared by all STEER packages — validation, serialization, coordinate systems, change propagation, Plotly-based plotting, and database access. |
 | [`steer-materials`](https://pypi.org/project/steer-materials/) | Base material classes with `from_database()` support, volumetric tracking, and metal subclasses. |
 | **`steer-opencell-design`** | **This package.** The cell design API that composes materials and components into complete virtual battery cells with cost, mass, and electrochemical calculations. |
+| [`steer-opencell-data`](https://github.com/stanford-developers/steer-opencell-data) | The open dataset: local SQLite database of materials, reference cell designs, and commercial cell teardowns, plus the scripts that build it. Powers `from_database()` in development mode. |
 
-All dependencies are installed automatically when you `pip install steer-opencell-design`.
+`steer-core` and `steer-materials` are installed automatically when you `pip install steer-opencell-design`; install `steer-opencell-data` separately to use the local database (see [Database Connection](#database-connection)).
 
 ---
 
@@ -1328,7 +1332,11 @@ pytest -v
 pytest -k "TestCylindricalCell"
 ```
 
-The test environment is configured with `OPENCELL_ENV = "development"` (set automatically by `pyproject.toml`).
+Tests run in development mode (`OPENCELL_ENV=development`, the default), loading reference data from the local SQLite database provided by `steer-opencell-data`. Install it before running the suite (requires [Git LFS](https://git-lfs.com/)):
+
+```bash
+pip install git+https://github.com/stanford-developers/steer-opencell-data.git
+```
 
 ---
 
@@ -1350,9 +1358,8 @@ steer-opencell-design/
 │   └── Utils/                      # Decorators and helper functions
 ├── test/                           # Unit tests (unittest via pytest)
 ├── pyproject.toml                  # Build config & dependencies
-├── pyrightconfig.json              # Type checking config
 ├── CITATION.cff                    # Citation metadata
-└── LICENCE.txt                     # AGPL-3.0 (dual licensed)
+└── LICENSE                         # AGPL-3.0 (dual licensed)
 ```
 
 ---
@@ -1373,8 +1380,8 @@ If you use this software in your research, please cite it using the metadata in 
 
 OpenCell Design is dual-licensed:
 
-- **Open-source license:** [AGPL-3.0](LICENCE.txt) — free for open-source projects. If you use OpenCell Design in your software, you must release your software's source code under AGPL-3.0.
+- **Open-source license:** [AGPL-3.0](LICENSE) — free for open-source projects. If you use OpenCell Design in your software, you must release your software's source code under AGPL-3.0.
 
 - **Commercial license:** For proprietary/commercial use without the AGPL copyleft requirement, contact nsiemons@stanford.edu for a commercial license.
 
-See [LICENCE.txt](LICENCE.txt) for the full AGPL-3.0 license text.
+See [LICENSE](LICENSE) for the full AGPL-3.0 license text.

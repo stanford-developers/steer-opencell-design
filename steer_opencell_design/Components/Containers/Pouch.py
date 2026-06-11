@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Pouch cell container components (laminate sheets, terminals, encapsulation)."""
@@ -20,6 +20,7 @@ from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Decorators.Coordinates import calculate_coordinates
 
+from steer_opencell_design.Components.Containers._mixins import SchematicPlotMixin
 from steer_opencell_design.Materials.Other import CurrentCollectorMaterial, PrismaticContainerMaterial
 
 from typing import Tuple
@@ -37,6 +38,7 @@ class LaminateSheet(
     DunderMixin,
     PlotterMixin,
     SerializerMixin,
+    SchematicPlotMixin,
     ):
     """Laminate film sheet for pouch cell packaging.
 
@@ -340,73 +342,46 @@ class LaminateSheet(
 
     # Public functions
     def plot_top_down_view(self, **kwargs) -> go.Figure:
-        """Get a Plotly Figure showing the top-down view of the laminate sheet.
-        
-        Returns a go.Figure with the laminate sheet footprint.
-        """
-        import plotly.graph_objects as go
-        
-        if not hasattr(self, '_top_down_coordinates') or self._top_down_coordinates is None:
-            return go.Figure()
-        
-        fig = go.Figure()
-        fig.add_trace(self.top_down_trace)
-        
-        fig.update_layout(
+        """Plotly Figure showing the top-down view (x-y) of the laminate sheet."""
+        trace = (
+            self.top_down_trace
+            if getattr(self, "_top_down_coordinates", None) is not None
+            else None
+        )
+        return self._layout_schematic(
+            trace,
             xaxis=self.SCHEMATIC_X_AXIS,
             yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
         )
-        
-        return fig
 
     def plot_right_left_view(self, **kwargs) -> go.Figure:
-        """Get a Plotly Figure showing the right-left (side) view of the laminate sheet.
-        
-        Returns a go.Figure with the laminate sheet cross-section.
-        """
-        import plotly.graph_objects as go
-        
-        if not hasattr(self, '_right_left_coordinates') or self._right_left_coordinates is None:
-            return go.Figure()
-        
-        fig = go.Figure()
-        fig.add_trace(self.right_left_trace)
-        
-        fig.update_layout(
+        """Plotly Figure showing the right-left (y-z) cross-section of the laminate sheet."""
+        trace = (
+            self.right_left_trace
+            if getattr(self, "_right_left_coordinates", None) is not None
+            else None
+        )
+        return self._layout_schematic(
+            trace,
             xaxis=self.SCHEMATIC_Y_AXIS,
             yaxis=self.SCHEMATIC_Z_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
         )
-        
-        return fig
 
     def plot_bottom_up_view(self, **kwargs) -> go.Figure:
-        """Get a Plotly Figure showing the bottom-up view of the laminate sheet.
-        
-        Returns a go.Figure with the laminate sheet cross-section.
-        """
-        import plotly.graph_objects as go
-        
-        if not hasattr(self, '_bottom_up_coordinates') or self._bottom_up_coordinates is None:
-            return go.Figure()
-        
-        fig = go.Figure()
-        fig.add_trace(self.bottom_up_trace)
-        
-        fig.update_layout(
+        """Plotly Figure showing the bottom-up (x-z) cross-section of the laminate sheet."""
+        trace = (
+            self.bottom_up_trace
+            if getattr(self, "_bottom_up_coordinates", None) is not None
+            else None
+        )
+        return self._layout_schematic(
+            trace,
             xaxis=self.SCHEMATIC_X_AXIS,
             yaxis=self.SCHEMATIC_Z_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
         )
-        
-        return fig
 
     # Properties
     @property
@@ -414,26 +389,26 @@ class LaminateSheet(
         """Sheet cost in $."""
         if self._cost is None:
             return None
-        return np.round(self._cost, 2)
+        return self._cost
 
     @property
     def mass(self) -> float:
         """Sheet mass in g."""
         if self._mass is None:
             return None
-        return np.round(self._mass * KG_TO_G, 2)
+        return self._mass * KG_TO_G
 
     @property
     def area(self) -> float:
         """Sheet area in cm²."""
         if self._area is None:
             return None
-        return np.round(self._area * M_TO_CM**2, 2)
+        return self._area * M_TO_CM**2
 
     @property
     def areal_cost(self) -> float:
         """Areal cost in $/m²."""
-        return np.round(self._areal_cost, 2)
+        return self._areal_cost
 
     @property
     def areal_cost_range(self):
@@ -455,8 +430,8 @@ class LaminateSheet(
         """Sheet height in mm."""
         if self._height is None:
             return None
-        return np.round(self._height * M_TO_MM, 2)
-    
+        return self._height * M_TO_MM
+
     @property
     def height_range(self):
         """Valid height range in mm."""
@@ -467,7 +442,7 @@ class LaminateSheet(
         """Sheet width in mm."""
         if self._width is None:
             return None
-        return np.round(self._width * M_TO_MM, 2)
+        return self._width * M_TO_MM
 
     @property
     def width_range(self):
@@ -475,8 +450,8 @@ class LaminateSheet(
 
         if hasattr(self, "_width_range"):
             return (
-                np.round(self._width_range[0] * M_TO_MM, 2),
-                np.round(self._width_range[1] * M_TO_MM, 2),
+                self._width_range[0] * M_TO_MM,
+                self._width_range[1] * M_TO_MM,
             )
         else:
             return (0, 500)
@@ -484,8 +459,8 @@ class LaminateSheet(
     @property
     def density(self) -> float:
         """Density in g/cm³."""
-        return np.round(self._density * KG_TO_G / M_TO_CM**3, 2)
-    
+        return self._density * KG_TO_G / M_TO_CM**3
+
     @property
     def density_range(self):
         """Valid density range in g/cm³."""
@@ -494,7 +469,7 @@ class LaminateSheet(
     @property
     def thickness(self):
         """Sheet thickness in µm."""
-        return np.round(self._thickness * M_TO_UM, 2)
+        return self._thickness * M_TO_UM
 
     @property
     def thickness_range(self):
@@ -512,8 +487,7 @@ class LaminateSheet(
         
         # Perform operations on numpy array first for speed
         coords_mm = self._top_down_coordinates * M_TO_MM
-        coords_rounded = np.round(coords_mm, 5)
-        return pd.DataFrame(coords_rounded, columns=['X (mm)', 'Y (mm)'])
+        return pd.DataFrame(coords_mm, columns=['X (mm)', 'Y (mm)'])
 
     @property
     def right_left_coordinates(self):
@@ -525,8 +499,7 @@ class LaminateSheet(
             return None
         
         coords_mm = self._right_left_coordinates * M_TO_MM
-        coords_rounded = np.round(coords_mm, 5)
-        return pd.DataFrame(coords_rounded, columns=['y', 'z'])
+        return pd.DataFrame(coords_mm, columns=['y', 'z'])
 
     @property
     def bottom_up_coordinates(self):
@@ -538,8 +511,7 @@ class LaminateSheet(
             return None
         
         coords_mm = self._bottom_up_coordinates * M_TO_MM
-        coords_rounded = np.round(coords_mm, 5)
-        return pd.DataFrame(coords_rounded, columns=['x', 'z'])
+        return pd.DataFrame(coords_mm, columns=['x', 'z'])
 
     @property
     def right_left_trace(self):
@@ -785,8 +757,7 @@ class PouchTerminal(
         """
         # Perform operations on numpy array first for speed
         coords_mm = self._right_left_coordinates * M_TO_MM
-        coords_rounded = np.round(coords_mm, 5)
-        return pd.DataFrame(coords_rounded, columns=['X (mm)', 'Z (mm)'])
+        return pd.DataFrame(coords_mm, columns=['X (mm)', 'Z (mm)'])
     
     @property
     def right_left_trace(self):
@@ -815,22 +786,22 @@ class PouchTerminal(
     @property
     def volume(self) -> float:
         """Volume in cm³."""
-        return np.round(self._volume * M_TO_CM**3, 2)
+        return self._volume * M_TO_CM**3
 
     @property
     def mass(self) -> float:
         """Mass in g."""
-        return np.round(self._mass * KG_TO_G, 2)
+        return self._mass * KG_TO_G
 
     @property
     def cost(self) -> float:
         """Cost in $."""
-        return np.round(self._cost, 2)
+        return self._cost
 
     @property
     def width(self) -> float:
         """Width in mm."""
-        return np.round(self._width * M_TO_MM, 2)
+        return self._width * M_TO_MM
 
     @property
     def width_range(self):
@@ -840,7 +811,7 @@ class PouchTerminal(
     @property
     def length(self) -> float:
         """Length in mm."""
-        return np.round(self._length * M_TO_MM, 2)
+        return self._length * M_TO_MM
 
     @property
     def length_range(self):
@@ -850,7 +821,7 @@ class PouchTerminal(
     @property
     def thickness(self) -> float:
         """Thickness in mm."""
-        return np.round(self._thickness * M_TO_MM, 2)
+        return self._thickness * M_TO_MM
 
     @property
     def thickness_range(self):
@@ -875,8 +846,7 @@ class PouchTerminal(
         """
         # Perform operations on numpy array first for speed
         coords_mm = self._top_down_coordinates * M_TO_MM
-        coords_rounded = np.round(coords_mm, 5)
-        return pd.DataFrame(coords_rounded, columns=['X (mm)', 'Y (mm)'])
+        return pd.DataFrame(coords_mm, columns=['X (mm)', 'Y (mm)'])
     
     @property
     def top_down_trace(self):
@@ -1134,24 +1104,24 @@ class PouchEncapsulation(_Container, DatumMixin):
         """Get thickness of the encapsulation in mm."""
         if self._thickness is None:
             return None
-        return np.round(self._thickness * M_TO_MM, 2)
-    
+        return self._thickness * M_TO_MM
+
     @property
     def volume(self) -> float:
         """Total volume in cm³."""
         if self._volume is None:
             return None
-        return np.round(self._volume * M_TO_CM**3, 2)
-    
+        return self._volume * M_TO_CM**3
+
     @property
     def mass(self) -> float:
         """Total mass in g."""
-        return np.round(self._mass * KG_TO_G, 2)
+        return self._mass * KG_TO_G
 
     @property
     def cost(self) -> float:
         """Total cost in $."""
-        return np.round(self._cost, 2)
+        return self._cost
 
     @property
     def name(self) -> str:
@@ -1191,12 +1161,12 @@ class PouchEncapsulation(_Container, DatumMixin):
     @property
     def mass_breakdown(self) -> dict:
         """Mass breakdown by component in g."""
-        return round_dict_recursive(self._mass_breakdown, 2, KG_TO_G)
+        return round_dict_recursive(self._mass_breakdown, precision=None, unit_conversion=KG_TO_G)
 
     @property
     def cost_breakdown(self) -> dict:
         """Cost breakdown by component in $."""
-        return round_dict_recursive(self._cost_breakdown, 2)
+        return round_dict_recursive(self._cost_breakdown, precision=None)
 
     @thickness.setter
     @calculate_all_properties

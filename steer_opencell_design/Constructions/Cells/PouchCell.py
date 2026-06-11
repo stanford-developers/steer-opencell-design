@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Pouch (soft-pack) battery cell implementation."""
@@ -19,13 +19,6 @@ from typing import Tuple
 import warnings
 import plotly.graph_objects as go
 import numpy as np
-
-
-# Tab alignment tolerance constant
-TAB_ALIGNMENT_TOLERANCE = 5e-6  # 5 micron tolerance for tab-terminal alignment (meters)
-
-
-calculate_encapsulation_properties = recalculate("encapsulation_properties")
 
 
 class PouchCell(_Cell):
@@ -101,18 +94,6 @@ class PouchCell(_Cell):
         self._size_encapsulation()
         self._position_encapsulation()
         self._hot_press_encapsulation()
-
-    def _clip_tabs(self) -> None:
-        """Clip current collector tabs to specified length.
-        
-        Applies the clipped tab length to all electrode assemblies if a clipped
-        tab length has been specified. Otherwise, leaves tabs at full length.
-        """
-        if self._clipped_tab_length is None:
-            return
-        
-        for assembly in self._electrode_assemblies:
-            assembly._clip_current_collector_tabs(self._clipped_tab_length)
 
     def _position_terminals(self) -> None:
         """Position cathode and anode terminals at tab locations.
@@ -315,7 +296,7 @@ class PouchCell(_Cell):
     @property
     def side_seal_thickness(self) -> float:
         """Get side seal thickness."""
-        return np.round(self._side_seal_thickness * M_TO_MM, 2)
+        return self._side_seal_thickness * M_TO_MM
     
     @property
     def side_seal_thickness_range(self) -> Tuple[float, float]:
@@ -330,7 +311,7 @@ class PouchCell(_Cell):
     @property
     def top_seal_thickness(self) -> float:
         """Get top seal thickness."""
-        return np.round(self._top_seal_thickness * M_TO_MM, 2)
+        return self._top_seal_thickness * M_TO_MM
     
     @property
     def top_seal_thickness_range(self) -> Tuple[float, float]:
@@ -345,7 +326,7 @@ class PouchCell(_Cell):
     @property
     def bottom_seal_thickness(self) -> float:
         """Get bottom seal thickness."""
-        return np.round(self._bottom_seal_thickness * M_TO_MM, 2)
+        return self._bottom_seal_thickness * M_TO_MM
     
     @property
     def bottom_seal_thickness_range(self) -> Tuple[float, float]:
@@ -370,7 +351,7 @@ class PouchCell(_Cell):
     @property
     def clipped_tab_length(self) -> float:
         """Get clipped tab length."""
-        return np.round(self._clipped_tab_length * M_TO_MM, 2)
+        return self._clipped_tab_length * M_TO_MM
     
     @property
     def clipped_tab_length_range(self) -> Tuple[float, float]:
@@ -457,16 +438,16 @@ class PouchCell(_Cell):
         _assembly_thickness = self._reference_electrode_assembly._thickness * self._n_electrode_assembly
         _laminate_thickness = self._encapsulation._top_laminate._thickness + self._encapsulation._bottom_laminate._thickness
         _total_thickness = _assembly_thickness + _laminate_thickness
-        total_thickness = np.round(_total_thickness * M_TO_MM, 2)
+        total_thickness = _total_thickness * M_TO_MM
         return total_thickness
-    
+
     @property
     def thickness_range(self) -> float:
         """Get the valid range for cell thickness in mm."""
         assembly_thickness_range = self._reference_electrode_assembly.thickness_range
         laminate_thickness = (self._encapsulation._top_laminate._thickness + self._encapsulation._bottom_laminate._thickness) * M_TO_MM
-        min_thickness = np.round(assembly_thickness_range[0] * self._n_electrode_assembly + laminate_thickness, 2)
-        max_thickness = np.round(assembly_thickness_range[1] * self._n_electrode_assembly + laminate_thickness, 2)
+        min_thickness = assembly_thickness_range[0] * self._n_electrode_assembly + laminate_thickness
+        max_thickness = assembly_thickness_range[1] * self._n_electrode_assembly + laminate_thickness
         return (min_thickness, max_thickness)
     
     @property
@@ -552,7 +533,7 @@ class PouchCell(_Cell):
     
     @side_seal_thickness.setter
     @calculate_bulk_properties
-    @calculate_encapsulation_properties
+    @recalculate("encapsulation_properties")
     def side_seal_thickness(self, value: float) -> None:
         """Set side seal thickness with validation.
         
@@ -566,7 +547,7 @@ class PouchCell(_Cell):
 
     @top_seal_thickness.setter
     @calculate_bulk_properties
-    @calculate_encapsulation_properties
+    @recalculate("encapsulation_properties")
     def top_seal_thickness(self, value: float) -> None:
         """Set top seal thickness with validation.
         
@@ -580,7 +561,7 @@ class PouchCell(_Cell):
 
     @bottom_seal_thickness.setter
     @calculate_bulk_properties
-    @calculate_encapsulation_properties
+    @recalculate("encapsulation_properties")
     def bottom_seal_thickness(self, value: float) -> None:
         """Set bottom seal thickness with validation.
         

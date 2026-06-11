@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Electrode definitions combining formulations with current collectors and coating parameters."""
@@ -45,9 +45,6 @@ class ElectrodeControlMode(Enum):
     MAINTAIN_CALENDER_DENSITY = "maintain_calender_density"  # Keep calender density constant (current behavior)
     MAINTAIN_MASS_LOADING = "maintain_mass_loading"  # Keep mass loading constant
     MAINTAIN_COATING_THICKNESS = "maintain_coating_thickness"  # Keep coating thickness constant
-
-
-calculate_areal_capacity_curve = recalculate("areal_capacity_curve")
 
 
 class _Electrode(
@@ -136,9 +133,9 @@ class _Electrode(
     # === CONTROL SYSTEM ===
 
     def _update_dependent_properties(self, property_name: str, new_val: float):
-        """
-        A dictionary that maps a mode to a function via the property that has been triggered
-        """
+        """Route a property change to the correct recalculation based on control mode."""
+        from steer_core.Utils.ControlModes import dispatch_dependent_update
+
         dependency_function = {
             ElectrodeControlMode.MAINTAIN_MASS_LOADING: {
                 "mass_loading": self._calculate_coating_thickness,
@@ -175,11 +172,9 @@ class _Electrode(
             },
         }
 
-        update_function = dependency_function[self.control_mode].get(property_name)
-        inputs = dependency_inputs[self.control_mode].get(property_name)
-
-        # execute update
-        update_function(inputs[0], inputs[1])
+        dispatch_dependent_update(
+            self.control_mode, property_name, dependency_function, dependency_inputs
+        )
 
     @property
     def control_mode(self) -> ElectrodeControlMode:
@@ -539,7 +534,7 @@ class _Electrode(
         """
         # For anode-free electrodes, return the current collector cross-section directly
         if self._is_anode_free:
-            figure = self._current_collector.plot_right_left_view(**kwargs)
+            figure = self.plot_right_left_view(**kwargs)
             figure.data = [trace for trace in figure.data if trace.name == "Foil" or trace.name == "Tab"]
             return figure
 
@@ -892,8 +887,8 @@ class _Electrode(
         curve = self._areal_capacity_curve
         
         # compute the columns
-        areal_capacity = np.round(curve[:, 0] * areal_capacity_conversion, 4)
-        voltage = np.round(curve[:, 1], 4)
+        areal_capacity = curve[:, 0] * areal_capacity_conversion
+        voltage = curve[:, 1]
         direction = np.where(curve[:, 2] == 1, "charge", "discharge")
 
         # Create DataFrame with converted values directly
@@ -965,7 +960,7 @@ class _Electrode(
 
         :return: Insulation thickness of the electrode in micrometers.
         """
-        return np.round(self._insulation_thickness * M_TO_UM, 2)
+        return self._insulation_thickness * M_TO_UM
 
     @property
     def insulation_thickness_range(self) -> Tuple[float, float]:
@@ -992,7 +987,7 @@ class _Electrode(
 
         :return: Coating thickness of the electrode in micrometers.
         """
-        return np.round(self._coating_thickness * M_TO_UM, 2)
+        return self._coating_thickness * M_TO_UM
 
     @property
     def coating_thickness_hard_range(self) -> Tuple[float, float]:
@@ -1012,7 +1007,7 @@ class _Electrode(
         :return: Dictionary containing the cost breakdown.
         """
 
-        return round_dict_recursive(self._cost_breakdown, 2)
+        return round_dict_recursive(self._cost_breakdown, precision=None)
 
     @property
     def mass_breakdown(self) -> Dict[str, Any]:
@@ -1022,7 +1017,7 @@ class _Electrode(
         :return: Dictionary containing the mass breakdown.
         """
 
-        return round_dict_recursive(self._mass_breakdown, 2, KG_TO_G)
+        return round_dict_recursive(self._mass_breakdown, precision=None, unit_conversion=KG_TO_G)
 
     @property
     def porosity(self) -> float:
@@ -1031,7 +1026,7 @@ class _Electrode(
 
         :return: Porosity of the electrode.
         """
-        return np.round(self._porosity * 100, 2)
+        return self._porosity * FRACTION_TO_PERCENT
 
     @property
     def calender_density(self) -> float:
@@ -1040,7 +1035,7 @@ class _Electrode(
 
         :return: Calender density of the electrode.
         """
-        return np.round(self._calender_density * (KG_TO_G / M_TO_CM**3), 2)
+        return self._calender_density * (KG_TO_G / M_TO_CM**3)
 
     @property
     def calender_density_range(self) -> Tuple[float, float]:
@@ -1052,9 +1047,6 @@ class _Electrode(
 
         min_calender_density = ((1 - max_porosity) / self._formulation._specific_volume) * (KG_TO_G / M_TO_CM**3)
         max_calender_density = ((1 - min_porosity) / self._formulation._specific_volume) * (KG_TO_G / M_TO_CM**3)
-
-        min_calender_density = np.round(min_calender_density, 2)
-        max_calender_density = np.round(max_calender_density, 2)
 
         return (min_calender_density, max_calender_density)
 
@@ -1115,22 +1107,22 @@ class _Electrode(
 
         :return: Mass loading of the electrode.
         """
-        return np.round(self._mass_loading * (KG_TO_MG / M_TO_CM**2), 2)
+        return self._mass_loading * (KG_TO_MG / M_TO_CM**2)
 
     @property
     def mass_loading_range(self) -> Tuple[float, float]:
         """Get the allowable mass loading range in mg/cm²."""
         return (
-            np.round(self.calender_density_range[0] * self.coating_thickness_range[0] * UM_TO_CM * G_TO_mG, 2),
-            np.round(self.calender_density_range[1] * self.coating_thickness_range[1] * UM_TO_CM * G_TO_mG, 2),
+            self.calender_density_range[0] * self.coating_thickness_range[0] * UM_TO_CM * G_TO_mG,
+            self.calender_density_range[1] * self.coating_thickness_range[1] * UM_TO_CM * G_TO_mG,
         )
 
     @property
     def mass_loading_hard_range(self) -> Tuple[float, float]:
         """Get the hard allowable mass loading range in mg/cm²."""
         return (
-            np.round(self.calender_density_hard_range[0] * self.coating_thickness_hard_range[0] * UM_TO_CM * G_TO_mG, 2),
-            np.round(self.calender_density_hard_range[1] * self.coating_thickness_hard_range[1] * UM_TO_CM * G_TO_mG, 2),
+            self.calender_density_hard_range[0] * self.coating_thickness_hard_range[0] * UM_TO_CM * G_TO_mG,
+            self.calender_density_hard_range[1] * self.coating_thickness_hard_range[1] * UM_TO_CM * G_TO_mG,
         )
 
     @property
@@ -1158,7 +1150,7 @@ class _Electrode(
 
         :return: Mass of the electrode.
         """
-        return np.round(self._mass * KG_TO_G, 2)
+        return self._mass * KG_TO_G
 
     @property
     def mass_range(self) -> Tuple[float, float]:
@@ -1167,7 +1159,7 @@ class _Electrode(
         hyp_max = 1
         max = hyp_max * (1 - np.exp(-0.5 / self._mass))
 
-        return (round(min * KG_TO_G, 2), np.round(max * KG_TO_G, 2))
+        return (min * KG_TO_G, max * KG_TO_G)
 
     @property
     def thickness(self) -> float:
@@ -1176,7 +1168,7 @@ class _Electrode(
 
         :return: Thickness of the electrode.
         """
-        return np.round(self._thickness * M_TO_UM, 1)
+        return self._thickness * M_TO_UM
 
     @property
     def thickness_range(self) -> Tuple[float, float]:
@@ -1193,7 +1185,7 @@ class _Electrode(
     @property
     def cost(self) -> float:
         """Get the total electrode cost in $."""
-        return np.round(self._cost, 2)
+        return self._cost
 
     @property
     def cost_range(self):
@@ -1210,7 +1202,7 @@ class _Electrode(
     # === SETTERS ===
 
     @voltage_cutoff.setter
-    @calculate_areal_capacity_curve
+    @recalculate("areal_capacity_curve")
     def voltage_cutoff(self, voltage_cutoff: float):
         if self._is_anode_free:  # no-op: anode-free has no coating
             return
@@ -1262,6 +1254,13 @@ class _Electrode(
             self._is_anode_free = True
             self._mass_loading = 0.0
             self._calender_density = 0.0
+            self._coating_thickness = 0.0
+            self._porosity = 0.0
+            self._insulation_material = None
+            self._insulation_thickness = 0.0
+            self._areal_capacity_curve = None
+            if hasattr(self, "_property_cache"):
+                self._property_cache.clear()
             return
         self._is_anode_free = False
         self.validate_type(formulation, _ElectrodeFormulation, "formulation")
@@ -1413,7 +1412,7 @@ class Anode(_Electrode):
         :return: Top overhang of the anode in mm.
         """
         if hasattr(self, "_top_overhang"):
-            return np.round(self._top_overhang * M_TO_MM, 2)
+            return self._top_overhang * M_TO_MM
         else:
             return
 
@@ -1449,7 +1448,7 @@ class Anode(_Electrode):
         :return: Bottom overhang of the anode in mm.
         """
         if hasattr(self, "_bottom_overhang"):
-            return np.round(self._bottom_overhang * M_TO_MM, 2)
+            return self._bottom_overhang * M_TO_MM
         else:
             return
 

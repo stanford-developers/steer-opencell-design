@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Flex-frame battery cell implementation."""
@@ -15,13 +15,6 @@ from steer_core.Mixins.Propagation import propagating_setter
 from typing import Tuple
 import plotly.graph_objects as go
 import numpy as np
-
-
-# Tab alignment tolerance constant
-TAB_ALIGNMENT_TOLERANCE = 5e-6  # 5 micron tolerance for tab-terminal alignment (meters)
-
-
-calculate_encapsulation_properties = recalculate("encapsulation_properties")
 
 
 class FlexFrameCell(_Cell):
@@ -81,18 +74,6 @@ class FlexFrameCell(_Cell):
         """
         self._position_terminals()
         self._position_encapsulation()
-
-    def _clip_tabs(self) -> None:
-        """Clip current collector tabs to specified length.
-        
-        Applies the clipped tab length to all electrode assemblies if a clipped
-        tab length has been specified. Otherwise, leaves tabs at full length.
-        """
-        if self._clipped_tab_length is None:
-            return
-        
-        for assembly in self._electrode_assemblies:
-            assembly._clip_current_collector_tabs(self._clipped_tab_length)
 
     def _position_assemblies(self) -> None:
         """Position electrode assemblies with datum at the origin.
@@ -319,15 +300,15 @@ class FlexFrameCell(_Cell):
         _assembly_thickness = self._reference_electrode_assembly._thickness
         _laminate_thickness = self._encapsulation._laminate_sheet._thickness * 2
         _total_thickness = _assembly_thickness + _laminate_thickness
-        return np.round(_total_thickness * M_TO_MM, 2)
+        return _total_thickness * M_TO_MM
 
     @property
     def thickness_range(self) -> Tuple[float, float]:
         """Get the valid range for cell thickness in mm."""
         assembly_thickness_range = self._reference_electrode_assembly.thickness_range
         laminate_thickness = self._encapsulation._laminate_sheet._thickness * 2 * M_TO_MM
-        min_thickness = np.round(assembly_thickness_range[0] + laminate_thickness, 2)
-        max_thickness = np.round(assembly_thickness_range[1] + laminate_thickness, 2)
+        min_thickness = assembly_thickness_range[0] + laminate_thickness
+        max_thickness = assembly_thickness_range[1] + laminate_thickness
         return (min_thickness, max_thickness)
 
     @property
@@ -335,8 +316,8 @@ class FlexFrameCell(_Cell):
         """Get the hard limit range for cell thickness in mm."""
         assembly_thickness_hard_range = self._reference_electrode_assembly.thickness_hard_range
         laminate_thickness = self._encapsulation._laminate_sheet._thickness * 2 * M_TO_MM
-        min_thickness = np.round(assembly_thickness_hard_range[0] + laminate_thickness, 2)
-        max_thickness = np.round(assembly_thickness_hard_range[1] + laminate_thickness, 2)
+        min_thickness = assembly_thickness_hard_range[0] + laminate_thickness
+        max_thickness = assembly_thickness_hard_range[1] + laminate_thickness
         return (min_thickness, max_thickness)
 
     @height.setter
@@ -374,7 +355,7 @@ class FlexFrameCell(_Cell):
     @property
     def clipped_tab_length(self) -> float:
         """Get clipped tab length."""
-        return np.round(self._clipped_tab_length * M_TO_MM, 2)
+        return self._clipped_tab_length * M_TO_MM
     
     @property
     def clipped_tab_length_range(self) -> Tuple[float, float]:
@@ -401,7 +382,7 @@ class FlexFrameCell(_Cell):
         return (0.0, max_clipped_tab_length)
 
     @clipped_tab_length.setter
-    @calculate_encapsulation_properties
+    @recalculate("encapsulation_properties")
     def clipped_tab_length(self, value: float) -> None:
         """Set clipped tab length with validation.
         

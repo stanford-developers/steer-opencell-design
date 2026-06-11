@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Single-separator layup configurations for stacked electrode assemblies."""
@@ -316,7 +316,7 @@ class MonoLayer(_Layup):
     
     @property
     def width(self) -> float:
-        return np.round(self._width * M_TO_MM, 2)
+        return self._width * M_TO_MM
 
     @property
     def width_range(self) -> tuple:
@@ -325,17 +325,17 @@ class MonoLayer(_Layup):
         _max_tab_width = max(_anode_tab_width, _cathode_tab_width)
         _min_width = _max_tab_width * 1.2
         return (
-            np.round(_min_width, 2),
+            _min_width,
             self.cathode.current_collector.width_range[1],
         )
-    
+
     @property
     def width_hard_range(self) -> tuple:
         return self.cathode.current_collector.width_hard_range
 
     @property
     def height(self) -> float:
-        return np.round(self._height * M_TO_MM, 2)
+        return self._height * M_TO_MM
 
     @property
     def height_range(self) -> tuple:

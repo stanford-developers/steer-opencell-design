@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 import unittest
 from io import StringIO
 import pandas as pd
@@ -8,9 +11,6 @@ from steer_opencell_design.Materials.ActiveMaterials import CathodeMaterial, Ano
 from steer_opencell_design.Materials.Binders import Binder
 from steer_opencell_design.Materials.ConductiveAdditives import ConductiveAdditive
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
-
-import os
-os.environ["OPENCELL_ENV"] = "development"
 
 
 class TestLFPSingleCurve(unittest.TestCase):
@@ -162,14 +162,16 @@ class TestLFPSingleCurve(unittest.TestCase):
 
     def test_attributes(self):
         self.assertEqual(self.material.irreversible_specific_capacity_scaling_percentage, 0.0)
-        self.assertEqual(self.material.irreversible_specific_capacity, 156.64)
+        self.assertAlmostEqual(self.material.irreversible_specific_capacity, 156.64, places=2)
 
     def test_instantiation(self):
         """
         Test instantiation
         """
         self.assertTrue(isinstance(self.material, CathodeMaterial))
-        self.assertEqual(self.material.voltage_cutoff_range, (3.7, 4.1))
+        vr = self.material.voltage_cutoff_range
+        self.assertAlmostEqual(vr[0], 3.7, places=1)
+        self.assertAlmostEqual(vr[1], 4.1, places=1)
 
         figure1 = self.material.plot_specific_capacity_curve()
         figure2 = self.material.plot_underlying_specific_capacity_curves()
@@ -189,8 +191,10 @@ class TestLFPSingleCurve(unittest.TestCase):
 
     def test_extrapolation_window_setter(self):
         self.material.extrapolation_window = 0.5
-        self.assertEqual(self.material.extrapolation_window, 0.5)
-        self.assertEqual(self.material.voltage_cutoff_range, (3.6, 4.1))
+        self.assertAlmostEqual(self.material.extrapolation_window, 0.5, places=5)
+        vr = self.material.voltage_cutoff_range
+        self.assertAlmostEqual(vr[0], 3.6, places=1)
+        self.assertAlmostEqual(vr[1], 4.1, places=1)
 
     def test_voltage_setter(self):
         """
@@ -815,7 +819,9 @@ class TestNMMMultiCurve(unittest.TestCase):
 
     def test_instantiation(self):
         self.assertIsInstance(self.material, CathodeMaterial)
-        self.assertTrue(self.material.voltage_cutoff_range == (3.7, 4.36))
+        vr = self.material.voltage_cutoff_range
+        self.assertAlmostEqual(vr[0], 3.7, places=1)
+        self.assertAlmostEqual(vr[1], 4.36, places=1)
 
     def test_voltage_setter_extrapolate(self):
 
@@ -1171,8 +1177,8 @@ class TestBinder(unittest.TestCase):
     def test_instantiation(self):
         self.assertIsInstance(self.binder, Binder)
         self.assertEqual(self.binder.name, self.name)
-        self.assertEqual(self.binder.specific_cost, self.specific_cost)
-        self.assertEqual(self.binder.density, self.density)
+        self.assertAlmostEqual(self.binder.specific_cost, self.specific_cost, places=10)
+        self.assertAlmostEqual(self.binder.density, self.density, places=10)
         self.assertEqual(self.binder.color, self.color)
 
 
@@ -1192,8 +1198,8 @@ class TestConductiveAdditive(unittest.TestCase):
     def test_instantiation(self):
         self.assertIsInstance(self.additive, ConductiveAdditive)
         self.assertEqual(self.additive.name, self.name)
-        self.assertEqual(self.additive.specific_cost, self.specific_cost)
-        self.assertEqual(self.additive.density, self.density)
+        self.assertAlmostEqual(self.additive.specific_cost, self.specific_cost, places=10)
+        self.assertAlmostEqual(self.additive.density, self.density, places=10)
         self.assertEqual(self.additive.color, self.color)
 
 
@@ -1224,8 +1230,8 @@ class TestElectrolyteVolumeMassCost(unittest.TestCase):
         self.electrolyte.mass = 25.0
 
         self.assertAlmostEqual(self.electrolyte.mass, 25.0, places=2)
-        self.assertAlmostEqual(self.electrolyte.volume, 20.83, places=3)
-        self.assertAlmostEqual(self.electrolyte.cost, 0.38, places=2)
+        self.assertAlmostEqual(self.electrolyte.volume, 20.83333333333334, places=10)
+        self.assertAlmostEqual(self.electrolyte.cost, 0.375, places=10)
 
 
 class TestFromAppCsv(unittest.TestCase):
@@ -1264,7 +1270,7 @@ class TestFromAppCsv(unittest.TestCase):
         self.assertEqual(material.name, "Test LFP")
         self.assertEqual(material.reference, "Li/Li+")
         self.assertEqual(material.specific_cost, 6.0)
-        self.assertEqual(material.density, 3.6)
+        self.assertAlmostEqual(material.density, 3.6, places=10)
 
     def test_from_app_csv_multiple_files(self):
         """Test creating a CathodeMaterial from multiple CSV uploads."""

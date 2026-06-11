@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Tabless current collector with edge-based connections."""
@@ -97,8 +97,13 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 
     See Also
     --------
+    NotchedCurrentCollector : Direct parent class providing tab + tape behaviour.
+    _TabbedCurrentCollector : Indirect base; documents shared tab / foil /
+        coating parameters (``material``, ``thickness``, ``insulation_width``,
+        ``name``, ``datum``).
+    _TapeCurrentCollector : Indirect base; documents ``bare_lengths_a_side``
+        and ``bare_lengths_b_side`` semantics.
     PunchedCurrentCollector : Simple tabbed alternative
-    NotchedCurrentCollector : Multi-tab design with more connection points
     TabWeldedCurrentCollector : Separate welded tab approach
     """
 
@@ -218,7 +223,7 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 
     @property
     def coated_width(self) -> float:
-        return np.round(self._coated_width * M_TO_MM, 2)
+        return self._coated_width * M_TO_MM
 
     @property
     def coated_width_range(self) -> Tuple[float, float]:
@@ -247,20 +252,20 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 
     @property
     def width(self) -> float:
-        return np.round((self._y_foil_length + self._tab_height) * M_TO_MM, 2)
+        return (self._y_foil_length + self._tab_height) * M_TO_MM
 
     @property
     def width_range(self) -> Tuple[float, float]:
         if hasattr(self, "_y_foil_length_range") and self._y_foil_length_range is not None:
             min_width = self.y_foil_length_range[0] + self.tab_height
             max_width = self.y_foil_length_range[1] + self.tab_height
-            return (round(min_width, 2), np.round(max_width, 2))
+            return (min_width, max_width)
         else:
             return (0, 300)
 
     @property
     def tab_height(self) -> float:
-        return np.round(self._tab_height * M_TO_MM, 2)
+        return self._tab_height * M_TO_MM
 
     @width.setter
     def width(self, width: float) -> None:

@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Base class for electrode assemblies."""
@@ -235,7 +235,7 @@ class _ElectrodeAssembly(
     @property
     def pore_volume(self) -> float:
         """Return the pore volume of the electrode assembly."""
-        return np.round(self._pore_volume * M_TO_CM**3, 2)
+        return self._pore_volume * M_TO_CM**3
 
     @property
     def name(self) -> str:
@@ -245,7 +245,7 @@ class _ElectrodeAssembly(
     @property
     def interfacial_area(self) -> float:
         """Return the interfacial area of the electrode assembly in cm²."""
-        return np.round(self._interfacial_area * M_TO_CM**2, 2)
+        return self._interfacial_area * M_TO_CM**2
 
     @property
     def layup(self) -> _Layup:
@@ -284,12 +284,15 @@ class _ElectrodeAssembly(
             name=f"{self.name} Full-Cell",
             line=dict(color=color, width=3),  # Slightly thicker for emphasis
             customdata=self.capacity_curve["Direction"],
-            hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
+            hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} Ah<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
 
     @property
     def anode_capacity_curve(self) -> pd.DataFrame:
         """Get the anode capacity curve as a DataFrame."""
+        if self.layup.anode._is_anode_free or self.layup.anode.formulation is None:
+            return None
+
         if self._anode_capacity_curve is None:
             return None
 
@@ -307,6 +310,9 @@ class _ElectrodeAssembly(
     @property
     def anode_capacity_curve_trace(self) -> go.Scatter:
         """Get the Plotly trace for the anode capacity curve."""
+        if self.layup.anode._is_anode_free or self.layup.anode.formulation is None:
+            return None
+
         if self._anode_capacity_curve is None:
             return None
 
@@ -317,7 +323,7 @@ class _ElectrodeAssembly(
             name=f"{self.layup.anode.name} Half-Cell",
             line=dict(color=self.layup.anode.formulation.color, width=2.5),
             customdata=self.anode_capacity_curve["Direction"],
-            hovertemplate="<b>Anode</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
+            hovertemplate="<b>Anode</b><br>" + "Capacity: %{x:.2f} Ah<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
 
     @property
@@ -350,13 +356,13 @@ class _ElectrodeAssembly(
             name=f"{self.layup.cathode.name} Half-Cell",
             line=dict(color=self.layup.cathode.formulation.color, width=2.5),
             customdata=self.cathode_capacity_curve["Direction"],
-            hovertemplate="<b>Cathode</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
+            hovertemplate="<b>Cathode</b><br>" + "Capacity: %{x:.2f} Ah<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
 
     @property
     def cost(self) -> float:
         """Return the cost of the electrode assembly in $."""
-        return np.round(self._cost, 2)
+        return self._cost
 
     @property
     def cost_breakdown(self) -> Dict[str, Any]:
@@ -365,13 +371,12 @@ class _ElectrodeAssembly(
 
         :return: Dictionary containing the cost breakdown.
         """
-
-        return round_dict_recursive(self._cost_breakdown, 2)
+        return round_dict_recursive(self._cost_breakdown, precision=None)
 
     @property
     def mass(self) -> float:
         """Return the mass of the electrode assembly in g."""
-        return np.round(self._mass * KG_TO_G, 2)
+        return self._mass * KG_TO_G
 
     @property
     def mass_breakdown(self) -> Dict[str, Any]:
@@ -380,7 +385,7 @@ class _ElectrodeAssembly(
 
         :return: Dictionary containing the mass breakdown.
         """
-        return round_dict_recursive(self._mass_breakdown, 2, KG_TO_G)
+        return round_dict_recursive(self._mass_breakdown, precision=None, unit_conversion=KG_TO_G)
 
     # Override datum setter to sync with layup
     @DatumMixin.datum.setter

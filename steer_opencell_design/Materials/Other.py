@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Material definitions for auxiliary battery cell components.
@@ -11,6 +11,7 @@ from the built-in database via ``from_database()``.
 
 from steer_materials.Base import Metal, _Material, _VolumedMaterialMixin
 import numpy as np
+from steer_core.Constants.Units import FRACTION_TO_PERCENT
 
 
 class CurrentCollectorMaterial(_VolumedMaterialMixin, Metal):
@@ -171,7 +172,7 @@ class SeparatorMaterial(_VolumedMaterialMixin, _Material):
     @property
     def porosity(self):
         """Get the separator porosity in %."""
-        return np.round(self._porosity * 100, 2)
+        return self._porosity * FRACTION_TO_PERCENT
     
     @property
     def porosity_range(self):

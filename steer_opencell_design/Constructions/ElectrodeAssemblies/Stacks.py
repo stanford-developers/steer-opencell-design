@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Stacked electrode assembly configurations (Z-fold and punched)."""
@@ -445,7 +445,7 @@ class _Stack(_ElectrodeAssembly):
     @property
     def n_layers(self) -> int:
         """Return the number of layers in the stack."""
-        return np.round(self._n_layers, 0)
+        return self._n_layers
     
     @property
     def n_layers_range(self) -> Tuple[int, int]:
@@ -460,7 +460,7 @@ class _Stack(_ElectrodeAssembly):
     @property
     def thickness(self) -> float:
         """Return the total thickness of the stack in mm."""
-        return np.round(self._thickness * M_TO_MM, 2)
+        return self._thickness * M_TO_MM
     
     @property
     def thickness_range(self) -> Tuple[float, float]:
@@ -571,14 +571,6 @@ class _Stack(_ElectrodeAssembly):
         """
         # Validate input
         self.validate_positive_float(target_thickness, "thickness")
-        
-        # Check if target is within achievable range
-        thickness_min, thickness_max = self.thickness_range
-        if target_thickness < thickness_min or target_thickness > thickness_max:
-            raise ValueError(
-                f"Target thickness {target_thickness} mm is outside achievable range of "
-                f"{thickness_min} mm to {thickness_max} mm."
-            )
         
         # Get the linear relationship parameters
         min_n_layers, max_n_layers = self.n_layers_hard_range

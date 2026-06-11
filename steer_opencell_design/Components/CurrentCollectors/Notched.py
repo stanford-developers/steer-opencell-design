@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Notched current collector for tabless wound cells."""
@@ -459,11 +459,11 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
     @property
     def tab_positions(self) -> list:
-        return [(round(start * M_TO_MM, 4), np.round(end * M_TO_MM, 4)) for start, end in self._tab_positions]
+        return [(start * M_TO_MM, end * M_TO_MM) for start, end in self._tab_positions]
 
     @property
     def tab_spacing(self) -> float:
-        return np.round(self._tab_spacing * M_TO_MM, 2)
+        return self._tab_spacing * M_TO_MM
 
     @property
     def tab_spacing_range(self) -> Tuple[float, float]:
@@ -478,7 +478,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
     @property
     def tab_gap(self) -> float:
-        return np.round(self._tab_gap * M_TO_MM, 2)
+        return self._tab_gap * M_TO_MM
 
     @property
     def tab_gap_range(self) -> Tuple[float, float]:
@@ -499,7 +499,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         min = 0.01
         max = 0.5
 
-        return (round(min * M_TO_MM, 2), np.round(max * M_TO_MM, 2))
+        return (min * M_TO_MM, max * M_TO_MM)
 
     @property
     def tab_width_range(self) -> Tuple[float, float]:

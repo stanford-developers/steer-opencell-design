@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 from copy import deepcopy
 import unittest
 import numpy as np
@@ -8,9 +11,6 @@ import plotly.io as pio
 import pandas as pd
 
 pio.renderers.default = "browser"
-
-import os
-os.environ["OPENCELL_ENV"] = "development"
 
 
 class TestSimpleTape(unittest.TestCase):
@@ -29,7 +29,7 @@ class TestSimpleTape(unittest.TestCase):
 
     def test_basic_properties(self):
         """Test basic properties are set correctly."""
-        self.assertEqual(self.tape.thickness, 25.0)
+        self.assertAlmostEqual(self.tape.thickness, 25.0, places=5)
         self.assertEqual(self.tape.name, "Tape")
         self.assertIsNotNone(self.tape.material)
         self.assertEqual(self.tape.material.name, "Kapton")
@@ -98,7 +98,7 @@ class TestTapeWithDimensions(unittest.TestCase):
         """Test dimension properties are set correctly."""
         self.assertEqual(self.tape.length, 100.0)
         self.assertEqual(self.tape.width, 50.0)
-        self.assertEqual(self.tape.thickness, 25.0)
+        self.assertAlmostEqual(self.tape.thickness, 25.0, places=5)
         self.assertEqual(self.tape.name, "Test Kapton Tape")
 
     def test_bulk_properties_calculation(self):
@@ -135,7 +135,7 @@ class TestTapeSetters(unittest.TestCase):
         original_thickness = self.tape.thickness
         original_areal_cost = self.tape.areal_cost
         self.tape.thickness = 50
-        self.assertEqual(self.tape.thickness, 50.0)
+        self.assertAlmostEqual(self.tape.thickness, 50.0, places=5)
         self.assertAlmostEqual(self.tape.areal_cost, (original_areal_cost / original_thickness) * self.tape.thickness, places=1)
 
     def test_length_setter(self):

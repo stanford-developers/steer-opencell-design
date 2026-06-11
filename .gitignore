@@ -10,3 +10,7 @@ Archive/
 .vscode/
 app_builds/
 site/
+.coverage
+coverage.xml
+.pytest_cache/
+pyrightconfig.json

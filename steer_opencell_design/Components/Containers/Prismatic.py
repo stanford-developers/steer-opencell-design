@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024-2026 Nicholas Siemons and Adrian Yao
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 """Prismatic cell container components (canister, lid, terminal connectors, encapsulation)."""
@@ -28,6 +28,13 @@ from steer_core import (
     PlotterMixin,
 )
 from steer_core.Mixins.Datum import DatumMixin
+
+from steer_opencell_design.Components.Containers._mixins import (
+    BulkFromVolumeMixin,
+    ExtrudedFootprintMixin,
+    SchematicPlotMixin,
+    rectangular_footprint_at_datum,
+)
 
 
 # Module-level constants for prismatic components
@@ -68,10 +75,6 @@ FILL_FACTOR_MAX = 1.0
 PLOT_LINE_WIDTH = 0.5
 PLOT_LINE_COLOR = "black"
 
-# Precision constants
-COORDINATE_PRECISION = 10
-DIMENSION_PRECISION = 2
-
 
 class ConnectorOrientation(Enum):
     """Orientation options for electrode layups."""
@@ -89,6 +92,9 @@ class _PrismaticComponent(
     SerializerMixin,
     DunderMixin,
     PlotterMixin,
+    ExtrudedFootprintMixin,
+    BulkFromVolumeMixin,
+    SchematicPlotMixin,
 ):
     """Base class for prismatic components with common functionality.
     
@@ -183,15 +189,9 @@ class _PrismaticComponent(
             self._mass = None
             self._cost = None
             return
-            
-        _volume = self._width * self._length * self._thickness * self._fill_factor
-        _mass = _volume * self._material._density
-        mass = _mass * KG_TO_G
-        self._material.mass = mass
 
-        self._mass = self._material._mass
-        self._volume = self._material._volume
-        self._cost = self._material._cost
+        _volume = self._width * self._length * self._thickness * self._fill_factor
+        self._apply_bulk_from_volume(_volume)
 
     def _calculate_coordinates(self):
         """Calculate 3D coordinates if dimensions are available."""
@@ -211,33 +211,19 @@ class _PrismaticComponent(
         if self._rotated_z:
             self._rotate_z()
 
-    def _extrude_footprint(self, footprint):
-        """Extrude a 2D footprint into 3D coordinates."""
-
-        x, y, z, _ = self.extrude_footprint(
-            footprint[:,0],
-            footprint[:,1],
-            self._datum,
-            self._thickness
-        )
-
-        coordinates = np.column_stack((x, y, z))
-        
-        return coordinates
-
     @abstractmethod
     def _calculate_footprint(self):
-        """Calculate the 2D footprint of the prismatic component.
-        
+        """Calculate the 2D footprint of the component.
+
         This method must be implemented by subclasses to define the
         specific geometry of their footprint.
-        
+
         Returns
         -------
         np.ndarray
             2D footprint coordinates as (N, 2) array of [x, y] points in meters.
             Path should be closed (first and last points identical).
-            
+
         Raises
         ------
         NotImplementedError
@@ -306,62 +292,22 @@ class _PrismaticComponent(
         )
 
     def plot_top_down_view(self, **kwargs) -> go.Figure:
-        """Generate a top-down view plot of the component.
-        
-        Creates a Plotly figure showing the component from above,
-        displaying the x-y plane footprint.
-        
-        Parameters
-        ----------
-        **kwargs
-            Additional keyword arguments passed to figure.update_layout().
-            
-        Returns
-        -------
-        go.Figure
-            Interactive Plotly figure with top-down view
-        """
-        figure = go.Figure()
-        figure.add_trace(self.top_down_trace)
-
-        figure.update_layout(
+        """Generate a top-down view (x-y plane) plot of the component."""
+        return self._layout_schematic(
+            self.top_down_trace,
             xaxis=self.SCHEMATIC_X_AXIS,
             yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
         )
-
-        return figure
 
     def plot_right_left_view(self, **kwargs) -> go.Figure:
-        """Generate a right-left view plot of the component.
-        
-        Creates a Plotly figure showing the component from the side,
-        displaying the x-y plane cross-section.
-        
-        Parameters
-        ----------
-        **kwargs
-            Additional keyword arguments passed to figure.update_layout().
-            
-        Returns
-        -------
-        go.Figure
-            Interactive Plotly figure with right-left view
-        """
-        figure = go.Figure()
-        figure.add_trace(self.right_left_trace)
-
-        figure.update_layout(
+        """Generate a right-left view (x-y plane cross-section) plot."""
+        return self._layout_schematic(
+            self.right_left_trace,
             xaxis=self.SCHEMATIC_X_AXIS,
             yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
             **kwargs,
         )
-
-        return figure
 
     @property
     def coordinates(self) -> pd.DataFrame:
@@ -369,15 +315,15 @@ class _PrismaticComponent(
         if self._coordinates is None:
             return pd.DataFrame(columns=["x", "y", "z"])
             
-        x = np.round(self._coordinates[:, 0] * M_TO_MM, COORDINATE_PRECISION)
-        y = np.round(self._coordinates[:, 1] * M_TO_MM, COORDINATE_PRECISION)
-        z = np.round(self._coordinates[:, 2] * M_TO_MM, COORDINATE_PRECISION)
+        x = self._coordinates[:, 0] * M_TO_MM
+        y = self._coordinates[:, 1] * M_TO_MM
+        z = self._coordinates[:, 2] * M_TO_MM
 
         return pd.DataFrame(
             np.column_stack((x, y, z)),
             columns=["X (mm)", "Y (mm)", "Z (mm)"]
         )
-    
+
     @property
     def top_down_trace(self) -> go.Scatter:
         """Get top-down view trace for plotting (x-y plane)."""
@@ -394,7 +340,7 @@ class _PrismaticComponent(
             fillcolor=self._material.color,
             showlegend=True,
         )
-    
+
     @property
     def right_left_coordinates(self) -> pd.DataFrame:
         """Get right-left view coordinates in mm (y-z plane cross-section)."""
@@ -402,8 +348,8 @@ class _PrismaticComponent(
             return pd.DataFrame(columns=["y", "z"])
             
         # Extract y,z coordinates (side profile)
-        y = np.round(self._coordinates[:, 1] * M_TO_MM, COORDINATE_PRECISION)
-        z = np.round(self._coordinates[:, 2] * M_TO_MM, COORDINATE_PRECISION)
+        y = self._coordinates[:, 1] * M_TO_MM
+        z = self._coordinates[:, 2] * M_TO_MM
 
         return pd.DataFrame(
             np.column_stack((y, z)),
@@ -442,10 +388,10 @@ class _PrismaticComponent(
     
     @property
     def width(self) -> float:
-        """Component width in mm, rounded to 2 decimal places. None if not set."""
+        """Component width in mm. None if not set."""
         if self._width is None:
             return None
-        return np.round(self._width * M_TO_MM, DIMENSION_PRECISION)
+        return self._width * M_TO_MM
     
     @property
     def width_range(self) -> Tuple[float, float]:
@@ -459,10 +405,10 @@ class _PrismaticComponent(
 
     @property
     def length(self) -> float:
-        """Component length in mm, rounded to 2 decimal places. None if not set."""
+        """Component length in mm. None if not set."""
         if self._length is None:
             return None
-        return np.round(self._length * M_TO_MM, DIMENSION_PRECISION)
+        return self._length * M_TO_MM
     
     @property
     def length_range(self) -> Tuple[float, float]:
@@ -476,8 +422,8 @@ class _PrismaticComponent(
 
     @property
     def thickness(self) -> float:
-        """Component thickness in mm, rounded to 2 decimal places."""
-        return np.round(self._thickness * M_TO_MM, DIMENSION_PRECISION)
+        """Component thickness in mm."""
+        return self._thickness * M_TO_MM
     
     @property
     def thickness_range(self) -> Tuple[float, float]:
@@ -492,7 +438,7 @@ class _PrismaticComponent(
     @property
     def fill_factor(self) -> float:
         """Fill factor (0.0-1.0) for material calculations."""
-        return np.round(self._fill_factor, DIMENSION_PRECISION)
+        return self._fill_factor
     
     @property
     def fill_factor_range(self) -> Tuple[float, float]:
@@ -504,21 +450,21 @@ class _PrismaticComponent(
         """Total mass in grams, accounting for fill factor. None if dimensions not set."""
         if self._mass is None:
             return None
-        return np.round(self._mass * KG_TO_G, DIMENSION_PRECISION)
-    
+        return self._mass * KG_TO_G
+
     @property
     def cost(self) -> float:
         """Material cost in currency units. None if dimensions not set."""
         if self._cost is None:
             return None
-        return np.round(self._cost, DIMENSION_PRECISION)
-    
+        return self._cost
+
     @property
     def volume(self) -> float:
         """Effective volume in mm³, accounting for fill factor. None if dimensions not set."""
         if self._volume is None:
             return None
-        return np.round(self._volume * M_TO_MM**3, DIMENSION_PRECISION)
+        return self._volume * M_TO_MM**3
     
     @property
     def rotated_x(self) -> bool:
@@ -673,7 +619,7 @@ class PrismaticTerminalConnector(_PrismaticComponent):
 
     def _calculate_footprint(self):
         """Calculate the 2D rectangular footprint of the terminal connector.
-        
+
         Returns
         -------
         np.ndarray
@@ -681,29 +627,8 @@ class PrismaticTerminalConnector(_PrismaticComponent):
         """
         if self._width is None or self._length is None:
             raise ValueError("Cannot calculate footprint: width or length is not set")
-            
-        half_width = self._width / 2
-        half_length = self._length / 2
-        
-        # Create rectangular footprint (clockwise from bottom-left)
-        x_coords = np.array([
-            self._datum[0] - half_width,
-            self._datum[0] + half_width,
-            self._datum[0] + half_width,
-            self._datum[0] - half_width,
-            self._datum[0] - half_width,  # Close the path
-        ])
-        
-        y_coords = np.array([
-            self._datum[1] - half_length,
-            self._datum[1] - half_length,
-            self._datum[1] + half_length,
-            self._datum[1] + half_length,
-            self._datum[1] - half_length,  # Close the path
-        ])
-        
-        footprint = np.column_stack((x_coords, y_coords))
-        return footprint
+
+        return rectangular_footprint_at_datum(self._width, self._length, self._datum)
 
 
 class PrismaticLidAssembly(_PrismaticComponent):
@@ -748,7 +673,7 @@ class PrismaticLidAssembly(_PrismaticComponent):
 
     def _calculate_footprint(self):
         """Calculate the 2D rectangular footprint of the lid assembly.
-        
+
         Returns
         -------
         np.ndarray
@@ -756,29 +681,8 @@ class PrismaticLidAssembly(_PrismaticComponent):
         """
         if self._width is None or self._length is None:
             raise ValueError("Cannot calculate footprint: width or length is not set")
-            
-        half_width = self._width / 2
-        half_length = self._length / 2
-        
-        # Create rectangular footprint (clockwise from bottom-left)
-        x_coords = np.array([
-            self._datum[0] - half_width,
-            self._datum[0] + half_width,
-            self._datum[0] + half_width,
-            self._datum[0] - half_width,
-            self._datum[0] - half_width,  # Close the path
-        ])
-        
-        y_coords = np.array([
-            self._datum[1] - half_length,
-            self._datum[1] - half_length,
-            self._datum[1] + half_length,
-            self._datum[1] + half_length,
-            self._datum[1] - half_length,  # Close the path
-        ])
-        
-        footprint = np.column_stack((x_coords, y_coords))
-        return footprint
+
+        return rectangular_footprint_at_datum(self._width, self._length, self._datum)
 
     @property
     def thickness_range(self) -> Tuple[float, float]:
@@ -1064,18 +968,18 @@ class PrismaticCanister(
     @property
     def inner_width(self) -> float:
         """Inner width of the canister in mm."""
-        return np.round(self._inner_width * M_TO_MM, 2)
-    
+        return self._inner_width * M_TO_MM
+
     @property
     def inner_length(self) -> float:
         """Inner length of the canister in mm."""
-        return np.round(self._inner_length * M_TO_MM, 2)
+        return self._inner_length * M_TO_MM
 
     @property
     def right_left_coordinates(self) -> pd.DataFrame:
         """Get right-left view coordinates in mm."""
-        x = np.round(self._right_left_coordinates[:, 0] * M_TO_MM, 10)
-        y = np.round(self._right_left_coordinates[:, 1] * M_TO_MM, 10)
+        x = self._right_left_coordinates[:, 0] * M_TO_MM
+        y = self._right_left_coordinates[:, 1] * M_TO_MM
 
         return pd.DataFrame(
             np.column_stack((x, y)),
@@ -1102,8 +1006,8 @@ class PrismaticCanister(
     @property
     def top_down_coordinates(self) -> pd.DataFrame:
         """Get top-down view coordinates in mm."""
-        x = np.round(self._top_down_coordinates[:, 0] * M_TO_MM, 10)
-        z = np.round(self._top_down_coordinates[:, 1] * M_TO_MM, 10)
+        x = self._top_down_coordinates[:, 0] * M_TO_MM
+        z = self._top_down_coordinates[:, 1] * M_TO_MM
 
         return pd.DataFrame(
             np.column_stack((x, z)),
@@ -1129,22 +1033,22 @@ class PrismaticCanister(
     @property
     def inner_height(self) -> float:
         """Inner height of the canister in mm."""
-        return np.round(self._inner_height * M_TO_MM, 2)
+        return self._inner_height * M_TO_MM
 
     @property
     def cost(self) -> float:
         """Total cost in currency units."""
-        return np.round(self._cost, DIMENSION_PRECISION)
+        return self._cost
 
     @property
     def mass(self) -> float:
         """Total mass in grams."""
-        return np.round(self._mass * KG_TO_G, DIMENSION_PRECISION)
+        return self._mass * KG_TO_G
 
     @property
     def volume(self) -> float:
         """Total volume in mm³."""
-        return np.round(self._volume * M_TO_MM**3, DIMENSION_PRECISION)
+        return self._volume * M_TO_MM**3
 
     @property
     def name(self) -> str:
@@ -1157,7 +1061,7 @@ class PrismaticCanister(
     @property
     def width(self) -> float:
         """Outer width in mm."""
-        return np.round(self._width * M_TO_MM, DIMENSION_PRECISION)
+        return self._width * M_TO_MM
     
     @property
     def width_range(self) -> Tuple[float, float]:
@@ -1172,7 +1076,7 @@ class PrismaticCanister(
     @property
     def length(self) -> float:
         """Outer length in mm."""
-        return np.round(self._length * M_TO_MM, DIMENSION_PRECISION)
+        return self._length * M_TO_MM
     
     @property
     def length_range(self) -> Tuple[float, float]:
@@ -1187,7 +1091,7 @@ class PrismaticCanister(
     @property
     def height(self) -> float:
         """Height in mm."""
-        return np.round(self._height * M_TO_MM, 2)
+        return self._height * M_TO_MM
     
     @property
     def height_range(self) -> Tuple[float, float]:
@@ -1202,7 +1106,7 @@ class PrismaticCanister(
     @property
     def wall_thickness(self) -> float:
         """Wall thickness in mm."""
-        return np.round(self._wall_thickness * M_TO_MM, 2)
+        return self._wall_thickness * M_TO_MM
     
     @property
     def wall_thickness_range(self) -> Tuple[float, float]:
@@ -2094,27 +1998,27 @@ class PrismaticEncapsulation(_Container, DatumMixin):
     @property
     def volume(self) -> float:
         """Total volume in mm³."""
-        return np.round(self._volume * M_TO_MM**3, DIMENSION_PRECISION)
+        return self._volume * M_TO_MM**3
 
     @property
     def internal_height(self) -> float:
         """Internal height available for cell contents in mm."""
-        return np.round(self._internal_height * M_TO_MM, 2)
+        return self._internal_height * M_TO_MM
 
     @property
     def internal_height_range(self) -> Tuple[float, float]:
-        """Valid internal height range in mm, rounded to 2 decimal places."""
+        """Valid internal height range in mm."""
         return (INTERNAL_HEIGHT_RANGE_MIN, INTERNAL_HEIGHT_RANGE_MAX)
 
     @property
     def internal_width(self) -> float:
         """Internal width available for cell contents in mm."""
-        return np.round(self._internal_width * M_TO_MM, 2)
-    
+        return self._internal_width * M_TO_MM
+
     @property
     def internal_length(self) -> float:
         """Internal length available for cell contents in mm."""
-        return np.round(self._internal_length * M_TO_MM, 2)
+        return self._internal_length * M_TO_MM
 
     @property
     def internal_width_range(self) -> Tuple[float, float]:
@@ -2145,7 +2049,7 @@ class PrismaticEncapsulation(_Container, DatumMixin):
     @property
     def cost(self) -> float:
         """Total cost in currency units."""
-        return np.round(self._cost, DIMENSION_PRECISION)
+        return self._cost
 
     @property
     def name(self) -> str:
@@ -2175,17 +2079,17 @@ class PrismaticEncapsulation(_Container, DatumMixin):
     @property
     def cost_breakdown(self) -> Dict[str, Any]:
         """Get the cost breakdown of the encapsulation."""
-        return round_dict_recursive(self._cost_breakdown, 2)
+        return round_dict_recursive(self._cost_breakdown, precision=None)
 
     @property
     def mass_breakdown(self) -> Dict[str, Any]:
         """Get the mass breakdown of the encapsulation."""
-        return round_dict_recursive(self._mass_breakdown, 2, KG_TO_G)
-    
+        return round_dict_recursive(self._mass_breakdown, precision=None, unit_conversion=KG_TO_G)
+
     @property
     def mass(self) -> float:
         """Total mass in grams."""
-        return np.round(self._mass * KG_TO_G, DIMENSION_PRECISION)
+        return self._mass * KG_TO_G
     
     @property
     def width(self) -> float:

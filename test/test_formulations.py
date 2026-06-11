@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 import unittest
 import warnings
 from copy import deepcopy
@@ -7,9 +10,6 @@ from steer_opencell_design.Materials.ActiveMaterials import CathodeMaterial, Ano
 from steer_opencell_design.Materials.Binders import Binder
 from steer_opencell_design.Materials.ConductiveAdditives import ConductiveAdditive
 from steer_core.Mixins.Serializer import SerializerMixin
-
-import os
-os.environ["OPENCELL_ENV"] = "development"
 
 
 class TestSimpleCathodeFormulation(unittest.TestCase):
@@ -55,8 +55,8 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
         self.assertEqual(len(self.cathode_formulation._conductive_additives), 2)
         self.assertEqual(self.cathode_formulation._name, "Cathode Formulation")
         self.assertEqual(self.cathode_formulation.name, "Cathode Formulation")
-        self.assertEqual(self.cathode_formulation.density, 3.43)
-        self.assertEqual(self.cathode_formulation.specific_cost, 11.29)
+        self.assertAlmostEqual(self.cathode_formulation.density, 3.43, places=2)
+        self.assertAlmostEqual(self.cathode_formulation.specific_cost, 11.29, places=2)
 
     def test_serialization(self):
         serialized = self.cathode_formulation.serialize()
@@ -68,9 +68,9 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
 
         self.cathode_formulation.mass = 0.45
 
-        self.assertEqual(self.cathode_formulation.mass, 0.45)
-        self.assertEqual(self.cathode_formulation.cost, 0.01)
-        self.assertEqual(self.cathode_formulation.volume, 0.13)
+        self.assertAlmostEqual(self.cathode_formulation.mass, 0.45, places=10)
+        self.assertAlmostEqual(self.cathode_formulation.cost, 0.01, places=2)
+        self.assertAlmostEqual(self.cathode_formulation.volume, 0.13, places=2)
 
         material_masses = 0
         for material in self.cathode_formulation.active_materials.keys():
@@ -100,7 +100,7 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
         self.assertAlmostEqual(material_volumes, self.cathode_formulation._volume, 10)
 
         self.assertEqual(
-            self.cathode_formulation.mass_breakdown,
+            {k: round(v, 2) for k, v in self.cathode_formulation.mass_breakdown.items()},
             {
                 "NaNiMn P2-O3 Composite": 0.41,
                 "PVDF": 0.01,
@@ -111,7 +111,7 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
         )
 
         self.assertEqual(
-            self.cathode_formulation.cost_breakdown,
+            {k: round(v, 2) for k, v in self.cathode_formulation.cost_breakdown.items()},
             {
                 "NaNiMn P2-O3 Composite": 0.0,
                 "PVDF": 0.0,
@@ -138,9 +138,9 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
 
         self.cathode_formulation.volume = 0.2
 
-        self.assertEqual(self.cathode_formulation.volume, 0.2)
-        self.assertEqual(self.cathode_formulation.mass, 0.69)
-        self.assertEqual(self.cathode_formulation.cost, 0.01)
+        self.assertAlmostEqual(self.cathode_formulation.volume, 0.2, places=10)
+        self.assertAlmostEqual(self.cathode_formulation.mass, 0.69, places=2)
+        self.assertAlmostEqual(self.cathode_formulation.cost, 0.01, places=2)
 
         material_masses = 0
         for material in self.cathode_formulation.active_materials.keys():
@@ -238,6 +238,16 @@ class TestSimpleCathodeFormulation(unittest.TestCase):
         self.assertAlmostEqual(formulation_max_v_after, material_max_v_after, places=3,
                                msg="Material curve voltage range differs from formulation after recalculation")
 
+        material_curve_capacity = material.specific_capacity_curve[
+            "Specific Capacity (mAh/g)"
+        ].max()
+        self.assertAlmostEqual(
+            material.irreversible_specific_capacity,
+            material_curve_capacity,
+            places=5,
+            msg="Material scalar capacity differs from its current curve",
+        )
+
         self.assertAlmostEqual(formulation_max_v_before, formulation_max_v_after, places=3,
                                msg="Formulation curve changed unexpectedly after recalculation")
 
@@ -302,8 +312,8 @@ class TestMultiCathodeFormulation(unittest.TestCase):
         self.assertEqual(len(self.cathode_formulation._conductive_additives), 2)
         self.assertEqual(self.cathode_formulation._name, "Cathode Formulation")
         self.assertEqual(self.cathode_formulation.name, "Cathode Formulation")
-        self.assertEqual(self.cathode_formulation.density, 3.37)
-        self.assertEqual(self.cathode_formulation.specific_cost, 8.64)
+        self.assertAlmostEqual(self.cathode_formulation.density, 3.37, places=2)
+        self.assertAlmostEqual(self.cathode_formulation.specific_cost, 8.64, places=2)
 
         figure = self.cathode_formulation.plot_specific_capacity_curve(add_materials=True)
 
@@ -339,8 +349,8 @@ class TestMultiCathodeFormulation(unittest.TestCase):
         self.cathode_formulation.active_materials = {self.cathode_active_material1: 90}
         self.cathode_formulation.voltage_cutoff = 4.09
 
-        self.assertEqual(self.cathode_formulation.density, 3.3)
-        self.assertEqual(self.cathode_formulation.specific_cost, 7.24)
+        self.assertAlmostEqual(self.cathode_formulation.density, 3.3, places=1)
+        self.assertAlmostEqual(self.cathode_formulation.specific_cost, 7.24, places=2)
 
         figure = self.cathode_formulation.plot_specific_capacity_curve(add_materials=True)
         # figure.show()
@@ -380,8 +390,8 @@ class TestSimpleAnodeFormulation(unittest.TestCase):
         self.assertEqual(len(self.anode_formulation._conductive_additives), 1)
         self.assertEqual(self.anode_formulation._name, "Anode Formulation")
         self.assertEqual(self.anode_formulation.name, "Anode Formulation")
-        self.assertEqual(self.anode_formulation.density, 1.53)
-        self.assertEqual(self.anode_formulation.specific_cost, 13.67)
+        self.assertAlmostEqual(self.anode_formulation.density, 1.53, places=2)
+        self.assertAlmostEqual(self.anode_formulation.specific_cost, 13.67, places=2)
 
         figure = self.anode_formulation.plot_specific_capacity_curve(add_materials=True)
         # figure.show()
@@ -429,8 +439,8 @@ class TestDualAnodeFormulation(unittest.TestCase):
         self.assertEqual(len(self.anode_formulation._conductive_additives), 1)
         self.assertEqual(self.anode_formulation._name, "Anode Formulation")
         self.assertEqual(self.anode_formulation.name, "Anode Formulation")
-        self.assertEqual(self.anode_formulation.density, 1.54)
-        self.assertEqual(self.anode_formulation.specific_cost, 5.81)
+        self.assertAlmostEqual(self.anode_formulation.density, 1.54, places=2)
+        self.assertAlmostEqual(self.anode_formulation.specific_cost, 5.81, places=2)
 
     def test_plot_specific_capacity_curve(self):
         figure = self.anode_formulation.plot_specific_capacity_curve(add_materials=True)
@@ -632,6 +642,33 @@ class TestActiveMaterialPropertiesAndSetters(unittest.TestCase):
         
         self.assertEqual(f.active_material_1, self.mat1)
         self.assertIsNone(f.active_material_2)
+        self.assertEqual(len(f._active_materials), 1)
+
+    def test_active_material_1_none_rejected_when_only_one_material(self):
+        """Setting ``active_material_1 = None`` must fail when it is the sole material.
+
+        A formulation must always retain at least one active material, so this
+        is the one case where ``None`` is rejected by the indexed setters.
+        """
+        f = CathodeFormulation({self.mat1: 100})
+
+        with self.assertRaises(ValueError) as context:
+            f.active_material_1 = None
+
+        self.assertIn("at least one active material", str(context.exception))
+        # Formulation must be unchanged.
+        self.assertEqual(f.active_material_1, self.mat1)
+        self.assertEqual(len(f._active_materials), 1)
+
+    def test_active_material_1_none_allowed_when_other_material_present(self):
+        """Setting ``active_material_1 = None`` is allowed if a second material exists."""
+        f = CathodeFormulation({self.mat1: 60, self.mat2: 40})
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.active_material_1 = None
+
+        self.assertEqual(f.active_material_1, self.mat2)
         self.assertEqual(len(f._active_materials), 1)
 
 
@@ -1106,6 +1143,69 @@ class TestConductiveAdditivePropertiesAndSetters(unittest.TestCase):
         
         self.assertIn("no conductive additives", str(context.exception))
 
+    def test_conductive_additive_1_none_removes_material(self):
+        """Setting ``conductive_additive_1 = None`` removes the first additive."""
+        f = CathodeFormulation(
+            {self.mat1: 95},
+            conductive_additives={self.additive1: 3, self.additive2: 2},
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.conductive_additive_1 = None
+
+        self.assertEqual(f.conductive_additive_1, self.additive2)
+        self.assertIsNone(f.conductive_additive_2)
+        self.assertEqual(len(f._conductive_additives), 1)
+        self.assertNotIn(self.additive1, f._conductive_additives)
+
+    def test_conductive_additive_2_none_removes_material(self):
+        """Setting ``conductive_additive_2 = None`` removes the second additive."""
+        f = CathodeFormulation(
+            {self.mat1: 95},
+            conductive_additives={self.additive1: 3, self.additive2: 2},
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.conductive_additive_2 = None
+
+        self.assertEqual(f.conductive_additive_1, self.additive1)
+        self.assertIsNone(f.conductive_additive_2)
+        self.assertEqual(len(f._conductive_additives), 1)
+        self.assertNotIn(self.additive2, f._conductive_additives)
+
+    def test_conductive_additive_only_one_set_to_none_removes_it(self):
+        """Setting ``conductive_additive_1 = None`` is allowed even when it is the only one.
+
+        Conductive additives are optional in a formulation, unlike active
+        materials, so removing the last one must succeed.
+        """
+        f = CathodeFormulation(
+            {self.mat1: 97},
+            conductive_additives={self.additive1: 3},
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            f.conductive_additive_1 = None
+
+        self.assertIsNone(f.conductive_additive_1)
+        self.assertEqual(len(f._conductive_additives), 0)
+
+    def test_conductive_additive_none_with_no_material(self):
+        """Setting ``None`` on an empty additive slot is a no-op."""
+        f = CathodeFormulation(
+            {self.mat1: 97},
+            conductive_additives={self.additive1: 3},
+        )
+
+        f.conductive_additive_2 = None
+
+        self.assertEqual(f.conductive_additive_1, self.additive1)
+        self.assertIsNone(f.conductive_additive_2)
+        self.assertEqual(len(f._conductive_additives), 1)
+
     def test_conductive_additive_order_maintained_after_setter(self):
         """Test that conductive additive order is maintained correctly after using setters."""
         f = CathodeFormulation({self.mat1: 93}, conductive_additives={self.additive2: 4, self.additive1: 3})
@@ -1399,6 +1499,182 @@ class TestFormulationMaterialParentReferences(unittest.TestCase):
 
         # Verify new material has parent
         self.assertIs(new_material._get_parent(), self.formulation)
+
+
+class TestAnodeMaterialSwapReversibility(unittest.TestCase):
+    """Swapping an anode material out and back should produce the same curve."""
+
+    def setUp(self):
+        import numpy as np
+        self.np = np
+
+        self.material_a = AnodeMaterial.from_database("Hard Carbon (Vendor D)")
+        self.material_a.density = 1.5
+        self.material_a.specific_cost = 14.27
+
+        self.material_b = AnodeMaterial.from_database("Lead")
+        self.material_b.density = 11.34
+        self.material_b.specific_cost = 2.0
+
+        self.formulation = AnodeFormulation(
+            active_materials={self.material_a: 100},
+        )
+
+    def test_swap_and_swap_back_produces_same_curve(self):
+        """Curve must be identical after A -> B -> A swap."""
+        original_curve = self.formulation.specific_capacity_curve.copy()
+        numeric_cols = original_curve.select_dtypes(include="number").columns
+        original_cutoff = self.formulation._voltage_cutoff
+
+        # Swap to material B
+        self.formulation.active_material_1 = self.material_b
+
+        # Swap back to material A
+        self.formulation.active_material_1 = self.material_a
+
+        restored_curve = self.formulation.specific_capacity_curve
+
+        self.np.testing.assert_array_almost_equal(
+            original_curve[numeric_cols].values,
+            restored_curve[numeric_cols].values,
+            decimal=10,
+            err_msg="Anode curve changed after swapping material out and back",
+        )
+        self.assertAlmostEqual(
+            self.formulation._voltage_cutoff, original_cutoff, places=10,
+            msg="Voltage cutoff changed after swapping material out and back",
+        )
+
+    def test_explicit_cutoff_preserved_across_swap(self):
+        """A user-set voltage cutoff should survive a material swap if still valid for both materials."""
+        # Pick a cutoff in the intersection of both materials' valid ranges
+        a_window = self.material_a._voltage_operation_window
+        b_window = self.material_b._voltage_operation_window
+        common_lower = max(min(a_window), min(b_window))
+        common_upper = min(max(a_window), max(b_window))
+        explicit_cutoff = common_lower  # use lower bound, valid for both
+
+        self.formulation.voltage_cutoff = explicit_cutoff
+
+        # Swap to B and back
+        self.formulation.active_material_1 = self.material_b
+        self.formulation.active_material_1 = self.material_a
+
+        self.assertAlmostEqual(
+            self.formulation._voltage_cutoff, explicit_cutoff, places=10,
+            msg="Explicitly set voltage cutoff should be preserved after swap",
+        )
+
+    def test_swap_via_active_materials_setter(self):
+        """Same reversibility guarantee via the bulk active_materials setter."""
+        original_curve = self.formulation.specific_capacity_curve.copy()
+        numeric_cols = original_curve.select_dtypes(include="number").columns
+
+        self.formulation.active_materials = {self.material_b: 100}
+        self.formulation.active_materials = {self.material_a: 100}
+
+        restored_curve = self.formulation.specific_capacity_curve
+        self.np.testing.assert_array_almost_equal(
+            original_curve[numeric_cols].values,
+            restored_curve[numeric_cols].values,
+            decimal=10,
+        )
+
+
+class TestSlotFactoryEdgeCases(unittest.TestCase):
+    """Direct exercises for the indexed-slot helpers in Formulations.py.
+
+    Targets:
+      * ``_slot_material`` / ``_slot_weight`` (module-level dict accessors).
+      * ``_replace_material_slot`` (out-of-range indices, prerequisite gates).
+      * ``_remove_material_slot`` (silent no-op on out-of-range).
+    """
+
+    def setUp(self):
+        from steer_opencell_design.Materials.Formulations import (
+            _slot_material,
+            _slot_weight,
+        )
+
+        self._slot_material = _slot_material
+        self._slot_weight = _slot_weight
+
+        self.material = CathodeMaterial.from_database("LFP")
+        self.material.density = 3.6
+        self.material.specific_cost = 6
+
+        self.binder = Binder.from_database("PVDF")
+        self.binder.density = 1.7
+        self.binder.specific_cost = 15
+
+        self.additive = ConductiveAdditive.from_database("Super P")
+        self.additive.density = 1.9
+        self.additive.specific_cost = 9
+
+        self.formulation = CathodeFormulation(
+            active_materials={self.material: 95},
+            binders={self.binder: 2},
+            conductive_additives={self.additive: 3},
+        )
+
+    def test_slot_material_returns_first_key(self):
+        coll = {self.binder: 0.5, self.additive: 0.5}
+        self.assertIs(self._slot_material(coll, 0), self.binder)
+        self.assertIs(self._slot_material(coll, 1), self.additive)
+
+    def test_slot_material_out_of_range_returns_none(self):
+        self.assertIsNone(self._slot_material({}, 0))
+        self.assertIsNone(self._slot_material({self.binder: 0.5}, 7))
+
+    def test_slot_weight_returns_percent(self):
+        coll = {self.binder: 0.25}
+        # Internal storage is a fraction; helper returns it as a percent.
+        self.assertAlmostEqual(self._slot_weight(coll, 0), 25.0, places=10)
+
+    def test_slot_weight_out_of_range_returns_none(self):
+        self.assertIsNone(self._slot_weight({}, 0))
+        self.assertIsNone(self._slot_weight({self.binder: 0.5}, 7))
+
+    def test_replace_material_slot_appends_when_index_beyond_length(self):
+        """Setting ``binder_2`` when only ``binder_1`` exists must append a new slot."""
+        self.assertIsNone(self.formulation.binder_2)
+        new_binder = Binder.from_database("CMC")
+        new_binder.density = 1.5
+        new_binder.specific_cost = 10
+        self.formulation.binder_2 = new_binder
+        self.assertIs(self.formulation.binder_2, new_binder)
+        self.assertEqual(len(self.formulation._binders), 2)
+
+    def test_replace_material_slot_preserves_existing_weight(self):
+        """Replacing a slot must not touch the existing weight fraction."""
+        original_weight_pct = self.formulation.binder_1_weight
+        new_binder = Binder.from_database("CMC")
+        new_binder.density = 1.5
+        new_binder.specific_cost = 10
+        self.formulation.binder_1 = new_binder
+        self.assertAlmostEqual(
+            self.formulation.binder_1_weight, original_weight_pct, places=10
+        )
+
+    def test_remove_material_slot_is_silent_when_out_of_range(self):
+        """Setting ``binder_2 = None`` when there is no ``binder_2`` is a no-op."""
+        before = list(self.formulation._binders.items())
+        self.formulation.binder_2 = None
+        after = list(self.formulation._binders.items())
+        self.assertEqual(before, after)
+
+    def test_remove_material_slot_removes_existing_entry(self):
+        """Setting ``binder_1 = None`` must drop that entry from the dict.
+
+        Removing the binder drops the formulation total below 100 %, which
+        is expected here, so we suppress the resulting ``UserWarning``.
+        """
+        self.assertEqual(len(self.formulation._binders), 1)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            self.formulation.binder_1 = None
+        self.assertEqual(len(self.formulation._binders), 0)
+        self.assertIsNone(self.formulation.binder_1)
 
 
 if __name__ == "__main__":

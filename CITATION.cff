@@ -6,10 +6,11 @@ authors:
     orcid: https://orcid.org/0000-0002-0755-3981
   - family-names: Yao
     given-names: Adrian
+    orcid: https://orcid.org/0000-0001-9515-3226
 title: "OpenCell Design"
-version: 1.0.34
+version: "1.0.42"
 license: AGPL-3.0-or-later
 repository-code: https://github.com/stanford-developers/steer-opencell-design
 doi: 
-date-released: 2026-03-17
+date-released: 2026-06-10
 

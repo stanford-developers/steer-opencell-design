@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2024-2026 Stanford University
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
 from copy import deepcopy
 import unittest
 import plotly.graph_objects as go
@@ -23,9 +26,6 @@ from steer_opencell_design.Materials.ConductiveAdditives import ConductiveAdditi
 
 
 from steer_core.Constants.Units import *
-
-import os
-os.environ["OPENCELL_ENV"] = "development"
 
 
 class TestSimpleLaminate(unittest.TestCase):
@@ -154,25 +154,31 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertTrue(hasattr(self.layup, "_operating_reversible_areal_capacity"))
         self.assertTrue(hasattr(self.layup, "maximum_areal_reversible_capacity_range"))
         self.assertTrue(hasattr(self.layup, "_maximum_areal_reversible_capacity_range"))
-        self.assertEqual(self.layup.minimum_operating_voltage_range, (2.27, 3.12))
-        self.assertEqual(self.layup.maximum_operating_voltage_range, (3.53, 4.03))
-        self.assertEqual(self.layup.operating_reversible_areal_capacity, 0.842)
-        self.assertEqual(self.layup.maximum_areal_reversible_capacity_range, (0.8, 0.842))
+        min_vr = self.layup.minimum_operating_voltage_range
+        self.assertAlmostEqual(min_vr[0], 2.27, places=2)
+        self.assertAlmostEqual(min_vr[1], 3.12, places=2)
+        max_vr = self.layup.maximum_operating_voltage_range
+        self.assertAlmostEqual(max_vr[0], 3.53, places=2)
+        self.assertAlmostEqual(max_vr[1], 4.03, places=2)
+        self.assertAlmostEqual(self.layup.operating_reversible_areal_capacity, 0.842, places=3)
+        max_arc = self.layup.maximum_areal_reversible_capacity_range
+        self.assertAlmostEqual(max_arc[0], 0.8, places=3)
+        self.assertAlmostEqual(max_arc[1], 0.842, places=3)
 
     def test_voltage_maximum_setter(self):
 
         self.layup.maximum_operating_voltage = 3.8
-        self.assertEqual(self.layup.maximum_operating_voltage, 3.8)
+        self.assertAlmostEqual(self.layup.maximum_operating_voltage, 3.8, places=5)
         self.assertAlmostEqual(self.layup._areal_capacity_curve[:,1].max(), 3.8, places=4)
         figure1 = self.layup.plot_areal_capacity_curve()
 
         self.layup.maximum_operating_voltage = 4.0
-        self.assertEqual(self.layup.maximum_operating_voltage, 4.0)
+        self.assertAlmostEqual(self.layup.maximum_operating_voltage, 4.0, places=5)
         self.assertAlmostEqual(self.layup._areal_capacity_curve[:,1].max(), 4.0, places=4)
         figure2 = self.layup.plot_areal_capacity_curve()
 
         self.layup.maximum_operating_voltage = 3.5
-        self.assertEqual(self.layup.maximum_operating_voltage, 3.53)
+        self.assertAlmostEqual(self.layup.maximum_operating_voltage, 3.53, places=2)
         self.assertAlmostEqual(self.layup._areal_capacity_curve[:,1].max(), 3.53, places=2)
         figure3 = self.layup.plot_areal_capacity_curve()
 
@@ -183,7 +189,7 @@ class TestSimpleLaminate(unittest.TestCase):
     def test_reversible_capacity_setter(self):
 
         self.layup.operating_reversible_areal_capacity = 0.83
-        self.assertEqual(self.layup.operating_reversible_areal_capacity, 0.83)
+        self.assertAlmostEqual(self.layup.operating_reversible_areal_capacity, 0.83, places=3)
         figure1 = self.layup.plot_areal_capacity_curve()
         # figure1.show()
 
@@ -219,13 +225,13 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertEqual(self.layup.length, 6000)
         self.assertEqual(self.layup.width, 400)
         self.assertEqual(self.layup.anode.current_collector.length, 6500)
-        self.assertEqual(self.layup.anode.current_collector.width, 406)
+        self.assertAlmostEqual(self.layup.anode.current_collector.width, 406, places=5)
         self.assertEqual(self.layup.cathode.current_collector.length, 6000)
         self.assertEqual(self.layup.cathode.current_collector.width, 400)
         self.assertEqual(self.layup.top_separator.length, 9500)
-        self.assertEqual(self.layup.top_separator.width, 410)
+        self.assertAlmostEqual(self.layup.top_separator.width, 410, places=5)
         self.assertEqual(self.layup.bottom_separator.length, 7500)
-        self.assertEqual(self.layup.bottom_separator.width, 410)
+        self.assertAlmostEqual(self.layup.bottom_separator.width, 410, places=5)
         fig3 = self.layup.plot_top_down_view(opacity=0.2)
 
         # fig1.show()
@@ -236,13 +242,13 @@ class TestSimpleLaminate(unittest.TestCase):
     def test_laminate(self):
         # This is a placeholder for an actual test
         self.assertTrue(isinstance(self.layup, Laminate))
-        self.assertEqual(self.layup.anode_overhangs, {"left": 250, "right": 250, "top": 3, "bottom": 3})
+        self.assertEqual({k: round(v, 5) for k, v in self.layup.anode_overhangs.items()}, {"left": 250, "right": 250, "top": 3, "bottom": 3})
         self.assertEqual(
-            self.layup.bottom_separator_overhangs,
+            {k: round(v, 5) for k, v in self.layup.bottom_separator_overhangs.items()},
             {"left": 750, "right": 750, "top": 5, "bottom": 5},
         )
         self.assertEqual(
-            self.layup.top_separator_overhangs,
+            {k: round(v, 5) for k, v in self.layup.top_separator_overhangs.items()},
             {"left": 1750, "right": 1750, "top": 5, "bottom": 5},
         )
 
@@ -329,7 +335,7 @@ class TestSimpleLaminate(unittest.TestCase):
         self.layup.overhang_control_mode = OverhangControlMode.FIXED_COMPONENT
 
         self.layup.anode_overhang_top = 6
-        self.assertEqual(self.layup.anode_overhangs, {"left": 250, "right": 250, "top": 6, "bottom": 0})
+        self.assertEqual({k: round(v, 5) for k, v in self.layup.anode_overhangs.items()}, {"left": 250, "right": 250, "top": 6, "bottom": 0})
         fig1 = self.layup.plot_top_down_view()
 
         # fig1.show()
@@ -341,7 +347,7 @@ class TestSimpleLaminate(unittest.TestCase):
 
         self.layup.bottom_separator_overhang_left = 10
         self.assertEqual(
-            self.layup.bottom_separator_overhangs,
+            {k: round(v, 5) for k, v in self.layup.bottom_separator_overhangs.items()},
             {"left": 10, "right": 750, "top": 5, "bottom": 5},
         )
         fig2 = self.layup.plot_top_down_view()
@@ -726,7 +732,7 @@ class TestSimpleLaminate(unittest.TestCase):
         
         # Verify deserialized has same properties
         self.assertAlmostEqual(deserialized_layup.thickness, original_thickness, places=1)
-        self.assertEqual(deserialized_layup.cathode.mass_loading, original_mass_loading)
+        self.assertAlmostEqual(deserialized_layup.cathode.mass_loading, original_mass_loading, places=10)
         
         # Modify low in hierarchy on deserialized object
         deserialized_layup.cathode.mass_loading = original_mass_loading * 1.5
@@ -872,15 +878,15 @@ class TestSimpleMonoLayer(unittest.TestCase):
 
         self.monolayer.width = 350
         self.assertEqual(self.monolayer.height, 500)
-        self.assertEqual(self.monolayer.width, 350)
+        self.assertAlmostEqual(self.monolayer.width, 350, places=5)
         self.assertEqual(self.monolayer.anode.current_collector.height, 498)
-        self.assertEqual(self.monolayer.anode.current_collector.width, 344)
+        self.assertAlmostEqual(self.monolayer.anode.current_collector.width, 344, places=5)
         self.assertEqual(self.monolayer.cathode.current_collector.height, 494)
-        self.assertEqual(self.monolayer.cathode.current_collector.width, 340)
+        self.assertAlmostEqual(self.monolayer.cathode.current_collector.width, 340, places=5)
         self.assertEqual(self.monolayer._top_separator.length, 500)
-        self.assertEqual(self.monolayer._top_separator.width, 350)
+        self.assertAlmostEqual(self.monolayer._top_separator.width, 350, places=5)
         self.assertEqual(self.monolayer._bottom_separator.length, 500)
-        self.assertEqual(self.monolayer._bottom_separator.width, 350)
+        self.assertAlmostEqual(self.monolayer._bottom_separator.width, 350, places=5)
         fig4 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         # fig1.show()
@@ -899,15 +905,15 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.assertTrue(isinstance(self.monolayer, MonoLayer))
 
         self.assertEqual(
-            self.monolayer.anode_overhangs,
+            {k: round(v, 5) for k, v in self.monolayer.anode_overhangs.items()},
             {"left": 2, "right": 2, "top": 2, "bottom": 2},
         )
         self.assertEqual(
-            self.monolayer.bottom_separator_overhangs,
+            {k: round(v, 5) for k, v in self.monolayer.bottom_separator_overhangs.items()},
             {"left": 5, "right": 5, "top": 3, "bottom": 3},
         )
         self.assertEqual(
-            self.monolayer.top_separator_overhangs,
+            {k: round(v, 5) for k, v in self.monolayer.top_separator_overhangs.items()},
             {"left": 5, "right": 5, "top": 3, "bottom": 3},
         )
 
@@ -925,14 +931,14 @@ class TestSimpleMonoLayer(unittest.TestCase):
 
         self.monolayer.anode_overhang_left = 4
         self.assertEqual(
-            self.monolayer.anode_overhangs,
+            {k: round(v, 5) for k, v in self.monolayer.anode_overhangs.items()},
             {"left": 4, "right": 0, "top": 2, "bottom": 2},
         )
         fig1 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         self.monolayer.anode_overhang_top = 4
         self.assertEqual(
-            self.monolayer.anode_overhangs,
+            {k: round(v, 5) for k, v in self.monolayer.anode_overhangs.items()},
             {"left": 4, "right": 0, "top": 4, "bottom": 0},
         )
         fig2 = self.monolayer.plot_top_down_view(opacity=0.2)
@@ -948,14 +954,14 @@ class TestSimpleMonoLayer(unittest.TestCase):
 
         self.monolayer.anode_overhang_left = 10
         self.assertEqual(
-            self.monolayer.anode_overhangs,
+            {k: round(v, 5) for k, v in self.monolayer.anode_overhangs.items()},
             {"left": 10, "right": 2, "top": 2, "bottom": 2},
         )
         fig2 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         self.monolayer.anode_overhang_top = 10
         self.assertEqual(
-            self.monolayer.anode_overhangs,
+            {k: round(v, 5) for k, v in self.monolayer.anode_overhangs.items()},
             {"left": 10, "right": 2, "top": 10, "bottom": 2},
         )
         fig3 = self.monolayer.plot_top_down_view(opacity=0.2)
@@ -971,14 +977,14 @@ class TestSimpleMonoLayer(unittest.TestCase):
         self.monolayer.separator_overhang_left = 8
 
         self.assertEqual(
-            self.monolayer.separator_overhangs,
+            {k: round(v, 5) for k, v in self.monolayer.separator_overhangs.items()},
             {"left": 8, "right": 2, "top": 3, "bottom": 3},
         )
         fig1 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         self.monolayer.separator_overhang_top = 6
         self.assertEqual(
-            self.monolayer.separator_overhangs,
+            {k: round(v, 5) for k, v in self.monolayer.separator_overhangs.items()},
             {"left": 8, "right": 2, "top": 6, "bottom": 0},
         )
 
@@ -995,14 +1001,14 @@ class TestSimpleMonoLayer(unittest.TestCase):
 
         self.monolayer.bottom_separator_overhang_left = 12
         self.assertEqual(
-            self.monolayer.bottom_separator_overhangs,
+            {k: round(v, 5) for k, v in self.monolayer.bottom_separator_overhangs.items()},
             {"left": 12, "right": 5, "top": 3, "bottom": 3},
         )
         fig2 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         self.monolayer.bottom_separator_overhang_top = 8
         self.assertEqual(
-            self.monolayer.bottom_separator_overhangs,
+            {k: round(v, 5) for k, v in self.monolayer.bottom_separator_overhangs.items()},
             {"left": 12, "right": 5, "top": 8, "bottom": 3},
         )
         fig3 = self.monolayer.plot_top_down_view(opacity=0.2)
@@ -1016,14 +1022,14 @@ class TestSimpleMonoLayer(unittest.TestCase):
 
         self.monolayer.top_separator_overhang_left = 7
         self.assertEqual(
-            self.monolayer.top_separator_overhangs,
+            {k: round(v, 5) for k, v in self.monolayer.top_separator_overhangs.items()},
             {"left": 7, "right": 3, "top": 3, "bottom": 3},
         )
         fig1 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         self.monolayer.top_separator_overhang_bottom = 5
         self.assertEqual(
-            self.monolayer.top_separator_overhangs,
+            {k: round(v, 5) for k, v in self.monolayer.top_separator_overhangs.items()},
             {"left": 7, "right": 3, "top": 1, "bottom": 5},
         )
         fig2 = self.monolayer.plot_top_down_view(opacity=0.2)
@@ -1038,14 +1044,14 @@ class TestSimpleMonoLayer(unittest.TestCase):
 
         self.monolayer.top_separator_overhang_right = 15
         self.assertEqual(
-            self.monolayer.top_separator_overhangs,
+            {k: round(v, 5) for k, v in self.monolayer.top_separator_overhangs.items()},
             {"left": 5, "right": 15, "top": 3, "bottom": 3},
         )
         fig2 = self.monolayer.plot_top_down_view(opacity=0.2)
 
         self.monolayer.top_separator_overhang_bottom = 10
         self.assertEqual(
-            self.monolayer.top_separator_overhangs,
+            {k: round(v, 5) for k, v in self.monolayer.top_separator_overhangs.items()},
             {"left": 5, "right": 15, "top": 3, "bottom": 10},
         )
         fig3 = self.monolayer.plot_top_down_view(opacity=0.2)
@@ -1317,53 +1323,53 @@ class TestZFoldMonoLayer(unittest.TestCase):
     def test_width_and_height_setter(self):
 
         self.assertEqual(self.zfoldmonolayer.height, 326)
-        self.assertEqual(self.zfoldmonolayer.width, 304.05)
+        self.assertAlmostEqual(self.zfoldmonolayer.width, 304.05, places=5)
         self.assertEqual(self.zfoldmonolayer.anode.current_collector.height, 324)
         self.assertEqual(self.zfoldmonolayer.anode.current_collector.width, 304)
         self.assertEqual(self.zfoldmonolayer.cathode.current_collector.height, 320)
         self.assertEqual(self.zfoldmonolayer.cathode.current_collector.width, 300)
-        self.assertEqual(self.zfoldmonolayer._top_separator.length, 304.05)
-        self.assertEqual(self.zfoldmonolayer._top_separator.width, 326.0)
-        self.assertEqual(self.zfoldmonolayer._bottom_separator.length, 300.05)
+        self.assertAlmostEqual(self.zfoldmonolayer._top_separator.length, 304.05, places=5)
+        self.assertAlmostEqual(self.zfoldmonolayer._top_separator.width, 326.0, places=5)
+        self.assertAlmostEqual(self.zfoldmonolayer._bottom_separator.length, 300.05, places=5)
         self.assertEqual(self.zfoldmonolayer._bottom_separator.width, 326)
         fig1 = self.zfoldmonolayer.plot_top_down_view(opacity=0.2)
 
         self.zfoldmonolayer.height = 500
         self.assertEqual(self.zfoldmonolayer.height, 500)
-        self.assertEqual(self.zfoldmonolayer.width, 304.05)
+        self.assertAlmostEqual(self.zfoldmonolayer.width, 304.05, places=5)
         self.assertEqual(self.zfoldmonolayer.anode.current_collector.height, 498)
         self.assertEqual(self.zfoldmonolayer.anode.current_collector.width, 304)
         self.assertEqual(self.zfoldmonolayer.cathode.current_collector.height, 494)
         self.assertEqual(self.zfoldmonolayer.cathode.current_collector.width, 300)
-        self.assertEqual(self.zfoldmonolayer._top_separator.length, 304.05)
+        self.assertAlmostEqual(self.zfoldmonolayer._top_separator.length, 304.05, places=5)
         self.assertEqual(self.zfoldmonolayer._top_separator.width, 500)
-        self.assertEqual(self.zfoldmonolayer._bottom_separator.length, 300.05)
+        self.assertAlmostEqual(self.zfoldmonolayer._bottom_separator.length, 300.05, places=5)
         self.assertEqual(self.zfoldmonolayer._bottom_separator.width, 500)
         fig2 = self.zfoldmonolayer.plot_top_down_view(opacity=0.2)
 
         self.zfoldmonolayer.width = 400
         self.assertEqual(self.zfoldmonolayer.height, 500)
-        self.assertEqual(self.zfoldmonolayer.width, 400)
+        self.assertAlmostEqual(self.zfoldmonolayer.width, 400, places=5)
         self.assertEqual(self.zfoldmonolayer.anode.current_collector.height, 498)
-        self.assertEqual(self.zfoldmonolayer.anode.current_collector.width, 399.95)
+        self.assertAlmostEqual(self.zfoldmonolayer.anode.current_collector.width, 399.95, places=5)
         self.assertEqual(self.zfoldmonolayer.cathode.current_collector.height, 494)
-        self.assertEqual(self.zfoldmonolayer.cathode.current_collector.width, 395.95)
-        self.assertEqual(self.zfoldmonolayer._top_separator.length, 400)
+        self.assertAlmostEqual(self.zfoldmonolayer.cathode.current_collector.width, 395.95, places=5)
+        self.assertAlmostEqual(self.zfoldmonolayer._top_separator.length, 400, places=5)
         self.assertEqual(self.zfoldmonolayer._top_separator.width, 500)
-        self.assertEqual(self.zfoldmonolayer._bottom_separator.length, 396)
+        self.assertAlmostEqual(self.zfoldmonolayer._bottom_separator.length, 396, places=5)
         self.assertEqual(self.zfoldmonolayer._bottom_separator.width, 500)
         fig3 = self.zfoldmonolayer.plot_top_down_view(opacity=0.2)
 
         self.zfoldmonolayer.width = 350
         self.assertEqual(self.zfoldmonolayer.height, 500)
-        self.assertEqual(self.zfoldmonolayer.width, 350)
+        self.assertAlmostEqual(self.zfoldmonolayer.width, 350, places=5)
         self.assertEqual(self.zfoldmonolayer.anode.current_collector.height, 498)
-        self.assertEqual(self.zfoldmonolayer.anode.current_collector.width, 349.95)
+        self.assertAlmostEqual(self.zfoldmonolayer.anode.current_collector.width, 349.95, places=5)
         self.assertEqual(self.zfoldmonolayer.cathode.current_collector.height, 494)
-        self.assertEqual(self.zfoldmonolayer.cathode.current_collector.width, 345.95)
-        self.assertEqual(self.zfoldmonolayer._top_separator.length, 350)
+        self.assertAlmostEqual(self.zfoldmonolayer.cathode.current_collector.width, 345.95, places=5)
+        self.assertAlmostEqual(self.zfoldmonolayer._top_separator.length, 350, places=5)
         self.assertEqual(self.zfoldmonolayer._top_separator.width, 500)
-        self.assertEqual(self.zfoldmonolayer._bottom_separator.length, 346)
+        self.assertAlmostEqual(self.zfoldmonolayer._bottom_separator.length, 346, places=5)
         self.assertEqual(self.zfoldmonolayer._bottom_separator.width, 500)
         fig4 = self.zfoldmonolayer.plot_top_down_view(opacity=0.2)
 
@@ -1393,11 +1399,11 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.assertAlmostEqual(self.zfoldmonolayer._top_separator.length, expected_top_length, places=1)
 
         self.assertEqual(
-            self.zfoldmonolayer.anode_overhangs,
+            {k: round(v, 5) for k, v in self.zfoldmonolayer.anode_overhangs.items()},
             {"left": 2, "right": 2, "top": 2, "bottom": 2},
         )
         self.assertEqual(
-            self.zfoldmonolayer.separator_overhangs,
+            {k: round(v, 5) for k, v in self.zfoldmonolayer.separator_overhangs.items()},
             {"left": 0.025, "right": 0.025, "bottom": 3.0, "top": 3.0},
         )
 
@@ -1425,7 +1431,7 @@ class TestZFoldMonoLayer(unittest.TestCase):
 
         # Check that the separator was set correctly
         self.assertEqual(self.zfoldmonolayer.separator.name, "New Separator")
-        self.assertEqual(self.zfoldmonolayer.separator.thickness, 15)
+        self.assertAlmostEqual(self.zfoldmonolayer.separator.thickness, 15, places=5)
 
         # Length should be constrained by Z-fold geometry for both internal separators
         # We can check via internal attributes since unified interface doesn't expose them
@@ -1448,13 +1454,13 @@ class TestZFoldMonoLayer(unittest.TestCase):
 
         # Set anode overhangs - should work normally
         self.zfoldmonolayer.anode_overhang_left = 4.0
-        self.assertEqual(self.zfoldmonolayer.anode_overhang_left, 4.0)
-        self.assertEqual(self.zfoldmonolayer.anode_overhang_right, 0.0)
+        self.assertAlmostEqual(self.zfoldmonolayer.anode_overhang_left, 4.0, places=5)
+        self.assertAlmostEqual(self.zfoldmonolayer.anode_overhang_right, 0.0, places=5)
         fig1 = self.zfoldmonolayer.plot_top_down_view()
 
         self.zfoldmonolayer.anode_overhang_top = 4.0
-        self.assertEqual(self.zfoldmonolayer.anode_overhang_top, 4.0)
-        self.assertEqual(self.zfoldmonolayer.anode_overhang_bottom, 0.0)
+        self.assertAlmostEqual(self.zfoldmonolayer.anode_overhang_top, 4.0, places=5)
+        self.assertAlmostEqual(self.zfoldmonolayer.anode_overhang_bottom, 0.0, places=5)
         fig2 = self.zfoldmonolayer.plot_top_down_view()
 
         # fig1.show()
@@ -1466,13 +1472,13 @@ class TestZFoldMonoLayer(unittest.TestCase):
 
         # Test unified bottom overhang
         self.zfoldmonolayer.separator_overhang_bottom = 6.0
-        self.assertEqual(self.zfoldmonolayer.separator_overhang_bottom, 6.0)
-        self.assertEqual(self.zfoldmonolayer.separator_overhang_top, 0.0)
+        self.assertAlmostEqual(self.zfoldmonolayer.separator_overhang_bottom, 6.0, places=5)
+        self.assertAlmostEqual(self.zfoldmonolayer.separator_overhang_top, 0.0, places=5)
 
         # Test unified top overhang
         self.zfoldmonolayer.separator_overhang_top = 6.0
-        self.assertEqual(self.zfoldmonolayer.separator_overhang_top, 6.0)
-        self.assertEqual(self.zfoldmonolayer.separator_overhang_bottom, 0.0)
+        self.assertAlmostEqual(self.zfoldmonolayer.separator_overhang_top, 6.0, places=5)
+        self.assertAlmostEqual(self.zfoldmonolayer.separator_overhang_bottom, 0.0, places=5)
 
         fig1 = self.zfoldmonolayer.plot_top_down_view()
         # fig1.show()
@@ -1483,13 +1489,13 @@ class TestZFoldMonoLayer(unittest.TestCase):
 
         # Test unified bottom overhang
         self.zfoldmonolayer.separator_overhang_bottom = 6.0
-        self.assertEqual(self.zfoldmonolayer.separator_overhang_bottom, 6.0)
-        self.assertEqual(self.zfoldmonolayer.separator_overhang_top, 3.0)
+        self.assertAlmostEqual(self.zfoldmonolayer.separator_overhang_bottom, 6.0, places=5)
+        self.assertAlmostEqual(self.zfoldmonolayer.separator_overhang_top, 3.0, places=5)
 
         # Test unified top overhang
         self.zfoldmonolayer.separator_overhang_top = 6.0
-        self.assertEqual(self.zfoldmonolayer.separator_overhang_top, 6.0)
-        self.assertEqual(self.zfoldmonolayer.separator_overhang_bottom, 6.0)
+        self.assertAlmostEqual(self.zfoldmonolayer.separator_overhang_top, 6.0, places=5)
+        self.assertAlmostEqual(self.zfoldmonolayer.separator_overhang_bottom, 6.0, places=5)
 
         fig1 = self.zfoldmonolayer.plot_top_down_view()
         # fig1.show()
@@ -1671,8 +1677,8 @@ class TestZFoldMonoLayer(unittest.TestCase):
         """Test that changing separator.thickness updates both _top_separator and _bottom_separator."""
         # Get initial thicknesses
         original_thickness = self.zfoldmonolayer.separator.thickness
-        self.assertEqual(self.zfoldmonolayer._top_separator.thickness, original_thickness)
-        self.assertEqual(self.zfoldmonolayer._bottom_separator.thickness, original_thickness)
+        self.assertAlmostEqual(self.zfoldmonolayer._top_separator.thickness, original_thickness, places=5)
+        self.assertAlmostEqual(self.zfoldmonolayer._bottom_separator.thickness, original_thickness, places=5)
 
         # Change the canonical separator's thickness
         new_thickness = 30
@@ -1680,9 +1686,9 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.zfoldmonolayer.separator.propagate_changes()
 
         # Verify both internal separators are updated
-        self.assertEqual(self.zfoldmonolayer.separator.thickness, new_thickness)
-        self.assertEqual(self.zfoldmonolayer._top_separator.thickness, new_thickness)
-        self.assertEqual(self.zfoldmonolayer._bottom_separator.thickness, new_thickness)
+        self.assertAlmostEqual(self.zfoldmonolayer.separator.thickness, new_thickness, places=5)
+        self.assertAlmostEqual(self.zfoldmonolayer._top_separator.thickness, new_thickness, places=5)
+        self.assertAlmostEqual(self.zfoldmonolayer._bottom_separator.thickness, new_thickness, places=5)
 
 
 class TestLayupPropagation(unittest.TestCase):

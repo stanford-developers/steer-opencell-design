@@ -12,6 +12,7 @@ authors:
     corresponding: true
     affiliation: 1
   - name: Adrian Yao
+    orcid: 0000-0001-9515-3226
     affiliation: 1
 affiliations:
   - name: Department of Materials Science and Engineering, Stanford University, Stanford, CA 94305, USA
@@ -34,6 +35,18 @@ The global transition to electrified transportation and grid-scale energy storag
 Several tools address aspects of this challenge. PyBaMM [@sulzer2021pybamm] provides physics-based electrochemical simulation but does not model the geometric construction of cells or calculate mass and cost breakdowns. BatPaC [@nelson2019batpac] and CAMS [@cams2023] estimate manufacturing cost and performance but are implemented as Excel workbooks, limiting extensibility and programmatic integration. Both are also unidirectional models — outputs depend on a fixed set of inputs, and bidirectional parameter setting is not possible. Other tools such as electrode formulation calculators address isolated aspects of cell design rather than the complete hierarchy from materials to cells.
 
 OpenCell Design fills this gap by providing an open-source, programmatic tool that combines hierarchical cell construction with integrated cost and performance calculations in an extensible, composable framework.
+
+# Software Architecture
+
+The software is distributed as three complementary Python packages, each with its own repository, test suite, and documentation:
+
+- **steer-core** ([github.com/stanford-developers/steer-core](https://github.com/stanford-developers/steer-core)) provides foundational utilities shared across the platform, including validation, serialization with LZ4 compression, bidirectional property propagation, type checking, and interactive Plotly-based plotting mixins.
+- **steer-materials** ([github.com/stanford-developers/steer-materials](https://github.com/stanford-developers/steer-materials)) defines the material layer — metals, solvents, and volumed material mixins that track density, cost, mass, and volume with automatic unit conversion and range validation.
+- **steer-opencell-design** ([github.com/stanford-developers/steer-opencell-design](https://github.com/stanford-developers/steer-opencell-design)) is the primary package described in this paper. It builds on the previous two to implement the full cell-modeling hierarchy from active materials through to complete cells.
+
+This separation of concerns allows each package to be developed, tested, and versioned independently while ensuring that common behaviours — such as serialization, validation, and change propagation — are defined once in `steer-core` and inherited throughout the stack.
+
+![The OpenCell Design modeling hierarchy. Components at each level compose into the next, from materials through to complete cells.](heirarchy_tree.png){width=80%}
 
 # Key Features
 
