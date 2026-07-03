@@ -1,5 +1,5 @@
 ---
-title: 'OpenCell Design: An Open-Source Python Library for Construction, Energetic and Technoeconomic Modelling of Battery Cell Designs'
+title: 'OpenCell Design: An Open-Source Python Library for Construction, Energetic and Technoeconomic Modeling of Battery Cell Designs'
 tags:
   - Python
   - battery
@@ -20,7 +20,7 @@ authors:
 affiliations:
   - name: Department of Materials Science and Engineering, Stanford University, Stanford, CA 94305, USA
     index: 1
-date: 17 March 2026
+date: 3 July 2026
 bibliography: paper.bib
 ---
 
@@ -35,7 +35,7 @@ OpenCell Design calculates mass and cost at every level of the hierarchy, enabli
 
 The global transition to electrified transportation and grid-scale energy storage has placed increasing demands on battery technology [@chu2012opportunities; @dunn2011electrical]. Metal-ion batteries are the dominant technology for applications from portable electronics to electric vehicles [@goodenough2013li; @blomgren2017development], and both thermodynamic performance and technoeconomic metrics are critical to their continued development [@nykvist2015rapidly; @ziegler2021re]. Understanding the design and material drivers behind cell performance and cost requires modeling at multiple scales — a single cell comprises dozens of interacting parameters across materials, formulations, current collectors, separators, electrodes, and encapsulations.
 
-Several tools address aspects of this challenge. PyBaMM [@sulzer2021pybamm] provides physics-based electrochemical simulation but does not model the geometric construction of cells or calculate mass and cost breakdowns. BatPaC [@nelson2019batpac] and CAMS [@cams2023] estimate manufacturing cost and performance but are implemented as Excel workbooks, limiting extensibility and programmatic integration. Both are also unidirectional models — outputs depend on a fixed set of inputs, and bidirectional parameter setting is not possible. Other tools such as electrode formulation calculators address isolated aspects of cell design rather than the complete hierarchy from materials to cells.
+Several tools address aspects of this challenge. PyBaMM [@sulzer2021pybamm] provides physics-based electrochemical simulation but does not model the geometric construction of cells or calculate mass and cost breakdowns. BatPaC [@nelson2019batpac] and CAMS [@cams2024] estimate manufacturing cost and performance but are implemented as Excel workbooks, limiting extensibility and programmatic integration. Both are also unidirectional models — outputs depend on a fixed set of inputs, and bidirectional parameter setting is not possible. Other tools such as electrode formulation calculators address isolated aspects of cell design rather than the complete hierarchy from materials to cells.
 
 OpenCell Design fills this gap by providing an open-source, programmatic tool that combines hierarchical cell construction with integrated cost and performance calculations in an extensible, composable framework.
 
@@ -47,9 +47,9 @@ The software is distributed as three complementary Python packages, each with it
 - **steer-materials** ([github.com/stanford-developers/steer-materials](https://github.com/stanford-developers/steer-materials)) defines the material layer — metals, solvents, and volumed material mixins that track density, cost, mass, and volume with automatic unit conversion and range validation.
 - **steer-opencell-design** ([github.com/stanford-developers/steer-opencell-design](https://github.com/stanford-developers/steer-opencell-design)) is the primary package described in this paper. It builds on the previous two to implement the full cell-modeling hierarchy from active materials through to complete cells.
 
-This separation of concerns allows each package to be developed, tested, and versioned independently while ensuring that common behaviours — such as serialization, validation, and change propagation — are defined once in `steer-core` and inherited throughout the stack.
+This separation of concerns allows each package to be developed, tested, and versioned independently while ensuring that common behaviors — such as serialization, validation, and change propagation — are defined once in `steer-core` and inherited throughout the stack.
 
-![The OpenCell Design modeling hierarchy. Components at each level compose into the next, from materials through to complete cells.](heirarchy_tree.png){width=80%}
+![The OpenCell Design modeling hierarchy. Components at each level compose into the next, from materials through to complete cells.](hierarchy_tree.png){width=80%}
 
 # Key Features
 
@@ -61,11 +61,11 @@ This separation of concerns allows each package to be developed, tested, and ver
 
 **Serialization and visualization.** A compact binary serialization format allows cell designs to be saved, shared, and version-controlled. Interactive Plotly-based visualizations provide cross-section views, top-down views, voltage–capacity plots, and sunburst cost/mass breakdowns at any level of the hierarchy.
 
-**Numerical methods.** The library uses NumPy [@harris2020numpy] and SciPy [@virtanen2020scipy] for calculations, including adaptive RK4 integration for thickness-dependent jelly roll spirals accelerated with Numba [@lam2015numba], and Brent's root-finding algorithm [@brent1971algorithm] for constraint satisfaction.
+**Numerical methods.** The library uses NumPy [@harris2020numpy] and SciPy [@virtanen2020scipy] for calculations, including closed-form and adaptive Runge–Kutta integration of thickness-dependent jelly roll spirals accelerated with Numba [@lam2015numba], and Brent's root-finding algorithm [@brent1971algorithm] for constraint satisfaction.
 
 # Quality Control
 
-OpenCell Design includes a comprehensive test suite comprising 12 test modules with over 700 individual test cases, organized to mirror the package structure. Tests cover materials, formulations, electrodes, current collectors, separators, layups, electrode assemblies, containers, and complete cells.
+OpenCell Design includes a comprehensive test suite comprising 21 test modules with over 900 individual test cases, organized to mirror the package structure. Tests cover materials, formulations, electrodes, current collectors, separators, layups, electrode assemblies, containers, and complete cells.
 
 # Acknowledgements
 
