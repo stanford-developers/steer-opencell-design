@@ -14,6 +14,9 @@ authors:
   - name: Adrian Yao
     orcid: 0000-0001-9515-3226
     affiliation: 1
+  - name: Will Chueh
+    orcid: 0000-0002-7066-3470
+    affiliation: 1
 affiliations:
   - name: Department of Materials Science and Engineering, Stanford University, Stanford, CA 94305, USA
     index: 1

@@ -20,7 +20,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install ".[test]"
+          pip install -e ".[test]"
           pip install "git+https://github.com/stanford-developers/steer-opencell-data.git"
 
       - name: Run unit tests
