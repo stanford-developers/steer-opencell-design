@@ -672,17 +672,18 @@ class _ElectrodeFormulation(
             for material in self._active_materials.keys():
                 figure.add_trace(material.specific_capacity_curve_trace)
 
-        # Enhanced layout with better defaults
-        figure.update_layout(
-            title=kwargs.get("title", ""),
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            xaxis={**self.SCATTER_X_AXIS, "title": "Specific Capacity (mAh/g)"},
-            yaxis={**self.SCATTER_Y_AXIS, "title": "Voltage (V)"},
-            hovermode="closest",
+        return self.apply_plot_layout(
+            figure,
+            defaults={
+                "title": f"{self.name} — Half-Cell Curve",
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+                "xaxis": {**self.SCATTER_X_AXIS, "title": "Specific Capacity (mAh/g)"},
+                "yaxis": {**self.SCATTER_Y_AXIS, "title": "Voltage (V)"},
+                "hovermode": "closest",
+            },
+            overrides=kwargs,
         )
-    
-        return figure
 
     @property
     def cost_breakdown(self) -> Dict[str, Any]:

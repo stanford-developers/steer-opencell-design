@@ -180,9 +180,10 @@ class _CylindricalComponent(
 
     def plot_bottom_up_view(self, **kwargs) -> go.Figure:
         """Generate a bottom-up view (x-z plane) plot of the component."""
+        # Unanchored X avoids a circular scaleanchor (Z already anchors to X).
         return self._layout_schematic(
             self.bottom_up_trace,
-            xaxis=self.SCHEMATIC_X_AXIS,
+            xaxis=self.SCHEMATIC_X_AXIS_UNANCHORED,
             yaxis=self.SCHEMATIC_Z_AXIS,
             **kwargs,
         )
@@ -868,30 +869,32 @@ class CylindricalCanister(
         figure = go.Figure()
         figure.add_trace(self.top_down_cross_section_trace)
 
-        figure.update_layout(
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            **kwargs,
+        return self.apply_plot_layout(
+            figure,
+            defaults={
+                "xaxis": self.SCHEMATIC_X_AXIS,
+                "yaxis": self.SCHEMATIC_Y_AXIS,
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+            },
+            overrides=kwargs,
         )
 
-        return figure
-    
     def plot_side_cross_section(self, **kwargs) -> go.Figure:
         """Generate a side cross-section plot of the can."""
         figure = go.Figure()
         figure.add_trace(self.side_cross_section_trace)
 
-        figure.update_layout(
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            **kwargs,
+        return self.apply_plot_layout(
+            figure,
+            defaults={
+                "xaxis": self.SCHEMATIC_X_AXIS,
+                "yaxis": self.SCHEMATIC_Y_AXIS,
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+            },
+            overrides=kwargs,
         )
-
-        return figure
     
     @property
     def inner_diameter(self) -> float:
@@ -1460,7 +1463,7 @@ class CylindricalEncapsulation(_Container, DatumMixin):
         fig = self.plot_breakdown_sunburst(
             self.cost_breakdown,
             title=title or f"{self.name} Cost Breakdown",
-            unit="currency units",
+            unit="$",
             **kwargs,
         )
 
@@ -1478,16 +1481,17 @@ class CylindricalEncapsulation(_Container, DatumMixin):
 
         figure.add_traces(traces)
 
-        figure.update_layout(
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            title=kwargs.get("title", f"{self.name} Side View"),
-            **kwargs,
+        return self.apply_plot_layout(
+            figure,
+            defaults={
+                "xaxis": self.SCHEMATIC_X_AXIS,
+                "yaxis": self.SCHEMATIC_Y_AXIS,
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+                "title": f"{self.name} Side View",
+            },
+            overrides=kwargs,
         )
-
-        return figure
     
     def fit_radius(self, assembly, clearance: float = 0) -> None:
         """Set the internal radius to fit an electrode assembly's radius dimension.

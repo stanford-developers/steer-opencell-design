@@ -237,16 +237,16 @@ class PouchCell(_Cell):
 
         figure.add_traces(traces)
 
-        # Apply layout
-        figure.update_layout(
-            xaxis=self.SCHEMATIC_Y_AXIS,
-            yaxis=self.SCHEMATIC_Z_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            **kwargs,
+        return self.apply_plot_layout(
+            figure,
+            defaults={
+                "xaxis": self.SCHEMATIC_Y_AXIS,
+                "yaxis": self.SCHEMATIC_Z_AXIS,
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+            },
+            overrides=kwargs,
         )
-
-        return figure
     
     def plot_top_down_view(self, opacity = 0.3, **kwargs) -> go.Figure:
         """Get top-down view figure of the pouch cell.
@@ -282,16 +282,16 @@ class PouchCell(_Cell):
 
         figure.add_traces(traces)
 
-        # Apply layout
-        figure.update_layout(
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            **kwargs,
+        return self.apply_plot_layout(
+            figure,
+            defaults={
+                "xaxis": self.SCHEMATIC_X_AXIS,
+                "yaxis": self.SCHEMATIC_Y_AXIS,
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+            },
+            overrides=kwargs,
         )
-
-        return figure
 
     @property
     def side_seal_thickness(self) -> float:

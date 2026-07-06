@@ -28,6 +28,7 @@ import numpy as np
 import plotly.graph_objects as go
 
 from steer_core.Constants.Units import KG_TO_G
+from steer_core.Mixins.Plotter import PlotterMixin
 
 
 class ExtrudedFootprintMixin:
@@ -115,16 +116,18 @@ class SchematicPlotMixin:
         if trace is not None:
             figure.add_trace(trace)
 
-        layout_kwargs.setdefault("paper_bgcolor", "white")
-        layout_kwargs.setdefault("plot_bgcolor", "white")
-
-        figure.update_layout(
-            xaxis=xaxis,
-            yaxis=yaxis,
-            **layout_kwargs,
+        # Called as a static helper so this mixin stays usable without
+        # PlotterMixin in the consumer's MRO.
+        return PlotterMixin.apply_plot_layout(
+            figure,
+            defaults={
+                "xaxis": xaxis,
+                "yaxis": yaxis,
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+            },
+            overrides=layout_kwargs,
         )
-
-        return figure
 
 
 def rectangular_footprint_at_datum(

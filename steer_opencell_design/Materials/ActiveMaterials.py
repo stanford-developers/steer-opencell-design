@@ -364,22 +364,19 @@ class _ActiveMaterial(
 
         fig = go.Figure()
         fig.add_traces(self.specific_capacity_curves_traces)
-        XAXIS = self.SCATTER_X_AXIS.copy()
-        XAXIS['title'] = 'Specific Capacity (mAh/g)'
-        YAXIS = self.SCATTER_Y_AXIS.copy()
-        YAXIS['title'] = 'Voltage (V)'
 
-        fig.update_layout(
-            title=kwargs.get("title", f"Capacity Curves"),
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            hovermode="closest",
-            xaxis=XAXIS,
-            yaxis=YAXIS,
-            **kwargs,
+        return self.apply_plot_layout(
+            fig,
+            defaults={
+                "title": f"{self.name} — Underlying Capacity Curves",
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+                "hovermode": "closest",
+                "xaxis": {**self.SCATTER_X_AXIS, "title": "Specific Capacity (mAh/g)"},
+                "yaxis": {**self.SCATTER_Y_AXIS, "title": "Voltage (V)"},
+            },
+            overrides=kwargs,
         )
-
-        return fig
 
     def plot_specific_capacity_curve(self, **kwargs) -> go.Figure:
         """Plot the working (cutoff-adjusted) half-cell voltage-capacity curve.
@@ -397,19 +394,18 @@ class _ActiveMaterial(
 
         fig = go.Figure()
         fig.add_trace(self.specific_capacity_curve_trace)
-        XAXIS = self.SCATTER_X_AXIS.copy()
-        XAXIS['title'] = 'Specific Capacity (mAh/g)'
-        YAXIS = self.SCATTER_Y_AXIS.copy()
-        YAXIS['title'] = 'Voltage (V)'
 
-        fig.update_layout(
-            title=kwargs.get("title", f"Half Cell Curve"),
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            hovermode="closest",
-            xaxis=XAXIS,
-            yaxis=YAXIS,
-            **kwargs,
+        fig = self.apply_plot_layout(
+            fig,
+            defaults={
+                "title": f"{self.name} — Half-Cell Curve",
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+                "hovermode": "closest",
+                "xaxis": {**self.SCATTER_X_AXIS, "title": "Specific Capacity (mAh/g)"},
+                "yaxis": {**self.SCATTER_Y_AXIS, "title": "Voltage (V)"},
+            },
+            overrides=kwargs,
         )
 
         fig.update_traces(line=dict(color=self.color))
@@ -510,18 +506,19 @@ class _ActiveMaterial(
         YAXIS['title'] = 'Voltage (V)'
         YAXIS['range'] = [y_min - y_padding, y_max + y_padding]  # type: ignore[assignment]
 
-        fig.update_layout(
-            title=kwargs.pop("title", f"{self.name} - Interactive Voltage Cutoff"),
-            paper_bgcolor=kwargs.pop("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.pop("plot_bgcolor", "white"),
-            hovermode="closest",
-            xaxis=XAXIS,
-            yaxis=YAXIS,
-            sliders=sliders,
-            **kwargs,
+        return self.apply_plot_layout(
+            fig,
+            defaults={
+                "title": f"{self.name} — Interactive Voltage Cutoff",
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+                "hovermode": "closest",
+                "xaxis": XAXIS,
+                "yaxis": YAXIS,
+                "sliders": sliders,
+            },
+            overrides=kwargs,
         )
-
-        return fig
 
     @property
     def voltage_cutoff(self) -> Optional[float]:

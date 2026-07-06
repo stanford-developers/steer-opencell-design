@@ -26,9 +26,15 @@ from steer_opencell_design.Materials.Formulations import (
     AnodeFormulation,
     _ElectrodeFormulation,
 )
-from steer_opencell_design.Components.CurrentCollectors.Base import _CurrentCollector
+from steer_opencell_design.Components.CurrentCollectors.Base import (
+    TRACE_NAME_FOIL,
+    TRACE_NAME_INSULATION_MARKER,
+    TRACE_NAME_TAB,
+    _CurrentCollector,
+)
 
 from steer_opencell_design.Materials.Other import InsulationMaterial
+from steer_opencell_design.Utils.Constants import COLOR_ANODE_FREE
 
 import pandas as pd
 import numpy as np
@@ -441,7 +447,7 @@ class _Electrode(
             electrode = self
 
         figure = electrode._current_collector.plot_right_left_view(**kwargs)
-        figure.data = [trace for trace in figure.data if trace.name == "Foil" or trace.name == "Tab"]
+        figure.data = [trace for trace in figure.data if trace.name in (TRACE_NAME_FOIL, TRACE_NAME_TAB)]
 
         if not electrode._is_anode_free:
             figure.add_trace(electrode.right_left_a_side_coating_trace)
@@ -452,15 +458,17 @@ class _Electrode(
         if hasattr(electrode, "_insulation_material") and electrode._insulation_material is not None:
             figure.add_trace(electrode.right_left_b_side_insulation_trace)
 
-        figure.update_layout(
-            xaxis=electrode.SCHEMATIC_X_AXIS,
-            yaxis=electrode.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            **kwargs,
+        # Side view shows the Y-Z plane; Z carries the aspect anchor.
+        return self.apply_plot_layout(
+            figure,
+            defaults={
+                "xaxis": electrode.SCHEMATIC_Y_AXIS,
+                "yaxis": electrode.SCHEMATIC_Z_AXIS,
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+            },
+            overrides=kwargs,
         )
-
-        return figure
 
     def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:
         """Generate a sunburst mass breakdown chart."""
@@ -487,7 +495,7 @@ class _Electrode(
     def plot_top_down_view(self, **kwargs) -> go.Figure:
         """Generate a top-down Plotly figure of the electrode."""
         figure = self.current_collector.plot_top_down_view(**kwargs)
-        figure.data = [trace for trace in figure.data if trace.name == "Foil" or trace.name == "Tab"]
+        figure.data = [trace for trace in figure.data if trace.name in (TRACE_NAME_FOIL, TRACE_NAME_TAB)]
 
         if not self._is_anode_free:
             # Get the traces to add
@@ -508,9 +516,10 @@ class _Electrode(
             return self.plot_top_down_view(**kwargs)
         else:
             self._flip("y")
-            figure = self.plot_top_down_view(**kwargs)
-            self._flip("y")
-            return figure
+            try:
+                return self.plot_top_down_view(**kwargs)
+            finally:
+                self._flip("y")
 
     def plot_b_side_view(self, **kwargs) -> go.Figure:
         """Generate a Plotly figure of the B-side of the electrode."""
@@ -518,9 +527,10 @@ class _Electrode(
             return self.plot_top_down_view(**kwargs)
         else:
             self._flip("y")
-            figure = self.plot_top_down_view(**kwargs)
-            self._flip("y")
-            return figure
+            try:
+                return self.plot_top_down_view(**kwargs)
+            finally:
+                self._flip("y")
 
     def plot_cross_section(self, **kwargs) -> go.Figure:
         """
@@ -535,7 +545,7 @@ class _Electrode(
         # For anode-free electrodes, return the current collector cross-section directly
         if self._is_anode_free:
             figure = self.plot_right_left_view(**kwargs)
-            figure.data = [trace for trace in figure.data if trace.name == "Foil" or trace.name == "Tab"]
+            figure.data = [trace for trace in figure.data if trace.name in (TRACE_NAME_FOIL, TRACE_NAME_TAB)]
             return figure
 
         # Get base figure using plot_right_left_view (includes current collector and coating traces)
@@ -543,7 +553,7 @@ class _Electrode(
         
         # Note: Insulation traces are intentionally excluded from cross-section view
         # Remove insulation traces if they exist
-        figure.data = [trace for trace in figure.data if "Insulation" not in trace.name]
+        figure.data = [trace for trace in figure.data if TRACE_NAME_INSULATION_MARKER not in trace.name]
 
         # covert traces from mm to um
         for trace in figure.data:
@@ -574,14 +584,17 @@ class _Electrode(
             "title": "",
             "showticklabels": False,
             "ticks": "",
+            "zeroline": False,
+            # Anchor X to Y so plotly honors the thickness window on the
+            # y axis and derives x to keep the aspect locked.
+            "scaleanchor": "y",
         }
 
-        # Update layout to zoom in and lock aspect ratio
-        figure.update_layout(
-            xaxis=X_AXIS,
-            yaxis=Y_AXIS,
-            legend=self.BOTTOM_LEGEND
-        )
+        # Replace (not merge) the axes: the base side-view figure anchors
+        # Z to X, which would make plotly ignore the y range set here.
+        figure.layout.xaxis = X_AXIS
+        figure.layout.yaxis = Y_AXIS
+        figure.update_layout(legend=self.BOTTOM_LEGEND)
 
         return figure
 
@@ -607,20 +620,17 @@ class _Electrode(
         figure = go.Figure()
         figure.add_trace(self.areal_capacity_curve_trace)
 
-        XAXIS = self.SCATTER_X_AXIS.copy()
-        XAXIS['title'] = "Areal Capacity (mAh/cm²)"
-        YAXIS = self.SCATTER_Y_AXIS.copy()
-        YAXIS['title'] = "Voltage (V)"
-
-        figure.update_layout(
-            xaxis=XAXIS,
-            yaxis=YAXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            **kwargs,
+        return self.apply_plot_layout(
+            figure,
+            defaults={
+                "title": f"{self.name} — Areal Capacity Curve",
+                "xaxis": {**self.SCATTER_X_AXIS, "title": "Areal Capacity (mAh/cm²)"},
+                "yaxis": {**self.SCATTER_Y_AXIS, "title": "Voltage (V)"},
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+            },
+            overrides=kwargs,
         )
-
-        return figure
 
     @property
     def right_left_a_side_insulation_trace(self) -> pd.DataFrame:
@@ -907,7 +917,9 @@ class _Electrode(
             return None
 
         curve_df = self.areal_capacity_curve
-        line_color = self._formulation._color if not self._is_anode_free else "#C0C0C0"
+        line_color = (
+            self._formulation._color if not self._is_anode_free else COLOR_ANODE_FREE
+        )
 
         trace = go.Scatter(
             x=curve_df["Areal Capacity (mAh/cm²)"],
@@ -916,7 +928,9 @@ class _Electrode(
             name=f"{self.name} Areal Capacity Curve",
             line=dict(color=line_color, shape="spline"),
             marker=dict(size=6),
-            hovertemplate="Areal Capacity: %{x} mAh/cm²<br>Voltage: %{y} V<br><extra></extra>",
+            hovertemplate=(
+                "Areal Capacity: %{x:.2f} mAh/cm²<br>Voltage: %{y:.3f} V<extra></extra>"
+            ),
         )
 
         return trace

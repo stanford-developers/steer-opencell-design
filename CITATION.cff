@@ -7,10 +7,12 @@ authors:
   - family-names: Yao
     given-names: Adrian
     orcid: https://orcid.org/0000-0001-9515-3226
+  - family-names: Chueh
+    given-names: William C.
+    orcid: https://orcid.org/0000-0002-7066-3470
 title: "OpenCell Design"
 version: "1.0.42"
 license: AGPL-3.0-or-later
 repository-code: https://github.com/stanford-developers/steer-opencell-design
-doi: 
 date-released: 2026-06-10
 
