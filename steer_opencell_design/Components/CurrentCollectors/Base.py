@@ -27,6 +27,12 @@ from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
 from steer_opencell_design.Materials.Other import CurrentCollectorMaterial
 
+# Canonical trace names, shared with consumers (e.g. Electrodes filters a
+# current-collector figure down to these traces).
+TRACE_NAME_FOIL = "Foil"
+TRACE_NAME_TAB = "Tab"
+TRACE_NAME_INSULATION_MARKER = "Insulation"
+
 
 class _CurrentCollector(
     ABC, 
@@ -293,15 +299,16 @@ class _CurrentCollector(
                 trace.showlegend = i == 0
                 fig.add_trace(trace)
 
-        fig.update_layout(
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            **kwargs,
+        return self.apply_plot_layout(
+            fig,
+            defaults={
+                "xaxis": self.SCHEMATIC_X_AXIS,
+                "yaxis": self.SCHEMATIC_Y_AXIS,
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+            },
+            overrides=kwargs,
         )
-
-        return fig
 
     def _get_foil_coordinates(self) -> None:
         """Calculate foil extrusion coordinates from the 2-D footprint."""
@@ -460,9 +467,10 @@ class _CurrentCollector(
             return self.plot_top_down_view(**kwargs)
         else:
             self._flip("y")
-            figure = self.plot_top_down_view(**kwargs)
-            self._flip("y")
-            return figure
+            try:
+                return self.plot_top_down_view(**kwargs)
+            finally:
+                self._flip("y")
 
     def plot_b_side_view(self, **kwargs) -> go.Figure:
         """Plot the b-side (anode-facing) top-down view, flipping if necessary."""
@@ -476,9 +484,10 @@ class _CurrentCollector(
             return self.plot_top_down_view(**kwargs)
         else:
             self._flip("y")
-            figure = self.plot_top_down_view(**kwargs)
-            self._flip("y")
-            return figure
+            try:
+                return self.plot_top_down_view(**kwargs)
+            finally:
+                self._flip("y")
 
     def plot_right_left_view(self, **kwargs) -> go.Figure:
         """
@@ -497,15 +506,17 @@ class _CurrentCollector(
         if hasattr(self, "_right_left_b_side_insulation_coordinates") and self._right_left_b_side_insulation_coordinates is not None:
             figure.add_trace(self.right_left_b_side_insulation_trace)
 
-        figure.update_layout(
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            **kwargs,
+        # Side view shows the Y-Z plane; Z carries the aspect anchor.
+        return self.apply_plot_layout(
+            figure,
+            defaults={
+                "xaxis": self.SCHEMATIC_Y_AXIS,
+                "yaxis": self.SCHEMATIC_Z_AXIS,
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+            },
+            overrides=kwargs,
         )
-
-        return figure
 
     def set_ranges_from_reference(
         self,
@@ -696,11 +707,11 @@ class _CurrentCollector(
             x=foil_coordinates["y"],
             y=foil_coordinates["z"],
             mode="lines",
-            name="Foil",
+            name=TRACE_NAME_FOIL,
             line=dict(color="black", width=1),
             fill="toself",
             fillcolor=self._material.color,
-            legendgroup="Foil",
+            legendgroup=TRACE_NAME_FOIL,
             showlegend=True,
         )
 
@@ -716,11 +727,11 @@ class _CurrentCollector(
             x=foil_coordinates["x"],
             y=foil_coordinates["y"],
             mode="lines",
-            name="Foil",
+            name=TRACE_NAME_FOIL,
             line=dict(color="black", width=1),
             fill="toself",
             fillcolor=self._material.color,
-            legendgroup="Foil",
+            legendgroup=TRACE_NAME_FOIL,
             showlegend=True,
         )
 
@@ -740,11 +751,11 @@ class _CurrentCollector(
             x=foil_coordinates["x"],
             y=foil_coordinates["z"],
             mode="lines",
-            name="Foil",
+            name=TRACE_NAME_FOIL,
             line=dict(color="black", width=1),
             fill="toself",
             fillcolor=self._material.color,
-            legendgroup="Foil",
+            legendgroup=TRACE_NAME_FOIL,
             showlegend=True,
         )
 

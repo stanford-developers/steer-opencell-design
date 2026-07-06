@@ -1513,12 +1513,14 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             "Turns: %{customdata[5]:.2f}<extra></extra>"
         )
 
-        trace = go.Scatter(
+        # WebGL keeps many-turn rolls responsive (10^4-10^5 points per trace).
+        # Scattergl has no spline shape, but at 100-300 samples/turn the
+        # linear rendering is visually identical.
+        trace = go.Scattergl(
             x=df["X (mm)"],
             y=df["Z (mm)"],
             mode="lines",
             line=dict(color=color, width=line_width),
-            line_shape="spline",
             name=name,
             customdata=customdata,
             hovertemplate=hovertemplate,
@@ -1555,29 +1557,10 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         """
 
         df = getattr(self, property_name)
-        # Use same hover data schema as line spirals
-        customdata = np.stack(
-            [
-                df["Theta (degrees)"],
-                df["Unwrapped Length (mm)"],
-                df["Radius (mm)"],
-                df["X (mm)"],
-                df["Z (mm)"],
-                df["Turns"],
-            ],
-            axis=-1,
-        )
 
-        hovertemplate = (
-            "<b>" + name + " (Extruded)</b><br>"
-            "Theta: %{customdata[0]:.2f}°<br>"
-            "Unwrapped Length: %{customdata[1]:.2f} mm<br>"
-            "Radius: %{customdata[2]:.2f} mm<br>"
-            "X: %{customdata[3]:.2f} mm<br>"
-            "Z: %{customdata[4]:.2f} mm<br>"
-            "Turns: %{customdata[5]:.2f}<extra></extra>"
-        )
-
+        # The extruded fills carry no hover of their own: the co-located line
+        # spirals provide the rich hover, and dropping the per-point
+        # customdata here roughly halves the figure payload.
         return go.Scatter(
             x=df["X (mm)"],
             y=df["Z (mm)"],
@@ -1587,8 +1570,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             line=dict(color="black", width=0.1),
             line_shape="spline",
             name=name,
-            customdata=customdata,
-            hovertemplate=hovertemplate,
+            hoverinfo="skip",
             legendgroup=name,
         )
 
@@ -1700,16 +1682,19 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
             fig = go.Figure(data=[self.spiral_trace])
 
-        fig.update_layout(
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Z_AXIS,
-            hovermode="closest",
-            **kwargs,
+        # X-Z plane: the unanchored X axis avoids a circular scaleanchor
+        # (Z already anchors to X).
+        return self.apply_plot_layout(
+            fig,
+            defaults={
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+                "xaxis": self.SCHEMATIC_X_AXIS_UNANCHORED,
+                "yaxis": self.SCHEMATIC_Z_AXIS,
+                "hovermode": "closest",
+            },
+            overrides=kwargs,
         )
-
-        return fig
 
     def plot_top_down_view(self, opacity: float = 0.5, **kwargs) -> go.Figure:
         """Generate top-down view of the jelly roll with all component layers.
@@ -1760,16 +1745,17 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         figure = go.Figure()
         figure.add_traces(traces)
 
-        figure.update_layout(
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Y_AXIS,
-            hovermode="closest",
-            **kwargs,
+        return self.apply_plot_layout(
+            figure,
+            defaults={
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+                "xaxis": self.SCHEMATIC_X_AXIS,
+                "yaxis": self.SCHEMATIC_Y_AXIS,
+                "hovermode": "closest",
+            },
+            overrides=kwargs,
         )
-
-        return figure
 
     def plot_side_view(self, opacity: float = 0.5, **kwargs) -> go.Figure:
         """Generate right-left side view of the jelly roll with all component layers.
@@ -1814,16 +1800,17 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         figure = go.Figure()
         figure.add_traces(traces)
 
-        figure.update_layout(
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            xaxis=self.SCHEMATIC_Y_AXIS,
-            yaxis=self.SCHEMATIC_Z_AXIS,
-            hovermode="closest",
-            **kwargs,
+        return self.apply_plot_layout(
+            figure,
+            defaults={
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+                "xaxis": self.SCHEMATIC_Y_AXIS,
+                "yaxis": self.SCHEMATIC_Z_AXIS,
+                "hovermode": "closest",
+            },
+            overrides=kwargs,
         )
-
-        return figure
 
     @property
     def height(self) -> float:

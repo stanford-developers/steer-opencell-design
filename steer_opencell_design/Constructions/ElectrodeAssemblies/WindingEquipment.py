@@ -86,30 +86,34 @@ class _Mandrel(
         figure = go.Figure()
         figure.add_trace(self.top_down_trace)
 
-        figure.update_layout(
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            **kwargs,
+        return self.apply_plot_layout(
+            figure,
+            defaults={
+                "xaxis": self.SCHEMATIC_X_AXIS,
+                "yaxis": self.SCHEMATIC_Y_AXIS,
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+            },
+            overrides=kwargs,
         )
-
-        return figure
 
     def plot_bottom_up_view(self, **kwargs) -> go.Figure:
         """Generate a bottom-up Plotly figure of the mandrel."""
         figure = go.Figure()
         figure.add_trace(self.bottom_up_trace)
 
-        figure.update_layout(
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Z_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            **kwargs,
+        # X-Z plane: the unanchored X axis avoids a circular scaleanchor
+        # (Z already anchors to X).
+        return self.apply_plot_layout(
+            figure,
+            defaults={
+                "xaxis": self.SCHEMATIC_X_AXIS_UNANCHORED,
+                "yaxis": self.SCHEMATIC_Z_AXIS,
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+            },
+            overrides=kwargs,
         )
-
-        return figure
 
     @property
     def name(self) -> str:
