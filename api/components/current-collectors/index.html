@@ -1,0 +1,5187 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="A Python package for designing and modeling lithium-ion and sodium-ion battery cells.">
+      
+      
+      
+        <link rel="canonical" href="https://stanford-developers.github.io/steer-opencell-design/api/components/current-collectors/">
+      
+      
+        <link rel="prev" href="../separators/">
+      
+      
+        <link rel="next" href="../containers/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Current Collectors - STEER OpenCell Design</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="amber">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#current-collectors" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../.." title="STEER OpenCell Design" class="md-header__button md-logo" aria-label="STEER OpenCell Design" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            STEER OpenCell Design
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Current Collectors
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="amber"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="amber"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/stanford-developers/steer-opencell-design" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    stanford-developers/steer-opencell-design
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../../getting-started/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Getting Started
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../../concepts/hierarchy/" class="md-tabs__link">
+          
+  
+  
+    
+  
+  Concepts
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../" class="md-tabs__link">
+          
+  
+  
+    
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../.." title="STEER OpenCell Design" class="md-nav__button md-logo" aria-label="STEER OpenCell Design" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    STEER OpenCell Design
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/stanford-developers/steer-opencell-design" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    stanford-developers/steer-opencell-design
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Concepts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../concepts/hierarchy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Modeling Hierarchy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../concepts/propagation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Change Propagation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../concepts/units/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Units Convention
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Materials
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Materials
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../materials/active-materials/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Active Materials
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../materials/binders/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Binders
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../materials/conductive-additives/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Conductive Additives
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../materials/electrolytes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Electrolytes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../materials/other/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Other Materials
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../materials/formulations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Formulations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Components
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Components
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../electrodes/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Electrodes
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../separators/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Separators
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Current Collectors
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Current Collectors
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#notched" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notched
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;Notched
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" Notched">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Classes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Classes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;NotchedCurrentCollector
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" NotchedCurrentCollector">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector--examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector--output-tab_welding-tape_welding_a-tape_welding_b-hybrid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output: ['tab_welding', 'tape_welding_a', 'tape_welding_b', 'hybrid']
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Output: [&#39;tab_welding&#39;, &#39;tape_welding_a&#39;, &#39;tape_welding_b&#39;, &#39;hybrid&#39;]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector--see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Attributes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector.tab_spacing_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tab_spacing_range
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector.tab_gap_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tab_gap_range
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methods:
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Methods:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector.from_tabless" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;from_tabless
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector.from_tab_welded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;from_tab_welded
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tab-welded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tab-Welded
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;Tabbed
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" Tabbed">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Classes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Classes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;WeldTab
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" WeldTab">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--design-a-robust-tab-for-high-current-applications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design a robust tab for high current applications
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--design-for-minimal-size-while-maintaining-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design for minimal size while maintaining performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--generate-visualization-plots" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generate visualization plots
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--validate-welding-compatibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validate welding compatibility
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Validate welding compatibility">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methods:
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Methods:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab.datum" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;datum
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab.plot_view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;plot_view
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab.plot_side_view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;plot_side_view
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;TabWeldedCurrentCollector
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" TabWeldedCurrentCollector">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--define-the-weld-tab-specification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Define the weld tab specification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--create-collector-with-optimally-positioned-tabs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create collector with optimally positioned tabs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Create collector with optimally positioned tabs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Attributes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.weld_tab_positions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;weld_tab_positions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.skip_coat_width" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;skip_coat_width
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.skip_coat_width_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;skip_coat_width_range
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.skip_coat_width_hard_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;skip_coat_width_hard_range
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_weld_side" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tab_weld_side
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_overhang" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tab_overhang
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_overhang_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tab_overhang_range
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.weld_tab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;weld_tab
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.weld_tabs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;weld_tabs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_width" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tab_width
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_width_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tab_width_range
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_length" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tab_length
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_length_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tab_length_range
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_positions_text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tab_positions_text
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_positions_text--returns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Returns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methods:
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Methods:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.from_notched" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;from_notched
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.from_tabless" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;from_tabless
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#punched" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Punched
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;Punched
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" Punched">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Classes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Classes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;PunchedCurrentCollector
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" PunchedCurrentCollector">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methods:
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Methods:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector.rotate_90" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;rotate_90
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tabless" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tabless
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;Tabless
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" Tabless">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Classes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Classes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;TablessCurrentCollector
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" TablessCurrentCollector">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector--examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector--see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Attributes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector.coated_width_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;coated_width_range
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector.coated_width_hard_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;coated_width_hard_range
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methods:
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Methods:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector.from_notched" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;from_notched
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector.from_tab_welded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;from_tab_welded
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../containers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Containers
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Constructions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Constructions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../constructions/layups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Layups
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../constructions/electrode-assemblies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Electrode Assemblies
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../constructions/cells/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cells
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../utils/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#notched" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notched
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;Notched
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" Notched">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Classes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Classes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;NotchedCurrentCollector
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" NotchedCurrentCollector">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector--examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector--output-tab_welding-tape_welding_a-tape_welding_b-hybrid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output: ['tab_welding', 'tape_welding_a', 'tape_welding_b', 'hybrid']
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Output: [&#39;tab_welding&#39;, &#39;tape_welding_a&#39;, &#39;tape_welding_b&#39;, &#39;hybrid&#39;]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector--see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Attributes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector.tab_spacing_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tab_spacing_range
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector.tab_gap_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tab_gap_range
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methods:
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Methods:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector.from_tabless" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;from_tabless
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector.from_tab_welded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;from_tab_welded
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tab-welded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tab-Welded
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;Tabbed
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" Tabbed">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Classes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Classes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;WeldTab
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" WeldTab">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--design-a-robust-tab-for-high-current-applications" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design a robust tab for high current applications
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--design-for-minimal-size-while-maintaining-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design for minimal size while maintaining performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--generate-visualization-plots" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Generate visualization plots
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--validate-welding-compatibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validate welding compatibility
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Validate welding compatibility">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methods:
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Methods:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab.datum" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;datum
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab.plot_view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;plot_view
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab.plot_side_view" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;plot_side_view
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;TabWeldedCurrentCollector
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" TabWeldedCurrentCollector">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--define-the-weld-tab-specification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Define the weld tab specification
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--create-collector-with-optimally-positioned-tabs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Create collector with optimally positioned tabs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Create collector with optimally positioned tabs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Attributes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.weld_tab_positions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;weld_tab_positions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.skip_coat_width" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;skip_coat_width
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.skip_coat_width_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;skip_coat_width_range
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.skip_coat_width_hard_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;skip_coat_width_hard_range
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_weld_side" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tab_weld_side
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_overhang" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tab_overhang
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_overhang_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tab_overhang_range
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.weld_tab" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;weld_tab
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.weld_tabs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;weld_tabs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_width" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tab_width
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_width_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tab_width_range
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_length" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tab_length
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_length_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tab_length_range
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_positions_text" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;tab_positions_text
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_positions_text--returns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Returns
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methods:
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Methods:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.from_notched" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;from_notched
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.from_tabless" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;from_tabless
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#punched" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Punched
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;Punched
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" Punched">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Classes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Classes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;PunchedCurrentCollector
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" PunchedCurrentCollector">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methods:
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Methods:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector.rotate_90" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;rotate_90
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tabless" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tabless
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-module"></code>&nbsp;Tabless
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" Tabless">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless-classes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Classes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Classes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-class"></code>&nbsp;TablessCurrentCollector
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label=" TablessCurrentCollector">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector--examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector--see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See Also
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector--parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Parameters
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector-attributes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Attributes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Attributes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector.coated_width_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;coated_width_range
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector.coated_width_hard_range" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-attribute"></code>&nbsp;coated_width_hard_range
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methods:
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Methods:">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector.from_notched" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;from_notched
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector.from_tab_welded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        <code class="doc-symbol doc-symbol-toc doc-symbol-method"></code>&nbsp;from_tab_welded
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="current-collectors">Current Collectors<a class="headerlink" href="#current-collectors" title="Permanent link">&para;</a></h1>
+<p>Current collectors are the metal foils onto which electrode coatings are applied. Four geometries are available:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Notched</strong></td>
+<td>Tabless wound cells — notched foil edge for current collection</td>
+</tr>
+<tr>
+<td><strong>Tab-Welded</strong></td>
+<td>Wound cells with welded tab strips at specified positions</td>
+</tr>
+<tr>
+<td><strong>Punched</strong></td>
+<td>Stacked cells — punched foil with integral tabs</td>
+</tr>
+<tr>
+<td><strong>Tabless</strong></td>
+<td>Continuous foil with edge-based connections</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="notched">Notched<a class="headerlink" href="#notched" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="steer_opencell_design.Components.CurrentCollectors.Notched" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-module"></code>            <span class="doc doc-object-name doc-module-name">Notched</span>
+
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Notched" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Notched current collector for tabless wound cells.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<h3 id="steer_opencell_design.Components.CurrentCollectors.Notched-classes">Classes<a href="#steer_opencell_design.Components.CurrentCollectors.Notched-classes" class="headerlink" title="Permanent link">&para;</a></h3>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">NotchedCurrentCollector</span>
+
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">NotchedCurrentCollector</span><span class="p">(</span><span class="n">material</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CurrentCollectorMaterial (steer_opencell_design.Materials.Other.CurrentCollectorMaterial)" href="../../materials/other/#steer_opencell_design.Materials.Other.CurrentCollectorMaterial">CurrentCollectorMaterial</a></span><span class="p">,</span> <span class="n">length</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">width</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">thickness</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">tab_width</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">tab_spacing</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">tab_height</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">coated_tab_height</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">bare_lengths_a_side</span><span class="p">:</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">bare_lengths_b_side</span><span class="p">:</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">insulation_width</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Notched Current Collector&#39;</span><span class="p">,</span> <span class="n">datum</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="steer_opencell_design.Components.CurrentCollectors.Base._TabbedCurrentCollector">_TabbedCurrentCollector</span></code>, <code><span title="steer_opencell_design.Components.CurrentCollectors.Base._TapeCurrentCollector">_TapeCurrentCollector</span></code></p>
+
+
+
+        <p>The notched current collector combines features from both tabbed and tape
+connection methods. It features multiple tabs along its length for improved
+current distribution and configurable bare regions for tape-style connections,
+offering excellent flexibility for various cell architectures and connection
+strategies.</p>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector--parameters">Parameters<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector--parameters" title="Permanent link">&para;</a></h6>
+<p>material : CurrentCollectorMaterial
+    Material composition defining electrical, thermal, and mechanical properties
+    Selection impacts resistance, cost, and compatibility with active materials
+length : float
+    Total length of the collector in the primary direction (mm)
+    Determines the number of tabs that can be accommodated
+width : float
+    Width of the collector perpendicular to the length (mm)
+    Affects current path lengths and collector resistance
+thickness : float
+    Material thickness in micrometers (μm)
+    Impacts electrical resistance and mechanical stiffness
+tab_width : float
+    Width of each individual tab (mm)
+    Should be optimized for current density and manufacturing constraints
+tab_spacing : float
+    Center-to-center distance between adjacent tabs (mm)
+    Determines current distribution uniformity
+tab_height : float
+    Extension height of tabs beyond the foil (mm)
+    Must provide adequate access for welding and connections
+coated_tab_height : float, optional
+    Height of active material coating on each tab (mm, default: 0)
+    Allows for energy density optimization while maintaining connections
+bare_lengths_a_side : tuple of float, optional
+    (start, end) uncoated lengths on a-side for tape connections (mm)
+    Enables hybrid connection strategies
+bare_lengths_b_side : tuple of float, optional
+    (start, end) uncoated lengths on b-side for tape connections (mm)
+    Provides flexibility for asymmetric designs
+insulation_width : float, optional
+    Width of insulation strip around perimeter (mm, default: 0)
+name : str, optional
+    Descriptive identifier for the collector
+datum : tuple of float, optional
+    Reference coordinate system origin (x, y, z) in mm</p>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector--examples">Examples<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector--examples" title="Permanent link">&para;</a></h6>
+<p>Create a high-performance notched collector for an EV battery:</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>from steer_materials import copper_foil_12um
+collector = NotchedCurrentCollector(
+...     material=copper_foil_12um,
+...     length=2500.0,        # mm - large format cell
+...     width=180.0,         # mm
+...     thickness=12.0,      # μm
+...     tab_width=30.0,      # mm - wide tabs for high current
+...     tab_spacing=50.0,    # mm - 5 tabs total
+...     tab_height=15.0,     # mm
+...     coated_tab_height=10.0,  # Partially coated tabs
+...     bare_lengths_a_side=(15.0, 15.0),  # Tape connection option
+...     bare_lengths_b_side=(10.0, 10.0)
+... )
+print(f"Number of tabs: {collector.number_of_tabs}")
+print(f"Total tab area: {collector.total_tab_area:.1f} mm²")
+print(f"Effective resistance: {collector.effective_resistance:.6f} Ω")</p>
+<p>thermal_fig = collector.get_thermal_map()
+thermal_fig.show()</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<p>Compare connection strategies:</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>print("Available connections:", collector.connection_flexibility.keys())</p>
+<h5 id="steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector--output-tab_welding-tape_welding_a-tape_welding_b-hybrid">Output: ['tab_welding', 'tape_welding_a', 'tape_welding_b', 'hybrid']<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector--output-tab_welding-tape_welding_a-tape_welding_b-hybrid" title="Permanent link">&para;</a></h5>
+</blockquote>
+</blockquote>
+</blockquote>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector--see-also">See Also<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector--see-also" title="Permanent link">&para;</a></h6>
+<p>PunchedCurrentCollector : Simple single-tab design
+TablessCurrentCollector : Tape-only connection without tabs
+TabWeldedCurrentCollector : Separate welded tab approach
+_TabbedCurrentCollector : Base class for tab functionality
+_TapeCurrentCollector : Base class for tape functionality</p>
+
+        <p>Initialize an object that represents a notched current collector.</p>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector--parameters">Parameters<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector--parameters" title="Permanent link">&para;</a></h6>
+<p>material : CurrentCollectorMaterial
+    Material of the current collector.
+length : float
+    Length of the current collector in mm.
+width : float
+    Width of the current collector in mm.
+thickness : float
+    Thickness of the current collector in µm.
+tab_width : float
+    Width of the tabs in mm.
+tab_spacing : float
+    Spacing between the tabs in mm.
+tab_height : float
+    Height of the tabs in mm.
+coated_tab_height : float
+    Height of the coated tab on the top side in mm.
+bare_lengths_a_side : Tuple[float, float]
+    Bare lengths on the A side in mm, as a tuple of two floats (left, right).
+bare_lengths_b_side : Tuple[float, float]
+    Bare lengths on the B side in mm, as a tuple of two floats (left, right).
+insulation_width : Optional[float], default=0
+    Width of the insulation strip in mm.
+name : Optional[str], default='Notched Current Collector'
+    Name of the current collector.
+datum : Optional[Tuple[float, float, float]], default=(0, 0, 0)
+    Datum of the current collector in mm.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+<h5 id="steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector-attributes">Attributes<a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector-attributes" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector.tab_spacing_range" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">tab_spacing_range</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector.tab_spacing_range" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">tab_spacing_range</span><span class="p">:</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Get the tab spacing range in mm.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector.tab_gap_range" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">tab_gap_range</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector.tab_gap_range" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">tab_gap_range</span><span class="p">:</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Get the tab gap range in mm.</p>
+
+    </div>
+
+</div>
+
+
+<h5 id="steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector-functions">Methods:<a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector-functions" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector.from_tabless" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">from_tabless</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector.from_tabless" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">from_tabless</span><span class="p">(</span><span class="n">tabless</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="            NotchedCurrentCollector (steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector)" href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector">NotchedCurrentCollector</a></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Create a NotchedCurrentCollector from a TablessCurrentCollector.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector.from_tab_welded" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">from_tab_welded</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector.from_tab_welded" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">from_tab_welded</span><span class="p">(</span><span class="n">tab_welded</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="            NotchedCurrentCollector (steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector)" href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector">NotchedCurrentCollector</a></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Create a NotchedCurrentCollector from a TabWeldedCurrentCollector.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+  </div>
+
+    </div>
+
+</div><hr />
+<h2 id="tab-welded">Tab-Welded<a class="headerlink" href="#tab-welded" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="steer_opencell_design.Components.CurrentCollectors.Tabbed" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-module"></code>            <span class="doc doc-object-name doc-module-name">Tabbed</span>
+
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Tab-welded current collector with discrete weld tabs.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<h3 id="steer_opencell_design.Components.CurrentCollectors.Tabbed-classes">Classes<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed-classes" class="headerlink" title="Permanent link">&para;</a></h3>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">WeldTab</span>
+
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">WeldTab</span><span class="p">(</span><span class="n">material</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CurrentCollectorMaterial (steer_opencell_design.Materials.Other.CurrentCollectorMaterial)" href="../../materials/other/#steer_opencell_design.Materials.Other.CurrentCollectorMaterial">CurrentCollectorMaterial</a></span><span class="p">,</span> <span class="n">width</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">length</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">thickness</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">datum</span><span class="p">:</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="steer_core.Mixins.Propagation.PropagationMixin">PropagationMixin</span></code>, <code><span title="steer_core.Mixins.TypeChecker.ValidationMixin">ValidationMixin</span></code>, <code><span title="steer_core.Mixins.Coordinates.CoordinateMixin">CoordinateMixin</span></code>, <code><span title="steer_core.Mixins.Datum.DatumMixin">DatumMixin</span></code>, <code><span title="steer_core.Mixins.Dunder.DunderMixin">DunderMixin</span></code>, <code><span title="steer_core.Mixins.Plotter.PlotterMixin">PlotterMixin</span></code>, <code><span title="steer_core.Mixins.Serializer.SerializerMixin">SerializerMixin</span></code></p>
+
+
+
+        <p>Specification and modeling class for separately manufactured welded tabs.</p>
+<p>The WeldTab class represents individual tab components that are manufactured
+separately and subsequently welded to current collectors. This design approach
+enables independent optimization of tab materials, geometry, and properties
+while providing sophisticated control over electrical and mechanical
+performance characteristics.</p>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--parameters">Parameters<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--parameters" title="Permanent link">&para;</a></h6>
+<p>material : CurrentCollectorMaterial
+    Material specification for the tab component
+    Defines electrical, thermal, and mechanical properties
+    Must be compatible with welding processes and base collector material
+width : float
+    Tab width dimension in mm
+    Affects current carrying capacity and mechanical strength
+    Typical range: 10-100 mm depending on application requirements
+length : float
+    Tab length dimension in mm
+    Determines contact area and current distribution characteristics
+    Typical range: 5-50 mm for most battery applications
+thickness : float
+    Tab thickness in μm
+    Critical for electrical resistance and mechanical robustness
+    Typical range: 50-500 μm based on current requirements
+datum : tuple of float, optional
+    Reference coordinate system origin (x, y, z) in mm
+    Default: (0, 0, 0) - places tab at coordinate system origin</p>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--examples">Examples<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--examples" title="Permanent link">&para;</a></h6>
+<p>Create a high-performance copper tab for EV applications:</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>from steer_materials import CurrentCollectorMaterial</p>
+<h5 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--design-a-robust-tab-for-high-current-applications">Design a robust tab for high current applications<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--design-a-robust-tab-for-high-current-applications" title="Permanent link">&para;</a></h5>
+<p>heavy_duty_tab = WeldTab(
+...     material=CurrentCollectorMaterial.from_database('Copper'),
+...     width=50.0,          # mm - wide for high current
+...     length=25.0,         # mm - substantial contact area
+...     thickness=200.0,     # μm - thick for low resistance
+...     datum=(0, 0, 0)      # Centered reference
+... )</p>
+<p>print(f"Tab resistance: {heavy_duty_tab.electrical_resistance:.6f} Ω")
+print(f"Tab mass: {heavy_duty_tab.mass:.3f} g")
+print(f"Current capacity: {heavy_duty_tab.current_density_limit * heavy_duty_tab.foil_area/2:.1f} A")</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<p>Create a compact tab for space-constrained applications:</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<h5 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--design-for-minimal-size-while-maintaining-performance">Design for minimal size while maintaining performance<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--design-for-minimal-size-while-maintaining-performance" title="Permanent link">&para;</a></h5>
+<p>compact_tab = WeldTab(
+...     material=CurrentCollectorMaterial.from_database('Copper'),
+...     width=20.0,          # mm - compact width
+...     length=15.0,         # mm - minimal length
+...     thickness=150.0,     # μm - optimized thickness
+...     datum=(10, 5, 0)     # Offset positioning
+... )</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<p>Visualize tab geometry and validate design:</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<h5 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--generate-visualization-plots">Generate visualization plots<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--generate-visualization-plots" title="Permanent link">&para;</a></h5>
+<p>top_view = heavy_duty_tab.plot_view(
+...     title="Heavy Duty Tab - Top View",
+...     paper_bgcolor='lightgray'
+... )
+side_view = heavy_duty_tab.plot_side_view(
+...     title="Heavy Duty Tab - Side View"
+... )</p>
+<h5 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--validate-welding-compatibility">Validate welding compatibility<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--validate-welding-compatibility" title="Permanent link">&para;</a></h5>
+<p>from steer_materials import aluminum_1235_foil
+compatibility = heavy_duty_tab.validate_welding_compatibility(
+...     aluminum_1235_foil
+... )
+if not compatibility['suitable']:
+...     print("Warning: Material incompatibility detected")</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--see-also">See Also<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab--see-also" title="Permanent link">&para;</a></h6>
+<p>TabWeldedCurrentCollector : Current collector using welded tabs
+CurrentCollectorMaterial : Material specification class
+PunchedCurrentCollector : Alternative integrated tab design
+NotchedCurrentCollector : Multiple integrated tab approach</p>
+
+        <p>Initialize an object that represents a weld tab used on current collectors</p>
+<p>:param material: CurrentCollectorMaterial: material of the weld tab
+:param width: float: width of the weld tab in mm
+:param length: float: length of the weld tab in mm
+:param thickness: float: thickness of the weld tab in um</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+<h5 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab-functions">Methods:<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab-functions" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab.datum" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">datum</span>
+
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab.datum" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">datum</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Set datum position in millimeters, triggering coordinate recalculation.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab.plot_view" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">plot_view</span>
+
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab.plot_view" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">plot_view</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="plotly.graph_objects.Figure">Figure</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Returns a Plotly Figure representing the weld tab.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab.plot_side_view" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">plot_side_view</span>
+
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab.plot_side_view" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">plot_side_view</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="plotly.graph_objects.Figure">Figure</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Returns a Plotly Figure representing the side view of the weld tab.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">TabWeldedCurrentCollector</span>
+
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">TabWeldedCurrentCollector</span><span class="p">(</span><span class="n">material</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CurrentCollectorMaterial (steer_opencell_design.Materials.Other.CurrentCollectorMaterial)" href="../../materials/other/#steer_opencell_design.Materials.Other.CurrentCollectorMaterial">CurrentCollectorMaterial</a></span><span class="p">,</span> <span class="n">length</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">width</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">thickness</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">weld_tab</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            WeldTab (steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab)" href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab">WeldTab</a></span><span class="p">,</span> <span class="n">weld_tab_positions</span><span class="p">:</span> <span class="n"><span title="typing.Iterable">Iterable</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">],</span> <span class="n">skip_coat_width</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">tab_overhang</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">tab_weld_side</span><span class="p">:</span> <span class="n"><span title="str">str</span></span> <span class="o">=</span> <span class="s1">&#39;a&#39;</span><span class="p">,</span> <span class="n">bare_lengths_a_side</span><span class="p">:</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">bare_lengths_b_side</span><span class="p">:</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">name</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Tab Welded Current Collector&#39;</span><span class="p">,</span> <span class="n">datum</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="steer_opencell_design.Components.CurrentCollectors.Base._TapeCurrentCollector">_TapeCurrentCollector</span></code></p>
+
+
+
+        <p>Current collector with separately manufactured and welded tabs.</p>
+<p>The tab-welded current collector represents a design approach
+where tabs are manufactured separately and then welded to the main collector
+foil.</p>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--parameters">Parameters<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--parameters" title="Permanent link">&para;</a></h6>
+<p>material : CurrentCollectorMaterial
+    Base material for the current collector foil
+    Can be optimized independently from tab material
+length : float
+    Total length of the collector foil in mm
+    Defines the available space for tab positioning
+width : float
+    Width of the collector foil in mm
+    Affects current distribution and tab placement options
+thickness : float
+    Thickness of the base collector material in μm
+    May differ from tab thickness for optimized performance
+weld_tab : WeldTab
+    Specification object defining tab geometry, material, and properties
+    Encapsulates all tab-specific design parameters
+weld_tab_positions : Iterable[float]
+    Array of tab center positions along the length in mm
+    Enables precise, flexible tab placement for optimal current distribution
+skip_coat_width : float
+    Width of uncoated area around each tab in mm
+    Prevents coating interference with welding and ensures reliable connections
+tab_overhang : float
+    Distance tabs extend beyond the collector foil edge in mm
+    Provides access for external connections and welding operations
+tab_weld_side : str, optional
+    Side of collector for tab welding ('a' or 'b', default: 'a')
+    Determines which surface receives the welded tabs
+bare_lengths_a_side : tuple of float, optional
+    (start, end) uncoated regions on a-side in mm
+    Enables hybrid connection strategies combining tabs and tape methods
+bare_lengths_b_side : tuple of float, optional
+    (start, end) uncoated regions on b-side in mm
+    Provides additional connection flexibility
+name : str, optional
+    Descriptive identifier for the collector assembly
+datum : tuple of float, optional
+    Reference coordinate system origin (x, y, z) in mm</p>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--examples">Examples<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--examples" title="Permanent link">&para;</a></h6>
+<p>Create a high-performance tab-welded collector for an EV application:</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>from steer_materials import CurrentCollectorMaterial</p>
+<h5 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--define-the-weld-tab-specification">Define the weld tab specification<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--define-the-weld-tab-specification" title="Permanent link">&para;</a></h5>
+<p>weld_tab = WeldTab(
+...     material=CurrentCollectorMaterial.from_database('Copper'),
+...     width=40.0,          # mm - wide for high current
+...     height=20.0,         # mm
+...     thickness=100.0      # μm - thick for low resistance
+... )</p>
+<h5 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--create-collector-with-optimally-positioned-tabs">Create collector with optimally positioned tabs<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--create-collector-with-optimally-positioned-tabs" title="Permanent link">&para;</a></h5>
+<p>collector = TabWeldedCurrentCollector(
+...     material=CurrentCollectorMaterial.from_database('Copper'),
+...     length=300.0,        # mm
+...     width=200.0,         # mm
+...     thickness=15.0,      # μm
+...     weld_tab=weld_tab,
+...     weld_tab_positions=[75.0, 150.0, 225.0],  # 3 evenly spaced tabs
+...     skip_coat_width=45.0,    # mm - larger than tab width
+...     tab_overhang=18.0,       # mm - accessible for connections
+...     tab_weld_side='a',
+...     bare_lengths_a_side=(20.0, 20.0)  # Additional tape connection option
+... )</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--see-also">See Also<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--see-also" title="Permanent link">&para;</a></h6>
+<p>PunchedCurrentCollector : Simpler integrated tab design
+NotchedCurrentCollector : Multiple integrated tabs
+TablessCurrentCollector : No-tab edge connection design
+WeldTab : Specification class for welded tab components</p>
+
+        <p>Initialize an object that represents a current collector with tabs welded on it.</p>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--parameters">Parameters<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector--parameters" title="Permanent link">&para;</a></h6>
+<p>material: CurrentCollectorMaterial:
+    Material of the current collector.
+length: float:
+    Length of the current collector in mm.
+width: float:
+    Width of the current collector in mm.
+thickness: float:
+    Thickness of the current collector in um.
+weld_tab: WeldTab:
+    Weld tab to be used on the current collector.
+weld_tab_positions: Iterable[float]:
+    Positions of the weld tabs along the length of the current collector in mm.
+skip_coat_width: float:
+    Width of the skip coat area in mm.
+tab_overhang: float:
+    Overhang of the weld tab in mm.
+tab_weld_side: str:
+    Side of the current collector where the weld tabs are welded ('a' or 'b').
+bare_lengths_a_side: Tuple[float, float]:
+    Bare lengths on the A side in mm, as a tuple of two floats (left, right).
+bare_lengths_b_side: Tuple[float, float]:
+    Bare lengths on the B side in mm, as a tuple of two floats (left, right).
+name: Optional[str]:
+    Name of the current collector, default is 'Tab Welded Current Collector'.
+datum: Optional[Tuple[float, float, float]]:
+    Datum of the current collector in mm, default is (0, 0, 0).</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+<h5 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector-attributes">Attributes<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector-attributes" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.weld_tab_positions" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">weld_tab_positions</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+      <small class="doc doc-label doc-label-writable"><code>writable</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.weld_tab_positions" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">weld_tab_positions</span><span class="p">:</span> <span class="n"><span title="list">list</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Returns the positions of the weld tabs along the length of the current collector in mm.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.skip_coat_width" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">skip_coat_width</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+      <small class="doc doc-label doc-label-writable"><code>writable</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.skip_coat_width" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">skip_coat_width</span><span class="p">:</span> <span class="n"><span title="float">float</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Returns the width of the skip coat area in mm.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.skip_coat_width_range" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">skip_coat_width_range</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.skip_coat_width_range" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">skip_coat_width_range</span><span class="p">:</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Get the skip coat width range in mm.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.skip_coat_width_hard_range" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">skip_coat_width_hard_range</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.skip_coat_width_hard_range" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">skip_coat_width_hard_range</span><span class="p">:</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Get the skip coat width range in mm.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_weld_side" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">tab_weld_side</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+      <small class="doc doc-label doc-label-writable"><code>writable</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_weld_side" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">tab_weld_side</span><span class="p">:</span> <span class="n"><span title="str">str</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Returns the side of the current collector where the weld tabs are located ('a' or 'b').</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_overhang" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">tab_overhang</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+      <small class="doc doc-label doc-label-writable"><code>writable</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_overhang" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">tab_overhang</span><span class="p">:</span> <span class="n"><span title="float">float</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Returns the overhang of the weld tab on the current collector in mm.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_overhang_range" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">tab_overhang_range</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_overhang_range" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">tab_overhang_range</span><span class="p">:</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Returns the overhang range of the weld tab in mm.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.weld_tab" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">weld_tab</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+      <small class="doc doc-label doc-label-writable"><code>writable</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.weld_tab" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">weld_tab</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            WeldTab (steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab)" href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.WeldTab">WeldTab</a></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Returns the WeldTab object representing the weld tab specification on the current collector.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.weld_tabs" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">weld_tabs</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.weld_tabs" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">weld_tabs</span><span class="p">:</span> <span class="n"><span title="list">list</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Returns a list of WeldTab objects representing the weld tabs on the current collector.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_width" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">tab_width</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+      <small class="doc doc-label doc-label-writable"><code>writable</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_width" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">tab_width</span><span class="p">:</span> <span class="n"><span title="float">float</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Returns the width of the weld tab in mm.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_width_range" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">tab_width_range</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_width_range" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">tab_width_range</span><span class="p">:</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Returns the width range of the weld tab in mm.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_length" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">tab_length</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+      <small class="doc doc-label doc-label-writable"><code>writable</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_length" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">tab_length</span><span class="p">:</span> <span class="n"><span title="float">float</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Returns the length of the weld tab in mm.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_length_range" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">tab_length_range</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_length_range" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">tab_length_range</span><span class="p">:</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Returns the length range of the weld tab in mm.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_positions_text" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">tab_positions_text</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+      <small class="doc doc-label doc-label-writable"><code>writable</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_positions_text" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">tab_positions_text</span><span class="p">:</span> <span class="n"><span title="str">str</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Returns the weld tab positions as a formatted string in mm.</p>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_positions_text--returns">Returns<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.tab_positions_text--returns" title="Permanent link">&para;</a></h6>
+<p>str
+    Comma-separated string of tab positions (e.g., "75.0, 150.0, 225.0")</p>
+
+    </div>
+
+</div>
+
+
+<h5 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector-functions">Methods:<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector-functions" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.from_notched" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">from_notched</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.from_notched" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">from_notched</span><span class="p">(</span><span class="n">notched</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="            TabWeldedCurrentCollector (steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector)" href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector">TabWeldedCurrentCollector</a></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Create a TabWeldedCurrentCollector from a NotchedCurrentCollector.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.from_tabless" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">from_tabless</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector.from_tabless" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">from_tabless</span><span class="p">(</span><span class="n">tabless</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="            TabWeldedCurrentCollector (steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector)" href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector">TabWeldedCurrentCollector</a></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Create a TabWeldedCurrentCollector from a TablessCurrentCollector.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+  </div>
+
+    </div>
+
+</div><hr />
+<h2 id="punched">Punched<a class="headerlink" href="#punched" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="steer_opencell_design.Components.CurrentCollectors.Punched" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-module"></code>            <span class="doc doc-object-name doc-module-name">Punched</span>
+
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Punched" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Punched current collector with integral tabs for stacked cells.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<h3 id="steer_opencell_design.Components.CurrentCollectors.Punched-classes">Classes<a href="#steer_opencell_design.Components.CurrentCollectors.Punched-classes" class="headerlink" title="Permanent link">&para;</a></h3>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">PunchedCurrentCollector</span>
+
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">PunchedCurrentCollector</span><span class="p">(</span><span class="n">material</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CurrentCollectorMaterial (steer_opencell_design.Materials.Other.CurrentCollectorMaterial)" href="../../materials/other/#steer_opencell_design.Materials.Other.CurrentCollectorMaterial">CurrentCollectorMaterial</a></span><span class="p">,</span> <span class="n">width</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">height</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">thickness</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">tab_width</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">tab_height</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">tab_position</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">coated_tab_height</span><span class="p">:</span> <span class="n"><span title="float">float</span></span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">insulation_width</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Punched Current Collector&#39;</span><span class="p">,</span> <span class="n">datum</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="steer_opencell_design.Components.CurrentCollectors.Base._TabbedCurrentCollector">_TabbedCurrentCollector</span></code></p>
+
+
+
+        <p>Simple rectangular current collector with a single integrated tab.</p>
+<p>The punched current collector is the most common and straightforward
+collector design, featuring a rectangular foil with a single tab
+extending from one edge. This design is widely used in
+prismatic and pouch cell formats due to its simplicity,
+manufacturing efficiency, and reliable electrical performance.</p>
+<p>Key characteristics:
+- Simple rectangular geometry with minimal complexity
+- Single tab for electrical connection
+- Configurable tab position along the width
+- Suitable for high-volume manufacturing
+- Compatible with standard coating and assembly processes</p>
+<p>This collector type is particularly well-suited for:
+- Z-fold electrode assemblies
+- Flat sheet cell constructions
+- Applications requiring simple, cost-effective designs
+- Automated manufacturing processes</p>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--parameters">Parameters<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--parameters" title="Permanent link">&para;</a></h6>
+<p>material : CurrentCollectorMaterial
+    Material composition defining electrical and mechanical properties
+    Common materials: aluminum foil (cathode), copper foil (anode)
+width : float
+    Total width of the collector foil in mm
+    Typical range: 50-300 mm depending on cell capacity
+height : float
+    Total height of the collector foil in mm
+    Typical range: 50-500 mm depending on cell format
+thickness : float
+    Material thickness in micrometers (μm)
+    Typical range: 6-20 μm (Al), 8-35 μm (Cu)
+tab_width : float
+    Width of the protruding tab in mm
+    Typical range: 10-50 mm based on current requirements
+    Should be optimized for current density and welding requirements
+tab_height : float
+    Extension height of the tab beyond the foil in mm
+    Typical range: 5-25 mm for manufacturing and assembly accessibility
+tab_position : float
+    Horizontal position of the tab center from the left edge in mm
+    Range: tab_width/2 to (width - tab_width/2)
+    Central positioning (width/2) provides optimal current distribution
+coated_tab_height : float, optional
+    Height of active material coating on the tab in mm (default: 0)
+    Must be less than tab_height to provide bare connection area
+    Set to 0 for completely uncoated tabs
+insulation_width : float, optional
+    Width of insulation strip around the perimeter in mm (default: 0)
+    Helps prevent short circuits and improves safety
+name : str, optional
+    Descriptive name for identification
+datum : tuple of float, optional
+    Reference coordinate system origin (x, y, z) in mm</p>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--attributes">Attributes<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--attributes" title="Permanent link">&para;</a></h6>
+<p>foil_area : float
+    Surface area of the rectangular foil excluding tab (mm²)
+tab_area : float
+    Surface area of the tab extension (mm²)
+total_area : float
+    Combined surface area of foil and tab (mm²)
+coated_area : float
+    Area available for active material coating (mm²)
+current_density : float
+    Current density through the tab connection (A/mm²)
+resistance : float
+    Electrical resistance from foil center to tab (Ω)</p>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--methods">Methods<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--methods" title="Permanent link">&para;</a></h6>
+<p>get_footprint()
+    Returns the 2D outline coordinates of the collector
+plot_a_side_view()
+    Generates plotly figure of the collector from above
+get_properties()
+    Returns dictionary of all geometric and electrical properties</p>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--examples">Examples<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--examples" title="Permanent link">&para;</a></h6>
+<p>Create a standard punched cathode current collector:</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>from steer_materials import aluminum_foil_12um
+collector = PunchedCurrentCollector(
+...     material=aluminum_foil_12um,
+...     width=150.0,      # mm
+...     height=200.0,     # mm
+...     thickness=12.0,   # μm
+...     tab_width=25.0,   # mm
+...     tab_height=10.0,  # mm
+...     tab_position=75.0 # mm (centered)
+... )
+print(f"Coated area: {collector.coated_area:.1f} mm²")
+print(f"Tab current density at 10A: {10/collector.tab_area:.2f} A/mm²")</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<p>Create an anode collector with coated tab:</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>from steer_materials import CurrentCollectorMaterial
+anode_collector = PunchedCurrentCollector(
+...     material=CurrentCollectorMaterial.from_database('Aluminum'),
+...     width=152.0,      # Slightly larger than cathode
+...     height=202.0,
+...     thickness=10.0,
+...     tab_width=20.0,
+...     tab_height=12.0,
+...     tab_position=74.0,
+...     coated_tab_height=8.0  # Partial coating on tab
+... )</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<p>Visualize the collector geometry:</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>fig = collector.plot_a_side_view()
+fig.show()  # Interactive plotly visualization</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--see-also">See Also<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--see-also" title="Permanent link">&para;</a></h6>
+<p>_TabbedCurrentCollector : Base class providing shared tab / foil / coating
+    parameters (<code>material</code>, <code>thickness</code>, <code>insulation_width</code>, <code>name</code>,
+    <code>datum</code>) that are inherited here.
+NotchedCurrentCollector : Collector with cutout features for tape connections
+TablessCurrentCollector : Collector without protruding tabs
+TabWeldedCurrentCollector : Collector with separately welded tabs</p>
+
+        <p>Initialize an object that represents a punched current collector.</p>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--parameters">Parameters<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector--parameters" title="Permanent link">&para;</a></h6>
+<p>material: CurrentCollectorMaterial
+    Material of the current collector.
+width: float
+    Width of the current collector in mm.
+height: float
+    Height of the current collector in mm.
+tab_width: float
+    Width of the tab in mm.
+tab_height: float
+    Height of the tab in mm.
+tab_position: float
+    Position of the tab in mm, relative to the left edge of the current collector.
+coated_tab_height: float
+    Height of the coated tab on the top side in mm, default is 0.
+thickness: float
+    Thickness of the current collector in um.
+insulation_width: Optional[float]
+    Width of the insulation in mm, default is 0.
+name: Optional[str]
+    Name of the current collector, default is 'Punched Current Collector'.
+datum: Optional[Tuple[float, float, float]]
+    Datum of the current collector in mm, default is (0, 0, 0).</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+<h5 id="steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector-functions">Methods:<a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector-functions" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector.rotate_90" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">rotate_90</span>
+
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Punched.PunchedCurrentCollector.rotate_90" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">rotate_90</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Rotate the current collector by 90 degrees in the clockwise direction.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+  </div>
+
+    </div>
+
+</div><hr />
+<h2 id="tabless">Tabless<a class="headerlink" href="#tabless" title="Permanent link">&para;</a></h2>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="steer_opencell_design.Components.CurrentCollectors.Tabless" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-module"></code>            <span class="doc doc-object-name doc-module-name">Tabless</span>
+
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabless" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Tabless current collector with edge-based connections.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<h3 id="steer_opencell_design.Components.CurrentCollectors.Tabless-classes">Classes<a href="#steer_opencell_design.Components.CurrentCollectors.Tabless-classes" class="headerlink" title="Permanent link">&para;</a></h3>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-class"></code>            <span class="doc doc-object-name doc-class-name">TablessCurrentCollector</span>
+
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">TablessCurrentCollector</span><span class="p">(</span><span class="n">material</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            CurrentCollectorMaterial (steer_opencell_design.Materials.Other.CurrentCollectorMaterial)" href="../../materials/other/#steer_opencell_design.Materials.Other.CurrentCollectorMaterial">CurrentCollectorMaterial</a></span><span class="p">,</span> <span class="n">length</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">width</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">coated_width</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">thickness</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n">bare_lengths_a_side</span><span class="p">:</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">bare_lengths_b_side</span><span class="p">:</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="n">insulation_width</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;Tabless Current Collector&#39;</span><span class="p">,</span> <span class="n">datum</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><a class="autorefs autorefs-internal" title="            NotchedCurrentCollector (steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector)" href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector">NotchedCurrentCollector</a></code></p>
+
+
+
+        <p>Streamlined current collector without protruding tabs.</p>
+<p>The tabless current collector represents the most space-efficient design,`
+eliminating protruding tabs entirely in favor of edge-based connections.
+This design is particularly advantageous for cylindrical cells, flatwound
+configurations, and applications where minimizing cell volume and complexity
+are paramount.</p>
+<p>Key advantages of the tabless design:
+- Simplified manufacturing with fewer cutting/forming operations
+- Reduced risk of tab damage during handling and assembly
+- Better suitability for automated winding and stacking processes
+- Lower material waste during production
+- Enhanced mechanical robustness</p>
+<p>This design is especially well-suited for:
+- Cylindrical cells (18650, 21700, 4680 formats)
+- Flatwound rectangular cells
+- High-volume consumer applications
+- Cells requiring consistent cylindrical geometry
+- Applications where tab damage is a reliability concern</p>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector--parameters">Parameters<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector--parameters" title="Permanent link">&para;</a></h6>
+<p>material : CurrentCollectorMaterial
+    Material composition for electrical and mechanical properties
+    Typically aluminum for cathodes, copper for anodes
+length : float
+    Total length of the collector in the primary direction (mm)
+    For cylindrical cells, this determines the winding length
+width : float
+    Total width of the collector (mm)
+    For cylindrical cells, this affects the electrode height
+coated_width : float
+    Width of the region available for active material coating (mm)
+    Must be less than total width to provide bare connection strips
+thickness : float
+    Material thickness in micrometers (μm)
+    Affects cell internal resistance and energy density
+bare_lengths_a_side : tuple of float, optional
+    (start, end) uncoated lengths on a-side for connections (mm)
+    Provides flexibility for different cell termination strategies
+bare_lengths_b_side : tuple of float, optional
+    (start, end) uncoated lengths on b-side for connections (mm)
+    Enables asymmetric designs for specific applications
+insulation_width : float, optional
+    Width of insulation strip around edges (mm, default: 0)
+    Critical for preventing short circuits in tabless designs
+name : str, optional
+    Descriptive identifier for the collector
+datum : tuple of float, optional
+    Reference coordinate system origin (x, y, z) in mm</p>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector--examples">Examples<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector--examples" title="Permanent link">&para;</a></h6>
+<p>Design a tabless collector for a 21700 cylindrical cell:</p>
+<blockquote>
+<blockquote>
+<blockquote>
+<p>from steer_materials import CurrentCollectorMaterial
+collector = TablessCurrentCollector(
+...     material=CurrentCollectorMaterial.from_database('Aluminum'),
+...     length=650.0,        # mm - enough for multiple winds
+...     width=65.0,          # mm - fits 21700 height
+...     coated_width=60.0,   # mm - 2.5mm bare strips on edges
+...     thickness=15.0,      # μm
+...     bare_lengths_a_side=(10.0, 10.0),  # mm
+...     bare_lengths_b_side=(10.0, 10.0),  # mm
+...     insulation_width=0.5 # mm - prevent shorts
+... )
+print(f"Coated fraction: {collector.coated_fraction:.2%}")
+print(f"Connection strip width: {collector.connection_strip_width:.1f} mm")</p>
+</blockquote>
+</blockquote>
+</blockquote>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector--see-also">See Also<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector--see-also" title="Permanent link">&para;</a></h6>
+<p>NotchedCurrentCollector : Direct parent class providing tab + tape behaviour.
+_TabbedCurrentCollector : Indirect base; documents shared tab / foil /
+    coating parameters (<code>material</code>, <code>thickness</code>, <code>insulation_width</code>,
+    <code>name</code>, <code>datum</code>).
+_TapeCurrentCollector : Indirect base; documents <code>bare_lengths_a_side</code>
+    and <code>bare_lengths_b_side</code> semantics.
+PunchedCurrentCollector : Simple tabbed alternative
+TabWeldedCurrentCollector : Separate welded tab approach</p>
+
+        <p>Initialize an object that represents a tabless current collector.</p>
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector--parameters">Parameters<a class="headerlink" href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector--parameters" title="Permanent link">&para;</a></h6>
+<p>material: CurrentCollectorMaterial:
+    Material of the current collector.
+length: float:
+    Length of the current collector in mm.
+width: float:
+    Width of the current collector in mm.
+coated_width: float:
+    Width of the coated area in mm.
+thickness: float:
+    Thickness of the current collector in um.
+bare_lengths_a_side: Tuple[float, float]:
+    Bare lengths on the A side in mm, as a tuple of two floats (left, right).
+bare_lengths_b_side: Tuple[float, float]:
+    Bare lengths on the B side in mm, as a tuple of two floats (left, right).
+insulation_width: Optional[float]:
+    Width of the insulation strip in mm, default is 0.
+name: Optional[str]:
+    Name of the current collector, default is 'Tabless Current Collector'.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+<h5 id="steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector-attributes">Attributes<a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector-attributes" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector.coated_width_range" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">coated_width_range</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector.coated_width_range" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">coated_width_range</span><span class="p">:</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Get the coated width range in mm.</p>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-attribute">
+
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector.coated_width_hard_range" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-attribute"></code>            <span class="doc doc-object-name doc-attribute-name">coated_width_hard_range</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-property"><code>property</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector.coated_width_hard_range" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">coated_width_hard_range</span><span class="p">:</span> <span class="n"><span title="typing.Tuple">Tuple</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">,</span> <span class="n"><span title="float">float</span></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Get the coated width range in mm.</p>
+
+    </div>
+
+</div>
+
+
+<h5 id="steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector-functions">Methods:<a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector-functions" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector.from_notched" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">from_notched</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector.from_notched" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">from_notched</span><span class="p">(</span><span class="n">notched</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            NotchedCurrentCollector (steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector)" href="#steer_opencell_design.Components.CurrentCollectors.Notched.NotchedCurrentCollector">NotchedCurrentCollector</a></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="            TablessCurrentCollector (steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector)" href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector">TablessCurrentCollector</a></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Create a TablessCurrentCollector from a NotchedCurrentCollector.</p>
+
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector.from_tab_welded" class="doc doc-heading">
+<code class="doc-symbol doc-symbol-heading doc-symbol-method"></code>            <span class="doc doc-object-name doc-function-name">from_tab_welded</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-classmethod"><code>classmethod</code></small>
+  </span>
+
+<a href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector.from_tab_welded" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nf">from_tab_welded</span><span class="p">(</span><span class="n">tab_welded</span><span class="p">:</span> <span class="n"><a class="autorefs autorefs-internal" title="            TabWeldedCurrentCollector (steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector)" href="#steer_opencell_design.Components.CurrentCollectors.Tabbed.TabWeldedCurrentCollector">TabWeldedCurrentCollector</a></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="            TablessCurrentCollector (steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector)" href="#steer_opencell_design.Components.CurrentCollectors.Tabless.TablessCurrentCollector">TablessCurrentCollector</a></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Create a TablessCurrentCollector from a TabWeldedCurrentCollector.</p>
+
+
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "navigation.indexes", "search.highlight", "search.suggest", "content.code.copy", "content.tabs.link", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
