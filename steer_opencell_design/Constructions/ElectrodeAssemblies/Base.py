@@ -4,6 +4,7 @@
 """Base class for electrode assemblies."""
 
 from steer_opencell_design.Constructions.Layups.Base import _Layup
+from steer_opencell_design.Utils.Constants import COLOR_FULL_CELL
 from steer_core.Utils import round_dict_recursive
 
 from steer_core.Mixins.Coordinates import CoordinateMixin
@@ -220,17 +221,22 @@ class _ElectrodeAssembly(
 
         fig.add_traces(traces)    
 
-        # Enhanced layout with zero lines and faint grid
-        fig.update_layout(
-            title=kwargs.get("title", f"Capacity Curves"),
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            xaxis={**self.SCATTER_X_AXIS, "title": "Capacity (Ah)"},
-            yaxis={**self.SCATTER_Y_AXIS, "title": "Voltage (V)", "rangemode": "tozero"},
-            hovermode="closest",
+        return self.apply_plot_layout(
+            fig,
+            defaults={
+                "title": f"{self.name} — Capacity Curves",
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+                "xaxis": {**self.SCATTER_X_AXIS, "title": "Capacity (Ah)"},
+                "yaxis": {
+                    **self.SCATTER_Y_AXIS,
+                    "title": "Voltage (V)",
+                    "rangemode": "tozero",
+                },
+                "hovermode": "closest",
+            },
+            overrides=kwargs,
         )
-
-        return fig
 
     @property
     def pore_volume(self) -> float:
@@ -275,14 +281,12 @@ class _ElectrodeAssembly(
         if self._capacity_curve is None:
             return None
 
-        color = "#ff8c00"
-
         return go.Scatter(
             x=self.capacity_curve["Capacity (Ah)"],
             y=self.capacity_curve["Voltage (V)"],
             mode="lines",
             name=f"{self.name} Full-Cell",
-            line=dict(color=color, width=3),  # Slightly thicker for emphasis
+            line=dict(color=COLOR_FULL_CELL, width=3),  # Slightly thicker for emphasis
             customdata=self.capacity_curve["Direction"],
             hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} Ah<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )

@@ -330,21 +330,22 @@ class _Stack(_ElectrodeAssembly):
         
         # Create figure with all traces
         figure = go.Figure(data=traces)
-        
-        # Apply layout
-        figure.update_layout(
-            xaxis=self.SCHEMATIC_Y_AXIS,
-            yaxis=self.SCHEMATIC_Z_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            **kwargs,
-        )
-        
-        return figure
 
-    def plot_top_down_view(self, **kwargs):
+        return self.apply_plot_layout(
+            figure,
+            defaults={
+                "xaxis": self.SCHEMATIC_Y_AXIS,
+                "yaxis": self.SCHEMATIC_Z_AXIS,
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+            },
+            overrides=kwargs,
+        )
+
+    def plot_top_down_view(self, **kwargs) -> go.Figure:
         """Generate a top-down Plotly figure of the stack."""
         return self._layup.plot_top_down_view(**kwargs)
+
     @staticmethod
     def add_layer(stack: list, component: Any, z_datum: float) -> Tuple[float, list]:
         """

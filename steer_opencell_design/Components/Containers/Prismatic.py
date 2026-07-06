@@ -922,30 +922,32 @@ class PrismaticCanister(
         figure = go.Figure()
         figure.add_trace(self.top_down_trace)
 
-        figure.update_layout(
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            **kwargs,
+        return self.apply_plot_layout(
+            figure,
+            defaults={
+                "xaxis": self.SCHEMATIC_X_AXIS,
+                "yaxis": self.SCHEMATIC_Y_AXIS,
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+            },
+            overrides=kwargs,
         )
 
-        return figure
-    
     def plot_right_left_view(self, **kwargs) -> go.Figure:
         """Generate a right-left view plot of the canister."""
         figure = go.Figure()
         figure.add_trace(self.right_left_trace)
 
-        figure.update_layout(
-            xaxis=self.SCHEMATIC_Y_AXIS,
-            yaxis=self.SCHEMATIC_Z_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            **kwargs,
+        return self.apply_plot_layout(
+            figure,
+            defaults={
+                "xaxis": self.SCHEMATIC_Y_AXIS,
+                "yaxis": self.SCHEMATIC_Z_AXIS,
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+            },
+            overrides=kwargs,
         )
-
-        return figure
 
     def _rotate_z(self, degrees: float = -90) -> None:
         """
@@ -1791,7 +1793,7 @@ class PrismaticEncapsulation(_Container, DatumMixin):
         fig = self.plot_breakdown_sunburst(
             self.cost_breakdown,
             title=title or f"{self.name} Cost Breakdown",
-            unit="currency units",
+            unit="$",
             **kwargs,
         )
         return fig
@@ -1810,17 +1812,18 @@ class PrismaticEncapsulation(_Container, DatumMixin):
 
         figure.add_traces(traces)
 
-        figure.update_layout(
-            xaxis=self.SCHEMATIC_Y_AXIS,
-            yaxis=self.SCHEMATIC_Z_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            title=kwargs.get("title", f"{self.name} Side View"),
-            **kwargs,
+        return self.apply_plot_layout(
+            figure,
+            defaults={
+                "xaxis": self.SCHEMATIC_Y_AXIS,
+                "yaxis": self.SCHEMATIC_Z_AXIS,
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+                "title": f"{self.name} Side View",
+            },
+            overrides=kwargs,
         )
 
-        return figure
-    
     def plot_top_down_view(self, opacity=0.8, **kwargs) -> go.Figure:
         """Generate a top-down view plot showing all components."""
         figure = go.Figure()
@@ -1836,16 +1839,17 @@ class PrismaticEncapsulation(_Container, DatumMixin):
 
         figure.add_traces(traces)
 
-        figure.update_layout(
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            title=kwargs.get("title", f"{self.name} Top-Down View"),
-            **kwargs,
+        return self.apply_plot_layout(
+            figure,
+            defaults={
+                "xaxis": self.SCHEMATIC_X_AXIS,
+                "yaxis": self.SCHEMATIC_Y_AXIS,
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+                "title": f"{self.name} Top-Down View",
+            },
+            overrides=kwargs,
         )
-
-        return figure
     
     def _get_assembly_dimensions(self, assembly):
         """Extract width, length, and height dimensions from an electrode assembly.

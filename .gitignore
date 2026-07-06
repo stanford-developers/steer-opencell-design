@@ -14,3 +14,4 @@ site/
 coverage.xml
 .pytest_cache/
 pyrightconfig.json
+plot_gallery/

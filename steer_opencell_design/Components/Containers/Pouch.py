@@ -376,9 +376,10 @@ class LaminateSheet(
             if getattr(self, "_bottom_up_coordinates", None) is not None
             else None
         )
+        # Unanchored X avoids a circular scaleanchor (Z already anchors to X).
         return self._layout_schematic(
             trace,
-            xaxis=self.SCHEMATIC_X_AXIS,
+            xaxis=self.SCHEMATIC_X_AXIS_UNANCHORED,
             yaxis=self.SCHEMATIC_Z_AXIS,
             **kwargs,
         )
@@ -519,7 +520,6 @@ class LaminateSheet(
         
         Returns a go.Scatter trace showing the cross-section of the laminate sheet.
         """
-        import plotly.graph_objects as go
         
         if not hasattr(self, '_right_left_coordinates') or self._right_left_coordinates is None:
             return None
@@ -547,7 +547,6 @@ class LaminateSheet(
         
         Returns a go.Scatter trace showing the cross-section of the laminate sheet.
         """
-        import plotly.graph_objects as go
         
         if not hasattr(self, '_bottom_up_coordinates') or self._bottom_up_coordinates is None:
             return None
@@ -575,7 +574,6 @@ class LaminateSheet(
         
         Returns a go.Scatter trace showing the laminate sheet footprint.
         """
-        import plotly.graph_objects as go
         
         if not hasattr(self, '_top_down_coordinates') or self._top_down_coordinates is None:
             return None
@@ -765,7 +763,6 @@ class PouchTerminal(
         
         Returns a go.Scatter trace showing the terminal cross-section.
         """
-        import plotly.graph_objects as go
         
         coords = self.right_left_coordinates
         
@@ -854,7 +851,6 @@ class PouchTerminal(
         
         Returns a go.Scatter trace showing the terminal footprint.
         """
-        import plotly.graph_objects as go
         
         coords = self.top_down_coordinates
         
@@ -1067,17 +1063,18 @@ class PouchEncapsulation(_Container, DatumMixin):
 
         fig = go.Figure(data=traces)
 
-        # Apply layout
-        fig.update_layout(
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            **kwargs,
+        # Side view shows the Y-Z plane; Z carries the aspect anchor.
+        return self.apply_plot_layout(
+            fig,
+            defaults={
+                "xaxis": self.SCHEMATIC_Y_AXIS,
+                "yaxis": self.SCHEMATIC_Z_AXIS,
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+            },
+            overrides=kwargs,
         )
 
-        return fig
-    
     def plot_top_down_view(self, **kwargs) -> go.Figure:
         """Get a Plotly Figure showing the top view of the pouch encapsulation."""        
         traces = []
@@ -1088,16 +1085,16 @@ class PouchEncapsulation(_Container, DatumMixin):
 
         fig = go.Figure(data=traces)
 
-        # Apply layout
-        fig.update_layout(
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            **kwargs,
+        return self.apply_plot_layout(
+            fig,
+            defaults={
+                "xaxis": self.SCHEMATIC_X_AXIS,
+                "yaxis": self.SCHEMATIC_Y_AXIS,
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+            },
+            overrides=kwargs,
         )
-
-        return fig
 
     @property
     def thickness(self) -> float:

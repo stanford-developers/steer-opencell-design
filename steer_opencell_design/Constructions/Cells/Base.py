@@ -38,6 +38,15 @@ packaging logic.
 
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Base import _ElectrodeAssembly
 from steer_opencell_design.Components.Containers.Base import _Container
+from steer_opencell_design.Utils.Constants import (
+    COLOR_FULL_CELL,
+    COLOR_FULL_CELL_FILL,
+    COLOR_GUIDE_CAPACITY_LOSS,
+    COLOR_GUIDE_IRREVERSIBLE,
+    COLOR_GUIDE_MAX_VOLTAGE,
+    COLOR_GUIDE_MIN_VOLTAGE,
+    COLOR_GUIDE_REVERSIBLE,
+)
 from steer_core.Utils import round_dict_recursive
 
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
@@ -870,19 +879,24 @@ class _Cell(
         fig.add_traces(traces)
 
         # get maximum voltage for y axis
-        x_max = max(self._reference_electrode_assembly._layup._cathode._formulation._voltage_operation_window)
+        max_voltage = max(self._reference_electrode_assembly._layup._cathode._formulation._voltage_operation_window)
 
-        # Layout styling
-        fig.update_layout(
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            xaxis={**self.SCATTER_X_AXIS, "title": "Capacity (Ah)"},
-            yaxis={**self.SCATTER_Y_AXIS, "title": "Voltage (V)", "range": [0, x_max]},
-            hovermode="closest",
-            **kwargs
+        return self.apply_plot_layout(
+            fig,
+            defaults={
+                "title": f"{self.name} — Capacity Curves",
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+                "xaxis": {**self.SCATTER_X_AXIS, "title": "Capacity (Ah)"},
+                "yaxis": {
+                    **self.SCATTER_Y_AXIS,
+                    "title": "Voltage (V)",
+                    "range": [0, max_voltage],
+                },
+                "hovermode": "closest",
+            },
+            overrides=kwargs,
         )
-
-        return fig
         
     def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:
         """Generate a sunburst mass breakdown chart."""
@@ -1261,13 +1275,13 @@ class _Cell(
     def capacity_curve_trace(self) -> go.Scatter:
         """Plotly trace for the full-cell capacity curve."""
 
-        color = "#ff8c00"
+        color = COLOR_FULL_CELL
 
         return go.Scatter(
             x=self.capacity_curve["Capacity (Ah)"],
             y=self.capacity_curve["Voltage (V)"],
             mode="lines",
-            name=f"Full-Cell",
+            name="Full-Cell",
             line=dict(color=color, width=3, shape='spline'),  # Slightly thicker for emphasis
             customdata=self.capacity_curve["Direction"],
             hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} Ah<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
@@ -1310,19 +1324,17 @@ class _Cell(
     def integrated_capacity_area_trace(self) -> go.Scatter:
         """Plotly trace for the integrated discharge capacity area fill."""
 
-        color = "#ff8c00"
-
         curve = self.capacity_curve.query("direction == 'discharge'")
 
         return go.Scatter(
             x=curve["Capacity (Ah)"],
             y=curve["Voltage (V)"],
             mode="lines",
-            name=f"Integrated Capacity",
-            line=dict(color=color, width=1),
-            fillcolor='rgba(255, 140, 0, 0.2)',
+            name="Integrated Capacity",
+            line=dict(color=COLOR_FULL_CELL, width=1),
+            fillcolor=COLOR_FULL_CELL_FILL,
             fill='tozeroy',
-            hovertemplate="<b>Integrated Capacity Area</b><br>" + "Capacity: %{x:.2f} mAh<br>" + "Voltage: %{y:.3f} V<extra></extra>",
+            hovertemplate="<b>Integrated Capacity Area</b><br>" + "Capacity: %{x:.2f} Ah<br>" + "Voltage: %{y:.3f} V<extra></extra>",
         )
 
     @property
@@ -1331,7 +1343,7 @@ class _Cell(
         return self._create_vertical_guide_trace(
             self.capacity_loss,
             f"Capacity Loss: {self.capacity_loss:.2f} Ah",
-            "#d62728"
+            COLOR_GUIDE_CAPACITY_LOSS,
         )
 
     @property
@@ -1340,7 +1352,7 @@ class _Cell(
         return self._create_vertical_guide_trace(
             self.irreversible_capacity,
             f"Irreversible Cap: {self.irreversible_capacity:.2f} Ah",
-            "#9467bd"
+            COLOR_GUIDE_IRREVERSIBLE,
         )
 
     @property
@@ -1349,7 +1361,7 @@ class _Cell(
         return self._create_vertical_guide_trace(
             self.reversible_capacity + self.capacity_loss,
             f"Reversible Cap: {self.reversible_capacity:.2f} Ah",
-            "#2ca02c"
+            COLOR_GUIDE_REVERSIBLE,
         )
 
     @property
@@ -1358,7 +1370,7 @@ class _Cell(
         return self._create_horizontal_guide_trace(
             self.minimum_operating_voltage,
             f"Min Voltage: {self.minimum_operating_voltage:.2f} V",
-            "#1f77b4"
+            COLOR_GUIDE_MIN_VOLTAGE,
         )
 
     @property
@@ -1367,7 +1379,7 @@ class _Cell(
         return self._create_horizontal_guide_trace(
             self.maximum_operating_voltage,
             f"Max Voltage: {self.maximum_operating_voltage:.2f} V",
-            "#ff7f0e"
+            COLOR_GUIDE_MAX_VOLTAGE,
         )
 
     @property

@@ -23,7 +23,11 @@ from steer_core.Constants.Units import *
 from steer_opencell_design.Materials.Other import CurrentCollectorMaterial
 
 # import other current collector types for class methods
-from steer_opencell_design.Components.CurrentCollectors.Base import _TapeCurrentCollector
+from steer_opencell_design.Components.CurrentCollectors.Base import (
+    TRACE_NAME_FOIL,
+    TRACE_NAME_TAB,
+    _TapeCurrentCollector,
+)
 
 # import base functions
 from typing import Tuple, Optional, Iterable
@@ -215,15 +219,16 @@ class WeldTab(PropagationMixin, ValidationMixin, CoordinateMixin, DatumMixin, Du
         figure = go.Figure()
         figure.add_trace(self.top_down_foil_trace)
 
-        figure.update_layout(
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            **kwargs,
+        return self.apply_plot_layout(
+            figure,
+            defaults={
+                "xaxis": self.SCHEMATIC_X_AXIS,
+                "yaxis": self.SCHEMATIC_Y_AXIS,
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+            },
+            overrides=kwargs,
         )
-
-        return figure
 
     def plot_side_view(self, **kwargs) -> go.Figure:
         """
@@ -232,15 +237,17 @@ class WeldTab(PropagationMixin, ValidationMixin, CoordinateMixin, DatumMixin, Du
         figure = go.Figure()
         figure.add_trace(self.right_left_foil_trace)
 
-        figure.update_layout(
-            xaxis=self.SCHEMATIC_X_AXIS,
-            yaxis=self.SCHEMATIC_Y_AXIS,
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            **kwargs,
+        # Side view shows the Y-Z plane; Z carries the aspect anchor.
+        return self.apply_plot_layout(
+            figure,
+            defaults={
+                "xaxis": self.SCHEMATIC_Y_AXIS,
+                "yaxis": self.SCHEMATIC_Z_AXIS,
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+            },
+            overrides=kwargs,
         )
-
-        return figure
 
     @property
     def foil_coordinates(self) -> pd.DataFrame:
@@ -264,11 +271,11 @@ class WeldTab(PropagationMixin, ValidationMixin, CoordinateMixin, DatumMixin, Du
             x=foil_coordinates["y"],
             y=foil_coordinates["z"],
             mode="lines",
-            name="Foil",
+            name=TRACE_NAME_FOIL,
             line=dict(color="black", width=1),
             fill="toself",
             fillcolor=self._material.color,
-            legendgroup="Foil",
+            legendgroup=TRACE_NAME_FOIL,
             showlegend=True,
         )
 
@@ -284,7 +291,7 @@ class WeldTab(PropagationMixin, ValidationMixin, CoordinateMixin, DatumMixin, Du
             x=foil_coordinates["x"],
             y=foil_coordinates["y"],
             mode="lines",
-            name="Tab",
+            name=TRACE_NAME_TAB,
             line=dict(color="black", width=1),
             fill="toself",
             fillcolor=self._material.color,

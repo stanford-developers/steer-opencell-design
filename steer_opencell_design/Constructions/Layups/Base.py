@@ -31,7 +31,10 @@ from steer_opencell_design.Components.Separators import Separator
 from steer_opencell_design.Constructions.Layups.OverhangUtils import OverhangMixin
 from steer_opencell_design.Constructions.Layups.ArealCapacityCurveUtils import ArealCapacityCurveMixin
 from steer_opencell_design.Components.CurrentCollectors.Base import _TapeCurrentCollector
-from steer_opencell_design.Utils.Constants import MINIMUM_VOLTAGE_RANGE_FRACTION  # noqa: F401 (re-exported)
+from steer_opencell_design.Utils.Constants import (  # noqa: F401 (MINIMUM_VOLTAGE_RANGE_FRACTION re-exported)
+    COLOR_FULL_CELL,
+    MINIMUM_VOLTAGE_RANGE_FRACTION,
+)
 
 
 # Module-level constants for overhang ranges and plotting parameters
@@ -570,15 +573,16 @@ class _Layup(
             y_bounds = [-PLOT_FALLBACK_BOUND, PLOT_FALLBACK_BOUND]
 
         # Final layout with fixed axis ranges
-        fig.update_layout(
-            xaxis={**self.SCHEMATIC_X_AXIS, "range": x_bounds},
-            yaxis={**self.SCHEMATIC_Y_AXIS, "range": y_bounds},
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            **kwargs,
+        return self.apply_plot_layout(
+            fig,
+            defaults={
+                "xaxis": {**self.SCHEMATIC_X_AXIS, "range": x_bounds},
+                "yaxis": {**self.SCHEMATIC_Y_AXIS, "range": y_bounds},
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+            },
+            overrides=kwargs,
         )
-
-        return fig
 
     def plot_areal_capacity_curve(self, **kwargs) -> go.Figure:
         """
@@ -614,18 +618,22 @@ class _Layup(
         # add the traces
         fig.add_traces(traces)
 
-        # Enhanced layout with zero lines and faint grid
-        fig.update_layout(
-            title=kwargs.get("title", f"Areal Capacity Curves (N/P: {self.np_ratio})"),
-            paper_bgcolor=kwargs.get("paper_bgcolor", "white"),
-            plot_bgcolor=kwargs.get("plot_bgcolor", "white"),
-            xaxis={**self.SCATTER_X_AXIS, "title": "Areal Capacity (mAh/cm²)"},
-            yaxis={**self.SCATTER_Y_AXIS, "title": "Voltage (V)", "rangemode": "tozero"},
-            hovermode="closest",
-            **kwargs,
+        return self.apply_plot_layout(
+            fig,
+            defaults={
+                "title": f"Areal Capacity Curves (N/P: {self.np_ratio:.3f})",
+                "paper_bgcolor": "white",
+                "plot_bgcolor": "white",
+                "xaxis": {**self.SCATTER_X_AXIS, "title": "Areal Capacity (mAh/cm²)"},
+                "yaxis": {
+                    **self.SCATTER_Y_AXIS,
+                    "title": "Voltage (V)",
+                    "rangemode": "tozero",
+                },
+                "hovermode": "closest",
+            },
+            overrides=kwargs,
         )
-
-        return fig
 
     def plot_down_top_view(self, opacity: float = 0.2, **kwargs) -> go.Figure:
         """Generate bottom-up (cross-sectional) view of the layup.
@@ -646,9 +654,10 @@ class _Layup(
             If component trace data is missing or invalid
         """
         self._flip("x")
-        figure = self.plot_top_down_view(opacity=opacity, **kwargs)
-        self._flip("x")
-        return figure
+        try:
+            return self.plot_top_down_view(opacity=opacity, **kwargs)
+        finally:
+            self._flip("x")
 
     @property
     def maximum_operating_voltage_range(self) -> Tuple[float, float]:
@@ -770,7 +779,7 @@ class _Layup(
             y=curve["Voltage (V)"],
             mode="lines",
             name=f"{self.name} Full-Cell",
-            line=dict(color= "#ff8c00", width=3, shape="spline"),
+            line=dict(color=COLOR_FULL_CELL, width=3, shape="spline"),
             customdata=self.areal_capacity_curve["Direction"],
             hovertemplate="<b>Full-Cell</b><br>" + "Capacity: %{x:.2f} mAh/cm²<br>" + "Voltage: %{y:.3f} V<br>" + "Direction: %{customdata}<extra></extra>",
         )
