@@ -252,8 +252,8 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         fig_a = self.current_collector.plot_a_side_view()
         fig_b = self.current_collector.plot_b_side_view()
 
-        # fig_a.show()
-        # fig_b.show()
+        # fig_a.show(renderer='browser')
+        # fig_b.show(renderer='browser')
 
     def test_datum_shifter(self):
         self.current_collector.length = 300

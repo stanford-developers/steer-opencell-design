@@ -189,13 +189,13 @@ class TestRoundJellyRoll(unittest.TestCase):
         fig7 = self.my_jellyroll.plot_top_down_view()
         fig8 = self.my_jellyroll.plot_side_view()
 
-        # fig1.show()
-        # fig3.show()
-        # fig4.show()
-        # fig5.show()
-        # fig6.show()
-        # fig7.show()
-        # fig8.show()
+        fig1.show(renderer="browser")
+        fig3.show(renderer="browser")
+        fig4.show(renderer="browser")
+        fig5.show(renderer="browser")
+        fig6.show(renderer="browser")
+        fig7.show(renderer="browser")
+        fig8.show(renderer="browser")
 
     def test_datum_set(self):
 
