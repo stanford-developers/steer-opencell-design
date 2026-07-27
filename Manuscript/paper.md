@@ -35,11 +35,15 @@ OpenCell Design calculates mass and cost at every level of the hierarchy, enabli
 
 The global transition to electrified transportation and grid-scale energy storage has placed increasing demands on battery technology [@chu2012opportunities; @dunn2011electrical]. Metal-ion batteries are the dominant technology for applications from portable electronics to electric vehicles [@goodenough2013li; @blomgren2017development], and both thermodynamic performance and technoeconomic metrics are critical to their continued development [@nykvist2015rapidly; @ziegler2021re]. Understanding the design and material drivers behind cell performance and cost requires modeling at multiple scales — a single cell comprises dozens of interacting parameters across materials, formulations, current collectors, separators, electrodes, and encapsulations.
 
+OpenCell Design is aimed at battery researchers, cell designers, and technoeconomic analysts who need to connect design and material choices to both electrochemical performance and manufacturing cost within a single, scriptable framework. It provides an open-source, programmatic tool that combines hierarchical cell construction with integrated cost and performance calculations in an extensible, composable framework.
+
+# State of the field
+
 Several tools address aspects of this challenge. PyBaMM [@sulzer2021pybamm] provides physics-based electrochemical simulation but does not model the geometric construction of cells or calculate mass and cost breakdowns. BatPaC [@nelson2019batpac] and CAMS [@cams2024] estimate manufacturing cost and performance but are implemented as Excel workbooks, limiting extensibility and programmatic integration. Both are also unidirectional models — outputs depend on a fixed set of inputs, and bidirectional parameter setting is not possible. Other tools such as electrode formulation calculators address isolated aspects of cell design rather than the complete hierarchy from materials to cells.
 
-OpenCell Design fills this gap by providing an open-source, programmatic tool that combines hierarchical cell construction with integrated cost and performance calculations in an extensible, composable framework.
+Rather than reimplementing electrochemical simulation, OpenCell Design occupies a complementary niche: it focuses on the geometric construction, mass, and cost of a cell across the full materials-to-cell hierarchy, complementing physics-based simulators such as PyBaMM rather than replacing them. This build-versus-contribute trade-off — building a new, open, programmatic construction-and-cost framework where the existing alternatives are closed Excel workbooks or single-scale calculators — is the core scholarly contribution of the software.
 
-# Software Architecture
+# Software design
 
 The software is distributed as three complementary Python packages, each with its own repository, test suite, and documentation:
 
@@ -48,6 +52,8 @@ The software is distributed as three complementary Python packages, each with it
 - **steer-opencell-design** ([github.com/stanford-developers/steer-opencell-design](https://github.com/stanford-developers/steer-opencell-design)) is the primary package described in this paper. It builds on the previous two to implement the full cell-modeling hierarchy from active materials through to complete cells.
 
 This separation of concerns allows each package to be developed, tested, and versioned independently while ensuring that common behaviors — such as serialization, validation, and change propagation — are defined once in `steer-core` and inherited throughout the stack.
+
+Beyond package structure, the central architectural decision is bidirectional property propagation (detailed under *Key Features*): maintaining a parent reference on every component and re-running setters when a parameter changes adds internal bookkeeping, but in exchange users can express design studies — such as comparisons at constant volume or constant N/P ratio — without manually rebuilding a cell after each change.
 
 ![The OpenCell Design modeling hierarchy. Components at each level compose into the next, from materials through to complete cells.](hierarchy_tree.png){width=80%}
 
@@ -66,6 +72,18 @@ This separation of concerns allows each package to be developed, tested, and ver
 # Quality Control
 
 OpenCell Design includes a comprehensive test suite comprising 21 test modules with over 900 individual test cases, organized to mirror the package structure. Tests cover materials, formulations, electrodes, current collectors, separators, layups, electrode assemblies, containers, and complete cells.
+
+# Research impact statement
+
+OpenCell Design is the computational engine behind the STEER OpenCell platform ([steer.stanford.edu/open-cell](https://steer.stanford.edu/open-cell/)), a publicly available web application for battery cell design and technoeconomic analysis. The platform currently serves more than 580 active users, including practitioners at over 40 battery developer firms, original equipment manufacturers (OEMs), and system integrators — demonstrating adoption well beyond the original development team.
+
+The library has also supported strategic research: it was used to assess the energy-density and cost characteristics of solid-state batteries as part of solid-state battery roadmapping efforts conducted by STEER and the U.S. Department of Energy. The resulting analyses underpin STEER's public solid-state battery tracker ([dash.steerproject.org/steer-ssb-roadmapping](https://dash.steerproject.org/steer-ssb-roadmapping/)).
+
+These deployments are enabled by the software's extensible, object-oriented design — demonstrated, for example, by a novel flex-frame solid-state cell format implemented in roughly 1,000 lines of code by subclassing existing base classes — and are supported by distribution on PyPI and a test suite of 21 modules and over 900 cases that promotes reproducible, verifiable results.
+
+# AI usage disclosure
+
+Generative AI tools were used during the development of OpenCell Design. Specifically, GitHub Copilot was used as a coding assistant to help write portions of the software, its documentation, and this paper. All AI-assisted output was verified for correctness and quality through the project's automated test suite (21 test modules with over 900 test cases) together with thorough manual inspection and review by the authors, who take full responsibility for the correctness of the software and the content of this paper.
 
 # Acknowledgements
 

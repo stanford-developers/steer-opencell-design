@@ -1384,4 +1384,4 @@ OpenCell Design is dual-licensed:
 
 - **Commercial license:** For proprietary/commercial use without the AGPL copyleft requirement, contact nsiemons@stanford.edu for a commercial license.
 
-See [LICENSE](LICENSE) for the full AGPL-3.0 license text.
+See [LICENSE](LICENSE) for the full AGPL-3.0 license text and [LICENSING.md](LICENSING.md) for the dual-licensing details.
