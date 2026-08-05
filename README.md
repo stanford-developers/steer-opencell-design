@@ -775,6 +775,8 @@ Shared by all assemblies (`WoundJellyRoll`, `FlatWoundJellyRoll`, `PunchedStack`
 |---|---|---|
 | `thickness` | mm | Overall jelly roll thickness |
 | `width` | mm | Overall jelly roll width |
+| `cathode_notch_alignment_angle` | rad or `None` | Same-phase cathode notch alignment; `None` keeps scalar spacing |
+| `anode_notch_alignment_angle` | rad or `None` | Same-phase anode notch alignment; `None` keeps scalar spacing |
 
 **`FlatWoundJellyRoll` — additional read-only:**
 
@@ -782,6 +784,7 @@ Shared by all assemblies (`WoundJellyRoll`, `FlatWoundJellyRoll`, `PunchedStack`
 |---|---|---|
 | `pressed_radius` | mm | Pressed mandrel radius |
 | `pressed_straight_length` | mm | Pressed mandrel straight length |
+| `thickness_aware_notch_data` | dict | Calculated centers, pitches, and gaps by electrode |
 
 **`PunchedStack` / `ZFoldStack` — additional settable:**
 
@@ -943,6 +946,7 @@ Shared by all current collector types.
 | `bare_lengths_b_side` | (mm, mm) | (start, end) bare region on B-side |
 | `a_side_coated_section` | (mm, mm) | (start, end) of A-side coating |
 | `b_side_coated_section` | (mm, mm) | (start, end) of B-side coating |
+| `tab_center_positions` | list of mm or `None` | Optional uneven centers measured from the foil leading edge |
 
 **Tabbed CCs** (`NotchedCurrentCollector`, `TabWeldedCurrentCollector`, `PunchedCurrentCollector`) — **additional settable:**
 

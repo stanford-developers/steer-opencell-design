@@ -3,19 +3,24 @@
 
 """Notched current collector for tabless wound cells."""
 
-# import core decorators
-from steer_core.Decorators.General import calculate_all_properties
+from collections.abc import Iterable
+from typing import Optional, Tuple
+
+import numpy as np
 
 # import core units
 from steer_core.Constants.Units import *
 
+# import core decorators
+from steer_core.Decorators.General import calculate_all_properties
+
+from steer_opencell_design.Components.CurrentCollectors.Base import (
+    _TabbedCurrentCollector,
+    _TapeCurrentCollector,
+)
+
 # import materials
 from steer_opencell_design.Materials.Other import CurrentCollectorMaterial
-
-from typing import Tuple, Optional
-import numpy as np
-
-from steer_opencell_design.Components.CurrentCollectors.Base import _TabbedCurrentCollector, _TapeCurrentCollector
 
 
 class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
@@ -118,6 +123,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         insulation_width: Optional[float] = 0,
         name: Optional[str] = "Notched Current Collector",
         datum: Optional[Tuple[float, float, float]] = (0, 0, 0),
+        tab_center_positions: Optional[Iterable[float]] = None,
     ) -> None:
         """
         Initialize an object that represents a notched current collector.
@@ -138,6 +144,10 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
             Spacing between the tabs in mm.
         tab_height : float
             Height of the tabs in mm.
+        tab_center_positions : iterable of float, optional
+            Explicit tab center positions measured from the leading edge of the
+            foil in mm. When provided, these thickness-aware or otherwise
+            custom positions take precedence over ``tab_spacing``.
         coated_tab_height : float
             Height of the coated tab on the top side in mm.
         bare_lengths_a_side : Tuple[float, float]
@@ -151,6 +161,10 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         datum : Optional[Tuple[float, float, float]], default=(0, 0, 0)
             Datum of the current collector in mm.
         """
+        # Must exist before the base-class initialization invokes coordinate
+        # hooks through this class's MRO.
+        self._tab_center_positions = None
+
         super().__init__(
             material=material,
             x_foil_length=length,
@@ -167,6 +181,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         )
 
         self.tab_spacing = tab_spacing
+        self.tab_center_positions = tab_center_positions
         self._calculate_all_properties()
         self._update_properties = True
 
@@ -175,7 +190,9 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         """
         Create a NotchedCurrentCollector from a TablessCurrentCollector.
         """
-        from steer_opencell_design.Components.CurrentCollectors.Tabless import TablessCurrentCollector
+        from steer_opencell_design.Components.CurrentCollectors.Tabless import (
+            TablessCurrentCollector,
+        )
 
         # validate type
         cls.validate_type(tabless, TablessCurrentCollector, "tabless")
@@ -210,7 +227,9 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         """
         Create a NotchedCurrentCollector from a TabWeldedCurrentCollector.
         """
-        from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector
+        from steer_opencell_design.Components.CurrentCollectors.Tabbed import (
+            TabWeldedCurrentCollector,
+        )
 
         # validate type
         cls.validate_type(tab_welded, TabWeldedCurrentCollector, "tab_welded")
@@ -245,6 +264,19 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         Function to calculate the positions of the tabs along the length of the current collector.
         """
         x_min = self._datum[0] - self._x_foil_length / 2
+
+        explicit_centers = getattr(self, "_tab_center_positions", None)
+        if explicit_centers is not None:
+            self._validate_tab_center_positions(explicit_centers)
+            centers = x_min + explicit_centers
+            self._tab_positions = np.column_stack(
+                (
+                    centers - self._tab_width / 2,
+                    centers + self._tab_width / 2,
+                )
+            )
+            return
+
         x_max = self._datum[0] + self._x_foil_length / 2 + self._tab_spacing
 
         number_of_tabs = 1
@@ -272,6 +304,28 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         self._tab_positions = np.column_stack((tab_starts, tab_ends))
 
+    def _validate_tab_center_positions(self, positions: np.ndarray) -> None:
+        """Validate explicit tab centers expressed in internal meter units."""
+        if positions.ndim != 1:
+            raise ValueError("tab_center_positions must be a one-dimensional sequence.")
+        if not np.all(np.isfinite(positions)):
+            raise ValueError("tab_center_positions must contain only finite values.")
+        if len(positions) == 0:
+            return
+
+        minimum_center = self._tab_width / 2
+        maximum_center = self._x_foil_length - self._tab_width / 2
+        if positions[0] < minimum_center or positions[-1] > maximum_center:
+            raise ValueError(
+                "Each tab center must keep the full tab within the foil length."
+            )
+
+        pitches = np.diff(positions)
+        if np.any(pitches <= 0):
+            raise ValueError("tab_center_positions must be strictly increasing.")
+        if np.any(pitches < self._tab_width):
+            raise ValueError("Explicit tabs cannot overlap.")
+
     def _calculate_coordinates(self):
         self._calculate_tab_positions()
         super()._calculate_coordinates()
@@ -292,7 +346,9 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         """
         # Default values
         y_depth = self._y_foil_length if y_depth is None else y_depth
-        y_start = self._datum[1] - self._y_foil_length / 2 if y_start is None else y_start
+        y_start = (
+            self._datum[1] - self._y_foil_length / 2 if y_start is None else y_start
+        )
         notch = self._tab_height if notch_height is None else notch_height
 
         # Convert bare lengths to meters (they come in mm according to docstring)
@@ -377,12 +433,14 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         y_ins_end = y_ins_start + self._insulation_width
 
         # Compute x bounds of coated region
-        bare_left, bare_right = self._bare_lengths_a_side if side == "a" else self._bare_lengths_b_side
-        
+        bare_left, bare_right = (
+            self._bare_lengths_a_side if side == "a" else self._bare_lengths_b_side
+        )
+
         # Check if bare lengths exceed foil length - return empty arrays if so
         if bare_left + bare_right >= self._x_foil_length:
             return np.empty((0, 3))
-            
+
         x_start = self._datum[0] - self._x_foil_length / 2 + bare_left
         x_end = self._datum[0] + self._x_foil_length / 2 - bare_right
 
@@ -403,7 +461,9 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
                 e = min(te, x_end)
 
                 # Get coordinates for this tab's insulation rectangle
-                tab_x, tab_y = self.build_square_array(x_width=e - s, y_width=self._insulation_width, x=s, y=y_ins_start)
+                tab_x, tab_y = self.build_square_array(
+                    x_width=e - s, y_width=self._insulation_width, x=s, y=y_ins_start
+                )
 
                 # Add to lists
                 all_x.extend(tab_x)
@@ -448,7 +508,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         # Create z array with proper numeric dtype
         z = np.full_like(x, z_val, dtype=float)
-        
+
         # Handle None values by converting to NaN for numeric arrays
         none_mask = np.array([val is None for val in x])
         if np.any(none_mask):
@@ -460,6 +520,44 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
     @property
     def tab_positions(self) -> list:
         return [(start * M_TO_MM, end * M_TO_MM) for start, end in self._tab_positions]
+
+    @property
+    def tab_center_positions(self) -> Optional[list]:
+        """Return configured explicit centers from the foil leading edge in mm."""
+        positions = getattr(self, "_tab_center_positions", None)
+        if positions is None:
+            return None
+        return (positions * M_TO_MM).tolist()
+
+    @property
+    def calculated_tab_center_positions(self) -> list:
+        """Return all calculated tab centers in the collector coordinate system."""
+        if len(self._tab_positions) == 0:
+            return []
+        centers = self._tab_positions.mean(axis=1)
+        return (centers * M_TO_MM).tolist()
+
+    @property
+    def tab_pitches(self) -> list:
+        """Return consecutive center-to-center pitches in mm."""
+        if len(self._tab_positions) < 2:
+            return []
+        centers = self._tab_positions.mean(axis=1)
+        return (np.diff(centers) * M_TO_MM).tolist()
+
+    @property
+    def tab_gaps(self) -> list:
+        """Return consecutive edge-to-edge notch gaps in mm."""
+        if len(self._tab_positions) < 2:
+            return []
+        return (
+            (self._tab_positions[1:, 0] - self._tab_positions[:-1, 1]) * M_TO_MM
+        ).tolist()
+
+    @property
+    def number_of_tabs(self) -> int:
+        """Return the number of complete tabs in the current pattern."""
+        return len(self._tab_positions)
 
     @property
     def tab_spacing(self) -> float:
@@ -508,11 +606,15 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
     @tab_spacing.setter
     @calculate_all_properties
     def tab_spacing(self, tab_spacing: float) -> None:
-        
+
         self.validate_positive_float(tab_spacing, "tab_spacing")
 
         self._tab_spacing = float(tab_spacing) * MM_TO_M
         self._tab_gap = self._tab_spacing - self._tab_width
+
+        # Explicit positions and scalar spacing are mutually exclusive modes.
+        if hasattr(self, "_tab_center_positions"):
+            self._tab_center_positions = None
 
         if self._tab_gap < 0:
             raise ValueError("Tab spacing cannot be less than the tab width.")
@@ -539,4 +641,30 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         # Update internal values
         self._tab_gap = tab_gap_m
         self._tab_spacing = new_tab_spacing
+        self._tab_center_positions = None
 
+    @tab_center_positions.setter
+    @calculate_all_properties
+    def tab_center_positions(
+        self, tab_center_positions: Optional[Iterable[float]]
+    ) -> None:
+        """Set explicit centers from the foil leading edge, in millimeters."""
+        if tab_center_positions is None:
+            self._tab_center_positions = None
+            return
+        if isinstance(tab_center_positions, (str, bytes)) or not isinstance(
+            tab_center_positions, Iterable
+        ):
+            raise TypeError(
+                "tab_center_positions must be an iterable of numbers or None."
+            )
+
+        try:
+            positions = np.asarray(list(tab_center_positions), dtype=float) * MM_TO_M
+        except (TypeError, ValueError) as exc:
+            raise TypeError(
+                "tab_center_positions must be an iterable of numbers or None."
+            ) from exc
+
+        self._validate_tab_center_positions(positions)
+        self._tab_center_positions = positions

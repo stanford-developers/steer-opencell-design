@@ -157,8 +157,8 @@ class TestRacetrackPosition(unittest.TestCase):
         on_top = abs(z - self.radius) < tol and -L_half - tol <= x <= L_half + tol
         on_bot = abs(z + self.radius) < tol and -L_half - tol <= x <= L_half + tol
         # Right semicircle is centred at (+L/2, 0); left at (-L/2, 0).
-        on_right = abs((x - L_half) ** 2 + z ** 2 - self.radius ** 2) < tol
-        on_left = abs((x + L_half) ** 2 + z ** 2 - self.radius ** 2) < tol
+        on_right = abs((x - L_half) ** 2 + z**2 - self.radius**2) < tol
+        on_left = abs((x + L_half) ** 2 + z**2 - self.radius**2) < tol
         return on_top or on_bot or on_right or on_left
 
     def test_returns_tuple_of_two_floats(self):
@@ -240,9 +240,7 @@ class TestRacetrackPositionsBatchMatchesScalar(unittest.TestCase):
         straight_length = 0.06
         radii = np.full_like(thetas, radius)
 
-        x_batch, z_batch = _racetrack_positions_batch(
-            thetas, radii, straight_length
-        )
+        x_batch, z_batch = _racetrack_positions_batch(thetas, radii, straight_length)
 
         for i, theta in enumerate(thetas):
             x_scalar, z_scalar = SpiralCalculator.racetrack_position(
@@ -290,33 +288,25 @@ class TestRacetrackCurvature(unittest.TestCase):
 
 class TestRacetrackSpanHelpers(unittest.TestCase):
     def test_thickness_is_z_span(self):
-        coords = np.array(
-            [[0.0, -2.0], [1.0, 0.0], [2.0, 3.0], [3.0, -1.0]]
-        )
+        coords = np.array([[0.0, -2.0], [1.0, 0.0], [2.0, 3.0], [3.0, -1.0]])
         self.assertAlmostEqual(
             SpiralCalculator.get_thickness_of_racetrack(coords), 5.0, places=10
         )
 
     def test_thickness_ignores_nan(self):
-        coords = np.array(
-            [[0.0, -2.0], [1.0, np.nan], [2.0, 3.0], [3.0, np.nan]]
-        )
+        coords = np.array([[0.0, -2.0], [1.0, np.nan], [2.0, 3.0], [3.0, np.nan]])
         self.assertAlmostEqual(
             SpiralCalculator.get_thickness_of_racetrack(coords), 5.0, places=10
         )
 
     def test_width_is_x_span(self):
-        coords = np.array(
-            [[-1.0, 0.0], [0.0, 1.0], [4.0, 2.0], [2.0, 3.0]]
-        )
+        coords = np.array([[-1.0, 0.0], [0.0, 1.0], [4.0, 2.0], [2.0, 3.0]])
         self.assertAlmostEqual(
             SpiralCalculator.get_width_of_racetrack(coords), 5.0, places=10
         )
 
     def test_width_ignores_nan(self):
-        coords = np.array(
-            [[-1.0, 0.0], [np.nan, 1.0], [4.0, 2.0], [np.nan, 3.0]]
-        )
+        coords = np.array([[-1.0, 0.0], [np.nan, 1.0], [4.0, 2.0], [np.nan, 3.0]])
         self.assertAlmostEqual(
             SpiralCalculator.get_width_of_racetrack(coords), 5.0, places=10
         )
@@ -354,6 +344,51 @@ class TestThicknessAtJit(unittest.TestCase):
                 x, self.t_grid, self.n_grid_m1, self.dx_inv, self.total_length
             )
             self.assertAlmostEqual(value, x, places=10, msg=f"x={x}")
+
+
+class TestAlignedPositionsFromSpiral(unittest.TestCase):
+    def test_returns_same_phase_positions_with_increasing_pitch(self):
+        theta = np.linspace(0.0, 8.0 * np.pi, 1001)
+        # Monotonic synthetic winding whose length per turn grows outward.
+        x_unwrapped = 0.02 * theta + 0.0002 * theta**2
+        spiral = np.column_stack(
+            (
+                theta,
+                x_unwrapped,
+                np.ones_like(theta),
+                np.zeros_like(theta),
+                np.zeros_like(theta),
+                theta / TWO_PI,
+            )
+        )
+
+        centers = SpiralCalculator.aligned_positions_from_spiral(
+            spiral, alignment_angle=0.0
+        )
+
+        np.testing.assert_allclose(
+            centers,
+            0.02 * (TWO_PI * np.arange(5)) + 0.0002 * (TWO_PI * np.arange(5)) ** 2,
+        )
+        self.assertTrue(np.all(np.diff(np.diff(centers)) > 0))
+
+    def test_omits_centers_where_full_tab_does_not_fit(self):
+        theta = np.linspace(0.0, 4.0 * np.pi, 101)
+        spiral = np.column_stack(
+            (theta, theta / 100, theta, theta, theta, theta / TWO_PI)
+        )
+
+        centers = SpiralCalculator.aligned_positions_from_spiral(
+            spiral, alignment_angle=0.0, tab_width=0.02
+        )
+
+        self.assertEqual(len(centers), 1)
+        self.assertAlmostEqual(centers[0], TWO_PI / 100)
+
+    def test_rejects_non_finite_angle(self):
+        spiral = np.zeros((2, 6))
+        with self.assertRaises(ValueError):
+            SpiralCalculator.aligned_positions_from_spiral(spiral, np.nan)
 
 
 if __name__ == "__main__":

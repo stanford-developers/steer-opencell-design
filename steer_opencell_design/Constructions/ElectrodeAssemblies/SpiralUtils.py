@@ -3,14 +3,15 @@
 
 """Static utility methods for spiral and racetrack geometry calculations used in jelly roll winding."""
 
-from steer_opencell_design.Constructions.Layups.Laminate import Laminate
-from steer_core.Constants.Universal import PI, TWO_PI
-from steer_core.Constants.Units import *
-import numpy as np
-import pandas as pd
 import math
 from typing import Optional
 
+import numpy as np
+import pandas as pd
+from steer_core.Constants.Units import *
+from steer_core.Constants.Universal import PI, TWO_PI
+
+from steer_opencell_design.Constructions.Layups.Laminate import Laminate
 
 try:
     from numba import njit
@@ -1390,6 +1391,72 @@ class SpiralCalculator:
         dt_dx = np.gradient(t_grid, x_grid).astype(np.float64)
         max_grad = float(np.max(np.abs(dt_dx))) + 1e-12
         return (1.0 + 5.0 * (np.abs(dt_dx) / max_grad)).astype(np.float64)
+
+    @staticmethod
+    def aligned_positions_from_spiral(
+        spiral: np.ndarray,
+        alignment_angle: float,
+        tab_width: float = 0.0,
+        minimum_gap: float = 0.0,
+    ) -> np.ndarray:
+        """Return unwrapped centers that recur at one angular winding phase.
+
+        Length inputs and outputs use meters; ``alignment_angle`` uses radians.
+        A center is emitted for every integer turn satisfying
+        ``theta = alignment_angle + 2*pi*k`` where the complete tab fits within
+        the supplied spiral's unwrapped-length extent.
+        """
+        spiral = np.asarray(spiral, dtype=float)
+        if spiral.ndim != 2 or spiral.shape[1] <= X_UNWRAPPED_COL:
+            raise ValueError(
+                "spiral must be a two-dimensional array containing theta and "
+                "unwrapped-length columns."
+            )
+        if not np.isfinite(alignment_angle):
+            raise ValueError("alignment_angle must be finite.")
+        if not np.isfinite(tab_width) or tab_width < 0:
+            raise ValueError("tab_width must be a finite non-negative value.")
+        if not np.isfinite(minimum_gap) or minimum_gap < 0:
+            raise ValueError("minimum_gap must be a finite non-negative value.")
+
+        theta = spiral[:, THETA_COL]
+        x_unwrapped = spiral[:, X_UNWRAPPED_COL]
+        valid = np.isfinite(theta) & np.isfinite(x_unwrapped)
+        theta = theta[valid]
+        x_unwrapped = x_unwrapped[valid]
+        if len(theta) < 2:
+            return np.empty(0, dtype=float)
+
+        order = np.argsort(theta)
+        theta = theta[order]
+        x_unwrapped = x_unwrapped[order]
+        theta, unique_indices = np.unique(theta, return_index=True)
+        x_unwrapped = x_unwrapped[unique_indices]
+        if len(theta) < 2:
+            return np.empty(0, dtype=float)
+
+        first_turn = int(np.ceil((theta[0] - alignment_angle) / TWO_PI))
+        last_turn = int(np.floor((theta[-1] - alignment_angle) / TWO_PI))
+        if last_turn < first_turn:
+            return np.empty(0, dtype=float)
+
+        target_theta = alignment_angle + TWO_PI * np.arange(
+            first_turn, last_turn + 1, dtype=float
+        )
+        centers = np.interp(target_theta, theta, x_unwrapped)
+
+        half_width = tab_width / 2
+        x_min = float(np.min(x_unwrapped))
+        x_max = float(np.max(x_unwrapped))
+        fits = (centers - half_width >= x_min) & (centers + half_width <= x_max)
+        centers = np.sort(centers[fits])
+
+        if len(centers) > 1 and np.any(np.diff(centers) < tab_width + minimum_gap):
+            raise ValueError(
+                "Aligned tab positions overlap or violate the requested minimum gap."
+            )
+
+        return centers
 
     @staticmethod
     def calculate_variable_thickness_spiral(

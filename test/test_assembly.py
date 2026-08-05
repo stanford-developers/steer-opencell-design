@@ -3,39 +3,47 @@
 
 import time
 import unittest
-import pandas as pd
-import plotly.graph_objects as go
 from copy import deepcopy
 
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+from steer_core.Constants.Units import MM_TO_M
+from steer_core.Constants.Universal import TWO_PI
+
 from steer_opencell_design import (
-    CathodeFormulation,
-    AnodeFormulation,
-    Cathode,
     Anode,
-    Separator,
-    NotchedCurrentCollector,
-    PunchedCurrentCollector,
-    TablessCurrentCollector,
-    TabWeldedCurrentCollector,
-    WeldTab,
-    PunchedStack,
-    ZFoldStack,
-    WoundJellyRoll,
-    FlatWoundJellyRoll,
-    RoundMandrel,
-    FlatMandrel,
-    Tape,
-    MonoLayer,
-    ZFoldMonoLayer,
-    Laminate,
-    CathodeMaterial,
+    AnodeFormulation,
     AnodeMaterial,
     Binder,
+    Cathode,
+    CathodeFormulation,
+    CathodeMaterial,
     ConductiveAdditive,
     CurrentCollectorMaterial,
-    SeparatorMaterial,
+    FlatMandrel,
+    FlatWoundJellyRoll,
     InsulationMaterial,
+    Laminate,
+    MonoLayer,
+    NotchedCurrentCollector,
+    PunchedCurrentCollector,
+    PunchedStack,
+    RoundMandrel,
+    Separator,
+    SeparatorMaterial,
+    TablessCurrentCollector,
+    TabWeldedCurrentCollector,
+    Tape,
     TapeMaterial,
+    WeldTab,
+    WoundJellyRoll,
+    ZFoldMonoLayer,
+    ZFoldStack,
+)
+from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import (
+    THETA_COL,
+    X_UNWRAPPED_COL,
 )
 
 
@@ -627,6 +635,62 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.thickness_range[1], 24.37, 1)
         self.assertAlmostEqual(self.my_jellyroll.width_range[0], 104.48, 1)
         self.assertAlmostEqual(self.my_jellyroll.width_range[1], 125.95, 1)
+
+    def test_thickness_aware_cathode_notches_align_by_winding_phase(self):
+        self.my_jellyroll.cathode_notch_alignment_angle = 0.0
+
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        self.assertIsNotNone(collector.tab_center_positions)
+        self.assertGreater(collector.number_of_tabs, 2)
+        self.assertTrue(np.all(np.diff(collector.tab_pitches) > 0))
+
+        spiral = self.my_jellyroll._component_spirals["cathode_current_collector"]
+        valid = np.isfinite(spiral[:, THETA_COL]) & np.isfinite(
+            spiral[:, X_UNWRAPPED_COL]
+        )
+        theta = spiral[valid, THETA_COL]
+        unwrapped = spiral[valid, X_UNWRAPPED_COL]
+        order = np.argsort(unwrapped)
+        leading_edge = collector._datum[0] - collector._x_foil_length / 2
+        centers_global = (
+            leading_edge + np.asarray(collector.tab_center_positions) * MM_TO_M
+        )
+        center_angles = np.interp(centers_global, unwrapped[order], theta[order])
+        phase_error = np.abs(center_angles - TWO_PI * np.rint(center_angles / TWO_PI))
+        self.assertTrue(np.all(phase_error < 1e-8))
+
+        data = self.my_jellyroll.thickness_aware_notch_data["cathode"]
+        self.assertEqual(data["centers"], collector.tab_center_positions)
+        self.assertEqual(data["gaps"], collector.tab_gaps)
+
+        figure = self.my_jellyroll.plot_notch_alignment()
+        marker_trace = next(
+            trace for trace in figure.data if trace.name == "Cathode notch centers"
+        )
+        self.assertEqual(len(marker_trace.x), collector.number_of_tabs)
+
+    def test_disabling_alignment_restores_scalar_spacing(self):
+        self.my_jellyroll.cathode_notch_alignment_angle = 0.0
+        self.my_jellyroll.cathode_notch_alignment_angle = None
+
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        self.assertIsNone(collector.tab_center_positions)
+        # The legacy pattern may clip its final tab at the foil boundary.
+        for pitch in collector.tab_pitches[:-1]:
+            self.assertAlmostEqual(pitch, collector.tab_spacing)
+
+    def test_alignment_configuration_serializes_for_both_electrodes(self):
+        self.my_jellyroll.cathode_notch_alignment_angle = 0.0
+        self.my_jellyroll.anode_notch_alignment_angle = np.pi
+
+        restored = FlatWoundJellyRoll.deserialize(self.my_jellyroll.serialize())
+
+        self.assertEqual(restored.cathode_notch_alignment_angle, 0.0)
+        self.assertEqual(restored.anode_notch_alignment_angle, np.pi)
+        self.assertGreater(restored.layup.cathode.current_collector.number_of_tabs, 2)
+        self.assertGreater(restored.layup.anode.current_collector.number_of_tabs, 2)
+        self.assertIn("cathode", restored.thickness_aware_notch_data)
+        self.assertIn("anode", restored.thickness_aware_notch_data)
 
     def test_serialization(self):
         serialized = self.my_jellyroll.serialize()
