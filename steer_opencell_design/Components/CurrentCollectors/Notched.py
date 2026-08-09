@@ -338,9 +338,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         """
         # Default values
         y_depth = self._y_foil_length if y_depth is None else y_depth
-        y_start = (
-            self._datum[1] - self._y_foil_length / 2 if y_start is None else y_start
-        )
+        y_start = self._datum[1] - self._y_foil_length / 2 if y_start is None else y_start
         notch = self._tab_height if notch_height is None else notch_height
 
         # Convert bare lengths to meters (they come in mm according to docstring)
@@ -425,9 +423,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         y_ins_end = y_ins_start + self._insulation_width
 
         # Compute x bounds of coated region
-        bare_left, bare_right = (
-            self._bare_lengths_a_side if side == "a" else self._bare_lengths_b_side
-        )
+        bare_left, bare_right = self._bare_lengths_a_side if side == "a" else self._bare_lengths_b_side
 
         # Check if bare lengths exceed foil length - return empty arrays if so
         if bare_left + bare_right >= self._x_foil_length:
@@ -453,9 +449,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
                 e = min(te, x_end)
 
                 # Get coordinates for this tab's insulation rectangle
-                tab_x, tab_y = self.build_square_array(
-                    x_width=e - s, y_width=self._insulation_width, x=s, y=y_ins_start
-                )
+                tab_x, tab_y = self.build_square_array(x_width=e - s, y_width=self._insulation_width, x=s, y=y_ins_start)
 
                 # Add to lists
                 all_x.extend(tab_x)

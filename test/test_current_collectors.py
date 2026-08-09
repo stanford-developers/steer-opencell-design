@@ -42,18 +42,12 @@ class TestNotchedMROStability(unittest.TestCase):
         idx_tape = mro_names.index("_TapeCurrentCollector")
         idx_base = mro_names.index("_CurrentCollector")
 
-        self.assertLess(
-            idx_tabbed,
-            idx_tape,
-            "_TabbedCurrentCollector must resolve before "
-            "_TapeCurrentCollector in NotchedCurrentCollector's MRO",
-        )
-        self.assertLess(
-            idx_tape,
-            idx_base,
-            "_TapeCurrentCollector must resolve before the shared "
-            "_CurrentCollector base",
-        )
+        self.assertLess(idx_tabbed, idx_tape,
+                        "_TabbedCurrentCollector must resolve before "
+                        "_TapeCurrentCollector in NotchedCurrentCollector's MRO")
+        self.assertLess(idx_tape, idx_base,
+                        "_TapeCurrentCollector must resolve before the shared "
+                        "_CurrentCollector base")
         self.assertEqual(mro_names[0], "NotchedCurrentCollector")
 
     def test_notched_inherits_both_branches(self):
@@ -131,7 +125,10 @@ class TestPunchedCurrentCollector(unittest.TestCase):
         Set up
         """
         self.material = CurrentCollectorMaterial(
-            name="Copper", density=8.96, specific_cost=18.1, color="#B87333"
+            name="Copper",
+            density=8.96,
+            specific_cost=18.1,
+            color="#B87333"
         )
 
         self.current_collector = PunchedCurrentCollector(
@@ -275,22 +272,14 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         self.assertEqual(round(self.current_collector._tab_width, 6), 0.03)
         self.assertEqual(round(self.current_collector._tab_spacing, 6), 0.05)
         self.assertEqual(round(self.current_collector._tab_height, 6), 0.007)
-        self.assertEqual(
-            round(self.current_collector._bare_lengths_a_side[0], 6), 0.015
-        )
+        self.assertEqual(round(self.current_collector._bare_lengths_a_side[0], 6), 0.015)
         self.assertEqual(round(self.current_collector._bare_lengths_a_side[1], 6), 0.08)
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[0], 6), 0.02)
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[1], 6), 0.08)
         self.assertEqual(round(self.current_collector._coated_tab_height, 6), 0.002)
-        self.assertAlmostEqual(
-            round(self.current_collector.foil_area, 1), 6732, places=0
-        )
-        self.assertAlmostEqual(
-            round(self.current_collector.coated_area, 1), 3079.3 + 3074, places=0
-        )
-        self.assertAlmostEqual(
-            round(self.current_collector.insulation_area, 1), 185.8, places=0
-        )
+        self.assertAlmostEqual(round(self.current_collector.foil_area, 1), 6732, places=0)
+        self.assertAlmostEqual(round(self.current_collector.coated_area, 1), 3079.3 + 3074, places=0)
+        self.assertAlmostEqual(round(self.current_collector.insulation_area, 1), 185.8, places=0)
         self.assertAlmostEqual(self.current_collector.material.cost, 0.04, places=2)
         self.assertAlmostEqual(self.current_collector.material.mass, 13.63, places=2)
 
@@ -304,27 +293,19 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         # fig_d.show(renderer='browser')
 
     def test_setters(self):
-        self.current_collector.material = CurrentCollectorMaterial.from_database(
-            name="Copper"
-        )
+        self.current_collector.material = CurrentCollectorMaterial.from_database(name="Copper")
         self.assertEqual(self.current_collector.material.name, "Copper")
         self.assertAlmostEqual(self.current_collector.material.mass, 45.23904, places=5)
-        self.assertAlmostEqual(
-            self.current_collector.material.cost, 0.70120512, places=5
-        )
+        self.assertAlmostEqual(self.current_collector.material.cost, 0.70120512, places=5)
 
         self.current_collector.thickness = 10
         self.assertEqual(self.current_collector.thickness, 10)
         self.assertAlmostEqual(self.current_collector.material.mass, 30.15936, places=5)
-        self.assertAlmostEqual(
-            self.current_collector.material.cost, 0.46747008, places=5
-        )
+        self.assertAlmostEqual(self.current_collector.material.cost, 0.46747008, places=5)
 
         self.current_collector.bare_lengths_a_side = (100, 100)
         self.assertAlmostEqual(self.current_collector.material.mass, 30.15936, places=5)
-        self.assertAlmostEqual(
-            self.current_collector.material.cost, 0.46747008, places=5
-        )
+        self.assertAlmostEqual(self.current_collector.material.cost, 0.46747008, places=5)
 
         fig_a = self.current_collector.plot_a_side_view()
         fig_b = self.current_collector.plot_b_side_view()
@@ -344,9 +325,7 @@ class TestNotchedCurrentCollector(unittest.TestCase):
         # figure1.show()
 
     def test_to_tabless(self):
-        new_current_collector = TablessCurrentCollector.from_notched(
-            self.current_collector
-        )
+        new_current_collector = TablessCurrentCollector.from_notched(self.current_collector)
         self.assertIsInstance(new_current_collector, TablessCurrentCollector)
 
     def test_flip_and_set_datum(self):
@@ -450,22 +429,14 @@ class TestNotchedCurrentCollector2(unittest.TestCase):
         self.assertEqual(round(self.current_collector._tab_width, 6), 0.03)
         self.assertEqual(round(self.current_collector._tab_spacing, 6), 0.05)
         self.assertEqual(round(self.current_collector._tab_height, 6), 0.007)
-        self.assertEqual(
-            round(self.current_collector._bare_lengths_a_side[0], 6), 0.015
-        )
+        self.assertEqual(round(self.current_collector._bare_lengths_a_side[0], 6), 0.015)
         self.assertEqual(round(self.current_collector._bare_lengths_a_side[1], 6), 0.08)
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[0], 6), 0.02)
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[1], 6), 0.08)
         self.assertEqual(round(self.current_collector._coated_tab_height, 6), 0.004)
-        self.assertAlmostEqual(
-            round(self.current_collector.foil_area, 1), 6732, places=0
-        )
-        self.assertAlmostEqual(
-            round(self.current_collector.coated_area, 1), 6339.1, places=0
-        )
-        self.assertAlmostEqual(
-            round(self.current_collector.insulation_area, 1), 69.7, places=0
-        )
+        self.assertAlmostEqual(round(self.current_collector.foil_area, 1), 6732, places=0)
+        self.assertAlmostEqual(round(self.current_collector.coated_area, 1), 6339.1, places=0)
+        self.assertAlmostEqual(round(self.current_collector.insulation_area, 1), 69.7, places=0)
 
     def test_figures(self):
         fig_a = self.current_collector.plot_a_side_view()
@@ -598,9 +569,7 @@ class TestTablessCurrentCollector(unittest.TestCase):
         # fig2.show()
 
     def test_to_notched(self):
-        new_current_collector = NotchedCurrentCollector.from_tabless(
-            self.current_collector
-        )
+        new_current_collector = NotchedCurrentCollector.from_tabless(self.current_collector)
         self.assertIsInstance(new_current_collector, NotchedCurrentCollector)
 
 
@@ -611,9 +580,7 @@ class TestWeldTab(unittest.TestCase):
         """
         self.material = CurrentCollectorMaterial.from_database(name="Copper")
 
-        self.weldtab = WeldTab(
-            material=self.material, width=5, length=115, thickness=20
-        )
+        self.weldtab = WeldTab(material=self.material, width=5, length=115, thickness=20)
 
     def test_equality(self):
         copy_cc = deepcopy(self.weldtab)
@@ -653,9 +620,7 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         self.tab_material = CurrentCollectorMaterial.from_database(name="Copper")
         self.cc_material = CurrentCollectorMaterial.from_database(name="Aluminum")
 
-        self.weld_tab = WeldTab(
-            material=self.tab_material, width=5, length=115, thickness=20
-        )
+        self.weld_tab = WeldTab(material=self.tab_material, width=5, length=115, thickness=20)
 
         self.current_collector = TabWeldedCurrentCollector(
             material=self.cc_material,
@@ -692,9 +657,7 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         self.assertEqual(round(self.current_collector._weld_tab_positions[1], 6), 0.1)
         self.assertEqual(round(self.current_collector._skip_coat_width, 6), 0.02)
         self.assertEqual(round(self.current_collector._tab_overhang, 6), 0.01)
-        self.assertEqual(
-            round(self.current_collector._bare_lengths_a_side[0], 6), 0.015
-        )
+        self.assertEqual(round(self.current_collector._bare_lengths_a_side[0], 6), 0.015)
         self.assertEqual(round(self.current_collector._bare_lengths_a_side[1], 6), 0.08)
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[0], 6), 0.02)
         self.assertEqual(round(self.current_collector._bare_lengths_b_side[1], 6), 0.08)
@@ -730,9 +693,7 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         # fig1.show()
 
     def test_to_notched(self):
-        new_current_collector = NotchedCurrentCollector.from_tab_welded(
-            self.current_collector
-        )
+        new_current_collector = NotchedCurrentCollector.from_tab_welded(self.current_collector)
         self.assertIsInstance(new_current_collector, NotchedCurrentCollector)
 
         fig1 = new_current_collector.plot_top_down_view()
@@ -745,9 +706,7 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         # fig2.show()
 
     def test_to_tabless(self):
-        new_current_collector = TablessCurrentCollector.from_tab_welded(
-            self.current_collector
-        )
+        new_current_collector = TablessCurrentCollector.from_tab_welded(self.current_collector)
         self.assertIsInstance(new_current_collector, TablessCurrentCollector)
 
     def test_flip(self):

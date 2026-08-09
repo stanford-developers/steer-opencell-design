@@ -157,8 +157,8 @@ class TestRacetrackPosition(unittest.TestCase):
         on_top = abs(z - self.radius) < tol and -L_half - tol <= x <= L_half + tol
         on_bot = abs(z + self.radius) < tol and -L_half - tol <= x <= L_half + tol
         # Right semicircle is centred at (+L/2, 0); left at (-L/2, 0).
-        on_right = abs((x - L_half) ** 2 + z**2 - self.radius**2) < tol
-        on_left = abs((x + L_half) ** 2 + z**2 - self.radius**2) < tol
+        on_right = abs((x - L_half) ** 2 + z ** 2 - self.radius ** 2) < tol
+        on_left = abs((x + L_half) ** 2 + z ** 2 - self.radius ** 2) < tol
         return on_top or on_bot or on_right or on_left
 
     def test_returns_tuple_of_two_floats(self):
@@ -240,7 +240,9 @@ class TestRacetrackPositionsBatchMatchesScalar(unittest.TestCase):
         straight_length = 0.06
         radii = np.full_like(thetas, radius)
 
-        x_batch, z_batch = _racetrack_positions_batch(thetas, radii, straight_length)
+        x_batch, z_batch = _racetrack_positions_batch(
+            thetas, radii, straight_length
+        )
 
         for i, theta in enumerate(thetas):
             x_scalar, z_scalar = SpiralCalculator.racetrack_position(
@@ -288,25 +290,33 @@ class TestRacetrackCurvature(unittest.TestCase):
 
 class TestRacetrackSpanHelpers(unittest.TestCase):
     def test_thickness_is_z_span(self):
-        coords = np.array([[0.0, -2.0], [1.0, 0.0], [2.0, 3.0], [3.0, -1.0]])
+        coords = np.array(
+            [[0.0, -2.0], [1.0, 0.0], [2.0, 3.0], [3.0, -1.0]]
+        )
         self.assertAlmostEqual(
             SpiralCalculator.get_thickness_of_racetrack(coords), 5.0, places=10
         )
 
     def test_thickness_ignores_nan(self):
-        coords = np.array([[0.0, -2.0], [1.0, np.nan], [2.0, 3.0], [3.0, np.nan]])
+        coords = np.array(
+            [[0.0, -2.0], [1.0, np.nan], [2.0, 3.0], [3.0, np.nan]]
+        )
         self.assertAlmostEqual(
             SpiralCalculator.get_thickness_of_racetrack(coords), 5.0, places=10
         )
 
     def test_width_is_x_span(self):
-        coords = np.array([[-1.0, 0.0], [0.0, 1.0], [4.0, 2.0], [2.0, 3.0]])
+        coords = np.array(
+            [[-1.0, 0.0], [0.0, 1.0], [4.0, 2.0], [2.0, 3.0]]
+        )
         self.assertAlmostEqual(
             SpiralCalculator.get_width_of_racetrack(coords), 5.0, places=10
         )
 
     def test_width_ignores_nan(self):
-        coords = np.array([[-1.0, 0.0], [np.nan, 1.0], [4.0, 2.0], [np.nan, 3.0]])
+        coords = np.array(
+            [[-1.0, 0.0], [np.nan, 1.0], [4.0, 2.0], [np.nan, 3.0]]
+        )
         self.assertAlmostEqual(
             SpiralCalculator.get_width_of_racetrack(coords), 5.0, places=10
         )
