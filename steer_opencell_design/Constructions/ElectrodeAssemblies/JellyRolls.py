@@ -3,46 +3,41 @@
 
 """Jelly roll electrode assemblies wound around cylindrical or flat mandrels."""
 
+from typing import Union, Dict, Tuple, Any, Optional
 from abc import ABC, abstractmethod
 from copy import copy, deepcopy
-from enum import Enum
-from typing import Any, Dict, Optional, Tuple, Union
-
-import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
+import numpy as np
 from scipy.optimize import brentq
+import plotly.graph_objects as go
+from enum import Enum
+
+from steer_opencell_design.Constructions.Layups.Laminate import Laminate
 from steer_core.Constants.Units import *
 from steer_core.Constants.Universal import PI, TWO_PI
-from steer_core.Decorators.Coordinates import calculate_coordinates
 from steer_core.Decorators.General import (
     calculate_all_properties,
     calculate_bulk_properties,
     recalculate,
 )
+from steer_core.Decorators.Coordinates import calculate_coordinates
 from steer_core.Mixins.Propagation import propagating_setter
-
-from steer_opencell_design.Components.CurrentCollectors.Notched import (
-    NotchedCurrentCollector,
-)
-from steer_opencell_design.Components.CurrentCollectors.Tabbed import (
-    TabWeldedCurrentCollector,
-)
-from steer_opencell_design.Components.CurrentCollectors.Tabless import (
-    TablessCurrentCollector,
-)
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Base import (
     _ElectrodeAssembly,
+)
+from steer_opencell_design.Constructions.ElectrodeAssemblies.WindingEquipment import (
+    RoundMandrel,
+    FlatMandrel,
 )
 from steer_opencell_design.Constructions.ElectrodeAssemblies.SpiralUtils import (
     SpiralCalculator,
 )
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Tape import Tape
-from steer_opencell_design.Constructions.ElectrodeAssemblies.WindingEquipment import (
-    FlatMandrel,
-    RoundMandrel,
+from steer_opencell_design.Components.CurrentCollectors.Tabbed import (
+    TabWeldedCurrentCollector,
 )
-from steer_opencell_design.Constructions.Layups.Laminate import Laminate
+from steer_opencell_design.Components.CurrentCollectors.Notched import NotchedCurrentCollector
+from steer_opencell_design.Components.CurrentCollectors.Tabless import TablessCurrentCollector
 
 # Constants for array column indices
 THETA_COL = 0

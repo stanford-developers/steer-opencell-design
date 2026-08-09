@@ -3,44 +3,43 @@
 
 import time
 import unittest
-from copy import deepcopy
-
-import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from steer_core.Constants.Units import MM_TO_M
-from steer_core.Constants.Universal import TWO_PI
+from copy import deepcopy
+import numpy as np
 
 from steer_opencell_design import (
-    Anode,
-    AnodeFormulation,
-    AnodeMaterial,
-    Binder,
-    Cathode,
     CathodeFormulation,
-    CathodeMaterial,
-    ConductiveAdditive,
-    CurrentCollectorMaterial,
-    FlatMandrel,
-    FlatWoundJellyRoll,
-    InsulationMaterial,
-    Laminate,
-    MonoLayer,
+    AnodeFormulation,
+    Cathode,
+    Anode,
+    Separator,
     NotchedCurrentCollector,
     PunchedCurrentCollector,
-    PunchedStack,
-    RoundMandrel,
-    Separator,
-    SeparatorMaterial,
     TablessCurrentCollector,
     TabWeldedCurrentCollector,
-    Tape,
-    TapeMaterial,
     WeldTab,
-    WoundJellyRoll,
-    ZFoldMonoLayer,
+    PunchedStack,
     ZFoldStack,
+    WoundJellyRoll,
+    FlatWoundJellyRoll,
+    RoundMandrel,
+    FlatMandrel,
+    Tape,
+    MonoLayer,
+    ZFoldMonoLayer,
+    Laminate,
+    CathodeMaterial,
+    AnodeMaterial,
+    Binder,
+    ConductiveAdditive,
+    CurrentCollectorMaterial,
+    SeparatorMaterial,
+    InsulationMaterial,
+    TapeMaterial,
 )
+from steer_core.Constants.Units import MM_TO_M
+from steer_core.Constants.Universal import TWO_PI
 from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import (
     THETA_COL,
     X_UNWRAPPED_COL,

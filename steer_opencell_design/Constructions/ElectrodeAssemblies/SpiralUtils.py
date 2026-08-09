@@ -3,15 +3,14 @@
 
 """Static utility methods for spiral and racetrack geometry calculations used in jelly roll winding."""
 
+from steer_opencell_design.Constructions.Layups.Laminate import Laminate
+from steer_core.Constants.Universal import PI, TWO_PI
+from steer_core.Constants.Units import *
+import numpy as np
+import pandas as pd
 import math
 from typing import Optional
 
-import numpy as np
-import pandas as pd
-from steer_core.Constants.Units import *
-from steer_core.Constants.Universal import PI, TWO_PI
-
-from steer_opencell_design.Constructions.Layups.Laminate import Laminate
 
 try:
     from numba import njit

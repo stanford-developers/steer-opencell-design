@@ -3,24 +3,20 @@
 
 """Notched current collector for tabless wound cells."""
 
-from collections.abc import Iterable
-from typing import Optional, Tuple
-
-import numpy as np
+# import core decorators
+from steer_core.Decorators.General import calculate_all_properties
 
 # import core units
 from steer_core.Constants.Units import *
 
-# import core decorators
-from steer_core.Decorators.General import calculate_all_properties
-
-from steer_opencell_design.Components.CurrentCollectors.Base import (
-    _TabbedCurrentCollector,
-    _TapeCurrentCollector,
-)
-
 # import materials
 from steer_opencell_design.Materials.Other import CurrentCollectorMaterial
+
+from collections.abc import Iterable
+from typing import Tuple, Optional
+import numpy as np
+
+from steer_opencell_design.Components.CurrentCollectors.Base import _TabbedCurrentCollector, _TapeCurrentCollector
 
 
 class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
@@ -190,9 +186,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         """
         Create a NotchedCurrentCollector from a TablessCurrentCollector.
         """
-        from steer_opencell_design.Components.CurrentCollectors.Tabless import (
-            TablessCurrentCollector,
-        )
+        from steer_opencell_design.Components.CurrentCollectors.Tabless import TablessCurrentCollector
 
         # validate type
         cls.validate_type(tabless, TablessCurrentCollector, "tabless")
@@ -227,9 +221,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         """
         Create a NotchedCurrentCollector from a TabWeldedCurrentCollector.
         """
-        from steer_opencell_design.Components.CurrentCollectors.Tabbed import (
-            TabWeldedCurrentCollector,
-        )
+        from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector
 
         # validate type
         cls.validate_type(tab_welded, TabWeldedCurrentCollector, "tab_welded")
