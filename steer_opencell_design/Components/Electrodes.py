@@ -1350,6 +1350,33 @@ class _Electrode(
         if self._update_properties:
             self._update_dependent_properties("mass_loading", mass_loading)
 
+    @reversible_areal_capacity.setter
+    def reversible_areal_capacity(self, reversible_areal_capacity: float):
+        """
+        Set the reversible areal capacity of the electrode by solving for mass loading.
+
+        Areal capacity is proportional to mass loading for a fixed formulation, so the
+        required mass loading is found by scaling the current value by the ratio of
+        target to current areal capacity. Whether coating thickness or calender density
+        absorbs the change is governed by ``control_mode``.
+
+        :param reversible_areal_capacity: Target reversible areal capacity in mAh/cm².
+        """
+        if self._is_anode_free: #no-op: anode-free has no coating
+            return
+        self.validate_positive_float(reversible_areal_capacity, "reversible areal capacity")
+        current_areal_capacity = self.reversible_areal_capacity
+
+        if not current_areal_capacity:
+            raise ValueError(
+                f"Cannot solve for mass loading on {self.name}: the current reversible "
+                f"areal capacity is zero or undefined."
+            )
+
+        self.mass_loading = self.mass_loading * (
+            reversible_areal_capacity / current_areal_capacity
+        )
+
     @current_collector.setter
     @calculate_bulk_properties
     @calculate_coordinates
