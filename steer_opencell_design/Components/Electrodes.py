@@ -907,6 +907,28 @@ class _Electrode(
             "Voltage (V)": voltage,
             "Direction": direction,
         })
+
+    @property
+    def reversible_areal_capacity(self) -> float:
+        """Get the reversible areal capacity of the electrode.
+
+        Defined as the span of the discharge branch of
+        :attr:`areal_capacity_curve` (maximum minus minimum), matching the
+        definition of ``reversible_capacity`` at the cell level.
+
+        :return: Reversible areal capacity in mAh/cm², or None for anode-free
+            electrodes, which have no areal capacity curve.
+        """
+        if self._areal_capacity_curve is None:
+            return None
+        curve = self._areal_capacity_curve
+        discharge_curve = curve[curve[:, 2] == -1]
+        if discharge_curve.size == 0:
+            return None
+        areal_capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
+        reversible = discharge_curve[:, 0].max() - discharge_curve[:, 0].min()
+
+        return reversible * areal_capacity_conversion
     
     @property
     def areal_capacity_curve_trace(self) -> go.Scatter:
