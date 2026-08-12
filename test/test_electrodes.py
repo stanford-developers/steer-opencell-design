@@ -861,6 +861,36 @@ class TestElectrodeControlModes(unittest.TestCase):
         capacity_ratio = new_curve["Areal Capacity (mAh/cm²)"] / initial_curve["Areal Capacity (mAh/cm²)"]
         self.assertTrue((capacity_ratio - scaling_factor).abs().max() < 0.01)
 
+    def test_reversible_areal_capacity_matches_curve(self):
+        """Reversible areal capacity is the span of the discharge branch."""
+        curve = self.cathode.areal_capacity_curve
+        discharge = curve[curve["Direction"] == "discharge"]["Areal Capacity (mAh/cm²)"]
+        expected = discharge.max() - discharge.min()
+
+        self.assertAlmostEqual(self.cathode.reversible_areal_capacity, expected, places=10)
+
+    def test_reversible_areal_capacity_scales_with_mass_loading(self):
+        """Doubling mass loading doubles reversible areal capacity."""
+        initial = self.cathode.reversible_areal_capacity
+
+        self.cathode.mass_loading = self.cathode.mass_loading * 2
+
+        self.assertAlmostEqual(self.cathode.reversible_areal_capacity, initial * 2, places=6)
+
+    def test_reversible_areal_capacity_setter_round_trip(self):
+        """Setting reversible areal capacity solves for the mass loading that achieves it."""
+        initial_mass_loading = self.cathode.mass_loading
+        target = self.cathode.reversible_areal_capacity * 1.5
+
+        self.cathode.reversible_areal_capacity = target
+
+        self.assertAlmostEqual(self.cathode.reversible_areal_capacity, target, places=6)
+        self.assertAlmostEqual(self.cathode.mass_loading, initial_mass_loading * 1.5, places=6)
+
+    def test_reversible_areal_capacity_setter_rejects_negative(self):
+        """A negative target is rejected rather than silently applied."""
+        with self.assertRaises(ValueError):
+            self.cathode.reversible_areal_capacity = -1.0
 
 class TestElectrodePropagation(unittest.TestCase):
     """Test update propagation behavior for electrodes."""
@@ -1050,6 +1080,17 @@ class TestAnodeFree(unittest.TestCase):
     def test_areal_capacity_curve_trace_is_none(self):
         """Areal capacity curve trace should be None for anode-free."""
         self.assertIsNone(self.anode.areal_capacity_curve_trace)
+
+    def test_reversible_areal_capacity_is_none(self):
+        """Reversible areal capacity should be None for anode-free."""
+        self.assertIsNone(self.anode.reversible_areal_capacity)
+
+    def test_reversible_areal_capacity_setter_is_noop(self):
+        """Setting reversible areal capacity should be a no-op for anode-free."""
+        self.anode.reversible_areal_capacity = 5.0
+
+        self.assertIsNone(self.anode.reversible_areal_capacity)
+        self.assertEqual(self.anode.mass_loading, 0.0)
 
     # --- visualisation ---
 
