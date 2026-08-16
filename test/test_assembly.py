@@ -42,6 +42,7 @@ from steer_core.Constants.Units import MM_TO_M
 from steer_core.Constants.Universal import TWO_PI
 from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import (
     THETA_COL,
+    TURNS_COL,
     X_COORD_COL,
     X_UNWRAPPED_COL,
     Z_COORD_COL,
@@ -703,6 +704,17 @@ class TestFlatJellyRoll(unittest.TestCase):
             trace for trace in figure.data if trace.name == "Cathode notch centers"
         )
         self.assertEqual(len(marker_trace.x), collector.n_tabs)
+        np.testing.assert_array_equal(
+            np.asarray(marker_trace.customdata)[:, 1],
+            np.floor(
+                np.interp(
+                    centers_global,
+                    component[:, X_UNWRAPPED_COL],
+                    component[:, TURNS_COL],
+                )
+                + 1e-12
+            ),
+        )
 
     def test_top_down_notch_stacks_use_physical_positions_and_transverse_sides(self):
         unconfigured_names = {
@@ -815,8 +827,20 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertIn("anode", restored.thickness_aware_notch_data)
 
     def test_alignment_position_rejects_curved_racetrack_ends(self):
+        original_position = self.my_jellyroll.cathode_notch_alignment_position
+        original_centers = list(
+            self.my_jellyroll.layup.cathode.current_collector.tab_positions
+        )
         with self.assertRaisesRegex(ValueError, "straight racetrack section"):
             self.my_jellyroll.cathode_notch_alignment_position = 0.0
+
+        self.assertEqual(
+            self.my_jellyroll.cathode_notch_alignment_position, original_position
+        )
+        self.assertEqual(
+            self.my_jellyroll.layup.cathode.current_collector.tab_positions,
+            original_centers,
+        )
 
         collector = self.my_jellyroll.layup.cathode.current_collector
         minimum_position = (
@@ -825,6 +849,16 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.my_jellyroll.cathode_notch_alignment_position = minimum_position
         self.assertAlmostEqual(
             self.my_jellyroll.cathode_notch_alignment_position, minimum_position
+        )
+
+        maximum_position = (
+            self.my_jellyroll._pressed_radius
+            + self.my_jellyroll._pressed_straight_length
+            - collector._tab_width / 2
+        ) / MM_TO_M
+        self.my_jellyroll.cathode_notch_alignment_position = maximum_position
+        self.assertAlmostEqual(
+            self.my_jellyroll.cathode_notch_alignment_position, maximum_position
         )
 
     def test_alignment_target_ignores_outer_turn_radius_and_rotation(self):

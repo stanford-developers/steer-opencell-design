@@ -437,11 +437,11 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         # Compute x bounds of coated region
         bare_left, bare_right = self._bare_lengths_a_side if side == "a" else self._bare_lengths_b_side
-
+        
         # Check if bare lengths exceed foil length - return empty arrays if so
         if bare_left + bare_right >= self._x_foil_length:
             return np.empty((0, 3))
-
+            
         x_start = self._datum[0] - self._x_foil_length / 2 + bare_left
         x_end = self._datum[0] + self._x_foil_length / 2 - bare_right
 
@@ -507,7 +507,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         # Create z array with proper numeric dtype
         z = np.full_like(x, z_val, dtype=float)
-
+        
         # Handle None values by converting to NaN for numeric arrays
         none_mask = np.array([val is None for val in x])
         if np.any(none_mask):
@@ -605,7 +605,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
     @tab_spacing.setter
     @calculate_all_properties
     def tab_spacing(self, tab_spacing: float) -> None:
-
+        
         self.validate_positive_float(tab_spacing, "tab_spacing")
 
         self._tab_spacing = float(tab_spacing) * MM_TO_M

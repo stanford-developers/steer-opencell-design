@@ -4414,13 +4414,11 @@ class FlatWoundJellyRoll(_JellyRoll):
         return self._cathode_notch_alignment_position * M_TO_MM
 
     @cathode_notch_alignment_position.setter
-    @calculate_all_properties
     def cathode_notch_alignment_position(self, value: Optional[float]) -> None:
-        self._validate_notch_alignment_position(
-            value, "cathode_notch_alignment_position"
-        )
-        self._cathode_notch_alignment_position = (
-            None if value is None else float(value) * MM_TO_M
+        self._set_notch_alignment_position(
+            "_cathode_notch_alignment_position",
+            value,
+            "cathode_notch_alignment_position",
         )
 
     @property
@@ -4431,14 +4429,32 @@ class FlatWoundJellyRoll(_JellyRoll):
         return self._anode_notch_alignment_position * M_TO_MM
 
     @anode_notch_alignment_position.setter
-    @calculate_all_properties
     def anode_notch_alignment_position(self, value: Optional[float]) -> None:
-        self._validate_notch_alignment_position(
-            value, "anode_notch_alignment_position"
+        self._set_notch_alignment_position(
+            "_anode_notch_alignment_position",
+            value,
+            "anode_notch_alignment_position",
         )
-        self._anode_notch_alignment_position = (
-            None if value is None else float(value) * MM_TO_M
-        )
+
+    def _set_notch_alignment_position(
+        self, attribute: str, value: Optional[float], name: str
+    ) -> None:
+        """Set and recalculate an alignment position, restoring it on failure."""
+        self._validate_notch_alignment_position(value, name)
+        previous = getattr(self, attribute)
+        converted = None if value is None else float(value) * MM_TO_M
+        setattr(self, attribute, converted)
+        if not self._update_properties:
+            return
+
+        try:
+            self._calculate_all_properties()
+        except Exception:
+            # Recalculation updates generated collector patterns in place, so
+            # recalculate the previous configuration as part of the rollback.
+            setattr(self, attribute, previous)
+            self._calculate_all_properties()
+            raise
 
     @property
     def thickness_aware_notch_data(self) -> Dict[str, Dict[str, Any]]:
@@ -4492,6 +4508,14 @@ class FlatWoundJellyRoll(_JellyRoll):
                 component[:, X_UNWRAPPED_COL],
                 component[:, Z_COORD_COL],
             )
+            marker_turns = np.floor(
+                np.interp(
+                    centers_global,
+                    component[:, X_UNWRAPPED_COL],
+                    component[:, TURNS_COL],
+                )
+                + 1e-12
+            )
             figure.add_trace(
                 go.Scatter(
                     x=x_markers * M_TO_MM,
@@ -4500,7 +4524,7 @@ class FlatWoundJellyRoll(_JellyRoll):
                     name=f"{electrode_name.title()} notch centers",
                     marker={"size": 8, "color": colors[electrode_name]},
                     customdata=np.column_stack(
-                        (np.asarray(centers), np.arange(len(centers)))
+                        (np.asarray(centers), marker_turns)
                     ),
                     hovertemplate=(
                         "Turn %{customdata[1]:.0f}<br>"

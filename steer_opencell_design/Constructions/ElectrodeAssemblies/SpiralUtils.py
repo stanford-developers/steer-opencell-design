@@ -1494,7 +1494,11 @@ class SpiralCalculator:
                 path_x[order],
             )
             x_min, x_max = straight_x_bounds
-            tolerance = 1e-12
+            # A center exactly at a legal tangent boundary can acquire a
+            # sub-micron overshoot when both crossings are interpolated from
+            # the sampled spiral. The public position check still enforces the
+            # exact geometric range; this tolerance covers interpolation only.
+            tolerance = 1e-6
             if np.any(endpoint_x < x_min - tolerance) or np.any(
                 endpoint_x > x_max + tolerance
             ):

@@ -946,6 +946,11 @@ Shared by all current collector types.
 | `bare_lengths_b_side` | (mm, mm) | (start, end) bare region on B-side |
 | `a_side_coated_section` | (mm, mm) | (start, end) of A-side coating |
 | `b_side_coated_section` | (mm, mm) | (start, end) of B-side coating |
+
+**`NotchedCurrentCollector` — additional settable:**
+
+| Property | Unit | Description |
+|---|---|---|
 | `tab_center_positions` | list of mm or `None` | Optional uneven centers measured from the foil leading edge |
 
 **Tabbed CCs** (`NotchedCurrentCollector`, `TabWeldedCurrentCollector`, `PunchedCurrentCollector`) — **additional settable:**
@@ -969,6 +974,10 @@ Shared by all current collector types.
 | `insulation_area` | cm² | Total insulation area |
 | `top_side` | str | Which side ('a'/'b') faces up |
 | `total_height` | mm | Total height including tab (tabbed types) |
+| `calculated_tab_center_positions` | list of mm | Calculated centers in the collector coordinate system (`NotchedCurrentCollector`) |
+| `tab_center_spacings` | list of mm | Consecutive center-to-center spacings (`NotchedCurrentCollector`) |
+| `tab_gaps` | list of mm | Consecutive edge-to-edge gaps (`NotchedCurrentCollector`) |
+| `n_tabs` | int | Number of complete tabs (`NotchedCurrentCollector`) |
 
 ### Separator Properties
 
@@ -1065,6 +1074,7 @@ All visualization methods return [Plotly](https://plotly.com/python/) `go.Figure
 | Method | Availability | Description |
 |---|---|---|
 | `get_spiral_plot()` | `WoundJellyRoll`, `FlatWoundJellyRoll` | Spiral winding path visualization |
+| `plot_notch_alignment()` | `FlatWoundJellyRoll` | Racetrack cross-section with aligned notch centers |
 | `get_top_down_view()` | All assemblies | Top-down view of the assembly |
 | `get_side_view()` | All assemblies | Side view of the assembly |
 | `get_capacity_plot()` | All assemblies | Assembly-level capacity curves |
