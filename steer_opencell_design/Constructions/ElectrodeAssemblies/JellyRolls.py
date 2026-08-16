@@ -36,7 +36,8 @@ from steer_opencell_design.Constructions.ElectrodeAssemblies.Tape import Tape
 from steer_opencell_design.Components.CurrentCollectors.Tabbed import (
     TabWeldedCurrentCollector,
 )
-
+from steer_opencell_design.Components.CurrentCollectors.Notched import NotchedCurrentCollector
+from steer_opencell_design.Components.CurrentCollectors.Tabless import TablessCurrentCollector
 
 # Constants for array column indices
 THETA_COL = 0
@@ -3472,6 +3473,8 @@ class FlatWoundJellyRoll(_JellyRoll):
         additional_tape_wraps: float = 0,
         collector_tab_crumple_factor: float = 50.0,
         name: str = "Flat Wound Jelly Roll",
+        cathode_notch_alignment_position: Optional[float] = None,
+        anode_notch_alignment_position: Optional[float] = None,
     ) -> None:
         """Initialize flat wound jelly roll electrode assembly.
 
@@ -3481,6 +3484,14 @@ class FlatWoundJellyRoll(_JellyRoll):
             The layup structure to be wound
         mandrel : FlatMandrel
             Flat mandrel for racetrack winding
+        cathode_notch_alignment_position : float, optional
+            Cathode notch position in mm from the unrotated pressed mandrel's
+            minimum-x outer edge. The complete tab must lie on a straight
+            racetrack section.
+        anode_notch_alignment_position : float, optional
+            Anode notch position in mm from the same pressed-mandrel edge.
+            Cathode/anode transverse or longitudinal arrangement is controlled
+            by ``laminate.electrode_orientation``.
 
         Raises
         ------
@@ -3489,6 +3500,24 @@ class FlatWoundJellyRoll(_JellyRoll):
         """
         if not isinstance(mandrel, FlatMandrel):
             raise TypeError(f"mandrel must be FlatMandrel, got {type(mandrel)}")
+
+        self._validate_notch_alignment_position(
+            cathode_notch_alignment_position, "cathode_notch_alignment_position"
+        )
+        self._cathode_notch_alignment_position = (
+            None
+            if cathode_notch_alignment_position is None
+            else float(cathode_notch_alignment_position) * MM_TO_M
+        )
+        self._validate_notch_alignment_position(
+            anode_notch_alignment_position, "anode_notch_alignment_position"
+        )
+        self._anode_notch_alignment_position = (
+            None
+            if anode_notch_alignment_position is None
+            else float(anode_notch_alignment_position) * MM_TO_M
+        )
+        self._thickness_aware_notch_electrodes = []
 
         super().__init__(
             laminate=laminate,
@@ -3526,9 +3555,18 @@ class FlatWoundJellyRoll(_JellyRoll):
         self,
         laminate_x_spacing=0.004,
         initial_rotation_angle: Optional[float] = None,
+        apply_notch_alignment: bool = True,
         **kwargs,
     ):
+        # Newly generated racetrack coordinates use the pressed mandrel center
+        # as their origin. Subsequent centering and rotation update this point.
+        self._pressed_mandrel_center_xz = np.zeros(2)
         super()._calculate_roll(laminate_x_spacing, **kwargs)
+        if apply_notch_alignment:
+            # Solve notch positions while x is still the pressed mandrel's
+            # intrinsic longitudinal axis. The rigid transforms below carry
+            # the selected points into the final display coordinates.
+            self._apply_thickness_aware_notches()
         # ``initial_rotation_angle`` warm-starts the inner Brent in
         # ``_rotate_spirals_to_minimize_thickness`` from the previous outer
         # iteration's optimum. Used by the thickness/width setter loops.
@@ -3536,6 +3574,221 @@ class FlatWoundJellyRoll(_JellyRoll):
             initial_angle=initial_rotation_angle
         )
         self._center_spirals()
+
+    def _calculate_top_down_coordinates(self) -> None:
+        """Add aligned notch-stack footprints to the standard top-down view."""
+        super()._calculate_top_down_coordinates()
+        for electrode_name in ("cathode", "anode"):
+            if (
+                getattr(self, f"_{electrode_name}_notch_alignment_position")
+                is not None
+            ):
+                self._calculate_notch_stack_top_down_coords(electrode_name)
+
+    def _calculate_notch_stack_top_down_coords(self, electrode_name: str) -> None:
+        """Build one x-y footprint for an aligned stack of overlapping tabs."""
+        electrode = getattr(self._layup, f"_{electrode_name}")
+        collector = electrode._current_collector
+        if not isinstance(collector, NotchedCurrentCollector) or isinstance(
+            collector, TablessCurrentCollector
+        ):
+            return
+
+        collector_key = f"{electrode_name}_current_collector"
+        body_coords = self._component_top_down_coordinates.get(collector_key)
+        if body_coords is None:
+            return
+
+        # The legacy schematic represents integral tabs as a full-width band.
+        # For an aligned pattern, keep the collector body rectangular and draw
+        # the actual tab stack separately at its physical x-position.
+        foil_y_min = collector._datum[1] - collector._y_foil_length / 2
+        foil_y_max = collector._datum[1] + collector._y_foil_length / 2
+        body_x_min = float(np.min(body_coords[:, 0]))
+        body_x_max = float(np.max(body_coords[:, 0]))
+        body_x, body_y = self.build_square_array(
+            body_x_min,
+            foil_y_min,
+            body_x_max - body_x_min,
+            collector._y_foil_length,
+        )
+        self._component_top_down_coordinates[collector_key] = np.column_stack(
+            (body_x, body_y)
+        )
+
+        visible_tab_height = collector._tab_height * (
+            1.0 - self._collector_tab_crumple_factor
+        )
+        if visible_tab_height <= 0:
+            return
+
+        # Electrode orientation is already expressed by flipping the collector
+        # coordinates. Infer the protruding side from that geometry so this view
+        # follows the same source of truth as punched-current-collector plots.
+        collector_y = collector._foil_coordinates[:, 1]
+        collector_y = collector_y[np.isfinite(collector_y)]
+        negative_extension = foil_y_min - float(np.min(collector_y))
+        positive_extension = float(np.max(collector_y)) - foil_y_max
+        if positive_extension >= negative_extension:
+            stack_y_min = foil_y_max
+        else:
+            stack_y_min = foil_y_min - visible_tab_height
+
+        position = getattr(self, f"_{electrode_name}_notch_alignment_position")
+        axis_position = self._notch_alignment_axis_position(position)
+        rotation_angle = self._last_rotation_angle
+        mandrel_axis = np.array(
+            [np.cos(rotation_angle), np.sin(rotation_angle)]
+        )
+        # The top-down view is an axis-aligned schematic, like the punched
+        # collector view. Project the transformed mandrel center back onto its
+        # longitudinal axis so increasing edge distance always reads left-to-right,
+        # independent of an equivalent 180-degree cross-section rotation.
+        stack_x_center = (
+            np.dot(self._pressed_mandrel_center_xz, mandrel_axis) + axis_position
+        )
+        stack_x, stack_y = self.build_square_array(
+            stack_x_center - collector._tab_width / 2,
+            stack_y_min,
+            collector._tab_width,
+            visible_tab_height,
+        )
+        self._component_top_down_coordinates[f"{electrode_name}_notch_stack"] = (
+            np.column_stack((stack_x, stack_y))
+        )
+
+    @staticmethod
+    def _validate_notch_alignment_position(
+        value: Optional[float], name: str
+    ) -> None:
+        """Validate an optional notch-stack position in millimeters."""
+        if value is None:
+            return
+        try:
+            position = float(value)
+        except (TypeError, ValueError) as exc:
+            raise TypeError(f"{name} must be a finite float or None.") from exc
+        if not np.isfinite(position):
+            raise ValueError(f"{name} must be finite.")
+        if position < 0:
+            raise ValueError(f"{name} must be non-negative.")
+
+    def _notch_alignment_target_x(
+        self,
+        position: float,
+        collector: NotchedCurrentCollector,
+        name: str,
+    ) -> float:
+        """Convert a mandrel-edge position to an unrotated x-coordinate."""
+        if not hasattr(self, "_pressed_mandrel_center_xz"):
+            raise ValueError("Cannot align notches before positioning the mandrel.")
+        mandrel_center_x = float(self._pressed_mandrel_center_xz[0])
+
+        # Work entirely on the pressed mandrel's intrinsic longitudinal axis.
+        # Neither outer-turn thickness nor the later display rotation belongs
+        # in the physical alignment definition.
+        minimum_position = self._pressed_radius + collector._tab_width / 2
+        maximum_position = (
+            self._pressed_radius
+            + self._pressed_straight_length
+            - collector._tab_width / 2
+        )
+        if minimum_position > maximum_position:
+            raise ValueError(
+                f"{name} cannot fit because the tab is wider than the straight "
+                "racetrack section."
+            )
+
+        if position < minimum_position or position > maximum_position:
+            raise ValueError(
+                f"{name} must keep the complete tab on a straight racetrack "
+                f"section; valid range is {minimum_position * M_TO_MM:.2f} to "
+                f"{maximum_position * M_TO_MM:.2f} mm."
+            )
+
+        return mandrel_center_x + self._notch_alignment_axis_position(position)
+
+    def _notch_alignment_axis_position(self, position: float) -> float:
+        """Convert an edge distance to the mandrel-centered longitudinal axis."""
+        return (
+            -self._pressed_straight_length / 2 - self._pressed_radius + position
+        )
+
+    def _apply_thickness_aware_notches(self) -> None:
+        """Apply configured same-position notch centers to notched collectors.
+
+        The component spiral supplies the authoritative mapping from a physical
+        x-coordinate to unwrapped sheet length on each turn. Collector
+        coordinates are refreshed directly to avoid recursively invoking parent
+        propagation while the jelly roll itself is being calculated.
+        """
+        generated = set(self._thickness_aware_notch_electrodes)
+        configurations = {
+            "cathode": self._cathode_notch_alignment_position,
+            "anode": self._anode_notch_alignment_position,
+        }
+
+        for electrode_name, alignment_position in configurations.items():
+            electrode = getattr(self._layup, f"_{electrode_name}")
+            collector = electrode._current_collector
+
+            if alignment_position is None:
+                if electrode_name in generated:
+                    collector._tab_center_positions = None
+                    collector._calculate_all_properties()
+                    generated.remove(electrode_name)
+                continue
+
+            if not isinstance(collector, NotchedCurrentCollector) or isinstance(
+                collector, TablessCurrentCollector
+            ):
+                raise TypeError(
+                    f"{electrode_name}_notch_alignment_position requires a "
+                    "NotchedCurrentCollector."
+                )
+
+            spiral = self._component_spirals[f"{electrode_name}_current_collector"]
+            property_name = f"{electrode_name}_notch_alignment_position"
+            target_x = self._notch_alignment_target_x(
+                alignment_position, collector, property_name
+            )
+            centers_global = SpiralCalculator.aligned_positions_at_x(
+                spiral=spiral,
+                target_x=target_x,
+                tab_width=collector._tab_width,
+                straight_x_bounds=(
+                    self._pressed_mandrel_center_xz[0]
+                    - self._pressed_straight_length / 2,
+                    self._pressed_mandrel_center_xz[0]
+                    + self._pressed_straight_length / 2,
+                ),
+            )
+
+            leading_edge = collector._datum[0] - collector._x_foil_length / 2
+            centers_local = centers_global - leading_edge
+            collector._validate_explicit_tab_center_positions(centers_local)
+            collector._tab_center_positions = centers_local
+            collector._calculate_all_properties()
+            generated.add(electrode_name)
+
+        self._thickness_aware_notch_electrodes = sorted(generated)
+
+    def _copy_layup_for_dimension_calculation(self) -> Laminate:
+        """Copy the layup without assembly-generated explicit notch patterns."""
+        layup = deepcopy(self._layup)
+        configurations = {
+            "cathode": self._cathode_notch_alignment_position,
+            "anode": self._anode_notch_alignment_position,
+        }
+        for electrode_name, alignment_position in configurations.items():
+            if alignment_position is None:
+                continue
+            collector = getattr(layup, f"_{electrode_name}")._current_collector
+            if isinstance(collector, NotchedCurrentCollector) and not isinstance(
+                collector, TablessCurrentCollector
+            ):
+                collector._tab_center_positions = None
+        return layup
 
     def _get_tape_geometry_parameters(self, spirals_x_z: np.ndarray) -> Dict[str, Any]:
         """Get geometry parameters for racetrack tape calculation.
@@ -3732,7 +3985,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         straight_length = self._pressed_straight_length
 
         # get the thickness minimum bound
-        small_layup = deepcopy(self._layup)
+        small_layup = self._copy_layup_for_dimension_calculation()
         small_layup.length = min_layup_length
         small_layup = self.position_layup_on_mandrel(small_layup, self._mandrel)
         small_layup.calculate_flattened_center_lines()
@@ -3759,7 +4012,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         )
 
         # get the thickness maximum bound
-        big_layup = deepcopy(self._layup)
+        big_layup = self._copy_layup_for_dimension_calculation()
         big_layup.length = big_layup.length_range[1]
         big_layup = self.position_layup_on_mandrel(big_layup, self._mandrel)
         big_layup.calculate_flattened_center_lines()
@@ -3956,6 +4209,13 @@ class FlatWoundJellyRoll(_JellyRoll):
         center_x = (max_x + min_x) / 2
         center_z = (max_z + min_z) / 2
 
+        # Track the pressed mandrel center through the same final translation.
+        # This stays a fixed alignment datum even when an incomplete outer turn
+        # makes the wound geometry's left and right extents asymmetric.
+        self._pressed_mandrel_center_xz = self._pressed_mandrel_center_xz - np.array(
+            [center_x, center_z]
+        )
+
         self._spiral, self._component_spirals, self._extruded_spirals = (
             self._translate_spirals_xz(x_shift=-center_x, z_shift=-center_z)
         )
@@ -4025,9 +4285,28 @@ class FlatWoundJellyRoll(_JellyRoll):
             )
 
         # Rotate all spirals using the helper function from SpiralCalculator
+        rotation_points = np.vstack(
+            [
+                value[:, [X_COORD_COL, Z_COORD_COL]]
+                for value in all_spirals.values()
+                if value is not None and value.size > 0
+            ]
+        )
+        rotation_points = rotation_points[np.isfinite(rotation_points).all(axis=1)]
+        rotation_centroid = rotation_points.mean(axis=0)
+
         _, optimal_angle = SpiralCalculator.rotate_spiral_to_minimize_thickness(
             all_spirals, initial_angle=initial_angle
         )
+
+        # The spiral helper rotates around ``rotation_centroid``. Apply that
+        # same transform to the current pressed-mandrel center.
+        cosine = np.cos(optimal_angle)
+        sine = np.sin(optimal_angle)
+        rotation_matrix = np.array([[cosine, -sine], [sine, cosine]])
+        self._pressed_mandrel_center_xz = (
+            self._pressed_mandrel_center_xz - rotation_centroid
+        ) @ rotation_matrix.T + rotation_centroid
 
         return optimal_angle
 
@@ -4128,6 +4407,177 @@ class FlatWoundJellyRoll(_JellyRoll):
         return self._pressed_straight_length * M_TO_MM
 
     @property
+    def cathode_notch_alignment_position(self) -> Optional[float]:
+        """Return the cathode notch position on the pressed mandrel axis in mm."""
+        if self._cathode_notch_alignment_position is None:
+            return None
+        return self._cathode_notch_alignment_position * M_TO_MM
+
+    @cathode_notch_alignment_position.setter
+    def cathode_notch_alignment_position(self, value: Optional[float]) -> None:
+        self._set_notch_alignment_position(
+            "_cathode_notch_alignment_position",
+            value,
+            "cathode_notch_alignment_position",
+        )
+
+    @property
+    def anode_notch_alignment_position(self) -> Optional[float]:
+        """Return the anode notch position on the pressed mandrel axis in mm."""
+        if self._anode_notch_alignment_position is None:
+            return None
+        return self._anode_notch_alignment_position * M_TO_MM
+
+    @anode_notch_alignment_position.setter
+    def anode_notch_alignment_position(self, value: Optional[float]) -> None:
+        self._set_notch_alignment_position(
+            "_anode_notch_alignment_position",
+            value,
+            "anode_notch_alignment_position",
+        )
+
+    def _set_notch_alignment_position(
+        self, attribute: str, value: Optional[float], name: str
+    ) -> None:
+        """Set and recalculate an alignment position, restoring it on failure."""
+        self._validate_notch_alignment_position(value, name)
+        previous = getattr(self, attribute)
+        converted = None if value is None else float(value) * MM_TO_M
+        setattr(self, attribute, converted)
+        if not self._update_properties:
+            return
+
+        try:
+            self._calculate_all_properties()
+        except Exception:
+            # Recalculation updates generated collector patterns in place, so
+            # recalculate the previous configuration as part of the rollback.
+            setattr(self, attribute, previous)
+            self._calculate_all_properties()
+            raise
+
+    @property
+    def thickness_aware_notch_data(self) -> Dict[str, Dict[str, Any]]:
+        """Return configured notch centers, spacings, and gaps for each electrode."""
+        result: Dict[str, Dict[str, Any]] = {}
+        for electrode_name in ("cathode", "anode"):
+            position = getattr(self, f"_{electrode_name}_notch_alignment_position")
+            if position is None:
+                continue
+            collector = getattr(self._layup, f"_{electrode_name}")._current_collector
+            result[electrode_name] = {
+                "alignment_position": position * M_TO_MM,
+                "centers": collector.tab_center_positions,
+                "center_spacings": collector.tab_center_spacings,
+                "gaps": collector.tab_gaps,
+            }
+        return result
+
+    def plot_notch_alignment(self, layered: bool = False, **kwargs: Any) -> go.Figure:
+        """Plot the flat-wound cross-section with aligned notch-center markers.
+
+        Markers should form one constant-x stack for each configured electrode.
+        """
+        figure = self.plot_spiral(layered=layered, **kwargs)
+        colors = {"cathode": "#d62728", "anode": "#1f77b4"}
+
+        for electrode_name in ("cathode", "anode"):
+            position = getattr(self, f"_{electrode_name}_notch_alignment_position")
+            if position is None:
+                continue
+
+            collector = getattr(self._layup, f"_{electrode_name}")._current_collector
+            centers = collector.tab_center_positions
+            if not centers:
+                continue
+
+            leading_edge = collector._datum[0] - collector._x_foil_length / 2
+            centers_global = leading_edge + np.asarray(centers) * MM_TO_M
+            spiral = self._component_spirals[f"{electrode_name}_current_collector"]
+            valid = np.isfinite(spiral[:, X_UNWRAPPED_COL])
+            component = spiral[valid]
+            order = np.argsort(component[:, X_UNWRAPPED_COL])
+            component = component[order]
+            x_markers = np.interp(
+                centers_global,
+                component[:, X_UNWRAPPED_COL],
+                component[:, X_COORD_COL],
+            )
+            z_markers = np.interp(
+                centers_global,
+                component[:, X_UNWRAPPED_COL],
+                component[:, Z_COORD_COL],
+            )
+            marker_turns = np.floor(
+                np.interp(
+                    centers_global,
+                    component[:, X_UNWRAPPED_COL],
+                    component[:, TURNS_COL],
+                )
+                + 1e-12
+            )
+            figure.add_trace(
+                go.Scatter(
+                    x=x_markers * M_TO_MM,
+                    y=z_markers * M_TO_MM,
+                    mode="markers",
+                    name=f"{electrode_name.title()} notch centers",
+                    marker={"size": 8, "color": colors[electrode_name]},
+                    customdata=np.column_stack(
+                        (np.asarray(centers), marker_turns)
+                    ),
+                    hovertemplate=(
+                        "Turn %{customdata[1]:.0f}<br>"
+                        "Unwrapped center: %{customdata[0]:.2f} mm<extra></extra>"
+                    ),
+                )
+            )
+
+        return figure
+
+    def _notch_stack_top_down_trace(
+        self, electrode_name: str
+    ) -> Optional[go.Scatter]:
+        """Return the top-down footprint trace for one aligned notch stack."""
+        coordinate_key = f"{electrode_name}_notch_stack"
+        if coordinate_key not in self._component_top_down_coordinates:
+            return None
+
+        collector = getattr(
+            self._layup, f"_{electrode_name}"
+        )._current_collector
+        coords = self._component_top_down_coordinates[coordinate_key]
+        position = getattr(self, f"_{electrode_name}_notch_alignment_position")
+        customdata = np.tile(
+            [position * M_TO_MM, collector.n_tabs], (len(coords), 1)
+        )
+        return go.Scatter(
+            x=coords[:, 0] * M_TO_MM,
+            y=coords[:, 1] * M_TO_MM,
+            mode="lines",
+            fill="toself",
+            fillcolor=collector.material._color,
+            line=dict(color="black", width=1),
+            name=f"{electrode_name.title()} notch stack",
+            customdata=customdata,
+            hovertemplate=(
+                f"<b>{electrode_name.title()} notch stack</b><br>"
+                "Mandrel-edge position: %{customdata[0]:.2f} mm<br>"
+                "Aligned tabs: %{customdata[1]:.0f}<extra></extra>"
+            ),
+        )
+
+    def plot_top_down_view(self, opacity: float = 0.5, **kwargs) -> go.Figure:
+        """Plot the x-y view, including physically positioned notch stacks."""
+        figure = super().plot_top_down_view(opacity=opacity, **kwargs)
+        for electrode_name in ("cathode", "anode"):
+            trace = self._notch_stack_top_down_trace(electrode_name)
+            if trace is not None:
+                self.adjust_trace_opacity(trace, opacity)
+                figure.add_trace(trace)
+        return figure
+
+    @property
     def thickness(self) -> float:
         """Return the overall jelly roll thickness in millimeters."""
         return self._thickness * M_TO_MM
@@ -4186,7 +4636,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         # Deepcopy the layup once, then mutate ``length`` in place across
         # iterations. The original ``self._layup`` is untouched until the
         # final ``self.layup = self._layup`` reassignment after Brent.
-        template_layup = deepcopy(self._layup)
+        template_layup = self._copy_layup_for_dimension_calculation()
         # The optimal rotation angle barely shifts between outer-Brent
         # iterations; cache it and warm-start the inner Brent each time.
         rotation_state: Dict[str, Optional[float]] = {"angle": None}
@@ -4202,7 +4652,8 @@ class FlatWoundJellyRoll(_JellyRoll):
                 template_layup, assembly_copy._mandrel
             )
             assembly_copy._calculate_roll(
-                initial_rotation_angle=rotation_state["angle"]
+                initial_rotation_angle=rotation_state["angle"],
+                apply_notch_alignment=False,
             )
             rotation_state["angle"] = getattr(
                 assembly_copy, "_last_rotation_angle", None
@@ -4254,7 +4705,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         # Deepcopy the layup once, then mutate ``length`` in place across
         # iterations. The original ``self._layup`` is untouched until the
         # final ``self.layup = self._layup`` reassignment after Brent.
-        template_layup = deepcopy(self._layup)
+        template_layup = self._copy_layup_for_dimension_calculation()
         # The optimal rotation angle barely shifts between outer-Brent
         # iterations; cache it and warm-start the inner Brent each time.
         rotation_state: Dict[str, Optional[float]] = {"angle": None}
@@ -4270,7 +4721,8 @@ class FlatWoundJellyRoll(_JellyRoll):
                 template_layup, assembly_copy._mandrel
             )
             assembly_copy._calculate_roll(
-                initial_rotation_angle=rotation_state["angle"]
+                initial_rotation_angle=rotation_state["angle"],
+                apply_notch_alignment=False,
             )
             rotation_state["angle"] = getattr(
                 assembly_copy, "_last_rotation_angle", None

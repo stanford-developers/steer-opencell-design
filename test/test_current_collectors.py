@@ -61,6 +61,66 @@ class TestNotchedMROStability(unittest.TestCase):
         self.assertTrue(issubclass(TablessCurrentCollector, _TapeCurrentCollector))
 
 
+class TestExplicitNotchPattern(unittest.TestCase):
+    def setUp(self):
+        material = CurrentCollectorMaterial(
+            name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA"
+        )
+        self.collector = NotchedCurrentCollector(
+            material=material,
+            length=500,
+            width=100,
+            thickness=10,
+            tab_width=20,
+            tab_spacing=100,
+            tab_height=10,
+            tab_center_positions=[50, 155, 270, 395],
+        )
+
+    def test_explicit_centers_produce_uneven_spacings_and_gaps(self):
+        self.assertEqual(self.collector.tab_center_positions, [50, 155, 270, 395])
+        self.assertEqual(self.collector.n_tabs, 4)
+        for actual, expected in zip(
+            self.collector.tab_center_spacings, [105, 115, 125]
+        ):
+            self.assertAlmostEqual(actual, expected)
+        for actual, expected in zip(self.collector.tab_gaps, [85, 95, 105]):
+            self.assertAlmostEqual(actual, expected)
+
+    def test_positions_are_relative_to_leading_edge(self):
+        positions_before = self.collector.tab_center_positions
+        absolute_before = self.collector.calculated_tab_center_positions
+
+        self.collector.datum = (100, 0, 0)
+
+        self.assertEqual(self.collector.tab_center_positions, positions_before)
+        for before, after in zip(
+            absolute_before, self.collector.calculated_tab_center_positions
+        ):
+            self.assertAlmostEqual(after - before, 100)
+
+    def test_setting_spacing_restores_uniform_mode(self):
+        self.collector.tab_spacing = 80
+
+        self.assertIsNone(self.collector.tab_center_positions)
+        for spacing in self.collector.tab_center_spacings:
+            self.assertAlmostEqual(spacing, 80)
+
+    def test_rejects_overlapping_or_out_of_bounds_tabs(self):
+        with self.assertRaises(ValueError):
+            self.collector.tab_center_positions = [50, 60]
+        with self.assertRaises(ValueError):
+            self.collector.tab_center_positions = [5, 100]
+        with self.assertRaises(ValueError):
+            self.collector.tab_center_positions = [100, 495]
+
+    def test_serialization_preserves_explicit_pattern(self):
+        restored = NotchedCurrentCollector.deserialize(self.collector.serialize())
+
+        self.assertEqual(restored.tab_center_positions, [50, 155, 270, 395])
+        self.assertEqual(restored.n_tabs, 4)
+
+
 class TestPunchedCurrentCollector(unittest.TestCase):
     def setUp(self):
         """
@@ -668,4 +728,3 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
 
         figure1 = go.Figure(data=fig11.data + fig21.data)
         # figure1.show()
-
