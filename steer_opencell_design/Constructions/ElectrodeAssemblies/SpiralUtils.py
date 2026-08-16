@@ -1392,63 +1392,116 @@ class SpiralCalculator:
         return (1.0 + 5.0 * (np.abs(dt_dx) / max_grad)).astype(np.float64)
 
     @staticmethod
-    def aligned_positions_from_spiral(
+    def aligned_positions_at_x(
         spiral: np.ndarray,
-        alignment_angle: float,
+        target_x: float,
         tab_width: float = 0.0,
         minimum_gap: float = 0.0,
+        straight_x_bounds: Optional[tuple[float, float]] = None,
     ) -> np.ndarray:
-        """Return unwrapped centers that recur at one angular winding phase.
+        """Return one unwrapped center per turn at a fixed x-coordinate.
 
-        Length inputs and outputs use meters; ``alignment_angle`` uses radians.
-        A center is emitted for every integer turn satisfying
-        ``theta = alignment_angle + 2*pi*k`` where the complete tab fits within
-        the supplied spiral's unwrapped-length extent.
+        Length inputs and outputs use meters. ``target_x`` is expressed in the
+        supplied spiral's unrotated racetrack coordinate system. The turn
+        column, which is derived from winding phase, separates successive
+        turns. Within each turn, the method selects the increasing-x straight
+        branch and interpolates where it crosses ``target_x``.
         """
         spiral = np.asarray(spiral, dtype=float)
-        if spiral.ndim != 2 or spiral.shape[1] <= X_UNWRAPPED_COL:
+        if spiral.ndim != 2 or spiral.shape[1] <= TURNS_COL:
             raise ValueError(
-                "spiral must be a two-dimensional array containing theta and "
-                "unwrapped-length columns."
+                "spiral must be a two-dimensional array containing unwrapped "
+                "length, x-coordinate, and turn columns."
             )
-        if not np.isfinite(alignment_angle):
-            raise ValueError("alignment_angle must be finite.")
+        if not np.isfinite(target_x):
+            raise ValueError("target_x must be finite.")
         if not np.isfinite(tab_width) or tab_width < 0:
             raise ValueError("tab_width must be a finite non-negative value.")
         if not np.isfinite(minimum_gap) or minimum_gap < 0:
             raise ValueError("minimum_gap must be a finite non-negative value.")
+        if straight_x_bounds is not None:
+            bounds = np.asarray(straight_x_bounds, dtype=float)
+            if bounds.shape != (2,) or not np.all(np.isfinite(bounds)):
+                raise ValueError("straight_x_bounds must contain two finite values.")
+            if bounds[0] > bounds[1]:
+                raise ValueError(
+                    "straight_x_bounds must be ordered from minimum to maximum."
+                )
 
-        theta = spiral[:, THETA_COL]
         x_unwrapped = spiral[:, X_UNWRAPPED_COL]
-        valid = np.isfinite(theta) & np.isfinite(x_unwrapped)
-        theta = theta[valid]
-        x_unwrapped = x_unwrapped[valid]
-        if len(theta) < 2:
+        x_coordinate = spiral[:, X_COORD_COL]
+        turns = spiral[:, TURNS_COL]
+        if len(spiral) < 2:
             return np.empty(0, dtype=float)
 
-        order = np.argsort(theta)
-        theta = theta[order]
-        x_unwrapped = x_unwrapped[order]
-        theta, unique_indices = np.unique(theta, return_index=True)
-        x_unwrapped = x_unwrapped[unique_indices]
-        if len(theta) < 2:
-            return np.empty(0, dtype=float)
-
-        first_turn = int(np.ceil((theta[0] - alignment_angle) / TWO_PI))
-        last_turn = int(np.floor((theta[-1] - alignment_angle) / TWO_PI))
-        if last_turn < first_turn:
-            return np.empty(0, dtype=float)
-
-        target_theta = alignment_angle + TWO_PI * np.arange(
-            first_turn, last_turn + 1, dtype=float
+        finite = (
+            np.isfinite(x_unwrapped)
+            & np.isfinite(x_coordinate)
+            & np.isfinite(turns)
         )
-        centers = np.interp(target_theta, theta, x_unwrapped)
+        valid_pairs = finite[:-1] & finite[1:]
+        x_start = x_coordinate[:-1]
+        x_end = x_coordinate[1:]
+
+        # Each x-coordinate occurs on both straight sections. Their traversal
+        # directions are opposite, so increasing x selects one consistent side.
+        crossings = (
+            valid_pairs
+            & (x_end > x_start)
+            & (x_start <= target_x)
+            & (target_x <= x_end)
+        )
+        crossing_indices = np.flatnonzero(crossings)
+        if len(crossing_indices) == 0:
+            return np.empty(0, dtype=float)
+
+        centers_by_turn: dict[int, float] = {}
+        for index in crossing_indices:
+            turn = int(np.floor((turns[index] + turns[index + 1]) / 2 + 1e-12))
+            fraction = (target_x - x_start[index]) / (x_end[index] - x_start[index])
+            center = x_unwrapped[index] + fraction * (
+                x_unwrapped[index + 1] - x_unwrapped[index]
+            )
+            centers_by_turn.setdefault(turn, center)
+
+        centers = np.sort(np.asarray(list(centers_by_turn.values()), dtype=float))
 
         half_width = tab_width / 2
-        x_min = float(np.min(x_unwrapped))
-        x_max = float(np.max(x_unwrapped))
-        fits = (centers - half_width >= x_min) & (centers + half_width <= x_max)
+        finite_unwrapped = x_unwrapped[np.isfinite(x_unwrapped)]
+        if len(finite_unwrapped) == 0:
+            return np.empty(0, dtype=float)
+        minimum_unwrapped = float(np.min(finite_unwrapped))
+        maximum_unwrapped = float(np.max(finite_unwrapped))
+        fits = (centers - half_width >= minimum_unwrapped) & (
+            centers + half_width <= maximum_unwrapped
+        )
         centers = np.sort(centers[fits])
+
+        if straight_x_bounds is not None and len(centers) > 0:
+            # Tab width is measured along the unwrapped foil. Map both physical
+            # endpoints back onto the wound path rather than assuming that foil
+            # distance and x-distance are identical near a curved-end tangent.
+            path_finite = np.isfinite(x_unwrapped) & np.isfinite(x_coordinate)
+            path_unwrapped = x_unwrapped[path_finite]
+            path_x = x_coordinate[path_finite]
+            order = np.argsort(path_unwrapped)
+            endpoint_unwrapped = np.column_stack(
+                (centers - half_width, centers + half_width)
+            )
+            endpoint_x = np.interp(
+                endpoint_unwrapped,
+                path_unwrapped[order],
+                path_x[order],
+            )
+            x_min, x_max = straight_x_bounds
+            tolerance = 1e-12
+            if np.any(endpoint_x < x_min - tolerance) or np.any(
+                endpoint_x > x_max + tolerance
+            ):
+                raise ValueError(
+                    "Aligned tab endpoints must remain on a straight racetrack "
+                    "section."
+                )
 
         if len(centers) > 1 and np.any(np.diff(centers) < tab_width + minimum_gap):
             raise ValueError(

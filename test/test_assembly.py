@@ -42,7 +42,9 @@ from steer_core.Constants.Units import MM_TO_M
 from steer_core.Constants.Universal import TWO_PI
 from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import (
     THETA_COL,
+    X_COORD_COL,
     X_UNWRAPPED_COL,
+    Z_COORD_COL,
 )
 
 
@@ -635,8 +637,9 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.width_range[0], 104.48, 1)
         self.assertAlmostEqual(self.my_jellyroll.width_range[1], 125.95, 1)
 
-    def test_thickness_aware_cathode_notches_align_by_winding_phase(self):
-        self.my_jellyroll.cathode_notch_alignment_angle = 0.0
+    def test_thickness_aware_cathode_notches_align_at_physical_position(self):
+        alignment_position = 50.0
+        self.my_jellyroll.cathode_notch_alignment_position = alignment_position
 
         collector = self.my_jellyroll.layup.cathode.current_collector
         self.assertIsNotNone(collector.tab_center_positions)
@@ -644,21 +647,54 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertTrue(np.all(np.diff(collector.tab_center_spacings) > 0))
 
         spiral = self.my_jellyroll._component_spirals["cathode_current_collector"]
-        valid = np.isfinite(spiral[:, THETA_COL]) & np.isfinite(
-            spiral[:, X_UNWRAPPED_COL]
-        )
-        theta = spiral[valid, THETA_COL]
-        unwrapped = spiral[valid, X_UNWRAPPED_COL]
+        valid = np.isfinite(spiral[:, X_UNWRAPPED_COL])
+        component = spiral[valid]
+        unwrapped = component[:, X_UNWRAPPED_COL]
         order = np.argsort(unwrapped)
+        component = component[order]
         leading_edge = collector._datum[0] - collector._x_foil_length / 2
         centers_global = (
             leading_edge + np.asarray(collector.tab_center_positions) * MM_TO_M
         )
-        center_angles = np.interp(centers_global, unwrapped[order], theta[order])
-        phase_error = np.abs(center_angles - TWO_PI * np.rint(center_angles / TWO_PI))
-        self.assertTrue(np.all(phase_error < 1e-8))
+        marker_x = np.interp(
+            centers_global,
+            component[:, X_UNWRAPPED_COL],
+            component[:, X_COORD_COL],
+        )
+        marker_z = np.interp(
+            centers_global,
+            component[:, X_UNWRAPPED_COL],
+            component[:, Z_COORD_COL],
+        )
+        rotation_angle = self.my_jellyroll._last_rotation_angle
+        mandrel_axis = np.array(
+            [np.cos(rotation_angle), np.sin(rotation_angle)]
+        )
+        marker_coordinates = np.column_stack((marker_x, marker_z))
+        marker_axis_positions = (
+            marker_coordinates - self.my_jellyroll._pressed_mandrel_center_xz
+        ) @ mandrel_axis
+        expected_axis_position = (
+            -self.my_jellyroll._pressed_straight_length / 2
+            - self.my_jellyroll._pressed_radius
+            + alignment_position * MM_TO_M
+        )
+        np.testing.assert_allclose(
+            marker_axis_positions, expected_axis_position, atol=1e-10
+        )
+
+        # The physical x-coordinate is fixed, while the normalized phase shifts
+        # as the racetrack radius and perimeter grow between turns.
+        center_angles = np.interp(
+            centers_global,
+            component[:, X_UNWRAPPED_COL],
+            component[:, THETA_COL],
+        )
+        center_phases = np.mod(center_angles, TWO_PI)
+        self.assertGreater(np.ptp(center_phases), 1e-3)
 
         data = self.my_jellyroll.thickness_aware_notch_data["cathode"]
+        self.assertEqual(data["alignment_position"], alignment_position)
         self.assertEqual(data["centers"], collector.tab_center_positions)
         self.assertEqual(data["gaps"], collector.tab_gaps)
 
@@ -669,8 +705,8 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertEqual(len(marker_trace.x), collector.n_tabs)
 
     def test_disabling_alignment_restores_scalar_spacing(self):
-        self.my_jellyroll.cathode_notch_alignment_angle = 0.0
-        self.my_jellyroll.cathode_notch_alignment_angle = None
+        self.my_jellyroll.cathode_notch_alignment_position = 50.0
+        self.my_jellyroll.cathode_notch_alignment_position = None
 
         collector = self.my_jellyroll.layup.cathode.current_collector
         self.assertIsNone(collector.tab_center_positions)
@@ -679,17 +715,78 @@ class TestFlatJellyRoll(unittest.TestCase):
             self.assertAlmostEqual(spacing, collector.tab_spacing)
 
     def test_alignment_configuration_serializes_for_both_electrodes(self):
-        self.my_jellyroll.cathode_notch_alignment_angle = 0.0
-        self.my_jellyroll.anode_notch_alignment_angle = np.pi
+        self.my_jellyroll.cathode_notch_alignment_position = 50.0
+        self.my_jellyroll.anode_notch_alignment_position = 65.0
 
         restored = FlatWoundJellyRoll.deserialize(self.my_jellyroll.serialize())
 
-        self.assertEqual(restored.cathode_notch_alignment_angle, 0.0)
-        self.assertEqual(restored.anode_notch_alignment_angle, np.pi)
+        self.assertEqual(restored.cathode_notch_alignment_position, 50.0)
+        self.assertEqual(restored.anode_notch_alignment_position, 65.0)
         self.assertGreater(restored.layup.cathode.current_collector.n_tabs, 2)
         self.assertGreater(restored.layup.anode.current_collector.n_tabs, 2)
         self.assertIn("cathode", restored.thickness_aware_notch_data)
         self.assertIn("anode", restored.thickness_aware_notch_data)
+
+    def test_alignment_position_rejects_curved_racetrack_ends(self):
+        with self.assertRaisesRegex(ValueError, "straight racetrack section"):
+            self.my_jellyroll.cathode_notch_alignment_position = 0.0
+
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        minimum_position = (
+            self.my_jellyroll._pressed_radius + collector._tab_width / 2
+        ) / MM_TO_M
+        self.my_jellyroll.cathode_notch_alignment_position = minimum_position
+        self.assertAlmostEqual(
+            self.my_jellyroll.cathode_notch_alignment_position, minimum_position
+        )
+
+    def test_alignment_target_ignores_outer_turn_radius_and_rotation(self):
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        position = 50.0 * MM_TO_M
+        target_before = self.my_jellyroll._notch_alignment_target_x(
+            position, collector, "cathode_notch_alignment_position"
+        )
+
+        # Model a new asymmetric outer point extending farther to the left.
+        non_tape_spirals = {
+            name: spiral
+            for name, spiral in self.my_jellyroll._component_spirals.items()
+            if name != "tape"
+        }
+        component_name = min(
+            non_tape_spirals,
+            key=lambda name: np.nanmin(non_tape_spirals[name][:, X_COORD_COL]),
+        )
+        row_index = int(
+            np.nanargmin(non_tape_spirals[component_name][:, X_COORD_COL])
+        )
+        self.my_jellyroll._component_spirals[component_name][
+            row_index, X_COORD_COL
+        ] -= 1.0 * MM_TO_M
+        self.my_jellyroll._last_rotation_angle = np.pi / 3
+
+        target_after = self.my_jellyroll._notch_alignment_target_x(
+            position, collector, "cathode_notch_alignment_position"
+        )
+        self.assertAlmostEqual(target_after, target_before)
+
+    def test_dimension_layup_copy_clears_only_generated_pattern(self):
+        anode_collector = self.my_jellyroll.layup.anode.current_collector
+        anode_collector.tab_center_positions = [100.0, 300.0]
+        self.my_jellyroll.cathode_notch_alignment_position = 50.0
+
+        copied_layup = self.my_jellyroll._copy_layup_for_dimension_calculation()
+
+        self.assertIsNotNone(
+            self.my_jellyroll.layup.cathode.current_collector.tab_center_positions
+        )
+        self.assertIsNone(
+            copied_layup.cathode.current_collector.tab_center_positions
+        )
+        self.assertEqual(
+            copied_layup.anode.current_collector.tab_center_positions,
+            [100.0, 300.0],
+        )
 
     def test_serialization(self):
         serialized = self.my_jellyroll.serialize()

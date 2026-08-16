@@ -30,6 +30,10 @@ from steer_core.Constants.Universal import TWO_PI
 
 from steer_opencell_design.Constructions.ElectrodeAssemblies.SpiralUtils import (
     SpiralCalculator,
+    TURNS_COL,
+    X_COORD_COL,
+    X_UNWRAPPED_COL,
+    Z_COORD_COL,
     _racetrack_positions_batch,
     _thickness_at_jit,
 )
@@ -356,49 +360,76 @@ class TestThicknessAtJit(unittest.TestCase):
             self.assertAlmostEqual(value, x, places=10, msg=f"x={x}")
 
 
-class TestAlignedPositionsFromSpiral(unittest.TestCase):
-    def test_returns_same_phase_positions_with_increasing_pitch(self):
-        theta = np.linspace(0.0, 8.0 * np.pi, 1001)
-        # Monotonic synthetic winding whose length per turn grows outward.
-        x_unwrapped = 0.02 * theta + 0.0002 * theta**2
-        spiral = np.column_stack(
-            (
-                theta,
-                x_unwrapped,
-                np.ones_like(theta),
-                np.zeros_like(theta),
-                np.zeros_like(theta),
-                theta / TWO_PI,
-            )
+class TestAlignedPositionsAtX(unittest.TestCase):
+    def setUp(self):
+        self.spiral = SpiralCalculator.calculate_simple_racetrack(
+            n_turns=4,
+            start_radius=0.005,
+            straight_length=0.05,
+            thickness=0.001,
+            points_per_turn=400,
         )
 
-        centers = SpiralCalculator.aligned_positions_from_spiral(
-            spiral, alignment_angle=0.0
-        )
+    def test_returns_one_positive_z_crossing_per_turn_at_fixed_x(self):
+        target_x = 0.01
+        centers = SpiralCalculator.aligned_positions_at_x(self.spiral, target_x)
 
-        np.testing.assert_allclose(
+        self.assertEqual(len(centers), 4)
+        marker_x = np.interp(
             centers,
-            0.02 * (TWO_PI * np.arange(5)) + 0.0002 * (TWO_PI * np.arange(5)) ** 2,
+            self.spiral[:, X_UNWRAPPED_COL],
+            self.spiral[:, X_COORD_COL],
         )
+        marker_z = np.interp(
+            centers,
+            self.spiral[:, X_UNWRAPPED_COL],
+            self.spiral[:, Z_COORD_COL],
+        )
+        marker_turns = np.interp(
+            centers,
+            self.spiral[:, X_UNWRAPPED_COL],
+            self.spiral[:, TURNS_COL],
+        )
+        np.testing.assert_allclose(marker_x, target_x, atol=1e-12)
+        self.assertTrue(np.all(marker_z > 0))
+        np.testing.assert_array_equal(np.floor(marker_turns).astype(int), range(4))
         self.assertTrue(np.all(np.diff(np.diff(centers)) > 0))
 
     def test_omits_centers_where_full_tab_does_not_fit(self):
-        theta = np.linspace(0.0, 4.0 * np.pi, 101)
-        spiral = np.column_stack(
-            (theta, theta / 100, theta, theta, theta, theta / TWO_PI)
+        tab_width = 0.1
+        centers = SpiralCalculator.aligned_positions_at_x(
+            self.spiral, target_x=0.0, tab_width=tab_width
         )
 
-        centers = SpiralCalculator.aligned_positions_from_spiral(
-            spiral, alignment_angle=0.0, tab_width=0.02
+        minimum = np.min(self.spiral[:, X_UNWRAPPED_COL])
+        maximum = np.max(self.spiral[:, X_UNWRAPPED_COL])
+        self.assertEqual(len(centers), 3)
+        self.assertTrue(np.all(centers - tab_width / 2 >= minimum))
+        self.assertTrue(np.all(centers + tab_width / 2 <= maximum))
+
+    def test_rejects_tab_endpoints_on_curved_section(self):
+        with self.assertRaisesRegex(ValueError, "straight racetrack section"):
+            SpiralCalculator.aligned_positions_at_x(
+                self.spiral,
+                target_x=-0.024,
+                tab_width=0.01,
+                straight_x_bounds=(-0.025, 0.025),
+            )
+
+    def test_accepts_tab_endpoints_at_straight_section_boundaries(self):
+        centers = SpiralCalculator.aligned_positions_at_x(
+            self.spiral,
+            target_x=-0.02,
+            tab_width=0.01,
+            straight_x_bounds=(-0.025, 0.025),
         )
 
-        self.assertEqual(len(centers), 1)
-        self.assertAlmostEqual(centers[0], TWO_PI / 100)
+        self.assertEqual(len(centers), 4)
 
-    def test_rejects_non_finite_angle(self):
+    def test_rejects_non_finite_target_x(self):
         spiral = np.zeros((2, 6))
         with self.assertRaises(ValueError):
-            SpiralCalculator.aligned_positions_from_spiral(spiral, np.nan)
+            SpiralCalculator.aligned_positions_at_x(spiral, np.nan)
 
 
 if __name__ == "__main__":

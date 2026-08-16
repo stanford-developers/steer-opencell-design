@@ -775,8 +775,8 @@ Shared by all assemblies (`WoundJellyRoll`, `FlatWoundJellyRoll`, `PunchedStack`
 |---|---|---|
 | `thickness` | mm | Overall jelly roll thickness |
 | `width` | mm | Overall jelly roll width |
-| `cathode_notch_alignment_angle` | rad or `None` | Same-phase cathode notch alignment; `None` keeps scalar spacing |
-| `anode_notch_alignment_angle` | rad or `None` | Same-phase anode notch alignment; `None` keeps scalar spacing |
+| `cathode_notch_alignment_position` | mm or `None` | Cathode notch position from the unrotated pressed mandrel's minimum-x outer edge; `None` keeps scalar spacing |
+| `anode_notch_alignment_position` | mm or `None` | Anode notch position from the same mandrel edge; arrangement follows `laminate.electrode_orientation` |
 
 **`FlatWoundJellyRoll` — additional read-only:**
 
