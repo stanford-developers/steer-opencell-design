@@ -83,7 +83,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
     ...     bare_lengths_a_side=(15.0, 15.0),  # Tape connection option
     ...     bare_lengths_b_side=(10.0, 10.0)
     ... )
-    >>> print(f"Number of tabs: {collector.number_of_tabs}")
+    >>> print(f"Number of tabs: {collector.n_tabs}")
     >>> print(f"Total tab area: {collector.total_tab_area:.1f} mm²")
     >>> print(f"Effective resistance: {collector.effective_resistance:.6f} Ω")
 
@@ -252,32 +252,45 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         return new_current_collector
 
     def _calculate_tab_positions(self) -> None:
-        """
-        Function to calculate the positions of the tabs along the length of the current collector.
-        """
-        x_min = self._datum[0] - self._x_foil_length / 2
-
+        """Calculate tab positions for the configured spacing mode."""
         explicit_centers = getattr(self, "_tab_center_positions", None)
         if explicit_centers is not None:
-            self._validate_tab_center_positions(explicit_centers)
-            centers = x_min + explicit_centers
-            self._tab_positions = np.column_stack(
-                (
-                    centers - self._tab_width / 2,
-                    centers + self._tab_width / 2,
-                )
-            )
+            self._calculate_explicit_tab_positions(explicit_centers)
             return
 
+        self._calculate_regular_tab_positions()
+
+    def _calculate_explicit_tab_positions(
+        self, centers_from_leading_edge: np.ndarray
+    ) -> None:
+        """Calculate tab edges from explicit centers in internal meter units."""
+        self._validate_explicit_tab_center_positions(centers_from_leading_edge)
+
+        # Collector coordinates are centered on the datum, while explicit tab
+        # centers are measured from the foil's leading (minimum-x) edge.
+        x_min = self._datum[0] - self._x_foil_length / 2
+        centers = x_min + centers_from_leading_edge
+        self._tab_positions = np.column_stack(
+            (
+                centers - self._tab_width / 2,
+                centers + self._tab_width / 2,
+            )
+        )
+
+    def _calculate_regular_tab_positions(self) -> None:
+        """Calculate tab edges using the configured uniform center spacing."""
+        # Convert the datum-centered foil bounds into absolute x-coordinates.
+        x_min = self._datum[0] - self._x_foil_length / 2
+
+        # Search one spacing beyond the trailing edge; the clipping logic below
+        # then retains or trims the final tab according to the legacy behavior.
         x_max = self._datum[0] + self._x_foil_length / 2 + self._tab_spacing
 
-        number_of_tabs = 1
         tab_positions = [x_min + self._tab_spacing / 2]
         tab_starts = [tab_positions[0] - self._tab_width / 2]
         tab_ends = [tab_positions[0] + self._tab_width / 2]
 
         while tab_positions[-1] < x_max:
-            number_of_tabs += 1
             next_tab_position = tab_positions[-1] + self._tab_spacing
 
             if next_tab_position + self._tab_width / 2 > x_max:
@@ -296,7 +309,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
         self._tab_positions = np.column_stack((tab_starts, tab_ends))
 
-    def _validate_tab_center_positions(self, positions: np.ndarray) -> None:
+    def _validate_explicit_tab_center_positions(self, positions: np.ndarray) -> None:
         """Validate explicit tab centers expressed in internal meter units."""
         if positions.ndim != 1:
             raise ValueError("tab_center_positions must be a one-dimensional sequence.")
@@ -524,8 +537,8 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         return (centers * M_TO_MM).tolist()
 
     @property
-    def tab_pitches(self) -> list:
-        """Return consecutive center-to-center pitches in mm."""
+    def tab_center_spacings(self) -> list:
+        """Return consecutive center-to-center tab spacings in mm."""
         if len(self._tab_positions) < 2:
             return []
         centers = self._tab_positions.mean(axis=1)
@@ -541,7 +554,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         ).tolist()
 
     @property
-    def number_of_tabs(self) -> int:
+    def n_tabs(self) -> int:
         """Return the number of complete tabs in the current pattern."""
         return len(self._tab_positions)
 
@@ -652,5 +665,5 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
                 "tab_center_positions must be an iterable of numbers or None."
             ) from exc
 
-        self._validate_tab_center_positions(positions)
+        self._validate_explicit_tab_center_positions(positions)
         self._tab_center_positions = positions

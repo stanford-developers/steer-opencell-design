@@ -3612,7 +3612,7 @@ class FlatWoundJellyRoll(_JellyRoll):
 
             leading_edge = collector._datum[0] - collector._x_foil_length / 2
             centers_local = centers_global - leading_edge
-            collector._validate_tab_center_positions(centers_local)
+            collector._validate_explicit_tab_center_positions(centers_local)
             collector._tab_center_positions = centers_local
             collector._calculate_all_properties()
             generated.add(electrode_name)
@@ -4252,7 +4252,7 @@ class FlatWoundJellyRoll(_JellyRoll):
 
     @property
     def thickness_aware_notch_data(self) -> Dict[str, Dict[str, Any]]:
-        """Return configured notch centers, pitches, and gaps for each electrode."""
+        """Return configured notch centers, spacings, and gaps for each electrode."""
         result: Dict[str, Dict[str, Any]] = {}
         for electrode_name in ("cathode", "anode"):
             angle = getattr(self, f"_{electrode_name}_notch_alignment_angle")
@@ -4262,7 +4262,7 @@ class FlatWoundJellyRoll(_JellyRoll):
             result[electrode_name] = {
                 "alignment_angle": angle,
                 "centers": collector.tab_center_positions,
-                "pitches": collector.tab_pitches,
+                "center_spacings": collector.tab_center_spacings,
                 "gaps": collector.tab_gaps,
             }
         return result

@@ -640,8 +640,8 @@ class TestFlatJellyRoll(unittest.TestCase):
 
         collector = self.my_jellyroll.layup.cathode.current_collector
         self.assertIsNotNone(collector.tab_center_positions)
-        self.assertGreater(collector.number_of_tabs, 2)
-        self.assertTrue(np.all(np.diff(collector.tab_pitches) > 0))
+        self.assertGreater(collector.n_tabs, 2)
+        self.assertTrue(np.all(np.diff(collector.tab_center_spacings) > 0))
 
         spiral = self.my_jellyroll._component_spirals["cathode_current_collector"]
         valid = np.isfinite(spiral[:, THETA_COL]) & np.isfinite(
@@ -666,7 +666,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         marker_trace = next(
             trace for trace in figure.data if trace.name == "Cathode notch centers"
         )
-        self.assertEqual(len(marker_trace.x), collector.number_of_tabs)
+        self.assertEqual(len(marker_trace.x), collector.n_tabs)
 
     def test_disabling_alignment_restores_scalar_spacing(self):
         self.my_jellyroll.cathode_notch_alignment_angle = 0.0
@@ -675,8 +675,8 @@ class TestFlatJellyRoll(unittest.TestCase):
         collector = self.my_jellyroll.layup.cathode.current_collector
         self.assertIsNone(collector.tab_center_positions)
         # The legacy pattern may clip its final tab at the foil boundary.
-        for pitch in collector.tab_pitches[:-1]:
-            self.assertAlmostEqual(pitch, collector.tab_spacing)
+        for spacing in collector.tab_center_spacings[:-1]:
+            self.assertAlmostEqual(spacing, collector.tab_spacing)
 
     def test_alignment_configuration_serializes_for_both_electrodes(self):
         self.my_jellyroll.cathode_notch_alignment_angle = 0.0
@@ -686,8 +686,8 @@ class TestFlatJellyRoll(unittest.TestCase):
 
         self.assertEqual(restored.cathode_notch_alignment_angle, 0.0)
         self.assertEqual(restored.anode_notch_alignment_angle, np.pi)
-        self.assertGreater(restored.layup.cathode.current_collector.number_of_tabs, 2)
-        self.assertGreater(restored.layup.anode.current_collector.number_of_tabs, 2)
+        self.assertGreater(restored.layup.cathode.current_collector.n_tabs, 2)
+        self.assertGreater(restored.layup.anode.current_collector.n_tabs, 2)
         self.assertIn("cathode", restored.thickness_aware_notch_data)
         self.assertIn("anode", restored.thickness_aware_notch_data)
 

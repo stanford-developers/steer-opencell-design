@@ -784,7 +784,7 @@ Shared by all assemblies (`WoundJellyRoll`, `FlatWoundJellyRoll`, `PunchedStack`
 |---|---|---|
 | `pressed_radius` | mm | Pressed mandrel radius |
 | `pressed_straight_length` | mm | Pressed mandrel straight length |
-| `thickness_aware_notch_data` | dict | Calculated centers, pitches, and gaps by electrode |
+| `thickness_aware_notch_data` | dict | Calculated centers, center spacings, and gaps by electrode |
 
 **`PunchedStack` / `ZFoldStack` — additional settable:**
 

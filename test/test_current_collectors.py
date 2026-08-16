@@ -77,10 +77,12 @@ class TestExplicitNotchPattern(unittest.TestCase):
             tab_center_positions=[50, 155, 270, 395],
         )
 
-    def test_explicit_centers_produce_uneven_pitches_and_gaps(self):
+    def test_explicit_centers_produce_uneven_spacings_and_gaps(self):
         self.assertEqual(self.collector.tab_center_positions, [50, 155, 270, 395])
-        self.assertEqual(self.collector.number_of_tabs, 4)
-        for actual, expected in zip(self.collector.tab_pitches, [105, 115, 125]):
+        self.assertEqual(self.collector.n_tabs, 4)
+        for actual, expected in zip(
+            self.collector.tab_center_spacings, [105, 115, 125]
+        ):
             self.assertAlmostEqual(actual, expected)
         for actual, expected in zip(self.collector.tab_gaps, [85, 95, 105]):
             self.assertAlmostEqual(actual, expected)
@@ -101,8 +103,8 @@ class TestExplicitNotchPattern(unittest.TestCase):
         self.collector.tab_spacing = 80
 
         self.assertIsNone(self.collector.tab_center_positions)
-        for pitch in self.collector.tab_pitches:
-            self.assertAlmostEqual(pitch, 80)
+        for spacing in self.collector.tab_center_spacings:
+            self.assertAlmostEqual(spacing, 80)
 
     def test_rejects_overlapping_or_out_of_bounds_tabs(self):
         with self.assertRaises(ValueError):
@@ -116,7 +118,7 @@ class TestExplicitNotchPattern(unittest.TestCase):
         restored = NotchedCurrentCollector.deserialize(self.collector.serialize())
 
         self.assertEqual(restored.tab_center_positions, [50, 155, 270, 395])
-        self.assertEqual(restored.number_of_tabs, 4)
+        self.assertEqual(restored.n_tabs, 4)
 
 
 class TestPunchedCurrentCollector(unittest.TestCase):
