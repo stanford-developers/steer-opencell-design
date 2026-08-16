@@ -3575,6 +3575,88 @@ class FlatWoundJellyRoll(_JellyRoll):
         )
         self._center_spirals()
 
+    def _calculate_top_down_coordinates(self) -> None:
+        """Add aligned notch-stack footprints to the standard top-down view."""
+        super()._calculate_top_down_coordinates()
+        for electrode_name in ("cathode", "anode"):
+            if (
+                getattr(self, f"_{electrode_name}_notch_alignment_position")
+                is not None
+            ):
+                self._calculate_notch_stack_top_down_coords(electrode_name)
+
+    def _calculate_notch_stack_top_down_coords(self, electrode_name: str) -> None:
+        """Build one x-y footprint for an aligned stack of overlapping tabs."""
+        electrode = getattr(self._layup, f"_{electrode_name}")
+        collector = electrode._current_collector
+        if not isinstance(collector, NotchedCurrentCollector) or isinstance(
+            collector, TablessCurrentCollector
+        ):
+            return
+
+        collector_key = f"{electrode_name}_current_collector"
+        body_coords = self._component_top_down_coordinates.get(collector_key)
+        if body_coords is None:
+            return
+
+        # The legacy schematic represents integral tabs as a full-width band.
+        # For an aligned pattern, keep the collector body rectangular and draw
+        # the actual tab stack separately at its physical x-position.
+        foil_y_min = collector._datum[1] - collector._y_foil_length / 2
+        foil_y_max = collector._datum[1] + collector._y_foil_length / 2
+        body_x_min = float(np.min(body_coords[:, 0]))
+        body_x_max = float(np.max(body_coords[:, 0]))
+        body_x, body_y = self.build_square_array(
+            body_x_min,
+            foil_y_min,
+            body_x_max - body_x_min,
+            collector._y_foil_length,
+        )
+        self._component_top_down_coordinates[collector_key] = np.column_stack(
+            (body_x, body_y)
+        )
+
+        visible_tab_height = collector._tab_height * (
+            1.0 - self._collector_tab_crumple_factor
+        )
+        if visible_tab_height <= 0:
+            return
+
+        # Electrode orientation is already expressed by flipping the collector
+        # coordinates. Infer the protruding side from that geometry so this view
+        # follows the same source of truth as punched-current-collector plots.
+        collector_y = collector._foil_coordinates[:, 1]
+        collector_y = collector_y[np.isfinite(collector_y)]
+        negative_extension = foil_y_min - float(np.min(collector_y))
+        positive_extension = float(np.max(collector_y)) - foil_y_max
+        if positive_extension >= negative_extension:
+            stack_y_min = foil_y_max
+        else:
+            stack_y_min = foil_y_min - visible_tab_height
+
+        position = getattr(self, f"_{electrode_name}_notch_alignment_position")
+        axis_position = self._notch_alignment_axis_position(position)
+        rotation_angle = self._last_rotation_angle
+        mandrel_axis = np.array(
+            [np.cos(rotation_angle), np.sin(rotation_angle)]
+        )
+        # The top-down view is an axis-aligned schematic, like the punched
+        # collector view. Project the transformed mandrel center back onto its
+        # longitudinal axis so increasing edge distance always reads left-to-right,
+        # independent of an equivalent 180-degree cross-section rotation.
+        stack_x_center = (
+            np.dot(self._pressed_mandrel_center_xz, mandrel_axis) + axis_position
+        )
+        stack_x, stack_y = self.build_square_array(
+            stack_x_center - collector._tab_width / 2,
+            stack_y_min,
+            collector._tab_width,
+            visible_tab_height,
+        )
+        self._component_top_down_coordinates[f"{electrode_name}_notch_stack"] = (
+            np.column_stack((stack_x, stack_y))
+        )
+
     @staticmethod
     def _validate_notch_alignment_position(
         value: Optional[float], name: str
@@ -3624,12 +3706,13 @@ class FlatWoundJellyRoll(_JellyRoll):
                 f"{maximum_position * M_TO_MM:.2f} mm."
             )
 
-        mandrel_x_min = (
-            mandrel_center_x
-            - self._pressed_straight_length / 2
-            - self._pressed_radius
+        return mandrel_center_x + self._notch_alignment_axis_position(position)
+
+    def _notch_alignment_axis_position(self, position: float) -> float:
+        """Convert an edge distance to the mandrel-centered longitudinal axis."""
+        return (
+            -self._pressed_straight_length / 2 - self._pressed_radius + position
         )
-        return mandrel_x_min + position
 
     def _apply_thickness_aware_notches(self) -> None:
         """Apply configured same-position notch centers to notched collectors.
@@ -4426,6 +4509,48 @@ class FlatWoundJellyRoll(_JellyRoll):
                 )
             )
 
+        return figure
+
+    def _notch_stack_top_down_trace(
+        self, electrode_name: str
+    ) -> Optional[go.Scatter]:
+        """Return the top-down footprint trace for one aligned notch stack."""
+        coordinate_key = f"{electrode_name}_notch_stack"
+        if coordinate_key not in self._component_top_down_coordinates:
+            return None
+
+        collector = getattr(
+            self._layup, f"_{electrode_name}"
+        )._current_collector
+        coords = self._component_top_down_coordinates[coordinate_key]
+        position = getattr(self, f"_{electrode_name}_notch_alignment_position")
+        customdata = np.tile(
+            [position * M_TO_MM, collector.n_tabs], (len(coords), 1)
+        )
+        return go.Scatter(
+            x=coords[:, 0] * M_TO_MM,
+            y=coords[:, 1] * M_TO_MM,
+            mode="lines",
+            fill="toself",
+            fillcolor=collector.material._color,
+            line=dict(color="black", width=1),
+            name=f"{electrode_name.title()} notch stack",
+            customdata=customdata,
+            hovertemplate=(
+                f"<b>{electrode_name.title()} notch stack</b><br>"
+                "Mandrel-edge position: %{customdata[0]:.2f} mm<br>"
+                "Aligned tabs: %{customdata[1]:.0f}<extra></extra>"
+            ),
+        )
+
+    def plot_top_down_view(self, opacity: float = 0.5, **kwargs) -> go.Figure:
+        """Plot the x-y view, including physically positioned notch stacks."""
+        figure = super().plot_top_down_view(opacity=opacity, **kwargs)
+        for electrode_name in ("cathode", "anode"):
+            trace = self._notch_stack_top_down_trace(electrode_name)
+            if trace is not None:
+                self.adjust_trace_opacity(trace, opacity)
+                figure.add_trace(trace)
         return figure
 
     @property

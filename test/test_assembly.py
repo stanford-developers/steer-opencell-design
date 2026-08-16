@@ -704,6 +704,93 @@ class TestFlatJellyRoll(unittest.TestCase):
         )
         self.assertEqual(len(marker_trace.x), collector.n_tabs)
 
+    def test_top_down_notch_stacks_use_physical_positions_and_transverse_sides(self):
+        unconfigured_names = {
+            trace.name for trace in self.my_jellyroll.plot_top_down_view().data
+        }
+        self.assertNotIn("Cathode notch stack", unconfigured_names)
+        self.assertNotIn("Anode notch stack", unconfigured_names)
+
+        cathode_position = 50.0
+        anode_position = 65.0
+        self.my_jellyroll.cathode_notch_alignment_position = cathode_position
+        self.my_jellyroll.anode_notch_alignment_position = anode_position
+
+        figure = self.my_jellyroll.plot_top_down_view()
+        cathode_stack = next(
+            trace for trace in figure.data if trace.name == "Cathode notch stack"
+        )
+        anode_stack = next(
+            trace for trace in figure.data if trace.name == "Anode notch stack"
+        )
+        cathode_body = next(
+            trace
+            for trace in figure.data
+            if trace.name == "Cathode Current Collector"
+        )
+        anode_body = next(
+            trace
+            for trace in figure.data
+            if trace.name == "Anode Current Collector"
+        )
+
+        rotation_angle = self.my_jellyroll._last_rotation_angle
+        mandrel_axis = np.array(
+            [np.cos(rotation_angle), np.sin(rotation_angle)]
+        )
+        mandrel_axis_center = (
+            np.dot(self.my_jellyroll._pressed_mandrel_center_xz, mandrel_axis)
+            / MM_TO_M
+        )
+        common_offset = (
+            -self.my_jellyroll._pressed_straight_length / 2
+            - self.my_jellyroll._pressed_radius
+        ) / MM_TO_M
+        cathode_stack_center = (min(cathode_stack.x) + max(cathode_stack.x)) / 2
+        anode_stack_center = (min(anode_stack.x) + max(anode_stack.x)) / 2
+        self.assertAlmostEqual(
+            cathode_stack_center,
+            mandrel_axis_center + common_offset + cathode_position,
+        )
+        self.assertAlmostEqual(
+            anode_stack_center,
+            mandrel_axis_center + common_offset + anode_position,
+        )
+        self.assertAlmostEqual(
+            anode_stack_center - cathode_stack_center,
+            anode_position - cathode_position,
+        )
+        self.assertGreaterEqual(min(cathode_stack.y), max(cathode_body.y))
+        self.assertLessEqual(max(anode_stack.y), min(anode_body.y))
+
+    def test_top_down_notch_stacks_share_side_when_longitudinal(self):
+        layup = self.my_jellyroll.layup
+        layup.electrode_orientation = "longitudinal"
+        self.my_jellyroll.layup = layup
+        self.my_jellyroll.cathode_notch_alignment_position = 50.0
+        self.my_jellyroll.anode_notch_alignment_position = 65.0
+
+        figure = self.my_jellyroll.plot_top_down_view()
+        cathode_stack = next(
+            trace for trace in figure.data if trace.name == "Cathode notch stack"
+        )
+        anode_stack = next(
+            trace for trace in figure.data if trace.name == "Anode notch stack"
+        )
+        cathode_body = next(
+            trace
+            for trace in figure.data
+            if trace.name == "Cathode Current Collector"
+        )
+        anode_body = next(
+            trace
+            for trace in figure.data
+            if trace.name == "Anode Current Collector"
+        )
+
+        self.assertGreaterEqual(min(cathode_stack.y), max(cathode_body.y))
+        self.assertGreaterEqual(min(anode_stack.y), max(anode_body.y))
+
     def test_disabling_alignment_restores_scalar_spacing(self):
         self.my_jellyroll.cathode_notch_alignment_position = 50.0
         self.my_jellyroll.cathode_notch_alignment_position = None
