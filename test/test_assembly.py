@@ -1460,6 +1460,17 @@ class TestRoundJellyRollWithTabWelded(unittest.TestCase):
         # fig3.show()
         # fig4.show()
 
+    def test_radius_setter(self):
+        """Test that setting the radius updates the diameter correctly."""
+        original_radius = self.my_jellyroll.radius
+
+        # Set a new radius
+        new_radius = original_radius + 5.0
+        self.my_jellyroll.radius = new_radius
+
+        # Check that diameter updated correctly
+        self.assertAlmostEqual(self.my_jellyroll.radius, new_radius, 1)
+
 
 class TestFlatJellyRollWithTabWelded(unittest.TestCase):
 
@@ -1557,6 +1568,28 @@ class TestFlatJellyRollWithTabWelded(unittest.TestCase):
         # fig1.show()
         # fig3.show()
         # fig4.show()
+
+    def test_thickness_setter(self):
+        """Test that setting the thickness updates the width correctly."""
+        original_thickness = self.my_jellyroll.thickness
+
+        # Set a new thickness
+        new_thickness = original_thickness + 5.0
+        self.my_jellyroll.thickness = new_thickness
+
+        # Check that width updated correctly
+        self.assertAlmostEqual(self.my_jellyroll.thickness, new_thickness, 2)
+
+    def test_width_setter(self):
+        """Test that setting the width updates the thickness correctly."""
+        original_width = self.my_jellyroll.width
+
+        # Set a new width
+        new_width = original_width + 2
+        self.my_jellyroll.width = new_width
+
+        # Check that thickness updated correctly
+        self.assertAlmostEqual(self.my_jellyroll.width, new_width, 2)
 
 
 class TestAssemblyPropagation(unittest.TestCase):

@@ -3506,17 +3506,19 @@ class WoundJellyRoll(_JellyRoll):
         # Validate input
         self.validate_positive_float(target_radius, "radius")
 
-        # Deepcopy the layup once, then mutate ``length`` in place across
-        # iterations. The original ``self._layup`` is untouched until the
-        # final ``self.layup = self._layup`` reassignment after Brent.
-        template_layup = deepcopy(self._layup)
-
         def objective_function(length: float) -> float:
             """Lightweight objective: shallow-copy assembly, run geometry
             pipeline (spiral + components + extrusion + tape), skip downstream
             properties (mass, cost, view coordinates) and the invariant
-            radius-range / total-height calculations."""
+            radius-range / total-height calculations.
+
+            The layup is deepcopied per evaluation, not once outside the loop: some
+            ``length`` setters are lossy (weld tabs that no longer fit are
+            deactivated), so a shared layup would make the objective depend on which
+            lengths Brent probed earlier. The original ``self._layup`` is untouched
+            until the final ``self.layup = self._layup`` reassignment after Brent."""
             assembly_copy = copy(self)
+            template_layup = deepcopy(self._layup)
             template_layup.length = length
             assembly_copy._layup = self.position_layup_on_mandrel(
                 template_layup, assembly_copy._mandrel
@@ -4380,10 +4382,6 @@ class FlatWoundJellyRoll(_JellyRoll):
         # Validate input
         self.validate_positive_float(target_thickness, "thickness")
 
-        # Deepcopy the layup once, then mutate ``length`` in place across
-        # iterations. The original ``self._layup`` is untouched until the
-        # final ``self.layup = self._layup`` reassignment after Brent.
-        template_layup = deepcopy(self._layup)
         # The optimal rotation angle barely shifts between outer-Brent
         # iterations; cache it and warm-start the inner Brent each time.
         rotation_state: Dict[str, Optional[float]] = {"angle": None}
@@ -4392,8 +4390,15 @@ class FlatWoundJellyRoll(_JellyRoll):
             """Lightweight objective: shallow-copy assembly, run geometry
             pipeline (spiral + components + extrusion + rotation + tape), skip
             downstream properties (mass, cost, view coordinates) and the
-            invariant thickness/width-range / total-height calculations."""
+            invariant thickness/width-range / total-height calculations.
+
+            The layup is deepcopied per evaluation, not once outside the loop: some
+            ``length`` setters are lossy (weld tabs that no longer fit are
+            deactivated), so a shared layup would make the objective depend on which
+            lengths Brent probed earlier. The original ``self._layup`` is untouched
+            until the final ``self.layup = self._layup`` reassignment after Brent."""
             assembly_copy = copy(self)
+            template_layup = deepcopy(self._layup)
             template_layup.length = length
             assembly_copy._layup = self.position_layup_on_mandrel(
                 template_layup, assembly_copy._mandrel
@@ -4474,10 +4479,6 @@ class FlatWoundJellyRoll(_JellyRoll):
         # Validate input
         self.validate_positive_float(target_width, "width")
 
-        # Deepcopy the layup once, then mutate ``length`` in place across
-        # iterations. The original ``self._layup`` is untouched until the
-        # final ``self.layup = self._layup`` reassignment after Brent.
-        template_layup = deepcopy(self._layup)
         # The optimal rotation angle barely shifts between outer-Brent
         # iterations; cache it and warm-start the inner Brent each time.
         rotation_state: Dict[str, Optional[float]] = {"angle": None}
@@ -4486,8 +4487,15 @@ class FlatWoundJellyRoll(_JellyRoll):
             """Lightweight objective: shallow-copy assembly, run geometry
             pipeline (spiral + components + extrusion + rotation + tape), skip
             downstream properties (mass, cost, view coordinates) and the
-            invariant thickness/width-range / total-height calculations."""
+            invariant thickness/width-range / total-height calculations.
+
+            The layup is deepcopied per evaluation, not once outside the loop: some
+            ``length`` setters are lossy (weld tabs that no longer fit are
+            deactivated), so a shared layup would make the objective depend on which
+            lengths Brent probed earlier. The original ``self._layup`` is untouched
+            until the final ``self.layup = self._layup`` reassignment after Brent."""
             assembly_copy = copy(self)
+            template_layup = deepcopy(self._layup)
             template_layup.length = length
             assembly_copy._layup = self.position_layup_on_mandrel(
                 template_layup, assembly_copy._mandrel
