@@ -396,6 +396,25 @@ class TestRoundJellyRoll(unittest.TestCase):
             actual_cost_breakdown, expected_cost_breakdown, "cost_breakdown"
         )
 
+    def test_radius_setter_after_tap_thickness_change(self):
+
+        old_radius = self.my_jellyroll.radius
+        old_tape_thickness = self.my_jellyroll.tape.thickness
+        old_layup_length = self.my_jellyroll.layup.length
+
+        new_tape_thickness = 100
+        new_radius = old_radius + 5
+
+
+        self.my_jellyroll.tape.thickness = new_tape_thickness
+        self.my_jellyroll.tape.propagate_changes()
+
+        new_layup_length = self.my_jellyroll.layup.length
+
+        self.assertAlmostEqual(self.my_jellyroll.tape.thickness, new_tape_thickness, 2)
+        self.assertGreater(self.my_jellyroll.radius, old_radius)
+        self.assertEqual(new_layup_length, old_layup_length)
+
     def test_mandrel_setting(self):
 
         new_jellyroll = deepcopy(self.my_jellyroll)

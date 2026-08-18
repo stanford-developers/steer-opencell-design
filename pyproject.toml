@@ -18,8 +18,11 @@ classifiers = [
     "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
 ]
 dependencies = [
-    "steer-core==0.2.19",
-    "steer-materials==0.1.45",
+    # Compatible-release ranges, not exact pins: exact pins mean a steer-core
+    # security patch cannot be installed without rebuilding this package too.
+    # A deploy's reproducibility comes from its vendored wheel set, not from here.
+    "steer-core>=0.2.22,<0.3",
+    "steer-materials>=0.1.48,<0.2",
     "numba>=0.59",
 ]
 

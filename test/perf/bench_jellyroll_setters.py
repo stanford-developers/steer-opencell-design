@@ -159,6 +159,29 @@ def _build_setter_cases(cases: List[BenchCase]) -> List[SetterCase]:
     return out
 
 
+# ─── Brent iteration probe ───────────────────────────────────────────────────
+#
+# ``brentq`` is imported into the JellyRolls module namespace, so patching the
+# name there lets us observe iteration / function-call counts without touching
+# production code. The probe re-runs brentq with ``full_output=True``.
+_BRENT_STATS: Dict[str, int] = {"iterations": 0, "function_calls": 0}
+
+
+def _install_brentq_probe() -> None:
+    import steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls as _jr
+
+    orig = _jr.brentq
+
+    def counted_brentq(f, a, b, *args, **kwargs):
+        kwargs.pop("full_output", None)
+        root, r = orig(f, a, b, *args, full_output=True, **kwargs)
+        _BRENT_STATS["iterations"] = int(r.iterations)
+        _BRENT_STATS["function_calls"] = int(r.function_calls)
+        return root
+
+    _jr.brentq = counted_brentq
+
+
 def _time_setter(setter_case: SetterCase) -> Dict[str, float]:
     """Run ``WARMUP_RUNS + TIMED_RUNS`` setter calls and return summary."""
     for _ in range(WARMUP_RUNS):
@@ -166,11 +189,13 @@ def _time_setter(setter_case: SetterCase) -> Dict[str, float]:
         setattr(jr, setter_case.setter_attr, setter_case.target)
 
     timings_ms: List[float] = []
+    n_obj_calls = 0
     for _ in range(TIMED_RUNS):
         jr = setter_case.factory()
         t0 = time.perf_counter()
         setattr(jr, setter_case.setter_attr, setter_case.target)
         timings_ms.append((time.perf_counter() - t0) * 1000.0)
+        n_obj_calls = _BRENT_STATS["function_calls"]
 
     sorted_ms = sorted(timings_ms)
     return {
@@ -178,6 +203,7 @@ def _time_setter(setter_case: SetterCase) -> Dict[str, float]:
         "p50_ms": sorted_ms[len(sorted_ms) // 2],
         "p95_ms": sorted_ms[max(0, int(round(0.95 * (len(sorted_ms) - 1))))],
         "min_ms": sorted_ms[0],
+        "n_obj_calls": n_obj_calls,
     }
 
 
@@ -191,18 +217,111 @@ def _run_all(cases: List[BenchCase]) -> Dict[str, Dict[str, Dict[str, float]]]:
     return results
 
 
-def _profile_one(case: BenchCase) -> str:
-    """cProfile a single radius setter on the given case (medium by default)."""
+# Stage names → (funcname, filename substring) used to slice the cProfile
+# output into a per-stage cost table. cumtime for nested stages overlaps by
+# design — the table is for attribution, not for summing.
+_STAGE_MARKERS: List[Tuple[str, str, str]] = [
+    ("objective_function (per-iter total)", "objective_function", "JellyRolls"),
+    ("laminate length setter cascade", "length", "Laminate"),
+    ("position_layup_on_mandrel", "position_layup_on_mandrel", "JellyRolls"),
+    ("calculate_flattened_center_lines", "calculate_flattened_center_lines", "Laminate"),
+    ("spiral kernel (round)", "calculate_variable_thickness_spiral", "SpiralUtils"),
+    ("racetrack kernel (flat)", "calculate_variable_thickness_racetrack", "SpiralUtils"),
+    ("build_component_spirals", "build_component_spirals", "SpiralUtils"),
+    ("build_component_racetracks", "build_component_racetracks", "SpiralUtils"),
+    ("extrusion (round)", "build_extruded_component_spirals", "SpiralUtils"),
+    ("extrusion (flat)", "build_extruded_component_racetracks", "SpiralUtils"),
+    ("_insert_segment_gaps", "_insert_segment_gaps", "SpiralUtils"),
+    ("rotation optimizer (flat)", "rotate_spiral_to_minimize_thickness", "SpiralUtils"),
+    ("rotation objective evals", "compute_thickness_at_angle", "SpiralUtils"),
+    ("get_radius_of_points (shapely)", "get_radius_of_points", "Coordinates"),
+    ("_set_main_dimensions_for_objective", "_set_main_dimensions_for_objective", "JellyRolls"),
+    ("_center_spirals", "_center_spirals", "JellyRolls"),
+    ("pressed racetrack (flat)", "_calculate_pressed_racetrack", "JellyRolls"),
+    ("tail: _calculate_all_properties", "_calculate_all_properties", "JellyRolls"),
+    ("tail: _calculate_roll_properties", "_calculate_roll_properties", "JellyRolls"),
+    ("tail: _calculate_spiral_properties", "_calculate_spiral_properties", "JellyRolls"),
+    ("tail: top-down coords", "_calculate_top_down_coordinates", "JellyRolls"),
+    ("tail: right-left coords", "_calculate_right_left_coordinates", "JellyRolls"),
+    ("tail: interfacial area", "_calculate_interfacial_area", "JellyRolls"),
+    ("tail: bulk properties", "_calculate_bulk_properties", "JellyRolls"),
+    ("brentq", "counted_brentq", "bench_jellyroll_setters"),
+]
+
+
+def _stage_table(ps: pstats.Stats, total_s: float) -> str:
+    """Render the targeted per-stage attribution table from pstats data."""
+    rows = []
+    for label, funcname, file_sub in _STAGE_MARKERS:
+        agg_ncalls = 0
+        agg_cum = 0.0
+        agg_tot = 0.0
+        for (fn, _lineno, name), (
+            cc,
+            nc,
+            tt,
+            ct,
+            _callers,
+        ) in ps.stats.items():  # type: ignore[attr-defined]
+            if name == funcname and file_sub in fn:
+                agg_ncalls += nc
+                agg_cum += ct
+                agg_tot += tt
+        if agg_ncalls > 0:
+            rows.append((label, agg_ncalls, agg_tot, agg_cum))
+
+    rows.sort(key=lambda r: -r[3])
+    lines = [
+        f"{'stage':<42}{'ncalls':>8}{'tottime_ms':>12}{'cumtime_ms':>12}{'cum_%':>7}"
+    ]
+    for label, nc, tt, ct in rows:
+        pct = 100.0 * ct / total_s if total_s > 0 else 0.0
+        lines.append(f"{label:<42}{nc:>8}{tt * 1e3:>12.1f}{ct * 1e3:>12.1f}{pct:>6.1f}%")
+    return "\n".join(lines)
+
+
+def _profile_setter(setter_case: SetterCase) -> str:
+    """cProfile a single setter call; return top-30 + per-stage tables."""
+    jr = setter_case.factory()
     pr = cProfile.Profile()
-    wound = _build_wound(case)
-    target = wound.radius * 1.10
+    t0 = time.perf_counter()
     pr.enable()
-    wound.radius = target
+    setattr(jr, setter_case.setter_attr, setter_case.target)
     pr.disable()
+    total_s = time.perf_counter() - t0
+
     s = io.StringIO()
     ps = pstats.Stats(pr, stream=s).strip_dirs().sort_stats("cumulative")
-    ps.print_stats(25)
-    return s.getvalue()
+    ps.print_stats(30)
+
+    header = (
+        f"\n## {setter_case.case_name} {setter_case.assembly_kind}."
+        f"{setter_case.setter_attr} -> {setter_case.target:.2f} mm "
+        f"(wall {total_s * 1e3:.1f} ms, brent function_calls="
+        f"{_BRENT_STATS['function_calls']}, iterations="
+        f"{_BRENT_STATS['iterations']})\n"
+    )
+    return (
+        header
+        + "\n### Per-stage attribution (cumtime overlaps across nesting):\n"
+        + _stage_table(ps, total_s)
+        + "\n\n### Top 30 by cumulative time:\n"
+        + s.getvalue()
+    )
+
+
+def _profile_all(cases: List[BenchCase], case_name: str) -> str:
+    """Profile all three setters for the named case."""
+    matching = [c for c in cases if c.name == case_name]
+    if not matching:
+        raise ValueError(f"No case named {case_name!r}")
+    out = []
+    for setter_case in _build_setter_cases(matching):
+        # Warm one call so numba compilation / caches don't pollute the profile.
+        warm = setter_case.factory()
+        setattr(warm, setter_case.setter_attr, setter_case.target)
+        out.append(_profile_setter(setter_case))
+    return "\n".join(out)
 
 
 def _load_baseline() -> Dict[str, Dict[str, Dict[str, float]]]:
@@ -227,7 +346,13 @@ def main(argv: List[str] | None = None) -> int:
     parser.add_argument(
         "--profile",
         action="store_true",
-        help="Also dump a cProfile of one radius-setter call (medium case).",
+        help="Dump cProfiles of all three setters (skips the timing sweep).",
+    )
+    parser.add_argument(
+        "--profile-case",
+        default="medium",
+        choices=["small", "medium", "large"],
+        help="Which laminate case to profile (default: medium).",
     )
     args = parser.parse_args(argv)
 
@@ -240,8 +365,15 @@ def main(argv: List[str] | None = None) -> int:
             flush=True,
         )
 
+    _install_brentq_probe()
+
+    if args.profile:
+        print(f"\n# cProfile of all setters ({args.profile_case} case):")
+        print(_profile_all(cases, args.profile_case))
+        return 0
+
     baseline = _load_baseline()
-    print("\ncase,fn,mean_ms,p50_ms,p95_ms,min_ms,delta_vs_baseline_pct")
+    print("\ncase,fn,mean_ms,p50_ms,p95_ms,min_ms,n_obj_calls,delta_vs_baseline_pct")
 
     all_results = _run_all(cases)
     for case_name, by_fn in all_results.items():
@@ -258,12 +390,9 @@ def main(argv: List[str] | None = None) -> int:
                 f"{summary['p50_ms']:.1f},"
                 f"{summary['p95_ms']:.1f},"
                 f"{summary['min_ms']:.1f},"
+                f"{summary.get('n_obj_calls', 0)},"
                 f"{delta_str}"
             )
-
-    if args.profile:
-        print("\n# cProfile of medium WoundJellyRoll.radius setter (top 25):")
-        print(_profile_one(cases[1]))
 
     if args.update_baseline:
         _save_baseline(all_results)
