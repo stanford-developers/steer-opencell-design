@@ -3081,6 +3081,29 @@ class TestFromLoadedCell(unittest.TestCase):
         self.assertIsNotNone(fig1)
         # fig1.show()
 
+    def test_radius_setter_after_tap_thickness_change(self):
+
+        old_radius = self.lithium_metal_cell.reference_electrode_assembly.radius
+        old_tape_thickness = self.lithium_metal_cell.reference_electrode_assembly.tape.thickness
+        old_layup_length = self.lithium_metal_cell.reference_electrode_assembly.layup.length
+
+        new_tape_thickness = 100
+        new_radius = old_radius + 5
+
+        self.lithium_metal_cell.reference_electrode_assembly.tape.thickness = new_tape_thickness
+        self.lithium_metal_cell.reference_electrode_assembly.tape.propagate_changes()
+
+        new_layup_length = self.lithium_metal_cell.reference_electrode_assembly.layup.length
+
+        self.assertAlmostEqual(
+            self.lithium_metal_cell.reference_electrode_assembly.tape.thickness,
+            new_tape_thickness,
+            2,
+        )
+        self.assertGreater(
+            self.lithium_metal_cell.reference_electrode_assembly.radius, old_radius
+        )
+        self.assertEqual(new_layup_length, old_layup_length)
 
 class TestCellPropagation(unittest.TestCase):
     """Test update propagation behavior for cells with full hierarchy."""
