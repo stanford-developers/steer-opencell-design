@@ -66,12 +66,16 @@ class _Electrode(
     Base class for electrodes, representing the common properties and methods of an electrode.
     """
 
+    # Only an Anode may be formulation-free (anode-free design). Class level, not instance
+    # level, so it resolves on objects rebuilt by SerializerMixin._from_dict (no __init__).
+    _allows_anode_free = False
+
     def __init__(
         self,
         formulation: Optional[_ElectrodeFormulation],
-        mass_loading: float,
+        mass_loading: Optional[float],
         current_collector: _CurrentCollector,
-        calender_density: float,
+        calender_density: Optional[float],
         insulation_material: InsulationMaterial = None,
         insulation_thickness: float = 0.0,
         name: str = "Electrode",
@@ -85,12 +89,15 @@ class _Electrode(
         formulation : _ElectrodeFormulation or None
             The formulation of the electrode, which includes active materials, binders, and conductive additives.
             If None, the electrode is treated as anode-free (bare current collector, no areal capacity curve).
-        mass_loading : float
-            The mass loading of the electrode in mg/cm^2.
+        mass_loading : float or None
+            The mass loading of the electrode in mg/cm^2.  Required when a formulation is
+            provided, and must be omitted when ``formulation`` is None.
         current_collector : _CurrentCollector
             The current collector used in the electrode.
-        calender_density : float
-            The density of the electrode coating after calendering in g/cm^3.
+        calender_density : float or None
+            The density of the electrode coating after calendering in g/cm^3.  Required
+            when a formulation is provided, and must be omitted when ``formulation``
+            is None.
         insulation_material : InsulationMaterial, optional
             The insulation material used in the electrode (default is None).
         insulation_thickness : float, optional
@@ -108,10 +115,14 @@ class _Electrode(
 
         self.name = name
 
-        # Assign formulation first — setter handles None → sets _is_anode_free
+        self._validate_coating_inputs(formulation, mass_loading, calender_density)
+
+        # Assign formulation first — setter handles None → sets _is_anode_free and zeroes
+        # the coating state, so the None coating inputs are never assigned.
         self.formulation = formulation
-        self.mass_loading = mass_loading
-        self.calender_density = calender_density
+        if not self._is_anode_free:
+            self.mass_loading = mass_loading
+            self.calender_density = calender_density
 
         self.current_collector = current_collector
         self.datum = datum
@@ -135,6 +146,44 @@ class _Electrode(
         self._flipped_x = False
         self._flipped_y = False
         self._flipped_z = False
+
+    def _validate_coating_inputs(
+        self,
+        formulation: Optional[_ElectrodeFormulation],
+        mass_loading: Optional[float],
+        calender_density: Optional[float],
+    ) -> None:
+        """
+        Check the coating inputs against whether a formulation was provided.
+
+        ``mass_loading`` and ``calender_density`` describe a coating, so they are required
+        when a formulation is given and meaningless when it is not (anode-free).
+
+        Raises
+        ------
+        ValueError
+            If the coating inputs are inconsistent with the formulation.
+        """
+        coating_inputs = {"mass_loading": mass_loading, "calender_density": calender_density}
+
+        if formulation is None:
+            if not self._allows_anode_free:
+                # the formulation setter raises the accurate error for this class; don't
+                # mask it by complaining about the coating inputs first
+                return
+            provided = [name for name, value in coating_inputs.items() if value is not None]
+            if provided:
+                raise ValueError(
+                    f"{' and '.join(provided)} cannot be provided when formulation is None: "
+                    "an anode-free electrode has no coating."
+                )
+            return
+
+        missing = [name for name, value in coating_inputs.items() if value is None]
+        if missing:
+            raise ValueError(
+                f"{' and '.join(missing)} must be provided when a formulation is given."
+            )
 
     # === CONTROL SYSTEM ===
 
@@ -1264,6 +1313,11 @@ class _Electrode(
     @propagating_setter()
     def formulation(self, formulation: _ElectrodeFormulation):
         if formulation is None:
+            if not self._allows_anode_free:
+                raise ValueError(
+                    f"formulation cannot be None for a {type(self).__name__}; only an Anode "
+                    "can be formulation-free (an anode-free design)."
+                )
             self._formulation = None
             self._is_anode_free = True
             self._mass_loading = 0.0
@@ -1369,12 +1423,15 @@ class Anode(_Electrode):
     The V = 0 integration is handled higher up in the cell hierarchy.
     """
 
+    # An Anode is the one electrode that may be formulation-free
+    _allows_anode_free = True
+
     def __init__(
         self,
         formulation: Optional[AnodeFormulation] = None,
-        mass_loading: float = 0.0,
+        mass_loading: Optional[float] = None,
         current_collector: _CurrentCollector = None,
-        calender_density: float = 0.0,
+        calender_density: Optional[float] = None,
         insulation_material: InsulationMaterial = None,
         insulation_thickness: float = 0.0,
         name: str = "Anode",
@@ -1387,14 +1444,16 @@ class Anode(_Electrode):
         formulation : AnodeFormulation or None
             The formulation of the anode.  Pass ``None`` for an anode-free
             design (bare current collector, no areal capacity curve).
-        mass_loading : float
-            The mass loading of the anode in mg/cm^2.  Ignored when
+        mass_loading : float or None
+            The mass loading of the anode in mg/cm^2.  Required when a
+            formulation is provided, and must be omitted when
             ``formulation`` is None.
         current_collector : _CurrentCollector
             The current collector used in the anode.
-        calender_density : float
-            The density of the anode after calendering in g/cm^3.  Ignored
-            when ``formulation`` is None.
+        calender_density : float or None
+            The density of the anode after calendering in g/cm^3.  Required
+            when a formulation is provided, and must be omitted when
+            ``formulation`` is None.
         insulation_material : InsulationMaterial, optional
             The insulation material used in the anode (default is None).
         insulation_thickness : float, optional
@@ -1508,9 +1567,9 @@ class Cathode(_Electrode):
     def __init__(
         self,
         formulation: CathodeFormulation,
-        mass_loading: float,
+        mass_loading: Optional[float],
         current_collector: _CurrentCollector,
-        calender_density: float,
+        calender_density: Optional[float],
         insulation_material: InsulationMaterial = None,
         insulation_thickness: float = 0.0,
         name: str = "Cathode",
@@ -1521,13 +1580,14 @@ class Cathode(_Electrode):
         Parameters
         ----------
         formulation : CathodeFormulation
-            The formulation of the cathode.
+            The formulation of the cathode.  Unlike an anode this cannot be None —
+            there is no formulation-free cathode.
         mass_loading : float
-            The mass loading of the cathode in mg/cm².
+            The mass loading of the cathode in mg/cm².  Required.
         current_collector : _CurrentCollector
             The current collector used in the cathode.
         calender_density : float
-            The density of the cathode after calendering in g/cm³.
+            The density of the cathode after calendering in g/cm³.  Required.
         insulation_material : InsulationMaterial, optional
             The insulation material used in the cathode (default is None).
         insulation_thickness : float, optional

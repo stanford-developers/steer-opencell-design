@@ -61,10 +61,12 @@ ranges.
 
 **Anode-free convention:** anode-free designs use
 ``Anode(formulation=None, ...)`` with a ``V = 0`` voltage proxy and
-``layup.np_ratio = inf``.
+``layup.np_ratio = inf``.  ``mass_loading`` and ``calender_density`` describe a
+coating, so they must be omitted when ``formulation`` is None and are required
+when it is not.  Only an ``Anode`` may be formulation-free.
 """
 
-__version__ = "1.0.46"
+__version__ = "1.0.47"
 
 # Register OpenCell domain tables with the base DataManager so
 # that URL routing (materials/ vs cells/) works for any DataManager instance.
