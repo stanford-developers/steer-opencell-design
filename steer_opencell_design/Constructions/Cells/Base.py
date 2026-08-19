@@ -1626,12 +1626,21 @@ class _Cell(
 
         # Ensure value is a list for mutability
         value = list(value)
+        layup = self._reference_electrode_assembly._layup
+
+        # Track whether an upper limit was actually requested. Resolving a None
+        # maximum must never drive the layup's brentq solve, because that rewrites
+        # the cathode voltage cutoff (and therefore the N/P ratio) behind the
+        # user's back -- see the None handling below.
+        maximum_requested = value[1] is not None
 
         # Fill in None values with layup limits
         if value[0] is None:
-            value[0] = min(self._reference_electrode_assembly._layup._minimum_operating_voltage_range)
+            value[0] = min(layup._minimum_operating_voltage_range)
         if value[1] is None:
-            value[1] = max(self._reference_electrode_assembly._layup._maximum_operating_voltage_range)
+            # Inherit the layup's current maximum, which is derived from the live
+            # cathode voltage cutoff, rather than the top of the achievable range.
+            value[1] = layup._maximum_operating_voltage
 
         # clip values
         if self._update_properties:
@@ -1647,11 +1656,22 @@ class _Cell(
             raise ValueError("operating_voltage_window minimum must be less than maximum.")
 
         # set the voltage window to the layup
-        self._reference_electrode_assembly._layup.operating_voltage_window = value
+        if maximum_requested:
+            layup.operating_voltage_window = value
+        else:
+            # The lower limit only truncates the discharge curve, so it is safe to
+            # set on its own. Skipping the upper limit avoids re-solving (and
+            # perturbing) the cathode voltage cutoff for a value we just read off
+            # that same cutoff.
+            layup.minimum_operating_voltage = value[0]
+            layup._operating_voltage_window = (
+                layup._minimum_operating_voltage,
+                layup._maximum_operating_voltage,
+            )
         self._reference_electrode_assembly._calculate_capacity_curves()
 
         # assign
-        self._operating_voltage_window = value
+        self._operating_voltage_window = tuple(value)
         self._maximum_operating_voltage = max(value)
         self._minimum_operating_voltage = min(value)
 
@@ -1659,15 +1679,22 @@ class _Cell(
     def maximum_operating_voltage(self, value: float) -> None:
 
         if value is None:
-            value = max(self._reference_electrode_assembly._layup._maximum_operating_voltage_range)
+            # None means "keep the current maximum", not "jump to the achievable
+            # ceiling" -- the latter would rewrite the cathode voltage cutoff. Pass
+            # the None down so the window setter takes its no-write path: resolving
+            # it here and writing the result back would still re-solve the cutoff,
+            # drifting it by up to the solver's tolerance for no reason.
+            self.operating_voltage_window = (self._minimum_operating_voltage, None)
+            return
 
         self.validate_positive_float(value, "maximum_operating_voltage")
         value = np.clip(value, self._maximum_operating_voltage_range[0], self._maximum_operating_voltage_range[1])
 
-        self._reference_electrode_assembly._layup.maximum_operating_voltage = value
-        self._reference_electrode_assembly._calculate_capacity_curves()
-
         self._maximum_operating_voltage = value
+
+        # The operating_voltage_window setter pushes the limit down to the layup and
+        # refreshes the assembly curves, so doing it here as well would run the
+        # layup's brentq solve twice per assignment.
         self.operating_voltage_window = (self._minimum_operating_voltage, value)
 
     @minimum_operating_voltage.setter
