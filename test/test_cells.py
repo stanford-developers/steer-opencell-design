@@ -1250,6 +1250,22 @@ class TestCylindricalCell(unittest.TestCase):
         # Check that cell cost increased
         self.assertGreater(new_cost, original_cost)
 
+    def test_cathode_voltage_cutoff_change(self):
+
+        current_cell_voltage = self.cell.maximum_operating_voltage
+        current_cathode_voltage = self.cell.reference_electrode_assembly.layup.cathode.formulation.voltage_cutoff
+
+        # Change the cathode voltage cutoff
+        new_cathode_voltage = current_cathode_voltage - 0.1
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.voltage_cutoff = new_cathode_voltage
+        self.cell.reference_electrode_assembly.layup.cathode.formulation.propagate_changes()
+
+        # Check that the cell's maximum operating voltage has updated
+        updated_cell_voltage = self.cell.maximum_operating_voltage
+        self.assertNotEqual(current_cell_voltage, updated_cell_voltage)
+        self.assertEqual(new_cathode_voltage, self.cell.reference_electrode_assembly.layup.cathode.formulation.voltage_cutoff)
+
+
 
 class TestCylindricalCellTabbed(unittest.TestCase):
 
@@ -1480,6 +1496,186 @@ class TestCylindricalCellTabbed(unittest.TestCase):
 
         # fig1.show()
         # fig2.show()
+
+
+class TestCathodeVoltageCutoffPreservedThroughCellConstruction(unittest.TestCase):
+    """Building a cell must not silently rewrite the cathode voltage cutoff.
+
+    ``_Cell.__init__`` assigns ``operating_voltage_window`` with its
+    ``(None, None)`` default. That used to resolve the upper limit to
+    ``max(layup._maximum_operating_voltage_range)`` -- the full-cell voltage at the
+    cathode's *highest achievable* cutoff -- and then write it down into the layup,
+    whose ``maximum_operating_voltage`` setter brentq-solves for the cathode cutoff
+    that produces it. Because the layup holds the cathode by reference, a user's
+    explicit cutoff (and therefore the N/P ratio they had just dialled in) was
+    silently overwritten by cell construction.
+    """
+
+    def setUp(self):
+        binder = ocd.Binder(name="PVDF", specific_cost=10, density=1.5, color="#FFFFFF")
+        additive = ocd.ConductiveAdditive(
+            name="Super P", specific_cost=15, density=2.0, color="#000000"
+        )
+
+        cathode_cc_material = ocd.CurrentCollectorMaterial(
+            name="Aluminium", specific_cost=5, density=2.7, color="#717171"
+        )
+        anode_cc_material = ocd.CurrentCollectorMaterial(
+            name="Copper", specific_cost=5, density=8.9, color="#FFAE00"
+        )
+
+        self.cathode = ocd.Cathode(
+            formulation=ocd.CathodeFormulation(
+                active_materials={ocd.CathodeMaterial.from_database("NMC811"): 95},
+                binders={binder: 2.5},
+                conductive_additives={additive: 2.5},
+            ),
+            current_collector=ocd.PunchedCurrentCollector(
+                material=cathode_cc_material,
+                width=300, height=280, thickness=10,
+                tab_width=80, tab_height=30, tab_position=70,
+            ),
+            calender_density=3.4,
+            mass_loading=14,
+        )
+
+        anode = ocd.Anode(
+            formulation=ocd.AnodeFormulation(
+                active_materials={ocd.AnodeMaterial.from_database("Synthetic Graphite"): 95},
+                binders={binder: 2.5},
+                conductive_additives={additive: 2.5},
+            ),
+            current_collector=ocd.PunchedCurrentCollector(
+                material=anode_cc_material,
+                width=300, height=280, thickness=10,
+                tab_width=80, tab_height=30, tab_position=230,
+            ),
+            calender_density=1.4,
+            mass_loading=10,
+        )
+
+        separator = ocd.Separator(
+            material=ocd.SeparatorMaterial(
+                name="Polyethylene", specific_cost=2, density=0.94,
+                color="#FDFDB7", porosity=45,
+            ),
+            thickness=12, width=280, length=300,
+        )
+
+        # The user-facing sequence: pick a cathode cutoff, then dial in the N/P ratio.
+        self.target_voltage_cutoff = 4.1
+        self.target_np_ratio = 1.1
+
+        self.cathode.voltage_cutoff = self.target_voltage_cutoff
+        self.layup = ocd.ZFoldMonoLayer(
+            cathode=self.cathode, anode=anode, separator=separator
+        )
+        self.layup.np_ratio = self.target_np_ratio
+        self.stack = ocd.ZFoldStack(
+            layup=self.layup, n_layers=40, additional_separator_wraps=3
+        )
+
+        self.encapsulation = ocd.PouchEncapsulation(
+            top_laminate=ocd.LaminateSheet(areal_cost=0.06, density=1.4, thickness=80),
+            bottom_laminate=ocd.LaminateSheet(areal_cost=0.06, density=1.4, thickness=80),
+            cathode_terminal=ocd.PouchTerminal(
+                material=cathode_cc_material, width=50, length=10, thickness=1
+            ),
+            anode_terminal=ocd.PouchTerminal(
+                material=anode_cc_material, width=50, length=10, thickness=1
+            ),
+        )
+        self.electrolyte = ocd.Electrolyte(
+            name="1M LiPF6 in EC:DMC (1:1)", density=1.2, specific_cost=2.5
+        )
+
+    def _build_cell(self, **kwargs):
+        return ocd.PouchCell(
+            reference_electrode_assembly=self.stack,
+            electrolyte=self.electrolyte,
+            electrolyte_overfill=10,
+            encapsulation=self.encapsulation,
+            n_electrode_assembly=1,
+            clipped_tab_length=10,
+            **kwargs,
+        )
+
+    def test_layup_state_is_intact_before_the_cell_is_built(self):
+        """Guard the premise: the layup and stack stages are already correct."""
+        self.assertAlmostEqual(
+            self.layup.cathode.voltage_cutoff, self.target_voltage_cutoff, places=6
+        )
+        self.assertAlmostEqual(self.layup.np_ratio, self.target_np_ratio, places=4)
+
+    def test_default_window_preserves_cutoff_and_np_ratio(self):
+        cell = self._build_cell()
+        layup = cell.reference_electrode_assembly.layup
+
+        self.assertAlmostEqual(
+            layup.cathode.voltage_cutoff, self.target_voltage_cutoff, places=4
+        )
+        self.assertAlmostEqual(layup.np_ratio, self.target_np_ratio, places=3)
+
+        # The cathode is held by reference, so the caller's object must be intact too.
+        self.assertIs(layup.cathode, self.cathode)
+        self.assertAlmostEqual(
+            self.cathode.voltage_cutoff, self.target_voltage_cutoff, places=4
+        )
+
+    def test_default_window_maximum_is_derived_not_maximised(self):
+        """With a cutoff below its ceiling, the cell must not report the ceiling."""
+        cell = self._build_cell()
+        layup = cell.reference_electrode_assembly.layup
+
+        self.assertLess(
+            cell.maximum_operating_voltage, max(cell.maximum_operating_voltage_range)
+        )
+        self.assertAlmostEqual(
+            cell.maximum_operating_voltage, layup._maximum_operating_voltage, places=6
+        )
+
+    def test_explicit_window_still_drives_the_cathode_cutoff(self):
+        """An explicit request is honoured: full-cell voltage back-solves the cutoff.
+
+        This coupling is intended -- the cell window is a full-cell quantity while
+        the cutoff is half-cell versus Li -- so the resolved cutoff sits slightly
+        above the requested cell voltage by the anode's potential at top of charge.
+        """
+        cell = self._build_cell()
+        layup = cell.reference_electrode_assembly.layup
+
+        requested_maximum = 3.9
+        cell.maximum_operating_voltage = requested_maximum
+
+        self.assertAlmostEqual(cell.maximum_operating_voltage, requested_maximum, places=4)
+        self.assertGreater(layup.cathode.voltage_cutoff, requested_maximum)
+        self.assertNotAlmostEqual(
+            layup.cathode.voltage_cutoff, self.target_voltage_cutoff, places=2
+        )
+
+    def test_setting_maximum_operating_voltage_to_none_is_a_no_op(self):
+        """``None`` means "keep the current maximum", not "jump to the ceiling"."""
+        cell = self._build_cell()
+        layup = cell.reference_electrode_assembly.layup
+
+        maximum_before = cell.maximum_operating_voltage
+        cutoff_before = layup.cathode.voltage_cutoff
+
+        cell.maximum_operating_voltage = None
+
+        self.assertAlmostEqual(cell.maximum_operating_voltage, maximum_before, places=6)
+        self.assertAlmostEqual(layup.cathode.voltage_cutoff, cutoff_before, places=6)
+
+    def test_serialization_round_trip_preserves_cutoff_and_np_ratio(self):
+        cell = self._build_cell()
+        round_tripped = ocd.PouchCell.deserialize(cell.serialize())
+        layup = round_tripped.reference_electrode_assembly.layup
+
+        self.assertAlmostEqual(
+            layup.cathode.voltage_cutoff, self.target_voltage_cutoff, places=4
+        )
+        self.assertAlmostEqual(layup.np_ratio, self.target_np_ratio, places=3)
+        self.assertAlmostEqual(round_tripped.energy, cell.energy, places=6)
 
 
 class TestStackedPouchCell(unittest.TestCase):
