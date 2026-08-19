@@ -66,7 +66,7 @@ coating, so they must be omitted when ``formulation`` is None and are required
 when it is not.  Only an ``Anode`` may be formulation-free.
 """
 
-__version__ = "1.0.47"
+__version__ = "1.0.48"
 
 # Register OpenCell domain tables with the base DataManager so
 # that URL routing (materials/ vs cells/) works for any DataManager instance.

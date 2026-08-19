@@ -1471,6 +1471,29 @@ class TestRoundJellyRollWithTabWelded(unittest.TestCase):
         # Check that diameter updated correctly
         self.assertAlmostEqual(self.my_jellyroll.radius, new_radius, 1)
 
+    def test_set_new_tab_positions_then_radius_setter(self):
+        """Test that setting new tab positions and then changing the radius updates the diameter correctly."""
+        original_radius = self.my_jellyroll.radius
+        original_requested_tab_positions = self.my_jellyroll.layup.cathode.current_collector._requested_weld_tab_positions
+
+        # Set new tab positions
+        new_tab_positions = [200, 300, 500, 800, 1000, 1200]
+        self.my_jellyroll.layup.cathode.current_collector.weld_tab_positions = new_tab_positions
+        self.my_jellyroll.layup.cathode.current_collector.propagate_changes()
+
+        new_requested_tab_positions = self.my_jellyroll.layup.cathode.current_collector._requested_weld_tab_positions
+
+        for i, j in zip(new_requested_tab_positions, original_requested_tab_positions):
+            self.assertNotAlmostEqual(i, j, 3)
+
+        # Set a new radius
+        new_radius = original_radius + 5.0
+        self.my_jellyroll.radius = new_radius
+        self.my_jellyroll.propagate_changes()
+
+        # Check that diameter updated correctly
+        self.assertAlmostEqual(self.my_jellyroll.radius, new_radius, 1)
+
 
 class TestFlatJellyRollWithTabWelded(unittest.TestCase):
 
