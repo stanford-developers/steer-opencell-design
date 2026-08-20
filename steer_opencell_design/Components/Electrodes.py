@@ -956,6 +956,28 @@ class _Electrode(
             "Voltage (V)": voltage,
             "Direction": direction,
         })
+
+    @property
+    def reversible_areal_capacity(self) -> float:
+        """Get the reversible areal capacity of the electrode.
+
+        Defined as the span of the discharge branch of
+        :attr:`areal_capacity_curve` (maximum minus minimum), matching the
+        definition of ``reversible_capacity`` at the cell level.
+
+        :return: Reversible areal capacity in mAh/cm², or None for anode-free
+            electrodes, which have no areal capacity curve.
+        """
+        if self._areal_capacity_curve is None:
+            return None
+        curve = self._areal_capacity_curve
+        discharge_curve = curve[curve[:, 2] == -1]
+        if discharge_curve.size == 0:
+            return None
+        areal_capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
+        reversible = discharge_curve[:, 0].max() - discharge_curve[:, 0].min()
+
+        return reversible * areal_capacity_conversion
     
     @property
     def areal_capacity_curve_trace(self) -> go.Scatter:
@@ -1381,6 +1403,33 @@ class _Electrode(
 
         if self._update_properties:
             self._update_dependent_properties("mass_loading", mass_loading)
+
+    @reversible_areal_capacity.setter
+    def reversible_areal_capacity(self, reversible_areal_capacity: float):
+        """
+        Set the reversible areal capacity of the electrode by solving for mass loading.
+
+        Areal capacity is proportional to mass loading for a fixed formulation, so the
+        required mass loading is found by scaling the current value by the ratio of
+        target to current areal capacity. Whether coating thickness or calender density
+        absorbs the change is governed by ``control_mode``.
+
+        :param reversible_areal_capacity: Target reversible areal capacity in mAh/cm².
+        """
+        if self._is_anode_free: #no-op: anode-free has no coating
+            return
+        self.validate_positive_float(reversible_areal_capacity, "reversible areal capacity")
+        current_areal_capacity = self.reversible_areal_capacity
+
+        if not current_areal_capacity:
+            raise ValueError(
+                f"Cannot solve for mass loading on {self.name}: the current reversible "
+                f"areal capacity is zero or undefined."
+            )
+
+        self.mass_loading = self.mass_loading * (
+            reversible_areal_capacity / current_areal_capacity
+        )
 
     @current_collector.setter
     @calculate_bulk_properties
