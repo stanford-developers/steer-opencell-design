@@ -3,6 +3,7 @@
 
 import time
 import unittest
+from unittest.mock import patch
 import pandas as pd
 import plotly.graph_objects as go
 from copy import deepcopy
@@ -38,7 +39,7 @@ from steer_opencell_design import (
     InsulationMaterial,
     TapeMaterial,
 )
-from steer_core.Constants.Units import MM_TO_M
+from steer_core.Constants.Units import M_TO_MM, MM_TO_M
 from steer_core.Constants.Universal import TWO_PI
 from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import (
     THETA_COL,
@@ -645,7 +646,8 @@ class TestFlatJellyRoll(unittest.TestCase):
         collector = self.my_jellyroll.layup.cathode.current_collector
         self.assertIsNotNone(collector.tab_center_positions)
         self.assertGreater(collector.n_tabs, 2)
-        self.assertTrue(np.all(np.diff(collector.tab_center_spacings) > 0))
+        self.assertEqual(collector.n_tabs % 2, 0)
+        self.assertTrue(np.all(np.asarray(collector.tab_gaps) >= 0))
 
         spiral = self.my_jellyroll._component_spirals["cathode_current_collector"]
         valid = np.isfinite(spiral[:, X_UNWRAPPED_COL])
@@ -672,9 +674,10 @@ class TestFlatJellyRoll(unittest.TestCase):
             [np.cos(rotation_angle), np.sin(rotation_angle)]
         )
         marker_coordinates = np.column_stack((marker_x, marker_z))
-        marker_axis_positions = (
+        centered_markers = (
             marker_coordinates - self.my_jellyroll._pressed_mandrel_center_xz
-        ) @ mandrel_axis
+        )
+        marker_axis_positions = centered_markers @ mandrel_axis
         expected_axis_position = (
             -self.my_jellyroll._pressed_straight_length / 2
             - self.my_jellyroll._pressed_radius
@@ -683,6 +686,22 @@ class TestFlatJellyRoll(unittest.TestCase):
         np.testing.assert_allclose(
             marker_axis_positions, expected_axis_position, atol=1e-10
         )
+
+        marker_turns = np.floor(
+            np.interp(
+                centers_global,
+                component[:, X_UNWRAPPED_COL],
+                component[:, TURNS_COL],
+            )
+            + 1e-12
+        ).astype(int)
+        radial_axis = np.array([-np.sin(rotation_angle), np.cos(rotation_angle)])
+        marker_radial_positions = centered_markers @ radial_axis
+        for turn in np.unique(marker_turns):
+            turn_positions = marker_radial_positions[marker_turns == turn]
+            self.assertEqual(len(turn_positions), 2)
+            self.assertTrue(np.any(turn_positions > 0))
+            self.assertTrue(np.any(turn_positions < 0))
 
         # The physical x-coordinate is fixed, while the normalized phase shifts
         # as the racetrack radius and perimeter grow between turns.
@@ -717,24 +736,13 @@ class TestFlatJellyRoll(unittest.TestCase):
         )
 
     def test_top_down_notch_stacks_use_physical_positions_and_transverse_sides(self):
-        unconfigured_names = {
-            trace.name for trace in self.my_jellyroll.plot_top_down_view().data
-        }
-        self.assertNotIn("Cathode notch stack", unconfigured_names)
-        self.assertNotIn("Anode notch stack", unconfigured_names)
-
+        self.my_jellyroll.layup.electrode_orientation = "transverse"
         cathode_position = 50.0
         anode_position = 65.0
         self.my_jellyroll.cathode_notch_alignment_position = cathode_position
         self.my_jellyroll.anode_notch_alignment_position = anode_position
 
         figure = self.my_jellyroll.plot_top_down_view()
-        cathode_stack = next(
-            trace for trace in figure.data if trace.name == "Cathode notch stack"
-        )
-        anode_stack = next(
-            trace for trace in figure.data if trace.name == "Anode notch stack"
-        )
         cathode_body = next(
             trace
             for trace in figure.data
@@ -744,6 +752,29 @@ class TestFlatJellyRoll(unittest.TestCase):
             trace
             for trace in figure.data
             if trace.name == "Anode Current Collector"
+        )
+        self.assertNotIn(
+            "Cathode notch stack", {trace.name for trace in figure.data}
+        )
+        self.assertNotIn("Anode notch stack", {trace.name for trace in figure.data})
+
+        def tab_extension(trace, collector):
+            x = np.asarray(trace.x)
+            y = np.asarray(trace.y)
+            foil_y_min = (
+                collector._datum[1] - collector._y_foil_length / 2
+            ) * M_TO_MM
+            foil_y_max = (
+                collector._datum[1] + collector._y_foil_length / 2
+            ) * M_TO_MM
+            outside = (y < foil_y_min - 1e-9) | (y > foil_y_max + 1e-9)
+            return x[outside], y[outside], foil_y_min, foil_y_max
+
+        cathode_tab_x, cathode_tab_y, _, cathode_foil_y_max = tab_extension(
+            cathode_body, self.my_jellyroll.layup.cathode.current_collector
+        )
+        anode_tab_x, anode_tab_y, anode_foil_y_min, _ = tab_extension(
+            anode_body, self.my_jellyroll.layup.anode.current_collector
         )
 
         rotation_angle = self.my_jellyroll._last_rotation_angle
@@ -758,8 +789,8 @@ class TestFlatJellyRoll(unittest.TestCase):
             -self.my_jellyroll._pressed_straight_length / 2
             - self.my_jellyroll._pressed_radius
         ) / MM_TO_M
-        cathode_stack_center = (min(cathode_stack.x) + max(cathode_stack.x)) / 2
-        anode_stack_center = (min(anode_stack.x) + max(anode_stack.x)) / 2
+        cathode_stack_center = (min(cathode_tab_x) + max(cathode_tab_x)) / 2
+        anode_stack_center = (min(anode_tab_x) + max(anode_tab_x)) / 2
         self.assertAlmostEqual(
             cathode_stack_center,
             mandrel_axis_center + common_offset + cathode_position,
@@ -772,8 +803,8 @@ class TestFlatJellyRoll(unittest.TestCase):
             anode_stack_center - cathode_stack_center,
             anode_position - cathode_position,
         )
-        self.assertGreaterEqual(min(cathode_stack.y), max(cathode_body.y))
-        self.assertLessEqual(max(anode_stack.y), min(anode_body.y))
+        self.assertTrue(np.all(cathode_tab_y > cathode_foil_y_max))
+        self.assertTrue(np.all(anode_tab_y < anode_foil_y_min))
 
     def test_top_down_notch_stacks_share_side_when_longitudinal(self):
         layup = self.my_jellyroll.layup
@@ -783,12 +814,6 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.my_jellyroll.anode_notch_alignment_position = 65.0
 
         figure = self.my_jellyroll.plot_top_down_view()
-        cathode_stack = next(
-            trace for trace in figure.data if trace.name == "Cathode notch stack"
-        )
-        anode_stack = next(
-            trace for trace in figure.data if trace.name == "Anode notch stack"
-        )
         cathode_body = next(
             trace
             for trace in figure.data
@@ -800,8 +825,23 @@ class TestFlatJellyRoll(unittest.TestCase):
             if trace.name == "Anode Current Collector"
         )
 
-        self.assertGreaterEqual(min(cathode_stack.y), max(cathode_body.y))
-        self.assertGreaterEqual(min(anode_stack.y), max(anode_body.y))
+        for trace, collector in (
+            (cathode_body, self.my_jellyroll.layup.cathode.current_collector),
+            (anode_body, self.my_jellyroll.layup.anode.current_collector),
+        ):
+            y = np.asarray(trace.y)
+            foil_y_max = (
+                collector._datum[1] + collector._y_foil_length / 2
+            ) * M_TO_MM
+            self.assertTrue(np.any(y > foil_y_max))
+            self.assertFalse(
+                np.any(
+                    y
+                    < (collector._datum[1] - collector._y_foil_length / 2)
+                    * M_TO_MM
+                    - 1e-9
+                )
+            )
 
     def test_disabling_alignment_restores_scalar_spacing(self):
         self.my_jellyroll.cathode_notch_alignment_position = 50.0
@@ -812,6 +852,96 @@ class TestFlatJellyRoll(unittest.TestCase):
         # The legacy pattern may clip its final tab at the foil boundary.
         for spacing in collector.tab_center_spacings[:-1]:
             self.assertAlmostEqual(spacing, collector.tab_spacing)
+
+    def test_disabling_alignment_restores_explicit_pattern(self):
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        original_centers = [100.0, 300.0]
+        collector.tab_center_positions = original_centers
+
+        self.my_jellyroll.cathode_notch_alignment_position = 50.0
+        self.assertNotEqual(collector.tab_center_positions, original_centers)
+
+        self.my_jellyroll.cathode_notch_alignment_position = None
+        self.assertEqual(collector.tab_center_positions, original_centers)
+
+    def test_recalculation_does_not_replace_explicit_pattern_snapshot(self):
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        original_centers = [100.0, 300.0]
+        collector.tab_center_positions = original_centers
+        self.my_jellyroll.cathode_notch_alignment_position = 50.0
+
+        self.my_jellyroll._calculate_all_properties()
+        self.my_jellyroll._calculate_all_properties()
+        self.my_jellyroll.cathode_notch_alignment_position = None
+
+        self.assertEqual(collector.tab_center_positions, original_centers)
+
+    def test_failed_alignment_recalculation_restores_all_pattern_state(self):
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        original_centers = [100.0, 300.0]
+        collector.tab_center_positions = original_centers
+        original_positions = collector.tab_positions
+        original_spiral = self.my_jellyroll.spiral.copy(deep=True)
+        rotate = self.my_jellyroll._rotate_spirals_to_minimize_thickness
+        calls = 0
+
+        def fail_after_notches_are_applied(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise RuntimeError("forced assembly recalculation failure")
+            return rotate(*args, **kwargs)
+
+        with patch.object(
+            self.my_jellyroll,
+            "_rotate_spirals_to_minimize_thickness",
+            side_effect=fail_after_notches_are_applied,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "forced assembly"):
+                self.my_jellyroll.cathode_notch_alignment_position = 50.0
+
+        self.assertIsNone(self.my_jellyroll.cathode_notch_alignment_position)
+        self.assertEqual(collector.tab_center_positions, original_centers)
+        self.assertEqual(collector.tab_positions, original_positions)
+        pd.testing.assert_frame_equal(self.my_jellyroll.spiral, original_spiral)
+
+    def test_collector_pattern_setters_are_rejected_while_aligned(self):
+        self.my_jellyroll.cathode_notch_alignment_position = 50.0
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        original_centers = collector.tab_center_positions
+        original_positions = collector.tab_positions
+
+        mutations = (
+            lambda: setattr(collector, "tab_spacing", 200.0),
+            lambda: setattr(collector, "tab_gap", 140.0),
+            lambda: setattr(collector, "tab_center_positions", [100.0, 300.0]),
+        )
+        for mutation in mutations:
+            with self.subTest(mutation=mutation):
+                with self.assertRaisesRegex(RuntimeError, "Disable jelly-roll"):
+                    mutation()
+                self.assertEqual(
+                    self.my_jellyroll.cathode_notch_alignment_position, 50.0
+                )
+                self.assertEqual(collector.tab_center_positions, original_centers)
+                self.assertEqual(collector.tab_positions, original_positions)
+
+    def test_replacing_layup_or_aligned_collector_is_rejected(self):
+        original_layup = self.my_jellyroll.layup
+        original_collector = original_layup.cathode.current_collector
+        replacement_layup = deepcopy(original_layup)
+        replacement_collector = deepcopy(original_collector)
+        original_parent = original_collector._get_parent()
+        self.my_jellyroll.cathode_notch_alignment_position = 50.0
+
+        with self.assertRaisesRegex(RuntimeError, "replacing the layup"):
+            self.my_jellyroll.layup = replacement_layup
+        self.assertIs(self.my_jellyroll.layup, original_layup)
+
+        with self.assertRaisesRegex(RuntimeError, "replacing the current collector"):
+            original_layup.cathode.current_collector = replacement_collector
+        self.assertIs(original_layup.cathode.current_collector, original_collector)
+        self.assertIs(original_collector._get_parent(), original_parent)
 
     def test_alignment_configuration_serializes_for_both_electrodes(self):
         self.my_jellyroll.cathode_notch_alignment_position = 50.0
@@ -825,6 +955,19 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertGreater(restored.layup.anode.current_collector.n_tabs, 2)
         self.assertIn("cathode", restored.thickness_aware_notch_data)
         self.assertIn("anode", restored.thickness_aware_notch_data)
+
+    def test_serialized_alignment_restores_original_explicit_pattern(self):
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        original_centers = [100.0, 300.0]
+        collector.tab_center_positions = original_centers
+        self.my_jellyroll.cathode_notch_alignment_position = 50.0
+
+        restored = FlatWoundJellyRoll.deserialize(self.my_jellyroll.serialize())
+        restored_collector = restored.layup.cathode.current_collector
+        self.assertNotEqual(restored_collector.tab_center_positions, original_centers)
+
+        restored.cathode_notch_alignment_position = None
+        self.assertEqual(restored_collector.tab_center_positions, original_centers)
 
     def test_alignment_position_rejects_curved_racetrack_ends(self):
         original_position = self.my_jellyroll.cathode_notch_alignment_position

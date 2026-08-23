@@ -1399,13 +1399,14 @@ class SpiralCalculator:
         minimum_gap: float = 0.0,
         straight_x_bounds: Optional[tuple[float, float]] = None,
     ) -> np.ndarray:
-        """Return one unwrapped center per turn at a fixed x-coordinate.
+        """Return two unwrapped centers per complete turn at a fixed x-coordinate.
 
         Length inputs and outputs use meters. ``target_x`` is expressed in the
         supplied spiral's unrotated racetrack coordinate system. The turn
         column, which is derived from winding phase, separates successive
-        turns. Within each turn, the method selects the increasing-x straight
-        branch and interpolates where it crosses ``target_x``.
+        turns. A complete turn crosses ``target_x`` once on each straight
+        branch, producing one notch on either side of the racetrack's z-axis.
+        Partial turns without both crossings are omitted.
         """
         spiral = np.asarray(spiral, dtype=float)
         if spiral.ndim != 2 or spiral.shape[1] <= TURNS_COL:
@@ -1443,28 +1444,36 @@ class SpiralCalculator:
         x_start = x_coordinate[:-1]
         x_end = x_coordinate[1:]
 
-        # Each x-coordinate occurs on both straight sections. Their traversal
-        # directions are opposite, so increasing x selects one consistent side.
+        # Each interior x-coordinate occurs on both straight sections. Their
+        # opposite traversal directions distinguish the +z and -z crossings.
         crossings = (
             valid_pairs
-            & (x_end > x_start)
-            & (x_start <= target_x)
-            & (target_x <= x_end)
+            & (x_end != x_start)
+            & (np.minimum(x_start, x_end) <= target_x)
+            & (target_x <= np.maximum(x_start, x_end))
         )
         crossing_indices = np.flatnonzero(crossings)
         if len(crossing_indices) == 0:
             return np.empty(0, dtype=float)
 
-        centers_by_turn: dict[int, float] = {}
+        centers_by_turn: dict[int, dict[int, float]] = {}
         for index in crossing_indices:
             turn = int(np.floor((turns[index] + turns[index + 1]) / 2 + 1e-12))
+            direction = 1 if x_end[index] > x_start[index] else -1
             fraction = (target_x - x_start[index]) / (x_end[index] - x_start[index])
             center = x_unwrapped[index] + fraction * (
                 x_unwrapped[index + 1] - x_unwrapped[index]
             )
-            centers_by_turn.setdefault(turn, center)
+            centers_by_turn.setdefault(turn, {}).setdefault(direction, center)
 
-        centers = np.sort(np.asarray(list(centers_by_turn.values()), dtype=float))
+        complete_turn_center_pairs = [
+            list(crossings_by_direction.values())
+            for crossings_by_direction in centers_by_turn.values()
+            if set(crossings_by_direction) == {-1, 1}
+        ]
+        center_pairs = np.asarray(complete_turn_center_pairs, dtype=float)
+        if center_pairs.size == 0:
+            return np.empty(0, dtype=float)
 
         half_width = tab_width / 2
         finite_unwrapped = x_unwrapped[np.isfinite(x_unwrapped)]
@@ -1472,10 +1481,12 @@ class SpiralCalculator:
             return np.empty(0, dtype=float)
         minimum_unwrapped = float(np.min(finite_unwrapped))
         maximum_unwrapped = float(np.max(finite_unwrapped))
-        fits = (centers - half_width >= minimum_unwrapped) & (
-            centers + half_width <= maximum_unwrapped
+        pair_fits = np.all(
+            (center_pairs - half_width >= minimum_unwrapped)
+            & (center_pairs + half_width <= maximum_unwrapped),
+            axis=1,
         )
-        centers = np.sort(centers[fits])
+        centers = np.sort(center_pairs[pair_fits].ravel())
 
         if straight_x_bounds is not None and len(centers) > 0:
             # Tab width is measured along the unwrapped foil. Map both physical

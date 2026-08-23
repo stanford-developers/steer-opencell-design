@@ -3551,6 +3551,27 @@ class FlatWoundJellyRoll(_JellyRoll):
         self._calculate_pressed_racetrack()
         return super()._calculate_all_properties(**kwargs)
 
+    @property
+    def layup(self) -> Laminate:
+        """Return the wound laminate."""
+        return self._layup
+
+    @layup.setter
+    def layup(self, value: Laminate) -> None:
+        """Reject layup replacement while this assembly owns notch patterns."""
+        alignment_active = any(
+            getattr(self, name, None) is not None
+            for name in (
+                "_cathode_notch_alignment_position",
+                "_anode_notch_alignment_position",
+            )
+        )
+        if hasattr(self, "_layup") and value is not self._layup and alignment_active:
+            raise RuntimeError(
+                "Disable jelly-roll notch alignment before replacing the layup."
+            )
+        _JellyRoll.layup.fset(self, value)
+
     def _calculate_roll(
         self,
         laminate_x_spacing=0.004,
@@ -3586,7 +3607,7 @@ class FlatWoundJellyRoll(_JellyRoll):
                 self._calculate_notch_stack_top_down_coords(electrode_name)
 
     def _calculate_notch_stack_top_down_coords(self, electrode_name: str) -> None:
-        """Build one x-y footprint for an aligned stack of overlapping tabs."""
+        """Add an aligned tab-stack footprint to its collector outline."""
         electrode = getattr(self._layup, f"_{electrode_name}")
         collector = electrode._current_collector
         if not isinstance(collector, NotchedCurrentCollector) or isinstance(
@@ -3629,10 +3650,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         collector_y = collector_y[np.isfinite(collector_y)]
         negative_extension = foil_y_min - float(np.min(collector_y))
         positive_extension = float(np.max(collector_y)) - foil_y_max
-        if positive_extension >= negative_extension:
-            stack_y_min = foil_y_max
-        else:
-            stack_y_min = foil_y_min - visible_tab_height
+        extends_positive_y = positive_extension >= negative_extension
 
         position = getattr(self, f"_{electrode_name}_notch_alignment_position")
         axis_position = self._notch_alignment_axis_position(position)
@@ -3647,15 +3665,41 @@ class FlatWoundJellyRoll(_JellyRoll):
         stack_x_center = (
             np.dot(self._pressed_mandrel_center_xz, mandrel_axis) + axis_position
         )
-        stack_x, stack_y = self.build_square_array(
-            stack_x_center - collector._tab_width / 2,
-            stack_y_min,
-            collector._tab_width,
-            visible_tab_height,
-        )
-        self._component_top_down_coordinates[f"{electrode_name}_notch_stack"] = (
-            np.column_stack((stack_x, stack_y))
-        )
+        tab_x_min = stack_x_center - collector._tab_width / 2
+        tab_x_max = stack_x_center + collector._tab_width / 2
+
+        # Represent the notch stack as an integral extension of the current
+        # collector polygon rather than as a separate sheet/trace.
+        if extends_positive_y:
+            outline = np.array(
+                [
+                    [body_x_min, foil_y_min],
+                    [body_x_max, foil_y_min],
+                    [body_x_max, foil_y_max],
+                    [tab_x_max, foil_y_max],
+                    [tab_x_max, foil_y_max + visible_tab_height],
+                    [tab_x_min, foil_y_max + visible_tab_height],
+                    [tab_x_min, foil_y_max],
+                    [body_x_min, foil_y_max],
+                    [body_x_min, foil_y_min],
+                ]
+            )
+        else:
+            outline = np.array(
+                [
+                    [body_x_min, foil_y_min],
+                    [tab_x_min, foil_y_min],
+                    [tab_x_min, foil_y_min - visible_tab_height],
+                    [tab_x_max, foil_y_min - visible_tab_height],
+                    [tab_x_max, foil_y_min],
+                    [body_x_max, foil_y_min],
+                    [body_x_max, foil_y_max],
+                    [body_x_min, foil_y_max],
+                    [body_x_min, foil_y_min],
+                ]
+            )
+
+        self._component_top_down_coordinates[collector_key] = outline
 
     @staticmethod
     def _validate_notch_alignment_position(
@@ -3722,7 +3766,6 @@ class FlatWoundJellyRoll(_JellyRoll):
         coordinates are refreshed directly to avoid recursively invoking parent
         propagation while the jelly roll itself is being calculated.
         """
-        generated = set(self._thickness_aware_notch_electrodes)
         configurations = {
             "cathode": self._cathode_notch_alignment_position,
             "anode": self._anode_notch_alignment_position,
@@ -3733,10 +3776,11 @@ class FlatWoundJellyRoll(_JellyRoll):
             collector = electrode._current_collector
 
             if alignment_position is None:
-                if electrode_name in generated:
-                    collector._tab_center_positions = None
-                    collector._calculate_all_properties()
-                    generated.remove(electrode_name)
+                leave_alignment = getattr(
+                    collector, "_leave_assembly_alignment", None
+                )
+                if leave_alignment is not None and collector._is_assembly_aligned():
+                    leave_alignment()
                 continue
 
             if not isinstance(collector, NotchedCurrentCollector) or isinstance(
@@ -3766,12 +3810,20 @@ class FlatWoundJellyRoll(_JellyRoll):
 
             leading_edge = collector._datum[0] - collector._x_foil_length / 2
             centers_local = centers_global - leading_edge
-            collector._validate_explicit_tab_center_positions(centers_local)
-            collector._tab_center_positions = centers_local
-            collector._calculate_all_properties()
-            generated.add(electrode_name)
+            if collector._is_assembly_aligned():
+                collector._update_assembly_alignment(centers_local)
+            else:
+                collector._enter_assembly_alignment(centers_local)
 
-        self._thickness_aware_notch_electrodes = sorted(generated)
+        self._thickness_aware_notch_electrodes = [
+            electrode_name
+            for electrode_name in ("cathode", "anode")
+            if getattr(
+                getattr(self._layup, f"_{electrode_name}")._current_collector,
+                "_is_assembly_aligned",
+                lambda: False,
+            )()
+        ]
 
     def _copy_layup_for_dimension_calculation(self) -> Laminate:
         """Copy the layup without assembly-generated explicit notch patterns."""
@@ -3787,7 +3839,10 @@ class FlatWoundJellyRoll(_JellyRoll):
             if isinstance(collector, NotchedCurrentCollector) and not isinstance(
                 collector, TablessCurrentCollector
             ):
-                collector._tab_center_positions = None
+                if collector._is_assembly_aligned():
+                    collector._leave_assembly_alignment()
+                if collector.tab_center_positions is not None:
+                    collector.tab_center_positions = None
         return layup
 
     def _get_tape_geometry_parameters(self, spirals_x_z: np.ndarray) -> Dict[str, Any]:
@@ -4533,48 +4588,6 @@ class FlatWoundJellyRoll(_JellyRoll):
                 )
             )
 
-        return figure
-
-    def _notch_stack_top_down_trace(
-        self, electrode_name: str
-    ) -> Optional[go.Scatter]:
-        """Return the top-down footprint trace for one aligned notch stack."""
-        coordinate_key = f"{electrode_name}_notch_stack"
-        if coordinate_key not in self._component_top_down_coordinates:
-            return None
-
-        collector = getattr(
-            self._layup, f"_{electrode_name}"
-        )._current_collector
-        coords = self._component_top_down_coordinates[coordinate_key]
-        position = getattr(self, f"_{electrode_name}_notch_alignment_position")
-        customdata = np.tile(
-            [position * M_TO_MM, collector.n_tabs], (len(coords), 1)
-        )
-        return go.Scatter(
-            x=coords[:, 0] * M_TO_MM,
-            y=coords[:, 1] * M_TO_MM,
-            mode="lines",
-            fill="toself",
-            fillcolor=collector.material._color,
-            line=dict(color="black", width=1),
-            name=f"{electrode_name.title()} notch stack",
-            customdata=customdata,
-            hovertemplate=(
-                f"<b>{electrode_name.title()} notch stack</b><br>"
-                "Mandrel-edge position: %{customdata[0]:.2f} mm<br>"
-                "Aligned tabs: %{customdata[1]:.0f}<extra></extra>"
-            ),
-        )
-
-    def plot_top_down_view(self, opacity: float = 0.5, **kwargs) -> go.Figure:
-        """Plot the x-y view, including physically positioned notch stacks."""
-        figure = super().plot_top_down_view(opacity=opacity, **kwargs)
-        for electrode_name in ("cathode", "anode"):
-            trace = self._notch_stack_top_down_trace(electrode_name)
-            if trace is not None:
-                self.adjust_trace_opacity(trace, opacity)
-                figure.add_trace(trace)
         return figure
 
     @property

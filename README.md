@@ -775,8 +775,8 @@ Shared by all assemblies (`WoundJellyRoll`, `FlatWoundJellyRoll`, `PunchedStack`
 |---|---|---|
 | `thickness` | mm | Overall jelly roll thickness |
 | `width` | mm | Overall jelly roll width |
-| `cathode_notch_alignment_position` | mm or `None` | Cathode notch position from the unrotated pressed mandrel's minimum-x outer edge; `None` keeps scalar spacing |
-| `anode_notch_alignment_position` | mm or `None` | Anode notch position from the same mandrel edge; arrangement follows `laminate.electrode_orientation` |
+| `cathode_notch_alignment_position` | mm or `None` | Cathode notch position from the unrotated pressed mandrel's minimum-x outer edge; generates paired ±z notches on each complete turn; `None` keeps scalar spacing |
+| `anode_notch_alignment_position` | mm or `None` | Anode notch position from the same mandrel edge with paired ±z notches; arrangement follows `laminate.electrode_orientation` |
 
 **`FlatWoundJellyRoll` — additional read-only:**
 
@@ -977,7 +977,7 @@ Shared by all current collector types.
 | `calculated_tab_center_positions` | list of mm | Calculated centers in the collector coordinate system (`NotchedCurrentCollector`) |
 | `tab_center_spacings` | list of mm | Consecutive center-to-center spacings (`NotchedCurrentCollector`) |
 | `tab_gaps` | list of mm | Consecutive edge-to-edge gaps (`NotchedCurrentCollector`) |
-| `n_tabs` | int | Number of complete tabs (`NotchedCurrentCollector`) |
+| `n_tabs` | int | Number of tab segments, including a clipped legacy end tab (`NotchedCurrentCollector`) |
 
 ### Separator Properties
 
@@ -1074,7 +1074,7 @@ All visualization methods return [Plotly](https://plotly.com/python/) `go.Figure
 | Method | Availability | Description |
 |---|---|---|
 | `get_spiral_plot()` | `WoundJellyRoll`, `FlatWoundJellyRoll` | Spiral winding path visualization |
-| `plot_notch_alignment()` | `FlatWoundJellyRoll` | Racetrack cross-section with aligned notch centers |
+| `plot_notch_alignment()` | `FlatWoundJellyRoll` | Racetrack cross-section with paired ±z notch centers |
 | `get_top_down_view()` | All assemblies | Top-down view of the assembly |
 | `get_side_view()` | All assemblies | Side view of the assembly |
 | `get_capacity_plot()` | All assemblies | Assembly-level capacity curves |
