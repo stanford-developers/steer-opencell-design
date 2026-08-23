@@ -13,10 +13,20 @@ from steer_core.Constants.Units import *
 from steer_opencell_design.Materials.Other import CurrentCollectorMaterial
 
 from collections.abc import Iterable
+from copy import deepcopy
+from enum import Enum
 from typing import Tuple, Optional
 import numpy as np
 
 from steer_opencell_design.Components.CurrentCollectors.Base import _TabbedCurrentCollector, _TapeCurrentCollector
+
+
+class _NotchPatternMode(Enum):
+    """Internal owner of the current notch-position pattern."""
+
+    REGULAR = "regular"
+    EXPLICIT = "explicit"
+    ASSEMBLY_ALIGNED = "assembly_aligned"
 
 
 class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
@@ -160,6 +170,8 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         # Must exist before the base-class initialization invokes coordinate
         # hooks through this class's MRO.
         self._tab_center_positions = None
+        self._notch_pattern_mode = _NotchPatternMode.REGULAR
+        self._pre_alignment_pattern = None
 
         super().__init__(
             material=material,
@@ -330,6 +342,125 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
             raise ValueError("tab_center_positions must be strictly increasing.")
         if np.any(pitches < self._tab_width):
             raise ValueError("Explicit tabs cannot overlap.")
+
+    def _get_notch_pattern_mode(self) -> _NotchPatternMode:
+        """Return the pattern owner, inferring state for older serialized objects."""
+        mode = getattr(self, "_notch_pattern_mode", None)
+        if isinstance(mode, _NotchPatternMode):
+            return mode
+        if isinstance(mode, str):
+            return _NotchPatternMode(mode)
+        if getattr(self, "_tab_center_positions", None) is None:
+            return _NotchPatternMode.REGULAR
+        return _NotchPatternMode.EXPLICIT
+
+    def _is_assembly_aligned(self) -> bool:
+        """Return whether a containing assembly currently owns the pattern."""
+        return self._get_notch_pattern_mode() == _NotchPatternMode.ASSEMBLY_ALIGNED
+
+    def _ensure_user_pattern_is_writable(self) -> None:
+        """Reject public pattern changes while an assembly owns the centers."""
+        if self._is_assembly_aligned():
+            raise RuntimeError(
+                "Disable jelly-roll notch alignment before modifying the "
+                "collector pattern."
+            )
+
+    @staticmethod
+    def _copy_positions(positions: Optional[np.ndarray]) -> Optional[np.ndarray]:
+        """Copy optional center positions without sharing mutable arrays."""
+        return None if positions is None else np.asarray(positions, dtype=float).copy()
+
+    def _capture_notch_pattern_state(self) -> dict:
+        """Capture all source fields required to restore a pattern transaction."""
+        return {
+            "mode": self._get_notch_pattern_mode(),
+            "tab_spacing": getattr(self, "_tab_spacing", None),
+            "tab_gap": getattr(self, "_tab_gap", None),
+            "tab_center_positions": self._copy_positions(
+                getattr(self, "_tab_center_positions", None)
+            ),
+            "pre_alignment_pattern": deepcopy(
+                getattr(self, "_pre_alignment_pattern", None)
+            ),
+        }
+
+    def _restore_notch_pattern_state(self, state: dict) -> None:
+        """Restore source fields captured by ``_capture_notch_pattern_state``."""
+        self._notch_pattern_mode = state["mode"]
+        self._tab_spacing = state["tab_spacing"]
+        self._tab_gap = state["tab_gap"]
+        self._tab_center_positions = self._copy_positions(
+            state["tab_center_positions"]
+        )
+        self._pre_alignment_pattern = deepcopy(state["pre_alignment_pattern"])
+
+    def _apply_notch_pattern_transaction(self, update) -> None:
+        """Apply a source-state update and restore the prior pattern on failure."""
+        previous = self._capture_notch_pattern_state()
+        should_recalculate = getattr(self, "_update_properties", False)
+        try:
+            update()
+            if should_recalculate:
+                self._calculate_all_properties()
+        except Exception as original_error:
+            self._restore_notch_pattern_state(previous)
+            if should_recalculate:
+                try:
+                    self._calculate_all_properties()
+                except Exception as rollback_error:
+                    raise RuntimeError(
+                        "Failed to restore the previous notch pattern after a "
+                        "recalculation error."
+                    ) from rollback_error
+            raise original_error
+
+    def _enter_assembly_alignment(self, positions: np.ndarray) -> None:
+        """Save the user pattern once and give generated centers to the assembly."""
+        if self._is_assembly_aligned():
+            raise RuntimeError("Assembly alignment is already active.")
+        positions = np.asarray(positions, dtype=float)
+        self._validate_explicit_tab_center_positions(positions)
+        snapshot = self._capture_notch_pattern_state()
+        snapshot.pop("pre_alignment_pattern")
+
+        def update() -> None:
+            self._pre_alignment_pattern = snapshot
+            self._notch_pattern_mode = _NotchPatternMode.ASSEMBLY_ALIGNED
+            self._tab_center_positions = positions.copy()
+
+        self._apply_notch_pattern_transaction(update)
+
+    def _update_assembly_alignment(self, positions: np.ndarray) -> None:
+        """Refresh generated centers without replacing the original snapshot."""
+        if not self._is_assembly_aligned():
+            raise RuntimeError("Assembly alignment is not active.")
+        positions = np.asarray(positions, dtype=float)
+        self._validate_explicit_tab_center_positions(positions)
+
+        def update() -> None:
+            self._tab_center_positions = positions.copy()
+
+        self._apply_notch_pattern_transaction(update)
+
+    def _leave_assembly_alignment(self) -> None:
+        """Restore the exact user-owned pattern saved before alignment."""
+        if not self._is_assembly_aligned():
+            return
+        snapshot = deepcopy(getattr(self, "_pre_alignment_pattern", None))
+        if snapshot is None:
+            raise RuntimeError("Assembly-aligned notch pattern has no restoration state.")
+
+        def update() -> None:
+            self._notch_pattern_mode = snapshot["mode"]
+            self._tab_spacing = snapshot["tab_spacing"]
+            self._tab_gap = snapshot["tab_gap"]
+            self._tab_center_positions = self._copy_positions(
+                snapshot["tab_center_positions"]
+            )
+            self._pre_alignment_pattern = None
+
+        self._apply_notch_pattern_transaction(update)
 
     def _calculate_coordinates(self):
         self._calculate_tab_positions()
@@ -555,7 +686,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
     @property
     def n_tabs(self) -> int:
-        """Return the number of complete tabs in the current pattern."""
+        """Return the number of tab segments in the current pattern."""
         return len(self._tab_positions)
 
     @property
@@ -603,23 +734,25 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         return self.tab_width_hard_range
 
     @tab_spacing.setter
-    @calculate_all_properties
     def tab_spacing(self, tab_spacing: float) -> None:
         
+        self._ensure_user_pattern_is_writable()
         self.validate_positive_float(tab_spacing, "tab_spacing")
-
-        self._tab_spacing = float(tab_spacing) * MM_TO_M
-        self._tab_gap = self._tab_spacing - self._tab_width
-
-        # Explicit positions and scalar spacing are mutually exclusive modes.
-        if hasattr(self, "_tab_center_positions"):
-            self._tab_center_positions = None
-
-        if self._tab_gap < 0:
+        tab_spacing_m = float(tab_spacing) * MM_TO_M
+        tab_gap_m = tab_spacing_m - self._tab_width
+        if tab_gap_m < 0:
             raise ValueError("Tab spacing cannot be less than the tab width.")
 
+        def update() -> None:
+            self._tab_spacing = tab_spacing_m
+            self._tab_gap = tab_gap_m
+            self._tab_center_positions = None
+            self._notch_pattern_mode = _NotchPatternMode.REGULAR
+            self._pre_alignment_pattern = None
+
+        self._apply_notch_pattern_transaction(update)
+
     @tab_gap.setter
-    @calculate_all_properties
     def tab_gap(self, tab_gap: float) -> None:
         """
         Set the tab gap by adjusting the tab spacing.
@@ -629,6 +762,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         tab_gap : float
             The gap between tabs in mm.
         """
+        self._ensure_user_pattern_is_writable()
         self.validate_positive_float(tab_gap, "tab_gap")
 
         # Convert to internal units (meters)
@@ -637,19 +771,28 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         # Calculate new tab spacing: gap + tab width
         new_tab_spacing = tab_gap_m + self._tab_width
 
-        # Update internal values
-        self._tab_gap = tab_gap_m
-        self._tab_spacing = new_tab_spacing
-        self._tab_center_positions = None
+        def update() -> None:
+            self._tab_gap = tab_gap_m
+            self._tab_spacing = new_tab_spacing
+            self._tab_center_positions = None
+            self._notch_pattern_mode = _NotchPatternMode.REGULAR
+            self._pre_alignment_pattern = None
+
+        self._apply_notch_pattern_transaction(update)
 
     @tab_center_positions.setter
-    @calculate_all_properties
     def tab_center_positions(
         self, tab_center_positions: Optional[Iterable[float]]
     ) -> None:
         """Set explicit centers from the foil leading edge, in millimeters."""
+        self._ensure_user_pattern_is_writable()
         if tab_center_positions is None:
-            self._tab_center_positions = None
+            def update() -> None:
+                self._tab_center_positions = None
+                self._notch_pattern_mode = _NotchPatternMode.REGULAR
+                self._pre_alignment_pattern = None
+
+            self._apply_notch_pattern_transaction(update)
             return
         if isinstance(tab_center_positions, (str, bytes)) or not isinstance(
             tab_center_positions, Iterable
@@ -666,4 +809,10 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
             ) from exc
 
         self._validate_explicit_tab_center_positions(positions)
-        self._tab_center_positions = positions
+
+        def update() -> None:
+            self._tab_center_positions = positions.copy()
+            self._notch_pattern_mode = _NotchPatternMode.EXPLICIT
+            self._pre_alignment_pattern = None
+
+        self._apply_notch_pattern_transaction(update)

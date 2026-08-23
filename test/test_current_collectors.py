@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import unittest
+from unittest.mock import patch
 from pickle import loads, dumps
 from base64 import b64decode, b64encode
 from copy import deepcopy
@@ -106,6 +107,48 @@ class TestExplicitNotchPattern(unittest.TestCase):
         for spacing in self.collector.tab_center_spacings:
             self.assertAlmostEqual(spacing, 80)
 
+    def test_rejected_spacing_leaves_explicit_pattern_unchanged(self):
+        original_spacing = self.collector.tab_spacing
+        original_gap = self.collector.tab_gap
+        original_centers = self.collector.tab_center_positions
+        original_positions = self.collector.tab_positions
+
+        with self.assertRaises(ValueError):
+            self.collector.tab_spacing = 5
+
+        self.assertEqual(self.collector.tab_spacing, original_spacing)
+        self.assertEqual(self.collector.tab_gap, original_gap)
+        self.assertEqual(self.collector.tab_center_positions, original_centers)
+        self.assertEqual(self.collector.tab_positions, original_positions)
+
+    def test_recalculation_failure_rolls_back_pattern_change(self):
+        original_spacing = self.collector.tab_spacing
+        original_gap = self.collector.tab_gap
+        original_centers = self.collector.tab_center_positions
+        original_positions = self.collector.tab_positions
+        calculate = self.collector._calculate_all_properties
+        calls = 0
+
+        def fail_first_calculation():
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise RuntimeError("forced recalculation failure")
+            return calculate()
+
+        with patch.object(
+            self.collector,
+            "_calculate_all_properties",
+            side_effect=fail_first_calculation,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "forced recalculation failure"):
+                self.collector.tab_center_positions = [60, 180, 320]
+
+        self.assertEqual(self.collector.tab_spacing, original_spacing)
+        self.assertEqual(self.collector.tab_gap, original_gap)
+        self.assertEqual(self.collector.tab_center_positions, original_centers)
+        self.assertEqual(self.collector.tab_positions, original_positions)
+
     def test_rejects_overlapping_or_out_of_bounds_tabs(self):
         with self.assertRaises(ValueError):
             self.collector.tab_center_positions = [50, 60]
@@ -119,6 +162,13 @@ class TestExplicitNotchPattern(unittest.TestCase):
 
         self.assertEqual(restored.tab_center_positions, [50, 155, 270, 395])
         self.assertEqual(restored.n_tabs, 4)
+
+    def test_n_tabs_counts_clipped_legacy_end_segment(self):
+        self.collector.tab_spacing = 90
+
+        self.assertEqual(self.collector.n_tabs, len(self.collector.tab_positions))
+        final_start, final_end = self.collector.tab_positions[-1]
+        self.assertLess(final_end - final_start, self.collector.tab_width)
 
 
 class TestPunchedCurrentCollector(unittest.TestCase):
