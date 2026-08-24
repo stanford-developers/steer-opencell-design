@@ -3,7 +3,7 @@
 
 """Jelly roll electrode assemblies wound around cylindrical or flat mandrels."""
 
-from typing import Union, Dict, Tuple, Any, Optional
+from typing import Union, Dict, Tuple, Any, Optional, Callable
 from abc import ABC, abstractmethod
 from copy import copy, deepcopy
 import pandas as pd
@@ -36,8 +36,12 @@ from steer_opencell_design.Constructions.ElectrodeAssemblies.Tape import Tape
 from steer_opencell_design.Components.CurrentCollectors.Tabbed import (
     TabWeldedCurrentCollector,
 )
-from steer_opencell_design.Components.CurrentCollectors.Notched import NotchedCurrentCollector
-from steer_opencell_design.Components.CurrentCollectors.Tabless import TablessCurrentCollector
+from steer_opencell_design.Components.CurrentCollectors.Notched import (
+    NotchedCurrentCollector,
+)
+from steer_opencell_design.Components.CurrentCollectors.Tabless import (
+    TablessCurrentCollector,
+)
 
 # Constants for array column indices
 THETA_COL = 0
@@ -535,7 +539,9 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             np.column_stack((y, z))
         )
 
-    def _calculate_roll(self, laminate_x_spacing=0.004, **kwargs) -> None:
+    def _calculate_roll(
+        self, laminate_x_spacing=0.004, _objective_mode: bool = False, **kwargs
+    ) -> None:
         """Calculate the basic jelly roll geometry and component placement.
 
         This method orchestrates the core spiral calculation workflow:
@@ -549,14 +555,27 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         ----------
         laminate_x_spacing : float, default=0.004
             Spacing between points along the x-axis for center line calculation in meters
+        _objective_mode : bool, default=False
+            Fast path for the Brent dimension-setter objectives. The objective
+            only reads scalar dimensions that are translation-invariant and
+            derivable from the component spirals, so centering is skipped and
+            the extruded visualization shapes are only built when a tape wrap
+            needs them (``_calculate_tape_roll`` concatenates them).
         **kwargs
             Additional arguments passed to spiral calculation methods
         """
         self._layup.calculate_flattened_center_lines(x_spacing=laminate_x_spacing)
         self._calculate_variable_thickness_spiral(**kwargs)
         self._build_component_spirals()
-        self._build_extruded_component_spirals()
-        self._center_spirals()
+        needs_extrusion = not _objective_mode or (
+            self._tape is not None and self._additional_tape_wraps > 0
+        )
+        if needs_extrusion:
+            self._build_extruded_component_spirals()
+        else:
+            self._extruded_spirals = {}
+        if not _objective_mode:
+            self._center_spirals()
 
     def _calculate_bulk_properties(self):
         """Calculate bulk properties including tape properties if tape is present.
@@ -1109,6 +1128,81 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
             Geometry-specific parameters (varies by subclass)
         """
         pass
+
+    @staticmethod
+    def _narrow_brentq_bracket(
+        objective: Callable[[float], float],
+        lo: float,
+        hi: float,
+        current_length: float,
+        current_residual: float,
+        slope_length_per_dim: float,
+    ) -> Tuple[float, float]:
+        """Shrink a Brent bracket for a monotone-increasing dimension objective.
+
+        The residual at the assembly's current length is already known without
+        any objective call (``current dimension - target``), so an analytic
+        slope estimate gives a warm-start guess for the root. One probe there
+        (plus an optional secant refinement through the two known points)
+        narrows the bracket sign-safely: for a monotone objective a positive
+        residual proves the root lies below the probe and vice versa, so the
+        narrowed bracket always still contains the root even when the slope
+        model is inaccurate.
+
+        Parameters
+        ----------
+        objective : Callable[[float], float]
+            Residual function ``dimension(length) - target`` in mm.
+        lo, hi : float
+            Full search bracket for the layup length in mm.
+        current_length : float
+            The assembly's current layup length in mm.
+        current_residual : float
+            ``current dimension - target`` in mm (free — no objective call).
+        slope_length_per_dim : float
+            Analytic estimate of ``d(length)/d(dimension)`` (mm per mm).
+
+        Returns
+        -------
+        Tuple[float, float]
+            Narrowed ``(lo, hi)``. When the two ends coincide the root was
+            hit exactly and the caller can skip Brent entirely.
+        """
+        if (
+            not np.isfinite(slope_length_per_dim)
+            or slope_length_per_dim <= 0
+            or current_residual == 0.0
+            or not np.isfinite(current_residual)
+        ):
+            return lo, hi
+
+        eps = 1e-6 * max(hi - lo, 1.0)
+        guess = current_length - current_residual * slope_length_per_dim
+        if not (lo + eps < guess < hi - eps):
+            return lo, hi
+
+        f_guess = objective(guess)
+        if f_guess == 0.0:
+            return guess, guess
+        if f_guess > 0.0:
+            hi = guess
+        else:
+            lo = guess
+
+        # One secant refinement through the two known residuals.
+        denom = f_guess - current_residual
+        if denom != 0.0:
+            secant = guess - f_guess * (guess - current_length) / denom
+            if lo + eps < secant < hi - eps:
+                f_secant = objective(secant)
+                if f_secant == 0.0:
+                    return secant, secant
+                if f_secant > 0.0:
+                    hi = secant
+                else:
+                    lo = secant
+
+        return lo, hi
 
     def _calculate_tape_roll(
         self, **kwargs
@@ -2986,13 +3080,32 @@ class WoundJellyRoll(_JellyRoll):
             refreshes inside the objective (``copy(self)`` is shallow), so
             recomputing it adds nothing.
 
+        When the objective-mode roll skipped building the extruded shapes,
+        the bounding-circle candidates are generated directly from the
+        component center-line spirals pushed outward by half the component
+        thickness — the exact same points the extruded outer boundary would
+        contain (inner-boundary points can never lie on the hull).
+
         The radius setter calls the full ``_calculate_geometry_parameters``
         once after Brent converges, restoring the full property snapshot.
         """
-        spirals = np.concatenate(list(self._extruded_spirals.values()), axis=0)
-        spirals_x_z = np.column_stack(
-            (spirals[:, X_COORD_COL], spirals[:, Z_COORD_COL])
-        )
+        if self._extruded_spirals:
+            spirals = np.concatenate(list(self._extruded_spirals.values()), axis=0)
+            spirals_x_z = np.column_stack(
+                (spirals[:, X_COORD_COL], spirals[:, Z_COORD_COL])
+            )
+        else:
+            thicknesses = self._component_thicknesses()
+            parts = []
+            for name, comp in self._component_spirals.items():
+                if comp is None or len(comp) == 0:
+                    continue
+                r_out = comp[:, RADIUS_COL] + 0.5 * thicknesses.get(name, 0.0)
+                theta = comp[:, THETA_COL]
+                parts.append(
+                    np.column_stack((r_out * np.cos(theta), r_out * np.sin(theta)))
+                )
+            spirals_x_z = np.vstack(parts)
         radius, _ = self.get_radius_of_points(spirals_x_z)
         self._radius = radius
         self._diameter = self._radius * 2
@@ -3178,6 +3291,19 @@ class WoundJellyRoll(_JellyRoll):
 
         return self._component_spirals
 
+    def _component_thicknesses(self) -> Dict[str, float]:
+        """Per-component layer thicknesses used for radial extrusion."""
+        return {
+            "top_separator": self._layup.top_separator._thickness,
+            "anode_a_side_coating": self._layup.anode._coating_thickness,
+            "anode_current_collector": self._layup.anode.current_collector._thickness,
+            "anode_b_side_coating": self._layup.anode._coating_thickness,
+            "bottom_separator": self._layup.bottom_separator._thickness,
+            "cathode_a_side_coating": self._layup.cathode._coating_thickness,
+            "cathode_current_collector": self._layup.cathode.current_collector._thickness,
+            "cathode_b_side_coating": self._layup.cathode._coating_thickness,
+        }
+
     def _build_extruded_component_spirals(self) -> Dict[str, np.ndarray]:
         """Build extruded component spirals by radially thickening center line spirals.
 
@@ -3193,20 +3319,9 @@ class WoundJellyRoll(_JellyRoll):
         Dict[str, np.ndarray]
             Extruded component spirals for 3D visualization
         """
-        component_thicknesses = {
-            "top_separator": self._layup.top_separator._thickness,
-            "anode_a_side_coating": self._layup.anode._coating_thickness,
-            "anode_current_collector": self._layup.anode.current_collector._thickness,
-            "anode_b_side_coating": self._layup.anode._coating_thickness,
-            "bottom_separator": self._layup.bottom_separator._thickness,
-            "cathode_a_side_coating": self._layup.cathode._coating_thickness,
-            "cathode_current_collector": self._layup.cathode.current_collector._thickness,
-            "cathode_b_side_coating": self._layup.cathode._coating_thickness,
-        }
-
         self._extruded_spirals = SpiralCalculator.build_extruded_component_spirals(
             component_spirals=self._component_spirals,
-            component_thicknesses=component_thicknesses,
+            component_thicknesses=self._component_thicknesses(),
         )
 
         return self._extruded_spirals
@@ -3371,13 +3486,17 @@ class WoundJellyRoll(_JellyRoll):
         self.radius = target_radius
 
     @radius.setter
-    @calculate_all_properties
     def radius(self, target_radius: float) -> None:
         """Set radius by optimizing layup length to achieve target radius.
 
         Uses Brent's method for robust root finding to determine the layup length
         that produces the desired radius. Lightweight objective avoids full pipeline
         recalculation during optimization iterations.
+
+        The final ``self.layup = self._layup`` assignment triggers the full
+        property pipeline via the layup setter's ``@calculate_all_properties``,
+        so this setter must not be decorated itself (it would run the whole
+        pipeline twice).
 
         Parameters
         ----------
@@ -3392,22 +3511,24 @@ class WoundJellyRoll(_JellyRoll):
         # Validate input
         self.validate_positive_float(target_radius, "radius")
 
-        # Deepcopy the layup once, then mutate ``length`` in place across
-        # iterations. The original ``self._layup`` is untouched until the
-        # final ``self.layup = self._layup`` reassignment after Brent.
-        template_layup = deepcopy(self._layup)
-
         def objective_function(length: float) -> float:
             """Lightweight objective: shallow-copy assembly, run geometry
             pipeline (spiral + components + extrusion + tape), skip downstream
             properties (mass, cost, view coordinates) and the invariant
-            radius-range / total-height calculations."""
+            radius-range / total-height calculations.
+
+            The layup is deepcopied per evaluation, not once outside the loop: some
+            ``length`` setters are lossy (weld tabs that no longer fit are
+            deactivated), so a shared layup would make the objective depend on which
+            lengths Brent probed earlier. The original ``self._layup`` is untouched
+            until the final ``self.layup = self._layup`` reassignment after Brent."""
             assembly_copy = copy(self)
+            template_layup = deepcopy(self._layup)
             template_layup.length = length
             assembly_copy._layup = self.position_layup_on_mandrel(
                 template_layup, assembly_copy._mandrel
             )
-            assembly_copy._calculate_roll()
+            assembly_copy._calculate_roll(_objective_mode=True)
             if (
                 assembly_copy._tape is not None
                 and assembly_copy._additional_tape_wraps > 0
@@ -3416,15 +3537,36 @@ class WoundJellyRoll(_JellyRoll):
             assembly_copy._set_main_dimensions_for_objective()
             return assembly_copy.radius - target_radius
 
-        # Use Brent's method for robust root finding
-        optimal_length = brentq(
-            objective_function,
-            self._layup.length_range[0],
-            self._layup.length_hard_range[1],
-            xtol=1e-3,
-            rtol=1e-3,
-            maxiter=20,
-        )
+        # Analytic warm start: for a near-uniform Archimedean spiral
+        # L = π (r² - r0²) / t̄, so d(length)/d(radius) = 2π r / t̄ with t̄ the
+        # per-wrap laminate stack thickness. Narrowing the bracket around the
+        # known current state cuts several Brent iterations.
+        lo, hi = self._layup.length_range[0], self._layup.length_hard_range[1]
+        t_bar_mm = self._layup._thickness * M_TO_MM
+        if t_bar_mm > 0:
+            r_mid = 0.5 * (self.radius + target_radius)
+            slope = TWO_PI * r_mid / t_bar_mm
+            lo, hi = self._narrow_brentq_bracket(
+                objective_function,
+                lo,
+                hi,
+                self._layup.length,
+                self.radius - target_radius,
+                slope,
+            )
+
+        if lo == hi:
+            optimal_length = lo
+        else:
+            # Use Brent's method for robust root finding
+            optimal_length = brentq(
+                objective_function,
+                lo,
+                hi,
+                xtol=1e-3,
+                rtol=1e-3,
+                maxiter=20,
+            )
 
         # Set the optimized length and run full pipeline once
         self._layup.length = optimal_length
@@ -3577,33 +3719,76 @@ class FlatWoundJellyRoll(_JellyRoll):
         laminate_x_spacing=0.004,
         initial_rotation_angle: Optional[float] = None,
         apply_notch_alignment: bool = True,
+        _objective_mode: bool = False,
         **kwargs,
     ):
         # Newly generated racetrack coordinates use the pressed mandrel center
         # as their origin. Subsequent centering and rotation update this point.
         self._pressed_mandrel_center_xz = np.zeros(2)
-        super()._calculate_roll(laminate_x_spacing, **kwargs)
+        super()._calculate_roll(
+            laminate_x_spacing, _objective_mode=_objective_mode, **kwargs
+        )
         if apply_notch_alignment:
             # Solve notch positions while x is still the pressed mandrel's
             # intrinsic longitudinal axis. The rigid transforms below carry
             # the selected points into the final display coordinates.
             self._apply_thickness_aware_notches()
-        # ``initial_rotation_angle`` warm-starts the inner Brent in
-        # ``_rotate_spirals_to_minimize_thickness`` from the previous outer
-        # iteration's optimum. Used by the thickness/width setter loops.
+
+        # In objective mode (no tape) the Brent objective only needs the
+        # scalar thickness/width at the optimal rotation — both come straight
+        # out of the rotating-calipers scan, so the arrays never need to be
+        # rotated (or centered) at all.
+        if _objective_mode and not (
+            self._tape is not None and self._additional_tape_wraps > 0
+        ):
+            extents = self._compute_objective_extents()
+            if extents is not None:
+                return
+
+        # ``initial_rotation_angle`` seeds the legacy Brent fallback in
+        # ``_rotate_spirals_to_minimize_thickness``; the rotating-calipers
+        # path is non-iterative and ignores it.
         self._last_rotation_angle = self._rotate_spirals_to_minimize_thickness(
             initial_angle=initial_rotation_angle
         )
-        self._center_spirals()
+        # Centering is translation-only, so the objective's thickness/width
+        # extents don't depend on it.
+        if not _objective_mode:
+            self._center_spirals()
+
+    def _compute_objective_extents(self) -> Optional[Tuple[float, float]]:
+        """Minimal-thickness (thickness, width) extents without rotating arrays.
+
+        Collects the component-spiral points (the same set that
+        ``_set_main_dimensions_for_objective`` measures) and runs the
+        rotating-calipers scan on their convex hull. Returns ``None`` when
+        the geometry is degenerate, in which case the caller falls back to
+        the rotate-then-measure path.
+        """
+        arrays = [
+            arr[:, [X_COORD_COL, Z_COORD_COL]]
+            for arr in self._component_spirals.values()
+            if arr is not None and arr.size > 0
+        ]
+        if not arrays:
+            return None
+        points = np.vstack(arrays)
+        valid = points[~np.isnan(points).any(axis=1)]
+        if len(valid) < 3:
+            return None
+        try:
+            angle, thickness, width = SpiralCalculator.min_thickness_orientation(valid)
+        except Exception:
+            return None
+        self._last_rotation_angle = angle
+        self._objective_extents = (thickness, width)
+        return self._objective_extents
 
     def _calculate_top_down_coordinates(self) -> None:
         """Add aligned notch-stack footprints to the standard top-down view."""
         super()._calculate_top_down_coordinates()
         for electrode_name in ("cathode", "anode"):
-            if (
-                getattr(self, f"_{electrode_name}_notch_alignment_position")
-                is not None
-            ):
+            if getattr(self, f"_{electrode_name}_notch_alignment_position") is not None:
                 self._calculate_notch_stack_top_down_coords(electrode_name)
 
     def _calculate_notch_stack_top_down_coords(self, electrode_name: str) -> None:
@@ -3655,9 +3840,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         position = getattr(self, f"_{electrode_name}_notch_alignment_position")
         axis_position = self._notch_alignment_axis_position(position)
         rotation_angle = self._last_rotation_angle
-        mandrel_axis = np.array(
-            [np.cos(rotation_angle), np.sin(rotation_angle)]
-        )
+        mandrel_axis = np.array([np.cos(rotation_angle), np.sin(rotation_angle)])
         # The top-down view is an axis-aligned schematic, like the punched
         # collector view. Project the transformed mandrel center back onto its
         # longitudinal axis so increasing edge distance always reads left-to-right,
@@ -3702,9 +3885,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         self._component_top_down_coordinates[collector_key] = outline
 
     @staticmethod
-    def _validate_notch_alignment_position(
-        value: Optional[float], name: str
-    ) -> None:
+    def _validate_notch_alignment_position(value: Optional[float], name: str) -> None:
         """Validate an optional notch-stack position in millimeters."""
         if value is None:
             return
@@ -3770,9 +3951,7 @@ class FlatWoundJellyRoll(_JellyRoll):
             collector = electrode._current_collector
 
             if alignment_position is None:
-                leave_alignment = getattr(
-                    collector, "_leave_assembly_alignment", None
-                )
+                leave_alignment = getattr(collector, "_leave_assembly_alignment", None)
                 if leave_alignment is not None and collector._is_assembly_aligned():
                     leave_alignment()
                 continue
@@ -3992,7 +4171,17 @@ class FlatWoundJellyRoll(_JellyRoll):
         The thickness / width setters call the full
         ``_calculate_geometry_parameters`` once after Brent converges,
         restoring the full property snapshot.
+
+        When the objective-mode roll already produced the minimal-thickness
+        extents via rotating calipers (``_compute_objective_extents``), those
+        are consumed directly — the arrays were never rotated, so measuring
+        their axis-aligned extents here would be wrong anyway.
         """
+        extents = self.__dict__.pop("_objective_extents", None)
+        if extents is not None:
+            self._thickness, self._width = extents
+            return
+
         all_coords = [
             spiral_data[:, [X_COORD_COL, Z_COORD_COL]]
             for spiral_data in self._component_spirals.values()
@@ -4572,9 +4761,7 @@ class FlatWoundJellyRoll(_JellyRoll):
                     mode="markers",
                     name=f"{electrode_name.title()} notch centers",
                     marker={"size": 8, "color": colors[electrode_name]},
-                    customdata=np.column_stack(
-                        (np.asarray(centers), marker_turns)
-                    ),
+                    customdata=np.column_stack((np.asarray(centers), marker_turns)),
                     hovertemplate=(
                         "Turn %{customdata[1]:.0f}<br>"
                         "Unwrapped center: %{customdata[0]:.2f} mm<extra></extra>"
@@ -4619,13 +4806,17 @@ class FlatWoundJellyRoll(_JellyRoll):
         )
 
     @thickness.setter
-    @calculate_all_properties
     def thickness(self, target_thickness: float) -> None:
         """Set thickness by optimizing layup length to achieve target thickness.
 
         Uses Brent's method for robust root finding to determine the layup length
         that produces the desired thickness. Lightweight objective avoids full pipeline
         recalculation during optimization iterations.
+
+        The final ``self.layup = self._layup`` assignment triggers the full
+        property pipeline via the layup setter's ``@calculate_all_properties``,
+        so this setter must not be decorated itself (it would run the whole
+        pipeline twice).
 
         Parameters
         ----------
@@ -4640,10 +4831,6 @@ class FlatWoundJellyRoll(_JellyRoll):
         # Validate input
         self.validate_positive_float(target_thickness, "thickness")
 
-        # Deepcopy the layup once, then mutate ``length`` in place across
-        # iterations. The original ``self._layup`` is untouched until the
-        # final ``self.layup = self._layup`` reassignment after Brent.
-        template_layup = self._copy_layup_for_dimension_calculation()
         # The optimal rotation angle barely shifts between outer-Brent
         # iterations; cache it and warm-start the inner Brent each time.
         rotation_state: Dict[str, Optional[float]] = {"angle": None}
@@ -4652,8 +4839,15 @@ class FlatWoundJellyRoll(_JellyRoll):
             """Lightweight objective: shallow-copy assembly, run geometry
             pipeline (spiral + components + extrusion + rotation + tape), skip
             downstream properties (mass, cost, view coordinates) and the
-            invariant thickness/width-range / total-height calculations."""
+            invariant thickness/width-range / total-height calculations.
+
+            The layup is deepcopied per evaluation, not once outside the loop: some
+            ``length`` setters are lossy (weld tabs that no longer fit are
+            deactivated), so a shared layup would make the objective depend on which
+            lengths Brent probed earlier. The original ``self._layup`` is untouched
+            until the final ``self.layup = self._layup`` reassignment after Brent."""
             assembly_copy = copy(self)
+            template_layup = self._copy_layup_for_dimension_calculation()
             template_layup.length = length
             assembly_copy._layup = self.position_layup_on_mandrel(
                 template_layup, assembly_copy._mandrel
@@ -4661,6 +4855,7 @@ class FlatWoundJellyRoll(_JellyRoll):
             assembly_copy._calculate_roll(
                 initial_rotation_angle=rotation_state["angle"],
                 apply_notch_alignment=False,
+                _objective_mode=True,
             )
             rotation_state["angle"] = getattr(
                 assembly_copy, "_last_rotation_angle", None
@@ -4673,28 +4868,53 @@ class FlatWoundJellyRoll(_JellyRoll):
             assembly_copy._set_main_dimensions_for_objective()
             return assembly_copy.thickness - target_thickness
 
-        # Use Brent's method for robust root finding
-        optimal_length = brentq(
-            objective_function,
-            self._layup.length_range[0],
-            self._layup.length_hard_range[1],
-            xtol=1e-3,
-            rtol=1e-3,
-            maxiter=20,
-        )
+        # Analytic warm start: racetrack thickness grows by 2 t̄ per turn and
+        # one turn adds ~perimeter = 2 S + π · thickness of length, so
+        # d(length)/d(thickness) = (2 S + π · th_mid) / (2 t̄).
+        lo, hi = self._layup.length_range[0], self._layup.length_hard_range[1]
+        t_bar_mm = self._layup._thickness * M_TO_MM
+        if t_bar_mm > 0:
+            straight_mm = self._pressed_straight_length * M_TO_MM
+            th_mid = 0.5 * (self.thickness + target_thickness)
+            slope = (2.0 * straight_mm + PI * th_mid) / (2.0 * t_bar_mm)
+            lo, hi = self._narrow_brentq_bracket(
+                objective_function,
+                lo,
+                hi,
+                self._layup.length,
+                self.thickness - target_thickness,
+                slope,
+            )
+
+        if lo == hi:
+            optimal_length = lo
+        else:
+            # Use Brent's method for robust root finding
+            optimal_length = brentq(
+                objective_function,
+                lo,
+                hi,
+                xtol=1e-3,
+                rtol=1e-3,
+                maxiter=20,
+            )
 
         # Set the optimized length and run full pipeline once
         self._layup.length = optimal_length
         self.layup = self._layup
 
     @width.setter
-    @calculate_all_properties
     def width(self, target_width: float) -> None:
         """Set width by optimizing layup length to achieve target width.
 
         Uses Brent's method for robust root finding to determine the layup length
         that produces the desired width. Lightweight objective avoids full pipeline
         recalculation during optimization iterations.
+
+        The final ``self.layup = self._layup`` assignment triggers the full
+        property pipeline via the layup setter's ``@calculate_all_properties``,
+        so this setter must not be decorated itself (it would run the whole
+        pipeline twice).
 
         Parameters
         ----------
@@ -4709,10 +4929,6 @@ class FlatWoundJellyRoll(_JellyRoll):
         # Validate input
         self.validate_positive_float(target_width, "width")
 
-        # Deepcopy the layup once, then mutate ``length`` in place across
-        # iterations. The original ``self._layup`` is untouched until the
-        # final ``self.layup = self._layup`` reassignment after Brent.
-        template_layup = self._copy_layup_for_dimension_calculation()
         # The optimal rotation angle barely shifts between outer-Brent
         # iterations; cache it and warm-start the inner Brent each time.
         rotation_state: Dict[str, Optional[float]] = {"angle": None}
@@ -4721,8 +4937,15 @@ class FlatWoundJellyRoll(_JellyRoll):
             """Lightweight objective: shallow-copy assembly, run geometry
             pipeline (spiral + components + extrusion + rotation + tape), skip
             downstream properties (mass, cost, view coordinates) and the
-            invariant thickness/width-range / total-height calculations."""
+            invariant thickness/width-range / total-height calculations.
+
+            The layup is deepcopied per evaluation, not once outside the loop: some
+            ``length`` setters are lossy (weld tabs that no longer fit are
+            deactivated), so a shared layup would make the objective depend on which
+            lengths Brent probed earlier. The original ``self._layup`` is untouched
+            until the final ``self.layup = self._layup`` reassignment after Brent."""
             assembly_copy = copy(self)
+            template_layup = self._copy_layup_for_dimension_calculation()
             template_layup.length = length
             assembly_copy._layup = self.position_layup_on_mandrel(
                 template_layup, assembly_copy._mandrel
@@ -4730,6 +4953,7 @@ class FlatWoundJellyRoll(_JellyRoll):
             assembly_copy._calculate_roll(
                 initial_rotation_angle=rotation_state["angle"],
                 apply_notch_alignment=False,
+                _objective_mode=True,
             )
             rotation_state["angle"] = getattr(
                 assembly_copy, "_last_rotation_angle", None
@@ -4742,15 +4966,36 @@ class FlatWoundJellyRoll(_JellyRoll):
             assembly_copy._set_main_dimensions_for_objective()
             return assembly_copy.width - target_width
 
-        # Use Brent's method for robust root finding
-        optimal_length = brentq(
-            objective_function,
-            self._layup.length_range[0],
-            self._layup.length_hard_range[1],
-            xtol=1e-3,
-            rtol=1e-3,
-            maxiter=20,
-        )
+        # Analytic warm start: racetrack width = straight length + thickness,
+        # so d(length)/d(width) matches the thickness slope
+        # (2 S + π · th_mid) / (2 t̄) with th_mid taken at the mid-width.
+        lo, hi = self._layup.length_range[0], self._layup.length_hard_range[1]
+        t_bar_mm = self._layup._thickness * M_TO_MM
+        if t_bar_mm > 0:
+            straight_mm = self._pressed_straight_length * M_TO_MM
+            th_mid = self.thickness + 0.5 * (target_width - self.width)
+            slope = (2.0 * straight_mm + PI * th_mid) / (2.0 * t_bar_mm)
+            lo, hi = self._narrow_brentq_bracket(
+                objective_function,
+                lo,
+                hi,
+                self._layup.length,
+                self.width - target_width,
+                slope,
+            )
+
+        if lo == hi:
+            optimal_length = lo
+        else:
+            # Use Brent's method for robust root finding
+            optimal_length = brentq(
+                objective_function,
+                lo,
+                hi,
+                xtol=1e-3,
+                rtol=1e-3,
+                maxiter=20,
+            )
 
         # Set the optimized length and run full pipeline once
         self._layup.length = optimal_length

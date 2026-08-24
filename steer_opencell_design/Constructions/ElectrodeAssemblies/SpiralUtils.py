@@ -1008,6 +1008,65 @@ def _racetrack_positions_batch(thetas, radii, straight_length):
     return x_out, z_out
 
 
+@njit(**_NJIT_KW)
+def _racetrack_positions_batch_cum(thetas_cum, radii, straight_length):
+    """Racetrack positions for *cumulative* winding angles (numba-compiled).
+
+    Fuses the ``2π - (θ mod 2π)`` clockwise-parametric transform (with the
+    exact-multiple-of-2π edge case mapped to 2π) into the position loop so
+    callers don't allocate the three temporary arrays the transform needs.
+    Otherwise identical to :func:`_racetrack_positions_batch`.
+    """
+    _TWO_PI = 2.0 * math.pi
+    n = len(thetas_cum)
+    x_out = np.empty(n, dtype=np.float64)
+    z_out = np.empty(n, dtype=np.float64)
+
+    for i in range(n):
+        theta_p = _TWO_PI - (thetas_cum[i] % _TWO_PI)
+        if theta_p < 1e-14:
+            theta_p = _TWO_PI
+        theta = theta_p % _TWO_PI
+        radius = radii[i]
+
+        semi_arc = math.pi * radius
+        total_perimeter = 2.0 * semi_arc + 2.0 * straight_length
+        clockwise_fraction = (_TWO_PI - theta) / _TWO_PI
+        arc_length = clockwise_fraction * total_perimeter
+
+        if arc_length <= semi_arc:
+            phi = arc_length / radius if radius > 0 else 0.0
+            x_out[i] = straight_length / 2.0 + radius * math.cos(math.pi / 2.0 - phi)
+            z_out[i] = radius * math.sin(math.pi / 2.0 - phi)
+        elif arc_length <= semi_arc + straight_length:
+            progress = (
+                (arc_length - semi_arc) / straight_length
+                if straight_length > 0
+                else 0.0
+            )
+            x_out[i] = straight_length / 2.0 - progress * straight_length
+            z_out[i] = -radius
+        elif arc_length <= 2.0 * semi_arc + straight_length:
+            phi = (
+                (arc_length - semi_arc - straight_length) / radius
+                if radius > 0
+                else 0.0
+            )
+            angle = -math.pi / 2.0 - phi
+            x_out[i] = -straight_length / 2.0 + radius * math.cos(angle)
+            z_out[i] = radius * math.sin(angle)
+        else:
+            progress = (
+                (arc_length - 2.0 * semi_arc - straight_length) / straight_length
+                if straight_length > 0
+                else 0.0
+            )
+            x_out[i] = -straight_length / 2.0 + progress * straight_length
+            z_out[i] = radius
+
+    return x_out, z_out
+
+
 # ─── Phase 3: segmented analytic integrator ─────────────────────────────────
 #
 # The thickness function ``t(x)`` is built by ``Laminate.calculate_flattened_
@@ -1576,12 +1635,6 @@ class SpiralCalculator:
         total_length = laminate._total_length
         r0 = start_radius
 
-        # Build interpolation grid for thickness (vectorized)
-        base_dl = max(dtheta * r0 / 8.0, 0.00025)
-        n_grid = min(6000, max(400, int(total_length / base_dl) + 2))
-        x_grid = np.linspace(0.0, total_length, n_grid)
-
-        # Vectorized thickness grid: inline the laminate interpolation
         surface_xs = laminate._top_surface[:, 0]
         surface_zs = laminate._top_surface[:, 1]
         baseline_z = getattr(laminate, "_baseline_z", None)
@@ -1591,6 +1644,45 @@ class SpiralCalculator:
                 baseline_z = fcl["baseline"][0, 1]
             else:
                 baseline_z = 0.0
+
+        # ── Phase 3: segmented analytic fast path ────────────────────────
+        # If the underlying surface is genuinely piecewise-constant in t (the
+        # common case — typically O(5) runs across the whole laminate), we
+        # can integrate each segment in closed form and skip both the
+        # thickness-grid construction and the adaptive integrator entirely.
+        # Falls back to RK23 if the surface is too smooth/curvy to model as
+        # piecewise-constant. Checked *before* building the dense thickness
+        # grid, which only the uniform check and the RK23 fallback need.
+        if _USE_SEGMENTED_ANALYTIC:
+            bp = _detect_thickness_breakpoints(
+                surface_xs.astype(np.float64),
+                surface_zs.astype(np.float64),
+                float(baseline_z),
+                float(total_length),
+            )
+            if bp is not None:
+                bp_x, bp_t = bp
+                bp_t_min, bp_t_max = float(bp_t.min()), float(bp_t.max())
+                points_per_turn = max(100, int(1.0 / dtheta * TWO_PI))
+                # Uniform-thickness fast path (segment-weighted average).
+                if bp_t_max > 0 and (bp_t_max - bp_t_min) / bp_t_max < 0.001:
+                    avg_thickness = float(
+                        np.sum(bp_t * np.diff(bp_x)) / max(total_length, 1e-30)
+                    )
+                    return SpiralCalculator.calculate_simple_spiral(
+                        start_radius=r0,
+                        thickness=avg_thickness,
+                        target_length=total_length,
+                        points_per_turn=points_per_turn,
+                    )
+                return _segmented_analytic_spiral(
+                    bp_x, bp_t, total_length, r0, points_per_turn
+                )
+
+        # Build interpolation grid for thickness (vectorized)
+        base_dl = max(dtheta * r0 / 8.0, 0.00025)
+        n_grid = min(6000, max(400, int(total_length / base_dl) + 2))
+        x_grid = np.linspace(0.0, total_length, n_grid)
         top_z = np.interp(x_grid, surface_xs, surface_zs)
         t_grid = np.maximum(top_z - baseline_z, 0.0).astype(np.float64)
 
@@ -1608,26 +1700,6 @@ class SpiralCalculator:
                 points_per_turn=max(100, int(1.0 / dtheta * TWO_PI)),
             )
             return simple
-
-        # ── Phase 3: segmented analytic fast path ────────────────────────
-        # If the underlying surface is genuinely piecewise-constant in t (the
-        # common case — typically O(5) runs across the whole laminate), we
-        # can integrate each segment in closed form and skip the adaptive
-        # integrator entirely. Falls back to RK23 if the surface is too
-        # smooth/curvy to model as piecewise-constant.
-        if _USE_SEGMENTED_ANALYTIC:
-            bp = _detect_thickness_breakpoints(
-                surface_xs.astype(np.float64),
-                surface_zs.astype(np.float64),
-                float(baseline_z),
-                float(total_length),
-            )
-            if bp is not None:
-                bp_x, bp_t = bp
-                points_per_turn = max(100, int(1.0 / dtheta * TWO_PI))
-                return _segmented_analytic_spiral(
-                    bp_x, bp_t, total_length, r0, points_per_turn
-                )
 
         # ── Adaptive RK4 integration via numba-compiled loop ─────────────
         n_grid_m1 = n_grid - 1
@@ -1747,8 +1819,9 @@ class SpiralCalculator:
                 x_min, x_max = np.min(segment), np.max(segment)
                 mask |= (x_unwrapped >= x_min) & (x_unwrapped <= x_max)
 
-            # Apply mask to get component spiral slice
-            component_spiral = base_spiral[mask].copy()
+            # Apply mask to get component spiral slice (boolean indexing
+            # already returns a fresh copy).
+            component_spiral = base_spiral[mask]
 
             # Vectorized height calculation using numpy interpolation
             # This replaces the slow loop with a single vectorized operation
@@ -2109,7 +2182,6 @@ class SpiralCalculator:
 
         total_length = laminate._total_length  # meters
 
-        # Build fast thickness interpolator (vectorized, avoids per-step Python method calls)
         surface_xs = laminate._top_surface[:, 0]
         surface_zs = laminate._top_surface[:, 1]
         baseline_z = getattr(laminate, "_baseline_z", None)
@@ -2120,30 +2192,12 @@ class SpiralCalculator:
             else:
                 baseline_z = 0.0
 
-        n_t_grid = max(400, int(total_length / max(ds_target, 1e-6)) + 2)
-        n_t_grid = min(6000, n_t_grid)
-        t_x_grid = np.linspace(0.0, total_length, n_t_grid)
-        t_z_interp = np.interp(t_x_grid, surface_xs, surface_zs)
-        t_grid = np.maximum(t_z_interp - baseline_z, 0.0).astype(np.float64)
-
-        t_min, t_max = float(t_grid.min()), float(t_grid.max())
-
-        # ── Uniform-thickness fast path ──────────────────────────────────
-        if t_max > 0 and (t_max - t_min) / t_max < 0.001:
-            avg_thickness = float(t_grid.mean())
-            simple = SpiralCalculator.calculate_simple_racetrack(
-                start_radius=mandrel_radius,
-                straight_length=straight_length,
-                thickness=avg_thickness,
-                target_length=total_length,
-                points_per_turn=300,
-            )
-            return simple
-
         # ── Phase 3: segmented analytic fast path ────────────────────────
         # Closed-form quadratic per piecewise-constant segment; falls back
         # to RK23 if the surface isn't piecewise-constant. The result then
         # joins the same downsampling pass as the integrator output below.
+        # Checked *before* building the dense thickness grid, which only the
+        # uniform check and the RK23 fallback need.
         analytic_spiral_array: Optional[np.ndarray] = None
         if _USE_SEGMENTED_ANALYTIC:
             bp = _detect_thickness_breakpoints(
@@ -2154,6 +2208,19 @@ class SpiralCalculator:
             )
             if bp is not None:
                 bp_x, bp_t = bp
+                bp_t_min, bp_t_max = float(bp_t.min()), float(bp_t.max())
+                # Uniform-thickness fast path (segment-weighted average).
+                if bp_t_max > 0 and (bp_t_max - bp_t_min) / bp_t_max < 0.001:
+                    avg_thickness = float(
+                        np.sum(bp_t * np.diff(bp_x)) / max(total_length, 1e-30)
+                    )
+                    return SpiralCalculator.calculate_simple_racetrack(
+                        start_radius=mandrel_radius,
+                        straight_length=straight_length,
+                        thickness=avg_thickness,
+                        target_length=total_length,
+                        points_per_turn=300,
+                    )
                 analytic = _segmented_analytic_racetrack(
                     bp_x,
                     bp_t,
@@ -2162,14 +2229,8 @@ class SpiralCalculator:
                     straight_length,
                     points_per_turn=300,
                 )
-                theta_arr_a = analytic[:, 0]
-                r_arr_a = analytic[:, 2]
-                racetrack_thetas_a = TWO_PI - (theta_arr_a % TWO_PI)
-                racetrack_thetas_a = np.where(
-                    racetrack_thetas_a < 1e-14, TWO_PI, racetrack_thetas_a
-                )
-                xc, zc = _racetrack_positions_batch(
-                    racetrack_thetas_a, r_arr_a, straight_length
+                xc, zc = _racetrack_positions_batch_cum(
+                    analytic[:, 0], analytic[:, 2], straight_length
                 )
                 analytic[:, 3] = xc
                 analytic[:, 4] = zc
@@ -2179,6 +2240,28 @@ class SpiralCalculator:
         if analytic_spiral_array is not None:
             spiral_array = analytic_spiral_array
         else:
+            # Build fast thickness interpolator (vectorized, avoids per-step
+            # Python method calls). Only the RK23 fallback and its uniform
+            # check need the dense grid.
+            n_t_grid = max(400, int(total_length / max(ds_target, 1e-6)) + 2)
+            n_t_grid = min(6000, n_t_grid)
+            t_x_grid = np.linspace(0.0, total_length, n_t_grid)
+            t_z_interp = np.interp(t_x_grid, surface_xs, surface_zs)
+            t_grid = np.maximum(t_z_interp - baseline_z, 0.0).astype(np.float64)
+
+            t_min, t_max = float(t_grid.min()), float(t_grid.max())
+
+            # ── Uniform-thickness fast path ──────────────────────────────
+            if t_max > 0 and (t_max - t_min) / t_max < 0.001:
+                avg_thickness = float(t_grid.mean())
+                return SpiralCalculator.calculate_simple_racetrack(
+                    start_radius=mandrel_radius,
+                    straight_length=straight_length,
+                    thickness=avg_thickness,
+                    target_length=total_length,
+                    points_per_turn=300,
+                )
+
             n_grid_m1 = n_t_grid - 1
             dx_inv = float(n_grid_m1 / total_length) if total_length > 0 else 0.0
 
@@ -2217,15 +2300,11 @@ class SpiralCalculator:
 
             turns_arr = theta_arr / TWO_PI
 
-            # Calculate Cartesian coordinates using batch racetrack position
-            # The racetrack_positions_batch expects parametric theta in [0, 2π], clockwise from 2π
-            racetrack_thetas = TWO_PI - (theta_arr % TWO_PI)
-            # Handle edge: when theta_arr % TWO_PI == 0, racetrack_theta = TWO_PI
-            racetrack_thetas = np.where(
-                racetrack_thetas < 1e-14, TWO_PI, racetrack_thetas
-            )
-            x_coords, z_coords = _racetrack_positions_batch(
-                racetrack_thetas, r_arr, straight_length
+            # Calculate Cartesian coordinates using the fused batch kernel
+            # (folds the cumulative-theta → clockwise-parametric transform
+            # into the numba loop instead of allocating three temporaries).
+            x_coords, z_coords = _racetrack_positions_batch_cum(
+                theta_arr, r_arr, straight_length
             )
 
             spiral_array = np.column_stack(
@@ -2995,8 +3074,9 @@ class SpiralCalculator:
                 x_min, x_max = np.min(segment), np.max(segment)
                 mask |= (x_unwrapped >= x_min) & (x_unwrapped <= x_max)
 
-            # Apply mask to get component spiral slice
-            component_spiral = base_spiral[mask].copy()
+            # Apply mask to get component spiral slice (boolean indexing
+            # already returns a fresh copy).
+            component_spiral = base_spiral[mask]
 
             # Vectorized height calculation using numpy interpolation
             x_vals = component_spiral[:, 1]
@@ -3064,6 +3144,85 @@ class SpiralCalculator:
         return spiral
 
     @staticmethod
+    def min_thickness_orientation(
+        valid_points: np.ndarray,
+    ) -> tuple[float, float, float]:
+        """Exact minimal-thickness orientation via convex hull + rotating calipers.
+
+        The thickness after rotating by θ equals the extent of the point set
+        along the direction ``v(θ) = (sin θ, cos θ)``, and the minimum width
+        of a convex polygon is always attained perpendicular to one of its
+        edges. So the global optimum is found by scanning hull-edge normals —
+        no iterative search, no local minima.
+
+        Dense clouds are first reduced to their outer rim (max-radius points
+        per angular bin around the centroid), which preserves the hull
+        vertices of the star-shaped jelly-roll cross-sections to sub-µm
+        accuracy while capping the qhull input size.
+
+        Parameters
+        ----------
+        valid_points : np.ndarray
+            (N, 2) array of finite x-z points.
+
+        Returns
+        -------
+        tuple[float, float, float]
+            ``(angle, thickness, width)`` where ``angle`` is the rotation (in
+            radians, mod π) that minimizes the z-extent, ``thickness`` is that
+            minimal z-extent, and ``width`` is the x-extent at that rotation.
+
+        Raises
+        ------
+        Exception
+            Degenerate inputs (e.g. all-collinear points) propagate qhull
+            errors; callers fall back to the scalar search.
+        """
+        from scipy.spatial import ConvexHull
+
+        pts = valid_points
+        if len(pts) > 4096:
+            center = pts.mean(axis=0)
+            d = pts - center
+            r2 = d[:, 0] ** 2 + d[:, 1] ** 2
+            angles = np.arctan2(d[:, 1], d[:, 0])
+            n_bins = 2048
+            bins = ((angles + np.pi) * (n_bins / (2.0 * np.pi))).astype(np.intp)
+            np.clip(bins, 0, n_bins - 1, out=bins)
+            best_r2 = np.full(n_bins, -1.0)
+            np.maximum.at(best_r2, bins, r2)
+            keep = r2 >= best_r2[bins] - 1e-30
+            rim = pts[keep]
+            if len(rim) >= 3:
+                pts = rim
+
+        hull = ConvexHull(pts)
+        hp = pts[hull.vertices]
+
+        edges = np.diff(np.vstack([hp, hp[:1]]), axis=0)
+        lengths = np.hypot(edges[:, 0], edges[:, 1])
+        good = lengths > 1e-15
+        if not np.any(good):
+            return 0.0, 0.0, 0.0
+        normals = edges[good][:, ::-1] * np.array([-1.0, 1.0]) / lengths[good, None]
+
+        # Projections of every hull vertex onto every candidate normal.
+        proj = hp @ normals.T
+        widths = proj.max(axis=0) - proj.min(axis=0)
+        i_best = int(np.argmin(widths))
+        n_best = normals[i_best]
+        thickness = float(widths[i_best])
+
+        # Extent along the perpendicular direction = width after rotation.
+        perp = np.array([n_best[1], -n_best[0]])
+        proj_perp = hp @ perp
+        width = float(proj_perp.max() - proj_perp.min())
+
+        # v(θ) = (sin θ, cos θ) must align with the best normal (mod π).
+        angle = float(np.arctan2(n_best[0], n_best[1])) % np.pi
+        return angle, thickness, width
+
+    @staticmethod
     def rotate_spiral_to_minimize_thickness(
         spiral_data,
         x_col: int = X_COORD_COL,
@@ -3073,9 +3232,11 @@ class SpiralCalculator:
     ):
         """Rotate spiral data in x-z plane to minimize overall thickness.
 
-        Uses Brent's method to find the rotation angle that minimizes the
-        vertical extent (thickness = max(z) - min(z)). The rotation is applied
-        in-place to the spiral data.
+        Finds the rotation angle that minimizes the vertical extent
+        (thickness = max(z) - min(z)) and applies it in-place to the spiral
+        data. The angle is computed exactly with rotating calipers on the
+        convex hull; a Brent scalar search over the raw points remains as a
+        fallback for degenerate geometry that qhull rejects.
 
         Parameters
         ----------
@@ -3087,15 +3248,10 @@ class SpiralCalculator:
         z_col : int, optional
             Column index for z coordinates (default: Z_COORD_COL)
         initial_angle : float, optional
-            If provided, warm-starts the search with a narrow ``brent``
-            bracket of half-width ``bracket_width`` around this angle (mod π).
-            Otherwise falls back to a full ``bounded`` search over ``(0, π)``.
-            Used by the FlatWound thickness/width setters to amortize the
-            inner Brent across outer Brent iterations.
+            Legacy warm-start seed for the Brent fallback path. The rotating
+            calipers path is non-iterative and ignores it.
         bracket_width : float, optional
-            Half-width of the warm-start bracket in radians (default π/30 ≈ 6°).
-            Wide enough to absorb iter-to-iter angle drift; narrow enough that
-            ``brent`` converges in ~3 evaluations.
+            Half-width of the warm-start bracket used by the Brent fallback.
 
         Returns
         -------
@@ -3108,8 +3264,6 @@ class SpiralCalculator:
         - Optimization searches over [0, π) since thickness is symmetric about π.
         - Modifies spiral_data in-place and returns it for convenience.
         """
-        from scipy.optimize import minimize_scalar
-
         # Collect all x-z points, filtering out NaN values
         if isinstance(spiral_data, dict):
             arrays = [
@@ -3139,48 +3293,51 @@ class SpiralCalculator:
 
         # Compute centroid from valid points only
         centroid = valid_points.mean(axis=0)
-        valid_points_centered = valid_points - centroid
 
-        def compute_thickness_at_angle(angle: float) -> float:
-            """Compute thickness (z-extent) for a given rotation angle."""
-            c, s = np.cos(angle), np.sin(angle)
-            R = np.array([[c, -s], [s, c]])
-            rotated = valid_points_centered @ R.T
-            z_rotated = rotated[:, 1]
-            thickness = np.max(z_rotated) - np.min(z_rotated)
-            return thickness
+        try:
+            optimal_angle, _, _ = SpiralCalculator.min_thickness_orientation(
+                valid_points
+            )
+        except Exception:
+            # Degenerate geometry (collinear points etc.): fall back to the
+            # legacy scalar search on the raw points.
+            from scipy.optimize import minimize_scalar
 
-        # Use Brent's method (via minimize_scalar) to find angle that minimizes
-        # thickness. When the caller supplies an ``initial_angle`` (warm-start
-        # from a previous outer-Brent iteration) we run a narrow ``brent``
-        # search around it instead of the full ``bounded`` sweep over (0, π).
-        # The narrow bracket converges in ~3 function evals vs ~15 for bounded.
-        if initial_angle is not None:
-            seed = float(initial_angle) % np.pi
-            lo = seed - bracket_width
-            hi = seed + bracket_width
-            try:
-                result = minimize_scalar(
-                    compute_thickness_at_angle,
-                    bracket=(lo, seed, hi),
-                    method="brent",
-                    options={"xtol": 1e-4},
-                )
-            except (ValueError, RuntimeError):
-                # Bracket failed (e.g. seed near 0/π or non-convex locally).
-                # Fall back to the robust bounded search.
+            valid_points_centered = valid_points - centroid
+
+            def compute_thickness_at_angle(angle: float) -> float:
+                """Compute thickness (z-extent) for a given rotation angle."""
+                c, s = np.cos(angle), np.sin(angle)
+                R = np.array([[c, -s], [s, c]])
+                rotated = valid_points_centered @ R.T
+                z_rotated = rotated[:, 1]
+                thickness = np.max(z_rotated) - np.min(z_rotated)
+                return thickness
+
+            if initial_angle is not None:
+                seed = float(initial_angle) % np.pi
+                lo = seed - bracket_width
+                hi = seed + bracket_width
+                try:
+                    result = minimize_scalar(
+                        compute_thickness_at_angle,
+                        bracket=(lo, seed, hi),
+                        method="brent",
+                        options={"xtol": 1e-4},
+                    )
+                except (ValueError, RuntimeError):
+                    result = minimize_scalar(
+                        compute_thickness_at_angle,
+                        bounds=(0, np.pi),
+                        method="bounded",
+                    )
+            else:
                 result = minimize_scalar(
                     compute_thickness_at_angle,
                     bounds=(0, np.pi),
                     method="bounded",
                 )
-        else:
-            result = minimize_scalar(
-                compute_thickness_at_angle,
-                bounds=(0, np.pi),
-                method="bounded",
-            )
-        optimal_angle = float(result.x) % np.pi  # type: ignore[union-attr]
+            optimal_angle = float(result.x) % np.pi  # type: ignore[union-attr]
 
         # Apply the optimal rotation to the spiral data
         c, s = np.cos(optimal_angle), np.sin(optimal_angle)

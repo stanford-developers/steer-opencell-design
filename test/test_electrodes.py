@@ -221,6 +221,36 @@ class TestAnodeNoInsulation(unittest.TestCase):
         self.assertAlmostEqual(self.anode.thickness, original_thickness, places=1)
         self.assertAlmostEqual(self.anode.porosity, original_porosity, places=1)
 
+    def test_coated_anode_requires_coating_inputs(self):
+        """A formulation means a coating, so both coating inputs are required."""
+        formulation = self.anode.formulation
+        current_collector = self.anode.current_collector
+
+        for omitted in ("mass_loading", "calender_density", "both"):
+            kwargs = {"mass_loading": 8.35, "calender_density": 1.03}
+            if omitted == "both":
+                kwargs = {}
+            else:
+                del kwargs[omitted]
+
+            with self.subTest(omitted=omitted):
+                with self.assertRaises(ValueError):
+                    Anode(
+                        formulation=formulation,
+                        current_collector=current_collector,
+                        **kwargs,
+                    )
+
+    def test_setters_after_deserialization(self):
+        """Setters must work on objects rebuilt without __init__ (saved designs)."""
+        restored = Anode.deserialize(self.anode.serialize())
+
+        restored.mass_loading = 9.0
+        self.assertAlmostEqual(restored.mass_loading, 9.0, places=6)
+
+        restored.calender_density = 1.2
+        self.assertAlmostEqual(restored.calender_density, 1.2, places=6)
+
 
 class TestCathodePunchedCurrentCollector(unittest.TestCase):
     def setUp(self):
@@ -448,6 +478,24 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
 
         # fig_before.show()
         # fig_after.show()
+
+    def test_cathode_rejects_none_formulation(self):
+        """Only an Anode can be formulation-free; a cathode-free cell has no meaning."""
+        # the error must name the real problem, not the coating inputs
+        with self.assertRaisesRegex(ValueError, "only an Anode"):
+            Cathode(
+                formulation=None,
+                mass_loading=12,
+                current_collector=self.cathode.current_collector,
+                calender_density=2.6,
+            )
+
+        with self.assertRaisesRegex(ValueError, "only an Anode"):
+            self.cathode.formulation = None
+
+        # the rejected assignment must leave the cathode intact
+        self.assertIsNotNone(self.cathode.formulation)
+        self.assertFalse(self.cathode._is_anode_free)
 
 
 class TestCathodeTwoMaterialNotched(unittest.TestCase):
@@ -1162,6 +1210,30 @@ class TestAnodeFree(unittest.TestCase):
         self.assertAlmostEqual(deserialized.mass, self.anode.mass, places=4)
         self.assertAlmostEqual(deserialized.cost, self.anode.cost, places=4)
         self.assertAlmostEqual(deserialized.thickness, self.anode.thickness, places=4)
+
+    def test_anode_free_setters_after_deserialization(self):
+        """Setters must stay no-ops on objects rebuilt without __init__ (saved designs)."""
+        restored = Anode.deserialize(self.anode.serialize())
+
+        restored.mass_loading = 8.35
+        restored.calender_density = 1.03
+
+        self.assertTrue(restored._is_anode_free)
+        self.assertEqual(restored.mass_loading, 0.0)
+        self.assertEqual(restored.calender_density, 0.0)
+
+    # --- coating inputs are meaningless without a formulation ---
+
+    def test_anode_free_rejects_coating_inputs(self):
+        """mass_loading and calender_density describe a coating an anode-free anode lacks."""
+        for name, value in (("mass_loading", 8.35), ("calender_density", 1.03)):
+            with self.subTest(coating_input=name):
+                with self.assertRaises(ValueError):
+                    Anode(
+                        formulation=None,
+                        current_collector=self.current_collector,
+                        **{name: value},
+                    )
 
 
 

@@ -734,6 +734,31 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         fig1 = self.current_collector.plot_top_down_view()
         # fig1.show()
 
+    def test_length_setter_retains_weld_tabs(self):
+        """Weld tabs that no longer fit are deactivated, not destroyed."""
+        self.current_collector.length = 200
+        self.assertEqual(self.current_collector.weld_tab_positions, [30, 100])
+        self.assertEqual(len(self.current_collector.weld_tabs), 2)
+
+        self.current_collector.length = 820
+        self.assertEqual(self.current_collector.weld_tab_positions, [30, 100, 500])
+        self.assertEqual(len(self.current_collector.weld_tabs), 3)
+
+    def test_length_setter_retains_weld_tabs_for_legacy_objects(self):
+        """Payloads written before the requested positions existed still work.
+
+        SerializerMixin._from_dict rebuilds objects without calling __init__, so the
+        requested positions have to be seeded lazily from the active ones.
+        """
+        legacy = TabWeldedCurrentCollector.deserialize(self.current_collector.serialize())
+        del legacy._requested_weld_tab_positions
+
+        legacy.length = 200
+        self.assertEqual(legacy.weld_tab_positions, [30, 100])
+
+        legacy.length = 820
+        self.assertEqual(legacy.weld_tab_positions, [30, 100, 500])
+
     def test_material_setter(self):
         new_material = CurrentCollectorMaterial.from_database(name="Aluminum")
         tab = self.current_collector.weld_tab
