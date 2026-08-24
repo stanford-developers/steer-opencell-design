@@ -42,6 +42,7 @@ import plotly.graph_objects as go
 import warnings
 
 from copy import deepcopy
+from functools import wraps
 from typing import Dict, Any, Tuple, Optional
 from enum import Enum
 
@@ -51,6 +52,23 @@ class ElectrodeControlMode(Enum):
     MAINTAIN_CALENDER_DENSITY = "maintain_calender_density"  # Keep calender density constant (current behavior)
     MAINTAIN_MASS_LOADING = "maintain_mass_loading"  # Keep mass loading constant
     MAINTAIN_COATING_THICKNESS = "maintain_coating_thickness"  # Keep coating thickness constant
+
+
+def _reject_aligned_current_collector_replacement(setter):
+    """Reject replacement before the propagation decorator detaches the old child."""
+
+    @wraps(setter)
+    def wrapper(self, current_collector):
+        existing = getattr(self, "_current_collector", None)
+        is_aligned = getattr(existing, "_is_assembly_aligned", lambda: False)
+        if existing is not current_collector and is_aligned():
+            raise RuntimeError(
+                "Disable jelly-roll notch alignment before replacing the "
+                "current collector."
+            )
+        return setter(self, current_collector)
+
+    return wrapper
 
 
 class _Electrode(
@@ -1383,6 +1401,7 @@ class _Electrode(
             self._update_dependent_properties("mass_loading", mass_loading)
 
     @current_collector.setter
+    @_reject_aligned_current_collector_replacement
     @calculate_bulk_properties
     @calculate_coordinates
     @propagating_setter()
@@ -1615,7 +1634,6 @@ class Cathode(_Electrode):
         :return: Tuple containing the minimum and maximum porosity in percentage.
         """
         return (15, 40)
-
 
 
 
