@@ -3485,11 +3485,11 @@ class FlatWoundJellyRoll(_JellyRoll):
         mandrel : FlatMandrel
             Flat mandrel for racetrack winding
         cathode_notch_alignment_position : float, optional
-            Cathode notch position in mm from the unrotated pressed mandrel's
-            minimum-x outer edge. The complete tab must lie on a straight
-            racetrack section.
+            Cathode notch-center position in mm from the left edge of the
+            unrotated pressed mandrel's straight racetrack section. The
+            complete tab must lie on that straight section.
         anode_notch_alignment_position : float, optional
-            Anode notch position in mm from the same pressed-mandrel edge.
+            Anode notch-center position in mm from the same straight-section edge.
             Cathode/anode transverse or longitudinal arrangement is controlled
             by ``laminate.electrode_orientation``.
 
@@ -3723,7 +3723,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         collector: NotchedCurrentCollector,
         name: str,
     ) -> float:
-        """Convert a mandrel-edge position to an unrotated x-coordinate."""
+        """Convert a straight-section position to an unrotated x-coordinate."""
         if not hasattr(self, "_pressed_mandrel_center_xz"):
             raise ValueError("Cannot align notches before positioning the mandrel.")
         mandrel_center_x = float(self._pressed_mandrel_center_xz[0])
@@ -3731,12 +3731,8 @@ class FlatWoundJellyRoll(_JellyRoll):
         # Work entirely on the pressed mandrel's intrinsic longitudinal axis.
         # Neither outer-turn thickness nor the later display rotation belongs
         # in the physical alignment definition.
-        minimum_position = self._pressed_radius + collector._tab_width / 2
-        maximum_position = (
-            self._pressed_radius
-            + self._pressed_straight_length
-            - collector._tab_width / 2
-        )
+        minimum_position = collector._tab_width / 2
+        maximum_position = self._pressed_straight_length - collector._tab_width / 2
         if minimum_position > maximum_position:
             raise ValueError(
                 f"{name} cannot fit because the tab is wider than the straight "
@@ -3753,10 +3749,8 @@ class FlatWoundJellyRoll(_JellyRoll):
         return mandrel_center_x + self._notch_alignment_axis_position(position)
 
     def _notch_alignment_axis_position(self, position: float) -> float:
-        """Convert an edge distance to the mandrel-centered longitudinal axis."""
-        return (
-            -self._pressed_straight_length / 2 - self._pressed_radius + position
-        )
+        """Convert a straight-section edge distance to the centered axis."""
+        return -self._pressed_straight_length / 2 + position
 
     def _apply_thickness_aware_notches(self) -> None:
         """Apply configured same-position notch centers to notched collectors.
@@ -4463,7 +4457,7 @@ class FlatWoundJellyRoll(_JellyRoll):
 
     @property
     def cathode_notch_alignment_position(self) -> Optional[float]:
-        """Return the cathode notch position on the pressed mandrel axis in mm."""
+        """Return the cathode notch center from the straight section's left edge."""
         if self._cathode_notch_alignment_position is None:
             return None
         return self._cathode_notch_alignment_position * M_TO_MM
@@ -4478,7 +4472,7 @@ class FlatWoundJellyRoll(_JellyRoll):
 
     @property
     def anode_notch_alignment_position(self) -> Optional[float]:
-        """Return the anode notch position on the pressed mandrel axis in mm."""
+        """Return the anode notch center from the straight section's left edge."""
         if self._anode_notch_alignment_position is None:
             return None
         return self._anode_notch_alignment_position * M_TO_MM

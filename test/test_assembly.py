@@ -680,7 +680,6 @@ class TestFlatJellyRoll(unittest.TestCase):
         marker_axis_positions = centered_markers @ mandrel_axis
         expected_axis_position = (
             -self.my_jellyroll._pressed_straight_length / 2
-            - self.my_jellyroll._pressed_radius
             + alignment_position * MM_TO_M
         )
         np.testing.assert_allclose(
@@ -785,10 +784,7 @@ class TestFlatJellyRoll(unittest.TestCase):
             np.dot(self.my_jellyroll._pressed_mandrel_center_xz, mandrel_axis)
             / MM_TO_M
         )
-        common_offset = (
-            -self.my_jellyroll._pressed_straight_length / 2
-            - self.my_jellyroll._pressed_radius
-        ) / MM_TO_M
+        common_offset = -self.my_jellyroll._pressed_straight_length / 2 / MM_TO_M
         cathode_stack_center = (min(cathode_tab_x) + max(cathode_tab_x)) / 2
         anode_stack_center = (min(anode_tab_x) + max(anode_tab_x)) / 2
         self.assertAlmostEqual(
@@ -969,7 +965,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         restored.cathode_notch_alignment_position = None
         self.assertEqual(restored_collector.tab_center_positions, original_centers)
 
-    def test_alignment_position_rejects_curved_racetrack_ends(self):
+    def test_alignment_position_keeps_complete_tab_on_straight_section(self):
         original_position = self.my_jellyroll.cathode_notch_alignment_position
         original_centers = list(
             self.my_jellyroll.layup.cathode.current_collector.tab_positions
@@ -986,18 +982,24 @@ class TestFlatJellyRoll(unittest.TestCase):
         )
 
         collector = self.my_jellyroll.layup.cathode.current_collector
-        minimum_position = (
-            self.my_jellyroll._pressed_radius + collector._tab_width / 2
-        ) / MM_TO_M
+        minimum_position = collector._tab_width / 2 / MM_TO_M
         self.my_jellyroll.cathode_notch_alignment_position = minimum_position
         self.assertAlmostEqual(
             self.my_jellyroll.cathode_notch_alignment_position, minimum_position
         )
+        minimum_target = self.my_jellyroll._notch_alignment_target_x(
+            minimum_position * MM_TO_M,
+            collector,
+            "cathode_notch_alignment_position",
+        )
+        self.assertAlmostEqual(
+            minimum_target - collector._tab_width / 2,
+            self.my_jellyroll._pressed_mandrel_center_xz[0]
+            - self.my_jellyroll._pressed_straight_length / 2,
+        )
 
         maximum_position = (
-            self.my_jellyroll._pressed_radius
-            + self.my_jellyroll._pressed_straight_length
-            - collector._tab_width / 2
+            self.my_jellyroll._pressed_straight_length - collector._tab_width / 2
         ) / MM_TO_M
         self.my_jellyroll.cathode_notch_alignment_position = maximum_position
         self.assertAlmostEqual(
