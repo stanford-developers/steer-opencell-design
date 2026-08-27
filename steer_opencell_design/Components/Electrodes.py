@@ -238,6 +238,7 @@ class _Electrode(
             self._calculate_coating_thickness(self._mass_loading, self._calender_density)
         self._calculate_bulk_properties()
         self._calculate_areal_capacity_curve()
+        self._calculate_reversible_areal_capacity()
         self._calculate_coordinates()
 
     def _calculate_areal_capacity_curve(self) -> None:
@@ -258,6 +259,20 @@ class _Electrode(
         # set
         self._areal_capacity_curve = np.column_stack([areal_capacity, curve[:, 1], curve[:, 2]])
 
+    def _calculate_reversible_areal_capacity(self) -> None:
+        """Calculate reversible areal capacity from the discharge branch span of the areal capacity curve."""
+        if self._areal_capacity_curve is None:
+            self._reversible_areal_capacity = None
+            return
+        _discharge_mask = self._areal_capacity_curve[:, 2] == -1
+        _discharge_curve = self._areal_capacity_curve[_discharge_mask]
+        if _discharge_curve.size == 0:
+            self._reversible_areal_capacity = None
+            return
+        _max_cap = _discharge_curve[:, 0].max()
+        _min_cap = _discharge_curve[:, 0].min()
+        self._reversible_areal_capacity = _max_cap - _min_cap
+        
     def _calculate_bulk_properties(self) -> None:
         if self._is_anode_free:
             self._porosity = 0.0
@@ -430,6 +445,7 @@ class _Electrode(
         """Clear cached property data and downstream formulation caches."""
         self._property_cache.clear()
         self._areal_capacity_curve = None
+        self._reversible_areal_capacity = None
         if not self._is_anode_free:
             self._formulation._clear_cached_data()
 
@@ -919,16 +935,9 @@ class _Electrode(
         :return: Reversible areal capacity in mAh/cm², or None for anode-free
             electrodes, which have no areal capacity curve.
         """
-        if self._areal_capacity_curve is None:
+        if self._reversible_areal_capacity is None:
             return None
-        curve = self._areal_capacity_curve
-        discharge_curve = curve[curve[:, 2] == -1]
-        if discharge_curve.size == 0:
-            return None
-        areal_capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
-        reversible = discharge_curve[:, 0].max() - discharge_curve[:, 0].min()
-
-        return reversible * areal_capacity_conversion
+        return self._reversible_areal_capacity * (S_TO_H * A_TO_mA / M_TO_CM**2)
     
     @property
     def areal_capacity_curve_trace(self) -> go.Scatter:
@@ -1362,7 +1371,7 @@ class _Electrode(
 
         :param reversible_areal_capacity: Target reversible areal capacity in mAh/cm².
         """
-        if self._is_anode_free: #no-op: anode-free has no coating
+        if self._is_anode_free:  # no-op: anode-free has no coating
             return
         self.validate_positive_float(reversible_areal_capacity, "reversible areal capacity")
         current_areal_capacity = self.reversible_areal_capacity
