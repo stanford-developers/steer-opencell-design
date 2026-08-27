@@ -287,6 +287,7 @@ class _Electrode(
             self._calculate_coating_thickness(self._mass_loading, self._calender_density)
         self._calculate_bulk_properties()
         self._calculate_areal_capacity_curve()
+        self._calculate_reversible_areal_capacity()
         self._calculate_coordinates()
 
     def _calculate_areal_capacity_curve(self) -> None:
@@ -307,6 +308,20 @@ class _Electrode(
         # set
         self._areal_capacity_curve = np.column_stack([areal_capacity, curve[:, 1], curve[:, 2]])
 
+    def _calculate_reversible_areal_capacity(self) -> None:
+        """Calculate reversible areal capacity from the discharge branch span of the areal capacity curve."""
+        if self._areal_capacity_curve is None:
+            self._reversible_areal_capacity = None
+            return
+        _discharge_mask = self._areal_capacity_curve[:, 2] == -1
+        _discharge_curve = self._areal_capacity_curve[_discharge_mask]
+        if _discharge_curve.size == 0:
+            self._reversible_areal_capacity = None
+            return
+        _max_cap = _discharge_curve[:, 0].max()
+        _min_cap = _discharge_curve[:, 0].min()
+        self._reversible_areal_capacity = _max_cap - _min_cap
+        
     def _calculate_bulk_properties(self) -> None:
         if self._is_anode_free:
             self._porosity = 0.0
@@ -479,6 +494,7 @@ class _Electrode(
         """Clear cached property data and downstream formulation caches."""
         self._property_cache.clear()
         self._areal_capacity_curve = None
+        self._reversible_areal_capacity = None
         if not self._is_anode_free:
             self._formulation._clear_cached_data()
 
@@ -956,6 +972,21 @@ class _Electrode(
             "Voltage (V)": voltage,
             "Direction": direction,
         })
+
+    @property
+    def reversible_areal_capacity(self) -> float:
+        """Get the reversible areal capacity of the electrode.
+
+        Defined as the span of the discharge branch of
+        :attr:`areal_capacity_curve` (maximum minus minimum), matching the
+        definition of ``reversible_capacity`` at the cell level.
+
+        :return: Reversible areal capacity in mAh/cm², or None for anode-free
+            electrodes, which have no areal capacity curve.
+        """
+        if self._reversible_areal_capacity is None:
+            return None
+        return self._reversible_areal_capacity * (S_TO_H * A_TO_mA / M_TO_CM**2)
     
     @property
     def areal_capacity_curve_trace(self) -> go.Scatter:
@@ -1381,6 +1412,33 @@ class _Electrode(
 
         if self._update_properties:
             self._update_dependent_properties("mass_loading", mass_loading)
+
+    @reversible_areal_capacity.setter
+    def reversible_areal_capacity(self, reversible_areal_capacity: float):
+        """
+        Set the reversible areal capacity of the electrode by solving for mass loading.
+
+        Areal capacity is proportional to mass loading for a fixed formulation, so the
+        required mass loading is found by scaling the current value by the ratio of
+        target to current areal capacity. Whether coating thickness or calender density
+        absorbs the change is governed by ``control_mode``.
+
+        :param reversible_areal_capacity: Target reversible areal capacity in mAh/cm².
+        """
+        if self._is_anode_free:  # no-op: anode-free has no coating
+            return
+        self.validate_positive_float(reversible_areal_capacity, "reversible areal capacity")
+        current_areal_capacity = self.reversible_areal_capacity
+
+        if not current_areal_capacity:
+            raise ValueError(
+                f"Cannot solve for mass loading on {self.name}: the current reversible "
+                f"areal capacity is zero or undefined."
+            )
+
+        self.mass_loading = self.mass_loading * (
+            reversible_areal_capacity / current_areal_capacity
+        )
 
     @current_collector.setter
     @calculate_bulk_properties
