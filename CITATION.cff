@@ -1,18 +1,46 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
+type: software
+title: "OpenCell Design"
+abstract: >-
+  An open-source Python library providing a hierarchical, composable API for
+  building virtual battery cells from individual components and materials.
+  OpenCell Design implements a modeling hierarchy that mirrors the physical
+  construction of a cell — spanning materials, formulations, electrodes,
+  layups, electrode assemblies, encapsulations, and complete cells — and
+  calculates mass and cost at every level, enabling direct assessment of
+  economic viability alongside electrochemical performance.
 authors:
   - family-names: Siemons
     given-names: Nicholas
     orcid: https://orcid.org/0000-0002-0755-3981
+    affiliation: "Department of Materials Science and Engineering, Stanford University"
   - family-names: Yao
     given-names: Adrian
     orcid: https://orcid.org/0000-0001-9515-3226
+    affiliation: "Department of Materials Science and Engineering, Stanford University"
   - family-names: Chueh
     given-names: William C.
     orcid: https://orcid.org/0000-0002-7066-3470
-title: "OpenCell Design"
-version: "1.0.42"
+    affiliation: "Department of Materials Science and Engineering, Stanford University"
+version: "1.0.48"
+date-released: 2026-08-21
+doi: 10.5281/zenodo.22049806
 license: AGPL-3.0-or-later
 repository-code: https://github.com/stanford-developers/steer-opencell-design
-date-released: 2026-06-10
-
+url: https://steer.stanford.edu/open-cell/
+keywords:
+  - battery
+  - cell design
+  - technoeconomic modeling
+  - energy storage
+  - lithium-ion
+  - solid-state battery
+  - Python
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.22049806
+    description: "Concept DOI — always resolves to the latest version"
+  - type: doi
+    value: 10.5281/zenodo.22049807
+    description: "Version DOI for release v1.0.48"
