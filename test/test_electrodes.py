@@ -887,6 +887,17 @@ class TestElectrodeControlModes(unittest.TestCase):
         self.assertAlmostEqual(self.cathode.reversible_areal_capacity, target, places=6)
         self.assertAlmostEqual(self.cathode.mass_loading, initial_mass_loading * 1.5, places=6)
 
+    def test_reversible_areal_capacity_heals_after_legacy_deserialization(self):
+        """Blobs serialized before _reversible_areal_capacity existed must not crash the getter."""
+        expected = self.cathode.reversible_areal_capacity
+
+        state = self.cathode._to_dict()
+        self.assertIn("_reversible_areal_capacity", state)
+        state.pop("_reversible_areal_capacity")   # simulate a pre-feature blob
+        legacy = Cathode._from_dict(state)
+
+        self.assertAlmostEqual(legacy.reversible_areal_capacity, expected, places=6)
+
     def test_reversible_areal_capacity_setter_rejects_negative(self):
         """A negative target is rejected rather than silently applied."""
         with self.assertRaises(ValueError):

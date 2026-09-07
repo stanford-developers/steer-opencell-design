@@ -935,6 +935,9 @@ class _Electrode(
         :return: Reversible areal capacity in mAh/cm², or None for anode-free
             electrodes, which have no areal capacity curve.
         """
+        if not hasattr(self, "_reversible_areal_capacity"):
+            # Heal electrodes deserialized from blobs saved before this attribute existed
+            self._calculate_reversible_areal_capacity()
         if self._reversible_areal_capacity is None:
             return None
         return self._reversible_areal_capacity * (S_TO_H * A_TO_mA / M_TO_CM**2)
