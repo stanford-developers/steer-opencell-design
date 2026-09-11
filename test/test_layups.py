@@ -150,8 +150,6 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertTrue(hasattr(self.layup, "_maximum_operating_voltage_range"))
         self.assertTrue(hasattr(self.layup, "minimum_operating_voltage_range"))
         self.assertTrue(hasattr(self.layup, "maximum_operating_voltage_range"))
-        self.assertTrue(hasattr(self.layup, "operating_reversible_areal_capacity"))
-        self.assertTrue(hasattr(self.layup, "_operating_reversible_areal_capacity"))
         self.assertTrue(hasattr(self.layup, "maximum_areal_reversible_capacity_range"))
         self.assertTrue(hasattr(self.layup, "_maximum_areal_reversible_capacity_range"))
         min_vr = self.layup.minimum_operating_voltage_range
@@ -160,7 +158,6 @@ class TestSimpleLaminate(unittest.TestCase):
         max_vr = self.layup.maximum_operating_voltage_range
         self.assertAlmostEqual(max_vr[0], 3.53, places=2)
         self.assertAlmostEqual(max_vr[1], 4.03, places=2)
-        self.assertAlmostEqual(self.layup.operating_reversible_areal_capacity, 0.842, places=3)
         max_arc = self.layup.maximum_areal_reversible_capacity_range
         self.assertAlmostEqual(max_arc[0], 0.8, places=3)
         self.assertAlmostEqual(max_arc[1], 0.842, places=3)
@@ -185,13 +182,6 @@ class TestSimpleLaminate(unittest.TestCase):
         # figure1.show()
         # figure2.show()
         # figure3.show()
-
-    def test_reversible_capacity_setter(self):
-
-        self.layup.operating_reversible_areal_capacity = 0.83
-        self.assertAlmostEqual(self.layup.operating_reversible_areal_capacity, 0.83, places=3)
-        figure1 = self.layup.plot_areal_capacity_curve()
-        # figure1.show()
 
     def test_length_width_setter(self):
 
@@ -2314,7 +2304,7 @@ class TestAnodeFreeLaminate(unittest.TestCase):
         """Voltage limit attributes should be computed for anode-free laminate."""
         self.assertIsNotNone(self.laminate._minimum_operating_voltage_range)
         self.assertIsNotNone(self.laminate._maximum_operating_voltage_range)
-        self.assertIsNotNone(self.laminate.operating_reversible_areal_capacity)
+        self.assertIsNotNone(self.laminate._maximum_areal_reversible_capacity_range)
 
     def test_voltage_maximum_setter(self):
         """Voltage maximum setter should work on anode-free laminate."""
