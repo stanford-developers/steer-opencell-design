@@ -266,20 +266,39 @@ class _Electrode(
         self._areal_capacity_curve = np.column_stack([areal_capacity, curve[:, 1], curve[:, 2]])
 
     def _calculate_reversible_areal_capacity(self) -> None:
-        """Calculate reversible areal capacity from the discharge branch span of the areal capacity curve."""
+        """Calculate reversible areal capacity, and its range, from the discharge branch span."""
         # getattr, not a bare access: the legacy-blob heal in the getter calls this
         # on objects rebuilt by _from_dict, which may predate the curve attribute too
         if getattr(self, "_areal_capacity_curve", None) is None:
             self._reversible_areal_capacity = None
+            self._reversible_areal_capacity_range = None
             return
         _discharge_mask = self._areal_capacity_curve[:, 2] == -1
         _discharge_curve = self._areal_capacity_curve[_discharge_mask]
-        if _discharge_curve.size == 0:
+        # a span needs two points: a single-row branch (non-overlapping active
+        # material voltage windows collapse the grid to one point) is undefined,
+        # not zero-width
+        if _discharge_curve.shape[0] < 2:
             self._reversible_areal_capacity = None
+            self._reversible_areal_capacity_range = None
             return
         _max_cap = _discharge_curve[:, 0].max()
         _min_cap = _discharge_curve[:, 0].min()
         self._reversible_areal_capacity = _max_cap - _min_cap
+
+        # The span is proportional to mass loading, and this quantity is only ever
+        # reached by coating thicker at the current calender density, so the range is
+        # the thickness range converted to mass loading and scaled by that constant.
+        if not self.mass_loading:
+            self._reversible_areal_capacity_range = None
+            return
+        _capacity_per_mass_loading = self._reversible_areal_capacity / self.mass_loading
+        _thickness_min, _thickness_max = self.coating_thickness_range
+        _mass_loading_per_thickness = self.calender_density * UM_TO_CM * G_TO_mG
+        self._reversible_areal_capacity_range = (
+            _thickness_min * _mass_loading_per_thickness * _capacity_per_mass_loading,
+            _thickness_max * _mass_loading_per_thickness * _capacity_per_mass_loading,
+        )
         
     def _calculate_bulk_properties(self) -> None:
         if self._is_anode_free:
@@ -454,6 +473,7 @@ class _Electrode(
         self._property_cache.clear()
         self._areal_capacity_curve = None
         self._reversible_areal_capacity = None
+        self._reversible_areal_capacity_range = None
         if not self._is_anode_free:
             self._formulation._clear_cached_data()
 
@@ -949,7 +969,30 @@ class _Electrode(
         if self._reversible_areal_capacity is None:
             return None
         return self._reversible_areal_capacity * (S_TO_H * A_TO_mA / M_TO_CM**2)
-    
+
+    @property
+    def reversible_areal_capacity_range(self) -> Tuple[float, float]:
+        """Get the allowable reversible areal capacity range in mAh/cm².
+
+        Setting this property coats thicker or thinner at the current calender
+        density, so the range is :attr:`coating_thickness_range` at
+        :attr:`calender_density` expressed as areal capacity. It therefore moves
+        with calender density.
+
+        :return: (minimum, maximum) in mAh/cm², or None when the reversible areal
+            capacity itself is undefined.
+        """
+        if not hasattr(self, "_reversible_areal_capacity_range"):
+            # Heal electrodes deserialized from blobs saved before this attribute existed
+            self._calculate_reversible_areal_capacity()
+        if self._reversible_areal_capacity_range is None:
+            return None
+        capacity_conversion = S_TO_H * A_TO_mA / M_TO_CM**2
+        return (
+            self._reversible_areal_capacity_range[0] * capacity_conversion,
+            self._reversible_areal_capacity_range[1] * capacity_conversion,
+        )
+
     @property
     def areal_capacity_curve_trace(self) -> go.Scatter:
         """
@@ -1415,10 +1458,39 @@ class _Electrode(
 
         current_areal_capacity = self.reversible_areal_capacity
 
-        if not current_areal_capacity or not np.isfinite(current_areal_capacity):
+        if current_areal_capacity is None or not np.isfinite(current_areal_capacity):
             raise ValueError(
-                f"Cannot solve for mass loading on {self.name}: the current reversible "
-                f"areal capacity is zero or undefined."
+                f"Cannot solve for mass loading on {self.name}: the areal capacity curve "
+                f"has no usable discharge branch, so the current reversible areal capacity "
+                f"is undefined."
+            )
+
+        if current_areal_capacity == 0:
+            raise ValueError(
+                f"Cannot solve for mass loading on {self.name}: the discharge branch of the "
+                f"areal capacity curve has zero width, so mass loading cannot be scaled to "
+                f"reach a target."
+            )
+
+        _achievable_range = self.reversible_areal_capacity_range
+
+        if _achievable_range is None:
+            raise ValueError(
+                f"Cannot solve for mass loading on {self.name}: the achievable reversible "
+                f"areal capacity range is undefined."
+            )
+
+        _range_min, _range_max = _achievable_range
+        # the bounds are inclusive: tolerate a target that is mathematically at a
+        # bound but differs in the last bits, the way the sibling inverse setters
+        # handle their brentq brackets
+        _tolerance = 1e-9 * max(abs(_range_min), abs(_range_max), 1.0)
+
+        if not _range_min - _tolerance <= reversible_areal_capacity <= _range_max + _tolerance:
+            raise ValueError(
+                f"Cannot achieve reversible areal capacity of "
+                f"{reversible_areal_capacity:.4f} mAh/cm² on {self.name}. Achievable range "
+                f"is [{_range_min:.4f}, {_range_max:.4f}] mAh/cm²"
             )
 
         # Hold calender density for the solve whatever the active mode is. Under
@@ -1426,11 +1498,24 @@ class _Electrode(
         # absorbed by calender density, which inflates until porosity clamps at
         # zero - an unmanufacturable electrode that still reports the target.
         previous_control_mode = self._control_mode
+        previous_mass_loading = self.mass_loading
         self._control_mode = ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY
         try:
-            self.mass_loading = self.mass_loading * (
+            self.mass_loading = previous_mass_loading * (
                 reversible_areal_capacity / current_areal_capacity
             )
+
+            # read back rather than trusting the solve: a silent clamp downstream
+            # would otherwise leave the electrode reporting a target it never hit
+            achieved = self.reversible_areal_capacity
+            if achieved is None or not np.isclose(achieved, reversible_areal_capacity, rtol=1e-6):
+                self.mass_loading = previous_mass_loading
+                raise ValueError(
+                    f"Solving for a reversible areal capacity of "
+                    f"{reversible_areal_capacity:.4f} mAh/cm² on {self.name} landed at "
+                    f"{achieved} mAh/cm². Mass loading has been restored to "
+                    f"{previous_mass_loading:.4f} mg/cm²."
+                )
         finally:
             self._control_mode = previous_control_mode
 

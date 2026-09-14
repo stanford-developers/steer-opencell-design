@@ -8,6 +8,7 @@ import steer_opencell_design as ocd
 from steer_opencell_design.Components.Containers.Flexframe import FlexFrameEncapsulation
 from steer_opencell_design.Components.Containers.Pouch import PouchTerminal
 from steer_core.Mixins.Serializer import SerializerMixin
+from steer_core.Constants.Units import UM_TO_CM, G_TO_mG
 
 
 def _build_tesla_like_nmc_cell():
@@ -1643,6 +1644,13 @@ class TestStackedPouchCell(unittest.TestCase):
         expected = discharge.max() - discharge.min()
 
         self.assertAlmostEqual(cathode.reversible_areal_capacity, expected, places=10)
+
+        ratio = cathode.reversible_areal_capacity / cathode.mass_loading
+        self.assertAlmostEqual(
+            cathode.reversible_areal_capacity_range[1],
+            cathode.coating_thickness_range[1] * cathode.calender_density * UM_TO_CM * G_TO_mG * ratio,
+            places=10,
+        )
 
     def test_serialization(self):
         serialized = self.cell.serialize()
