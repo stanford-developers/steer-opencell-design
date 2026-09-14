@@ -1375,8 +1375,12 @@ class _Electrode(
 
         Areal capacity is proportional to mass loading for a fixed formulation, so the
         required mass loading is found by scaling the current value by the ratio of
-        target to current areal capacity. Whether coating thickness or calender density
-        absorbs the change is governed by ``control_mode``.
+        target to current areal capacity.
+
+        The solve always runs at constant calender density, so coating thickness
+        absorbs the change regardless of ``control_mode``: more capacity per unit
+        area means coating more material, not compacting the same coating harder.
+        ``control_mode`` is left untouched.
 
         :param reversible_areal_capacity: Target reversible areal capacity in mAh/cm².
         """
@@ -1404,9 +1408,18 @@ class _Electrode(
                 f"areal capacity is zero or undefined."
             )
 
-        self.mass_loading = self.mass_loading * (
-            reversible_areal_capacity / current_areal_capacity
-        )
+        # Hold calender density for the solve whatever the active mode is. Under
+        # MAINTAIN_COATING_THICKNESS the mass loading change would otherwise be
+        # absorbed by calender density, which inflates until porosity clamps at
+        # zero - an unmanufacturable electrode that still reports the target.
+        previous_control_mode = self._control_mode
+        self._control_mode = ElectrodeControlMode.MAINTAIN_CALENDER_DENSITY
+        try:
+            self.mass_loading = self.mass_loading * (
+                reversible_areal_capacity / current_areal_capacity
+            )
+        finally:
+            self._control_mode = previous_control_mode
 
     @current_collector.setter
     @calculate_bulk_properties

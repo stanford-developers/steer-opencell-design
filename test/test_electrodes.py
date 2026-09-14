@@ -944,6 +944,28 @@ class TestElectrodeControlModes(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.cathode.reversible_areal_capacity = 4.0
 
+    def test_reversible_areal_capacity_setter_holds_calender_density_in_all_modes(self):
+        """The solve runs at constant calender density whatever the active mode is."""
+        from steer_opencell_design.Components.Electrodes import ElectrodeControlMode
+
+        for mode in ElectrodeControlMode:
+            with self.subTest(mode=mode):
+                cathode = deepcopy(self.cathode)
+                cathode.control_mode = mode
+                initial_calender_density = cathode.calender_density
+                initial_porosity = cathode.porosity
+                initial_coating_thickness = cathode.coating_thickness
+                target = cathode.reversible_areal_capacity * 1.8
+
+                cathode.reversible_areal_capacity = target
+
+                self.assertAlmostEqual(cathode.reversible_areal_capacity, target, places=6)
+                self.assertAlmostEqual(cathode.calender_density, initial_calender_density, places=10)
+                self.assertAlmostEqual(cathode.porosity, initial_porosity, places=10)
+                self.assertGreater(cathode.coating_thickness, initial_coating_thickness)
+                # the caller's mode is restored, not silently rewritten
+                self.assertEqual(cathode.control_mode, mode)
+
     def test_recalculation_survives_cleared_formulation_cache(self):
         """Recalculating with a cleared formulation cache nulls the curve instead of raising."""
         self.cathode._formulation._clear_cached_data()
