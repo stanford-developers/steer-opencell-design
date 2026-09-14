@@ -1384,10 +1384,21 @@ class _Electrode(
         area means coating more material, not compacting the same coating harder.
         ``control_mode`` is left untouched.
 
+        Not usable inside :meth:`batch_updates`: the solve divides by the cached
+        span, which that block deliberately stops recalculating.
+
         :param reversible_areal_capacity: Target reversible areal capacity in mAh/cm².
         """
         if self._is_anode_free:  # no-op: anode-free has no coating
             return
+
+        if not getattr(self, "_update_properties", True):
+            raise ValueError(
+                f"Cannot solve for mass loading on {self.name} while property updates are "
+                f"deferred: the cached reversible areal capacity this solve divides by is "
+                f"not recalculated inside a batch_updates block, so successive assignments "
+                f"compound instead of converging. Set this property outside the block."
+            )
         self.validate_positive_float(reversible_areal_capacity, "reversible areal capacity")
 
         if not np.isfinite(reversible_areal_capacity):

@@ -953,6 +953,16 @@ class TestElectrodeControlModes(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.cathode.reversible_areal_capacity = 4.0
 
+    def test_reversible_areal_capacity_setter_refused_in_batch_updates(self):
+        """The solve divides by a span that batch_updates freezes, so it is refused outright."""
+        initial_mass_loading = self.cathode.mass_loading
+
+        with self.assertRaises(ValueError):
+            with self.cathode.batch_updates():
+                self.cathode.reversible_areal_capacity = 4.0
+
+        self.assertAlmostEqual(self.cathode.mass_loading, initial_mass_loading, places=10)
+
     def test_reversible_areal_capacity_setter_holds_calender_density_in_all_modes(self):
         """The solve runs at constant calender density whatever the active mode is."""
         from steer_opencell_design.Components.Electrodes import ElectrodeControlMode
