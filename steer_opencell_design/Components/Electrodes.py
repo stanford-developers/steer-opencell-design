@@ -1250,7 +1250,7 @@ class _Electrode(
     # === SETTERS ===
 
     @voltage_cutoff.setter
-    @recalculate("areal_capacity_curve")
+    @recalculate("areal_capacity_curve", "reversible_areal_capacity")
     def voltage_cutoff(self, voltage_cutoff: float):
         if self._is_anode_free:  # no-op: anode-free has no coating
             return

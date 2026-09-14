@@ -869,6 +869,16 @@ class TestElectrodeControlModes(unittest.TestCase):
 
         self.assertAlmostEqual(self.cathode.reversible_areal_capacity, expected, places=10)
 
+    def test_reversible_areal_capacity_tracks_voltage_cutoff(self):
+        """Changing the voltage cutoff re-derives the cached span, not just the curve."""
+        self.cathode.voltage_cutoff = 4.0
+
+        curve = self.cathode.areal_capacity_curve
+        discharge = curve[curve["Direction"] == "discharge"]["Areal Capacity (mAh/cm²)"]
+        expected = discharge.max() - discharge.min()
+
+        self.assertAlmostEqual(self.cathode.reversible_areal_capacity, expected, places=10)
+
     def test_reversible_areal_capacity_scales_with_mass_loading(self):
         """Doubling mass loading doubles reversible areal capacity."""
         initial = self.cathode.reversible_areal_capacity
