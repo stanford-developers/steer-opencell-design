@@ -697,6 +697,7 @@ class _Cell(
             # Areal curves
             'cathode_areal': cathode._areal_capacity_curve.copy()
                 if getattr(cathode, '_areal_capacity_curve', None) is not None else None,
+            'cathode_reversible_areal': getattr(cathode, '_reversible_areal_capacity', None),
             'layup_areal': layup._areal_capacity_curve.copy()
                 if getattr(layup, '_areal_capacity_curve', None) is not None else None,
             # Assembly curves
@@ -741,6 +742,8 @@ class _Cell(
             formulation._capacity_curve = s['formulation_cap_curve']
         if s['cathode_areal'] is not None:
             cathode._areal_capacity_curve = s['cathode_areal']
+        if s['cathode_reversible_areal'] is not None:
+            cathode._reversible_areal_capacity = s['cathode_reversible_areal']
 
         layup._maximum_operating_voltage = s['layup_max_v']
         layup._minimum_operating_voltage = s['layup_min_v']
