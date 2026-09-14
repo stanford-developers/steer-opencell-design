@@ -1,6 +1,6 @@
 # Electrodes
 
-Electrodes combine a formulation with a current collector and coating parameters (mass loading, calender density, insulation). Key settable properties include `mass_loading`, `calender_density`, `coating_thickness`, and `porosity`—changing one automatically recalculates the others based on the active `control_mode`.
+Electrodes combine a formulation with a current collector and coating parameters (mass loading, calender density, insulation). Key settable properties include `mass_loading`, `calender_density`, `coating_thickness`, and `porosity`—changing one automatically recalculates the others based on the active `control_mode`. `reversible_areal_capacity` is an inverse setter over the same group: it solves for the mass loading that reaches a target capacity, always at constant calender density.
 
 ```python
 cathode = ocd.Cathode(

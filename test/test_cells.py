@@ -8,6 +8,7 @@ import steer_opencell_design as ocd
 from steer_opencell_design.Components.Containers.Flexframe import FlexFrameEncapsulation
 from steer_opencell_design.Components.Containers.Pouch import PouchTerminal
 from steer_core.Mixins.Serializer import SerializerMixin
+from steer_core.Constants.Units import UM_TO_CM, G_TO_mG
 
 
 def _build_tesla_like_nmc_cell():
@@ -1829,6 +1830,23 @@ class TestStackedPouchCell(unittest.TestCase):
         self.assertAlmostEqual(self.cell.energy, 2282.76, 1)
         self.assertAlmostEqual(self.cell.mass, 133260.16, 0)
         self.assertAlmostEqual(self.cell.cost, 80.1, 1)
+
+    def test_cathode_reversible_areal_capacity_survives_build(self):
+        """The capacity-range probe must not leave the cached span stale."""
+        cathode = self.cell.reference_electrode_assembly.layup.cathode
+
+        curve = cathode.areal_capacity_curve
+        discharge = curve[curve["Direction"] == "discharge"]["Areal Capacity (mAh/cm²)"]
+        expected = discharge.max() - discharge.min()
+
+        self.assertAlmostEqual(cathode.reversible_areal_capacity, expected, places=10)
+
+        ratio = cathode.reversible_areal_capacity / cathode.mass_loading
+        self.assertAlmostEqual(
+            cathode.reversible_areal_capacity_range[1],
+            cathode.coating_thickness_range[1] * cathode.calender_density * UM_TO_CM * G_TO_mG * ratio,
+            places=10,
+        )
 
     def test_serialization(self):
         serialized = self.cell.serialize()

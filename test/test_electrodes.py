@@ -3,6 +3,7 @@
 
 from copy import deepcopy
 import unittest
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
@@ -18,6 +19,8 @@ from steer_opencell_design.Materials.Other import CurrentCollectorMaterial, Insu
 from steer_opencell_design.Materials.ActiveMaterials import CathodeMaterial, AnodeMaterial
 from steer_opencell_design.Materials.Binders import Binder
 from steer_opencell_design.Materials.ConductiveAdditives import ConductiveAdditive
+
+from steer_core.Constants.Units import UM_TO_CM, G_TO_mG
 
 
 
@@ -909,6 +912,257 @@ class TestElectrodeControlModes(unittest.TestCase):
         capacity_ratio = new_curve["Areal Capacity (mAh/cm²)"] / initial_curve["Areal Capacity (mAh/cm²)"]
         self.assertTrue((capacity_ratio - scaling_factor).abs().max() < 0.01)
 
+    def test_reversible_areal_capacity_matches_curve(self):
+        """Reversible areal capacity is the span of the discharge branch."""
+        curve = self.cathode.areal_capacity_curve
+        discharge = curve[curve["Direction"] == "discharge"]["Areal Capacity (mAh/cm²)"]
+        expected = discharge.max() - discharge.min()
+
+        self.assertAlmostEqual(self.cathode.reversible_areal_capacity, expected, places=10)
+
+    def test_reversible_areal_capacity_tracks_voltage_cutoff(self):
+        """Changing the voltage cutoff re-derives the cached span, not just the curve."""
+        self.cathode.voltage_cutoff = 4.0
+
+        curve = self.cathode.areal_capacity_curve
+        discharge = curve[curve["Direction"] == "discharge"]["Areal Capacity (mAh/cm²)"]
+        expected = discharge.max() - discharge.min()
+
+        self.assertAlmostEqual(self.cathode.reversible_areal_capacity, expected, places=10)
+
+    def test_reversible_areal_capacity_scales_with_mass_loading(self):
+        """Doubling mass loading doubles reversible areal capacity."""
+        initial = self.cathode.reversible_areal_capacity
+
+        self.cathode.mass_loading = self.cathode.mass_loading * 2
+
+        self.assertAlmostEqual(self.cathode.reversible_areal_capacity, initial * 2, places=6)
+
+    def test_reversible_areal_capacity_setter_round_trip(self):
+        """Setting reversible areal capacity solves for the mass loading that achieves it."""
+        initial_mass_loading = self.cathode.mass_loading
+        target = self.cathode.reversible_areal_capacity * 1.5
+
+        self.cathode.reversible_areal_capacity = target
+
+        self.assertAlmostEqual(self.cathode.reversible_areal_capacity, target, places=6)
+        self.assertAlmostEqual(self.cathode.mass_loading, initial_mass_loading * 1.5, places=6)
+
+    def test_reversible_areal_capacity_heals_after_legacy_deserialization(self):
+        """Blobs serialized before _reversible_areal_capacity existed must not crash the getter."""
+        expected = self.cathode.reversible_areal_capacity
+
+        state = self.cathode._to_dict()
+        self.assertIn("_reversible_areal_capacity", state)
+        state.pop("_reversible_areal_capacity")   # simulate a pre-feature blob
+        legacy = Cathode._from_dict(state)
+
+        self.assertAlmostEqual(legacy.reversible_areal_capacity, expected, places=6)
+
+    def test_reversible_areal_capacity_heals_when_curve_attribute_is_absent(self):
+        """A blob old enough to predate _areal_capacity_curve must not raise from the getter."""
+        state = self.cathode._to_dict()
+        state.pop("_reversible_areal_capacity")
+        state.pop("_areal_capacity_curve")   # simulate a blob older still
+        legacy = Cathode._from_dict(state)
+
+        self.assertIsNone(legacy.reversible_areal_capacity)
+
+    def test_reversible_areal_capacity_setter_rejects_negative(self):
+        """A negative target is rejected rather than silently applied."""
+        with self.assertRaises(ValueError):
+            self.cathode.reversible_areal_capacity = -1.0
+
+    def test_reversible_areal_capacity_setter_rejects_non_finite(self):
+        """NaN and inf targets are rejected rather than committed to mass loading."""
+        initial_mass_loading = self.cathode.mass_loading
+
+        for target in (float("nan"), float("inf")):
+            with self.subTest(target=target):
+                with self.assertRaises(ValueError):
+                    self.cathode.reversible_areal_capacity = target
+
+        self.assertAlmostEqual(self.cathode.mass_loading, initial_mass_loading, places=10)
+
+    def test_reversible_areal_capacity_setter_rejects_non_finite_cached_span(self):
+        """A NaN cached span is refused instead of poisoning mass loading with NaN."""
+        initial_mass_loading = self.cathode.mass_loading
+        self.cathode._reversible_areal_capacity = float("nan")
+
+        with self.assertRaises(ValueError):
+            self.cathode.reversible_areal_capacity = 4.0
+
+        self.assertAlmostEqual(self.cathode.mass_loading, initial_mass_loading, places=10)
+
+    def test_reversible_areal_capacity_setter_rejects_cleared_curve(self):
+        """A cleared curve raises a clean ValueError, not an AttributeError from deep in the stack."""
+        # the state _ElectrodeAssembly._clear_cached_data leaves behind: the curve
+        # nulled directly on the electrode while the cached span survives
+        self.cathode._areal_capacity_curve = None
+        self.cathode._formulation._clear_cached_data()
+
+        with self.assertRaises(ValueError):
+            self.cathode.reversible_areal_capacity = 4.0
+
+    def test_reversible_areal_capacity_setter_refused_in_batch_updates(self):
+        """The solve divides by a span that batch_updates freezes, so it is refused outright."""
+        initial_mass_loading = self.cathode.mass_loading
+
+        with self.assertRaises(ValueError):
+            with self.cathode.batch_updates():
+                self.cathode.reversible_areal_capacity = 4.0
+
+        self.assertAlmostEqual(self.cathode.mass_loading, initial_mass_loading, places=10)
+
+    def test_reversible_areal_capacity_is_undefined_for_single_point_discharge_branch(self):
+        """A one-row discharge branch has no span, so it reads as undefined, not 0.0."""
+        self.cathode._areal_capacity_curve = np.array([
+            [0.0, 4.0, 1.0],
+            [1.0, 3.0, -1.0],
+        ])
+
+        self.cathode._calculate_reversible_areal_capacity()
+
+        self.assertIsNone(self.cathode.reversible_areal_capacity)
+        with self.assertRaisesRegex(ValueError, "no usable discharge branch"):
+            self.cathode.reversible_areal_capacity = 4.0
+
+    def test_reversible_areal_capacity_setter_distinguishes_zero_width_branch(self):
+        """A real but zero-width discharge branch is reported as such, not as undefined."""
+        self.cathode._areal_capacity_curve = np.array([
+            [1.0, 4.0, -1.0],
+            [1.0, 3.0, -1.0],
+        ])
+        self.cathode._calculate_reversible_areal_capacity()
+
+        self.assertEqual(self.cathode.reversible_areal_capacity, 0.0)
+        with self.assertRaisesRegex(ValueError, "zero width"):
+            self.cathode.reversible_areal_capacity = 4.0
+
+    def test_reversible_areal_capacity_setter_rejects_unachievable_target(self):
+        """A target beyond the coating thickness hard range is refused, not silently applied."""
+        initial_mass_loading = self.cathode.mass_loading
+        target = self.cathode.reversible_areal_capacity * 25
+
+        with self.assertRaisesRegex(ValueError, "Achievable range"):
+            self.cathode.reversible_areal_capacity = target
+
+        self.assertAlmostEqual(self.cathode.mass_loading, initial_mass_loading, places=10)
+
+    def test_reversible_areal_capacity_setter_accepts_target_at_range_limit(self):
+        """The achievable bound is inclusive: the target that lands exactly on it is allowed."""
+        target = self.cathode.reversible_areal_capacity_range[1]
+
+        self.cathode.reversible_areal_capacity = target
+
+        self.assertAlmostEqual(self.cathode.reversible_areal_capacity, target, places=6)
+
+    def test_reversible_areal_capacity_range_is_thickness_range_scaled(self):
+        """The range is the coating thickness range at the current calender density."""
+        span = self.cathode.reversible_areal_capacity
+        ratio = span / self.cathode.mass_loading
+        mass_loading_per_thickness = self.cathode.calender_density * UM_TO_CM * G_TO_mG
+        expected = tuple(
+            bound * mass_loading_per_thickness * ratio
+            for bound in self.cathode.coating_thickness_range
+        )
+
+        self.assertAlmostEqual(self.cathode.reversible_areal_capacity_range[0], expected[0], places=10)
+        self.assertAlmostEqual(self.cathode.reversible_areal_capacity_range[1], expected[1], places=10)
+        # the current value sits inside its own range
+        self.assertGreater(span, self.cathode.reversible_areal_capacity_range[0])
+        self.assertLess(span, self.cathode.reversible_areal_capacity_range[1])
+
+    def test_reversible_areal_capacity_range_tracks_mass_loading(self):
+        """Doubling mass loading leaves the range unmoved: calender density is held."""
+        initial_range = self.cathode.reversible_areal_capacity_range
+
+        self.cathode.mass_loading = self.cathode.mass_loading * 2
+
+        self.assertAlmostEqual(self.cathode.reversible_areal_capacity_range[0], initial_range[0], places=6)
+        self.assertAlmostEqual(self.cathode.reversible_areal_capacity_range[1], initial_range[1], places=6)
+
+    def test_reversible_areal_capacity_range_upper_bound_is_the_thickness_limit(self):
+        """The top of the range is exactly the target that fills the thickness range."""
+        _, thickness_max = self.cathode.coating_thickness_range
+
+        self.cathode.reversible_areal_capacity = self.cathode.reversible_areal_capacity_range[1]
+
+        self.assertAlmostEqual(self.cathode.coating_thickness, thickness_max, places=6)
+
+    def test_reversible_areal_capacity_setter_accepts_a_bound_reached_by_another_route(self):
+        """A target that is mathematically at the bound but differs in the last bits is allowed."""
+        _, thickness_max = self.cathode.coating_thickness_range
+        # same value as the range maximum, arrived at by scaling instead
+        target = self.cathode.reversible_areal_capacity * (
+            thickness_max / self.cathode.coating_thickness
+        )
+        self.assertGreater(target, self.cathode.reversible_areal_capacity_range[1])
+
+        self.cathode.reversible_areal_capacity = target
+
+        self.assertAlmostEqual(self.cathode.coating_thickness, thickness_max, places=6)
+
+    def test_reversible_areal_capacity_range_is_none_without_a_curve(self):
+        """A cleared cache leaves the range undefined rather than stale."""
+        self.cathode._clear_cached_data()
+
+        self.assertIsNone(self.cathode.reversible_areal_capacity_range)
+
+    def test_reversible_areal_capacity_range_heals_after_legacy_deserialization(self):
+        """Blobs serialized before _reversible_areal_capacity_range existed must not crash."""
+        expected = self.cathode.reversible_areal_capacity_range
+
+        state = self.cathode._to_dict()
+        self.assertIn("_reversible_areal_capacity_range", state)
+        state.pop("_reversible_areal_capacity_range")   # simulate a pre-feature blob
+        legacy = Cathode._from_dict(state)
+
+        self.assertAlmostEqual(legacy.reversible_areal_capacity_range[0], expected[0], places=6)
+        self.assertAlmostEqual(legacy.reversible_areal_capacity_range[1], expected[1], places=6)
+
+    def test_reversible_areal_capacity_setter_rolls_back_when_target_not_reached(self):
+        """If the solve does not land on the target, mass loading is restored and it raises."""
+        initial_mass_loading = self.cathode.mass_loading
+        target = self.cathode.reversible_areal_capacity * 1.2
+        # neutralise the span recompute so the solve cannot reach the target
+        self.cathode._calculate_reversible_areal_capacity = lambda: None
+
+        with self.assertRaisesRegex(ValueError, "restored"):
+            self.cathode.reversible_areal_capacity = target
+
+        self.assertAlmostEqual(self.cathode.mass_loading, initial_mass_loading, places=10)
+
+    def test_reversible_areal_capacity_setter_holds_calender_density_in_all_modes(self):
+        """The solve runs at constant calender density whatever the active mode is."""
+        from steer_opencell_design.Components.Electrodes import ElectrodeControlMode
+
+        for mode in ElectrodeControlMode:
+            with self.subTest(mode=mode):
+                cathode = deepcopy(self.cathode)
+                cathode.control_mode = mode
+                initial_calender_density = cathode.calender_density
+                initial_porosity = cathode.porosity
+                initial_coating_thickness = cathode.coating_thickness
+                target = cathode.reversible_areal_capacity * 1.8
+
+                cathode.reversible_areal_capacity = target
+
+                self.assertAlmostEqual(cathode.reversible_areal_capacity, target, places=6)
+                self.assertAlmostEqual(cathode.calender_density, initial_calender_density, places=10)
+                self.assertAlmostEqual(cathode.porosity, initial_porosity, places=10)
+                self.assertGreater(cathode.coating_thickness, initial_coating_thickness)
+                # the caller's mode is restored, not silently rewritten
+                self.assertEqual(cathode.control_mode, mode)
+
+    def test_recalculation_survives_cleared_formulation_cache(self):
+        """Recalculating with a cleared formulation cache nulls the curve instead of raising."""
+        self.cathode._formulation._clear_cached_data()
+
+        self.cathode.mass_loading = self.cathode.mass_loading * 1.01
+
+        self.assertIsNone(self.cathode.areal_capacity_curve)
+        self.assertIsNone(self.cathode.reversible_areal_capacity)
 
 class TestElectrodePropagation(unittest.TestCase):
     """Test update propagation behavior for electrodes."""
@@ -1098,6 +1352,17 @@ class TestAnodeFree(unittest.TestCase):
     def test_areal_capacity_curve_trace_is_none(self):
         """Areal capacity curve trace should be None for anode-free."""
         self.assertIsNone(self.anode.areal_capacity_curve_trace)
+
+    def test_reversible_areal_capacity_is_none(self):
+        """Reversible areal capacity should be None for anode-free."""
+        self.assertIsNone(self.anode.reversible_areal_capacity)
+
+    def test_reversible_areal_capacity_setter_is_noop(self):
+        """Setting reversible areal capacity should be a no-op for anode-free."""
+        self.anode.reversible_areal_capacity = 5.0
+
+        self.assertIsNone(self.anode.reversible_areal_capacity)
+        self.assertEqual(self.anode.mass_loading, 0.0)
 
     # --- visualisation ---
 
