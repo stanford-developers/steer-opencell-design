@@ -1005,6 +1005,19 @@ class TestPunchedStack(unittest.TestCase):
         self.assertEqual(len(self.stack.stack), 83)
         self.assertAlmostEqual(self.stack.pore_volume, 293.27, 2)
 
+    def test_clear_cached_data_clears_whole_electrode(self):
+        """Clearing the assembly must not leave values derived from the curve behind."""
+        cathode = self.stack.layup.cathode
+        self.assertIsNotNone(cathode.reversible_areal_capacity)
+
+        self.stack._clear_cached_data()
+
+        # the curve and everything derived from it go together, so the public
+        # properties cannot disagree
+        self.assertIsNone(cathode.areal_capacity_curve)
+        self.assertIsNone(cathode.reversible_areal_capacity)
+        self.assertIsNone(cathode.reversible_areal_capacity_range)
+
     def test_serialization(self):
         serialized = self.stack.serialize()
         deserialized = PunchedStack.deserialize(serialized)

@@ -160,12 +160,10 @@ class _ElectrodeAssembly(
 
         self._layup._areal_capacity_curve = None
 
-        self._layup.cathode._areal_capacity_curve = None
-        self._layup.anode._areal_capacity_curve = None
-        
-        self._layup.cathode._formulation._clear_cached_data()
-        if not self._layup.anode._is_anode_free:
-            self._layup.anode._formulation._clear_cached_data()
+        # delegate so everything derived from the electrode's areal capacity curve
+        # is cleared with it, not just the curve
+        self._layup.cathode._clear_cached_data()
+        self._layup.anode._clear_cached_data()
 
     def plot_mass_breakdown(self, title: str = None, **kwargs) -> go.Figure:
         """Generate a sunburst mass breakdown chart."""
