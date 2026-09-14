@@ -616,6 +616,21 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         self._mass = self._material._mass + sum([t._mass for t in self._weld_tabs])
         self._cost = self._material._cost + sum([t._cost for t in self._weld_tabs])
 
+    def _sync_weld_tab_positions(self) -> None:
+        """
+        Derive the active weld tab positions from the requested ones.
+
+        Positions beyond the current foil length are inactive but retained, so shrinking
+        and then re-growing the foil restores them.
+        """
+        requested = getattr(self, "_requested_weld_tab_positions", None)
+        if requested is None:
+            # objects rebuilt by SerializerMixin._from_dict never run __init__, so
+            # payloads written before this attribute existed only carry the active set
+            requested = self._requested_weld_tab_positions = list(self._weld_tab_positions)
+
+        self._weld_tab_positions = [p for p in requested if p <= self._x_foil_length]
+
     def _calculate_weld_tab_properties(self) -> None:
         # copy the weld tabs and set their datums
         self._weld_tabs = []
@@ -921,7 +936,8 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         if any(pos > self.x_foil_length for pos in weld_tab_positions):
             raise ValueError("Weld tab positions cannot be greater than the length of the current collector.")
 
-        self._weld_tab_positions = [float(pos) * MM_TO_M for pos in sorted(weld_tab_positions)]
+        self._requested_weld_tab_positions = [float(pos) * MM_TO_M for pos in sorted(weld_tab_positions)]
+        self._sync_weld_tab_positions()
 
     @skip_coat_width.setter
     @calculate_areas

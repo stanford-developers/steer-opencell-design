@@ -811,7 +811,6 @@ Shared by `Laminate`, `MonoLayer`, `ZFoldMonoLayer`.
 | `operating_voltage_window` | (V, V) | (min, max) voltage window |
 | `minimum_operating_voltage` | V | Minimum operating voltage |
 | `maximum_operating_voltage` | V | Maximum operating voltage |
-| `operating_reversible_areal_capacity` | mAh/cm² | Operating reversible areal capacity |
 | `electrode_orientation` | — | Electrode orientation enum |
 
 **Read-only:**

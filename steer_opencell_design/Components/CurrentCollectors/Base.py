@@ -995,9 +995,9 @@ class _CurrentCollector(
         # set the x_foil_length in m
         self._x_foil_length = float(x_foil_length) * MM_TO_M
 
-        # update the weld tab positions if they exist
+        # re-derive which of the requested weld tabs still fit on the foil
         if hasattr(self, "_weld_tabs"):
-            self.weld_tab_positions = self.weld_tab_positions
+            self._sync_weld_tab_positions()
 
     @y_foil_length.setter
     @calculate_all_properties
@@ -1588,10 +1588,7 @@ class _TapeCurrentCollector(_CurrentCollector):
         # Validate the input length
         self.validate_positive_float(length, "length")
 
-        # remove the weld tab positions that are greater than the new length
-        if hasattr(self, "_weld_tabs"):
-            self._weld_tab_positions = [p * MM_TO_M for p in self.weld_tab_positions if p <= length]
-
-        # Set the new length
+        # Set the new length. Any weld tabs that no longer fit are deactivated by the
+        # x_foil_length setter, which retains them so re-growing the foil restores them.
         self.x_foil_length = length
 

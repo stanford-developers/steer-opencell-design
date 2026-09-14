@@ -150,8 +150,6 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertTrue(hasattr(self.layup, "_maximum_operating_voltage_range"))
         self.assertTrue(hasattr(self.layup, "minimum_operating_voltage_range"))
         self.assertTrue(hasattr(self.layup, "maximum_operating_voltage_range"))
-        self.assertTrue(hasattr(self.layup, "operating_reversible_areal_capacity"))
-        self.assertTrue(hasattr(self.layup, "_operating_reversible_areal_capacity"))
         self.assertTrue(hasattr(self.layup, "maximum_areal_reversible_capacity_range"))
         self.assertTrue(hasattr(self.layup, "_maximum_areal_reversible_capacity_range"))
         min_vr = self.layup.minimum_operating_voltage_range
@@ -160,7 +158,6 @@ class TestSimpleLaminate(unittest.TestCase):
         max_vr = self.layup.maximum_operating_voltage_range
         self.assertAlmostEqual(max_vr[0], 3.53, places=2)
         self.assertAlmostEqual(max_vr[1], 4.03, places=2)
-        self.assertAlmostEqual(self.layup.operating_reversible_areal_capacity, 0.842, places=3)
         max_arc = self.layup.maximum_areal_reversible_capacity_range
         self.assertAlmostEqual(max_arc[0], 0.8, places=3)
         self.assertAlmostEqual(max_arc[1], 0.842, places=3)
@@ -185,13 +182,6 @@ class TestSimpleLaminate(unittest.TestCase):
         # figure1.show()
         # figure2.show()
         # figure3.show()
-
-    def test_reversible_capacity_setter(self):
-
-        self.layup.operating_reversible_areal_capacity = 0.83
-        self.assertAlmostEqual(self.layup.operating_reversible_areal_capacity, 0.83, places=3)
-        figure1 = self.layup.plot_areal_capacity_curve()
-        # figure1.show()
 
     def test_length_width_setter(self):
 
@@ -743,6 +733,98 @@ class TestSimpleLaminate(unittest.TestCase):
         # Verify parent property changed on deserialized object
         self.assertGreater(deserialized_layup.thickness, original_thickness)
         self.assertAlmostEqual(deserialized_layup.thickness, modified_thickness, places=1)
+
+
+class TestVoltageLimitsMatchCathodeCutoff(unittest.TestCase):
+    """A layup's operating voltage limits must be derived from the live cathode cutoff.
+
+    ``MonoLayer.__init__`` and ``Laminate.__init__`` used to overwrite the private
+    ``_maximum_operating_voltage`` with the top of the achievable range after
+    ``_calculate_all_properties()`` had already derived it from the cathode's actual
+    voltage cutoff. That left the private attribute (read by ``_Cell``) disagreeing
+    with the public property, so a cell built on such a layup silently reset the
+    cathode cutoff to its maximum.
+    """
+
+    def _make_electrodes(self, cathode_voltage_cutoff):
+        cathode_material = CathodeMaterial.from_database("NMC811")
+        anode_material = AnodeMaterial.from_database("Synthetic Graphite")
+        binder = Binder(name="PVDF", specific_cost=10, density=1.5, color="#FFFFFF")
+        additive = ConductiveAdditive(name="Super P", specific_cost=15, density=2.0, color="#000000")
+
+        cathode_cc_material = CurrentCollectorMaterial(
+            name="Aluminium", specific_cost=5, density=2.7, color="#717171"
+        )
+        anode_cc_material = CurrentCollectorMaterial(
+            name="Copper", specific_cost=5, density=8.9, color="#FFAE00"
+        )
+
+        cathode = Cathode(
+            formulation=CathodeFormulation(
+                active_materials={cathode_material: 95},
+                binders={binder: 2.5},
+                conductive_additives={additive: 2.5},
+            ),
+            current_collector=PunchedCurrentCollector(
+                material=cathode_cc_material,
+                width=300, height=280, thickness=10,
+                tab_width=80, tab_height=30, tab_position=70,
+            ),
+            calender_density=3.4,
+            mass_loading=14,
+        )
+        cathode.voltage_cutoff = cathode_voltage_cutoff
+
+        anode = Anode(
+            formulation=AnodeFormulation(
+                active_materials={anode_material: 95},
+                binders={binder: 2.5},
+                conductive_additives={additive: 2.5},
+            ),
+            current_collector=PunchedCurrentCollector(
+                material=anode_cc_material,
+                width=300, height=280, thickness=10,
+                tab_width=80, tab_height=30, tab_position=230,
+            ),
+            calender_density=1.4,
+            mass_loading=10,
+        )
+
+        separator_material = SeparatorMaterial(
+            name="Polyethylene", specific_cost=2, density=0.94, color="#FDFDB7", porosity=45
+        )
+        return cathode, anode, separator_material
+
+    def _assert_limits_consistent(self, layup, cathode_voltage_cutoff):
+        # The cathode cutoff must survive layup construction untouched.
+        self.assertAlmostEqual(layup.cathode.voltage_cutoff, cathode_voltage_cutoff, places=6)
+
+        # Private and public views of the same limit must agree.
+        self.assertAlmostEqual(
+            layup._maximum_operating_voltage, layup.maximum_operating_voltage, places=9
+        )
+        self.assertAlmostEqual(
+            layup._minimum_operating_voltage, layup.minimum_operating_voltage, places=9
+        )
+
+        # A cutoff below its ceiling must not report the ceiling as the current maximum.
+        self.assertLess(
+            layup._maximum_operating_voltage, max(layup._maximum_operating_voltage_range)
+        )
+
+    def test_monolayer_limits_match_cathode_cutoff(self):
+        cutoff = 4.1
+        cathode, anode, separator_material = self._make_electrodes(cutoff)
+        separator = Separator(material=separator_material, thickness=12, width=310, length=290)
+        layup = MonoLayer(cathode=cathode, anode=anode, separator=separator)
+        self._assert_limits_consistent(layup, cutoff)
+
+    def test_zfold_monolayer_limits_match_cathode_cutoff(self):
+        cutoff = 4.1
+        cathode, anode, separator_material = self._make_electrodes(cutoff)
+        separator = Separator(material=separator_material, thickness=12, width=280, length=300)
+        layup = ZFoldMonoLayer(cathode=cathode, anode=anode, separator=separator)
+        self._assert_limits_consistent(layup, cutoff)
 
 
 class TestSimpleMonoLayer(unittest.TestCase):
@@ -2222,7 +2304,7 @@ class TestAnodeFreeLaminate(unittest.TestCase):
         """Voltage limit attributes should be computed for anode-free laminate."""
         self.assertIsNotNone(self.laminate._minimum_operating_voltage_range)
         self.assertIsNotNone(self.laminate._maximum_operating_voltage_range)
-        self.assertIsNotNone(self.laminate.operating_reversible_areal_capacity)
+        self.assertIsNotNone(self.laminate._maximum_areal_reversible_capacity_range)
 
     def test_voltage_maximum_setter(self):
         """Voltage maximum setter should work on anode-free laminate."""
