@@ -957,8 +957,12 @@ class _Electrode(
         """Get the reversible areal capacity of the electrode.
 
         Defined as the span of the discharge branch of
-        :attr:`areal_capacity_curve` (maximum minus minimum), matching the
-        definition of ``reversible_capacity`` at the cell level.
+        :attr:`areal_capacity_curve` (maximum minus minimum): the untruncated
+        half-cell span for this electrode alone. It is not composed against the
+        counter electrode and is not truncated at an operating voltage, so it does
+        not scale up to ``Cell.reversible_capacity`` (which is truncated at the
+        minimum operating voltage) and it is not the operating-window quantity
+        ``Layup.operating_reversible_areal_capacity``.
 
         :return: Reversible areal capacity in mAh/cm², or None for anode-free
             electrodes, which have no areal capacity curve.
