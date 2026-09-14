@@ -19,7 +19,7 @@ classifiers = [
 ]
 dependencies = [
     "steer-core==0.2.23",
-    "steer-materials==0.1.45",
+    "steer-materials==0.1.49",
     "numba>=0.59",
 ]
 
