@@ -250,6 +250,12 @@ class _Electrode(
             self._areal_capacity_curve = None
             return
 
+        if getattr(self._formulation, "_capacity_curve", None) is None:
+            # the formulation cache was cleared upstream; the curve is rebuilt
+            # once the formulation recalculates its own capacity curve
+            self._areal_capacity_curve = None
+            return
+
         # get the half cell curve from the formulation
         curve = self._formulation._capacity_curve.copy()
 
@@ -1377,9 +1383,22 @@ class _Electrode(
         if self._is_anode_free:  # no-op: anode-free has no coating
             return
         self.validate_positive_float(reversible_areal_capacity, "reversible areal capacity")
+
+        if not np.isfinite(reversible_areal_capacity):
+            raise ValueError(
+                f"Cannot set reversible areal capacity on {self.name}: the target must be "
+                f"a finite number, got {reversible_areal_capacity}."
+            )
+
+        if getattr(self, "_areal_capacity_curve", None) is None:
+            raise ValueError(
+                f"Cannot solve for mass loading on {self.name}: the areal capacity curve "
+                f"has been cleared. Recalculate the electrode before setting this property."
+            )
+
         current_areal_capacity = self.reversible_areal_capacity
 
-        if not current_areal_capacity:
+        if not current_areal_capacity or not np.isfinite(current_areal_capacity):
             raise ValueError(
                 f"Cannot solve for mass loading on {self.name}: the current reversible "
                 f"areal capacity is zero or undefined."

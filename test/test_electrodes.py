@@ -913,6 +913,46 @@ class TestElectrodeControlModes(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.cathode.reversible_areal_capacity = -1.0
 
+    def test_reversible_areal_capacity_setter_rejects_non_finite(self):
+        """NaN and inf targets are rejected rather than committed to mass loading."""
+        initial_mass_loading = self.cathode.mass_loading
+
+        for target in (float("nan"), float("inf")):
+            with self.subTest(target=target):
+                with self.assertRaises(ValueError):
+                    self.cathode.reversible_areal_capacity = target
+
+        self.assertAlmostEqual(self.cathode.mass_loading, initial_mass_loading, places=10)
+
+    def test_reversible_areal_capacity_setter_rejects_non_finite_cached_span(self):
+        """A NaN cached span is refused instead of poisoning mass loading with NaN."""
+        initial_mass_loading = self.cathode.mass_loading
+        self.cathode._reversible_areal_capacity = float("nan")
+
+        with self.assertRaises(ValueError):
+            self.cathode.reversible_areal_capacity = 4.0
+
+        self.assertAlmostEqual(self.cathode.mass_loading, initial_mass_loading, places=10)
+
+    def test_reversible_areal_capacity_setter_rejects_cleared_curve(self):
+        """A cleared curve raises a clean ValueError, not an AttributeError from deep in the stack."""
+        # the state _ElectrodeAssembly._clear_cached_data leaves behind: the curve
+        # nulled directly on the electrode while the cached span survives
+        self.cathode._areal_capacity_curve = None
+        self.cathode._formulation._clear_cached_data()
+
+        with self.assertRaises(ValueError):
+            self.cathode.reversible_areal_capacity = 4.0
+
+    def test_recalculation_survives_cleared_formulation_cache(self):
+        """Recalculating with a cleared formulation cache nulls the curve instead of raising."""
+        self.cathode._formulation._clear_cached_data()
+
+        self.cathode.mass_loading = self.cathode.mass_loading * 1.01
+
+        self.assertIsNone(self.cathode.areal_capacity_curve)
+        self.assertIsNone(self.cathode.reversible_areal_capacity)
+
 class TestElectrodePropagation(unittest.TestCase):
     """Test update propagation behavior for electrodes."""
     
