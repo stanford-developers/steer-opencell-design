@@ -267,7 +267,9 @@ class _Electrode(
 
     def _calculate_reversible_areal_capacity(self) -> None:
         """Calculate reversible areal capacity from the discharge branch span of the areal capacity curve."""
-        if self._areal_capacity_curve is None:
+        # getattr, not a bare access: the legacy-blob heal in the getter calls this
+        # on objects rebuilt by _from_dict, which may predate the curve attribute too
+        if getattr(self, "_areal_capacity_curve", None) is None:
             self._reversible_areal_capacity = None
             return
         _discharge_mask = self._areal_capacity_curve[:, 2] == -1

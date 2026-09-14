@@ -908,6 +908,15 @@ class TestElectrodeControlModes(unittest.TestCase):
 
         self.assertAlmostEqual(legacy.reversible_areal_capacity, expected, places=6)
 
+    def test_reversible_areal_capacity_heals_when_curve_attribute_is_absent(self):
+        """A blob old enough to predate _areal_capacity_curve must not raise from the getter."""
+        state = self.cathode._to_dict()
+        state.pop("_reversible_areal_capacity")
+        state.pop("_areal_capacity_curve")   # simulate a blob older still
+        legacy = Cathode._from_dict(state)
+
+        self.assertIsNone(legacy.reversible_areal_capacity)
+
     def test_reversible_areal_capacity_setter_rejects_negative(self):
         """A negative target is rejected rather than silently applied."""
         with self.assertRaises(ValueError):
