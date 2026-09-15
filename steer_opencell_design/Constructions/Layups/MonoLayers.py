@@ -76,7 +76,10 @@ class MonoLayer(_Layup):
         )
 
         # Add MonoLayer-specific components and properties
-
+        # Enforce separator coverage from birth, not only on later re-assignment: otherwise a monolayer
+        # can be built (and serialized) with separators narrower than its electrodes and repaired silently later.
+        self._update_separator_sizes(self._cathode)
+        self._update_separator_sizes(self._anode)
         # Recalculate properties now that separator is set
         self._calculate_all_properties()
         self._update_properties = True

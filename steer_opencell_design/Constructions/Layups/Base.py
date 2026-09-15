@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from copy import copy, deepcopy
 from enum import Enum
 from typing import Tuple
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -376,49 +377,45 @@ class _Layup(
             self._ensure_separator_coverage(self._top_separator, cathode, "top")
 
     def _ensure_separator_coverage(self, separator: Separator, reference_electrode: Cathode, separator_name: str):
-        """Ensure separator covers the reference electrode with thickness buffer."""
+        """Ensure the separator covers the reference electrode, plus one separator thickness of buffer.
+
+        A separator that is too short or too narrow is replaced by an enlarged copy and a
+        ``UserWarning`` is raised, so an inconsistent input never goes unnoticed.
+        """
         thickness_buffer = separator._thickness * M_TO_MM
-        
+        collector = reference_electrode.current_collector
+
+        # separator length runs along x unless the separator is rotated in the xy plane
         if separator._rotated_xy:
-            # When rotated, width maps to x-direction, length to y-direction
-            required_width = reference_electrode.current_collector.x_foil_length + thickness_buffer
-            required_length = reference_electrode.current_collector.y_foil_length + thickness_buffer
-            
-            if separator._width < reference_electrode.current_collector._x_foil_length:
-                new_separator = deepcopy(separator)
-                new_separator.width = required_width
-                if separator_name == "bottom":
-                    self._bottom_separator = new_separator
-                else:
-                    self._top_separator = new_separator
-                
-            if separator._length < reference_electrode.current_collector._y_foil_length:
-                new_separator = deepcopy(separator)
-                new_separator.length = required_length
-                if separator_name == "bottom":
-                    self._bottom_separator = new_separator
-                else:
-                    self._top_separator = new_separator
+            required = {
+                "width": (separator._width, collector._x_foil_length, collector.x_foil_length + thickness_buffer),
+                "length": (separator._length, collector._y_foil_length, collector.y_foil_length + thickness_buffer),
+            }
         else:
-            # When not rotated, length maps to x-direction, width to y-direction
-            required_length = reference_electrode.current_collector.x_foil_length + thickness_buffer
-            required_width = reference_electrode.current_collector.y_foil_length + thickness_buffer
-            
-            if separator._length < reference_electrode.current_collector._x_foil_length:
-                new_separator = deepcopy(separator)
-                new_separator.length = required_length
-                if separator_name == "bottom":
-                    self._bottom_separator = new_separator
-                else:
-                    self._top_separator = new_separator
-                
-            if separator._width < reference_electrode.current_collector._y_foil_length:
-                new_separator = deepcopy(separator)
-                new_separator.width = required_width
-                if separator_name == "bottom":
-                    self._bottom_separator = new_separator
-                else:
-                    self._top_separator = new_separator
+            required = {
+                "length": (separator._length, collector._x_foil_length, collector.x_foil_length + thickness_buffer),
+                "width": (separator._width, collector._y_foil_length, collector.y_foil_length + thickness_buffer),
+            }
+
+        resized = {name: target for name, (current, minimum, target) in required.items() if current < minimum}
+        if not resized:
+            return
+
+        new_separator = deepcopy(separator)
+        for name, target in resized.items():
+            setattr(new_separator, name, target)  # public setter: recalculates the separator
+        if separator_name == "bottom":
+            self._bottom_separator = new_separator
+        else:
+            self._top_separator = new_separator
+
+        changes = ", ".join(f"{name} {getattr(separator, name):.3f} -> {target:.3f} mm" for name, target in resized.items())
+        warnings.warn(
+            f"The {separator_name} separator does not cover the {reference_electrode.name} foil "
+            f"({collector.x_foil_length:.3f} x {collector.y_foil_length:.3f} mm); enlarged: {changes}. "
+            "Check the separator dimensions in the source data.",
+            UserWarning,
+        )
 
     def _update_anode_dimensions(self, cathode: Cathode):
         """Update anode dimensions to match cathode if smaller."""
