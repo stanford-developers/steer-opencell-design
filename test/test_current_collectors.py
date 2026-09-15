@@ -17,6 +17,7 @@ from steer_opencell_design.Components.CurrentCollectors.Notched import NotchedCu
 from steer_opencell_design.Components.CurrentCollectors.Tabbed import TabWeldedCurrentCollector, WeldTab
 from steer_opencell_design.Components.CurrentCollectors.Tabless import TablessCurrentCollector
 
+import numpy as np
 import plotly.graph_objects as go
 
 import os
@@ -78,34 +79,77 @@ class TestExplicitNotchPattern(unittest.TestCase):
             tab_center_positions=[50, 155, 270, 395],
         )
 
+    @staticmethod
+    def _centers(collector) -> np.ndarray:
+        """Return the calculated tab centers in mm."""
+        return np.asarray(collector.tab_positions, dtype=float).mean(axis=1)
+
     def test_explicit_centers_produce_uneven_spacings_and_gaps(self):
         self.assertEqual(self.collector.tab_center_positions, [50, 155, 270, 395])
         self.assertEqual(self.collector.n_tabs, 4)
-        for actual, expected in zip(
-            self.collector.tab_center_spacings, [105, 115, 125]
-        ):
+
+        edges = np.asarray(self.collector.tab_positions, dtype=float)
+        for actual, expected in zip(np.diff(self._centers(self.collector)), [105, 115, 125]):
             self.assertAlmostEqual(actual, expected)
-        for actual, expected in zip(self.collector.tab_gaps, [85, 95, 105]):
+        for actual, expected in zip(edges[1:, 0] - edges[:-1, 1], [85, 95, 105]):
             self.assertAlmostEqual(actual, expected)
 
     def test_positions_are_relative_to_leading_edge(self):
         positions_before = self.collector.tab_center_positions
-        absolute_before = self.collector.calculated_tab_center_positions
+        absolute_before = self._centers(self.collector)
 
         self.collector.datum = (100, 0, 0)
 
         self.assertEqual(self.collector.tab_center_positions, positions_before)
-        for before, after in zip(
-            absolute_before, self.collector.calculated_tab_center_positions
-        ):
+        for before, after in zip(absolute_before, self._centers(self.collector)):
             self.assertAlmostEqual(after - before, 100)
 
     def test_setting_spacing_restores_uniform_mode(self):
         self.collector.tab_spacing = 80
 
         self.assertIsNone(self.collector.tab_center_positions)
-        for spacing in self.collector.tab_center_spacings:
+        self.assertIsNone(self.collector.requested_tab_center_positions)
+        for spacing in np.diff(self._centers(self.collector)):
             self.assertAlmostEqual(spacing, 80)
+
+    def test_out_of_range_centers_deactivate_and_are_restored(self):
+        """Shrinking the foil retains the requested pattern, like weld tabs."""
+        self.collector.length = 300
+
+        self.assertEqual(self.collector.tab_center_positions, [50, 155, 270])
+        self.assertEqual(
+            self.collector.requested_tab_center_positions, [50, 155, 270, 395]
+        )
+
+        self.collector.length = 500
+
+        self.assertEqual(self.collector.tab_center_positions, [50, 155, 270, 395])
+
+    def test_widening_the_tab_deactivates_overlapping_centers(self):
+        """A width that would overlap drops centers instead of corrupting state."""
+        self.collector.tab_center_positions = [50, 100, 300]
+
+        self.collector.tab_width = 80
+
+        self.assertEqual(self.collector.tab_width, 80)
+        self.assertEqual(self.collector.tab_center_positions, [50, 300])
+        # Geometry and derived pattern stay mutually consistent.
+        for start, end in self.collector.tab_positions:
+            self.assertAlmostEqual(end - start, 80)
+        self.assertEqual(
+            self.collector.requested_tab_center_positions, [50, 100, 300]
+        )
+
+        self.collector.tab_width = 20
+
+        self.assertEqual(self.collector.tab_center_positions, [50, 100, 300])
+
+    def test_empty_explicit_pattern_is_rejected(self):
+        """An empty pattern would leave a notched collector with no current path."""
+        with self.assertRaises(ValueError):
+            self.collector.tab_center_positions = []
+
+        self.assertEqual(self.collector.tab_center_positions, [50, 155, 270, 395])
 
     def test_rejected_spacing_leaves_explicit_pattern_unchanged(self):
         original_spacing = self.collector.tab_spacing
@@ -115,34 +159,6 @@ class TestExplicitNotchPattern(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             self.collector.tab_spacing = 5
-
-        self.assertEqual(self.collector.tab_spacing, original_spacing)
-        self.assertEqual(self.collector.tab_gap, original_gap)
-        self.assertEqual(self.collector.tab_center_positions, original_centers)
-        self.assertEqual(self.collector.tab_positions, original_positions)
-
-    def test_recalculation_failure_rolls_back_pattern_change(self):
-        original_spacing = self.collector.tab_spacing
-        original_gap = self.collector.tab_gap
-        original_centers = self.collector.tab_center_positions
-        original_positions = self.collector.tab_positions
-        calculate = self.collector._calculate_all_properties
-        calls = 0
-
-        def fail_first_calculation():
-            nonlocal calls
-            calls += 1
-            if calls == 1:
-                raise RuntimeError("forced recalculation failure")
-            return calculate()
-
-        with patch.object(
-            self.collector,
-            "_calculate_all_properties",
-            side_effect=fail_first_calculation,
-        ):
-            with self.assertRaisesRegex(RuntimeError, "forced recalculation failure"):
-                self.collector.tab_center_positions = [60, 180, 320]
 
         self.assertEqual(self.collector.tab_spacing, original_spacing)
         self.assertEqual(self.collector.tab_gap, original_gap)

@@ -5,8 +5,6 @@ import unittest
 import warnings
 from copy import deepcopy
 import steer_opencell_design as ocd
-from steer_opencell_design.Components.Containers.Flexframe import FlexFrameEncapsulation
-from steer_opencell_design.Components.Containers.Pouch import PouchTerminal
 from steer_core.Mixins.Serializer import SerializerMixin
 
 
@@ -1264,7 +1262,6 @@ class TestCylindricalCell(unittest.TestCase):
         updated_cell_voltage = self.cell.maximum_operating_voltage
         self.assertNotEqual(current_cell_voltage, updated_cell_voltage)
         self.assertEqual(new_cathode_voltage, self.cell.reference_electrode_assembly.layup.cathode.formulation.voltage_cutoff)
-
 
 
 class TestCylindricalCellTabbed(unittest.TestCase):
@@ -2891,6 +2888,121 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
             "Cellulose",
         )
 
+    def test_turn_to_notch_aligned(self):
+        """
+        Test to turn this from a prismatic with tabless current collectors to one with tabbed with the notches aligned
+        """
+        figure1 = self.cell.plot_top_down_view()
+        self.assertIsNotNone(figure1)
+
+        notched_current_collector = ocd.NotchedCurrentCollector.from_tabless(self.cell.reference_electrode_assembly.layup.cathode.current_collector)
+        self.cell.reference_electrode_assembly.layup.cathode.current_collector = notched_current_collector
+        self.cell.reference_electrode_assembly.layup.cathode.current_collector.propagate_changes()
+        self.cell.reference_electrode_assembly.cathode_notch_alignment_position = 28
+        self.cell.reference_electrode_assembly.propagate_changes()
+
+        figure2 = self.cell.plot_top_down_view()
+        self.assertIsNotNone(figure2)
+
+        notched_current_collector = ocd.NotchedCurrentCollector.from_tabless(self.cell.reference_electrode_assembly.layup.anode.current_collector)
+        self.cell.reference_electrode_assembly.layup.anode.current_collector = notched_current_collector
+        self.cell.reference_electrode_assembly.layup.anode.current_collector.propagate_changes()
+        self.cell.reference_electrode_assembly.anode_notch_alignment_position = 28
+        self.cell.reference_electrode_assembly.propagate_changes()
+
+        figure3 = self.cell.plot_top_down_view()
+        self.assertIsNotNone(figure3)
+
+        # figure1.show(renderer="browser")
+        # figure2.show(renderer="browser")
+        # figure3.show(renderer="browser")
+
+    def test_convert_to_aligned_notches(self):
+        """One jelly-roll call replaces both tabless collectors and aligns them."""
+        figure1 = self.cell.plot_top_down_view()
+        mass_before = self.cell.mass
+        cost_before = self.cell.cost
+
+        self.cell.reference_electrode_assembly.convert_to_aligned_notches(position=None, tab_width=None, electrodes=["anode", "cathode"])
+
+        self.assertNotAlmostEqual(self.cell.mass, mass_before, places=6)
+        self.assertNotAlmostEqual(self.cell.cost, cost_before, places=6)
+        figure2 = self.cell.plot_top_down_view()
+        self.assertIsNotNone(figure2)
+
+        # figure1.show(renderer="browser")
+        # figure2.show(renderer="browser")
+
+    def test_convert_to_aligned_notches_and_then_longitudinal(self):
+
+        figure1 = self.cell.plot_top_down_view()
+
+        self.cell.reference_electrode_assembly.convert_to_aligned_notches(position=None, tab_width=None, electrodes=["anode", "cathode"])
+
+        figure2 = self.cell.plot_top_down_view()
+        self.assertIsNotNone(figure2)
+
+        self.cell.reference_electrode_assembly.layup.electrode_orientation = "longitudinal"
+        self.cell.reference_electrode_assembly.layup.propagate_changes()
+        figure3 = self.cell.plot_top_down_view()
+
+        # figure1.show(renderer="browser")
+        # figure2.show(renderer="browser")
+        # figure3.show(renderer="browser")
+
+    def test_connector_orientation_flips_the_electrodes(self):
+        """Driving orientation from the encapsulation must move the anode tab.
+
+        Regression: the setter used to assign the layup's private orientation
+        enum directly, bypassing the property setter that performs the y-flip,
+        so the reported orientation and the built geometry disagreed.
+        """
+        roll = self.cell.reference_electrode_assembly
+        roll.convert_to_aligned_notches()
+        self.assertTrue(
+            roll._collector_tab_extends_positive_y(
+                roll.layup.cathode.current_collector
+            )
+        )
+        self.assertFalse(
+            roll._collector_tab_extends_positive_y(
+                roll.layup.anode.current_collector
+            )
+        )
+
+        self.cell.encapsulation.connector_orientation = "longitudinal"
+        self.cell.encapsulation = self.cell.encapsulation
+
+        self.assertEqual(
+            roll.layup.electrode_orientation.value, "longitudinal"
+        )
+        # Both tabs now protrude from the same edge -- the geometry, not just
+        # the enum, has followed the connector.
+        for name in ("cathode", "anode"):
+            with self.subTest(electrode=name):
+                self.assertTrue(
+                    roll._collector_tab_extends_positive_y(
+                        getattr(roll.layup, name).current_collector
+                    )
+                )
+
+    def test_convert_to_aligned_notches_rejects_infeasible_requests(self):
+        """A request that cannot be aligned must leave the layup untouched."""
+        roll = self.cell.reference_electrode_assembly
+
+        # 61.6 mm of straight section cannot hold an 80 mm tab anywhere.
+        with self.assertRaisesRegex(ValueError, "cannot be aligned"):
+            roll.convert_to_aligned_notches(tab_width=80.0)
+
+        # from_tabless starts at a 50 mm tab, leaving a 25.00-36.60 mm window.
+        with self.assertRaisesRegex(ValueError, "25.00 to 36.60 mm"):
+            roll.convert_to_aligned_notches(position=5.0)
+
+        self.assertIsInstance(
+            roll.layup.cathode.current_collector, ocd.TablessCurrentCollector
+        )
+        self.assertIsNone(roll.cathode_notch_alignment_position)
+
 
 class TestFlexFrameCell(unittest.TestCase):
 
@@ -3300,6 +3412,7 @@ class TestFromLoadedCell(unittest.TestCase):
             self.lithium_metal_cell.reference_electrode_assembly.radius, old_radius
         )
         self.assertEqual(new_layup_length, old_layup_length)
+
 
 class TestCellPropagation(unittest.TestCase):
     """Test update propagation behavior for cells with full hierarchy."""

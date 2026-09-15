@@ -1455,8 +1455,6 @@ class SpiralCalculator:
         spiral: np.ndarray,
         target_x: float,
         tab_width: float = 0.0,
-        minimum_gap: float = 0.0,
-        straight_x_bounds: Optional[tuple[float, float]] = None,
     ) -> np.ndarray:
         """Return two unwrapped centers per complete turn at a fixed x-coordinate.
 
@@ -1466,6 +1464,12 @@ class SpiralCalculator:
         turns. A complete turn crosses ``target_x`` once on each straight
         branch, producing one notch on either side of the racetrack's z-axis.
         Partial turns without both crossings are omitted.
+
+        Keeping ``target_x`` far enough inside a straight racetrack section for
+        the whole tab is the caller's responsibility (see
+        ``FlatWoundJellyRoll._notch_alignment_target_x``). On a straight branch
+        z is constant, so unwrapped distance and x-distance are identical there
+        and no separate endpoint projection is needed.
         """
         spiral = np.asarray(spiral, dtype=float)
         if spiral.ndim != 2 or spiral.shape[1] <= TURNS_COL:
@@ -1477,112 +1481,68 @@ class SpiralCalculator:
             raise ValueError("target_x must be finite.")
         if not np.isfinite(tab_width) or tab_width < 0:
             raise ValueError("tab_width must be a finite non-negative value.")
-        if not np.isfinite(minimum_gap) or minimum_gap < 0:
-            raise ValueError("minimum_gap must be a finite non-negative value.")
-        if straight_x_bounds is not None:
-            bounds = np.asarray(straight_x_bounds, dtype=float)
-            if bounds.shape != (2,) or not np.all(np.isfinite(bounds)):
-                raise ValueError("straight_x_bounds must contain two finite values.")
-            if bounds[0] > bounds[1]:
-                raise ValueError(
-                    "straight_x_bounds must be ordered from minimum to maximum."
-                )
+        if len(spiral) < 2:
+            return np.empty(0, dtype=float)
 
         x_unwrapped = spiral[:, X_UNWRAPPED_COL]
         x_coordinate = spiral[:, X_COORD_COL]
         turns = spiral[:, TURNS_COL]
-        if len(spiral) < 2:
-            return np.empty(0, dtype=float)
 
         finite = (
-            np.isfinite(x_unwrapped)
-            & np.isfinite(x_coordinate)
-            & np.isfinite(turns)
+            np.isfinite(x_unwrapped) & np.isfinite(x_coordinate) & np.isfinite(turns)
         )
-        valid_pairs = finite[:-1] & finite[1:]
         x_start = x_coordinate[:-1]
         x_end = x_coordinate[1:]
 
         # Each interior x-coordinate occurs on both straight sections. Their
         # opposite traversal directions distinguish the +z and -z crossings.
         crossings = (
-            valid_pairs
+            (finite[:-1] & finite[1:])
             & (x_end != x_start)
             & (np.minimum(x_start, x_end) <= target_x)
             & (target_x <= np.maximum(x_start, x_end))
         )
-        crossing_indices = np.flatnonzero(crossings)
-        if len(crossing_indices) == 0:
+        index = np.flatnonzero(crossings)
+        if len(index) == 0:
             return np.empty(0, dtype=float)
 
-        centers_by_turn: dict[int, dict[int, float]] = {}
-        for index in crossing_indices:
-            turn = int(np.floor((turns[index] + turns[index + 1]) / 2 + 1e-12))
-            direction = 1 if x_end[index] > x_start[index] else -1
-            fraction = (target_x - x_start[index]) / (x_end[index] - x_start[index])
-            center = x_unwrapped[index] + fraction * (
-                x_unwrapped[index + 1] - x_unwrapped[index]
-            )
-            centers_by_turn.setdefault(turn, {}).setdefault(direction, center)
+        fraction = (target_x - x_start[index]) / (x_end[index] - x_start[index])
+        centers = x_unwrapped[index] + fraction * (
+            x_unwrapped[index + 1] - x_unwrapped[index]
+        )
+        turn_ids = np.floor((turns[index] + turns[index + 1]) / 2 + 1e-12).astype(
+            np.int64
+        )
+        branch = (x_end[index] > x_start[index]).astype(np.int64)
 
-        complete_turn_center_pairs = [
-            list(crossings_by_direction.values())
-            for crossings_by_direction in centers_by_turn.values()
-            if set(crossings_by_direction) == {-1, 1}
-        ]
-        center_pairs = np.asarray(complete_turn_center_pairs, dtype=float)
-        if center_pairs.size == 0:
+        # A sample landing exactly on ``target_x`` makes two adjacent segments
+        # register the same crossing, so keep the first hit per turn and branch.
+        _, first_hit = np.unique(turn_ids * 2 + branch, return_index=True)
+        first_hit = np.sort(first_hit)
+        centers = centers[first_hit]
+        turn_ids = turn_ids[first_hit]
+
+        # Keep only the turns that crossed on both branches.
+        unique_turns, counts = np.unique(turn_ids, return_counts=True)
+        complete = np.isin(turn_ids, unique_turns[counts == 2])
+        centers = centers[complete]
+        turn_ids = turn_ids[complete]
+        if len(centers) == 0:
             return np.empty(0, dtype=float)
 
-        half_width = tab_width / 2
+        # Both notches of a turn are punched from the same sheet, so drop a turn
+        # outright unless the complete tab fits at both of its centers.
         finite_unwrapped = x_unwrapped[np.isfinite(x_unwrapped)]
         if len(finite_unwrapped) == 0:
             return np.empty(0, dtype=float)
-        minimum_unwrapped = float(np.min(finite_unwrapped))
-        maximum_unwrapped = float(np.max(finite_unwrapped))
-        pair_fits = np.all(
-            (center_pairs - half_width >= minimum_unwrapped)
-            & (center_pairs + half_width <= maximum_unwrapped),
-            axis=1,
+        half_width = tab_width / 2
+        fits = (centers - half_width >= float(np.min(finite_unwrapped))) & (
+            centers + half_width <= float(np.max(finite_unwrapped))
         )
-        centers = np.sort(center_pairs[pair_fits].ravel())
+        incomplete_turns = np.unique(turn_ids[~fits])
+        centers = centers[~np.isin(turn_ids, incomplete_turns)]
 
-        if straight_x_bounds is not None and len(centers) > 0:
-            # Tab width is measured along the unwrapped foil. Map both physical
-            # endpoints back onto the wound path rather than assuming that foil
-            # distance and x-distance are identical near a curved-end tangent.
-            path_finite = np.isfinite(x_unwrapped) & np.isfinite(x_coordinate)
-            path_unwrapped = x_unwrapped[path_finite]
-            path_x = x_coordinate[path_finite]
-            order = np.argsort(path_unwrapped)
-            endpoint_unwrapped = np.column_stack(
-                (centers - half_width, centers + half_width)
-            )
-            endpoint_x = np.interp(
-                endpoint_unwrapped,
-                path_unwrapped[order],
-                path_x[order],
-            )
-            x_min, x_max = straight_x_bounds
-            # A center exactly at a legal tangent boundary can acquire a
-            # sub-micron overshoot when both crossings are interpolated from
-            # the sampled spiral. The public position check still enforces the
-            # exact geometric range; this tolerance covers interpolation only.
-            tolerance = 1e-6
-            if np.any(endpoint_x < x_min - tolerance) or np.any(
-                endpoint_x > x_max + tolerance
-            ):
-                raise ValueError(
-                    "Aligned tab endpoints must remain on a straight racetrack "
-                    "section."
-                )
-
-        if len(centers) > 1 and np.any(np.diff(centers) < tab_width + minimum_gap):
-            raise ValueError(
-                "Aligned tab positions overlap or violate the requested minimum gap."
-            )
-
-        return centers
+        return np.sort(centers)
 
     @staticmethod
     def calculate_variable_thickness_spiral(
