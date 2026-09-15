@@ -1238,6 +1238,40 @@ class TestFlatJellyRoll(unittest.TestCase):
                     float(np.min(rectangle_y)), float(np.min(foil_y)), places=9
                 )
 
+    def test_roll_rebuilt_without_alignment_attributes_still_recalculates(self):
+        """A payload written before notch alignment existed must still rebuild.
+
+        Regression: ``SerializerMixin._from_dict`` uses ``cls.__new__`` and never
+        runs ``__init__``, so every cell stored before this feature shipped lacks
+        the ``_*_notch_alignment_position`` attributes. Reading them directly
+        raised ``AttributeError`` on the first recalculation, which callers that
+        propagate best-effort swallow -- leaving a silently stale roll.
+        """
+        legacy = deepcopy(self.my_jellyroll)
+        for name in (
+            "_cathode_notch_alignment_position",
+            "_anode_notch_alignment_position",
+        ):
+            delattr(legacy, name)
+
+        self.assertIsNone(legacy.cathode_notch_alignment_position)
+        self.assertIsNone(legacy.anode_notch_alignment_position)
+        self.assertEqual(legacy.thickness_aware_notch_data, {})
+
+        original_straight = legacy.pressed_straight_length
+        legacy.mandrel.height = legacy.mandrel.height * 1.5
+        legacy.mandrel.propagate_changes()
+
+        # The whole pipeline ran: the pressed racetrack *and* everything after it.
+        self.assertNotAlmostEqual(
+            legacy.pressed_straight_length, original_straight, places=6
+        )
+        self.assertGreater(len(legacy._component_top_down_coordinates), 0)
+
+        # And alignment still works once configured on the rebuilt object.
+        legacy.cathode_notch_alignment_position = 50.0
+        self.assertIn("cathode", legacy.thickness_aware_notch_data)
+
     def test_alignment_position_keeps_complete_tab_on_straight_section(self):
         original_position = self.my_jellyroll.cathode_notch_alignment_position
         original_centers = list(

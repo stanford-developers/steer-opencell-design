@@ -3809,7 +3809,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         """Add aligned notch-stack footprints to the standard top-down view."""
         super()._calculate_top_down_coordinates()
         for electrode_name in ("cathode", "anode"):
-            if getattr(self, f"_{electrode_name}_notch_alignment_position") is not None:
+            if self._notch_alignment_position_of(electrode_name) is not None:
                 self._calculate_notch_stack_top_down_coords(electrode_name)
 
     def _calculate_notch_stack_top_down_coords(self, electrode_name: str) -> None:
@@ -3855,7 +3855,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         # targets. Measuring it here rather than reading the rotated spiral
         # keeps increasing edge distance reading left-to-right, independent of
         # an equivalent 180-degree cross-section rotation.
-        position = getattr(self, f"_{electrode_name}_notch_alignment_position")
+        position = self._notch_alignment_position_of(electrode_name)
         stack_x_center = self._pressed_mandrel_center_x + (
             self._notch_alignment_axis_position(position)
         )
@@ -3948,6 +3948,16 @@ class FlatWoundJellyRoll(_JellyRoll):
 
         return mandrel_center_x + self._notch_alignment_axis_position(position)
 
+    def _notch_alignment_position_of(self, electrode_name: str) -> Optional[float]:
+        """Return an electrode's configured alignment position in meters.
+
+        Objects rebuilt by ``SerializerMixin._from_dict`` never run ``__init__``,
+        so a cell serialized before notch alignment existed carries no such
+        attribute; treat that as "not aligned" rather than raising on the first
+        recalculation.
+        """
+        return getattr(self, f"_{electrode_name}_notch_alignment_position", None)
+
     def _notch_alignment_axis_position(self, position: float) -> float:
         """Convert a straight-section edge distance to the centered axis."""
         return -self._pressed_straight_length / 2 + position
@@ -3972,8 +3982,8 @@ class FlatWoundJellyRoll(_JellyRoll):
         itself is being calculated.
         """
         configurations = {
-            "cathode": self._cathode_notch_alignment_position,
-            "anode": self._anode_notch_alignment_position,
+            name: self._notch_alignment_position_of(name)
+            for name in ("cathode", "anode")
         }
 
         for electrode_name, alignment_position in configurations.items():
@@ -4651,9 +4661,10 @@ class FlatWoundJellyRoll(_JellyRoll):
     @property
     def cathode_notch_alignment_position(self) -> Optional[float]:
         """Return the cathode notch center from the straight section's left edge."""
-        if self._cathode_notch_alignment_position is None:
+        position = self._notch_alignment_position_of("cathode")
+        if position is None:
             return None
-        return self._cathode_notch_alignment_position * M_TO_MM
+        return position * M_TO_MM
 
     @cathode_notch_alignment_position.setter
     def cathode_notch_alignment_position(self, value: Optional[float]) -> None:
@@ -4666,9 +4677,10 @@ class FlatWoundJellyRoll(_JellyRoll):
     @property
     def anode_notch_alignment_position(self) -> Optional[float]:
         """Return the anode notch center from the straight section's left edge."""
-        if self._anode_notch_alignment_position is None:
+        position = self._notch_alignment_position_of("anode")
+        if position is None:
             return None
-        return self._anode_notch_alignment_position * M_TO_MM
+        return position * M_TO_MM
 
     @anode_notch_alignment_position.setter
     def anode_notch_alignment_position(self, value: Optional[float]) -> None:
@@ -4855,7 +4867,7 @@ class FlatWoundJellyRoll(_JellyRoll):
                     f"{name} requires a NotchedCurrentCollector; the "
                     f"{electrode_name} carries a {type(collector).__name__}."
                 )
-        previous = getattr(self, attribute)
+        previous = getattr(self, attribute, None)
         converted = None if value is None else float(value) * MM_TO_M
         setattr(self, attribute, converted)
         if not self._update_properties:
@@ -4920,7 +4932,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         """Return configured notch centers, spacings, and gaps for each electrode."""
         result: Dict[str, Dict[str, Any]] = {}
         for electrode_name in ("cathode", "anode"):
-            position = getattr(self, f"_{electrode_name}_notch_alignment_position")
+            position = self._notch_alignment_position_of(electrode_name)
             if position is None:
                 continue
             collector = getattr(self._layup, f"_{electrode_name}")._current_collector
@@ -4946,7 +4958,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         colors = {"cathode": "#d62728", "anode": "#1f77b4"}
 
         for electrode_name in ("cathode", "anode"):
-            position = getattr(self, f"_{electrode_name}_notch_alignment_position")
+            position = self._notch_alignment_position_of(electrode_name)
             if position is None:
                 continue
 
