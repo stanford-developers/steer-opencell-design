@@ -1451,6 +1451,140 @@ class SpiralCalculator:
         return (1.0 + 5.0 * (np.abs(dt_dx) / max_grad)).astype(np.float64)
 
     @staticmethod
+    def aligned_positions_at_x(
+        spiral: np.ndarray,
+        target_x: float,
+        tab_width: float = 0.0,
+        minimum_gap: float = 0.0,
+        straight_x_bounds: Optional[tuple[float, float]] = None,
+    ) -> np.ndarray:
+        """Return two unwrapped centers per complete turn at a fixed x-coordinate.
+
+        Length inputs and outputs use meters. ``target_x`` is expressed in the
+        supplied spiral's unrotated racetrack coordinate system. The turn
+        column, which is derived from winding phase, separates successive
+        turns. A complete turn crosses ``target_x`` once on each straight
+        branch, producing one notch on either side of the racetrack's z-axis.
+        Partial turns without both crossings are omitted.
+        """
+        spiral = np.asarray(spiral, dtype=float)
+        if spiral.ndim != 2 or spiral.shape[1] <= TURNS_COL:
+            raise ValueError(
+                "spiral must be a two-dimensional array containing unwrapped "
+                "length, x-coordinate, and turn columns."
+            )
+        if not np.isfinite(target_x):
+            raise ValueError("target_x must be finite.")
+        if not np.isfinite(tab_width) or tab_width < 0:
+            raise ValueError("tab_width must be a finite non-negative value.")
+        if not np.isfinite(minimum_gap) or minimum_gap < 0:
+            raise ValueError("minimum_gap must be a finite non-negative value.")
+        if straight_x_bounds is not None:
+            bounds = np.asarray(straight_x_bounds, dtype=float)
+            if bounds.shape != (2,) or not np.all(np.isfinite(bounds)):
+                raise ValueError("straight_x_bounds must contain two finite values.")
+            if bounds[0] > bounds[1]:
+                raise ValueError(
+                    "straight_x_bounds must be ordered from minimum to maximum."
+                )
+
+        x_unwrapped = spiral[:, X_UNWRAPPED_COL]
+        x_coordinate = spiral[:, X_COORD_COL]
+        turns = spiral[:, TURNS_COL]
+        if len(spiral) < 2:
+            return np.empty(0, dtype=float)
+
+        finite = (
+            np.isfinite(x_unwrapped)
+            & np.isfinite(x_coordinate)
+            & np.isfinite(turns)
+        )
+        valid_pairs = finite[:-1] & finite[1:]
+        x_start = x_coordinate[:-1]
+        x_end = x_coordinate[1:]
+
+        # Each interior x-coordinate occurs on both straight sections. Their
+        # opposite traversal directions distinguish the +z and -z crossings.
+        crossings = (
+            valid_pairs
+            & (x_end != x_start)
+            & (np.minimum(x_start, x_end) <= target_x)
+            & (target_x <= np.maximum(x_start, x_end))
+        )
+        crossing_indices = np.flatnonzero(crossings)
+        if len(crossing_indices) == 0:
+            return np.empty(0, dtype=float)
+
+        centers_by_turn: dict[int, dict[int, float]] = {}
+        for index in crossing_indices:
+            turn = int(np.floor((turns[index] + turns[index + 1]) / 2 + 1e-12))
+            direction = 1 if x_end[index] > x_start[index] else -1
+            fraction = (target_x - x_start[index]) / (x_end[index] - x_start[index])
+            center = x_unwrapped[index] + fraction * (
+                x_unwrapped[index + 1] - x_unwrapped[index]
+            )
+            centers_by_turn.setdefault(turn, {}).setdefault(direction, center)
+
+        complete_turn_center_pairs = [
+            list(crossings_by_direction.values())
+            for crossings_by_direction in centers_by_turn.values()
+            if set(crossings_by_direction) == {-1, 1}
+        ]
+        center_pairs = np.asarray(complete_turn_center_pairs, dtype=float)
+        if center_pairs.size == 0:
+            return np.empty(0, dtype=float)
+
+        half_width = tab_width / 2
+        finite_unwrapped = x_unwrapped[np.isfinite(x_unwrapped)]
+        if len(finite_unwrapped) == 0:
+            return np.empty(0, dtype=float)
+        minimum_unwrapped = float(np.min(finite_unwrapped))
+        maximum_unwrapped = float(np.max(finite_unwrapped))
+        pair_fits = np.all(
+            (center_pairs - half_width >= minimum_unwrapped)
+            & (center_pairs + half_width <= maximum_unwrapped),
+            axis=1,
+        )
+        centers = np.sort(center_pairs[pair_fits].ravel())
+
+        if straight_x_bounds is not None and len(centers) > 0:
+            # Tab width is measured along the unwrapped foil. Map both physical
+            # endpoints back onto the wound path rather than assuming that foil
+            # distance and x-distance are identical near a curved-end tangent.
+            path_finite = np.isfinite(x_unwrapped) & np.isfinite(x_coordinate)
+            path_unwrapped = x_unwrapped[path_finite]
+            path_x = x_coordinate[path_finite]
+            order = np.argsort(path_unwrapped)
+            endpoint_unwrapped = np.column_stack(
+                (centers - half_width, centers + half_width)
+            )
+            endpoint_x = np.interp(
+                endpoint_unwrapped,
+                path_unwrapped[order],
+                path_x[order],
+            )
+            x_min, x_max = straight_x_bounds
+            # A center exactly at a legal tangent boundary can acquire a
+            # sub-micron overshoot when both crossings are interpolated from
+            # the sampled spiral. The public position check still enforces the
+            # exact geometric range; this tolerance covers interpolation only.
+            tolerance = 1e-6
+            if np.any(endpoint_x < x_min - tolerance) or np.any(
+                endpoint_x > x_max + tolerance
+            ):
+                raise ValueError(
+                    "Aligned tab endpoints must remain on a straight racetrack "
+                    "section."
+                )
+
+        if len(centers) > 1 and np.any(np.diff(centers) < tab_width + minimum_gap):
+            raise ValueError(
+                "Aligned tab positions overlap or violate the requested minimum gap."
+            )
+
+        return centers
+
+    @staticmethod
     def calculate_variable_thickness_spiral(
         laminate: Laminate,
         start_radius: float,
