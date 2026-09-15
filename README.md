@@ -830,7 +830,6 @@ Shared by `Laminate`, `MonoLayer`, `ZFoldMonoLayer`.
 | `operating_voltage_window` | (V, V) | (min, max) voltage window |
 | `minimum_operating_voltage` | V | Minimum operating voltage |
 | `maximum_operating_voltage` | V | Maximum operating voltage |
-| `operating_reversible_areal_capacity` | mAh/cm² | Operating reversible areal capacity |
 | `electrode_orientation` | — | Electrode orientation enum |
 
 **Read-only:**
@@ -854,6 +853,7 @@ Shared by `Laminate`, `MonoLayer`, `ZFoldMonoLayer`.
 | `coating_thickness` | µm | Single-side coating thickness |
 | `thickness` | µm | Total electrode thickness (CC + 2× coating) |
 | `porosity` | % | Electrode coating porosity |
+| `reversible_areal_capacity` | mAh/cm² | Half-cell reversible areal capacity; solves for mass loading |
 | `insulation_material` | — | Insulation material object |
 | `insulation_thickness` | µm | Insulation coating thickness |
 | `voltage_cutoff` | V | Half-cell voltage cutoff |
