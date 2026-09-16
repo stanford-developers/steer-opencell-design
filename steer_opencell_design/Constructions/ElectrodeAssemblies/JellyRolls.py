@@ -1960,6 +1960,17 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         return self.layup.width_range
 
     @property
+    def height_hard_range(self) -> Tuple[float, float]:
+        """Return the hard height range in mm.
+
+        A roll's height is its foil width plus whatever the tabs add, so the
+        hard limit is the layup's; there is no separate softer bound to relax
+        to. Present so a cell can read ``assembly.height_hard_range``
+        generically, whichever assembly it holds.
+        """
+        return self.layup.width_hard_range
+
+    @property
     def tape_length_driver(self) -> TapeDriver:
         """Get the current tape length driver mode.
 
@@ -4965,6 +4976,101 @@ class FlatWoundJellyRoll(_JellyRoll):
         if centers is None or len(centers) == 0:
             return None
         return np.asarray(centers, dtype=float) * M_TO_MM
+
+    def _clip_current_collector_tabs(self, _clipped_length: float) -> None:
+        """Clip the notches on both collectors to ``_clipped_length`` (meters).
+
+        The jelly-roll counterpart of ``_Stack._clip_current_collector_tabs``:
+        a pouch welds its terminal to a clipped tab, so the cell applies this on
+        every recalculation. Reassigning the layup re-runs the notch alignment,
+        so the tab stack is rebuilt at the shorter height rather than left
+        describing the old one.
+
+        An electrode whose collector cannot carry notches is skipped -- it has
+        no tab to clip. A pouch already refuses such a roll (see
+        ``notches_aligned``), so in practice this only guards direct use.
+        """
+        clipped = False
+        for electrode_name in ("cathode", "anode"):
+            electrode = getattr(self._layup, f"_{electrode_name}")
+            collector = electrode._current_collector
+            if not self._collector_can_carry_notches(collector):
+                continue
+            collector.tab_height = _clipped_length * M_TO_MM
+            electrode.current_collector = collector
+            setattr(self._layup, electrode_name, electrode)
+            clipped = True
+
+        if clipped:
+            self.layup = self._layup
+
+    @property
+    def notches_aligned(self) -> bool:
+        """Return whether BOTH electrodes' notches are aligned.
+
+        A cell that welds one tab stack per electrode -- a pouch -- needs both,
+        so this is the whole-roll predicate rather than a per-electrode one.
+        Distinct from :meth:`can_align_notches`, which asks whether an electrode
+        *could* be aligned; this asks whether it currently is.
+        """
+        return all(
+            self._notch_alignment_position_of(name) is not None
+            for name in ("cathode", "anode")
+        )
+
+    def notch_alignment_center_x(self, electrode: str) -> float:
+        """Return the x of an electrode's aligned notch stack, in mm.
+
+        The physical coordinate in the roll's own frame -- which is what a cell
+        needs to put a terminal on the tab stack. Not to be confused with
+        ``<electrode>_notch_alignment_position``, which is measured along the
+        straight racetrack section, nor with the collector's
+        ``tab_center_positions``, which are distances along the UNWOUND foil and
+        have no meaning as a position in the wound cell.
+
+        Raises
+        ------
+        TypeError
+            If the electrode's collector cannot carry aligned notches.
+        ValueError
+            If the electrode's notches are not currently aligned.
+        """
+        (electrode,) = self._validate_notch_conversion_electrodes(electrode)
+        position = self._notch_alignment_position_of(electrode)
+        if position is None:
+            raise ValueError(
+                f"The {electrode}'s notches are not aligned, so they have no "
+                "single center to report."
+            )
+        collector = getattr(self._layup, f"_{electrode}")._current_collector
+        target_x = self._notch_alignment_target_x(
+            position, collector, f"{electrode}_notch_alignment_position"
+        )
+        return target_x * M_TO_MM
+
+    # -- footprint (see _Stack for the flat-sheet counterparts) -------------
+    # A roll's footprint is its pressed racetrack, NOT its layup sheet: the
+    # Laminate's width is the foil's cross-web dimension, which ends up along
+    # the roll's HEIGHT once wound, and a Laminate has no height at all.
+
+    @property
+    def footprint_datum_xy(self) -> Tuple[float, float]:
+        """Return the (x, y) the footprint is centered on, in meters."""
+        return (self._datum[0], self._datum[1])
+
+    def tab_stack_x(self, electrode_name: str) -> float:
+        """Return the x of an electrode's tab stack, in meters, in the roll's frame."""
+        return self.notch_alignment_center_x(electrode_name) * MM_TO_M
+
+    def tab_extends_positive_y(self, electrode_name: str) -> bool:
+        """Return whether an electrode's tab leaves the footprint toward +y.
+
+        Read off the built geometry rather than a cathode-up convention: a
+        Laminate expresses electrode orientation by flipping collector
+        coordinates, so the coordinates are the only reliable answer.
+        """
+        collector = getattr(self._layup, f"_{electrode_name}")._current_collector
+        return self._collector_tab_extends_positive_y(collector)
 
     @property
     def cathode_notch_alignment_position_range(self) -> Tuple[float, float]:

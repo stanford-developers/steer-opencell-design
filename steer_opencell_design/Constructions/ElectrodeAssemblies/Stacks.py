@@ -458,6 +458,76 @@ class _Stack(_ElectrodeAssembly):
         """Return the hard range for number of layers as a tuple (min, max)."""
         return (1, 1000)
     
+    # -- footprint (see _ElectrodeAssembly) ---------------------------------
+    # A stack's footprint IS its layup sheet, so these delegate. They exist so a
+    # cell can size itself from ``assembly.width / height / thickness`` whatever
+    # the assembly is; a jelly roll answers from its own pressed racetrack, which
+    # its layup (a Laminate, which has no height at all) could never supply.
+
+    @property
+    def width(self) -> float:
+        """Return the stack's footprint width in mm (its layup's)."""
+        return self._layup.width
+
+    @width.setter
+    def width(self, value: float) -> None:
+        self._layup.width = value
+        self.layup = self._layup
+
+    @property
+    def width_range(self) -> Tuple[float, float]:
+        """Return the valid footprint width range in mm."""
+        return self._layup.width_range
+
+    @property
+    def width_hard_range(self) -> Tuple[float, float]:
+        """Return the hard footprint width range in mm."""
+        return self._layup.width_hard_range
+
+    @property
+    def height(self) -> float:
+        """Return the stack's footprint height in mm (its layup's)."""
+        return self._layup.height
+
+    @height.setter
+    def height(self, value: float) -> None:
+        self._layup.height = value
+        self.layup = self._layup
+
+    @property
+    def height_range(self) -> Tuple[float, float]:
+        """Return the valid footprint height range in mm."""
+        return self._layup.height_range
+
+    @property
+    def height_hard_range(self) -> Tuple[float, float]:
+        """Return the hard footprint height range in mm."""
+        return self._layup.height_hard_range
+
+    @property
+    def footprint_datum_xy(self) -> Tuple[float, float]:
+        """Return the (x, y) the footprint is centered on, in meters."""
+        return (self._layup._cathode._datum[0], self._layup._cathode._datum[1])
+
+    def tab_stack_x(self, electrode_name: str) -> float:
+        """Return the x of an electrode's tab, in meters, in the stack's frame."""
+        collector = getattr(self._layup, f"_{electrode_name}")._current_collector
+        return collector._tab_position - collector._x_foil_length / 2
+
+    def tab_extends_positive_y(self, electrode_name: str) -> bool:
+        """Return whether an electrode's tab leaves the footprint toward +y.
+
+        A stack's cathode tab is always on the +y edge; the anode's is opposite
+        it when the layup is transverse and alongside it when it is not.
+        """
+        from steer_opencell_design.Constructions.Layups.MonoLayers import (
+            ElectrodeOrientation,
+        )
+
+        if electrode_name == "cathode":
+            return True
+        return self._layup._electrode_orientation != ElectrodeOrientation.TRANSVERSE
+
     @property
     def thickness(self) -> float:
         """Return the total thickness of the stack in mm."""
