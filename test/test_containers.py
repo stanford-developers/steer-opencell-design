@@ -3319,6 +3319,136 @@ class TestPrismaticEncapsulation(unittest.TestCase):
         self.assertIsNotNone(enc.canister)
         self.assertEqual(enc.name, "Prismatic Encapsulation")
 
+    # ------------------------------------------------------------------
+    # Connector dimensions are bounded by the canister they sit in
+    # ------------------------------------------------------------------
+
+    def _connector_span(self, connector, axis: int) -> float:
+        """Extent of a connector's rendered footprint along one axis, in mm."""
+        import numpy as np
+
+        coordinates = np.asarray(connector._coordinates, dtype=float)
+        coordinates = coordinates[~np.isnan(coordinates).any(axis=1)]
+        return float(coordinates[:, axis].max() - coordinates[:, axis].min()) * 1000
+
+    def test_connector_limits_follow_the_orientation(self):
+        """Which canister dimension bounds which connector dimension.
+
+        Longitudinal seats the two connectors side by side along the inner
+        width, so each may take at most half of it; transverse seats them on
+        opposite faces, where width instead runs along the inner length and
+        length runs down from the lid along the inner height.
+        """
+        enc = self.encapsulation
+        can, lid = enc.canister, enc.lid_assembly
+
+        enc.connector_orientation = "longitudinal"
+        self.assertEqual(
+            enc.connector_dimension_limits(),
+            (can.inner_width / 2, can.inner_length),
+        )
+
+        enc.connector_orientation = "transverse"
+        self.assertEqual(
+            enc.connector_dimension_limits(),
+            (can.inner_length, can.inner_height - lid.thickness),
+        )
+
+    def test_connector_ranges_come_from_the_canister(self):
+        """The <field>_range convention, so callers discover the real bounds."""
+        enc = self.encapsulation
+        enc.connector_orientation = "longitudinal"
+        connector = enc.cathode_terminal_connector
+        max_width, max_length = enc.connector_dimension_limits()
+
+        self.assertAlmostEqual(connector.width_range[1], max_width)
+        self.assertAlmostEqual(connector.length_range[1], max_length)
+        # A geometric limit has no softer version.
+        self.assertEqual(connector.width_hard_range, connector.width_range)
+        self.assertEqual(connector.length_hard_range, connector.length_range)
+
+    def test_unattached_connector_keeps_the_generic_range(self):
+        """With no canister to be bounded by, the component defaults apply."""
+        from steer_opencell_design.Components.Containers.Prismatic import (
+            PrismaticTerminalConnector,
+            WIDTH_RANGE_MAX,
+        )
+
+        loose = PrismaticTerminalConnector(
+            material=PrismaticContainerMaterial.from_database("Aluminum"),
+            thickness=2.0,
+            width=50.0,
+            length=60.0,
+        )
+        self.assertEqual(loose.width_range[1], WIDTH_RANGE_MAX)
+
+    def test_oversized_connectors_are_clamped_to_the_canister(self):
+        """Regression: going transverse -> longitudinal halves the width budget.
+
+        The two connectors then share the inner width instead of sitting on
+        opposite faces, so dimensions that fitted before no longer do. Left
+        unclamped they overlap each other *and* overhang the wall.
+        """
+        enc = self.encapsulation
+        enc.connector_orientation = "transverse"
+        can = enc.canister
+        for connector in (enc.cathode_terminal_connector, enc.anode_terminal_connector):
+            connector.width = can.inner_length
+            connector.update()
+
+        enc.connector_orientation = "longitudinal"
+
+        can = enc.canister
+        cathode = enc.cathode_terminal_connector
+        anode = enc.anode_terminal_connector
+        for connector in (cathode, anode):
+            self.assertLessEqual(connector.width, can.inner_width / 2 + 1e-9)
+            self.assertLessEqual(connector.length, can.inner_length + 1e-9)
+
+        # Fitting is necessary but not sufficient: two connectors could both be
+        # in range and still be stacked on top of each other.
+        import numpy as np
+
+        spans = []
+        for connector in (cathode, anode):
+            xs = np.asarray(connector._coordinates, dtype=float)[:, 0]
+            xs = xs[~np.isnan(xs)]
+            spans.append((xs.min() * 1000, xs.max() * 1000))
+        (cathode_lo, cathode_hi), (anode_lo, anode_hi) = sorted(spans)
+        self.assertLessEqual(cathode_hi, anode_lo + 1e-9, "connectors overlap")
+
+        inner_half = can.inner_width / 2
+        centre = can.datum[0]
+        self.assertGreaterEqual(cathode_lo, centre - inner_half - 1e-9)
+        self.assertLessEqual(anode_hi, centre + inner_half + 1e-9)
+
+    def test_transverse_length_leaves_room_for_the_lid(self):
+        """The length runs down from the lid, so its thickness comes off."""
+        enc = self.encapsulation
+        enc.connector_orientation = "transverse"
+        connector = enc.cathode_terminal_connector
+        connector.length = enc.connector_dimension_limits()[1]
+        enc.cathode_terminal_connector = connector
+
+        can, lid = enc.canister, enc.lid_assembly
+        span = self._connector_span(enc.cathode_terminal_connector, 0)
+        self.assertAlmostEqual(span, can.inner_height - lid.thickness, places=6)
+
+    def test_connector_position_is_clamped_inside_the_canister(self):
+        """A position is the center's offset, so half the width is the margin."""
+        enc = self.encapsulation
+        enc.connector_orientation = "longitudinal"
+        lowest, highest = enc.cathode_terminal_connector_position_range
+        self.assertAlmostEqual(lowest, enc.cathode_terminal_connector.width / 2)
+        self.assertAlmostEqual(
+            highest, enc.canister.inner_width - enc.cathode_terminal_connector.width / 2
+        )
+
+        enc.cathode_terminal_connector_position = 10000.0
+        self.assertAlmostEqual(enc.cathode_terminal_connector_position, highest)
+        enc.cathode_terminal_connector_position = 0.1
+        self.assertAlmostEqual(enc.cathode_terminal_connector_position, lowest)
+
     def test_plots(self):
         """Test plotting functionality"""
 
