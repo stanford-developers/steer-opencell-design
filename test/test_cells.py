@@ -3223,11 +3223,11 @@ class TestFlatJellyRollPouch(unittest.TestCase):
         self.assertIsNotNone(figure4)
         self.assertIsNotNone(figure5)
 
-        figure1.show(renderer="browser")
-        figure2.show(renderer="browser")
-        figure3.show(renderer="browser")
-        figure4.show(renderer="browser")
-        figure5.show(renderer="browser")
+        # figure1.show(renderer="browser")
+        # figure2.show(renderer="browser")
+        # figure3.show(renderer="browser")
+        # figure4.show(renderer="browser")
+        # figure5.show(renderer="browser")
 
     def test_serialization(self):
         serialized = self.cell.serialize()
