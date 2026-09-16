@@ -114,26 +114,23 @@ class PouchCell(_Cell):
         )
 
         for electrode_name in ("cathode", "anode"):
-            collector = getattr(assembly._layup, f"_{electrode_name}")._current_collector
             terminal = getattr(self._encapsulation, f"_{electrode_name}_terminal")
 
             position_x = assembly.tab_stack_x(electrode_name)
 
-            # Clear the foil edge the tab leaves from, then the clipped tab, then
-            # half the terminal so the terminal's own datum is its center.
-            # ``_clipped_tab_length`` is optional -- it is None on a cell built
-            # without one, and on any cell converted from another form factor,
-            # which cannot supply what it never had. Unclipped means no
-            # allowance, not a crash.
-            reach = (
-                collector._y_foil_length / 2
-                + (self._clipped_tab_length or 0.0)
-                + terminal._length / 2
-            )
+            # Butt the terminal onto the tab: its near edge meets the tab tip,
+            # so its center sits half a terminal beyond it. The assembly owns
+            # where that tip is -- a punched tab stands at its full cut height,
+            # a wound roll's notch stack only at the fraction winding leaves
+            # uncrumpled -- and reading the cut height for both floated a
+            # roll's terminal clear of the tab it is welded to, by more as the
+            # tab was clipped longer.
+            half_terminal = terminal._length / 2
+            tip_y = assembly.tab_tip_y(electrode_name)
             if assembly.tab_extends_positive_y(electrode_name):
-                position_y = collector._datum[1] + reach
+                position_y = tip_y + half_terminal
             else:
-                position_y = collector._datum[1] - reach
+                position_y = tip_y - half_terminal
 
             terminal.datum = (
                 position_x * M_TO_MM,

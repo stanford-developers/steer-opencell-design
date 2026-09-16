@@ -528,6 +528,18 @@ class _Stack(_ElectrodeAssembly):
             return True
         return self._layup._electrode_orientation != ElectrodeOrientation.TRANSVERSE
 
+    def tab_tip_y(self, electrode_name: str) -> float:
+        """Return the y an electrode's tab actually reaches, in meters.
+
+        A punched tab is not wound, so it stands at its full (already clipped)
+        cut height off the foil edge.
+        """
+        collector = getattr(self._layup, f"_{electrode_name}")._current_collector
+        half_foil = collector._y_foil_length / 2
+        if self.tab_extends_positive_y(electrode_name):
+            return collector._datum[1] + half_foil + collector._tab_height
+        return collector._datum[1] - half_foil - collector._tab_height
+
     @property
     def thickness(self) -> float:
         """Return the total thickness of the stack in mm."""

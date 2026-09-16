@@ -5072,6 +5072,38 @@ class FlatWoundJellyRoll(_JellyRoll):
         collector = getattr(self._layup, f"_{electrode_name}")._current_collector
         return self._collector_tab_extends_positive_y(collector)
 
+    def tab_tip_y(self, electrode_name: str) -> float:
+        """Return the y a notch stack actually reaches, in meters.
+
+        Winding crumples an integral tab, so the stack stands
+        ``1 - collector_tab_crumple_factor`` of its cut height off the foil
+        edge -- the same height ``_calculate_notch_stack_top_down_coords``
+        draws it at. A cell welding a terminal to this stack has to meet it
+        where it physically ends, not where an uncrumpled tab of that height
+        would have.
+        """
+        collector = getattr(self._layup, f"_{electrode_name}")._current_collector
+        visible_tab_height = collector._tab_height * (
+            1.0 - self._collector_tab_crumple_factor
+        )
+        half_foil = collector._y_foil_length / 2
+        if self.tab_extends_positive_y(electrode_name):
+            return collector._datum[1] + half_foil + visible_tab_height
+        return collector._datum[1] - half_foil - visible_tab_height
+
+    @property
+    def foil_extent_y(self) -> float:
+        """Return the wound roll's y extent, in meters.
+
+        The base implementation measures the collectors' own foil outlines,
+        which for a roll describe the UNWOUND sheet: its tabs stand at full
+        cut height in a frame the wound cell never occupies. Sizing an
+        enclosure from that inflates it (a 4 mm clipped tab grew the pouch by
+        3 mm over the roll it holds). The roll's own height is the answer, and
+        it already accounts for the crumpled tabs.
+        """
+        return self.height * MM_TO_M
+
     @property
     def cathode_notch_alignment_position_range(self) -> Tuple[float, float]:
         """Return the valid cathode notch alignment position range in mm."""

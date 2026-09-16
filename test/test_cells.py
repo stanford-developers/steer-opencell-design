@@ -6,7 +6,7 @@ import warnings
 from copy import deepcopy
 import steer_opencell_design as ocd
 from steer_core.Mixins.Serializer import SerializerMixin
-from steer_core.Constants.Units import UM_TO_CM, G_TO_mG
+from steer_core.Constants.Units import UM_TO_CM, G_TO_mG, M_TO_MM
 
 
 def _build_tesla_like_nmc_cell():
@@ -3291,6 +3291,65 @@ class TestFlatJellyRollPouch(unittest.TestCase):
 
         self.assertGreater(terminal_y("cathode"), 0)
         self.assertGreater(terminal_y("anode"), 0)
+
+    def test_terminals_meet_the_crumpled_tab_at_any_clip_length(self):
+        """Winding crumples the tab, so the terminal has to meet it lower.
+
+        The notch stack stands (1 - crumple_factor) of its cut height off the
+        foil edge. Placing the terminal at the CUT height floated it clear of
+        the tab by crumple x tab_height -- invisible at the default clip,
+        growing every time the clip was lengthened, and leaving the terminal
+        apparently unconnected inside the sealed area.
+        """
+        roll = self.cell.reference_electrode_assembly
+
+        for clip in (0.5, 2.0, 4.0):
+            with self.subTest(clipped_tab_length=clip):
+                self.cell.clipped_tab_length = clip
+                built = self.cell.electrode_assemblies[0]
+
+                for electrode_name in ("cathode", "anode"):
+                    terminal = getattr(
+                        self.cell.encapsulation, f"{electrode_name}_terminal"
+                    )
+                    tip = built.tab_tip_y(electrode_name) * M_TO_MM
+                    half_terminal = terminal.length / 2
+                    near_edge = (
+                        terminal.datum[1] - half_terminal
+                        if built.tab_extends_positive_y(electrode_name)
+                        else terminal.datum[1] + half_terminal
+                    )
+                    self.assertAlmostEqual(near_edge, tip, places=6)
+
+                # The crumple is real, not a rounding difference: at 50% it
+                # halves the tab the terminal has to reach.
+                collector = built.layup.cathode.current_collector
+                foil_edge = (
+                    collector._datum[1] + collector._y_foil_length / 2
+                ) * M_TO_MM
+                self.assertAlmostEqual(
+                    built.tab_tip_y("cathode") * M_TO_MM - foil_edge,
+                    clip * (1 - roll.collector_tab_crumple_factor / 100),
+                    places=6,
+                )
+
+    def test_the_pouch_tracks_the_roll_not_the_unwound_foil(self):
+        """Clipping the tabs must not grow the pouch past the roll it holds.
+
+        A roll's collector foil coordinates describe the UNWOUND sheet, whose
+        tabs stand at full cut height in a frame the wound cell never occupies.
+        Sizing from those grew the pouch 3 mm beyond the roll at a 4 mm clip.
+        """
+        expected = (
+            self.cell.reference_electrode_assembly.height
+            + self.cell.top_seal_thickness
+            + self.cell.bottom_seal_thickness
+        )
+
+        for clip in (0.5, 2.0, 4.0):
+            with self.subTest(clipped_tab_length=clip):
+                self.cell.clipped_tab_length = clip
+                self.assertAlmostEqual(self.cell.encapsulation.height, expected, places=6)
 
     def test_the_top_down_view_draws_the_roll_not_the_unwound_laminate(self):
         """The figure is of the cell, so it spans the cell.
