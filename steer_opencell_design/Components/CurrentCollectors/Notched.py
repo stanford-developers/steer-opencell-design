@@ -16,6 +16,14 @@ from collections.abc import Iterable
 from typing import Tuple, Optional
 import numpy as np
 
+# Generic tab-width limits in meters, used when the collector is not wound into
+# a flat roll whose racetrack would bound it.
+TAB_WIDTH_MIN = 0.01
+TAB_WIDTH_MAX = 0.5
+
+# Collector -> electrode -> layup -> assembly: how far to look for the roll.
+_RACETRACK_LOOKUP_DEPTH = 4
+
 from steer_opencell_design.Components.CurrentCollectors.Base import _TabbedCurrentCollector, _TapeCurrentCollector
 
 
@@ -662,14 +670,41 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
     @property
     def tab_width_hard_range(self) -> Tuple[float, float]:
-        min = 0.01
-        max = 0.5
-
-        return (min * M_TO_MM, max * M_TO_MM)
+        """Same as ``tab_width_range``: the racetrack limit is not negotiable."""
+        return self.tab_width_range
 
     @property
     def tab_width_range(self) -> Tuple[float, float]:
-        return self.tab_width_hard_range
+        """Valid tab width in mm, capped by the racetrack when flat-wound.
+
+        A notch has to sit on a flat face of the wound profile, so it can never
+        be wider than the pressed mandrel's straight section. Outside a
+        flat-wound roll -- standalone, or in a cylindrical one, which has no
+        straight section -- the generic component limit applies.
+        """
+        lower, upper = TAB_WIDTH_MIN * M_TO_MM, TAB_WIDTH_MAX * M_TO_MM
+        straight_length = self._racetrack_straight_length()
+        if straight_length is not None:
+            upper = min(upper, straight_length)
+        return (lower, upper)
+
+    def _racetrack_straight_length(self) -> Optional[float]:
+        """Straight-section length in mm of the flat-wound roll this is wound into.
+
+        Walks up the ownership chain (collector -> electrode -> layup ->
+        assembly) looking for something that reports a pressed straight length,
+        rather than importing ``FlatWoundJellyRoll`` here, which would be a
+        circular import. ``None`` when there is no such ancestor.
+        """
+        node = self
+        for _ in range(_RACETRACK_LOOKUP_DEPTH):
+            node = node._get_parent() if hasattr(node, "_get_parent") else None
+            if node is None:
+                return None
+            straight_length = getattr(node, "pressed_straight_length", None)
+            if straight_length is not None:
+                return straight_length
+        return None
 
     @tab_spacing.setter
     @calculate_all_properties

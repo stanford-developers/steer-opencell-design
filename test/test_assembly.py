@@ -342,9 +342,17 @@ class TestRoundJellyRoll(unittest.TestCase):
         flat_jellyroll = FlatWoundJellyRoll.from_round_jelly_roll(self.my_jellyroll)
 
         self.assertAlmostEqual(flat_jellyroll.interfacial_area, 23895, 0)
-        self.assertAlmostEqual(flat_jellyroll.cost, 4.53, 2)
+        # Slightly cheaper than the round roll it came from: the 60 mm notches
+        # do not fit the 56.6 mm straight section of the pressed racetrack, so
+        # they are trimmed to it. A notch has to lie on a flat face.
+        self.assertAlmostEqual(flat_jellyroll.cost, 4.52, 2)
         self.assertAlmostEqual(flat_jellyroll.thickness, 19.38, 1)
         self.assertAlmostEqual(flat_jellyroll.width, 75.93, 1)
+        for electrode in ("cathode", "anode"):
+            collector = getattr(flat_jellyroll.layup, electrode).current_collector
+            self.assertLessEqual(
+                collector.tab_width, flat_jellyroll.pressed_straight_length + 1e-9
+            )
 
         figure = flat_jellyroll.plot_spiral()
         # figure.show()
@@ -1095,6 +1103,67 @@ class TestFlatJellyRoll(unittest.TestCase):
 
         with self.assertRaisesRegex(TypeError, "cannot carry aligned notches"):
             self.my_jellyroll.default_notch_alignment_position("anode")
+
+    def test_tab_width_is_capped_by_the_racetrack_straight_section(self):
+        """A notch has to lie on a flat face, so it cannot outgrow it."""
+        straight = self.my_jellyroll.pressed_straight_length
+        for electrode_name in ("cathode", "anode"):
+            with self.subTest(electrode=electrode_name):
+                collector = getattr(
+                    self.my_jellyroll.layup, electrode_name
+                ).current_collector
+                self.assertAlmostEqual(collector.tab_width_range[1], straight)
+                # The racetrack limit is not negotiable, so there is no softer
+                # version of it.
+                self.assertEqual(
+                    collector.tab_width_hard_range, collector.tab_width_range
+                )
+
+    def test_oversized_tab_is_trimmed_to_the_racetrack(self):
+        """Regression: a tab wider than the straight section used to be accepted.
+
+        Unaligned it was silently wrong -- notches wider than the flat face
+        they sit on -- and aligning it afterwards raised instead.
+        """
+        straight = self.my_jellyroll.pressed_straight_length
+        collector = self.my_jellyroll.layup.cathode.current_collector
+
+        collector.tab_width = straight * 1.5
+        collector.propagate_changes()
+
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        self.assertAlmostEqual(collector.tab_width, straight)
+
+        # And the alignment that used to be impossible now works.
+        self.my_jellyroll.cathode_notch_alignment_position = straight / 2
+        self.assertIn("cathode", self.my_jellyroll.thickness_aware_notch_data)
+
+    def test_widening_an_aligned_tab_keeps_the_alignment(self):
+        """Clamping must not knock out an alignment that was already set."""
+        straight = self.my_jellyroll.pressed_straight_length
+        self.my_jellyroll.cathode_notch_alignment_position = straight / 2
+
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        collector.tab_width = straight * 2
+        collector.propagate_changes()
+
+        self.assertAlmostEqual(
+            self.my_jellyroll.layup.cathode.current_collector.tab_width, straight
+        )
+        self.assertAlmostEqual(
+            self.my_jellyroll.cathode_notch_alignment_position, straight / 2
+        )
+
+    def test_collector_outside_a_flat_roll_keeps_the_generic_tab_width_range(self):
+        """No racetrack to bound it: a standalone collector is unaffected."""
+        from steer_opencell_design.Components.CurrentCollectors.Notched import (
+            TAB_WIDTH_MAX,
+        )
+
+        loose = deepcopy(self.my_jellyroll.layup.cathode.current_collector)
+        loose._set_parent(None)
+
+        self.assertAlmostEqual(loose.tab_width_range[1], TAB_WIDTH_MAX * 1000)
 
     def test_notch_alignment_position_ranges_follow_the_range_convention(self):
         """``<field>_range`` tuples, discoverable generically like thickness_range."""

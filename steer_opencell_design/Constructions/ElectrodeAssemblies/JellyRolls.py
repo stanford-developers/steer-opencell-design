@@ -3750,6 +3750,9 @@ class FlatWoundJellyRoll(_JellyRoll):
             laminate_x_spacing, _objective_mode=_objective_mode, **kwargs
         )
         if apply_notch_alignment:
+            # A notch has to sit on a flat face, so trim any that the pressed
+            # racetrack can no longer accommodate before placing them.
+            self._fit_notched_collectors_to_racetrack()
             # Solve notch positions while x is still the pressed mandrel's
             # intrinsic longitudinal axis. The rigid transforms below carry
             # the selected points into the final display coordinates.
@@ -3969,6 +3972,30 @@ class FlatWoundJellyRoll(_JellyRoll):
         racetrack section and cannot be aligned anywhere on it.
         """
         return tab_width / 2, self._pressed_straight_length - tab_width / 2
+
+    def _fit_notched_collectors_to_racetrack(self) -> None:
+        """Shrink any notch that is wider than the pressed straight section.
+
+        A notch is punched into a face that has to lie flat once wound, so it
+        can never be wider than the racetrack's straight run. Clamped silently
+        and on recalculation rather than only in the setter, because the usual
+        cause is the mandrel or the pressing changing underneath a collector
+        that was valid when it was configured.
+
+        Skipped along with the alignment solve during the Brent dimension
+        probes: those only measure thickness and width, which notch geometry
+        does not affect.
+        """
+        for electrode_name in ("cathode", "anode"):
+            electrode = getattr(self._layup, f"_{electrode_name}")
+            collector = electrode._current_collector
+            if not self._collector_can_carry_notches(collector):
+                continue
+            widest = collector.tab_width_range[1]
+            if collector.tab_width <= widest:
+                continue
+            collector.tab_width = widest
+            self._refresh_electrode_after_notch_change(electrode)
 
     def _apply_thickness_aware_notches(self) -> None:
         """Apply configured same-position notch centers to notched collectors.
