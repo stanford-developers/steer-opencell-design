@@ -1033,6 +1033,69 @@ class TestFlatJellyRoll(unittest.TestCase):
 
         self.assertIsNone(self.my_jellyroll.cathode_notch_alignment_position)
 
+    def test_can_align_notches_reports_collector_capability(self):
+        """The public question a caller asks before offering alignment.
+
+        Distinct from whether a position is currently set: a notched collector
+        can be aligned whether or not it already is.
+        """
+        for electrode_name in ("cathode", "anode"):
+            with self.subTest(electrode=electrode_name):
+                self.assertTrue(self.my_jellyroll.can_align_notches(electrode_name))
+                self.assertIsNone(
+                    getattr(
+                        self.my_jellyroll,
+                        f"{electrode_name}_notch_alignment_position",
+                    )
+                )
+
+        layup = self.my_jellyroll.layup
+        layup.cathode.current_collector = TablessCurrentCollector.from_notched(
+            layup.cathode.current_collector
+        )
+        self.my_jellyroll.layup = layup
+
+        self.assertFalse(self.my_jellyroll.can_align_notches("cathode"))
+        self.assertTrue(self.my_jellyroll.can_align_notches("anode"))
+
+        with self.assertRaisesRegex(ValueError, "cathode"):
+            self.my_jellyroll.can_align_notches("separator")
+
+    def test_default_notch_alignment_position_is_mid_straight(self):
+        """The one position valid whenever the tab fits, and the setter takes it."""
+        for electrode_name in ("cathode", "anode"):
+            with self.subTest(electrode=electrode_name):
+                default = self.my_jellyroll.default_notch_alignment_position(
+                    electrode_name
+                )
+                lower, upper = getattr(
+                    self.my_jellyroll,
+                    f"{electrode_name}_notch_alignment_position_range",
+                )
+                self.assertAlmostEqual(default, (lower + upper) / 2)
+                self.assertAlmostEqual(
+                    default, self.my_jellyroll.pressed_straight_length / 2
+                )
+
+                setattr(
+                    self.my_jellyroll,
+                    f"{electrode_name}_notch_alignment_position",
+                    default,
+                )
+                self.assertIn(
+                    electrode_name, self.my_jellyroll.thickness_aware_notch_data
+                )
+
+    def test_default_notch_alignment_position_rejects_an_unalignable_electrode(self):
+        layup = self.my_jellyroll.layup
+        layup.anode.current_collector = TablessCurrentCollector.from_notched(
+            layup.anode.current_collector
+        )
+        self.my_jellyroll.layup = layup
+
+        with self.assertRaisesRegex(TypeError, "cannot carry aligned notches"):
+            self.my_jellyroll.default_notch_alignment_position("anode")
+
     def test_notch_alignment_position_ranges_follow_the_range_convention(self):
         """``<field>_range`` tuples, discoverable generically like thickness_range."""
         for electrode_name in ("cathode", "anode"):

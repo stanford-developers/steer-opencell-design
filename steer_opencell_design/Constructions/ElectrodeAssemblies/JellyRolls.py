@@ -4789,6 +4789,48 @@ class FlatWoundJellyRoll(_JellyRoll):
             )
         return names
 
+    def can_align_notches(self, electrode: str) -> bool:
+        """Return whether an electrode's collector can carry aligned notches.
+
+        Alignment needs discrete tabs to place, so it is available only where
+        the electrode carries a ``NotchedCurrentCollector`` that is not a
+        ``TablessCurrentCollector``. Callers deciding whether to *offer*
+        alignment should use this rather than whether a position happens to be
+        set, which is a different question.
+
+        Parameters
+        ----------
+        electrode : str
+            ``'cathode'`` or ``'anode'``.
+        """
+        (electrode,) = self._validate_notch_conversion_electrodes(electrode)
+        collector = getattr(self._layup, f"_{electrode}")._current_collector
+        return self._collector_can_carry_notches(collector)
+
+    def default_notch_alignment_position(self, electrode: str) -> float:
+        """Return the position in mm to align an electrode's notches at.
+
+        The midpoint of the straight racetrack section: the one position that
+        is valid whenever the tab fits at all, and the furthest from both
+        tangents.
+
+        Raises
+        ------
+        TypeError
+            If the electrode's collector cannot carry aligned notches.
+        """
+        (electrode,) = self._validate_notch_conversion_electrodes(electrode)
+        if not self.can_align_notches(electrode):
+            collector = getattr(self._layup, f"_{electrode}")._current_collector
+            raise TypeError(
+                f"The {electrode} carries a {type(collector).__name__}, which "
+                "cannot carry aligned notches."
+            )
+        lower, upper = self._notch_alignment_position_bounds(
+            getattr(self._layup, f"_{electrode}")._current_collector._tab_width
+        )
+        return (lower + upper) / 2 * M_TO_MM
+
     @staticmethod
     def _collector_can_carry_notches(collector) -> bool:
         """Return whether a collector can hold an aligned notch pattern.
