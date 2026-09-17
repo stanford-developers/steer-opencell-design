@@ -1926,6 +1926,35 @@ class TestStackedPouchCell(unittest.TestCase):
         self.cell.bottom_seal_thickness = 20
         self.assertAlmostEqual(self.cell.bottom_seal_thickness, 20, places=5)
 
+    def test_the_two_seals_render_independently(self):
+        """Each margin must come out at its own thickness, not their mean.
+
+        The pouch is as tall as the assembly plus both seals and the cavity is
+        centered on the assembly, so a centered film split the leftover evenly:
+        1 mm and 5 mm both drew 3 mm, 1 mm and 9 mm both drew 5 mm. The stored
+        numbers were right and the picture was wrong, which made the two look
+        welded together.
+        """
+        import numpy as np
+
+        def rendered_margins():
+            laminate = self.cell.encapsulation._top_laminate
+            film_y = np.asarray(laminate._top_down_coordinates, dtype=float)[:, 1]
+            cavity_y = np.asarray(laminate._cavity_coordinates, dtype=float)[:, 1]
+            return (
+                (film_y.max() - cavity_y.max()) * M_TO_MM,
+                (cavity_y.min() - film_y.min()) * M_TO_MM,
+            )
+
+        for top, bottom in ((5.0, 5.0), (1.0, 5.0), (1.0, 9.0), (7.0, 2.0)):
+            with self.subTest(top=top, bottom=bottom):
+                self.cell.top_seal_thickness = top
+                self.cell.bottom_seal_thickness = bottom
+
+                rendered_top, rendered_bottom = rendered_margins()
+                self.assertAlmostEqual(rendered_top, top, places=6)
+                self.assertAlmostEqual(rendered_bottom, bottom, places=6)
+
     def test_clipped_tab_length_setter(self):
         """Test clipped tab length validation and setting."""
         # Get valid range

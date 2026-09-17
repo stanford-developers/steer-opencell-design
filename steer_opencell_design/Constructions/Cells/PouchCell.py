@@ -141,6 +141,44 @@ class PouchCell(_Cell):
         self._encapsulation._terminals_positioned = True
         self._encapsulation._calculate_volume()
 
+    def _seal_offset_y(self) -> float:
+        """How far the film sits above the assembly it wraps, in meters.
+
+        The pouch is as tall as the assembly plus both seals, and the cavity
+        holding the assembly is centered on the assembly. So whenever the two
+        seals differ, the film has to sit off-center by half that difference
+        for each margin to come out at its own thickness.
+
+        Without it the film stayed centered and the leftover split evenly, so
+        both seals rendered as their mean: setting 1 mm and 5 mm drew 3 mm and
+        3 mm, and 1 mm and 9 mm drew 5 mm and 5 mm. The numbers were right, the
+        geometry was not, and the two seals looked welded together.
+
+        A method rather than a property on purpose: the Database Explorer
+        discovers a cell's float properties reflectively, and a leading
+        underscore does not exempt them, so as a property this would surface
+        in the UI as one of the cell's own quantities.
+        """
+        return (self._top_seal_thickness - self._bottom_seal_thickness) / 2
+
+    def _position_encapsulation(self) -> None:
+        """Center the pouch on its assembly, then offset it for unequal seals.
+
+        The base implementation centers the encapsulation on the assembly,
+        which is only the whole answer when the seals match. See
+        :meth:`_seal_offset_y`.
+        """
+        super()._position_encapsulation()
+
+        offset = self._seal_offset_y()
+        if offset:
+            datum_x, datum_y, datum_z = self._encapsulation.datum
+            self._encapsulation.datum = (
+                datum_x,
+                datum_y + offset * M_TO_MM,
+                datum_z,
+            )
+
     def _hot_press_encapsulation(self) -> None:
         """Apply hot-pressing to top and bottom laminate sheets.
         
@@ -155,7 +193,12 @@ class PouchCell(_Cell):
         _hot_press_width = ref_assembly.width * MM_TO_M
         _hot_press_height = self._encapsulation._top_laminate._height - self._top_seal_thickness - self._bottom_seal_thickness
 
-        _datum = ref_assembly.footprint_datum_xy
+        # The cavity datum is an offset from the film's own datum, and
+        # _position_encapsulation has already moved the film by _seal_offset_y.
+        # Subtracting it back keeps the cavity on the assembly, so the film --
+        # not the pocket -- is what carries the seal asymmetry.
+        _datum_x, _datum_y = ref_assembly.footprint_datum_xy
+        _datum = (_datum_x, _datum_y - self._seal_offset_y())
 
         self._encapsulation._top_laminate._set_hot_press_state(
             -_hot_press_depth_thickness,
