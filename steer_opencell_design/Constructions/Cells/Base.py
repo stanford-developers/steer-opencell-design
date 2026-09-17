@@ -214,6 +214,7 @@ class _Cell(
                 'bottom_seal_thickness': getattr(self, '_bottom_seal_thickness', None) and self._bottom_seal_thickness * M_TO_MM or 5.0,
                 'clipped_tab_length': getattr(self, '_clipped_tab_length', None) and self._clipped_tab_length * M_TO_MM
             }
+            self._align_notches_for_pouch()
         else:
             raise TypeError(f"Unknown encapsulation type: {type(new_encapsulation).__name__}")
         
@@ -235,6 +236,28 @@ class _Cell(
         
         # Restore parent references so children point to self, not new_cell
         self._restore_child_parent_refs()
+
+    def _align_notches_for_pouch(self) -> None:
+        """Give a flat wound jelly roll aligned notches before it enters a pouch.
+
+        A pouch welds one terminal per electrode, so it needs one tab stack per
+        electrode to weld it to -- ``PouchCell`` refuses a roll without them.
+        Converting an existing cell's encapsulation is a deliberate "make this a
+        pouch" instruction, though, so the conversion satisfies the requirement
+        rather than failing on it: ``convert_to_aligned_notches`` notches any
+        tabless collector and aligns both at the straight section's midpoint,
+        the one position valid whenever the tab fits at all.
+
+        Constructing a ``PouchCell`` directly still raises, so the requirement
+        is never silently met behind a caller who asked for something specific.
+        """
+        from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import (
+            FlatWoundJellyRoll,
+        )
+
+        assembly = self._reference_electrode_assembly
+        if isinstance(assembly, FlatWoundJellyRoll) and not assembly.notches_aligned:
+            assembly.convert_to_aligned_notches()
 
     def _calculate_bulk_properties(self) -> None:
         """Calculate electrolyte, mass, and cost properties."""

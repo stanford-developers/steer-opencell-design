@@ -255,7 +255,20 @@ class _ElectrodeAssembly(
     def layup(self) -> _Layup:
         """Return the underlying `_Layup` instance."""
         return self._layup
-    
+
+    @property
+    def foil_extent_y(self) -> float:
+        """Return how far the collectors reach in y, in meters.
+
+        From the top of the cathode foil (tab included) to the bottom of the
+        anode's -- the span an encapsulation has to clear. Read from the
+        layup's own electrodes, which every assembly has, rather than from a
+        stack's repeated instances, which a jelly roll has no equivalent of.
+        """
+        cathode_y = self._layup._cathode._current_collector._foil_coordinates[:, 1]
+        anode_y = self._layup._anode._current_collector._foil_coordinates[:, 1]
+        return float(np.nanmax(cathode_y) - np.nanmin(anode_y))
+
     @property
     def capacity_curve(self) -> pd.DataFrame:
         """Get the full-cell capacity curve as a DataFrame."""

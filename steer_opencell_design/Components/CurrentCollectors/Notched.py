@@ -12,8 +12,17 @@ from steer_core.Constants.Units import *
 # import materials
 from steer_opencell_design.Materials.Other import CurrentCollectorMaterial
 
+from collections.abc import Iterable
 from typing import Tuple, Optional
 import numpy as np
+
+# Generic tab-width limits in meters, used when the collector is not wound into
+# a flat roll whose racetrack would bound it.
+TAB_WIDTH_MIN = 0.01
+TAB_WIDTH_MAX = 0.5
+
+# Collector -> electrode -> layup -> assembly: how far to look for the roll.
+_RACETRACK_LOOKUP_DEPTH = 4
 
 from steer_opencell_design.Components.CurrentCollectors.Base import _TabbedCurrentCollector, _TapeCurrentCollector
 
@@ -82,7 +91,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
     ...     bare_lengths_a_side=(15.0, 15.0),  # Tape connection option
     ...     bare_lengths_b_side=(10.0, 10.0)
     ... )
-    >>> print(f"Number of tabs: {collector.number_of_tabs}")
+    >>> print(f"Number of tabs: {collector.n_tabs}")
     >>> print(f"Total tab area: {collector.total_tab_area:.1f} mm²")
     >>> print(f"Effective resistance: {collector.effective_resistance:.6f} Ω")
 
@@ -118,6 +127,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         insulation_width: Optional[float] = 0,
         name: Optional[str] = "Notched Current Collector",
         datum: Optional[Tuple[float, float, float]] = (0, 0, 0),
+        tab_center_positions: Optional[Iterable[float]] = None,
     ) -> None:
         """
         Initialize an object that represents a notched current collector.
@@ -138,6 +148,10 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
             Spacing between the tabs in mm.
         tab_height : float
             Height of the tabs in mm.
+        tab_center_positions : iterable of float, optional
+            Explicit tab center positions measured from the leading edge of the
+            foil in mm. When provided, these thickness-aware or otherwise
+            custom positions take precedence over ``tab_spacing``.
         coated_tab_height : float
             Height of the coated tab on the top side in mm.
         bare_lengths_a_side : Tuple[float, float]
@@ -151,6 +165,12 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         datum : Optional[Tuple[float, float, float]], default=(0, 0, 0)
             Datum of the current collector in mm.
         """
+        # Must exist before the base-class initialization invokes coordinate
+        # hooks through this class's MRO.
+        self._requested_tab_center_positions = None
+        self._assembly_tab_center_positions = None
+        self._active_tab_center_positions = None
+
         super().__init__(
             material=material,
             x_foil_length=length,
@@ -167,6 +187,7 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         )
 
         self.tab_spacing = tab_spacing
+        self.tab_center_positions = tab_center_positions
         self._calculate_all_properties()
         self._update_properties = True
 
@@ -241,19 +262,87 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         return new_current_collector
 
     def _calculate_tab_positions(self) -> None:
+        """Calculate tab positions for the currently active notch pattern."""
+        self._sync_tab_center_positions()
+
+        centers = self._active_tab_center_positions
+        if centers is not None:
+            self._calculate_explicit_tab_positions(centers)
+            return
+
+        self._calculate_regular_tab_positions()
+
+    def _sync_tab_center_positions(self) -> None:
+        """Derive the active tab centers from the requested and generated patterns.
+
+        Assembly-generated centers take precedence over a user-supplied pattern,
+        which in turn takes precedence over uniform ``tab_spacing``. Centers that
+        no longer fit the current foil length or tab width are inactive but
+        retained, so re-growing the foil (or re-narrowing the tab) restores them.
+        This mirrors ``_TabbedCurrentCollector._sync_weld_tab_positions``.
         """
-        Function to calculate the positions of the tabs along the length of the current collector.
-        """
+        # Objects rebuilt by SerializerMixin._from_dict never run __init__, so
+        # payloads written before these attributes existed carry neither.
+        requested = getattr(self, "_requested_tab_center_positions", None)
+        generated = getattr(self, "_assembly_tab_center_positions", None)
+
+        source = generated if generated is not None else requested
+        if source is None or len(source) == 0:
+            self._active_tab_center_positions = None
+            return
+
+        active = self._select_fitting_tab_centers(np.asarray(source, dtype=float))
+        # A notched collector always needs a current path, so fall back to the
+        # uniform pattern rather than leaving the foil without any notches.
+        self._active_tab_center_positions = active if len(active) else None
+
+    def _select_fitting_tab_centers(self, positions: np.ndarray) -> np.ndarray:
+        """Return the centers that keep a full, non-overlapping tab on the foil."""
+        half_width = self._tab_width / 2
+        on_foil = positions[
+            (positions >= half_width)
+            & (positions <= self._x_foil_length - half_width)
+        ]
+        if len(on_foil) < 2:
+            return on_foil
+
+        # Drop the later member of each overlapping pair so the retained pattern
+        # stays an ordered subset of what was requested.
+        kept = [on_foil[0]]
+        for position in on_foil[1:]:
+            if position - kept[-1] >= self._tab_width:
+                kept.append(position)
+        return np.asarray(kept, dtype=float)
+
+    def _calculate_explicit_tab_positions(
+        self, centers_from_leading_edge: np.ndarray
+    ) -> None:
+        """Calculate tab edges from active centers in internal meter units."""
+        # Collector coordinates are centered on the datum, while tab centers are
+        # measured from the foil's leading (minimum-x) edge.
         x_min = self._datum[0] - self._x_foil_length / 2
+        centers = x_min + np.asarray(centers_from_leading_edge, dtype=float)
+        self._tab_positions = np.column_stack(
+            (
+                centers - self._tab_width / 2,
+                centers + self._tab_width / 2,
+            )
+        )
+
+    def _calculate_regular_tab_positions(self) -> None:
+        """Calculate tab edges using the configured uniform center spacing."""
+        # Convert the datum-centered foil bounds into absolute x-coordinates.
+        x_min = self._datum[0] - self._x_foil_length / 2
+
+        # Search one spacing beyond the trailing edge; the clipping logic below
+        # then retains or trims the final tab according to the legacy behavior.
         x_max = self._datum[0] + self._x_foil_length / 2 + self._tab_spacing
 
-        number_of_tabs = 1
         tab_positions = [x_min + self._tab_spacing / 2]
         tab_starts = [tab_positions[0] - self._tab_width / 2]
         tab_ends = [tab_positions[0] + self._tab_width / 2]
 
         while tab_positions[-1] < x_max:
-            number_of_tabs += 1
             next_tab_position = tab_positions[-1] + self._tab_spacing
 
             if next_tab_position + self._tab_width / 2 > x_max:
@@ -271,6 +360,64 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
             tab_ends[-1] = self._datum[0] + self._x_foil_length / 2
 
         self._tab_positions = np.column_stack((tab_starts, tab_ends))
+
+    def _validate_explicit_tab_center_positions(self, positions: np.ndarray) -> None:
+        """Validate requested tab centers expressed in internal meter units.
+
+        Called from the ``tab_center_positions`` setter before anything is
+        written, so a rejected pattern leaves the collector untouched. Later
+        geometry changes deactivate centers rather than raising; see
+        ``_sync_tab_center_positions``.
+        """
+        if positions.ndim != 1:
+            raise ValueError("tab_center_positions must be a one-dimensional sequence.")
+        if not np.all(np.isfinite(positions)):
+            raise ValueError("tab_center_positions must contain only finite values.")
+        if len(positions) == 0:
+            raise ValueError(
+                "tab_center_positions must contain at least one position; pass "
+                "None to return to uniform tab spacing."
+            )
+
+        minimum_center = self._tab_width / 2
+        maximum_center = self._x_foil_length - self._tab_width / 2
+        if positions[0] < minimum_center or positions[-1] > maximum_center:
+            raise ValueError(
+                "Each tab center must keep the full tab within the foil length."
+            )
+
+        pitches = np.diff(positions)
+        if np.any(pitches <= 0):
+            raise ValueError("tab_center_positions must be strictly increasing.")
+        if np.any(pitches < self._tab_width):
+            raise ValueError("Explicit tabs cannot overlap.")
+
+    def _is_assembly_aligned(self) -> bool:
+        """Return whether a containing assembly currently owns the centers."""
+        return getattr(self, "_assembly_tab_center_positions", None) is not None
+
+    def _set_assembly_tab_center_positions(
+        self, positions: Optional[np.ndarray]
+    ) -> None:
+        """Install or clear assembly-generated centers in internal meter units.
+
+        The generated pattern is a cache derived from the wound geometry, so it
+        never overwrites the user's requested pattern: clearing it restores that
+        pattern without needing a saved snapshot.
+        """
+        if positions is None:
+            self._assembly_tab_center_positions = None
+        else:
+            positions = np.asarray(positions, dtype=float)
+            if positions.ndim != 1 or len(positions) == 0:
+                raise ValueError(
+                    "Assembly-generated tab centers must be a non-empty "
+                    "one-dimensional sequence."
+                )
+            self._assembly_tab_center_positions = positions.copy()
+
+        if getattr(self, "_update_properties", False):
+            self._calculate_all_properties()
 
     def _calculate_coordinates(self):
         self._calculate_tab_positions()
@@ -462,6 +609,33 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         return [(start * M_TO_MM, end * M_TO_MM) for start, end in self._tab_positions]
 
     @property
+    def tab_center_positions(self) -> Optional[list]:
+        """Return the active explicit centers from the foil leading edge in mm.
+
+        ``None`` means the uniform ``tab_spacing`` pattern is in use. As with
+        ``weld_tab_positions``, this reports the centers actually in effect:
+        assembly-generated centers while notch alignment is active, otherwise
+        the requested centers that still fit the current geometry.
+        """
+        positions = getattr(self, "_active_tab_center_positions", None)
+        if positions is None:
+            return None
+        return (positions * M_TO_MM).tolist()
+
+    @property
+    def requested_tab_center_positions(self) -> Optional[list]:
+        """Return the explicit centers as requested, in mm, including inactive ones."""
+        positions = getattr(self, "_requested_tab_center_positions", None)
+        if positions is None:
+            return None
+        return (positions * M_TO_MM).tolist()
+
+    @property
+    def n_tabs(self) -> int:
+        """Return the number of tab segments in the current pattern."""
+        return len(self._tab_positions)
+
+    @property
     def tab_spacing(self) -> float:
         return self._tab_spacing * M_TO_MM
 
@@ -496,26 +670,55 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
 
     @property
     def tab_width_hard_range(self) -> Tuple[float, float]:
-        min = 0.01
-        max = 0.5
-
-        return (min * M_TO_MM, max * M_TO_MM)
+        """Same as ``tab_width_range``: the racetrack limit is not negotiable."""
+        return self.tab_width_range
 
     @property
     def tab_width_range(self) -> Tuple[float, float]:
-        return self.tab_width_hard_range
+        """Valid tab width in mm, capped by the racetrack when flat-wound.
+
+        A notch has to sit on a flat face of the wound profile, so it can never
+        be wider than the pressed mandrel's straight section. Outside a
+        flat-wound roll -- standalone, or in a cylindrical one, which has no
+        straight section -- the generic component limit applies.
+        """
+        lower, upper = TAB_WIDTH_MIN * M_TO_MM, TAB_WIDTH_MAX * M_TO_MM
+        straight_length = self._racetrack_straight_length()
+        if straight_length is not None:
+            upper = min(upper, straight_length)
+        return (lower, upper)
+
+    def _racetrack_straight_length(self) -> Optional[float]:
+        """Straight-section length in mm of the flat-wound roll this is wound into.
+
+        Walks up the ownership chain (collector -> electrode -> layup ->
+        assembly) looking for something that reports a pressed straight length,
+        rather than importing ``FlatWoundJellyRoll`` here, which would be a
+        circular import. ``None`` when there is no such ancestor.
+        """
+        node = self
+        for _ in range(_RACETRACK_LOOKUP_DEPTH):
+            node = node._get_parent() if hasattr(node, "_get_parent") else None
+            if node is None:
+                return None
+            straight_length = getattr(node, "pressed_straight_length", None)
+            if straight_length is not None:
+                return straight_length
+        return None
 
     @tab_spacing.setter
     @calculate_all_properties
     def tab_spacing(self, tab_spacing: float) -> None:
-        
+
         self.validate_positive_float(tab_spacing, "tab_spacing")
-
-        self._tab_spacing = float(tab_spacing) * MM_TO_M
-        self._tab_gap = self._tab_spacing - self._tab_width
-
-        if self._tab_gap < 0:
+        tab_spacing_m = float(tab_spacing) * MM_TO_M
+        tab_gap_m = tab_spacing_m - self._tab_width
+        if tab_gap_m < 0:
             raise ValueError("Tab spacing cannot be less than the tab width.")
+
+        self._tab_spacing = tab_spacing_m
+        self._tab_gap = tab_gap_m
+        self._requested_tab_center_positions = None
 
     @tab_gap.setter
     @calculate_all_properties
@@ -536,7 +739,34 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         # Calculate new tab spacing: gap + tab width
         new_tab_spacing = tab_gap_m + self._tab_width
 
-        # Update internal values
         self._tab_gap = tab_gap_m
         self._tab_spacing = new_tab_spacing
+        self._requested_tab_center_positions = None
 
+    @tab_center_positions.setter
+    @calculate_all_properties
+    def tab_center_positions(
+        self, tab_center_positions: Optional[Iterable[float]]
+    ) -> None:
+        """Set explicit centers from the foil leading edge, in millimeters."""
+        if tab_center_positions is None:
+            self._requested_tab_center_positions = None
+            return
+        if isinstance(tab_center_positions, (str, bytes)) or not isinstance(
+            tab_center_positions, Iterable
+        ):
+            raise TypeError(
+                "tab_center_positions must be an iterable of numbers or None."
+            )
+
+        try:
+            positions = np.asarray(list(tab_center_positions), dtype=float) * MM_TO_M
+        except (TypeError, ValueError) as exc:
+            raise TypeError(
+                "tab_center_positions must be an iterable of numbers or None."
+            ) from exc
+
+        # Validated before anything is written, so a rejected pattern leaves the
+        # previously requested centers in place.
+        self._validate_explicit_tab_center_positions(positions)
+        self._requested_tab_center_positions = positions.copy()

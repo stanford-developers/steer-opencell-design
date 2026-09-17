@@ -15,7 +15,7 @@ from steer_core.Decorators.General import calculate_all_properties, calculate_bu
 from steer_core.Constants.Units import *
 from steer_core.Mixins.Propagation import propagating_setter
 
-from typing import Tuple
+from typing import Optional, Tuple
 import warnings
 import plotly.graph_objects as go
 import numpy as np
@@ -26,7 +26,7 @@ class PouchCell(_Cell):
 
     def __init__(
         self,
-        reference_electrode_assembly: ZFoldStack | PunchedStack,
+        reference_electrode_assembly: ZFoldStack | PunchedStack | FlatWoundJellyRoll,
         n_electrode_assembly: int,
         encapsulation: PouchEncapsulation,
         electrolyte: Electrolyte,
@@ -42,8 +42,9 @@ class PouchCell(_Cell):
 
         Parameters
         ----------
-        reference_electrode_assembly : ZFoldStack | PunchedStack
-            Electrochemical stack defining cell capacity and voltage behavior
+        reference_electrode_assembly : ZFoldStack | PunchedStack | FlatWoundJellyRoll
+            Electrochemical assembly defining cell capacity and voltage behavior.
+            A flat wound jelly roll must already carry aligned notches.
         encapsulation : PouchEncapsulation
             Mechanical housing (canister, lid, terminals) defining external geometry
         electrolyte : Electrolyte
@@ -96,49 +97,87 @@ class PouchCell(_Cell):
         self._hot_press_encapsulation()
 
     def _position_terminals(self) -> None:
-        """Position cathode and anode terminals at tab locations.
-        
-        Calculates terminal positions based on current collector tab positions
-        and clipped tab lengths. Terminals are centered at the average z-position
-        of all electrode assemblies. Terminal positions account for electrode
-        orientation (transverse vs parallel).
+        """Sit each terminal on its electrode's tab, centered across the assemblies.
+
+        The assembly owns where its tab is and which edge it leaves from: a
+        stack has one punched tab per collector, a flat-wound jelly roll has a
+        stack of aligned notches whose physical x only the wound geometry
+        knows. Asking ``tab_stack_x`` / ``tab_extends_positive_y`` keeps that
+        difference where it belongs and leaves this method shape-agnostic.
         """
-        from steer_opencell_design.Constructions.Layups.MonoLayers import ElectrodeOrientation
-        
-        # cathode get the tab position
-        _current_collector = self._electrode_assemblies[0]._layup._cathode._current_collector
-        _terminal = self._encapsulation._cathode_terminal
-        _cathode_connector_position_x = _current_collector._tab_position - _current_collector._x_foil_length / 2
-        _cathode_connector_position_y = _current_collector._datum[1] + _current_collector._y_foil_length / 2 + self._clipped_tab_length + _terminal._length / 2
+        assembly = self._electrode_assemblies[0]
 
-        _current_collector = self._electrode_assemblies[0]._layup._anode._current_collector
-        _terminal = self._encapsulation._anode_terminal
-        _anode_connector_position_x = _current_collector._tab_position - _current_collector._x_foil_length / 2
-        _anode_connector_position_y = _current_collector._datum[1]
-
-        if self._reference_electrode_assembly._layup._electrode_orientation == ElectrodeOrientation.TRANSVERSE:
-            _anode_connector_position_y -= _current_collector._y_foil_length / 2 + self._clipped_tab_length + _terminal._length / 2
-        else:
-            _anode_connector_position_y += _current_collector._y_foil_length / 2 + self._clipped_tab_length + _terminal._length / 2
-
-        # get average z position of assemblies
-        assembly_z_datums = [assembly._datum[2] for assembly in self._electrode_assemblies]
-        avg_assembly_z = np.mean(assembly_z_datums)
-
-        self._encapsulation._cathode_terminal.datum = (
-            _cathode_connector_position_x * M_TO_MM,
-            _cathode_connector_position_y * M_TO_MM,
-            avg_assembly_z * M_TO_MM
+        # Centered across the assemblies: the terminal is welded to the whole
+        # stack of them, not to the first one.
+        avg_assembly_z = np.mean(
+            [each._datum[2] for each in self._electrode_assemblies]
         )
 
-        self._encapsulation._anode_terminal.datum = (
-            _anode_connector_position_x * M_TO_MM,
-            _anode_connector_position_y * M_TO_MM,
-            avg_assembly_z * M_TO_MM
-        )
+        for electrode_name in ("cathode", "anode"):
+            terminal = getattr(self._encapsulation, f"_{electrode_name}_terminal")
+
+            position_x = assembly.tab_stack_x(electrode_name)
+
+            # Butt the terminal onto the tab: its near edge meets the tab tip,
+            # so its center sits half a terminal beyond it. The assembly owns
+            # where that tip is -- a punched tab stands at its full cut height,
+            # a wound roll's notch stack only at the fraction winding leaves
+            # uncrumpled -- and reading the cut height for both floated a
+            # roll's terminal clear of the tab it is welded to, by more as the
+            # tab was clipped longer.
+            half_terminal = terminal._length / 2
+            tip_y = assembly.tab_tip_y(electrode_name)
+            if assembly.tab_extends_positive_y(electrode_name):
+                position_y = tip_y + half_terminal
+            else:
+                position_y = tip_y - half_terminal
+
+            terminal.datum = (
+                position_x * M_TO_MM,
+                position_y * M_TO_MM,
+                avg_assembly_z * M_TO_MM,
+            )
 
         self._encapsulation._terminals_positioned = True
         self._encapsulation._calculate_volume()
+
+    def _seal_offset_y(self) -> float:
+        """How far the film sits above the assembly it wraps, in meters.
+
+        The pouch is as tall as the assembly plus both seals, and the cavity
+        holding the assembly is centered on the assembly. So whenever the two
+        seals differ, the film has to sit off-center by half that difference
+        for each margin to come out at its own thickness.
+
+        Without it the film stayed centered and the leftover split evenly, so
+        both seals rendered as their mean: setting 1 mm and 5 mm drew 3 mm and
+        3 mm, and 1 mm and 9 mm drew 5 mm and 5 mm. The numbers were right, the
+        geometry was not, and the two seals looked welded together.
+
+        A method rather than a property on purpose: the Database Explorer
+        discovers a cell's float properties reflectively, and a leading
+        underscore does not exempt them, so as a property this would surface
+        in the UI as one of the cell's own quantities.
+        """
+        return (self._top_seal_thickness - self._bottom_seal_thickness) / 2
+
+    def _position_encapsulation(self) -> None:
+        """Center the pouch on its assembly, then offset it for unequal seals.
+
+        The base implementation centers the encapsulation on the assembly,
+        which is only the whole answer when the seals match. See
+        :meth:`_seal_offset_y`.
+        """
+        super()._position_encapsulation()
+
+        offset = self._seal_offset_y()
+        if offset:
+            datum_x, datum_y, datum_z = self._encapsulation.datum
+            self._encapsulation.datum = (
+                datum_x,
+                datum_y + offset * M_TO_MM,
+                datum_z,
+            )
 
     def _hot_press_encapsulation(self) -> None:
         """Apply hot-pressing to top and bottom laminate sheets.
@@ -151,12 +190,15 @@ class PouchCell(_Cell):
         """
         ref_assembly = self._reference_electrode_assembly
         _hot_press_depth_thickness = ref_assembly._thickness * self._n_electrode_assembly / 2
-        _hot_press_width = ref_assembly._layup._width
+        _hot_press_width = ref_assembly.width * MM_TO_M
         _hot_press_height = self._encapsulation._top_laminate._height - self._top_seal_thickness - self._bottom_seal_thickness
 
-        _datum_x = ref_assembly._layup._cathode._datum[0]
-        _datum_y = ref_assembly._layup._cathode._datum[1]
-        _datum = (_datum_x, _datum_y)
+        # The cavity datum is an offset from the film's own datum, and
+        # _position_encapsulation has already moved the film by _seal_offset_y.
+        # Subtracting it back keeps the cavity on the assembly, so the film --
+        # not the pocket -- is what carries the seal asymmetry.
+        _datum_x, _datum_y = ref_assembly.footprint_datum_xy
+        _datum = (_datum_x, _datum_y - self._seal_offset_y())
 
         self._encapsulation._top_laminate._set_hot_press_state(
             -_hot_press_depth_thickness,
@@ -184,18 +226,13 @@ class PouchCell(_Cell):
         (which accounts for separator overhang), width includes side seals, and
         thickness accounts for the stack and laminate thicknesses.
         """
-        top_assembly = self._electrode_assemblies[0]
-        cathodes = [c for c in top_assembly._stack if isinstance(c, Cathode)]
-        anodes = [a for a in top_assembly._stack if isinstance(a, Anode)]
-        max_y = cathodes[0]._current_collector._foil_coordinates[:, 1].max()
-        min_y = anodes[0]._current_collector._foil_coordinates[:, 1].min()
-        _foil_extent_y = max_y - min_y
+        _foil_extent_y = self._electrode_assemblies[0].foil_extent_y
 
         ref_assembly = self._reference_electrode_assembly
-        _layup_height = ref_assembly._layup._height
-        _encapsulation_height = max(_foil_extent_y, _layup_height) + self._top_seal_thickness + self._bottom_seal_thickness
+        _assembly_height = ref_assembly.height * MM_TO_M
+        _encapsulation_height = max(_foil_extent_y, _assembly_height) + self._top_seal_thickness + self._bottom_seal_thickness
 
-        _encapsulation_width = ref_assembly._layup._width + 2 * self._side_seal_thickness
+        _encapsulation_width = ref_assembly.width * MM_TO_M + 2 * self._side_seal_thickness
         _encapsulation_thickness = ref_assembly._thickness * self._n_electrode_assembly + self._encapsulation._top_laminate._thickness + self._encapsulation._bottom_laminate._thickness
 
         encapsulation_width = _encapsulation_width * M_TO_MM
@@ -267,10 +304,13 @@ class PouchCell(_Cell):
 
         traces = []
 
-        # Pass opacity to layup's plot_top_down_view
+        # Ask the ASSEMBLY, not its layup (parity with PrismaticCell). A stack
+        # delegates straight back to the layup, so its figure is unchanged; a
+        # jelly roll draws its pressed racetrack instead of the 3.2 m unwound
+        # laminate, which is not a top-down view of anything the pouch contains.
         first_assembly = self._electrode_assemblies[0]
-        layup_traces = first_assembly._layup.plot_top_down_view(opacity=opacity).data
-        traces.extend(layup_traces)
+        assembly_traces = first_assembly.plot_top_down_view(opacity=opacity).data
+        traces.extend(assembly_traces)
 
         encapsulation_traces = self.encapsulation.plot_top_down_view().data
         
@@ -339,7 +379,7 @@ class PouchCell(_Cell):
         return (0.1, 50.0)
 
     @property
-    def reference_electrode_assembly(self) -> ZFoldStack | PunchedStack:
+    def reference_electrode_assembly(self) -> ZFoldStack | PunchedStack | FlatWoundJellyRoll:
         """Get reference electrode assembly."""
         return self._reference_electrode_assembly
     
@@ -349,8 +389,17 @@ class PouchCell(_Cell):
         return self._encapsulation
     
     @property
-    def clipped_tab_length(self) -> float:
-        """Get clipped tab length."""
+    def clipped_tab_length(self) -> Optional[float]:
+        """Get clipped tab length in mm, or None when the tabs are unclipped.
+
+        The setter accepts None (the constructor's default) and ``_clip_tabs``
+        treats it as "leave the tabs alone", so a pouch can legitimately have no
+        clip length -- including any cell converted from another form factor,
+        which cannot supply one it never had. Report that rather than raising on
+        the arithmetic.
+        """
+        if self._clipped_tab_length is None:
+            return None
         return self._clipped_tab_length * M_TO_MM
     
     @property
@@ -380,7 +429,7 @@ class PouchCell(_Cell):
     @property
     def height(self) -> float:
         """Get the total cell height in mm (assembly + seals)."""
-        assembly_height = self._reference_electrode_assembly._layup.height
+        assembly_height = self._reference_electrode_assembly.height
         top_seal_height = self.top_seal_thickness
         bottom_seal_height = self.bottom_seal_thickness
         total_height = assembly_height + top_seal_height + bottom_seal_height
@@ -389,7 +438,7 @@ class PouchCell(_Cell):
     @property
     def height_range(self) -> float:
         """Get the valid range for cell height in mm."""
-        assembly_height_range = self._reference_electrode_assembly._layup.height_range
+        assembly_height_range = self._reference_electrode_assembly.height_range
         top_seal_height = self.top_seal_thickness
         bottom_seal_height = self.bottom_seal_thickness
         min_height = assembly_height_range[0] + top_seal_height + bottom_seal_height
@@ -399,7 +448,7 @@ class PouchCell(_Cell):
     @property
     def height_hard_range(self) -> float:
         """Get the hard limit range for cell height in mm."""
-        assembly_height_hard_range = self._reference_electrode_assembly._layup.height_hard_range
+        assembly_height_hard_range = self._reference_electrode_assembly.height_hard_range
         top_seal_height = self.top_seal_thickness
         bottom_seal_height = self.bottom_seal_thickness
         min_height = assembly_height_hard_range[0] + top_seal_height + bottom_seal_height
@@ -409,7 +458,7 @@ class PouchCell(_Cell):
     @property
     def width(self) -> float:
         """Get the total cell width in mm (assembly + side seals)."""
-        assembly_width = self._reference_electrode_assembly._layup.width
+        assembly_width = self._reference_electrode_assembly.width
         side_seal_width = 2 * self.side_seal_thickness
         total_width = assembly_width + side_seal_width
         return total_width
@@ -417,7 +466,7 @@ class PouchCell(_Cell):
     @property
     def width_range(self) -> float:
         """Get the valid range for cell width in mm."""
-        assembly_width_range = self._reference_electrode_assembly._layup.width_range
+        assembly_width_range = self._reference_electrode_assembly.width_range
         side_seal_width = 2 * self.side_seal_thickness
         min_width = assembly_width_range[0] + side_seal_width
         max_width = assembly_width_range[1] + side_seal_width
@@ -426,7 +475,7 @@ class PouchCell(_Cell):
     @property
     def width_hard_range(self) -> float:
         """Get the hard limit range for cell width in mm."""
-        assembly_width_hard_range = self._reference_electrode_assembly._layup.width_hard_range
+        assembly_width_hard_range = self._reference_electrode_assembly.width_hard_range
         side_seal_width = 2 * self.side_seal_thickness
         min_width = assembly_width_hard_range[0] + side_seal_width
         max_width = assembly_width_hard_range[1] + side_seal_width
@@ -469,10 +518,10 @@ class PouchCell(_Cell):
         current_height = self.height
         height_diff = value - current_height
 
-        # adjust the layup height by the height difference
-        new_layup_height = self._reference_electrode_assembly._layup.height + height_diff
-        self._reference_electrode_assembly._layup.height = new_layup_height
-        self._reference_electrode_assembly.layup = self._reference_electrode_assembly._layup
+        # adjust the assembly's footprint height by the difference
+        self._reference_electrode_assembly.height = (
+            self._reference_electrode_assembly.height + height_diff
+        )
         self.reference_electrode_assembly = self.reference_electrode_assembly
 
     @width.setter
@@ -485,10 +534,10 @@ class PouchCell(_Cell):
         current_width = self.width
         width_diff = value - current_width
 
-        # adjust the layup width by the width difference
-        new_layup_width = self._reference_electrode_assembly._layup.width + width_diff
-        self._reference_electrode_assembly._layup.width = new_layup_width
-        self._reference_electrode_assembly.layup = self._reference_electrode_assembly._layup
+        # adjust the assembly's footprint width by the difference
+        self._reference_electrode_assembly.width = (
+            self._reference_electrode_assembly.width + width_diff
+        )
         self.reference_electrode_assembly = self.reference_electrode_assembly
 
     @thickness.setter
@@ -585,6 +634,14 @@ class PouchCell(_Cell):
             New electrode assembly to set
         """
         self.validate_type(value, (ZFoldStack, PunchedStack, FlatWoundJellyRoll), "reference_electrode_assembly")
+        if isinstance(value, FlatWoundJellyRoll) and not value.notches_aligned:
+            raise ValueError(
+                "A flat wound jelly roll can only sit in a pouch once BOTH "
+                "electrodes' notches are aligned: a pouch welds one terminal "
+                "per electrode, so it needs one tab stack to weld it to. Call "
+                "convert_to_aligned_notches() on the roll first (assigning a "
+                "PouchEncapsulation to an existing cell does this for you)."
+            )
         self._reference_electrode_assembly = value
 
     @encapsulation.setter

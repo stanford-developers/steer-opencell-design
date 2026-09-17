@@ -15,7 +15,7 @@ from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, Optional
 from abc import ABC, abstractmethod
 from enum import Enum
 
@@ -39,6 +39,12 @@ from steer_opencell_design.Components.Containers._mixins import (
 
 # Module-level constants for prismatic components
 DEFAULT_FILL_FACTOR = 0.7
+
+# Fractions of the canister dimension that bounds each connector dimension (see
+# PrismaticEncapsulation.connector_dimension_limits), used to size a connector
+# whose width or length was left unset.
+DEFAULT_CONNECTOR_WIDTH_FRACTION = 0.6
+DEFAULT_CONNECTOR_LENGTH_FRACTION = 0.8
 DEFAULT_ROTATION_DEGREES = 90
 
 # Dimension ranges (in mm)
@@ -629,6 +635,49 @@ class PrismaticTerminalConnector(_PrismaticComponent):
             raise ValueError("Cannot calculate footprint: width or length is not set")
 
         return rectangular_footprint_at_datum(self._width, self._length, self._datum)
+
+    def _canister_limits(self) -> Optional[Tuple[float, float]]:
+        """Return ``(max_width, max_length)`` in mm from the owning encapsulation.
+
+        ``None`` when this connector is not attached to one -- a standalone
+        component has no canister to be bounded by, so it keeps the generic
+        component ranges.
+        """
+        parent = self._get_parent() if hasattr(self, "_get_parent") else None
+        limits = getattr(parent, "connector_dimension_limits", None)
+        return limits() if limits is not None else None
+
+    @property
+    def width_range(self) -> Tuple[float, float]:
+        """Valid width range in mm, bounded by the canister it sits in.
+
+        In a longitudinal encapsulation the two connectors sit side by side
+        along the canister's inner width, so each is capped at half of it; in a
+        transverse one they sit on opposite faces and the cap is the inner
+        length. See ``PrismaticEncapsulation.connector_dimension_limits``.
+        """
+        limits = self._canister_limits()
+        if limits is None:
+            return super().width_range
+        return (WIDTH_RANGE_MIN, limits[0])
+
+    @property
+    def width_hard_range(self) -> Tuple[float, float]:
+        """Same as ``width_range``: a geometric limit has no softer version."""
+        return self.width_range
+
+    @property
+    def length_range(self) -> Tuple[float, float]:
+        """Valid length range in mm, bounded by the canister it sits in."""
+        limits = self._canister_limits()
+        if limits is None:
+            return super().length_range
+        return (LENGTH_RANGE_MIN, limits[1])
+
+    @property
+    def length_hard_range(self) -> Tuple[float, float]:
+        """Same as ``length_range``: a geometric limit has no softer version."""
+        return self.length_range
 
 
 class PrismaticLidAssembly(_PrismaticComponent):
@@ -1682,33 +1731,64 @@ class PrismaticEncapsulation(_Container, DatumMixin):
         self._calculate_mass()
         self._calculate_cost()
     
+    def connector_dimension_limits(self) -> Tuple[float, float]:
+        """Return the largest ``(width, length)`` a terminal connector may take, in mm.
+
+        Which canister dimension bounds which connector dimension depends on the
+        orientation, because the two orientations lay the connectors out
+        differently:
+
+        * ``LONGITUDINAL`` seats both connectors side by side along the
+          canister's inner width, at plus/minus a quarter of it, so they *share*
+          that span -- each may be at most half of it. Their length then runs
+          along the inner length.
+        * ``TRANSVERSE`` seats them on opposite inner faces, separated by the
+          inner width and each only ``thickness`` deep, so they never compete
+          for room. Width then runs along the inner length, while length runs
+          *down from the lid* along the inner height -- so the lid's own
+          thickness comes off that span, which ``inner_height`` alone does not
+          account for.
+
+        Single source of truth for the geometry: the defaults, the clamping and
+        the connectors' own ``width_range`` / ``length_range`` all read it.
+        """
+        if self._connector_orientation == ConnectorOrientation.LONGITUDINAL:
+            max_width = self._canister._inner_width / 2
+            max_length = self._canister._inner_length
+        else:
+            max_width = self._canister._inner_length
+            max_length = self._canister._inner_height - self._lid_assembly._thickness
+        return (max_width * M_TO_MM, max_length * M_TO_MM)
+
+    def _fit_connector_to_canister(self, connector) -> None:
+        """Size one connector to the canister, defaulting then clamping.
+
+        An unset dimension is filled from a fraction of whatever actually bounds
+        it, so a freshly built encapsulation is valid in either orientation
+        rather than being clamped the moment it is read. A dimension that is set
+        but too large is shrunk to fit, silently -- the geometry has to stay
+        valid, and the caller is usually an orientation change rather than a
+        direct edit of this connector.
+        """
+        max_width, max_length = self.connector_dimension_limits()
+
+        if connector._width is None:
+            connector.width = max_width * DEFAULT_CONNECTOR_WIDTH_FRACTION
+        elif connector.width > max_width:
+            connector.width = max_width
+
+        if connector._length is None:
+            connector.length = max_length * DEFAULT_CONNECTOR_LENGTH_FRACTION
+        elif connector.length > max_length:
+            connector.length = max_length
+
     def _set_component_dimensions(self):
         """Set dimensions for lid assembly and terminal connectors based on canister."""
-        connector_width = self._canister._inner_width * 0.3  # 30% of inner width
-        connector_length = self._canister._inner_length * 0.8  # 80% of inner length
-        
         self._lid_assembly.width = self._canister._inner_width * M_TO_MM
         self._lid_assembly.length = self._canister._inner_length * M_TO_MM
 
-        if self._cathode_terminal_connector._width is None:
-            self._cathode_terminal_connector.width = connector_width * M_TO_MM
-        elif self._canister._inner_length < self._cathode_terminal_connector._length:
-            self._cathode_terminal_connector.length = self._canister._inner_length * M_TO_MM
-
-        if self._cathode_terminal_connector._length is None:
-            self._cathode_terminal_connector.length = connector_length * M_TO_MM
-        elif self._canister._inner_length < self._cathode_terminal_connector._length:
-            self._cathode_terminal_connector.length = self._canister._inner_length * M_TO_MM
-
-        if self._anode_terminal_connector._width is None:
-            self._anode_terminal_connector.width = connector_width * M_TO_MM
-        elif self._canister._inner_length < self._anode_terminal_connector._length:
-            self._anode_terminal_connector.length = self._canister._inner_length * M_TO_MM
-
-        if self._anode_terminal_connector._length is None:
-            self._anode_terminal_connector.length = connector_length * M_TO_MM
-        elif self._canister._inner_length < self._anode_terminal_connector._length:
-            self._anode_terminal_connector.length = self._canister._inner_length * M_TO_MM
+        self._fit_connector_to_canister(self._cathode_terminal_connector)
+        self._fit_connector_to_canister(self._anode_terminal_connector)
     
     def _calculate_internal_dimensions(self):
         """Calculate internal dimensions available for cell contents."""
@@ -2130,7 +2210,31 @@ class PrismaticEncapsulation(_Container, DatumMixin):
     def anode_terminal_connector_position(self) -> float:
         """Position of anode terminal connector from left edge in mm (longitudinal mode)."""
         return self._anode_terminal_connector_position
-    
+
+    def _connector_position_range(self, connector) -> Tuple[float, float]:
+        """Range in mm that keeps a whole connector inside the canister.
+
+        The position is its center's distance from the inner left edge, so the
+        connector's own half-width is the margin at each end. Reported for both
+        orientations even though only the longitudinal layout reads the
+        position, rather than inventing a second meaning for it.
+        """
+        half_width = (connector._width or 0.0) / 2
+        return (
+            half_width * M_TO_MM,
+            (self._canister._inner_width - half_width) * M_TO_MM,
+        )
+
+    @property
+    def cathode_terminal_connector_position_range(self) -> Tuple[float, float]:
+        """Positions that keep the whole cathode connector inside the canister."""
+        return self._connector_position_range(self._cathode_terminal_connector)
+
+    @property
+    def anode_terminal_connector_position_range(self) -> Tuple[float, float]:
+        """Positions that keep the whole anode connector inside the canister."""
+        return self._connector_position_range(self._anode_terminal_connector)
+
     @connector_orientation.setter
     @calculate_all_properties
     def connector_orientation(self, orientation) -> None:
@@ -2158,22 +2262,42 @@ class PrismaticEncapsulation(_Container, DatumMixin):
     @cathode_terminal_connector_position.setter
     @calculate_all_properties
     def cathode_terminal_connector_position(self, position: float) -> None:
-        """Set cathode terminal connector position from left edge in mm."""
-        if position is not None:
-            self.validate_positive_float(position, "Cathode Terminal Connector Position")
-            self._cathode_terminal_connector_position = float(position)
-        else:
+        """Set cathode terminal connector position from left edge in mm.
+
+        Clamped so the whole connector stays inside the canister; the caller is
+        often an orientation change rather than a direct edit, and a position
+        that hangs the connector over the wall is never the intent.
+        """
+        if position is None:
             self._cathode_terminal_connector_position = None
+            return
+        self.validate_positive_float(position, "Cathode Terminal Connector Position")
+        lowest, highest = self._connector_position_range(
+            self._cathode_terminal_connector
+        )
+        self._cathode_terminal_connector_position = float(
+            min(max(float(position), lowest), highest)
+        )
     
     @anode_terminal_connector_position.setter
     @calculate_all_properties
     def anode_terminal_connector_position(self, position: float) -> None:
-        """Set anode terminal connector position from left edge in mm."""
-        if position is not None:
-            self.validate_positive_float(position, "Anode Terminal Connector Position")
-            self._anode_terminal_connector_position = float(position)
-        else:
+        """Set anode terminal connector position from left edge in mm.
+
+        Clamped so the whole connector stays inside the canister; the caller is
+        often an orientation change rather than a direct edit, and a position
+        that hangs the connector over the wall is never the intent.
+        """
+        if position is None:
             self._anode_terminal_connector_position = None
+            return
+        self.validate_positive_float(position, "Anode Terminal Connector Position")
+        lowest, highest = self._connector_position_range(
+            self._anode_terminal_connector
+        )
+        self._anode_terminal_connector_position = float(
+            min(max(float(position), lowest), highest)
+        )
 
     @internal_height.setter
     @calculate_all_properties
