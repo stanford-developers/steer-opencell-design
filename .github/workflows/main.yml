@@ -1,9 +1,14 @@
 name: Run Unit Tests
 
 on:
+  # Runs on PRs into main, and on main itself so the README status badge
+  # has a run to report against.
+  push:
+    branches:
+      - main
   pull_request:
     branches:
-      - main 
+      - main
 
 jobs:
   test:
@@ -26,3 +31,10 @@ jobs:
       - name: Run unit tests
         run: |
           pytest
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
