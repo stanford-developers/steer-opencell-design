@@ -1421,7 +1421,27 @@ class _Electrode(
             return
         self._is_anode_free = False
         self.validate_type(formulation, _ElectrodeFormulation, "formulation")
+
+        # Porosity, not calender density, is what survives a formulation change.
+        # :meth:`_calculate_porosity` derives porosity from the formulation's
+        # specific volume, so holding _calender_density across a new formulation
+        # hands the whole change to porosity: swapping LFP for NMC811 moves the
+        # specific volume ~23% and drops the coating to 42% porous, a packing no
+        # calender produces. The recipe the user chose is the porosity; re-base
+        # the calender density onto the new blend and keep it.
+        #
+        # Guarded on _update_properties (the house "fully constructed" flag)
+        # because __init__ assigns the formulation before calender_density. Must
+        # stay in this body: @calculate_all_properties runs after it and is what
+        # recomputes porosity and coating thickness from the new density. Reading
+        # the electrode's own _porosity makes it idempotent, which matters
+        # because propagate_changes() re-enters this setter once per level.
+        keep_porosity = self._porosity if self._update_properties else None
+
         self._formulation = formulation
+
+        if keep_porosity is not None:
+            self._calender_density = (1 - keep_porosity) / formulation._specific_volume
 
     @calender_density.setter
     @calculate_all_properties

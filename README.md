@@ -1,15 +1,22 @@
 # steer-opencell-design
 
+[![Tests](https://github.com/stanford-developers/steer-opencell-design/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/stanford-developers/steer-opencell-design/actions/workflows/main.yml)
+[![Docs](https://github.com/stanford-developers/steer-opencell-design/actions/workflows/docs.yml/badge.svg?branch=main)](https://stanford-developers.github.io/steer-opencell-design/)
+[![codecov](https://codecov.io/gh/stanford-developers/steer-opencell-design/branch/main/graph/badge.svg)](https://codecov.io/gh/stanford-developers/steer-opencell-design)
 [![PyPI version](https://img.shields.io/pypi/v/steer-opencell-design)](https://pypi.org/project/steer-opencell-design/)
 [![Python](https://img.shields.io/pypi/pyversions/steer-opencell-design)](https://pypi.org/project/steer-opencell-design/)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 A Python package for designing and modeling lithium-ion and sodium-ion battery cells. Part of the [STEER](https://github.com/stanford-developers) platform, `steer-opencell-design` provides a hierarchical, composable API for building virtual battery cells from raw materials up to complete cell assemblies, with built-in cost, mass, and electrochemical performance calculations.
 
+**Documentation:** [https://stanford-developers.github.io/steer-opencell-design/](https://stanford-developers.github.io/steer-opencell-design/)
+— full API reference plus concept guides on the object hierarchy, property propagation, and units. The README below is a condensed tour; the documentation site is the canonical reference.
+
 ---
 
 ## Table of Contents
 
+- [Documentation](#documentation)
 - [Features](#features)
 - [Installation](#installation)
 - [Quickstart](#quickstart)
@@ -47,6 +54,18 @@ A Python package for designing and modeling lithium-ion and sodium-ion battery c
 - [Contributing](#contributing)
 - [Citation](#citation)
 - [License](#license)
+
+---
+
+## Documentation
+
+The full documentation is hosted at **[https://stanford-developers.github.io/steer-opencell-design/](https://stanford-developers.github.io/steer-opencell-design/)** and is rebuilt on every merge to `main`.
+
+| Section | Contents |
+|---|---|
+| [Getting started](https://stanford-developers.github.io/steer-opencell-design/getting-started/) | Installation, first cell, and the design workflow. |
+| [Concepts](https://stanford-developers.github.io/steer-opencell-design/concepts/hierarchy/) | The object hierarchy, how property changes propagate, and the units convention. |
+| [API reference](https://stanford-developers.github.io/steer-opencell-design/api/) | Generated reference for every material, component, and construction. |
 
 ---
 
@@ -677,6 +696,8 @@ Higher-level assemblies that combine components.
 ---
 
 ## API Reference
+
+The tables below summarise the most commonly used properties. For the complete generated reference, including every class, method, and signature, see [https://stanford-developers.github.io/steer-opencell-design/api/](https://stanford-developers.github.io/steer-opencell-design/api/).
 
 Properties marked **settable** can be assigned to directly and will trigger recalculation of dependent values. **Read-only** properties are computed automatically. Every settable property also has a corresponding `*_range` (soft) and often a `*_hard_range` (absolute) read-only property that defines the valid bounds for that parameter (omitted from tables below for brevity).
 
