@@ -775,6 +775,8 @@ Shared by all assemblies (`WoundJellyRoll`, `FlatWoundJellyRoll`, `PunchedStack`
 |---|---|---|
 | `thickness` | mm | Overall jelly roll thickness |
 | `width` | mm | Overall jelly roll width |
+| `cathode_notch_alignment_position` | mm or `None` | Cathode notch-center position from the left edge of the unrotated pressed mandrel's straight racetrack section; generates paired ±z notches on each complete turn; `None` keeps scalar spacing. Requires a `NotchedCurrentCollector`; swapping in a collector that cannot carry notches clears the position with a warning rather than failing |
+| `anode_notch_alignment_position` | mm or `None` | Anode notch-center position from the same straight-section edge with paired ±z notches; arrangement follows `laminate.electrode_orientation` |
 
 **`FlatWoundJellyRoll` — additional read-only:**
 
@@ -782,6 +784,23 @@ Shared by all assemblies (`WoundJellyRoll`, `FlatWoundJellyRoll`, `PunchedStack`
 |---|---|---|
 | `pressed_radius` | mm | Pressed mandrel radius |
 | `pressed_straight_length` | mm | Pressed mandrel straight length |
+| `thickness_aware_notch_data` | dict | Calculated centers, center spacings, and gaps by electrode |
+| `cathode_notch_alignment_position_range` | (mm, mm) | Valid cathode alignment position range; a lower bound above the upper bound means the tab is wider than the straight section, and `(0, 0)` means the electrode has no notched collector |
+| `anode_notch_alignment_position_range` | (mm, mm) | Valid anode alignment position range, same conventions |
+
+**`FlatWoundJellyRoll` — additional methods:**
+
+| Method | Description |
+|---|---|
+| `convert_to_aligned_notches(position=None, tab_width=None, electrodes=("cathode", "anode"))` | Replace the named electrodes' current collectors with notched equivalents and align their notches, in one recalculation. `position` defaults to the center of the straight racetrack section — the one position valid whenever the tab fits. Already-notched electrodes are left in place, so repeat calls are no-ops. Returns `thickness_aware_notch_data`; raises without mutating anything if the tab width or position cannot be aligned |
+
+```python
+# Tabless -> notched with aligned notches, in one call:
+roll.convert_to_aligned_notches()
+
+# Or pick the position and tab width explicitly, one electrode at a time:
+roll.convert_to_aligned_notches(position=28, tab_width=20, electrodes="cathode")
+```
 
 **`PunchedStack` / `ZFoldStack` — additional settable:**
 
@@ -944,6 +963,12 @@ Shared by all current collector types.
 | `a_side_coated_section` | (mm, mm) | (start, end) of A-side coating |
 | `b_side_coated_section` | (mm, mm) | (start, end) of B-side coating |
 
+**`NotchedCurrentCollector` — additional settable:**
+
+| Property | Unit | Description |
+|---|---|---|
+| `tab_center_positions` | list of mm or `None` | Optional uneven centers measured from the foil leading edge. Reading it returns the centers currently *in effect*; centers that no longer fit the foil (or that would overlap at the current `tab_width`) are deactivated but retained, and come back when the geometry allows — the same behaviour as `weld_tab_positions`. `None` means uniform `tab_spacing` is in use |
+
 **Tabbed CCs** (`NotchedCurrentCollector`, `TabWeldedCurrentCollector`, `PunchedCurrentCollector`) — **additional settable:**
 
 | Property | Unit | Description |
@@ -965,6 +990,8 @@ Shared by all current collector types.
 | `insulation_area` | cm² | Total insulation area |
 | `top_side` | str | Which side ('a'/'b') faces up |
 | `total_height` | mm | Total height including tab (tabbed types) |
+| `requested_tab_center_positions` | list of mm or `None` | Explicit centers as requested, including any currently deactivated (`NotchedCurrentCollector`) |
+| `n_tabs` | int | Number of tab segments, including a clipped legacy end tab (`NotchedCurrentCollector`) |
 
 ### Separator Properties
 
@@ -1060,7 +1087,8 @@ All visualization methods return [Plotly](https://plotly.com/python/) `go.Figure
 
 | Method | Availability | Description |
 |---|---|---|
-| `get_spiral_plot()` | `WoundJellyRoll`, `FlatWoundJellyRoll` | Spiral winding path visualization |
+| `plot_spiral()` | `WoundJellyRoll`, `FlatWoundJellyRoll` | Spiral winding path visualization |
+| `plot_notch_alignment()` | `FlatWoundJellyRoll` | Racetrack cross-section with paired ±z notch centers |
 | `get_top_down_view()` | All assemblies | Top-down view of the assembly |
 | `get_side_view()` | All assemblies | Side view of the assembly |
 | `get_capacity_plot()` | All assemblies | Assembly-level capacity curves |

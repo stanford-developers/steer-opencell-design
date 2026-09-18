@@ -589,12 +589,17 @@ class PrismaticCell(_Cell):
             from steer_opencell_design.Constructions.Layups.MonoLayers import ElectrodeOrientation
             from steer_opencell_design.Components.Containers.Prismatic import ConnectorOrientation
             if self._update_properties:
+                # Go through the public setter, not the private attribute: only
+                # the setter flips the anode in y, which is what actually puts
+                # the two tabs on the same or opposite edges. Writing the enum
+                # alone leaves the orientation and the geometry disagreeing.
+                layup = self._reference_electrode_assembly._layup
                 if self._encapsulation._connector_orientation == ConnectorOrientation.LONGITUDINAL:
-                    if self._reference_electrode_assembly._layup._electrode_orientation != ElectrodeOrientation.LONGITUDINAL:
-                        self._reference_electrode_assembly._layup._electrode_orientation = ElectrodeOrientation.LONGITUDINAL
+                    if layup._electrode_orientation != ElectrodeOrientation.LONGITUDINAL:
+                        layup.electrode_orientation = ElectrodeOrientation.LONGITUDINAL
                 elif self._encapsulation._connector_orientation == ConnectorOrientation.TRANSVERSE:
-                    if self._reference_electrode_assembly._layup._electrode_orientation != ElectrodeOrientation.TRANSVERSE:
-                        self._reference_electrode_assembly._layup._electrode_orientation = ElectrodeOrientation.TRANSVERSE
+                    if layup._electrode_orientation != ElectrodeOrientation.TRANSVERSE:
+                        layup.electrode_orientation = ElectrodeOrientation.TRANSVERSE
         else:
             # Different type, convert cell
             self._convert_to_cell_type(value)

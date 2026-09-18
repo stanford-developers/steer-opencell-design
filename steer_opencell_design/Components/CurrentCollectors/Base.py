@@ -1272,10 +1272,14 @@ class _TabbedCurrentCollector(_CurrentCollector):
     @calculate_all_properties
     def tab_width(self, tab_width: float) -> None:
         self.validate_positive_float(tab_width, "tab_width")
-        self._tab_width = float(tab_width) * MM_TO_M
 
-        if self._tab_width > self._x_foil_length:
+        # Validate before writing so a rejected width leaves the collector's
+        # geometry and its derived tab positions mutually consistent.
+        new_tab_width = float(tab_width) * MM_TO_M
+        if new_tab_width > self._x_foil_length:
             raise ValueError("Tab width cannot be greater than the length of the current collector.")
+
+        self._tab_width = new_tab_width
 
     @tab_height.setter
     @calculate_all_properties

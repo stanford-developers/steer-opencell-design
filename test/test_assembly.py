@@ -3,9 +3,11 @@
 
 import time
 import unittest
+from unittest.mock import patch
 import pandas as pd
 import plotly.graph_objects as go
 from copy import deepcopy
+import numpy as np
 
 from steer_opencell_design import (
     CathodeFormulation,
@@ -36,6 +38,18 @@ from steer_opencell_design import (
     SeparatorMaterial,
     InsulationMaterial,
     TapeMaterial,
+)
+from steer_core.Constants.Units import M_TO_MM, MM_TO_M
+from steer_core.Constants.Universal import TWO_PI
+from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import (
+    THETA_COL,
+    TURNS_COL,
+    X_COORD_COL,
+    X_UNWRAPPED_COL,
+    Z_COORD_COL,
+)
+from steer_opencell_design.Constructions.ElectrodeAssemblies.SpiralUtils import (
+    SpiralCalculator,
 )
 
 
@@ -328,9 +342,17 @@ class TestRoundJellyRoll(unittest.TestCase):
         flat_jellyroll = FlatWoundJellyRoll.from_round_jelly_roll(self.my_jellyroll)
 
         self.assertAlmostEqual(flat_jellyroll.interfacial_area, 23895, 0)
-        self.assertAlmostEqual(flat_jellyroll.cost, 4.53, 2)
+        # Slightly cheaper than the round roll it came from: the 60 mm notches
+        # do not fit the 56.6 mm straight section of the pressed racetrack, so
+        # they are trimmed to it. A notch has to lie on a flat face.
+        self.assertAlmostEqual(flat_jellyroll.cost, 4.52, 2)
         self.assertAlmostEqual(flat_jellyroll.thickness, 19.38, 1)
         self.assertAlmostEqual(flat_jellyroll.width, 75.93, 1)
+        for electrode in ("cathode", "anode"):
+            collector = getattr(flat_jellyroll.layup, electrode).current_collector
+            self.assertLessEqual(
+                collector.tab_width, flat_jellyroll.pressed_straight_length + 1e-9
+            )
 
         figure = flat_jellyroll.plot_spiral()
         # figure.show()
@@ -646,6 +668,835 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.thickness_range[1], 24.37, 1)
         self.assertAlmostEqual(self.my_jellyroll.width_range[0], 104.48, 1)
         self.assertAlmostEqual(self.my_jellyroll.width_range[1], 125.95, 1)
+
+    def test_thickness_aware_cathode_notches_align_at_physical_position(self):
+        alignment_position = 50.0
+        self.my_jellyroll.cathode_notch_alignment_position = alignment_position
+
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        self.assertIsNotNone(collector.tab_center_positions)
+        self.assertGreater(collector.n_tabs, 2)
+        self.assertEqual(collector.n_tabs % 2, 0)
+
+        spiral = self.my_jellyroll._component_spirals["cathode_current_collector"]
+        valid = np.isfinite(spiral[:, X_UNWRAPPED_COL])
+        component = spiral[valid]
+        unwrapped = component[:, X_UNWRAPPED_COL]
+        order = np.argsort(unwrapped)
+        component = component[order]
+        leading_edge = collector._datum[0] - collector._x_foil_length / 2
+        centers_global = (
+            leading_edge + np.asarray(collector.tab_center_positions) * MM_TO_M
+        )
+        marker_x = np.interp(
+            centers_global,
+            component[:, X_UNWRAPPED_COL],
+            component[:, X_COORD_COL],
+        )
+        marker_z = np.interp(
+            centers_global,
+            component[:, X_UNWRAPPED_COL],
+            component[:, Z_COORD_COL],
+        )
+        rotation_angle = self.my_jellyroll._last_rotation_angle
+        mandrel_axis = np.array(
+            [np.cos(rotation_angle), np.sin(rotation_angle)]
+        )
+        marker_coordinates = np.column_stack((marker_x, marker_z))
+        marker_axis_positions = marker_coordinates @ mandrel_axis
+
+        # Every notch lands at one longitudinal position: that is the alignment
+        # the feature exists to provide. Asserted on the markers themselves so
+        # it needs no datum carried through the display transforms.
+        self.assertLess(np.ptp(marker_axis_positions), 1e-9)
+
+        # The mapping from the requested position to that longitudinal position
+        # is an exact offset, which pins the physical definition frame-free.
+        first_axis_position = float(np.mean(marker_axis_positions))
+        shift = 12.5
+        self.my_jellyroll.cathode_notch_alignment_position = (
+            alignment_position + shift
+        )
+        shifted_collector = self.my_jellyroll.layup.cathode.current_collector
+        shifted_global = (
+            shifted_collector._datum[0]
+            - shifted_collector._x_foil_length / 2
+            + np.asarray(shifted_collector.tab_center_positions) * MM_TO_M
+        )
+        shifted_markers = np.column_stack(
+            (
+                np.interp(
+                    shifted_global,
+                    component[:, X_UNWRAPPED_COL],
+                    component[:, X_COORD_COL],
+                ),
+                np.interp(
+                    shifted_global,
+                    component[:, X_UNWRAPPED_COL],
+                    component[:, Z_COORD_COL],
+                ),
+            )
+        )
+        shifted_axis_position = float(
+            np.mean(shifted_markers @ mandrel_axis)
+        )
+        self.assertAlmostEqual(
+            shifted_axis_position - first_axis_position, shift * MM_TO_M, places=6
+        )
+        self.my_jellyroll.cathode_notch_alignment_position = alignment_position
+
+        marker_turns = np.floor(
+            np.interp(
+                centers_global,
+                component[:, X_UNWRAPPED_COL],
+                component[:, TURNS_COL],
+            )
+            + 1e-12
+        ).astype(int)
+        # The wound geometry is centered on the origin, so a turn's two notches
+        # must straddle it: one on the +z branch, one on the -z branch.
+        radial_axis = np.array([-np.sin(rotation_angle), np.cos(rotation_angle)])
+        marker_radial_positions = marker_coordinates @ radial_axis
+        for turn in np.unique(marker_turns):
+            turn_positions = marker_radial_positions[marker_turns == turn]
+            self.assertEqual(len(turn_positions), 2)
+            self.assertTrue(np.any(turn_positions > 0))
+            self.assertTrue(np.any(turn_positions < 0))
+
+        # The physical x-coordinate is fixed, while the normalized phase shifts
+        # as the racetrack radius and perimeter grow between turns.
+        center_angles = np.interp(
+            centers_global,
+            component[:, X_UNWRAPPED_COL],
+            component[:, THETA_COL],
+        )
+        center_phases = np.mod(center_angles, TWO_PI)
+        self.assertGreater(np.ptp(center_phases), 1e-3)
+
+        data = self.my_jellyroll.thickness_aware_notch_data["cathode"]
+        edges = np.asarray(collector.tab_positions, dtype=float)
+        self.assertEqual(data["alignment_position"], alignment_position)
+        np.testing.assert_allclose(data["centers"], edges.mean(axis=1))
+        np.testing.assert_allclose(data["gaps"], edges[1:, 0] - edges[:-1, 1])
+        self.assertTrue(np.all(np.asarray(data["gaps"]) >= 0))
+
+        figure = self.my_jellyroll.plot_notch_alignment()
+        marker_trace = next(
+            trace for trace in figure.data if trace.name == "Cathode notch centers"
+        )
+        self.assertEqual(len(marker_trace.x), collector.n_tabs)
+        np.testing.assert_array_equal(
+            np.asarray(marker_trace.customdata)[:, 1],
+            np.floor(
+                np.interp(
+                    centers_global,
+                    component[:, X_UNWRAPPED_COL],
+                    component[:, TURNS_COL],
+                )
+                + 1e-12
+            ),
+        )
+
+    def test_top_down_notch_stacks_use_physical_positions_and_transverse_sides(self):
+        self.my_jellyroll.layup.electrode_orientation = "transverse"
+        cathode_position = 50.0
+        anode_position = 65.0
+        self.my_jellyroll.cathode_notch_alignment_position = cathode_position
+        self.my_jellyroll.anode_notch_alignment_position = anode_position
+
+        figure = self.my_jellyroll.plot_top_down_view()
+        cathode_body = next(
+            trace
+            for trace in figure.data
+            if trace.name == "Cathode Current Collector"
+        )
+        anode_body = next(
+            trace
+            for trace in figure.data
+            if trace.name == "Anode Current Collector"
+        )
+        self.assertNotIn(
+            "Cathode notch stack", {trace.name for trace in figure.data}
+        )
+        self.assertNotIn("Anode notch stack", {trace.name for trace in figure.data})
+
+        def tab_extension(trace, collector):
+            x = np.asarray(trace.x)
+            y = np.asarray(trace.y)
+            foil_y_min = (
+                collector._datum[1] - collector._y_foil_length / 2
+            ) * M_TO_MM
+            foil_y_max = (
+                collector._datum[1] + collector._y_foil_length / 2
+            ) * M_TO_MM
+            outside = (y < foil_y_min - 1e-9) | (y > foil_y_max + 1e-9)
+            return x[outside], y[outside], foil_y_min, foil_y_max
+
+        cathode_tab_x, cathode_tab_y, _, cathode_foil_y_max = tab_extension(
+            cathode_body, self.my_jellyroll.layup.cathode.current_collector
+        )
+        anode_tab_x, anode_tab_y, anode_foil_y_min, _ = tab_extension(
+            anode_body, self.my_jellyroll.layup.anode.current_collector
+        )
+
+        # The schematic is axis-aligned with the collector body centered on
+        # x = 0, so the stack sits at the notch's signed distance along the
+        # mandrel axis from that center. Increasing edge distance must read
+        # left-to-right regardless of the cross-section's display rotation.
+        mandrel_axis_center = (
+            self.my_jellyroll._pressed_mandrel_center_x / MM_TO_M
+        )
+        common_offset = -self.my_jellyroll._pressed_straight_length / 2 / MM_TO_M
+        cathode_stack_center = (min(cathode_tab_x) + max(cathode_tab_x)) / 2
+        anode_stack_center = (min(anode_tab_x) + max(anode_tab_x)) / 2
+        self.assertAlmostEqual(
+            cathode_stack_center,
+            mandrel_axis_center + common_offset + cathode_position,
+        )
+        self.assertAlmostEqual(
+            anode_stack_center,
+            mandrel_axis_center + common_offset + anode_position,
+        )
+        self.assertAlmostEqual(
+            anode_stack_center - cathode_stack_center,
+            anode_position - cathode_position,
+        )
+        self.assertTrue(np.all(cathode_tab_y > cathode_foil_y_max))
+        self.assertTrue(np.all(anode_tab_y < anode_foil_y_min))
+
+    def test_top_down_notch_stacks_share_side_when_longitudinal(self):
+        layup = self.my_jellyroll.layup
+        layup.electrode_orientation = "longitudinal"
+        self.my_jellyroll.layup = layup
+        self.my_jellyroll.cathode_notch_alignment_position = 50.0
+        self.my_jellyroll.anode_notch_alignment_position = 65.0
+
+        figure = self.my_jellyroll.plot_top_down_view()
+        cathode_body = next(
+            trace
+            for trace in figure.data
+            if trace.name == "Cathode Current Collector"
+        )
+        anode_body = next(
+            trace
+            for trace in figure.data
+            if trace.name == "Anode Current Collector"
+        )
+
+        for trace, collector in (
+            (cathode_body, self.my_jellyroll.layup.cathode.current_collector),
+            (anode_body, self.my_jellyroll.layup.anode.current_collector),
+        ):
+            y = np.asarray(trace.y)
+            foil_y_max = (
+                collector._datum[1] + collector._y_foil_length / 2
+            ) * M_TO_MM
+            self.assertTrue(np.any(y > foil_y_max))
+            self.assertFalse(
+                np.any(
+                    y
+                    < (collector._datum[1] - collector._y_foil_length / 2)
+                    * M_TO_MM
+                    - 1e-9
+                )
+            )
+
+    def test_disabling_alignment_restores_scalar_spacing(self):
+        self.my_jellyroll.cathode_notch_alignment_position = 50.0
+        self.my_jellyroll.cathode_notch_alignment_position = None
+
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        self.assertIsNone(collector.tab_center_positions)
+        centers = np.asarray(collector.tab_positions, dtype=float).mean(axis=1)
+        # The legacy pattern may clip its final tab at the foil boundary.
+        for spacing in np.diff(centers)[:-1]:
+            self.assertAlmostEqual(spacing, collector.tab_spacing)
+
+    def test_disabling_alignment_restores_explicit_pattern(self):
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        original_centers = [100.0, 300.0]
+        collector.tab_center_positions = original_centers
+
+        self.my_jellyroll.cathode_notch_alignment_position = 50.0
+        self.assertNotEqual(collector.tab_center_positions, original_centers)
+
+        self.my_jellyroll.cathode_notch_alignment_position = None
+        self.assertEqual(collector.tab_center_positions, original_centers)
+
+    def test_recalculation_does_not_replace_explicit_pattern_snapshot(self):
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        original_centers = [100.0, 300.0]
+        collector.tab_center_positions = original_centers
+        self.my_jellyroll.cathode_notch_alignment_position = 50.0
+
+        self.my_jellyroll._calculate_all_properties()
+        self.my_jellyroll._calculate_all_properties()
+        self.my_jellyroll.cathode_notch_alignment_position = None
+
+        self.assertEqual(collector.tab_center_positions, original_centers)
+
+    def test_failed_alignment_recalculation_restores_all_pattern_state(self):
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        original_centers = [100.0, 300.0]
+        collector.tab_center_positions = original_centers
+        original_positions = collector.tab_positions
+        original_spiral = self.my_jellyroll.spiral.copy(deep=True)
+        rotate = self.my_jellyroll._rotate_spirals_to_minimize_thickness
+        calls = 0
+
+        def fail_after_notches_are_applied(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise RuntimeError("forced assembly recalculation failure")
+            return rotate(*args, **kwargs)
+
+        with patch.object(
+            self.my_jellyroll,
+            "_rotate_spirals_to_minimize_thickness",
+            side_effect=fail_after_notches_are_applied,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "forced assembly"):
+                self.my_jellyroll.cathode_notch_alignment_position = 50.0
+
+        self.assertIsNone(self.my_jellyroll.cathode_notch_alignment_position)
+        self.assertEqual(collector.tab_center_positions, original_centers)
+        self.assertEqual(collector.tab_positions, original_positions)
+        pd.testing.assert_frame_equal(self.my_jellyroll.spiral, original_spiral)
+
+    def test_collector_pattern_writes_are_stored_but_superseded_while_aligned(self):
+        """A pattern write while aligned is kept and applies once alignment ends.
+
+        A stateless caller replays a stored edit log and cannot reorder it, so a
+        spacing edit arriving after an alignment edit must not raise. The
+        generated pattern still wins until alignment is disabled.
+        """
+        self.my_jellyroll.cathode_notch_alignment_position = 50.0
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        aligned_positions = collector.tab_positions
+
+        collector.tab_spacing = 200.0
+
+        self.assertEqual(self.my_jellyroll.cathode_notch_alignment_position, 50.0)
+        self.assertEqual(collector.tab_spacing, 200.0)
+        self.assertEqual(collector.tab_positions, aligned_positions)
+
+        # Explicit centers are likewise retained behind the generated pattern.
+        collector.tab_center_positions = [100.0, 300.0]
+        self.assertEqual(collector.tab_positions, aligned_positions)
+        self.assertEqual(
+            collector.requested_tab_center_positions, [100.0, 300.0]
+        )
+
+        self.my_jellyroll.cathode_notch_alignment_position = None
+
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        self.assertEqual(collector.tab_center_positions, [100.0, 300.0])
+
+    def test_replacing_an_aligned_collector_re_applies_the_alignment(self):
+        """Swapping in another notched collector keeps the alignment working."""
+        original_layup = self.my_jellyroll.layup
+        replacement_collector = deepcopy(original_layup.cathode.current_collector)
+        self.my_jellyroll.cathode_notch_alignment_position = 50.0
+        aligned_positions = original_layup.cathode.current_collector.tab_positions
+
+        original_layup.cathode.current_collector = replacement_collector
+        self.my_jellyroll.layup = original_layup
+
+        self.assertIs(
+            self.my_jellyroll.layup.cathode.current_collector, replacement_collector
+        )
+        self.assertEqual(self.my_jellyroll.cathode_notch_alignment_position, 50.0)
+        self.assertEqual(replacement_collector.tab_positions, aligned_positions)
+
+    def test_swapping_to_a_tabless_collector_clears_the_alignment(self):
+        """A collector that cannot carry notches heals rather than raising.
+
+        The app converts component types before replaying field edits, so a
+        stateless caller has no way to clear the position first.
+        """
+        self.my_jellyroll.cathode_notch_alignment_position = 50.0
+        layup = self.my_jellyroll.layup
+        tabless = TablessCurrentCollector.from_notched(
+            layup.cathode.current_collector
+        )
+
+        layup.cathode.current_collector = tabless
+        with self.assertWarnsRegex(UserWarning, "Cleared cathode_notch"):
+            self.my_jellyroll.layup = layup
+
+        self.assertIsNone(self.my_jellyroll.cathode_notch_alignment_position)
+        self.assertNotIn("cathode", self.my_jellyroll.thickness_aware_notch_data)
+
+    def test_setting_a_position_on_a_tabless_collector_is_rejected(self):
+        """An explicit request for an impossible alignment still fails loudly."""
+        layup = self.my_jellyroll.layup
+        layup.cathode.current_collector = TablessCurrentCollector.from_notched(
+            layup.cathode.current_collector
+        )
+        self.my_jellyroll.layup = layup
+
+        with self.assertRaisesRegex(TypeError, "requires a NotchedCurrentCollector"):
+            self.my_jellyroll.cathode_notch_alignment_position = 50.0
+
+        self.assertIsNone(self.my_jellyroll.cathode_notch_alignment_position)
+
+    def test_can_align_notches_reports_collector_capability(self):
+        """The public question a caller asks before offering alignment.
+
+        Distinct from whether a position is currently set: a notched collector
+        can be aligned whether or not it already is.
+        """
+        for electrode_name in ("cathode", "anode"):
+            with self.subTest(electrode=electrode_name):
+                self.assertTrue(self.my_jellyroll.can_align_notches(electrode_name))
+                self.assertIsNone(
+                    getattr(
+                        self.my_jellyroll,
+                        f"{electrode_name}_notch_alignment_position",
+                    )
+                )
+
+        layup = self.my_jellyroll.layup
+        layup.cathode.current_collector = TablessCurrentCollector.from_notched(
+            layup.cathode.current_collector
+        )
+        self.my_jellyroll.layup = layup
+
+        self.assertFalse(self.my_jellyroll.can_align_notches("cathode"))
+        self.assertTrue(self.my_jellyroll.can_align_notches("anode"))
+
+        with self.assertRaisesRegex(ValueError, "cathode"):
+            self.my_jellyroll.can_align_notches("separator")
+
+    def test_default_notch_alignment_position_is_mid_straight(self):
+        """The one position valid whenever the tab fits, and the setter takes it."""
+        for electrode_name in ("cathode", "anode"):
+            with self.subTest(electrode=electrode_name):
+                default = self.my_jellyroll.default_notch_alignment_position(
+                    electrode_name
+                )
+                lower, upper = getattr(
+                    self.my_jellyroll,
+                    f"{electrode_name}_notch_alignment_position_range",
+                )
+                self.assertAlmostEqual(default, (lower + upper) / 2)
+                self.assertAlmostEqual(
+                    default, self.my_jellyroll.pressed_straight_length / 2
+                )
+
+                setattr(
+                    self.my_jellyroll,
+                    f"{electrode_name}_notch_alignment_position",
+                    default,
+                )
+                self.assertIn(
+                    electrode_name, self.my_jellyroll.thickness_aware_notch_data
+                )
+
+    def test_default_notch_alignment_position_rejects_an_unalignable_electrode(self):
+        layup = self.my_jellyroll.layup
+        layup.anode.current_collector = TablessCurrentCollector.from_notched(
+            layup.anode.current_collector
+        )
+        self.my_jellyroll.layup = layup
+
+        with self.assertRaisesRegex(TypeError, "cannot carry aligned notches"):
+            self.my_jellyroll.default_notch_alignment_position("anode")
+
+    def test_tab_width_is_capped_by_the_racetrack_straight_section(self):
+        """A notch has to lie on a flat face, so it cannot outgrow it."""
+        straight = self.my_jellyroll.pressed_straight_length
+        for electrode_name in ("cathode", "anode"):
+            with self.subTest(electrode=electrode_name):
+                collector = getattr(
+                    self.my_jellyroll.layup, electrode_name
+                ).current_collector
+                self.assertAlmostEqual(collector.tab_width_range[1], straight)
+                # The racetrack limit is not negotiable, so there is no softer
+                # version of it.
+                self.assertEqual(
+                    collector.tab_width_hard_range, collector.tab_width_range
+                )
+
+    def test_oversized_tab_is_trimmed_to_the_racetrack(self):
+        """Regression: a tab wider than the straight section used to be accepted.
+
+        Unaligned it was silently wrong -- notches wider than the flat face
+        they sit on -- and aligning it afterwards raised instead.
+        """
+        straight = self.my_jellyroll.pressed_straight_length
+        collector = self.my_jellyroll.layup.cathode.current_collector
+
+        collector.tab_width = straight * 1.5
+        collector.propagate_changes()
+
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        self.assertAlmostEqual(collector.tab_width, straight)
+
+        # And the alignment that used to be impossible now works.
+        self.my_jellyroll.cathode_notch_alignment_position = straight / 2
+        self.assertIn("cathode", self.my_jellyroll.thickness_aware_notch_data)
+
+    def test_widening_an_aligned_tab_keeps_the_alignment(self):
+        """Clamping must not knock out an alignment that was already set."""
+        straight = self.my_jellyroll.pressed_straight_length
+        self.my_jellyroll.cathode_notch_alignment_position = straight / 2
+
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        collector.tab_width = straight * 2
+        collector.propagate_changes()
+
+        self.assertAlmostEqual(
+            self.my_jellyroll.layup.cathode.current_collector.tab_width, straight
+        )
+        self.assertAlmostEqual(
+            self.my_jellyroll.cathode_notch_alignment_position, straight / 2
+        )
+
+    def test_collector_outside_a_flat_roll_keeps_the_generic_tab_width_range(self):
+        """No racetrack to bound it: a standalone collector is unaffected."""
+        from steer_opencell_design.Components.CurrentCollectors.Notched import (
+            TAB_WIDTH_MAX,
+        )
+
+        loose = deepcopy(self.my_jellyroll.layup.cathode.current_collector)
+        loose._set_parent(None)
+
+        self.assertAlmostEqual(loose.tab_width_range[1], TAB_WIDTH_MAX * 1000)
+
+    def test_notch_alignment_position_ranges_follow_the_range_convention(self):
+        """``<field>_range`` tuples, discoverable generically like thickness_range."""
+        for electrode_name in ("cathode", "anode"):
+            with self.subTest(electrode=electrode_name):
+                collector = getattr(
+                    self.my_jellyroll.layup, electrode_name
+                ).current_collector
+                bounds = getattr(
+                    self.my_jellyroll,
+                    f"{electrode_name}_notch_alignment_position_range",
+                )
+                self.assertIsInstance(bounds, tuple)
+                self.assertEqual(len(bounds), 2)
+                self.assertAlmostEqual(bounds[0], collector.tab_width / 2)
+                self.assertAlmostEqual(
+                    bounds[1],
+                    self.my_jellyroll.pressed_straight_length
+                    - collector.tab_width / 2,
+                )
+
+                # The bounds must actually bracket what the setter accepts.
+                setattr(
+                    self.my_jellyroll,
+                    f"{electrode_name}_notch_alignment_position",
+                    bounds[0],
+                )
+                with self.assertRaises(ValueError):
+                    setattr(
+                        self.my_jellyroll,
+                        f"{electrode_name}_notch_alignment_position",
+                        bounds[0] - 1.0,
+                    )
+
+    def test_alignment_configuration_serializes_for_both_electrodes(self):
+        self.my_jellyroll.cathode_notch_alignment_position = 50.0
+        self.my_jellyroll.anode_notch_alignment_position = 65.0
+
+        restored = FlatWoundJellyRoll.deserialize(self.my_jellyroll.serialize())
+
+        self.assertEqual(restored.cathode_notch_alignment_position, 50.0)
+        self.assertEqual(restored.anode_notch_alignment_position, 65.0)
+        self.assertGreater(restored.layup.cathode.current_collector.n_tabs, 2)
+        self.assertGreater(restored.layup.anode.current_collector.n_tabs, 2)
+        self.assertIn("cathode", restored.thickness_aware_notch_data)
+        self.assertIn("anode", restored.thickness_aware_notch_data)
+
+    def test_serialized_alignment_restores_original_explicit_pattern(self):
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        original_centers = [100.0, 300.0]
+        collector.tab_center_positions = original_centers
+        self.my_jellyroll.cathode_notch_alignment_position = 50.0
+
+        restored = FlatWoundJellyRoll.deserialize(self.my_jellyroll.serialize())
+        restored_collector = restored.layup.cathode.current_collector
+        self.assertNotEqual(restored_collector.tab_center_positions, original_centers)
+
+        restored.cathode_notch_alignment_position = None
+        self.assertEqual(restored_collector.tab_center_positions, original_centers)
+
+    def test_shrinking_an_aligned_roll_regenerates_the_pattern(self):
+        """Generated centers are a cache, so a smaller roll re-solves them.
+
+        Regression: previously any shrink raised
+        ``ValueError: Each tab center must keep the full tab within the foil
+        length`` from stale centers, and left the collector and layup lengths
+        disagreeing. Cells drive resizing through ``assembly.thickness``.
+        """
+        self.my_jellyroll.cathode_notch_alignment_position = 50.0
+        self.my_jellyroll.anode_notch_alignment_position = 65.0
+
+        def assert_consistent():
+            for electrode_name in ("cathode", "anode"):
+                collector = getattr(
+                    self.my_jellyroll.layup, electrode_name
+                ).current_collector
+                self.assertAlmostEqual(
+                    collector.x_foil_length, self.my_jellyroll.layup.length, places=6
+                )
+                self.assertGreater(collector.n_tabs, 2)
+                self.assertEqual(collector.n_tabs % 2, 0)
+
+        # Brent converges on layup length, so the achieved dimension lands
+        # within its tolerance rather than exactly on target.
+        self.my_jellyroll.thickness = 11.0
+        self.assertAlmostEqual(self.my_jellyroll.thickness, 11.0, delta=0.5)
+        assert_consistent()
+
+        self.my_jellyroll.width = 110.0
+        self.assertAlmostEqual(self.my_jellyroll.width, 110.0, delta=0.5)
+        assert_consistent()
+
+        self.my_jellyroll.layup.length = 4000
+        self.my_jellyroll.layup = self.my_jellyroll.layup
+        assert_consistent()
+
+    def test_alignment_updates_electrode_and_assembly_mass(self):
+        """Alignment changes the notch count, so mass and cost must follow."""
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        before = (
+            collector.mass,
+            self.my_jellyroll.layup.cathode.mass,
+            self.my_jellyroll.mass,
+            self.my_jellyroll.cost,
+        )
+
+        self.my_jellyroll.cathode_notch_alignment_position = 50.0
+
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        after = (
+            collector.mass,
+            self.my_jellyroll.layup.cathode.mass,
+            self.my_jellyroll.mass,
+            self.my_jellyroll.cost,
+        )
+        for index, (old, new) in enumerate(zip(before, after)):
+            with self.subTest(quantity=index):
+                self.assertNotAlmostEqual(old, new, places=6)
+
+        # The electrode's increase (collector foil plus the coating that the
+        # changed notch pattern exposes) must show up one-for-one in the roll.
+        self.assertGreater(after[1] - before[1], after[0] - before[0])
+        self.assertAlmostEqual(after[2] - before[2], after[1] - before[1], places=9)
+
+        # And it must survive a recalculation and a serialization round trip.
+        self.my_jellyroll._calculate_all_properties()
+        self.assertAlmostEqual(self.my_jellyroll.mass, after[2], places=9)
+        restored = FlatWoundJellyRoll.deserialize(self.my_jellyroll.serialize())
+        self.assertAlmostEqual(restored.mass, after[2], places=9)
+
+    def test_alignment_requires_a_turn_wide_enough_for_the_tab(self):
+        """A pattern with no complete turn must fail loudly, not silently."""
+        with patch.object(
+            SpiralCalculator,
+            "aligned_positions_at_x",
+            return_value=np.empty(0),
+        ):
+            with self.assertRaisesRegex(ValueError, "no complete turn"):
+                self.my_jellyroll.cathode_notch_alignment_position = 50.0
+
+    def test_alignment_rollback_failure_reports_the_original_cause(self):
+        """A failing rollback must not hide why the requested change failed."""
+        calculate = self.my_jellyroll._calculate_all_properties
+        calls = 0
+
+        def fail_twice(*args, **kwargs):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise RuntimeError("original alignment failure")
+            if calls == 2:
+                raise RuntimeError("rollback failure")
+            return calculate(*args, **kwargs)
+
+        with patch.object(
+            self.my_jellyroll,
+            "_calculate_all_properties",
+            side_effect=fail_twice,
+        ):
+            with self.assertRaises(RuntimeError) as caught:
+                self.my_jellyroll.cathode_notch_alignment_position = 50.0
+
+        self.assertIn("Failed to restore", str(caught.exception))
+        self.assertIsInstance(caught.exception.__cause__, RuntimeError)
+        self.assertIn("rollback failure", str(caught.exception.__cause__))
+
+    def test_longitudinal_top_down_body_trims_the_tab_edge_for_both_electrodes(self):
+        """Which y-edge carries the integral tab follows the collector geometry.
+
+        A LONGITUDINAL layup leaves both electrodes unflipped, so both tabs sit
+        on the +y edge. The schematic must trim the crumpled tab from that edge
+        rather than assuming cathode-up / anode-down.
+        """
+        self.my_jellyroll.layup.electrode_orientation = "longitudinal"
+        self.my_jellyroll.layup = self.my_jellyroll.layup
+
+        for electrode_name in ("cathode", "anode"):
+            with self.subTest(electrode=electrode_name):
+                collector = getattr(
+                    self.my_jellyroll.layup, electrode_name
+                ).current_collector
+                self.assertTrue(
+                    self.my_jellyroll._collector_tab_extends_positive_y(collector)
+                )
+
+                foil_y = collector._foil_coordinates[:, 1]
+                foil_y = foil_y[np.isfinite(foil_y)]
+                crumpled_height = (
+                    collector._tab_height
+                    * self.my_jellyroll._collector_tab_crumple_factor
+                )
+                rectangle_y = self.my_jellyroll._component_top_down_coordinates[
+                    f"{electrode_name}_current_collector"
+                ][:, 1]
+
+                # The crumple must come off the tab edge (+y here) and leave the
+                # opposite foil edge intact for both electrodes.
+                self.assertAlmostEqual(
+                    float(np.max(rectangle_y)),
+                    float(np.max(foil_y)) - crumpled_height,
+                    places=9,
+                )
+                self.assertAlmostEqual(
+                    float(np.min(rectangle_y)), float(np.min(foil_y)), places=9
+                )
+
+    def test_roll_rebuilt_without_alignment_attributes_still_recalculates(self):
+        """A payload written before notch alignment existed must still rebuild.
+
+        Regression: ``SerializerMixin._from_dict`` uses ``cls.__new__`` and never
+        runs ``__init__``, so every cell stored before this feature shipped lacks
+        the ``_*_notch_alignment_position`` attributes. Reading them directly
+        raised ``AttributeError`` on the first recalculation, which callers that
+        propagate best-effort swallow -- leaving a silently stale roll.
+        """
+        legacy = deepcopy(self.my_jellyroll)
+        for name in (
+            "_cathode_notch_alignment_position",
+            "_anode_notch_alignment_position",
+        ):
+            delattr(legacy, name)
+
+        self.assertIsNone(legacy.cathode_notch_alignment_position)
+        self.assertIsNone(legacy.anode_notch_alignment_position)
+        self.assertEqual(legacy.thickness_aware_notch_data, {})
+
+        original_straight = legacy.pressed_straight_length
+        legacy.mandrel.height = legacy.mandrel.height * 1.5
+        legacy.mandrel.propagate_changes()
+
+        # The whole pipeline ran: the pressed racetrack *and* everything after it.
+        self.assertNotAlmostEqual(
+            legacy.pressed_straight_length, original_straight, places=6
+        )
+        self.assertGreater(len(legacy._component_top_down_coordinates), 0)
+
+        # And alignment still works once configured on the rebuilt object.
+        legacy.cathode_notch_alignment_position = 50.0
+        self.assertIn("cathode", legacy.thickness_aware_notch_data)
+
+    def test_alignment_position_keeps_complete_tab_on_straight_section(self):
+        original_position = self.my_jellyroll.cathode_notch_alignment_position
+        original_centers = list(
+            self.my_jellyroll.layup.cathode.current_collector.tab_positions
+        )
+        with self.assertRaisesRegex(ValueError, "straight racetrack section"):
+            self.my_jellyroll.cathode_notch_alignment_position = 0.0
+
+        self.assertEqual(
+            self.my_jellyroll.cathode_notch_alignment_position, original_position
+        )
+        self.assertEqual(
+            self.my_jellyroll.layup.cathode.current_collector.tab_positions,
+            original_centers,
+        )
+
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        minimum_position = collector._tab_width / 2 / MM_TO_M
+        self.my_jellyroll.cathode_notch_alignment_position = minimum_position
+        self.assertAlmostEqual(
+            self.my_jellyroll.cathode_notch_alignment_position, minimum_position
+        )
+        minimum_target = self.my_jellyroll._notch_alignment_target_x(
+            minimum_position * MM_TO_M,
+            collector,
+            "cathode_notch_alignment_position",
+        )
+        self.assertAlmostEqual(
+            minimum_target - collector._tab_width / 2,
+            self.my_jellyroll._pressed_mandrel_center_x
+            - self.my_jellyroll._pressed_straight_length / 2,
+        )
+
+        maximum_position = (
+            self.my_jellyroll._pressed_straight_length - collector._tab_width / 2
+        ) / MM_TO_M
+        self.my_jellyroll.cathode_notch_alignment_position = maximum_position
+        self.assertAlmostEqual(
+            self.my_jellyroll.cathode_notch_alignment_position, maximum_position
+        )
+
+    def test_alignment_target_ignores_outer_turn_radius_and_rotation(self):
+        collector = self.my_jellyroll.layup.cathode.current_collector
+        position = 50.0 * MM_TO_M
+        target_before = self.my_jellyroll._notch_alignment_target_x(
+            position, collector, "cathode_notch_alignment_position"
+        )
+
+        # Model a new asymmetric outer point extending farther to the left.
+        non_tape_spirals = {
+            name: spiral
+            for name, spiral in self.my_jellyroll._component_spirals.items()
+            if name != "tape"
+        }
+        component_name = min(
+            non_tape_spirals,
+            key=lambda name: np.nanmin(non_tape_spirals[name][:, X_COORD_COL]),
+        )
+        row_index = int(
+            np.nanargmin(non_tape_spirals[component_name][:, X_COORD_COL])
+        )
+        self.my_jellyroll._component_spirals[component_name][
+            row_index, X_COORD_COL
+        ] -= 1.0 * MM_TO_M
+        self.my_jellyroll._last_rotation_angle = np.pi / 3
+
+        target_after = self.my_jellyroll._notch_alignment_target_x(
+            position, collector, "cathode_notch_alignment_position"
+        )
+        self.assertAlmostEqual(target_after, target_before)
+
+    def test_dimension_setters_tolerate_a_user_explicit_pattern(self):
+        """Probing shorter layup lengths must not trip pattern validation.
+
+        The dimension setters copy the layup and shrink it through Brent's
+        method. Centers that no longer fit are deactivated on the copy rather
+        than raising, so no bespoke pattern-stripping copy helper is needed.
+        """
+        anode_collector = self.my_jellyroll.layup.anode.current_collector
+        anode_collector.tab_center_positions = [100.0, 300.0, 700.0, 1200.0]
+        original_layup_length = self.my_jellyroll.layup.length
+
+        self.my_jellyroll.thickness = 12.0
+
+        self.assertAlmostEqual(self.my_jellyroll.thickness, 12.0, places=1)
+        self.assertNotAlmostEqual(
+            self.my_jellyroll.layup.length, original_layup_length, places=3
+        )
+        np.testing.assert_allclose(
+            self.my_jellyroll.layup.anode.current_collector
+            .requested_tab_center_positions,
+            [100.0, 300.0, 700.0, 1200.0],
+        )
 
     def test_serialization(self):
         serialized = self.my_jellyroll.serialize()

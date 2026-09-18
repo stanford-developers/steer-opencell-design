@@ -5,10 +5,8 @@ import unittest
 import warnings
 from copy import deepcopy
 import steer_opencell_design as ocd
-from steer_opencell_design.Components.Containers.Flexframe import FlexFrameEncapsulation
-from steer_opencell_design.Components.Containers.Pouch import PouchTerminal
 from steer_core.Mixins.Serializer import SerializerMixin
-from steer_core.Constants.Units import UM_TO_CM, G_TO_mG
+from steer_core.Constants.Units import UM_TO_CM, G_TO_mG, M_TO_MM
 
 
 def _build_tesla_like_nmc_cell():
@@ -1267,7 +1265,6 @@ class TestCylindricalCell(unittest.TestCase):
         self.assertEqual(new_cathode_voltage, self.cell.reference_electrode_assembly.layup.cathode.formulation.voltage_cutoff)
 
 
-
 class TestCylindricalCellTabbed(unittest.TestCase):
 
     def setUp(self):
@@ -1928,6 +1925,35 @@ class TestStackedPouchCell(unittest.TestCase):
         # Change bottom seal thickness
         self.cell.bottom_seal_thickness = 20
         self.assertAlmostEqual(self.cell.bottom_seal_thickness, 20, places=5)
+
+    def test_the_two_seals_render_independently(self):
+        """Each margin must come out at its own thickness, not their mean.
+
+        The pouch is as tall as the assembly plus both seals and the cavity is
+        centered on the assembly, so a centered film split the leftover evenly:
+        1 mm and 5 mm both drew 3 mm, 1 mm and 9 mm both drew 5 mm. The stored
+        numbers were right and the picture was wrong, which made the two look
+        welded together.
+        """
+        import numpy as np
+
+        def rendered_margins():
+            laminate = self.cell.encapsulation._top_laminate
+            film_y = np.asarray(laminate._top_down_coordinates, dtype=float)[:, 1]
+            cavity_y = np.asarray(laminate._cavity_coordinates, dtype=float)[:, 1]
+            return (
+                (film_y.max() - cavity_y.max()) * M_TO_MM,
+                (cavity_y.min() - film_y.min()) * M_TO_MM,
+            )
+
+        for top, bottom in ((5.0, 5.0), (1.0, 5.0), (1.0, 9.0), (7.0, 2.0)):
+            with self.subTest(top=top, bottom=bottom):
+                self.cell.top_seal_thickness = top
+                self.cell.bottom_seal_thickness = bottom
+
+                rendered_top, rendered_bottom = rendered_margins()
+                self.assertAlmostEqual(rendered_top, top, places=6)
+                self.assertAlmostEqual(rendered_bottom, bottom, places=6)
 
     def test_clipped_tab_length_setter(self):
         """Test clipped tab length validation and setting."""
@@ -2909,6 +2935,542 @@ class TestFlatJellyRollPrismatic(unittest.TestCase):
             "Cellulose",
         )
 
+    def test_turn_to_notch_aligned(self):
+        """
+        Test to turn this from a prismatic with tabless current collectors to one with tabbed with the notches aligned
+        """
+        figure1 = self.cell.plot_top_down_view()
+        self.assertIsNotNone(figure1)
+
+        notched_current_collector = ocd.NotchedCurrentCollector.from_tabless(self.cell.reference_electrode_assembly.layup.cathode.current_collector)
+        self.cell.reference_electrode_assembly.layup.cathode.current_collector = notched_current_collector
+        self.cell.reference_electrode_assembly.layup.cathode.current_collector.propagate_changes()
+        self.cell.reference_electrode_assembly.cathode_notch_alignment_position = 28
+        self.cell.reference_electrode_assembly.propagate_changes()
+
+        figure2 = self.cell.plot_top_down_view()
+        self.assertIsNotNone(figure2)
+
+        notched_current_collector = ocd.NotchedCurrentCollector.from_tabless(self.cell.reference_electrode_assembly.layup.anode.current_collector)
+        self.cell.reference_electrode_assembly.layup.anode.current_collector = notched_current_collector
+        self.cell.reference_electrode_assembly.layup.anode.current_collector.propagate_changes()
+        self.cell.reference_electrode_assembly.anode_notch_alignment_position = 28
+        self.cell.reference_electrode_assembly.propagate_changes()
+
+        figure3 = self.cell.plot_top_down_view()
+        self.assertIsNotNone(figure3)
+
+        # figure1.show(renderer="browser")
+        # figure2.show(renderer="browser")
+        # figure3.show(renderer="browser")
+
+    def test_convert_to_aligned_notches(self):
+        """One jelly-roll call replaces both tabless collectors and aligns them."""
+        figure1 = self.cell.plot_top_down_view()
+        mass_before = self.cell.mass
+        cost_before = self.cell.cost
+
+        self.cell.reference_electrode_assembly.convert_to_aligned_notches(position=None, tab_width=None, electrodes=["anode", "cathode"])
+
+        self.assertNotAlmostEqual(self.cell.mass, mass_before, places=6)
+        self.assertNotAlmostEqual(self.cell.cost, cost_before, places=6)
+        figure2 = self.cell.plot_top_down_view()
+        self.assertIsNotNone(figure2)
+
+        # figure1.show(renderer="browser")
+        # figure2.show(renderer="browser")
+
+    def test_convert_to_aligned_notches_and_then_longitudinal(self):
+
+        figure1 = self.cell.plot_top_down_view()
+
+        self.cell.reference_electrode_assembly.convert_to_aligned_notches(position=None, tab_width=None, electrodes=["anode", "cathode"])
+
+        figure2 = self.cell.plot_top_down_view()
+        self.assertIsNotNone(figure2)
+
+        self.cell.reference_electrode_assembly.layup.electrode_orientation = "longitudinal"
+        self.cell.reference_electrode_assembly.layup.propagate_changes()
+        figure3 = self.cell.plot_top_down_view()
+
+        # figure1.show(renderer="browser")
+        # figure2.show(renderer="browser")
+        # figure3.show(renderer="browser")
+
+    def test_connector_orientation_flips_the_electrodes(self):
+        """Driving orientation from the encapsulation must move the anode tab.
+
+        Regression: the setter used to assign the layup's private orientation
+        enum directly, bypassing the property setter that performs the y-flip,
+        so the reported orientation and the built geometry disagreed.
+        """
+        roll = self.cell.reference_electrode_assembly
+        roll.convert_to_aligned_notches()
+        self.assertTrue(
+            roll._collector_tab_extends_positive_y(
+                roll.layup.cathode.current_collector
+            )
+        )
+        self.assertFalse(
+            roll._collector_tab_extends_positive_y(
+                roll.layup.anode.current_collector
+            )
+        )
+
+        self.cell.encapsulation.connector_orientation = "longitudinal"
+        self.cell.encapsulation = self.cell.encapsulation
+
+        self.assertEqual(
+            roll.layup.electrode_orientation.value, "longitudinal"
+        )
+        # Both tabs now protrude from the same edge -- the geometry, not just
+        # the enum, has followed the connector.
+        for name in ("cathode", "anode"):
+            with self.subTest(electrode=name):
+                self.assertTrue(
+                    roll._collector_tab_extends_positive_y(
+                        getattr(roll.layup, name).current_collector
+                    )
+                )
+
+    def test_convert_to_aligned_notches_rejects_infeasible_requests(self):
+        """A request that cannot be aligned must leave the layup untouched."""
+        roll = self.cell.reference_electrode_assembly
+
+        # 61.6 mm of straight section cannot hold an 80 mm tab anywhere.
+        with self.assertRaisesRegex(ValueError, "cannot be aligned"):
+            roll.convert_to_aligned_notches(tab_width=80.0)
+
+        # from_tabless starts at a 50 mm tab, leaving a 25.00-36.60 mm window.
+        with self.assertRaisesRegex(ValueError, "25.00 to 36.60 mm"):
+            roll.convert_to_aligned_notches(position=5.0)
+
+        self.assertIsInstance(
+            roll.layup.cathode.current_collector, ocd.TablessCurrentCollector
+        )
+        self.assertIsNone(roll.cathode_notch_alignment_position)
+
+
+class TestFlatJellyRollPouch(unittest.TestCase):
+    """A flat-wound jelly roll with aligned notches inside a pouch.
+
+    The roll is the one from ``TestFlatJellyRollPrismatic``, converted to
+    notched collectors whose notches align into a single tab stack, and the
+    encapsulation is the laminate-film one from ``TestStackedPouchCell``. A
+    pouch is the natural home for that roll: the aligned notches present one
+    welded tab stack per electrode, which is exactly what a pouch terminal
+    expects, so the combination should build and report geometry like any
+    other cell.
+    """
+
+    def setUp(self):
+
+        import steer_opencell_design as ocd
+
+        conductive_additive = ocd.ConductiveAdditive.from_database("Super P")
+        binder = ocd.Binder.from_database("PVDF")
+        insulation = ocd.InsulationMaterial.from_database("Aluminium Oxide, 95%")
+        current_collector_material = ocd.CurrentCollectorMaterial.from_database(
+            "Aluminum"
+        )
+        separator_material = ocd.SeparatorMaterial.from_database("Polyethylene")
+        tape_material = ocd.TapeMaterial.from_database("Kapton")
+
+        cathode_current_collector = ocd.TablessCurrentCollector(
+            material=current_collector_material,
+            width=130,
+            length=3200,
+            coated_width=125,
+            insulation_width=2.5,
+            thickness=13.5,
+        )
+
+        cathode_active_material = ocd.CathodeMaterial.from_database("NFPP")
+
+        cathode_formulation = ocd.CathodeFormulation(
+            active_materials={cathode_active_material: 95},
+            binders={binder: 2.5},
+            conductive_additives={conductive_additive: 2.5},
+        )
+
+        my_cathode = ocd.Cathode(
+            formulation=cathode_formulation,
+            current_collector=cathode_current_collector,
+            calender_density=2.53,
+            mass_loading=20,
+            insulation_material=insulation,
+            insulation_thickness=3,
+        )
+
+        anode_current_collector = ocd.TablessCurrentCollector(
+            material=current_collector_material,
+            width=133,
+            length=3250,
+            coated_width=128,
+            insulation_width=2.5,
+            thickness=13.5,
+        )
+
+        anode_active_material = ocd.AnodeMaterial.from_database(
+            "Hard Carbon (Vendor A)"
+        )
+
+        anode_formulation = ocd.AnodeFormulation(
+            active_materials={anode_active_material: 95},
+            binders={binder: 2.5},
+            conductive_additives={conductive_additive: 2.5},
+        )
+
+        my_anode = ocd.Anode(
+            formulation=anode_formulation,
+            current_collector=anode_current_collector,
+            calender_density=1.1,
+            mass_loading=8,
+            insulation_material=insulation,
+            insulation_thickness=3,
+        )
+
+        top_separator = ocd.Separator(
+            material=separator_material, thickness=12, width=127, length=3600
+        )
+
+        bottom_separator = ocd.Separator(
+            material=separator_material, thickness=12, width=127, length=3600
+        )
+
+        my_layup = ocd.Laminate(
+            anode=my_anode,
+            cathode=my_cathode,
+            top_separator=top_separator,
+            bottom_separator=bottom_separator,
+            name="CBAK-32140NS",
+        )
+
+        mandrel = ocd.FlatMandrel(length=500, width=60, height=5)
+
+        tape = ocd.Tape(material=tape_material, thickness=30, width=130)
+
+        jellyroll = ocd.FlatWoundJellyRoll(
+            laminate=my_layup,
+            mandrel=mandrel,
+            tape=tape,
+            additional_tape_wraps=30,
+            collector_tab_crumple_factor=50,
+        )
+
+        # The point of the fixture: discrete notches, aligned so that every
+        # turn's notch lands on the same straight-section position and they
+        # stack into one tab per electrode.
+        jellyroll.convert_to_aligned_notches(tab_width=30)
+
+        top_laminate_sheet = ocd.LaminateSheet(
+            areal_cost=10,
+            thickness=150,
+            density=1500,
+        )
+
+        bottom_laminate_sheet = ocd.LaminateSheet(
+            areal_cost=10,
+            thickness=150,
+            density=1500,
+        )
+
+        cathode_terminal = ocd.PouchTerminal(
+            material=current_collector_material,
+            thickness=2,
+            width=50,
+            length=40,
+        )
+
+        anode_terminal = ocd.PouchTerminal(
+            material=current_collector_material,
+            thickness=2,
+            width=50,
+            length=40,
+        )
+
+        encapsulation = ocd.PouchEncapsulation(
+            top_laminate=top_laminate_sheet,
+            bottom_laminate=bottom_laminate_sheet,
+            cathode_terminal=cathode_terminal,
+            anode_terminal=anode_terminal,
+            width=150,
+            height=160,
+        )
+
+        electrolyte = ocd.Electrolyte(
+            name="1M NaPF6 in EC:PC:DMC (1:1:1 wt%)",
+            density=1.2,
+            specific_cost=40,
+            color="#FF9D00",
+        )
+
+        self.cell = ocd.PouchCell(
+            reference_electrode_assembly=jellyroll,
+            n_electrode_assembly=1,
+            encapsulation=encapsulation,
+            electrolyte=electrolyte,
+            electrolyte_overfill=10,
+            clipped_tab_length=2,
+            operating_voltage_window=(2, 3.96),
+            name="NFPP Flat Wound Pouch Cell",
+        )
+
+    def test_basics(self):
+        self.assertIsInstance(self.cell, ocd.PouchCell)
+        self.assertIsInstance(
+            self.cell.reference_electrode_assembly, ocd.FlatWoundJellyRoll
+        )
+
+    def test_the_roll_keeps_its_aligned_notches(self):
+        roll = self.cell.reference_electrode_assembly
+
+        for electrode_name in ("cathode", "anode"):
+            collector = getattr(roll.layup, electrode_name).current_collector
+            self.assertIsInstance(collector, ocd.NotchedCurrentCollector)
+            self.assertIsNotNone(
+                getattr(roll, f"{electrode_name}_notch_alignment_position")
+            )
+            self.assertGreater(len(collector.tab_center_positions), 1)
+
+    def test_quantities(self):
+        self.assertGreater(self.cell.mass, 0)
+        self.assertGreater(self.cell.volume, 0)
+        self.assertGreater(self.cell.cost, 0)
+        self.assertGreater(self.cell.energy, 0)
+
+    def test_plots(self):
+        figure1 = self.cell.plot_side_view()
+        figure2 = self.cell.plot_top_down_view()
+        figure3 = self.cell.plot_capacity_curve()
+        figure4 = self.cell.plot_mass_breakdown()
+        figure5 = self.cell.plot_cost_breakdown()
+
+        self.assertIsNotNone(figure1)
+        self.assertIsNotNone(figure2)
+        self.assertIsNotNone(figure3)
+        self.assertIsNotNone(figure4)
+        self.assertIsNotNone(figure5)
+
+        # figure1.show(renderer="browser")
+        # figure2.show(renderer="browser")
+        # figure3.show(renderer="browser")
+        # figure4.show(renderer="browser")
+        # figure5.show(renderer="browser")
+
+    def test_serialization(self):
+        serialized = self.cell.serialize()
+        deserialized = ocd.PouchCell.deserialize(serialized)
+        self.assertIsInstance(
+            deserialized.reference_electrode_assembly, ocd.FlatWoundJellyRoll
+        )
+
+    def test_the_pouch_is_sized_from_the_roll_not_the_layup_sheet(self):
+        """The footprint is the pressed racetrack, not the foil's width.
+
+        For this roll they are nothing alike -- a 125 mm layup sheet winds into
+        a 79.83 mm wide racetrack -- so sizing from the wrong one is obvious in
+        the numbers rather than a rounding difference.
+        """
+        roll = self.cell.reference_electrode_assembly
+        encapsulation = self.cell.encapsulation
+
+        self.assertAlmostEqual(
+            encapsulation.width,
+            roll.width + 2 * self.cell.side_seal_thickness,
+            places=6,
+        )
+        self.assertNotAlmostEqual(encapsulation.width, roll.layup.width, places=0)
+
+    def test_terminals_sit_on_the_aligned_notch_stack(self):
+        """Each terminal lands on its tab, not off in the unwound foil.
+
+        A notch centre is a distance along the UNWOUND foil (thousands of mm);
+        read as a position it puts the terminal far outside the cell and
+        inflates the cell volume several times over. Regression for that.
+        """
+        roll = self.cell.reference_electrode_assembly
+        half_width = roll.width / 2
+
+        for electrode_name in ("cathode", "anode"):
+            terminal = getattr(self.cell.encapsulation, f"{electrode_name}_terminal")
+            terminal_x = terminal.datum[0]
+
+            self.assertAlmostEqual(
+                terminal_x, roll.notch_alignment_center_x(electrode_name), places=6
+            )
+            self.assertLessEqual(abs(terminal_x), half_width)
+
+    def test_terminals_follow_the_electrode_orientation(self):
+        """Transverse puts the terminals on opposite edges, longitudinal on one."""
+
+        def terminal_y(electrode_name):
+            return getattr(
+                self.cell.encapsulation, f"{electrode_name}_terminal"
+            ).datum[1]
+
+        # The fixture is transverse: the tabs leave from opposite foil edges.
+        self.assertGreater(terminal_y("cathode"), 0)
+        self.assertLess(terminal_y("anode"), 0)
+
+        roll = self.cell.reference_electrode_assembly
+        roll.layup.electrode_orientation = "longitudinal"
+        roll.layup = roll.layup
+        self.cell.reference_electrode_assembly = self.cell.reference_electrode_assembly
+
+        self.assertGreater(terminal_y("cathode"), 0)
+        self.assertGreater(terminal_y("anode"), 0)
+
+    def test_terminals_meet_the_crumpled_tab_at_any_clip_length(self):
+        """Winding crumples the tab, so the terminal has to meet it lower.
+
+        The notch stack stands (1 - crumple_factor) of its cut height off the
+        foil edge. Placing the terminal at the CUT height floated it clear of
+        the tab by crumple x tab_height -- invisible at the default clip,
+        growing every time the clip was lengthened, and leaving the terminal
+        apparently unconnected inside the sealed area.
+        """
+        roll = self.cell.reference_electrode_assembly
+
+        for clip in (0.5, 2.0, 4.0):
+            with self.subTest(clipped_tab_length=clip):
+                self.cell.clipped_tab_length = clip
+                built = self.cell.electrode_assemblies[0]
+
+                for electrode_name in ("cathode", "anode"):
+                    terminal = getattr(
+                        self.cell.encapsulation, f"{electrode_name}_terminal"
+                    )
+                    tip = built.tab_tip_y(electrode_name) * M_TO_MM
+                    half_terminal = terminal.length / 2
+                    near_edge = (
+                        terminal.datum[1] - half_terminal
+                        if built.tab_extends_positive_y(electrode_name)
+                        else terminal.datum[1] + half_terminal
+                    )
+                    self.assertAlmostEqual(near_edge, tip, places=6)
+
+                # The crumple is real, not a rounding difference: at 50% it
+                # halves the tab the terminal has to reach.
+                collector = built.layup.cathode.current_collector
+                foil_edge = (
+                    collector._datum[1] + collector._y_foil_length / 2
+                ) * M_TO_MM
+                self.assertAlmostEqual(
+                    built.tab_tip_y("cathode") * M_TO_MM - foil_edge,
+                    clip * (1 - roll.collector_tab_crumple_factor / 100),
+                    places=6,
+                )
+
+    def test_the_pouch_tracks_the_roll_not_the_unwound_foil(self):
+        """Clipping the tabs must not grow the pouch past the roll it holds.
+
+        A roll's collector foil coordinates describe the UNWOUND sheet, whose
+        tabs stand at full cut height in a frame the wound cell never occupies.
+        Sizing from those grew the pouch 3 mm beyond the roll at a 4 mm clip.
+        """
+        expected = (
+            self.cell.reference_electrode_assembly.height
+            + self.cell.top_seal_thickness
+            + self.cell.bottom_seal_thickness
+        )
+
+        for clip in (0.5, 2.0, 4.0):
+            with self.subTest(clipped_tab_length=clip):
+                self.cell.clipped_tab_length = clip
+                self.assertAlmostEqual(self.cell.encapsulation.height, expected, places=6)
+
+    def test_the_top_down_view_draws_the_roll_not_the_unwound_laminate(self):
+        """The figure is of the cell, so it spans the cell.
+
+        Plotting the layup instead draws the 3.2 m unwound sheet with the pouch
+        squeezed into the far left of it -- correct for a stack, whose layup IS
+        its footprint, and nonsense for a roll.
+        """
+        import numpy as np
+
+        figure = self.cell.plot_top_down_view()
+        xs = [
+            float(value)
+            for trace in figure.data
+            if getattr(trace, "x", None) is not None
+            for value in np.asarray(trace.x, dtype=float).ravel()
+            if np.isfinite(value)
+        ]
+
+        span = max(xs) - min(xs)
+        self.assertAlmostEqual(span, self.cell.encapsulation.width, places=3)
+        self.assertLess(span, self.cell.reference_electrode_assembly.layup.length / 10)
+
+    def test_clipping_shortens_the_notches(self):
+        """A pouch clips its tabs, and a roll's notches are its tabs.
+
+        The clip lands on the built assemblies, not on the reference one --
+        ``_make_assemblies`` deep-copies before ``_clip_tabs`` runs, and those
+        copies are what the encapsulation is sized and positioned against.
+        """
+        built = self.cell.electrode_assemblies[0]
+        self.assertAlmostEqual(
+            built.layup.cathode.current_collector.tab_height,
+            self.cell.clipped_tab_length,
+            places=6,
+        )
+
+        self.cell.clipped_tab_length = 1.0
+
+        built = self.cell.electrode_assemblies[0]
+        collector = built.layup.cathode.current_collector
+        self.assertAlmostEqual(collector.tab_height, 1.0, places=6)
+        # The notches survive the clip rather than being dropped.
+        self.assertTrue(built.notches_aligned)
+        self.assertGreater(len(collector.tab_center_positions), 1)
+
+
+class TestFlatJellyRollPouchRequiresAlignedNotches(unittest.TestCase):
+    """A pouch needs one tab stack per electrode to weld its terminals to.
+
+    Constructing one directly is an explicit request and is refused when the
+    roll cannot satisfy it; converting an existing cell's encapsulation is a
+    "make this a pouch" instruction, so it satisfies the requirement instead.
+    """
+
+    def setUp(self):
+        self.prismatic = TestFlatJellyRollPrismatic("test_basics")
+        self.prismatic.setUp()
+        self.cell = self.prismatic.cell
+
+    def _pouch_encapsulation(self):
+        return ocd.PouchEncapsulation.from_prismatic(self.cell.encapsulation)
+
+    def test_constructing_with_unaligned_notches_is_refused(self):
+        roll = self.cell.reference_electrode_assembly
+        self.assertFalse(roll.notches_aligned)
+
+        with self.assertRaisesRegex(ValueError, "notches are aligned"):
+            ocd.PouchCell(
+                reference_electrode_assembly=roll,
+                n_electrode_assembly=1,
+                encapsulation=self._pouch_encapsulation(),
+                electrolyte=self.cell.electrolyte,
+            )
+
+    def test_converting_the_encapsulation_aligns_them(self):
+        roll = self.cell.reference_electrode_assembly
+        self.assertFalse(roll.notches_aligned)
+
+        self.cell.encapsulation = self._pouch_encapsulation()
+
+        self.assertIsInstance(self.cell, ocd.PouchCell)
+        roll = self.cell.reference_electrode_assembly
+        self.assertTrue(roll.notches_aligned)
+        for electrode_name in ("cathode", "anode"):
+            self.assertAlmostEqual(
+                getattr(roll, f"{electrode_name}_notch_alignment_position"),
+                roll.default_notch_alignment_position(electrode_name),
+                places=6,
+            )
+        self.assertGreater(self.cell.energy, 0)
+
 
 class TestFlexFrameCell(unittest.TestCase):
 
@@ -3318,6 +3880,7 @@ class TestFromLoadedCell(unittest.TestCase):
             self.lithium_metal_cell.reference_electrode_assembly.radius, old_radius
         )
         self.assertEqual(new_layup_length, old_layup_length)
+
 
 class TestCellPropagation(unittest.TestCase):
     """Test update propagation behavior for cells with full hierarchy."""

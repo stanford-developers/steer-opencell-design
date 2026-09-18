@@ -30,6 +30,10 @@ from steer_core.Constants.Universal import TWO_PI
 
 from steer_opencell_design.Constructions.ElectrodeAssemblies.SpiralUtils import (
     SpiralCalculator,
+    TURNS_COL,
+    X_COORD_COL,
+    X_UNWRAPPED_COL,
+    Z_COORD_COL,
     _racetrack_positions_batch,
     _thickness_at_jit,
 )
@@ -354,6 +358,106 @@ class TestThicknessAtJit(unittest.TestCase):
                 x, self.t_grid, self.n_grid_m1, self.dx_inv, self.total_length
             )
             self.assertAlmostEqual(value, x, places=10, msg=f"x={x}")
+
+
+class TestAlignedPositionsAtX(unittest.TestCase):
+    def setUp(self):
+        self.spiral = SpiralCalculator.calculate_simple_racetrack(
+            n_turns=4,
+            start_radius=0.005,
+            straight_length=0.05,
+            thickness=0.001,
+            points_per_turn=400,
+        )
+
+    def test_returns_positive_and_negative_z_crossings_per_turn_at_fixed_x(self):
+        target_x = 0.01
+        centers = SpiralCalculator.aligned_positions_at_x(self.spiral, target_x)
+
+        self.assertEqual(len(centers), 8)
+        marker_x = np.interp(
+            centers,
+            self.spiral[:, X_UNWRAPPED_COL],
+            self.spiral[:, X_COORD_COL],
+        )
+        marker_z = np.interp(
+            centers,
+            self.spiral[:, X_UNWRAPPED_COL],
+            self.spiral[:, Z_COORD_COL],
+        )
+        marker_turns = np.interp(
+            centers,
+            self.spiral[:, X_UNWRAPPED_COL],
+            self.spiral[:, TURNS_COL],
+        )
+        np.testing.assert_allclose(marker_x, target_x, atol=1e-12)
+        turn_numbers = np.floor(marker_turns).astype(int)
+        for turn in range(4):
+            turn_z = marker_z[turn_numbers == turn]
+            self.assertEqual(len(turn_z), 2)
+            self.assertTrue(np.any(turn_z > 0))
+            self.assertTrue(np.any(turn_z < 0))
+
+        # Spacing between like-side notches grows with racetrack radius.
+        self.assertTrue(np.all(np.diff(np.diff(centers[::2])) > 0))
+        self.assertTrue(np.all(np.diff(np.diff(centers[1::2])) > 0))
+
+    def test_omits_centers_where_full_tab_does_not_fit(self):
+        tab_width = 0.06
+        centers = SpiralCalculator.aligned_positions_at_x(
+            self.spiral, target_x=0.0, tab_width=tab_width
+        )
+
+        minimum = np.min(self.spiral[:, X_UNWRAPPED_COL])
+        maximum = np.max(self.spiral[:, X_UNWRAPPED_COL])
+        self.assertEqual(len(centers), 6)
+        self.assertTrue(np.all(centers - tab_width / 2 >= minimum))
+        self.assertTrue(np.all(centers + tab_width / 2 <= maximum))
+
+    def test_tab_stays_on_the_straight_section_without_an_endpoint_check(self):
+        """Why the solver needs no separate endpoint projection.
+
+        z is constant along a straight branch, so unwrapped foil distance and
+        x-distance agree there to within the parameterisation's own redistribution
+        as the radius grows. A center that the assembly has already constrained to
+        ``[tab_width / 2, L - tab_width / 2]`` of the straight section therefore
+        keeps its whole tab on that section; enforcing that range is
+        ``FlatWoundJellyRoll._notch_alignment_target_x``'s job. This spiral grows
+        by 1 mm per turn on a 5 mm start radius -- far coarser than any real
+        layup -- and the tab still does not reach past the tangent.
+        """
+        tab_width = 0.01
+        straight_half_length = 0.025
+        # Center sits exactly ``tab_width / 2`` inside the left tangent.
+        centers = SpiralCalculator.aligned_positions_at_x(
+            self.spiral, target_x=-(straight_half_length - tab_width / 2),
+            tab_width=tab_width,
+        )
+
+        self.assertEqual(len(centers), 8)
+        endpoints = np.column_stack(
+            (centers - tab_width / 2, centers + tab_width / 2)
+        ).ravel()
+        endpoint_x = np.interp(
+            endpoints,
+            self.spiral[:, X_UNWRAPPED_COL],
+            self.spiral[:, X_COORD_COL],
+        )
+        self.assertGreaterEqual(endpoint_x.min(), -straight_half_length)
+        self.assertLessEqual(endpoint_x.max(), straight_half_length)
+
+    def test_duplicate_crossing_samples_still_yield_one_center_per_branch(self):
+        """A sample landing exactly on the target must not double-count."""
+        target_x = float(self.spiral[10, X_COORD_COL])
+        centers = SpiralCalculator.aligned_positions_at_x(self.spiral, target_x)
+
+        self.assertEqual(len(centers), 8)
+        self.assertEqual(len(np.unique(np.round(centers, 12))), 8)
+
+    def test_rejects_non_finite_target_x(self):
+        spiral = np.zeros((2, 6))
+        with self.assertRaises(ValueError):
+            SpiralCalculator.aligned_positions_at_x(spiral, np.nan)
 
 
 if __name__ == "__main__":
