@@ -19,7 +19,22 @@ jobs:
           python-version: "3.10"
 
       - name: Install dependencies
-        run: pip install -e ".[docs]"
+        run: |
+          pip install -e ".[docs,test]"
+          pip install "git+https://github.com/stanford-developers/steer-opencell-data.git"
+
+      # The coverage badge is served from our own Pages site rather than from a
+      # third-party service, so it needs no GitHub App installed on the org.
+      # `mkdocs` copies docs/coverage.json to the site root, and shields.io
+      # renders whatever that endpoint reports. A red test suite must not block
+      # a docs deploy, hence continue-on-error; the badge script handles a
+      # missing or partial coverage.xml on its own.
+      - name: Measure coverage
+        continue-on-error: true
+        run: pytest
+
+      - name: Write coverage badge endpoint
+        run: python .github/coverage_badge.py coverage.xml docs/coverage.json
 
       - name: Deploy to GitHub Pages
         run: mkdocs gh-deploy --force
