@@ -1262,8 +1262,8 @@ class PouchEncapsulation(_Container, DatumMixin):
         terminal_width: float = None,
         terminal_length: float = None,
         terminal_thickness: float = None,
-        laminate_areal_cost: float = 2.5,
-        laminate_density: float = 920.0,
+        laminate_areal_cost: float = 0.06,
+        laminate_density: float = 0.92,
         laminate_thickness: float = 50.0,
     ):
         """Create a PouchEncapsulation from a PrismaticEncapsulation.
@@ -1286,9 +1286,9 @@ class PouchEncapsulation(_Container, DatumMixin):
         terminal_thickness : float, optional
             Thickness of pouch terminals in mm. Defaults to 1.0 if not specified.
         laminate_areal_cost : float, optional
-            Areal cost of laminate sheets in $/m². Defaults to 2.5.
+            Areal cost of laminate sheets in $/m². Defaults to 0.06.
         laminate_density : float, optional
-            Density of laminate sheets in g/cm³. Defaults to 920.0.
+            Density of laminate sheets in g/cm³. Defaults to 0.92.
         laminate_thickness : float, optional
             Thickness of laminate sheets in µm. Defaults to 50.0.
 
@@ -1382,8 +1382,8 @@ class PouchEncapsulation(_Container, DatumMixin):
         terminal_width: float = None,
         terminal_length: float = None,
         terminal_thickness: float = None,
-        laminate_areal_cost: float = 2.5,
-        laminate_density: float = 920.0,
+        laminate_areal_cost: float = 0.06,
+        laminate_density: float = 0.92,
         laminate_thickness: float = 50.0,
     ):
         """Create a PouchEncapsulation from a CylindricalEncapsulation.
@@ -1406,9 +1406,9 @@ class PouchEncapsulation(_Container, DatumMixin):
         terminal_thickness : float, optional
             Thickness of pouch terminals in mm. Defaults to 1.0 if not specified.
         laminate_areal_cost : float, optional
-            Areal cost of laminate sheets in $/m². Defaults to 2.5.
+            Areal cost of laminate sheets in $/m². Defaults to 0.06.
         laminate_density : float, optional
-            Density of laminate sheets in g/cm³. Defaults to 920.0.
+            Density of laminate sheets in g/cm³. Defaults to 0.92.
         laminate_thickness : float, optional
             Thickness of laminate sheets in µm. Defaults to 50.0.
 
