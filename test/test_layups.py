@@ -4,6 +4,7 @@
 from copy import deepcopy
 import unittest
 import plotly.graph_objects as go
+import warnings
 
 from steer_opencell_design.Materials.Formulations import (
     CathodeFormulation,
@@ -2388,6 +2389,83 @@ class TestAnodeFreeLaminate(unittest.TestCase):
         deserialized = Laminate.deserialize(serialized)
         self.assertTrue(deserialized.anode._is_anode_free)
         self.assertIsNone(deserialized.anode.formulation)
+
+    # 
+
+
+def _electrodes_for_coverage_tests(anode_width=306):
+    """Cathode 300 mm wide, anode `anode_width` mm wide - the TestSimpleLaminate recipe."""
+    binder = Binder(name="CMC", specific_cost=10, density=1.5, color="#FFFFFF")
+    additive = ConductiveAdditive(name="super_P", specific_cost=15, density=2.0, color="#000000")
+    cc_material = CurrentCollectorMaterial(name="Aluminum", specific_cost=5, density=2.7, color="#AAAAAA")
+    insulation = InsulationMaterial.from_database("Aluminium Oxide, 99.5%")
+
+    cathode = Cathode(
+        formulation=CathodeFormulation(
+            active_materials={CathodeMaterial.from_database("LFP"): 95},
+            binders={binder: 2},
+            conductive_additives={additive: 3},
+        ),
+        mass_loading=6.2,
+        calender_density=2.60,
+        current_collector=NotchedCurrentCollector(
+            material=cc_material, length=4500, width=300, thickness=8, tab_width=60, tab_spacing=200,
+            tab_height=18, insulation_width=6, coated_tab_height=2,
+            bare_lengths_a_side=(1000, 2000), bare_lengths_b_side=(500, 1500),
+        ),
+        insulation_material=insulation,
+        insulation_thickness=10,
+    )
+    anode = Anode(
+        formulation=AnodeFormulation(
+            active_materials={AnodeMaterial.from_database("Synthetic Graphite"): 90},
+            binders={binder: 5},
+            conductive_additives={additive: 5},
+        ),
+        mass_loading=3.68,
+        calender_density=1.10,
+        current_collector=NotchedCurrentCollector(
+            material=cc_material, length=5000, width=anode_width, thickness=8, tab_width=60, tab_spacing=100,
+            tab_height=18, insulation_width=6, coated_tab_height=2,
+            bare_lengths_a_side=(1500, 2500), bare_lengths_b_side=(800, 1800),
+        ),
+        insulation_material=insulation,
+        insulation_thickness=10,
+    )
+    separator_material = SeparatorMaterial(name="Polyethylene", specific_cost=2, density=0.94, color="#FDFDB7", porosity=45)
+    return cathode, anode, separator_material
+
+
+class TestSeparatorCoverage(unittest.TestCase):
+    """Separators must cover both electrodes from construction on, and must never be resized silently."""
+
+    def _laminate(self, separator_width, anode_width=306):
+        cathode, anode, separator_material = _electrodes_for_coverage_tests(anode_width)
+        top = Separator(material=separator_material, thickness=25, width=separator_width, length=8000)
+        bottom = Separator(material=separator_material, thickness=25, width=separator_width, length=6000)
+        return Laminate(anode=anode, cathode=cathode, top_separator=top, bottom_separator=bottom)
+
+    def test_wide_separators_are_left_alone(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            layup = self._laminate(separator_width=310)
+        self.assertFalse([w for w in caught if "eparator" in str(w.message)])
+        self.assertAlmostEqual(layup.top_separator.width, 310)
+        self.assertAlmostEqual(layup.bottom_separator.width, 310)
+
+    def test_narrow_separators_are_widened_at_construction_with_a_warning(self):
+        with self.assertWarns(UserWarning):
+            layup = self._laminate(separator_width=250)  # narrower than both electrodes
+        for separator in (layup.top_separator, layup.bottom_separator):
+            self.assertGreaterEqual(separator.width, layup.anode.current_collector.y_foil_length)
+            self.assertGreaterEqual(separator.width, layup.cathode.current_collector.y_foil_length)
+
+    def test_reassigning_a_wider_anode_warns(self):
+        layup = self._laminate(separator_width=310)
+        _, wide_anode, _ = _electrodes_for_coverage_tests(anode_width=330)
+        with self.assertWarns(UserWarning):
+            layup.anode = wide_anode
+        self.assertGreaterEqual(layup.top_separator.width, layup.anode.current_collector.y_foil_length)
 
 
 if __name__ == "__main__":
