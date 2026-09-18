@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/stanford-developers/steer-opencell-design/actions/workflows/main.yml/badge.svg?branch=main)](https://github.com/stanford-developers/steer-opencell-design/actions/workflows/main.yml)
 [![Docs](https://github.com/stanford-developers/steer-opencell-design/actions/workflows/docs.yml/badge.svg?branch=main)](https://stanford-developers.github.io/steer-opencell-design/)
-[![codecov](https://codecov.io/gh/stanford-developers/steer-opencell-design/branch/main/graph/badge.svg)](https://codecov.io/gh/stanford-developers/steer-opencell-design)
+[![Coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fstanford-developers.github.io%2Fsteer-opencell-design%2Fcoverage.json)](https://stanford-developers.github.io/steer-opencell-design/)
 [![PyPI version](https://img.shields.io/pypi/v/steer-opencell-design)](https://pypi.org/project/steer-opencell-design/)
 [![Python](https://img.shields.io/pypi/pyversions/steer-opencell-design)](https://pypi.org/project/steer-opencell-design/)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
