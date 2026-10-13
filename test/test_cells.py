@@ -1265,6 +1265,39 @@ class TestCylindricalCell(unittest.TestCase):
         self.assertEqual(new_cathode_voltage, self.cell.reference_electrode_assembly.layup.cathode.formulation.voltage_cutoff)
 
 
+class TestCylindricalCellAchievableDimensions(unittest.TestCase):
+    """The cell's radius and height ranges are what its setters can build.
+
+    The setters move the jelly roll and the can by the same amount as the cell,
+    so the cell's range is each part's achievable range shifted by its offset
+    from the cell. On a Tesla 4680 the old range claimed 6.66 mm, below what the
+    roll can wind, and typing it failed inside Brent's method.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.cell = _build_tesla_like_nmc_cell()
+
+    def test_radius_range_includes_the_gap_to_the_jelly_roll(self):
+        roll = self.cell.reference_electrode_assembly
+        gap = self.cell.radius - roll.radius
+        self.assertGreater(gap, 0.0)
+        self.assertAlmostEqual(self.cell.radius_range[0], roll.radius_range[0] + gap, 9)
+
+    def test_radius_and_height_reach_both_ends_of_their_ranges(self):
+        for dimension in ("radius", "height"):
+            for target in getattr(self.cell, f"{dimension}_range"):
+                cell = deepcopy(self.cell)
+                setattr(cell, dimension, target)
+                self.assertAlmostEqual(getattr(cell, dimension), target, 2, msg=dimension)
+
+    def test_hard_ranges_are_the_achievable_ranges(self):
+        self.assertEqual(self.cell.radius_hard_range, self.cell.radius_range)
+        self.assertEqual(self.cell.height_hard_range, self.cell.height_range)
+        low, high = self.cell.radius_range
+        self.assertEqual(self.cell.diameter_hard_range, (low * 2, high * 2))
+
+
 class TestCylindricalCellTabbed(unittest.TestCase):
 
     def setUp(self):

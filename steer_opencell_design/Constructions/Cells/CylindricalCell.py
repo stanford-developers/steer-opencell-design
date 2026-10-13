@@ -317,19 +317,42 @@ class CylindricalCell(_Cell):
         max_radius = max(assembly_radius, encapsulation_radius)
         return max_radius
     
+    @staticmethod
+    def _shifted_range(
+        cell_value: float, parts: Tuple[Tuple[float, Tuple[float, float]], ...]
+    ) -> Tuple[float, float]:
+        """The cell values (min, max) a delta setter can reach.
+
+        The radius and height setters move every part by the same amount as the
+        cell, so a part sitting ``offset = cell_value - part_value`` inside the
+        cell can reach a cell value of its own range shifted by that offset (the
+        can sits ~0.4 mm outside a Tesla 4680's jelly roll, so the roll's minimum
+        of 6.94 mm means a cell minimum of ~7.31 mm). The cell's range is where
+        every part's shifted range overlaps. ``parts`` is
+        ``((part_value, (part_min, part_max)), ...)``.
+        """
+        low = max(part_min + cell_value - value for value, (part_min, _) in parts)
+        high = min(part_max + cell_value - value for value, (_, part_max) in parts)
+        return (low, high)
+
     @property
     def radius_range(self) -> Tuple[float, float]:
-        """Get the valid range for cell radius in mm."""
-        assembly_radius_range = self._reference_electrode_assembly.radius_range
-        encapsulation_radius_range = self._encapsulation.radius_range
-        min_radius = max(assembly_radius_range[0], encapsulation_radius_range[0])
-        max_radius = min(assembly_radius_range[1], encapsulation_radius_range[1])
-        return (min_radius, max_radius)
-    
+        """The cell radii (min, max) in mm the radius setter can reach."""
+        assembly = self._reference_electrode_assembly
+        encapsulation = self._encapsulation
+        return self._shifted_range(
+            self.radius,
+            (
+                (assembly.radius, assembly.radius_range),
+                (encapsulation.radius, encapsulation.radius_range),
+            ),
+        )
+
     @property
     def radius_hard_range(self) -> Tuple[float, float]:
-        """Get the hard limit range for cell radius in mm."""
-        return (0, 500)
+        """The hard limits for cell radius in mm: nothing outside the achievable
+        range can be built, so the hard range is that range."""
+        return self.radius_range
     
     @property
     def diameter(self) -> float:
@@ -344,8 +367,9 @@ class CylindricalCell(_Cell):
     
     @property
     def diameter_hard_range(self) -> Tuple[float, float]:
-        """Get the hard limit range for cell diameter in mm."""
-        return (0, 1000)
+        """The hard limits for cell diameter in mm (twice the radius limits)."""
+        min_radius, max_radius = self.radius_hard_range
+        return (min_radius * 2, max_radius * 2)
 
     @property
     def height(self) -> float:
@@ -357,17 +381,21 @@ class CylindricalCell(_Cell):
     
     @property
     def height_range(self) -> Tuple[float, float]:
-        """Get the valid range for cell height in mm."""
-        assembly_height_range = self._reference_electrode_assembly.height_range
-        encapsulation_height_range = self._encapsulation.canister.height_range
-        min_height = max(assembly_height_range[0], encapsulation_height_range[0])
-        max_height = min(assembly_height_range[1], encapsulation_height_range[1])
-        return (min_height, max_height)
-    
+        """The cell heights (min, max) in mm the height setter can reach."""
+        assembly = self._reference_electrode_assembly
+        encapsulation = self._encapsulation
+        return self._shifted_range(
+            self.height,
+            (
+                (assembly.height, assembly.height_range),
+                (encapsulation.height, encapsulation.height_range),
+            ),
+        )
+
     @property
     def height_hard_range(self) -> Tuple[float, float]:
-        """Get the hard limit range for cell height in mm."""
-        return (0, 1000)
+        """The hard limits for cell height in mm: the achievable range."""
+        return self.height_range
 
     @property
     def reference_electrode_assembly(self) -> WoundJellyRoll:
