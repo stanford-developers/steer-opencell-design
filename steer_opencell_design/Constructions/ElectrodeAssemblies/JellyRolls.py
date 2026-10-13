@@ -56,6 +56,19 @@ TURNS_COL = 5
 # Constants for calculations
 DEFAULT_PRESSED_HEIGHT = 0.0008
 
+# A dimension setter's target this close (mm) to a bound of its achievable range
+# is taken as that bound (see ``_JellyRoll._solve_layup_length``).
+_BOUND_TOLERANCE_MM = 1e-6
+
+# Geometry dicts a measuring copy of a roll gets its own copy of, so that
+# measuring a dimension never writes into the roll being measured.
+_GEOMETRY_DICTS = (
+    "_component_spirals",
+    "_extruded_spirals",
+    "_component_top_down_coordinates",
+    "_component_right_left_coordinates",
+)
+
 
 class TapeDriver(Enum):
     """Enumeration for tape length driver modes.
@@ -1246,6 +1259,38 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
                     lo = secant
 
         return lo, hi
+
+    def _layup_length_bracket(self) -> Tuple[float, float]:
+        """The layup lengths (mm) the dimension setters search between.
+
+        From the layup's minimum length to its hard maximum. The achievable
+        dimension ranges are measured at these same two ends, so a range and its
+        setter always agree.
+        """
+        return self._layup.length_range[0], self._layup.length_hard_range[1]
+
+    @staticmethod
+    def _solve_layup_length(
+        objective: Callable[[float], float],
+        lo: float,
+        hi: float,
+        bracket: Tuple[float, float],
+    ) -> float:
+        """Brent's method for the layup length where ``objective`` is zero.
+
+        A target exactly on a bound of its achievable range (the app clamps a
+        typed value to it) can land a hair outside after unit and delta
+        arithmetic, and Brent then sees no sign change. A target within
+        ``_BOUND_TOLERANCE_MM`` of a bound takes that bound's own length; anything
+        genuinely outside the range still raises.
+        """
+        try:
+            return brentq(objective, lo, hi, xtol=1e-3, rtol=1e-3, maxiter=20)
+        except ValueError:
+            for end in bracket:
+                if abs(objective(end)) <= _BOUND_TOLERANCE_MM:
+                    return end
+            raise
 
     def _calculate_tape_roll(
         self, **kwargs
@@ -3119,16 +3164,18 @@ class WoundJellyRoll(_JellyRoll):
 
         self._radius = radius
         self._diameter = self._radius * 2
-        self._calculate_radius_range()
+        # The achievable range is measured lazily (see ``radius_range``): it costs
+        # two roll builds, and most pipelines never read it.
+        self._achievable_radius_range = None
         self._calculate_total_height()
 
     def _set_main_dimensions_for_objective(self) -> None:
         """Cheap subset of ``_calculate_geometry_parameters`` for Brent loops.
 
         Skips:
-          * ``_calculate_radius_range`` — its inputs (mandrel radius, layup
-            length range, layup geometry) are invariant across a single
-            radius-setter call, so it produces the same answer every iteration.
+          * the achievable radius range — it does not depend on the layup's
+            current length, so it is the same at every iteration (and it is
+            measured with this very geometry; see ``radius_range``).
           * ``_calculate_total_height`` — reads from
             ``_component_top_down_coordinates``, which the setter never
             refreshes inside the objective (``copy(self)`` is shallow), so
@@ -3164,64 +3211,49 @@ class WoundJellyRoll(_JellyRoll):
         self._radius = radius
         self._diameter = self._radius * 2
 
-    def _calculate_radius_range(self) -> Tuple[float, float]:
-        """Calculate the valid range of radii for this jelly roll configuration.
+    def _radius_at_length(self, length: float) -> float:
+        """The roll's outer radius in mm if its layup were ``length`` mm long.
 
-        This method determines the minimum and maximum possible radii by:
-        1. Creating layups with minimum and maximum lengths
-        2. Calculating spirals for each case
-        3. Finding the bounding circle radius for each configuration
-        4. Adding the final layer thickness to account for the outermost surface
+        The lightweight geometry the radius setter solves against: shallow-copy
+        the assembly, run the geometry pipeline (spiral + components + tape) and
+        measure, skipping downstream properties (mass, cost, view coordinates).
+        Shared by the setter and by :attr:`radius_range`, so the range is exactly
+        what the setter can reach.
 
-        Returns
-        -------
-        Tuple[float, float]
-            (minimum_radius, maximum_radius) in meters
-
-        Notes
-        -----
-        The minimum radius is constrained by the mandrel circumference and
-        the layup's minimum length. The maximum radius uses the layup's
-        hard maximum length limit.
+        The layup is deepcopied per evaluation: some ``length`` setters are lossy
+        (weld tabs that no longer fit are deactivated), so a shared layup would
+        make the result depend on which lengths were probed earlier. The copy gets
+        its own geometry dicts too, so measuring never writes into this roll.
         """
-
-        # get the minimum layup length
-        mandrel_circumference = 2 * 2 * np.pi * self._mandrel._radius
-        min_layup_length = max(mandrel_circumference, self._layup.length_range[0])
-
-        # get the radius minimum bound
-        small_layup = deepcopy(self._layup)
-        small_layup.length = min_layup_length
-        small_layup = self.position_layup_on_mandrel(small_layup, self._mandrel)
-        small_layup.calculate_flattened_center_lines()
-        small_spiral = SpiralCalculator.calculate_variable_thickness_spiral(
-            small_layup, self._mandrel._radius
+        assembly_copy = copy(self)
+        for name in _GEOMETRY_DICTS:
+            value = assembly_copy.__dict__.get(name)
+            if isinstance(value, dict):
+                assembly_copy.__dict__[name] = dict(value)
+        template_layup = deepcopy(self._layup)
+        template_layup.length = length
+        assembly_copy._layup = self.position_layup_on_mandrel(
+            template_layup, assembly_copy._mandrel
         )
-        small_spiral_coords_2d = np.column_stack(
-            (small_spiral[:, X_COORD_COL], small_spiral[:, Z_COORD_COL])
-        )
-        small_radius, _ = self.get_radius_of_points(small_spiral_coords_2d)
-        small_radius = small_radius + small_layup.get_thickness_at_x(
-            small_layup._total_length
-        )
+        assembly_copy._calculate_roll(_objective_mode=True)
+        if assembly_copy._tape is not None and assembly_copy._additional_tape_wraps > 0:
+            assembly_copy._calculate_tape_roll()
+        assembly_copy._set_main_dimensions_for_objective()
+        return assembly_copy.radius
 
-        # get the radius maximum bound
-        big_layup = deepcopy(self._layup)
-        big_layup.length = big_layup.length_range[1]
-        big_layup = self.position_layup_on_mandrel(big_layup, self._mandrel)
-        big_layup.calculate_flattened_center_lines()
-        big_spiral = SpiralCalculator.calculate_variable_thickness_spiral(
-            big_layup, self._mandrel._radius
-        )
-        big_spiral_coords_2d = np.column_stack(
-            (big_spiral[:, X_COORD_COL], big_spiral[:, Z_COORD_COL])
-        )
-        big_radius, _ = self.get_radius_of_points(big_spiral_coords_2d)
-        big_radius = big_radius + big_layup.get_thickness_at_x(big_layup._total_length)
+    def _calculate_radius_range(self) -> Tuple[float, float]:
+        """The radii (min, max) in mm this roll can actually be wound to.
 
-        self._radius_range = (small_radius, big_radius)
-
-        return self._radius_range
+        Measured with the radius setter's own geometry (:meth:`_radius_at_length`)
+        at the two ends of the layup lengths the setter searches
+        (:meth:`_layup_length_bracket`), so every radius in the range is one the
+        setter can reach. It used to be estimated from the layup's centre line plus
+        its end thickness, which left out the tape wraps and the per-component
+        geometry: on a Tesla 4680 it claimed 6.66 mm when the shortest layup winds
+        to 6.94 mm, and asking for anything between failed inside Brent's method.
+        """
+        lo, hi = self._layup_length_bracket()
+        return (self._radius_at_length(lo), self._radius_at_length(hi))
 
     def _calculate_variable_thickness_spiral(self, **kwargs) -> np.ndarray:
         """Calculate the base spiral path for variable thickness layup.
@@ -3483,17 +3515,23 @@ class WoundJellyRoll(_JellyRoll):
 
     @property
     def radius_range(self) -> Tuple[float, float]:
-        return (
-            self._radius_range[0] * M_TO_MM,
-            self._radius_range[1] * M_TO_MM,
-        )
+        """The radii (min, max) in mm the radius setter can reach.
+
+        Measured on first read after the roll changes and kept until the next
+        geometry update. A legacy ``_radius_range`` restored from an older saved
+        design is never read: it held the old estimate.
+        """
+        cached = getattr(self, "_achievable_radius_range", None)
+        if cached is None:
+            cached = self._calculate_radius_range()
+            self._achievable_radius_range = cached
+        return cached
 
     @property
     def radius_hard_range(self) -> Tuple[float, float]:
-        """Return the hard radius range (min, max) of the wound jelly roll in mm."""
-        min_radius = self.radius_range[0]
-        max_radius = 200
-        return (min_radius, max_radius)
+        """The hard radius limits in mm: no radius outside the achievable range
+        can be wound, so the hard range is that range."""
+        return self.radius_range
 
     @property
     def diameter(self) -> float:
@@ -3566,36 +3604,17 @@ class WoundJellyRoll(_JellyRoll):
         self.validate_positive_float(target_radius, "radius")
 
         def objective_function(length: float) -> float:
-            """Lightweight objective: shallow-copy assembly, run geometry
-            pipeline (spiral + components + extrusion + tape), skip downstream
-            properties (mass, cost, view coordinates) and the invariant
-            radius-range / total-height calculations.
-
-            The layup is deepcopied per evaluation, not once outside the loop: some
-            ``length`` setters are lossy (weld tabs that no longer fit are
-            deactivated), so a shared layup would make the objective depend on which
-            lengths Brent probed earlier. The original ``self._layup`` is untouched
-            until the final ``self.layup = self._layup`` reassignment after Brent."""
-            assembly_copy = copy(self)
-            template_layup = deepcopy(self._layup)
-            template_layup.length = length
-            assembly_copy._layup = self.position_layup_on_mandrel(
-                template_layup, assembly_copy._mandrel
-            )
-            assembly_copy._calculate_roll(_objective_mode=True)
-            if (
-                assembly_copy._tape is not None
-                and assembly_copy._additional_tape_wraps > 0
-            ):
-                assembly_copy._calculate_tape_roll()
-            assembly_copy._set_main_dimensions_for_objective()
-            return assembly_copy.radius - target_radius
+            """Radius at ``length`` minus the target (see ``_radius_at_length``).
+            The original ``self._layup`` is untouched until the final
+            ``self.layup = self._layup`` reassignment after Brent."""
+            return self._radius_at_length(length) - target_radius
 
         # Analytic warm start: for a near-uniform Archimedean spiral
         # L = π (r² - r0²) / t̄, so d(length)/d(radius) = 2π r / t̄ with t̄ the
         # per-wrap laminate stack thickness. Narrowing the bracket around the
         # known current state cuts several Brent iterations.
-        lo, hi = self._layup.length_range[0], self._layup.length_hard_range[1]
+        lo, hi = self._layup_length_bracket()
+        bracket = (lo, hi)
         t_bar_mm = self._layup._thickness * M_TO_MM
         if t_bar_mm > 0:
             r_mid = 0.5 * (self.radius + target_radius)
@@ -3612,14 +3631,8 @@ class WoundJellyRoll(_JellyRoll):
         if lo == hi:
             optimal_length = lo
         else:
-            # Use Brent's method for robust root finding
-            optimal_length = brentq(
-                objective_function,
-                lo,
-                hi,
-                xtol=1e-3,
-                rtol=1e-3,
-                maxiter=20,
+            optimal_length = self._solve_layup_length(
+                objective_function, lo, hi, bracket
             )
 
         # Set the optimized length and run full pipeline once
@@ -4227,15 +4240,17 @@ class FlatWoundJellyRoll(_JellyRoll):
         # Calculate dimensions using the utility functions
         self._thickness = SpiralCalculator.get_thickness_of_racetrack(combined_coords)
         self._width = SpiralCalculator.get_width_of_racetrack(combined_coords)
-        self._calculate_thickness_width_range()
+        # The achievable ranges are measured lazily (see ``thickness_range``):
+        # they cost two roll builds, and most pipelines never read them.
+        self._achievable_extents_range = None
         self._calculate_total_height()
 
     def _set_main_dimensions_for_objective(self) -> None:
         """Cheap subset of ``_calculate_geometry_parameters`` for Brent loops.
 
-        Skips ``_calculate_thickness_width_range`` (which would re-run the
-        full racetrack pipeline twice — at the layup length bounds — even
-        though those bounds are invariant across a single Brent loop) and
+        Skips the achievable thickness / width ranges (they do not depend on
+        the layup's current length, and are measured with this very geometry;
+        see ``thickness_range``) and
         ``_calculate_total_height`` (reads from a shallow-copied dict that
         the objective never refreshes).
 
@@ -4261,94 +4276,65 @@ class FlatWoundJellyRoll(_JellyRoll):
         self._thickness = SpiralCalculator.get_thickness_of_racetrack(combined_coords)
         self._width = SpiralCalculator.get_width_of_racetrack(combined_coords)
 
+    def _extents_at_length(
+        self,
+        length: float,
+        rotation_state: Optional[Dict[str, Optional[float]]] = None,
+    ) -> Tuple[float, float]:
+        """The roll's (thickness, width) in mm if its layup were ``length`` mm long.
+
+        The lightweight geometry the thickness and width setters solve against:
+        shallow-copy the assembly, run the geometry pipeline (spiral + components +
+        rotation + tape) and measure, skipping downstream properties. Shared by the
+        setters and by :attr:`thickness_range` / :attr:`width_range`, so the ranges
+        are exactly what the setters can reach.
+
+        ``rotation_state`` carries the optimal rotation angle between calls so a
+        Brent loop can warm-start the inner rotation search. The layup is
+        deepcopied per evaluation (some ``length`` setters are lossy), and the copy
+        gets its own geometry dicts, so measuring never writes into this roll.
+        """
+        assembly_copy = copy(self)
+        for name in _GEOMETRY_DICTS:
+            value = assembly_copy.__dict__.get(name)
+            if isinstance(value, dict):
+                assembly_copy.__dict__[name] = dict(value)
+        template_layup = deepcopy(self._layup)
+        template_layup.length = length
+        assembly_copy._layup = self.position_layup_on_mandrel(
+            template_layup, assembly_copy._mandrel
+        )
+        assembly_copy._calculate_roll(
+            initial_rotation_angle=rotation_state["angle"] if rotation_state else None,
+            apply_notch_alignment=False,
+            _objective_mode=True,
+        )
+        if rotation_state is not None:
+            rotation_state["angle"] = getattr(
+                assembly_copy, "_last_rotation_angle", None
+            )
+        if assembly_copy._tape is not None and assembly_copy._additional_tape_wraps > 0:
+            assembly_copy._calculate_tape_roll()
+        assembly_copy._set_main_dimensions_for_objective()
+        return assembly_copy.thickness, assembly_copy.width
+
     def _calculate_thickness_width_range(
         self,
     ) -> Tuple[Tuple[float, float], Tuple[float, float]]:
-        """Calculate the valid ranges of thickness and width for this jelly roll.
+        """The thicknesses and widths, ((min, max), (min, max)) in mm, this roll
+        can actually be wound to.
 
-        This method determines the minimum and maximum possible dimensions by:
-        1. Creating layups with minimum and maximum lengths
-        2. Calculating racetrack spirals for each case using pressed geometry
-        3. Finding the bounding dimensions for each configuration
-        4. Adding final layer thickness to account for outermost surfaces
-
-        Returns
-        -------
-        Tuple[Tuple[float, float], Tuple[float, float]]
-            ((min_thickness, max_thickness), (min_width, max_width)) in meters
-
-        Notes
-        -----
-        Uses the pressed mandrel geometry rather than the original mandrel
-        to properly account for hot-pressing effects on the final dimensions.
+        Measured with the setters' own geometry (:meth:`_extents_at_length`) at the
+        two ends of the layup lengths they search (:meth:`_layup_length_bracket`),
+        so every value in a range is one its setter can reach. They used to be
+        estimated from the layup's centre-line racetrack plus its end thickness,
+        which left out rotation, tape and the per-component geometry and put the
+        minimum below what the shortest layup can make.
         """
-
-        # get the minimum length of the layup
-        mandrel_circumference = 2 * (
-            TWO_PI * self._mandrel._radius + 2 * self._mandrel._straight_length
-        )
-        min_layup_length = max(mandrel_circumference, self._layup.length_range[0])
-
-        # cache some values for later
-        radius = self._pressed_radius
-        straight_length = self._pressed_straight_length
-
-        # get the thickness minimum bound
-        small_layup = deepcopy(self._layup)
-        small_layup.length = min_layup_length
-        small_layup = self.position_layup_on_mandrel(small_layup, self._mandrel)
-        small_layup.calculate_flattened_center_lines()
-        small_pressed_racetrack = (
-            SpiralCalculator.calculate_variable_thickness_racetrack(
-                small_layup, radius, straight_length
-            )
-        )
-        small_racetrack_coords_2d = np.column_stack(
-            (
-                small_pressed_racetrack[:, X_COORD_COL],
-                small_pressed_racetrack[:, Z_COORD_COL],
-            )
-        )
-        small_width = SpiralCalculator.get_width_of_racetrack(small_racetrack_coords_2d)
-        small_width = small_width + 2 * small_layup.get_thickness_at_x(
-            small_layup._total_length
-        )
-        small_thickness = SpiralCalculator.get_thickness_of_racetrack(
-            small_racetrack_coords_2d
-        )
-        small_thickness = small_thickness + 2 * small_layup.get_thickness_at_x(
-            small_layup._total_length
-        )
-
-        # get the thickness maximum bound
-        big_layup = deepcopy(self._layup)
-        big_layup.length = big_layup.length_range[1]
-        big_layup = self.position_layup_on_mandrel(big_layup, self._mandrel)
-        big_layup.calculate_flattened_center_lines()
-        big_pressed_racetrack = SpiralCalculator.calculate_variable_thickness_racetrack(
-            big_layup, radius, straight_length
-        )
-        big_racetrack_coords_2d = np.column_stack(
-            (
-                big_pressed_racetrack[:, X_COORD_COL],
-                big_pressed_racetrack[:, Z_COORD_COL],
-            )
-        )
-        big_width = SpiralCalculator.get_width_of_racetrack(big_racetrack_coords_2d)
-        big_width = big_width + 2 * big_layup.get_thickness_at_x(
-            big_layup._total_length
-        )
-        big_thickness = SpiralCalculator.get_thickness_of_racetrack(
-            big_racetrack_coords_2d
-        )
-        big_thickness = big_thickness + 2 * big_layup.get_thickness_at_x(
-            big_layup._total_length
-        )
-
-        self._thickness_range = (small_thickness, big_thickness)
-        self._width_range = (small_width, big_width)
-
-        return self._thickness_range, self._width_range
+        lo, hi = self._layup_length_bracket()
+        small_thickness, small_width = self._extents_at_length(lo)
+        big_thickness, big_width = self._extents_at_length(hi)
+        return (small_thickness, big_thickness), (small_width, big_width)
 
     def _calculate_pressed_racetrack(
         self, pressed_height: float = DEFAULT_PRESSED_HEIGHT
@@ -5220,21 +5206,26 @@ class FlatWoundJellyRoll(_JellyRoll):
     def width_hard_range(self) -> Tuple[float, float]:
         return self.width_range
 
+    def _achievable_extents(self) -> Tuple[Tuple[float, float], Tuple[float, float]]:
+        """The achievable (thickness, width) ranges in mm, measured on first read
+        after the roll changes and kept until the next geometry update. Legacy
+        ``_thickness_range`` / ``_width_range`` restored from an older saved design
+        are never read: they held the old estimate."""
+        cached = getattr(self, "_achievable_extents_range", None)
+        if cached is None:
+            cached = self._calculate_thickness_width_range()
+            self._achievable_extents_range = cached
+        return cached
+
     @property
     def thickness_range(self) -> Tuple[float, float]:
-        """Return the thickness range (min, max) of the flat wound jelly roll in mm."""
-        return (
-            self._thickness_range[0] * M_TO_MM,
-            self._thickness_range[1] * M_TO_MM,
-        )
+        """The thicknesses (min, max) in mm the thickness setter can reach."""
+        return self._achievable_extents()[0]
 
     @property
     def width_range(self) -> Tuple[float, float]:
-        """Return the width range (min, max) of the flat wound jelly roll in mm."""
-        return (
-            self._width_range[0] * M_TO_MM,
-            self._width_range[1] * M_TO_MM,
-        )
+        """The widths (min, max) in mm the width setter can reach."""
+        return self._achievable_extents()[1]
 
     @thickness.setter
     def thickness(self, target_thickness: float) -> None:
@@ -5267,42 +5258,17 @@ class FlatWoundJellyRoll(_JellyRoll):
         rotation_state: Dict[str, Optional[float]] = {"angle": None}
 
         def objective_function(length: float) -> float:
-            """Lightweight objective: shallow-copy assembly, run geometry
-            pipeline (spiral + components + extrusion + rotation + tape), skip
-            downstream properties (mass, cost, view coordinates) and the
-            invariant thickness/width-range / total-height calculations.
-
-            The layup is deepcopied per evaluation, not once outside the loop: some
-            ``length`` setters are lossy (weld tabs that no longer fit are
-            deactivated), so a shared layup would make the objective depend on which
-            lengths Brent probed earlier. The original ``self._layup`` is untouched
+            """Thickness at ``length`` minus the target (see
+            ``_extents_at_length``). The original ``self._layup`` is untouched
             until the final ``self.layup = self._layup`` reassignment after Brent."""
-            assembly_copy = copy(self)
-            template_layup = deepcopy(self._layup)
-            template_layup.length = length
-            assembly_copy._layup = self.position_layup_on_mandrel(
-                template_layup, assembly_copy._mandrel
-            )
-            assembly_copy._calculate_roll(
-                initial_rotation_angle=rotation_state["angle"],
-                apply_notch_alignment=False,
-                _objective_mode=True,
-            )
-            rotation_state["angle"] = getattr(
-                assembly_copy, "_last_rotation_angle", None
-            )
-            if (
-                assembly_copy._tape is not None
-                and assembly_copy._additional_tape_wraps > 0
-            ):
-                assembly_copy._calculate_tape_roll()
-            assembly_copy._set_main_dimensions_for_objective()
-            return assembly_copy.thickness - target_thickness
+            thickness, width = self._extents_at_length(length, rotation_state)
+            return thickness - target_thickness
 
         # Analytic warm start: racetrack thickness grows by 2 t̄ per turn and
         # one turn adds ~perimeter = 2 S + π · thickness of length, so
         # d(length)/d(thickness) = (2 S + π · th_mid) / (2 t̄).
-        lo, hi = self._layup.length_range[0], self._layup.length_hard_range[1]
+        lo, hi = self._layup_length_bracket()
+        bracket = (lo, hi)
         t_bar_mm = self._layup._thickness * M_TO_MM
         if t_bar_mm > 0:
             straight_mm = self._pressed_straight_length * M_TO_MM
@@ -5320,14 +5286,8 @@ class FlatWoundJellyRoll(_JellyRoll):
         if lo == hi:
             optimal_length = lo
         else:
-            # Use Brent's method for robust root finding
-            optimal_length = brentq(
-                objective_function,
-                lo,
-                hi,
-                xtol=1e-3,
-                rtol=1e-3,
-                maxiter=20,
+            optimal_length = self._solve_layup_length(
+                objective_function, lo, hi, bracket
             )
 
         # Set the optimized length and run full pipeline once
@@ -5365,42 +5325,17 @@ class FlatWoundJellyRoll(_JellyRoll):
         rotation_state: Dict[str, Optional[float]] = {"angle": None}
 
         def objective_function(length: float) -> float:
-            """Lightweight objective: shallow-copy assembly, run geometry
-            pipeline (spiral + components + extrusion + rotation + tape), skip
-            downstream properties (mass, cost, view coordinates) and the
-            invariant thickness/width-range / total-height calculations.
-
-            The layup is deepcopied per evaluation, not once outside the loop: some
-            ``length`` setters are lossy (weld tabs that no longer fit are
-            deactivated), so a shared layup would make the objective depend on which
-            lengths Brent probed earlier. The original ``self._layup`` is untouched
+            """Width at ``length`` minus the target (see
+            ``_extents_at_length``). The original ``self._layup`` is untouched
             until the final ``self.layup = self._layup`` reassignment after Brent."""
-            assembly_copy = copy(self)
-            template_layup = deepcopy(self._layup)
-            template_layup.length = length
-            assembly_copy._layup = self.position_layup_on_mandrel(
-                template_layup, assembly_copy._mandrel
-            )
-            assembly_copy._calculate_roll(
-                initial_rotation_angle=rotation_state["angle"],
-                apply_notch_alignment=False,
-                _objective_mode=True,
-            )
-            rotation_state["angle"] = getattr(
-                assembly_copy, "_last_rotation_angle", None
-            )
-            if (
-                assembly_copy._tape is not None
-                and assembly_copy._additional_tape_wraps > 0
-            ):
-                assembly_copy._calculate_tape_roll()
-            assembly_copy._set_main_dimensions_for_objective()
-            return assembly_copy.width - target_width
+            thickness, width = self._extents_at_length(length, rotation_state)
+            return width - target_width
 
         # Analytic warm start: racetrack width = straight length + thickness,
         # so d(length)/d(width) matches the thickness slope
         # (2 S + π · th_mid) / (2 t̄) with th_mid taken at the mid-width.
-        lo, hi = self._layup.length_range[0], self._layup.length_hard_range[1]
+        lo, hi = self._layup_length_bracket()
+        bracket = (lo, hi)
         t_bar_mm = self._layup._thickness * M_TO_MM
         if t_bar_mm > 0:
             straight_mm = self._pressed_straight_length * M_TO_MM
@@ -5418,14 +5353,8 @@ class FlatWoundJellyRoll(_JellyRoll):
         if lo == hi:
             optimal_length = lo
         else:
-            # Use Brent's method for robust root finding
-            optimal_length = brentq(
-                objective_function,
-                lo,
-                hi,
-                xtol=1e-3,
-                rtol=1e-3,
-                maxiter=20,
+            optimal_length = self._solve_layup_length(
+                objective_function, lo, hi, bracket
             )
 
         # Set the optimized length and run full pipeline once
