@@ -181,8 +181,10 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.diameter, 41.6, 1)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23895, 0)
         self.assertAlmostEqual(self.my_jellyroll.cost, 4.33, 2)
-        self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 8.73, 2)
-        self.assertAlmostEqual(self.my_jellyroll.radius_range[1], 30.55, 2)
+        # Measured with the radius setter's own geometry (tape wraps included),
+        # so both ends can actually be wound; the old estimate said 8.73-30.55.
+        self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 8.89, 2)
+        self.assertAlmostEqual(self.my_jellyroll.radius_range[1], 30.70, 2)
         self.assertAlmostEqual(self.my_jellyroll.mass, 655.4, 1)
 
     def test_serialization(self):
@@ -336,6 +338,65 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.radius, new_radius, 0)
         self.assertAlmostEqual(self.my_jellyroll.diameter, new_radius * 2, 0)
         self.assertAlmostEqual(self.my_jellyroll.cost, 6.6, 1)
+
+    def test_radius_setter_reaches_both_ends_of_radius_range(self):
+        """Every radius in ``radius_range`` can be wound: the range is measured
+        with the setter's own geometry, so both ends set without a solver error
+        and land where the range says."""
+        low, high = self.my_jellyroll.radius_range
+        for target in (low, high):
+            roll = deepcopy(self.my_jellyroll)
+            roll.radius = target
+            self.assertAlmostEqual(roll.radius, target, 3)
+
+    def test_radius_setter_accepts_a_bound_off_by_float_noise(self):
+        """A target on a bound plus float noise (the app clamps to the bound, and
+        the cell's delta arithmetic can land a hair outside) takes the bound."""
+        low, _ = self.my_jellyroll.radius_range
+        roll = deepcopy(self.my_jellyroll)
+        roll.radius = low - 1e-9
+        self.assertAlmostEqual(roll.radius, low, 6)
+
+    def test_radius_below_range_still_raises(self):
+        """Only float noise is absorbed: a radius genuinely below what the shortest
+        layup can wind still fails."""
+        low, _ = self.my_jellyroll.radius_range
+        roll = deepcopy(self.my_jellyroll)
+        with self.assertRaises(ValueError):
+            roll.radius = low - 0.1
+
+    def test_radius_hard_range_is_the_achievable_range(self):
+        self.assertEqual(self.my_jellyroll.radius_hard_range, self.my_jellyroll.radius_range)
+        low, high = self.my_jellyroll.radius_range
+        self.assertEqual(self.my_jellyroll.diameter_hard_range, (low * 2, high * 2))
+
+    def test_radius_range_follows_the_tape_wraps(self):
+        """The range is cached until the roll changes: more tape wraps make the
+        smallest windable roll bigger, and the range must say so."""
+        low_before, _ = self.my_jellyroll.radius_range
+        roll = deepcopy(self.my_jellyroll)
+        roll.additional_tape_wraps = self.my_jellyroll.additional_tape_wraps + 10
+        self.assertGreater(roll.radius_range[0], low_before + 0.1)
+
+    def test_reading_radius_range_leaves_the_roll_unchanged(self):
+        """The range is measured on shallow copies of the roll; measuring must not
+        write into the roll's own geometry."""
+        roll = deepcopy(self.my_jellyroll)
+        roll._achievable_radius_range = None
+        spirals = {k: np.copy(v) for k, v in roll._component_spirals.items()}
+        radius = roll.radius
+        roll.radius_range
+        self.assertEqual(roll.radius, radius)
+        for key, before in spirals.items():
+            np.testing.assert_array_equal(roll._component_spirals[key], before)
+
+    def test_a_stale_saved_radius_range_is_ignored(self):
+        """Designs saved before 1.0.57 carry the old estimated ``_radius_range``;
+        it must never be reported."""
+        roll = deepcopy(self.my_jellyroll)
+        roll._radius_range = (0.001, 0.002)  # metres, as the old field held
+        roll._achievable_radius_range = None
+        self.assertGreater(roll.radius_range[0], 5.0)
 
     def test_to_flat_jelly_roll(self):
 
@@ -664,10 +725,34 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.width, 114.1, 1)
         self.assertAlmostEqual(self.my_jellyroll.cost, 4.18, 1)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23725.74, 0)
-        self.assertAlmostEqual(self.my_jellyroll.thickness_range[0], 2.91, 1)
-        self.assertAlmostEqual(self.my_jellyroll.thickness_range[1], 24.37, 1)
-        self.assertAlmostEqual(self.my_jellyroll.width_range[0], 104.48, 1)
-        self.assertAlmostEqual(self.my_jellyroll.width_range[1], 125.95, 1)
+        # Measured with the setters' own geometry, so both ends can actually be
+        # wound; the old estimate said 2.91-24.37 and 104.48-125.95.
+        self.assertAlmostEqual(self.my_jellyroll.thickness_range[0], 3.04, 1)
+        self.assertAlmostEqual(self.my_jellyroll.thickness_range[1], 24.47, 1)
+        self.assertAlmostEqual(self.my_jellyroll.width_range[0], 105.65, 1)
+        self.assertAlmostEqual(self.my_jellyroll.width_range[1], 126.01, 1)
+
+    def test_thickness_and_width_setters_reach_both_ends_of_their_ranges(self):
+        """Every thickness and width in the ranges can be wound: both ends set
+        without a solver error. Thickness lands within the setter's usual
+        precision (at the shortest layup the full rebuild's rotation search finds
+        a racetrack ~0.02 mm thinner than the setter's lightweight geometry).
+        Width is only checked for "no error": the width setter's lightweight
+        geometry disagrees with the full rebuild by up to ~1.2 mm at many lengths,
+        a separate, older inaccuracy."""
+        for dimension in ("thickness", "width"):
+            low, high = getattr(self.my_jellyroll, f"{dimension}_range")
+            for target in (low, high):
+                roll = deepcopy(self.my_jellyroll)
+                setattr(roll, dimension, target)
+                if dimension == "thickness":
+                    self.assertAlmostEqual(roll.thickness, target, delta=0.05)
+
+    def test_thickness_below_range_still_raises(self):
+        low, _ = self.my_jellyroll.thickness_range
+        roll = deepcopy(self.my_jellyroll)
+        with self.assertRaises(ValueError):
+            roll.thickness = low - 0.1
 
     def test_thickness_aware_cathode_notches_align_at_physical_position(self):
         alignment_position = 50.0
