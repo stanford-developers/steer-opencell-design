@@ -116,6 +116,11 @@ class PouchCell(_Cell):
         for electrode_name in ("cathode", "anode"):
             terminal = getattr(self._encapsulation, f"_{electrode_name}_terminal")
 
+            # a terminal is never wider than the tab it is welded to
+            tab_width = getattr(assembly, "tab_stack_width", None)
+            if tab_width is not None:
+                terminal._fit_to_tab(tab_width(electrode_name))
+
             position_x = assembly.tab_stack_x(electrode_name)
 
             # Butt the terminal onto the tab: its near edge meets the tab tip,
@@ -529,6 +534,9 @@ class PouchCell(_Cell):
 
         # validate input
         self.validate_positive_float(value, "width")
+
+        # no narrower than the tabs, at their thinnest, can fit
+        value = max(value, self.width_hard_range[0])
 
         # get change in width
         current_width = self.width
