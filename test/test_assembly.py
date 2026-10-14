@@ -186,7 +186,7 @@ class TestRoundJellyRoll(unittest.TestCase):
         # Measured with the radius setter's own geometry (tape wraps included),
         # so both ends can actually be wound; the old estimate said 8.73-30.55.
         # The minimum is the shortest layup: the bare foil ends + 100 mm coated.
-        self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 8.36, 2)
+        self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 8.37, 2)
         self.assertAlmostEqual(self.my_jellyroll.radius_range[1], 30.74, 2)
         self.assertAlmostEqual(self.my_jellyroll.mass, 655.4, 1)
 
@@ -432,8 +432,9 @@ class TestRoundJellyRoll(unittest.TestCase):
         # do not fit the 56.6 mm straight section of the pressed racetrack, so
         # they are trimmed to it. A notch has to lie on a flat face.
         self.assertAlmostEqual(flat_jellyroll.cost, 4.52, 2)
-        # Flat dimensions include the whole outer layer (1.1.0).
-        self.assertAlmostEqual(flat_jellyroll.thickness, 19.45, 1)
+        # Flat dimensions include the whole outer layer (1.1.0); the taut spans
+        # over steps on the straights (1.2.0) add ~0.07 mm.
+        self.assertAlmostEqual(flat_jellyroll.thickness, 19.52, 1)
         self.assertAlmostEqual(flat_jellyroll.width, 76.00, 1)
         for electrode in ("cathode", "anode"):
             collector = getattr(flat_jellyroll.layup, electrode).current_collector
@@ -748,8 +749,9 @@ class TestFlatJellyRoll(unittest.TestCase):
     def test_basics(self):
         self.assertTrue(type(self.my_jellyroll), WoundJellyRoll)
         # Turns wound on the turn beneath them, measured on the outer face of the
-        # outermost layer (1.1.0); centre lines gave 12.5 x 114.1.
-        self.assertAlmostEqual(self.my_jellyroll.thickness, 12.71, 2)
+        # outermost layer (1.1.0); centre lines gave 12.5 x 114.1. Spanning taut
+        # over steps on the straights (1.2.0) gave 12.71 -> 12.74.
+        self.assertAlmostEqual(self.my_jellyroll.thickness, 12.74, 2)
         self.assertAlmostEqual(self.my_jellyroll.width, 114.05, 2)
         self.assertAlmostEqual(self.my_jellyroll.cost, 4.18, 1)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23725.2, 0)
@@ -1748,8 +1750,8 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertIsInstance(wound_jellyroll, WoundJellyRoll)
         self.assertAlmostEqual(wound_jellyroll.interfacial_area, 23895, 0)
         self.assertAlmostEqual(wound_jellyroll.cost, 3.97, 1)
-        self.assertAlmostEqual(wound_jellyroll.radius, 20.57, 2)
-        self.assertAlmostEqual(wound_jellyroll.diameter, 41.14, 2)
+        self.assertAlmostEqual(wound_jellyroll.radius, 20.58, 2)
+        self.assertAlmostEqual(wound_jellyroll.diameter, 41.16, 2)
 
         figure = wound_jellyroll.plot_spiral()
         # figure.show()

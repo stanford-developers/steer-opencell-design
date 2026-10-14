@@ -1488,7 +1488,7 @@ class TestCylindricalCellTabbed(unittest.TestCase):
     def test_basics(self):
         self.assertIsInstance(self.cell, ocd.CylindricalCell)
         self.assertAlmostEqual(self.cell.energy, 132.305, places=2)
-        self.assertAlmostEqual(self.cell.mass, 981.21, places=2)
+        self.assertAlmostEqual(self.cell.mass, 981.22, places=2)
         # ``places=1`` (~7e-3 % of 135) accommodates the Phase-3 segmented
         # analytic spiral integrator's drift relative to the legacy
         # adaptive-RK baseline that originally pinned this value.
@@ -3890,9 +3890,10 @@ class TestFromLoadedCell(unittest.TestCase):
         self.assertIsNotNone(new_cell.cost)
         # The teardown was saved before 1.1.0, so it is re-wound as it loads and
         # the radius it keeps is the new model's (the old winding gave 51.81 Wh;
-        # 1.1.0's steeper ramps 51.73 Wh / 415.49 g).
-        self.assertAlmostEqual(new_cell.energy, 51.65, delta=0.1)
-        self.assertAlmostEqual(new_cell.mass, 414.98, delta=0.5)
+        # 1.1.0's ramps 51.73 Wh / 415.49 g, 1.1.1's 51.65 Wh / 414.98 g; layers
+        # draped taut over steps, 1.2.0, leave less void).
+        self.assertAlmostEqual(new_cell.energy, 51.78, delta=0.1)
+        self.assertAlmostEqual(new_cell.mass, 415.83, delta=0.5)
         self.assertAlmostEqual(new_cell.cost, 2.8, places=1)
 
         fig1 = new_cell.plot_cross_section()
