@@ -54,6 +54,21 @@ class TestAnodeNoInsulation(unittest.TestCase):
             mass_loading=8.35,
         )
 
+    def test_porosity_can_go_to_zero(self):
+        """A fully dense (monolithic) coating is valid: the hard range starts at 0."""
+        import warnings
+
+        from steer_core.Constants.Units import KG_TO_G, M_TO_CM
+
+        self.assertEqual(self.anode.porosity_hard_range, (0, 80))
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # no "negative porosity" warning at 0
+            self.anode.porosity = 0
+        self.assertAlmostEqual(self.anode.porosity, 0.0, places=9)
+        theoretical = KG_TO_G / M_TO_CM**3 / self.anode._formulation._specific_volume
+        self.assertAlmostEqual(self.anode.calender_density, theoretical, places=9)
+        self.assertAlmostEqual(self.anode.calender_density_hard_range[1], theoretical, places=9)
+
     def test_electrodes(self):
         self.assertTrue(isinstance(self.anode, Anode))
 
@@ -499,6 +514,12 @@ class TestCathodePunchedCurrentCollector(unittest.TestCase):
         # the rejected assignment must leave the cathode intact
         self.assertIsNotNone(self.cathode.formulation)
         self.assertFalse(self.cathode._is_anode_free)
+
+
+    def test_cathode_porosity_can_go_to_zero(self):
+        self.assertEqual(self.cathode.porosity_hard_range[0], 0)
+        self.cathode.porosity = 0
+        self.assertAlmostEqual(self.cathode.porosity, 0.0, places=9)
 
 
 class TestCathodeTwoMaterialNotched(unittest.TestCase):
