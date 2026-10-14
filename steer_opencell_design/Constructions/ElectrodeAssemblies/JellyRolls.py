@@ -3102,6 +3102,10 @@ class WoundJellyRoll(_JellyRoll):
     >>> print(f"Outer diameter: {jelly_roll.diameter} mm")
     """
 
+    # The achievable-range cache is recomputed by whichever engine loads a design;
+    # saving it would hand a future engine this version's numbers.
+    _serializer_exclude = frozenset({"_achievable_radius_range"})
+
     def __init__(
         self,
         laminate: Laminate,
@@ -3673,6 +3677,10 @@ class FlatWoundJellyRoll(_JellyRoll):
     >>> jelly_roll = FlatWoundJellyRoll(laminate=layup, mandrel=mandrel)
     >>> print(f"Dimensions: {jelly_roll.width} x {jelly_roll.thickness} mm")
     """
+
+    # The achievable-range cache is recomputed by whichever engine loads a design;
+    # saving it would hand a future engine this version's numbers.
+    _serializer_exclude = frozenset({"_achievable_extents_range"})
 
     def __init__(
         self,

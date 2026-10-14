@@ -403,6 +403,16 @@ class TestRoundJellyRoll(unittest.TestCase):
         for key, before in spirals.items():
             np.testing.assert_array_equal(roll._component_spirals[key], before)
 
+    def test_a_saved_roll_does_not_carry_its_range_cache(self):
+        """A design saved after its range was read must not store the cached
+        range: whichever engine loads it recomputes the range itself."""
+        roll = deepcopy(self.my_jellyroll)
+        expected = roll.radius_range
+        self.assertNotIn("_achievable_radius_range", roll._to_dict())
+        loaded = WoundJellyRoll.deserialize(roll.serialize())
+        self.assertIsNone(getattr(loaded, "_achievable_radius_range", None))
+        self.assertEqual(loaded.radius_range, expected)
+
     def test_a_stale_saved_radius_range_is_ignored(self):
         """Designs saved before 1.0.57 carry the old estimated ``_radius_range``;
         it must never be reported."""
@@ -761,6 +771,11 @@ class TestFlatJellyRoll(unittest.TestCase):
                 setattr(roll, dimension, target)
                 if dimension == "thickness":
                     self.assertAlmostEqual(roll.thickness, target, delta=0.05)
+
+    def test_a_saved_flat_roll_does_not_carry_its_range_cache(self):
+        roll = deepcopy(self.my_jellyroll)
+        roll.thickness_range
+        self.assertNotIn("_achievable_extents_range", roll._to_dict())
 
     def test_thickness_below_range_still_raises(self):
         low, _ = self.my_jellyroll.thickness_range
