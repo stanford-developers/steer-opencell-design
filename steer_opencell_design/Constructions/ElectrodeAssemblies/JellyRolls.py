@@ -44,6 +44,20 @@ from steer_opencell_design.Components.CurrentCollectors.Notched import (
 from steer_opencell_design.Components.CurrentCollectors.Tabless import (
     TablessCurrentCollector,
 )
+from steer_opencell_design.Constructions.ElectrodeAssemblies.Winding import (
+    ROUND_POINTS_PER_TURN,
+    ROUND_POINTS_PER_TURN_HIRES,
+    RACETRACK_CURVE_POINTS,
+    RACETRACK_CURVE_POINTS_HIRES,
+    RACETRACK_STRAIGHT_SPACING,
+    RACETRACK_STRAIGHT_SPACING_HIRES,
+    TapeSpec,
+    WindingTemplate,
+    component_paths,
+    racetrack_template,
+    round_template,
+    wind,
+)
 
 # Constants for array column indices
 THETA_COL = 0
@@ -59,6 +73,11 @@ DEFAULT_PRESSED_HEIGHT = 0.0008
 # A dimension setter's target this close (mm) to a bound of its achievable range
 # is taken as that bound (see ``_JellyRoll._solve_layup_length``).
 _BOUND_TOLERANCE_MM = 1e-6
+
+# Iteration cap for the dimension setters' Brent search (see
+# ``_JellyRoll._solve_layup_length``): a step in the roll's dimension needs more
+# than the smooth case's handful; each iteration is one lightweight winding.
+_SOLVER_MAX_ITERATIONS = 100
 
 # Geometry dicts a measuring copy of a roll gets its own copy of, so that
 # measuring a dimension never writes into the roll being measured.
@@ -185,12 +204,8 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
     def _calculate_coordinates(self, laminate_x_spacing=0.004, **kwargs) -> None:
 
-        # calculate the roll
+        # wind the roll (the tape, if any, is wound in the same pass)
         self._calculate_roll(laminate_x_spacing=laminate_x_spacing, **kwargs)
-
-        # calculate tape roll if applicable
-        if self._tape is not None and self._additional_tape_wraps > 0:
-            self._calculate_tape_roll()
 
         # calculate derived properties
         self._calculate_roll_properties()
@@ -598,40 +613,86 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
     def _calculate_roll(
         self, laminate_x_spacing=0.004, _objective_mode: bool = False, **kwargs
     ) -> None:
-        """Calculate the basic jelly roll geometry and component placement.
+        """Wind the laminate (and tape) and measure the roll.
 
-        This method orchestrates the core spiral calculation workflow:
-        1. Flattens the layup center lines with specified spacing
-        2. Calculates the variable thickness spiral path
-        3. Maps components onto the spiral
-        4. Creates extruded visualization shapes
-        5. Centers the spirals for proper visualization
+        1. Wind the exact stack profile turn on turn onto the mandrel's template
+           (:func:`Winding.wind`), the tape as the strip's outer continuation.
+        2. Measure the roll from its outer envelope (:meth:`_measure_winding`).
+        3. Unless in objective mode: build every layer's path and outline in the
+           winding's frame, then place them (:meth:`_place_winding`).
 
         Parameters
         ----------
         laminate_x_spacing : float, default=0.004
-            Spacing between points along the x-axis for center line calculation in meters
+            Accepted for compatibility; the winding uses each layer's exact
+            start and end, so no sampling grid is involved.
         _objective_mode : bool, default=False
-            Fast path for the Brent dimension-setter objectives. The objective
-            only reads scalar dimensions that are translation-invariant and
-            derivable from the component spirals, so centering is skipped and
-            the extruded visualization shapes are only built when a tape wrap
-            needs them (``_calculate_tape_roll`` concatenates them).
+            Fast path for the Brent dimension-setter objectives: wind and
+            measure only. The measurement is the same one the full rebuild
+            makes, so the objective and the rebuilt roll always agree.
         **kwargs
-            Additional arguments passed to spiral calculation methods
+            Template resolution (``dtheta`` for round, ``ds_target`` /
+            ``curve_points`` for flat rolls).
         """
-        self._layup.calculate_flattened_center_lines(x_spacing=laminate_x_spacing)
-        self._calculate_variable_thickness_spiral(**kwargs)
-        self._build_component_spirals()
-        needs_extrusion = not _objective_mode or (
-            self._tape is not None and self._additional_tape_wraps > 0
+        template = self._winding_template(**kwargs)
+        self._winding = wind(self._layup.get_stack_profile(), template, self._tape_spec())
+        self._spiral = self._winding.base_path()
+        self._measure_winding()
+        if _objective_mode:
+            return
+        self._component_spirals, self._extruded_spirals = component_paths(
+            self._winding, self._component_thicknesses()
         )
-        if needs_extrusion:
-            self._build_extruded_component_spirals()
-        else:
-            self._extruded_spirals = {}
-        if not _objective_mode:
-            self._center_spirals()
+        self._place_winding(**kwargs)
+
+    def _tape_requested(self) -> bool:
+        """Whether a tape is to be wound: wraps when the roll drives its length,
+        a length when the tape does."""
+        tape = getattr(self, "_tape", None)
+        if tape is None:
+            return False
+        if self._tape_length_driver == TapeDriver.TAPE_DRIVEN:
+            return (getattr(tape, "_length", None) or 0) > 0
+        return (self._additional_tape_wraps or 0) > 0
+
+    def _tape_spec(self) -> Optional[TapeSpec]:
+        """The tape to wind after the strip, or ``None``."""
+        if not self._tape_requested():
+            return None
+        if self._tape_length_driver == TapeDriver.TAPE_DRIVEN:
+            return TapeSpec(thickness=self._tape._thickness, length=self._tape._length)
+        return TapeSpec(thickness=self._tape._thickness, wraps=self._additional_tape_wraps)
+
+    def _component_thicknesses(self) -> Dict[str, float]:
+        """Per-component layer thicknesses used for extrusion."""
+        return {
+            "top_separator": self._layup.top_separator._thickness,
+            "anode_a_side_coating": self._layup.anode._coating_thickness,
+            "anode_current_collector": self._layup.anode.current_collector._thickness,
+            "anode_b_side_coating": self._layup.anode._coating_thickness,
+            "bottom_separator": self._layup.bottom_separator._thickness,
+            "cathode_a_side_coating": self._layup.cathode._coating_thickness,
+            "cathode_current_collector": self._layup.cathode.current_collector._thickness,
+            "cathode_b_side_coating": self._layup.cathode._coating_thickness,
+        }
+
+    @abstractmethod
+    def _winding_template(self, **kwargs) -> WindingTemplate:
+        """The mandrel's winding template at the requested resolution."""
+
+    @abstractmethod
+    def _measure_winding(self) -> None:
+        """Set the roll's dimensions from ``self._winding``'s outer envelope."""
+
+    @abstractmethod
+    def _place_winding(self, **kwargs) -> None:
+        """Move the built paths from the winding's frame to the display frame."""
+
+    def _ensure_winding(self) -> None:
+        """Re-wind if this roll has no winding (e.g. it was just deserialized:
+        the winding is not saved with a design)."""
+        if getattr(self, "_winding", None) is None:
+            self._calculate_roll()
 
     def _calculate_bulk_properties(self):
         """Calculate bulk properties including tape properties if tape is present.
@@ -1130,48 +1191,6 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         return layup
 
     @abstractmethod
-    def _calculate_variable_thickness_spiral(self, **kwargs) -> np.ndarray:
-        """Calculate the base spiral with variable thickness.
-
-        This method must be implemented by subclasses to define the specific
-        spiral calculation algorithm for their geometry type.
-
-        Returns
-        -------
-        np.ndarray
-            Base spiral coordinates [theta, x_unwrapped, r, x, z, turns]
-        """
-        pass
-
-    @abstractmethod
-    def _build_component_spirals(self) -> Dict[str, np.ndarray]:
-        """Build individual component spirals from the base spiral.
-
-        This method must be implemented by subclasses to define how components
-        are mapped onto the base spiral geometry.
-
-        Returns
-        -------
-        Dict[str, np.ndarray]
-            Component spirals keyed by component name
-        """
-        pass
-
-    @abstractmethod
-    def _build_extruded_component_spirals(self) -> Dict[str, np.ndarray]:
-        """Build thickness-extruded component spirals for visualization.
-
-        This method must be implemented by subclasses to create filled shapes
-        representing component thickness for 3D visualization.
-
-        Returns
-        -------
-        Dict[str, np.ndarray]
-            Extruded component spirals keyed by component name
-        """
-        pass
-
-    @abstractmethod
     def _calculate_geometry_parameters(self) -> None:
         """Calculate geometry-specific parameters (radius, thickness, etc.).
 
@@ -1283,69 +1302,26 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         arithmetic, and Brent then sees no sign change. A target within
         ``_BOUND_TOLERANCE_MM`` of a bound takes that bound's own length; anything
         genuinely outside the range still raises.
+
+        A tightly wound roll's dimensions grow in steps of about one laminate
+        thickness as each new wrap crosses a face (most visibly a flat roll's
+        thickness), so a target between two steps has no exact root. Brent then
+        converges onto the step's edge, which takes more than its usual handful
+        of iterations; ``_SOLVER_MAX_ITERATIONS`` leaves room for that.
         """
         try:
-            return brentq(objective, lo, hi, xtol=1e-3, rtol=1e-3, maxiter=20)
+            return brentq(
+                objective, lo, hi, xtol=1e-3, rtol=1e-3, maxiter=_SOLVER_MAX_ITERATIONS
+            )
         except ValueError:
             for end in bracket:
                 if abs(objective(end)) <= _BOUND_TOLERANCE_MM:
                     return end
             raise
 
-    def _calculate_tape_roll(
-        self, **kwargs
-    ) -> Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]:
-        """Calculate tape spiral around the existing jelly roll assembly.
-
-        This unified method handles both round and racetrack geometries by:
-        1. Finding the appropriate geometry parameters for the tape starting radius
-        2. Creating the appropriate spiral type (round or racetrack)
-        3. Centering the tape spiral around the existing assembly
-        4. Building appropriate extruded tape visualization
-        5. Updating the spiral geometries
-
-        Parameters
-        ----------
-        **kwargs
-            Additional arguments passed to tape spiral calculation
-
-        Returns
-        -------
-        Tuple[Dict[str, np.ndarray], Dict[str, np.ndarray]]
-            Updated (component_spirals, extruded_spirals) including tape
-
-        Notes
-        -----
-        The tape wraps around the outermost surface of the jelly roll,
-        adding the specified number of additional turns for insulation.
-        """
-        # Get the extruded spirals
-        extruded_spirals = self._extruded_spirals.copy()
-
-        # Remove tape spiral if it exists to avoid wrapping around it again
-        extruded_spirals.pop("tape", None)
-
-        # Concatenate all extruded spirals to find geometry parameters
-        spirals = [s for s in extruded_spirals.values()]
-        spirals = np.concatenate(spirals, axis=0)
-        spirals_x_z = np.column_stack(
-            (spirals[:, X_COORD_COL], spirals[:, Z_COORD_COL])
-        )
-
-        # Get geometry-specific parameters
-        tape_params = self._get_tape_geometry_parameters(spirals_x_z)
-
-        # Calculate the appropriate spiral type
-        tape_spiral = self._calculate_tape_spiral(tape_params, **kwargs)
-
-        # Build extruded tape spiral using appropriate method
-        extruded_tape_spiral = self._build_tape_extruded_spiral(tape_spiral)
-
-        self._component_spirals["tape"] = tape_spiral
-        self._extruded_spirals["tape"] = extruded_tape_spiral["tape"]
-
-        # Update the geometry parameters after adding the tape spiral
-        return self._component_spirals, self._extruded_spirals
+    def _calculate_tape_roll(self, **kwargs) -> None:
+        """Re-wind the roll after a tape change (the tape is wound with the strip)."""
+        self._calculate_coordinates(**kwargs)
 
     @abstractmethod
     def _get_tape_geometry_parameters(self, spirals_x_z: np.ndarray) -> Dict[str, Any]:
@@ -1410,15 +1386,6 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         ----------
         tape_params : Dict[str, Any]
             Geometry-specific parameters
-        """
-        pass
-
-    @abstractmethod
-    def _center_spirals(self) -> None:
-        """Center the spiral geometry around the origin.
-
-        This method must be implemented by subclasses to adjust the spiral coordinates
-        so that the center of mass or geometric center is at the origin for visualization.
         """
         pass
 
@@ -3104,7 +3071,7 @@ class WoundJellyRoll(_JellyRoll):
 
     # The achievable-range cache is recomputed by whichever engine loads a design;
     # saving it would hand a future engine this version's numbers.
-    _serializer_exclude = frozenset({"_achievable_radius_range"})
+    _serializer_exclude = frozenset({"_achievable_radius_range", "_winding"})
 
     def __init__(
         self,
@@ -3144,29 +3111,14 @@ class WoundJellyRoll(_JellyRoll):
         self._update_properties = True
 
     def _calculate_geometry_parameters(self) -> None:
-        """Calculate outer radius and diameter of the wound jelly roll.
+        """Set the outer radius and diameter from the winding's measurement.
 
-        Determines the minimum bounding circle for all component spirals to find
-        the overall dimensions of the wound assembly.
-
-        Returns
-        -------
-        Tuple[float, float]
-            (radius, diameter) in meters
-
-        Raises
-        ------
-        ValueError
-            If component spiral data is invalid or insufficient
+        Both are measured from the roll's outer envelope when it is wound
+        (:meth:`_measure_winding`), the same measurement the radius setter's
+        objective makes, so the two always agree.
         """
-        spirals = [s for s in self._extruded_spirals.values()]
-        spirals = np.concatenate(spirals, axis=0)
-        spirals_x_z = np.column_stack(
-            (spirals[:, X_COORD_COL], spirals[:, Z_COORD_COL])
-        )
-        radius, center = self.get_radius_of_points(spirals_x_z)
-
-        self._radius = radius
+        self._ensure_winding()
+        self._radius = self._winding_radius
         self._diameter = self._radius * 2
         # The achievable range is measured lazily (see ``radius_range``): it costs
         # two roll builds, and most pipelines never read it.
@@ -3174,53 +3126,39 @@ class WoundJellyRoll(_JellyRoll):
         self._calculate_total_height()
 
     def _set_main_dimensions_for_objective(self) -> None:
-        """Cheap subset of ``_calculate_geometry_parameters`` for Brent loops.
-
-        Skips:
-          * the achievable radius range — it does not depend on the layup's
-            current length, so it is the same at every iteration (and it is
-            measured with this very geometry; see ``radius_range``).
-          * ``_calculate_total_height`` — reads from
-            ``_component_top_down_coordinates``, which the setter never
-            refreshes inside the objective (``copy(self)`` is shallow), so
-            recomputing it adds nothing.
-
-        When the objective-mode roll skipped building the extruded shapes,
-        the bounding-circle candidates are generated directly from the
-        component center-line spirals pushed outward by half the component
-        thickness — the exact same points the extruded outer boundary would
-        contain (inner-boundary points can never lie on the hull).
-
-        The radius setter calls the full ``_calculate_geometry_parameters``
-        once after Brent converges, restoring the full property snapshot.
-        """
-        if self._extruded_spirals:
-            spirals = np.concatenate(list(self._extruded_spirals.values()), axis=0)
-            spirals_x_z = np.column_stack(
-                (spirals[:, X_COORD_COL], spirals[:, Z_COORD_COL])
-            )
-        else:
-            thicknesses = self._component_thicknesses()
-            parts = []
-            for name, comp in self._component_spirals.items():
-                if comp is None or len(comp) == 0:
-                    continue
-                r_out = comp[:, RADIUS_COL] + 0.5 * thicknesses.get(name, 0.0)
-                theta = comp[:, THETA_COL]
-                parts.append(
-                    np.column_stack((r_out * np.cos(theta), r_out * np.sin(theta)))
-                )
-            spirals_x_z = np.vstack(parts)
-        radius, _ = self.get_radius_of_points(spirals_x_z)
-        self._radius = radius
+        """Dimensions for a Brent probe: already set when the probe was wound."""
+        self._radius = self._winding_radius
         self._diameter = self._radius * 2
+
+    def _winding_template(self, dtheta: Optional[float] = None, **kwargs) -> WindingTemplate:
+        """The round mandrel's template; ``dtheta`` (rad) sets the resolution."""
+        points = ROUND_POINTS_PER_TURN
+        if dtheta is not None and dtheta > 0:
+            points = max(ROUND_POINTS_PER_TURN, int(round(TWO_PI / dtheta)))
+        return round_template(self._mandrel._radius, points)
+
+    def _measure_winding(self) -> None:
+        """Outer radius and centre: the smallest circle around the outer envelope."""
+        radius, center = self.get_radius_of_points(self._winding.envelope())
+        self._winding_radius = radius
+        self._winding_center = center
+        self._radius = radius
+        self._diameter = radius * 2
+
+    def _place_winding(self, **kwargs) -> None:
+        """Centre the roll on its bounding circle."""
+        center_x, center_z = self._winding_center
+        self._spiral, self._component_spirals, self._extruded_spirals = (
+            self._translate_spirals_xz(x_shift=-center_x, z_shift=-center_z)
+        )
 
     def _radius_at_length(self, length: float) -> float:
         """The roll's outer radius in mm if its layup were ``length`` mm long.
 
         The lightweight geometry the radius setter solves against: shallow-copy
-        the assembly, run the geometry pipeline (spiral + components + tape) and
-        measure, skipping downstream properties (mass, cost, view coordinates).
+        the assembly, wind it (tape included) and measure its outer envelope,
+        skipping the layer paths and downstream properties. The full rebuild
+        measures the same envelope, so this is exactly the radius it gets.
         Shared by the setter and by :attr:`radius_range`, so the range is exactly
         what the setter can reach.
 
@@ -3240,9 +3178,6 @@ class WoundJellyRoll(_JellyRoll):
             template_layup, assembly_copy._mandrel
         )
         assembly_copy._calculate_roll(_objective_mode=True)
-        if assembly_copy._tape is not None and assembly_copy._additional_tape_wraps > 0:
-            assembly_copy._calculate_tape_roll()
-        assembly_copy._set_main_dimensions_for_objective()
         return assembly_copy.radius
 
     def _calculate_radius_range(self) -> Tuple[float, float]:
@@ -3258,29 +3193,6 @@ class WoundJellyRoll(_JellyRoll):
         """
         lo, hi = self._layup_length_bracket()
         return (self._radius_at_length(lo), self._radius_at_length(hi))
-
-    def _calculate_variable_thickness_spiral(self, **kwargs) -> np.ndarray:
-        """Calculate the base spiral path for variable thickness layup.
-
-        Delegates to SpiralCalculator to create the fundamental spiral geometry
-        that accounts for varying component thicknesses throughout the layup.
-
-        Parameters
-        ----------
-        **kwargs
-            Additional arguments passed to the spiral calculation method
-
-        Returns
-        -------
-        np.ndarray
-            Base spiral coordinates [theta, x_unwrapped, r, x, z, turns]
-        """
-
-        self._spiral = SpiralCalculator.calculate_variable_thickness_spiral(
-            laminate=self._layup, start_radius=self._mandrel._radius, **kwargs
-        )
-
-        return self._spiral
 
     def _get_tape_geometry_parameters(self, spirals_x_z: np.ndarray) -> Dict[str, Any]:
         """Get geometry parameters for round tape calculation.
@@ -3360,91 +3272,7 @@ class WoundJellyRoll(_JellyRoll):
         Dict[str, Any]
             Dictionary containing round geometry high-resolution parameters
         """
-        return {"dtheta": 0.1}  # 0.1° angular spacing for spiral calculation
-
-    def _build_component_spirals(self) -> Dict[str, np.ndarray]:
-        """Build component spirals by mapping flattened center lines onto the wound spiral.
-
-        Maps individual electrode and separator components from the layup onto the base
-        spiral geometry, accounting for their specific thickness and positioning.
-
-        Returns
-        -------
-        Dict[str, np.ndarray]
-            Component spirals keyed by component name
-        """
-        self._component_spirals = SpiralCalculator.build_component_spirals(
-            base_spiral=self._spiral,
-            layup=self._layup,
-            mandrel_radius=self._mandrel._radius,
-        )
-
-        return self._component_spirals
-
-    def _component_thicknesses(self) -> Dict[str, float]:
-        """Per-component layer thicknesses used for radial extrusion."""
-        return {
-            "top_separator": self._layup.top_separator._thickness,
-            "anode_a_side_coating": self._layup.anode._coating_thickness,
-            "anode_current_collector": self._layup.anode.current_collector._thickness,
-            "anode_b_side_coating": self._layup.anode._coating_thickness,
-            "bottom_separator": self._layup.bottom_separator._thickness,
-            "cathode_a_side_coating": self._layup.cathode._coating_thickness,
-            "cathode_current_collector": self._layup.cathode.current_collector._thickness,
-            "cathode_b_side_coating": self._layup.cathode._coating_thickness,
-        }
-
-    def _build_extruded_component_spirals(self) -> Dict[str, np.ndarray]:
-        """Build extruded component spirals by radially thickening center line spirals.
-
-        For each component, creates a filled shape by:
-        1. Taking the center line spiral from _component_spirals
-        2. Creating outer spiral by adding thickness/2 to radius
-        3. Creating inner spiral by subtracting thickness/2 from radius
-        4. Reversing inner spiral direction for proper winding
-        5. Combining outer + inner spirals into a closed filled shape
-
-        Returns
-        -------
-        Dict[str, np.ndarray]
-            Extruded component spirals for 3D visualization
-        """
-        self._extruded_spirals = SpiralCalculator.build_extruded_component_spirals(
-            component_spirals=self._component_spirals,
-            component_thicknesses=self._component_thicknesses(),
-        )
-
-        return self._extruded_spirals
-
-    def _center_spirals(self) -> None:
-        """Center all spiral geometries around their geometric center.
-
-        This method:
-        1. Combines all component spirals to find the geometric center
-        2. Calculates the center point of the bounding circle
-        3. Translates all spirals to center them around the origin
-
-        This centering is important for visualization and ensures consistent
-        coordinate systems across different jelly roll configurations.
-
-        Returns
-        -------
-        Tuple[np.ndarray, Dict[str, np.ndarray], Dict[str, np.ndarray]]
-            Centered (spiral, component_spirals, extruded_spirals)
-        """
-
-        spirals = [s for s in self._component_spirals.values()]
-        spirals = np.concatenate(spirals, axis=0)
-        spirals_x_z = np.column_stack(
-            (spirals[:, X_COORD_COL], spirals[:, Z_COORD_COL])
-        )
-        _, center = self.get_radius_of_points(spirals_x_z)
-
-        center_x, center_z = center
-
-        self._spiral, self._component_spirals, self._extruded_spirals = (
-            self._translate_spirals_xz(x_shift=-center_x, z_shift=-center_z)
-        )
+        return {"dtheta": TWO_PI / ROUND_POINTS_PER_TURN_HIRES}
 
     @classmethod
     def from_flat_jelly_roll(
@@ -3680,7 +3508,7 @@ class FlatWoundJellyRoll(_JellyRoll):
 
     # The achievable-range cache is recomputed by whichever engine loads a design;
     # saving it would hand a future engine this version's numbers.
-    _serializer_exclude = frozenset({"_achievable_extents_range"})
+    _serializer_exclude = frozenset({"_achievable_extents_range", "_winding"})
 
     def __init__(
         self,
@@ -3774,71 +3602,90 @@ class FlatWoundJellyRoll(_JellyRoll):
         _objective_mode: bool = False,
         **kwargs,
     ):
-        # Newly generated racetrack coordinates use the pressed mandrel center
-        # as their origin; the centering step below shifts it. Notch centers are
-        # solved before any rotation, so only this translation has to be tracked.
+        """Wind the racetrack, measure it, and (full mode) place the layers.
+
+        Notch centres are solved in the winding's frame, before the roll is
+        rotated and centred for display. ``initial_rotation_angle`` is accepted
+        for compatibility; the orientation is exact (rotating calipers).
+        """
+        # The winding's frame has the pressed mandrel centred on the origin;
+        # placing the roll for display shifts it.
         self._pressed_mandrel_center_x = 0.0
+        self._apply_notch_alignment_on_place = apply_notch_alignment
         super()._calculate_roll(
             laminate_x_spacing, _objective_mode=_objective_mode, **kwargs
         )
-        if apply_notch_alignment:
+
+    def _winding_template(
+        self,
+        ds_target: Optional[float] = None,
+        curve_points: Optional[int] = None,
+        **kwargs,
+    ) -> WindingTemplate:
+        """The pressed racetrack's template at the requested resolution."""
+        return racetrack_template(
+            self._pressed_radius,
+            self._pressed_straight_length,
+            curve_points=curve_points or RACETRACK_CURVE_POINTS,
+            straight_spacing=ds_target or RACETRACK_STRAIGHT_SPACING,
+        )
+
+    def _measure_winding(self) -> None:
+        """Thickness and width at the minimum-thickness orientation of the outer
+        envelope (rotating calipers on its hull)."""
+        envelope = self._winding.envelope()
+        try:
+            angle, thickness, width = SpiralCalculator.min_thickness_orientation(envelope)
+        except Exception:  # degenerate hull: measure the template orientation
+            angle = 0.0
+            thickness = float(np.ptp(envelope[:, 1]))
+            width = float(np.ptp(envelope[:, 0]))
+        if angle > np.pi / 2:  # same orientation, the smaller turn
+            angle -= np.pi
+        self._last_rotation_angle = angle
+        self._winding_extents = (thickness, width)
+        self._thickness = thickness
+        self._width = width
+
+    def _place_winding(self, **kwargs) -> None:
+        """Solve notch centres in the winding's frame, then rotate to the
+        minimum-thickness orientation and centre the roll's outer envelope."""
+        if getattr(self, "_apply_notch_alignment_on_place", True):
             # A notch has to sit on a flat face, so trim any that the pressed
             # racetrack can no longer accommodate before placing them.
             self._fit_notched_collectors_to_racetrack()
             # Solve notch positions while x is still the pressed mandrel's
-            # intrinsic longitudinal axis. The rigid transforms below carry
-            # the selected points into the final display coordinates.
+            # longitudinal axis; the rigid transforms below carry them along.
             self._apply_thickness_aware_notches()
+        envelope = self._winding.envelope()
+        pivot = envelope.mean(axis=0)
+        angle = self._last_rotation_angle
+        c, s = np.cos(angle), np.sin(angle)
+        rotation = np.array([[c, -s], [s, c]])
 
-        # In objective mode (no tape) the Brent objective only needs the
-        # scalar thickness/width at the optimal rotation — both come straight
-        # out of the rotating-calipers scan, so the arrays never need to be
-        # rotated (or centered) at all.
-        if _objective_mode and not (
-            self._tape is not None and self._additional_tape_wraps > 0
-        ):
-            extents = self._compute_objective_extents()
-            if extents is not None:
+        def rotate(arr: np.ndarray) -> None:
+            if arr is None or arr.size == 0:
                 return
+            xz = arr[:, [X_COORD_COL, Z_COORD_COL]]
+            valid = ~np.isnan(xz).any(axis=1)
+            arr[valid, X_COORD_COL], arr[valid, Z_COORD_COL] = (
+                ((xz[valid] - pivot) @ rotation.T + pivot).T
+            )
 
-        # ``initial_rotation_angle`` seeds the legacy Brent fallback in
-        # ``_rotate_spirals_to_minimize_thickness``; the rotating-calipers
-        # path is non-iterative and ignores it.
-        self._last_rotation_angle = self._rotate_spirals_to_minimize_thickness(
-            initial_angle=initial_rotation_angle
+        rotate(self._spiral)
+        for arr in self._component_spirals.values():
+            rotate(arr)
+        for arr in self._extruded_spirals.values():
+            rotate(arr)
+        rotated = (envelope - pivot) @ rotation.T + pivot
+        center_x = (rotated[:, 0].max() + rotated[:, 0].min()) / 2
+        center_z = (rotated[:, 1].max() + rotated[:, 1].min()) / 2
+        # Track the pressed mandrel centre through the same translation (the
+        # notch-stack footprints are drawn from it).
+        self._pressed_mandrel_center_x -= center_x
+        self._spiral, self._component_spirals, self._extruded_spirals = (
+            self._translate_spirals_xz(x_shift=-center_x, z_shift=-center_z)
         )
-        # Centering is translation-only, so the objective's thickness/width
-        # extents don't depend on it.
-        if not _objective_mode:
-            self._center_spirals()
-
-    def _compute_objective_extents(self) -> Optional[Tuple[float, float]]:
-        """Minimal-thickness (thickness, width) extents without rotating arrays.
-
-        Collects the component-spiral points (the same set that
-        ``_set_main_dimensions_for_objective`` measures) and runs the
-        rotating-calipers scan on their convex hull. Returns ``None`` when
-        the geometry is degenerate, in which case the caller falls back to
-        the rotate-then-measure path.
-        """
-        arrays = [
-            arr[:, [X_COORD_COL, Z_COORD_COL]]
-            for arr in self._component_spirals.values()
-            if arr is not None and arr.size > 0
-        ]
-        if not arrays:
-            return None
-        points = np.vstack(arrays)
-        valid = points[~np.isnan(points).any(axis=1)]
-        if len(valid) < 3:
-            return None
-        try:
-            angle, thickness, width = SpiralCalculator.min_thickness_orientation(valid)
-        except Exception:
-            return None
-        self._last_rotation_angle = angle
-        self._objective_extents = (thickness, width)
-        return self._objective_extents
 
     def _calculate_top_down_coordinates(self) -> None:
         """Add aligned notch-stack footprints to the standard top-down view."""
@@ -4220,69 +4067,22 @@ class FlatWoundJellyRoll(_JellyRoll):
         )
 
     def _calculate_geometry_parameters(self) -> None:
-        """Calculate overall thickness and width of the flat wound jelly roll.
+        """Set thickness and width from the winding's measurement.
 
-        Determines the bounding box dimensions by analyzing all component spirals
-        to find the overall envelope of the flat wound assembly.
-
-        Returns
-        -------
-        Tuple[float, float]
-            (thickness, width) in meters
-
-        Raises
-        ------
-        ValueError
-            If component spiral data is invalid or insufficient
+        Measured on the roll's outer envelope at its minimum-thickness
+        orientation when it is wound (:meth:`_measure_winding`), the same
+        measurement the thickness / width setters' objective makes.
         """
-        # Combine all component coordinates to find overall envelope
-        all_coords = []
-
-        for _, spiral_data in self._component_spirals.items():
-            coords_2d = spiral_data[:, [X_COORD_COL, Z_COORD_COL]]
-            all_coords.append(coords_2d)
-
-        # Concatenate all coordinates
-        combined_coords = np.vstack(all_coords)
-
-        # Calculate dimensions using the utility functions
-        self._thickness = SpiralCalculator.get_thickness_of_racetrack(combined_coords)
-        self._width = SpiralCalculator.get_width_of_racetrack(combined_coords)
+        self._ensure_winding()
+        self._thickness, self._width = self._winding_extents
         # The achievable ranges are measured lazily (see ``thickness_range``):
         # they cost two roll builds, and most pipelines never read them.
         self._achievable_extents_range = None
         self._calculate_total_height()
 
     def _set_main_dimensions_for_objective(self) -> None:
-        """Cheap subset of ``_calculate_geometry_parameters`` for Brent loops.
-
-        Skips the achievable thickness / width ranges (they do not depend on
-        the layup's current length, and are measured with this very geometry;
-        see ``thickness_range``) and
-        ``_calculate_total_height`` (reads from a shallow-copied dict that
-        the objective never refreshes).
-
-        The thickness / width setters call the full
-        ``_calculate_geometry_parameters`` once after Brent converges,
-        restoring the full property snapshot.
-
-        When the objective-mode roll already produced the minimal-thickness
-        extents via rotating calipers (``_compute_objective_extents``), those
-        are consumed directly — the arrays were never rotated, so measuring
-        their axis-aligned extents here would be wrong anyway.
-        """
-        extents = self.__dict__.pop("_objective_extents", None)
-        if extents is not None:
-            self._thickness, self._width = extents
-            return
-
-        all_coords = [
-            spiral_data[:, [X_COORD_COL, Z_COORD_COL]]
-            for spiral_data in self._component_spirals.values()
-        ]
-        combined_coords = np.vstack(all_coords)
-        self._thickness = SpiralCalculator.get_thickness_of_racetrack(combined_coords)
-        self._width = SpiralCalculator.get_width_of_racetrack(combined_coords)
+        """Dimensions for a Brent probe: already set when the probe was wound."""
+        self._thickness, self._width = self._winding_extents
 
     def _extents_at_length(
         self,
@@ -4292,15 +4092,16 @@ class FlatWoundJellyRoll(_JellyRoll):
         """The roll's (thickness, width) in mm if its layup were ``length`` mm long.
 
         The lightweight geometry the thickness and width setters solve against:
-        shallow-copy the assembly, run the geometry pipeline (spiral + components +
-        rotation + tape) and measure, skipping downstream properties. Shared by the
-        setters and by :attr:`thickness_range` / :attr:`width_range`, so the ranges
-        are exactly what the setters can reach.
+        shallow-copy the assembly, wind it (tape included) and measure its outer
+        envelope, skipping the layer paths and downstream properties. The full
+        rebuild measures the same envelope, so these are exactly the dimensions
+        it gets. Shared by the setters and by :attr:`thickness_range` /
+        :attr:`width_range`, so the ranges are exactly what the setters reach.
 
-        ``rotation_state`` carries the optimal rotation angle between calls so a
-        Brent loop can warm-start the inner rotation search. The layup is
-        deepcopied per evaluation (some ``length`` setters are lossy), and the copy
-        gets its own geometry dicts, so measuring never writes into this roll.
+        ``rotation_state`` is accepted for compatibility (the orientation is
+        exact, so nothing is warm-started). The layup is deepcopied per
+        evaluation (some ``length`` setters are lossy), and the copy gets its own
+        geometry dicts, so measuring never writes into this roll.
         """
         assembly_copy = copy(self)
         for name in _GEOMETRY_DICTS:
@@ -4312,18 +4113,7 @@ class FlatWoundJellyRoll(_JellyRoll):
         assembly_copy._layup = self.position_layup_on_mandrel(
             template_layup, assembly_copy._mandrel
         )
-        assembly_copy._calculate_roll(
-            initial_rotation_angle=rotation_state["angle"] if rotation_state else None,
-            apply_notch_alignment=False,
-            _objective_mode=True,
-        )
-        if rotation_state is not None:
-            rotation_state["angle"] = getattr(
-                assembly_copy, "_last_rotation_angle", None
-            )
-        if assembly_copy._tape is not None and assembly_copy._additional_tape_wraps > 0:
-            assembly_copy._calculate_tape_roll()
-        assembly_copy._set_main_dimensions_for_objective()
+        assembly_copy._calculate_roll(apply_notch_alignment=False, _objective_mode=True)
         return assembly_copy.thickness, assembly_copy.width
 
     def _calculate_thickness_width_range(
@@ -4391,209 +4181,6 @@ class FlatWoundJellyRoll(_JellyRoll):
 
         return self._pressed_radius, self._pressed_straight_length
 
-    def _build_component_spirals(self):
-        """Build component spirals using hot-pressed racetrack geometry.
-
-        Maps individual electrode and separator components from the layup onto
-        the racetrack spiral geometry, using the pressed mandrel dimensions
-        rather than the original mandrel to account for hot-pressing effects.
-
-        Returns
-        -------
-        Dict[str, np.ndarray]
-            Component spirals keyed by component name, mapped to racetrack geometry
-        """
-
-        # Build component spirals for the hot-pressed geometry
-        self._component_spirals = SpiralCalculator.build_component_racetracks(
-            base_spiral=self._spiral,
-            layup=self._layup,
-            mandrel_radius=self._pressed_radius,
-            straight_length=self._pressed_straight_length,
-            original_mandrel_radius=self._mandrel._radius,
-        )
-
-        return self._component_spirals
-
-    def _build_extruded_component_spirals(self):
-        """Build extruded component spirals for racetrack visualization.
-
-        Creates filled thickness shapes for each component by extruding the
-        center line spirals radially. Uses the pressed mandrel geometry for
-        proper racetrack shape generation.
-
-        Returns
-        -------
-        Dict[str, np.ndarray]
-            Extruded component spirals for 3D racetrack visualization
-        """
-
-        component_thicknesses = {
-            "top_separator": self._layup.top_separator._thickness,
-            "anode_a_side_coating": self._layup.anode._coating_thickness,
-            "anode_current_collector": self._layup.anode.current_collector._thickness,
-            "anode_b_side_coating": self._layup.anode._coating_thickness,
-            "bottom_separator": self._layup.bottom_separator._thickness,
-            "cathode_a_side_coating": self._layup.cathode._coating_thickness,
-            "cathode_current_collector": self._layup.cathode.current_collector._thickness,
-            "cathode_b_side_coating": self._layup.cathode._coating_thickness,
-        }
-
-        # Build extruded component spirals for the hot-pressed geometry
-        self._extruded_spirals = SpiralCalculator.build_extruded_component_racetracks(
-            component_spirals=self._component_spirals,
-            component_thicknesses=component_thicknesses,
-            mandrel_radius=self._pressed_radius,
-            straight_length=self._pressed_straight_length,
-        )
-
-        return self._extruded_spirals
-
-    def _calculate_variable_thickness_spiral(self, **kwargs) -> np.ndarray:
-        """Calculate the base racetrack spiral path for variable thickness layup.
-
-        Uses the hot-pressed mandrel geometry to create a racetrack spiral that
-        accounts for the flattened geometry after hot pressing. This differs
-        from the original mandrel geometry.
-
-        Parameters
-        ----------
-        **kwargs
-            Additional arguments passed to the racetrack spiral calculation method
-
-        Returns
-        -------
-        np.ndarray
-            Base racetrack spiral coordinates [theta, x_unwrapped, r, x, z, turns]
-        """
-
-        # Calculate new spiral with pressed mandrel geometry (no mandrel modification needed)
-        self._spiral = SpiralCalculator.calculate_variable_thickness_racetrack(
-            laminate=self._layup,
-            mandrel_radius=self._pressed_radius,
-            straight_length=self._pressed_straight_length,
-            **kwargs,
-        )
-
-        return self._spiral
-
-    def _center_spirals(self) -> None:
-        """Center all racetrack spiral geometries for proper visualization.
-
-        Centers the racetrack spirals by:
-        1. Finding the geometric center and thickness of all component spirals
-        2. Translating all spirals to center them horizontally
-        3. Adjusting vertically to position the bottom at z=0
-
-        This centering ensures consistent coordinate systems and proper
-        visualization alignment for racetrack geometries.
-
-        Returns
-        -------
-        Tuple[np.ndarray, Dict[str, np.ndarray], Dict[str, np.ndarray]]
-            Centered (spiral, component_spirals, extruded_spirals)
-        """
-
-        spirals = [s for s in self._component_spirals.values()]
-        spirals = np.concatenate(spirals, axis=0)
-        spirals_x_z = np.column_stack(
-            (spirals[:, X_COORD_COL], spirals[:, Z_COORD_COL])
-        )
-        spirals_x_z = spirals_x_z[
-            ~np.isnan(spirals_x_z).any(axis=1)
-        ]  # Remove NaN values if any
-
-        max_z = np.max(spirals_x_z[:, 1])
-        min_z = np.min(spirals_x_z[:, 1])
-        max_x = np.max(spirals_x_z[:, 0])
-        min_x = np.min(spirals_x_z[:, 0])
-
-        # calculate shift so as to make max and mix values the same distance from center
-        center_x = (max_x + min_x) / 2
-        center_z = (max_z + min_z) / 2
-
-        # Track the pressed mandrel center through the same translation. This
-        # stays a fixed alignment datum even when an incomplete outer turn makes
-        # the wound geometry's left and right extents asymmetric.
-        self._pressed_mandrel_center_x -= center_x
-
-        self._spiral, self._component_spirals, self._extruded_spirals = (
-            self._translate_spirals_xz(x_shift=-center_x, z_shift=-center_z)
-        )
-
-    def _rotate_spirals_to_minimize_thickness(
-        self,
-        use_extruded: bool = True,
-        initial_angle: Optional[float] = None,
-    ) -> float:
-        """Rotate spirals in x-z plane to minimize overall thickness.
-
-        Uses Brent's method to find the rotation angle that minimizes the
-        vertical extent (thickness = max(z) - min(z)). The rotation is applied
-        in-place to:
-        - `self._spiral`
-        - `self._component_spirals`
-        - `self._extruded_spirals`
-
-        Parameters
-        ----------
-        use_extruded : bool, optional
-            If True, compute the rotation using all extruded component points
-            (more representative for thickness). If False, use component
-            centerline spirals. Default is True.
-        initial_angle : float, optional
-            Warm-start angle for the inner Brent search. Forwarded to
-            ``SpiralCalculator.rotate_spiral_to_minimize_thickness``; see that
-            function's docstring for the search-strategy details.
-
-        Returns
-        -------
-        float
-            Rotation angle in radians applied (counterclockwise, about centroid).
-
-        Notes
-        -----
-        - Rotation is performed about the centroid of the combined points.
-        - Optimization searches over [0, π) since thickness is symmetric about π.
-        """
-        # Choose which spiral set to use for optimization
-        if (
-            use_extruded
-            and hasattr(self, "_extruded_spirals")
-            and self._extruded_spirals
-        ):
-            spiral_dict = self._extruded_spirals
-        elif hasattr(self, "_component_spirals") and self._component_spirals:
-            spiral_dict = self._component_spirals
-        else:
-            return 0.0
-
-        # Collect all spiral dictionaries to rotate together
-        all_spirals = {}
-        if hasattr(self, "_spiral") and isinstance(self._spiral, np.ndarray):
-            all_spirals["_base"] = self._spiral
-        if hasattr(self, "_component_spirals") and isinstance(
-            self._component_spirals, dict
-        ):
-            all_spirals.update(
-                {f"comp_{k}": v for k, v in self._component_spirals.items()}
-            )
-        if hasattr(self, "_extruded_spirals") and isinstance(
-            self._extruded_spirals, dict
-        ):
-            all_spirals.update(
-                {f"ext_{k}": v for k, v in self._extruded_spirals.items()}
-            )
-
-        # Rotate all spirals using the helper function from SpiralCalculator.
-        # Notch centers are stored as unwrapped foil distances, which this
-        # rotation leaves unchanged, so nothing has to be carried through it.
-        _, optimal_angle = SpiralCalculator.rotate_spiral_to_minimize_thickness(
-            all_spirals, initial_angle=initial_angle
-        )
-
-        return optimal_angle
-
     def _get_high_resolution_params(self) -> Dict[str, Any]:
         """Get high-resolution parameters for racetrack geometry.
 
@@ -4602,7 +4189,10 @@ class FlatWoundJellyRoll(_JellyRoll):
         Dict[str, Any]
             Dictionary containing racetrack geometry high-resolution parameters
         """
-        return {"ds_target": 0.0002}  # 0.2mm target spacing for racetrack calculation
+        return {
+            "ds_target": RACETRACK_STRAIGHT_SPACING_HIRES,
+            "curve_points": RACETRACK_CURVE_POINTS_HIRES,
+        }
 
     @classmethod
     def from_round_jelly_roll(

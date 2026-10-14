@@ -1487,8 +1487,8 @@ class TestCylindricalCellTabbed(unittest.TestCase):
 
     def test_basics(self):
         self.assertIsInstance(self.cell, ocd.CylindricalCell)
-        self.assertAlmostEqual(self.cell.energy, 132.3, places=2)
-        self.assertAlmostEqual(self.cell.mass, 981.21, places=2)
+        self.assertAlmostEqual(self.cell.energy, 132.305, places=2)
+        self.assertAlmostEqual(self.cell.mass, 981.22, places=2)
         # ``places=1`` (~7e-3 % of 135) accommodates the Phase-3 segmented
         # analytic spiral integrator's drift relative to the legacy
         # adaptive-RK baseline that originally pinned this value.
@@ -3875,15 +3875,12 @@ class TestFromLoadedCell(unittest.TestCase):
         self.assertIsNotNone(new_cell.energy)
         self.assertIsNotNone(new_cell.mass)
         self.assertIsNotNone(new_cell.cost)
-        # ``delta=0.1`` (~0.2% of 51.8 Wh) accommodates the Phase-3
-        # segmented analytic spiral integrator's drift relative to the
-        # adaptive-RK baseline that originally pinned this value.
-        self.assertAlmostEqual(new_cell.energy, 51.81, delta=0.1)
-        # ``delta=0.5`` (~0.1 % of 416 g) accommodates the spiral
-        # integrator's drift after the Brent's-method radius preservation
-        # step. Previous ``places=2`` was tighter than the integrator's
-        # own TARGET_ERROR.
-        self.assertAlmostEqual(new_cell.mass, 415.99, delta=0.5)
+        # The roll keeps the radius it was saved with; wound turn on turn
+        # (1.1.0) that radius holds ~1.4% more laminate than the old winding put
+        # in it (51.81 Wh).
+        self.assertAlmostEqual(new_cell.energy, 52.54, delta=0.1)
+        # More laminate in the same radius (see above): 421.2 g, was 416.0.
+        self.assertAlmostEqual(new_cell.mass, 421.18, delta=0.5)
         self.assertAlmostEqual(new_cell.cost, 2.8, places=1)
 
         fig1 = new_cell.plot_cross_section()

@@ -177,15 +177,17 @@ class TestRoundJellyRoll(unittest.TestCase):
 
     def test_basics(self):
         self.assertTrue(type(self.my_jellyroll), WoundJellyRoll)
-        self.assertAlmostEqual(self.my_jellyroll.radius, 20.8, 1)
-        self.assertAlmostEqual(self.my_jellyroll.diameter, 41.6, 1)
+        # Turns wound on the turn beneath them (1.1.0): 20.86 mm, was 20.80 when
+        # each turn was pitched by the strip being laid.
+        self.assertAlmostEqual(self.my_jellyroll.radius, 20.86, 2)
+        self.assertAlmostEqual(self.my_jellyroll.diameter, 41.72, 2)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23895, 0)
         self.assertAlmostEqual(self.my_jellyroll.cost, 4.33, 2)
         # Measured with the radius setter's own geometry (tape wraps included),
         # so both ends can actually be wound; the old estimate said 8.73-30.55.
         # The minimum is the shortest layup: the bare foil ends + 100 mm coated.
-        self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 8.34, 2)
-        self.assertAlmostEqual(self.my_jellyroll.radius_range[1], 30.70, 2)
+        self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 8.36, 2)
+        self.assertAlmostEqual(self.my_jellyroll.radius_range[1], 30.74, 2)
         self.assertAlmostEqual(self.my_jellyroll.mass, 655.4, 1)
 
     def test_serialization(self):
@@ -284,18 +286,18 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertIsInstance(self.my_jellyroll.roll_properties, pd.DataFrame)
 
         expected_data = {
-            "Anode A Side Coating Turns": 50.12,
-            "Anode Current Collector Turns": 59.09,
-            "Anode B Side Coating Turns": 52.1,
-            "Cathode A Side Coating Turns": 59.09,
-            "Cathode Current Collector Turns": 59.09,
-            "Cathode B Side Coating Turns": 59.09,
-            "Bottom Separator Turns": 129.58,
-            "Bottom Separator Inner Turns": 67.36,
-            "Bottom Separator Outer Turns": 11.66,
-            "Top Separator Turns": 70.99,
-            "Top Separator Inner Turns": 16.55,
-            "Top Separator Outer Turns": 3.89,
+            "Anode A Side Coating Turns": 50.23,
+            "Anode Current Collector Turns": 59.22,
+            "Anode B Side Coating Turns": 52.14,
+            "Cathode A Side Coating Turns": 59.22,
+            "Cathode Current Collector Turns": 59.22,
+            "Cathode B Side Coating Turns": 59.22,
+            "Bottom Separator Turns": 129.61,
+            "Bottom Separator Inner Turns": 67.30,
+            "Bottom Separator Outer Turns": 11.68,
+            "Top Separator Turns": 71.08,
+            "Top Separator Inner Turns": 16.53,
+            "Top Separator Outer Turns": 3.92,
         }
 
         expected_df = pd.DataFrame.from_dict(
@@ -430,8 +432,9 @@ class TestRoundJellyRoll(unittest.TestCase):
         # do not fit the 56.6 mm straight section of the pressed racetrack, so
         # they are trimmed to it. A notch has to lie on a flat face.
         self.assertAlmostEqual(flat_jellyroll.cost, 4.52, 2)
-        self.assertAlmostEqual(flat_jellyroll.thickness, 19.38, 1)
-        self.assertAlmostEqual(flat_jellyroll.width, 75.93, 1)
+        # Flat dimensions include the whole outer layer (1.1.0).
+        self.assertAlmostEqual(flat_jellyroll.thickness, 19.45, 1)
+        self.assertAlmostEqual(flat_jellyroll.width, 76.00, 1)
         for electrode in ("cathode", "anode"):
             collector = getattr(flat_jellyroll.layup, electrode).current_collector
             self.assertLessEqual(
@@ -744,17 +747,19 @@ class TestFlatJellyRoll(unittest.TestCase):
 
     def test_basics(self):
         self.assertTrue(type(self.my_jellyroll), WoundJellyRoll)
-        self.assertAlmostEqual(self.my_jellyroll.thickness, 12.5, 1)
-        self.assertAlmostEqual(self.my_jellyroll.width, 114.1, 1)
+        # Turns wound on the turn beneath them, measured on the outer face of the
+        # outermost layer (1.1.0); centre lines gave 12.5 x 114.1.
+        self.assertAlmostEqual(self.my_jellyroll.thickness, 12.71, 2)
+        self.assertAlmostEqual(self.my_jellyroll.width, 114.05, 2)
         self.assertAlmostEqual(self.my_jellyroll.cost, 4.18, 1)
-        self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23725.74, 0)
+        self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23725.2, 0)
         # Measured with the setters' own geometry, so both ends can actually be
         # wound; the old estimate said 2.91-24.37 and 104.48-125.95. The minimum is
         # the shortest layup: the bare foil ends + 100 mm coated.
-        self.assertAlmostEqual(self.my_jellyroll.thickness_range[0], 2.75, 1)
-        self.assertAlmostEqual(self.my_jellyroll.thickness_range[1], 24.47, 1)
-        self.assertAlmostEqual(self.my_jellyroll.width_range[0], 105.36, 1)
-        self.assertAlmostEqual(self.my_jellyroll.width_range[1], 126.01, 1)
+        self.assertAlmostEqual(self.my_jellyroll.thickness_range[0], 2.81, 1)
+        self.assertAlmostEqual(self.my_jellyroll.thickness_range[1], 24.65, 1)
+        self.assertAlmostEqual(self.my_jellyroll.width_range[0], 104.27, 1)
+        self.assertAlmostEqual(self.my_jellyroll.width_range[1], 125.99, 1)
 
     def test_thickness_and_width_setters_reach_both_ends_of_their_ranges(self):
         """Every thickness and width in the ranges can be wound: both ends set
@@ -1055,7 +1060,9 @@ class TestFlatJellyRoll(unittest.TestCase):
         collector.tab_center_positions = original_centers
         original_positions = collector.tab_positions
         original_spiral = self.my_jellyroll.spiral.copy(deep=True)
-        rotate = self.my_jellyroll._rotate_spirals_to_minimize_thickness
+        # Placing the wound roll for display runs after the notch centres are
+        # applied; failing there exercises the restore path.
+        translate = self.my_jellyroll._translate_spirals_xz
         calls = 0
 
         def fail_after_notches_are_applied(*args, **kwargs):
@@ -1063,11 +1070,11 @@ class TestFlatJellyRoll(unittest.TestCase):
             calls += 1
             if calls == 1:
                 raise RuntimeError("forced assembly recalculation failure")
-            return rotate(*args, **kwargs)
+            return translate(*args, **kwargs)
 
         with patch.object(
             self.my_jellyroll,
-            "_rotate_spirals_to_minimize_thickness",
+            "_translate_spirals_xz",
             side_effect=fail_after_notches_are_applied,
         ):
             with self.assertRaisesRegex(RuntimeError, "forced assembly"):
@@ -1672,18 +1679,18 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertIsInstance(self.my_jellyroll.roll_properties, pd.DataFrame)
 
         expected_data = {
-            "Anode A Side Coating Turns": 17.87,
+            "Anode A Side Coating Turns": 17.71,
             "Anode Current Collector Turns": 20.04,
-            "Anode B Side Coating Turns": 18.28,
+            "Anode B Side Coating Turns": 18.40,
             "Cathode A Side Coating Turns": 20.04,
             "Cathode Current Collector Turns": 20.04,
             "Cathode B Side Coating Turns": 20.04,
-            "Bottom Separator Turns": 31.32,
-            "Bottom Separator Inner Turns": 7.03,
-            "Bottom Separator Outer Turns": 6.24,
-            "Top Separator Turns": 22.31,
-            "Top Separator Inner Turns": 2.16,
-            "Top Separator Outer Turns": 2.09,
+            "Bottom Separator Turns": 31.42,
+            "Bottom Separator Inner Turns": 7.25,
+            "Bottom Separator Outer Turns": 6.13,
+            "Top Separator Turns": 22.41,
+            "Top Separator Inner Turns": 2.33,
+            "Top Separator Outer Turns": 2.04,
         }
 
         expected_df = pd.DataFrame.from_dict(
@@ -1741,8 +1748,8 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertIsInstance(wound_jellyroll, WoundJellyRoll)
         self.assertAlmostEqual(wound_jellyroll.interfacial_area, 23895, 0)
         self.assertAlmostEqual(wound_jellyroll.cost, 3.97, 1)
-        self.assertAlmostEqual(wound_jellyroll.radius, 20.54, 1)
-        self.assertAlmostEqual(wound_jellyroll.diameter, 41.08, 1)
+        self.assertAlmostEqual(wound_jellyroll.radius, 20.57, 2)
+        self.assertAlmostEqual(wound_jellyroll.diameter, 41.14, 2)
 
         figure = wound_jellyroll.plot_spiral()
         # figure.show()
@@ -2613,8 +2620,9 @@ class TestFlatJellyRollWithTabWelded(unittest.TestCase):
         new_width = original_width + 2
         self.my_jellyroll.width = new_width
 
-        # Check that thickness updated correctly
-        self.assertAlmostEqual(self.my_jellyroll.width, new_width, 2)
+        # A tightly wound flat roll's width grows in steps (each new wrap over
+        # an end adds its thickness), so the setter lands on the nearest step.
+        self.assertAlmostEqual(self.my_jellyroll.width, new_width, delta=0.1)
 
 
 class TestAssemblyPropagation(unittest.TestCase):
