@@ -300,6 +300,12 @@ class TestWoundRolls(unittest.TestCase):
         sup = _support(winding)
         self.assertTrue(np.all(winding.a[tape_rows] >= sup[tape_rows] - 1e-12))
 
+    def test_symmetric_coatings_keep_their_interfacial_area(self):
+        """With identical a and b side coatings, pairing the sides the wrong way
+        round (before 1.2.1) cost nothing: the reference cells barely move."""
+        self.assertAlmostEqual(self.round.interfacial_area / 4443.1, 1.0, delta=5e-4)
+        self.assertAlmostEqual(self.flat.interfacial_area / 7651.6, 1.0, delta=5e-4)
+
     def test_a_tape_driven_roll_winds_its_tape(self):
         roll = deepcopy(self.round)
         tape = deepcopy(roll.tape)

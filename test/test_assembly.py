@@ -175,13 +175,83 @@ class TestRoundJellyRoll(unittest.TestCase):
             additional_tape_wraps=5,
         )
 
+    def _interface_terms(self, roll):
+        cathode = roll._get_electrode_coordinates("cathode")
+        anode = roll._get_electrode_coordinates("anode")
+        within = roll._within_turn_interface_area(cathode["a_side"], anode["b_side"])
+        between = roll._between_turns_interface_area(anode["a_side"], cathode["b_side"])
+        return within, between
+
+    def test_interfacial_area_pairs_the_facing_coatings(self):
+        """The cathode is a turn's inner electrode: its a side faces the anode's
+        b side in the same turn, its b side the anode's a side a turn further in."""
+        import shapely
+        from shapely.geometry import Polygon
+
+        roll = self.my_jellyroll
+        within, between = self._interface_terms(roll)
+        self.assertAlmostEqual(roll._interfacial_area, within + between, places=12)
+
+        # independently: grid the cathode's b side, find the point wound one turn
+        # beneath each cell, and count the cells where the anode's a side is coated
+        winding = roll._winding
+        p = winding.points_per_turn
+        x0 = winding.profile.x_origin
+        upper, lower = winding.s[p:] + x0, winding.s[:-p] + x0
+        cathode_b = roll._get_electrode_coordinates("cathode")["b_side"]
+        anode_a = roll._get_electrode_coordinates("anode")["a_side"]
+        dx, dy = 0.5e-3, 0.5e-3
+        xs = np.arange(np.nanmin(cathode_b[:, 0]) + dx / 2, np.nanmax(cathode_b[:, 0]), dx)
+        ys = np.arange(np.nanmin(cathode_b[:, 1]) + dy / 2, np.nanmax(cathode_b[:, 1]), dy)
+        gx, gy = np.meshgrid(xs, ys)
+        cells = np.column_stack((gx.ravel(), gy.ravel()))
+        on_cathode = shapely.contains_xy(
+            Polygon(cathode_b[~np.isnan(cathode_b[:, 0])]), cells[:, 0], cells[:, 1]
+        )
+        has_turn_beneath = cells[:, 0] >= upper[0]
+        beneath = np.column_stack((np.interp(cells[:, 0], upper, lower), cells[:, 1]))
+        on_anode = shapely.contains_xy(
+            Polygon(anode_a[~np.isnan(anode_a[:, 0])]), beneath[:, 0], beneath[:, 1]
+        )
+        grid = np.count_nonzero(on_cathode & has_turn_beneath & on_anode) * dx * dy
+        self.assertAlmostEqual(between / grid, 1.0, delta=2e-3)
+
+    def test_each_interface_follows_only_its_own_sides(self):
+        roll = deepcopy(self.my_jellyroll)
+        within, between = self._interface_terms(roll)
+        collector = roll.layup.anode.current_collector
+
+        # the anode's a side only faces the cathode's b side, a turn out
+        collector.bare_lengths_a_side = (200, 600)
+        collector.propagate_changes()
+        within_a, between_a = self._interface_terms(roll)
+        self.assertAlmostEqual(within_a, within, delta=1e-9 * within)
+        self.assertLess(between_a, between)
+
+        # the anode's b side only faces the cathode's a side, in the same turn
+        collector.bare_lengths_b_side = (150, 550)
+        collector.propagate_changes()
+        within_b, between_b = self._interface_terms(roll)
+        self.assertLess(within_b, within_a)
+        self.assertAlmostEqual(between_b, between_a, delta=5e-3 * between_a)
+
+    def test_capacity_is_areal_capacity_times_interfacial_area(self):
+        roll = self.my_jellyroll
+        areal = roll.layup.cathode._areal_capacity_curve[:, 0]
+        np.testing.assert_allclose(
+            roll._cathode_capacity_curve[:, 0], areal * roll._interfacial_area, rtol=1e-12
+        )
+
     def test_basics(self):
         self.assertTrue(type(self.my_jellyroll), WoundJellyRoll)
         # Turns wound on the turn beneath them (1.1.0): 20.86 mm, was 20.80 when
         # each turn was pitched by the strip being laid.
         self.assertAlmostEqual(self.my_jellyroll.radius, 20.86, 2)
         self.assertAlmostEqual(self.my_jellyroll.diameter, 41.72, 2)
-        self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23895, 0)
+        # The coatings facing each other across each separator (1.2.1): this
+        # anode's a and b sides have different bare lengths, so pairing them the
+        # wrong way round gave 23895 (1.1% short).
+        self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 24163, 0)
         self.assertAlmostEqual(self.my_jellyroll.cost, 4.33, 2)
         # Measured with the radius setter's own geometry (tape wraps included),
         # so both ends can actually be wound; the old estimate said 8.73-30.55.
@@ -427,7 +497,7 @@ class TestRoundJellyRoll(unittest.TestCase):
 
         flat_jellyroll = FlatWoundJellyRoll.from_round_jelly_roll(self.my_jellyroll)
 
-        self.assertAlmostEqual(flat_jellyroll.interfacial_area, 23895, 0)
+        self.assertAlmostEqual(flat_jellyroll.interfacial_area, 24043, 0)
         # Slightly cheaper than the round roll it came from: the 60 mm notches
         # do not fit the 56.6 mm straight section of the pressed racetrack, so
         # they are trimmed to it. A notch has to lie on a flat face.
@@ -754,7 +824,8 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.thickness, 12.74, 2)
         self.assertAlmostEqual(self.my_jellyroll.width, 114.05, 2)
         self.assertAlmostEqual(self.my_jellyroll.cost, 4.18, 1)
-        self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23725.2, 0)
+        # facing coatings paired by side (1.2.1); 23725.2 when paired the wrong way
+        self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23986.1, 0)
         # Measured with the setters' own geometry, so both ends can actually be
         # wound; the old estimate said 2.91-24.37 and 104.48-125.95. The minimum is
         # the shortest layup: the bare foil ends + 100 mm coated.
@@ -1748,7 +1819,7 @@ class TestFlatJellyRoll(unittest.TestCase):
         wound_jellyroll = WoundJellyRoll.from_flat_jelly_roll(self.my_jellyroll)
 
         self.assertIsInstance(wound_jellyroll, WoundJellyRoll)
-        self.assertAlmostEqual(wound_jellyroll.interfacial_area, 23895, 0)
+        self.assertAlmostEqual(wound_jellyroll.interfacial_area, 24160, 0)
         self.assertAlmostEqual(wound_jellyroll.cost, 3.97, 1)
         self.assertAlmostEqual(wound_jellyroll.radius, 20.58, 2)
         self.assertAlmostEqual(wound_jellyroll.diameter, 41.16, 2)
