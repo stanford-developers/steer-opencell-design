@@ -133,6 +133,28 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         Turn counts and other roll characteristics
     """
 
+    # Designs saved before 1.1.0 hold geometry from the old winding model (each
+    # turn pitched by the strip being laid, not wound on the turn beneath). Their
+    # layup is still valid, so they are re-wound when loaded.
+    _schema_version = 1
+
+    @classmethod
+    def _migrate(cls, data: dict, version: int) -> dict:
+        if version < 1:
+            data = dict(data)
+            data["_rewind_on_load"] = True
+        return data
+
+    @classmethod
+    def _from_dict(cls, data: dict):
+        obj = super()._from_dict(data)
+        if obj.__dict__.pop("_rewind_on_load", False):
+            obj._calculate_all_properties()
+            # Tells the cell this roll belongs to (rebuilt next) that its own
+            # stored properties came from the old geometry.
+            obj._rewound_on_load = True
+        return obj
+
     def __init__(
         self,
         laminate: Laminate,

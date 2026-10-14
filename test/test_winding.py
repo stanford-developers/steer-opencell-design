@@ -211,6 +211,15 @@ class TestWoundRolls(unittest.TestCase):
         self.assertIn("tape", roll._component_spirals)
         self.assertGreater(roll.additional_tape_wraps, 0)
 
+    def test_an_older_design_is_rewound_when_loaded(self):
+        """The reference cells were saved before 1.1.0: loading one re-winds
+        its roll, so its radius is the new model's, not the stored one."""
+        roll = deepcopy(self.round)
+        fresh = deepcopy(roll)
+        fresh._calculate_all_properties()
+        self.assertIsNotNone(getattr(roll, "_winding", None))
+        self.assertAlmostEqual(roll.radius, fresh.radius, places=9)
+
 
 if __name__ == "__main__":
     unittest.main()

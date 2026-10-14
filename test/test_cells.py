@@ -313,7 +313,7 @@ class TestCylindricalCell(unittest.TestCase):
     def test_basics(self):
         self.assertIsInstance(self.cell, ocd.CylindricalCell)
         self.assertAlmostEqual(self.cell.energy, 124.09, places=2)
-        self.assertAlmostEqual(self.cell.mass, 970.35, places=2)
+        self.assertAlmostEqual(self.cell.mass, 970.34, places=2)
         self.assertAlmostEqual(self.cell.specific_energy, 127.88, places=2)
         self.assertAlmostEqual(self.cell.volumetric_energy, 261.36, places=2)
         self.assertAlmostEqual(self.cell.cost_per_energy, 65.3, places=1)
@@ -1488,13 +1488,13 @@ class TestCylindricalCellTabbed(unittest.TestCase):
     def test_basics(self):
         self.assertIsInstance(self.cell, ocd.CylindricalCell)
         self.assertAlmostEqual(self.cell.energy, 132.305, places=2)
-        self.assertAlmostEqual(self.cell.mass, 981.22, places=2)
+        self.assertAlmostEqual(self.cell.mass, 981.21, places=2)
         # ``places=1`` (~7e-3 % of 135) accommodates the Phase-3 segmented
         # analytic spiral integrator's drift relative to the legacy
         # adaptive-RK baseline that originally pinned this value.
         self.assertAlmostEqual(self.cell.specific_energy, 134.84, places=1)
         self.assertAlmostEqual(self.cell.volumetric_energy, 285.58, places=1)
-        self.assertAlmostEqual(self.cell.cost_per_energy, 59.49, places=2)
+        self.assertAlmostEqual(self.cell.cost_per_energy, 59.483, places=2)
 
     def test_set_nmc(self):
 
@@ -3875,12 +3875,10 @@ class TestFromLoadedCell(unittest.TestCase):
         self.assertIsNotNone(new_cell.energy)
         self.assertIsNotNone(new_cell.mass)
         self.assertIsNotNone(new_cell.cost)
-        # The roll keeps the radius it was saved with; wound turn on turn
-        # (1.1.0) that radius holds ~1.4% more laminate than the old winding put
-        # in it (51.81 Wh).
-        self.assertAlmostEqual(new_cell.energy, 52.54, delta=0.1)
-        # More laminate in the same radius (see above): 421.2 g, was 416.0.
-        self.assertAlmostEqual(new_cell.mass, 421.18, delta=0.5)
+        # The teardown was saved before 1.1.0, so it is re-wound as it loads and
+        # the radius it keeps is the new model's (the old winding gave 51.81 Wh).
+        self.assertAlmostEqual(new_cell.energy, 51.73, delta=0.1)
+        self.assertAlmostEqual(new_cell.mass, 415.49, delta=0.5)
         self.assertAlmostEqual(new_cell.cost, 2.8, places=1)
 
         fig1 = new_cell.plot_cross_section()

@@ -94,6 +94,20 @@ class _Cell(
 ):
     """Abstract base class for complete battery cells. Provides common properties for energy, mass, cost, capacity curves, and voltage window management. Subclasses implement format-specific geometry (cylindrical, prismatic, pouch, flex-frame)."""
 
+    @classmethod
+    def _from_dict(cls, data: dict):
+        obj = super()._from_dict(data)
+        # A jelly roll saved before 1.1.0 is re-wound as it loads; the cell's
+        # stored properties (energy, mass, ...) were computed from the old
+        # geometry, so recompute them from the rebuilt roll.
+        rewound = False
+        for value in list(obj.__dict__.values()):
+            if getattr(value, "__dict__", {}).pop("_rewound_on_load", False):
+                rewound = True
+        if rewound:
+            obj._calculate_all_properties()
+        return obj
+
     def __init__(
         self,
         reference_electrode_assembly: _ElectrodeAssembly,
