@@ -6,6 +6,7 @@
 # import core units
 from steer_core.Constants.Units import *
 from steer_core.Decorators.Coordinates import calculate_coordinates
+from steer_core.Decorators.General import calculate_all_properties
 
 # import materials
 from steer_opencell_design.Materials.Other import CurrentCollectorMaterial
@@ -16,6 +17,14 @@ from typing import Tuple, Optional
 import numpy as np
 
 from steer_opencell_design.Components.CurrentCollectors.Base import _TabbedCurrentCollector
+
+# A punched tab keeps this clearance (m) to its foil's edges; when the foil (or the
+# other electrode's tab beside it) leaves too little room the tab is thinned, but
+# no further than TAB_MIN_WIDTH. A stacked layup keeps TAB_GAP between the
+# cathode and anode tabs when they leave the same edge.
+TAB_EDGE_CLEARANCE = 1e-3
+TAB_MIN_WIDTH = 2e-3
+TAB_GAP = 5e-3
 
 
 class PunchedCurrentCollector(_TabbedCurrentCollector):
@@ -401,10 +410,82 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         if self._tab_position + self._tab_width / 2 > self._x_foil_length:
             self._tab_position = self._x_foil_length - self._tab_width / 2
 
+        # the user's intent, kept while a narrower foil moves or thins the tab
+        self._tab_position_fraction = self._tab_position / self._x_foil_length
+
+    @_TabbedCurrentCollector.tab_width.setter
+    @calculate_all_properties
+    def tab_width(self, tab_width: float) -> None:
+        self.validate_positive_float(tab_width, "tab_width")
+
+        # Validate before writing so a rejected width leaves the collector's
+        # geometry and its derived tab positions mutually consistent.
+        new_tab_width = float(tab_width) * MM_TO_M
+        if new_tab_width > self._x_foil_length:
+            raise ValueError("Tab width cannot be greater than the length of the current collector.")
+
+        self._tab_width = new_tab_width
+        self._requested_tab_width = new_tab_width
+
+        # a wider tab still has to sit on the foil
+        if hasattr(self, "_tab_position"):
+            half = new_tab_width / 2
+            self._tab_position = min(max(self._tab_position, half), self._x_foil_length - half)
+
     @width.setter
     def width(self, width: float) -> None:
         self.validate_positive_float(width, "width")
+        # pin the request to the current tab before the foil changes under it
+        self._remember_tab_request()
         self.x_foil_length = width
+        # keep the tab at its share of the foil, thinned if the foil got too narrow
+        self._apply_tab_fit(*self._fitted_tab())
+
+    def _remember_tab_request(self) -> None:
+        """Record the current tab as the user's request if none is kept yet
+        (designs saved before 1.3.2)."""
+        if getattr(self, "_requested_tab_width", None) is None:
+            self._requested_tab_width = self._tab_width
+        if getattr(self, "_tab_position_fraction", None) is None:
+            self._tab_position_fraction = self._tab_position / self._x_foil_length
+
+    def _requested_tab(self) -> Tuple[float, float]:
+        """The tab the user asked for: its width (m) and its centre as a fraction
+        of the foil width. Designs saved before these were kept use the tab as it
+        is."""
+        width = getattr(self, "_requested_tab_width", None) or self._tab_width
+        fraction = getattr(self, "_tab_position_fraction", None)
+        if fraction is None:
+            fraction = self._tab_position / self._x_foil_length
+        return width, fraction
+
+    def _tab_centre_limits(self, width: float) -> Tuple[float, float]:
+        """Where a tab of ``width`` (m) may be centred on this foil (m from its left edge)."""
+        return (
+            TAB_EDGE_CLEARANCE + width / 2,
+            self._x_foil_length - TAB_EDGE_CLEARANCE - width / 2,
+        )
+
+    def _fitted_tab(self) -> Tuple[float, float]:
+        """The requested tab fitted on this foil alone: at its share of the foil
+        width, thinned (to no less than TAB_MIN_WIDTH) when the foil leaves too
+        little room for it and its edge clearances. Returns (width, centre) in m."""
+        width, fraction = self._requested_tab()
+        room = self._x_foil_length - 2 * TAB_EDGE_CLEARANCE
+        width = max(min(width, room), min(TAB_MIN_WIDTH, self._x_foil_length))
+        low, high = self._tab_centre_limits(width)
+        centre = fraction * self._x_foil_length
+        centre = min(max(centre, low), high) if low <= high else self._x_foil_length / 2
+        return width, centre
+
+    def _apply_tab_fit(self, width: float, centre: float) -> None:
+        """Set the tab's actual width and centre (m), leaving the user's request
+        as it is, so a wider foil restores it."""
+        if abs(width - self._tab_width) < 1e-12 and abs(centre - self._tab_position) < 1e-12:
+            return
+        self._tab_width = width
+        self._tab_position = centre
+        self._calculate_all_properties()
 
     @height.setter
     def height(self, height: float) -> None:

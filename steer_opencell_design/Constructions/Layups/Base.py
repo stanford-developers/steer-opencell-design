@@ -1168,6 +1168,8 @@ class _Layup(
         electrode_orientation : ElectrodeOrientation
             The orientation of the electrode.
         """
+        previous = getattr(self, "_electrode_orientation", None)
+
         if isinstance(electrode_orientation, ElectrodeOrientation):
             self._electrode_orientation = electrode_orientation
 
@@ -1192,6 +1194,13 @@ class _Layup(
             if self._cathode._flipped_y:
                 self._cathode._flip("y")
 
+        # the anode's tab is measured from the other end once the orientation
+        # changes; setting the same orientation again leaves it where it is
+        if self._electrode_orientation != previous:
+            self._mirror_anode_tab()
+
+    def _mirror_anode_tab(self) -> None:
+        """Measure the anode's tab position from the foil's other end."""
         if hasattr(self._anode._current_collector, "_tab_position"):
             _distance_from_end = self._anode._current_collector._x_foil_length - self._anode._current_collector._tab_position
             self._anode._current_collector.tab_position = _distance_from_end * M_TO_MM

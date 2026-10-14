@@ -211,6 +211,30 @@ class TestPunchedCurrentCollector(unittest.TestCase):
             insulation_width=5,
         )
 
+    def test_a_narrow_foil_thins_the_tab_and_a_wide_one_restores_it(self):
+        cc = self.current_collector
+        cc.width = 15  # narrower than the 20 mm tab and its 1 mm edge clearances
+        self.assertAlmostEqual(cc.tab_width, 13, places=9)
+        self.assertGreaterEqual(cc.tab_position - cc.tab_width / 2, 1 - 1e-9)
+        self.assertLessEqual(cc.tab_position + cc.tab_width / 2, 14 + 1e-9)
+        cc.width = 160
+        self.assertAlmostEqual(cc.tab_width, 20, places=9)
+        self.assertAlmostEqual(cc.tab_position, 20, places=9)
+
+    def test_a_width_change_keeps_the_tab_at_its_share(self):
+        cc = self.current_collector
+        cc.width = 80  # tab at 20 of 160: an eighth of the way across, i.e. 10 mm,
+        # but a 20 mm tab keeps 1 mm to the edge, so its centre stops at 11 mm
+        self.assertAlmostEqual(cc.tab_width, 20, places=9)
+        self.assertAlmostEqual(cc.tab_position, 11, places=9)
+        cc.width = 320
+        self.assertAlmostEqual(cc.tab_position, 40, places=9)
+
+    def test_a_wider_tab_stays_on_the_foil(self):
+        cc = self.current_collector
+        cc.tab_width = 60  # centred at 20, it would hang 10 mm off the left edge
+        self.assertAlmostEqual(cc.tab_position, 30, places=9)
+
     def test_current_collector(self):
         """
         Test instantiation
