@@ -1878,6 +1878,19 @@ class TestStackedPouchCell(unittest.TestCase):
             places=10,
         )
 
+    def test_legacy_cathode_reversible_areal_capacity_survives_recompute(self):
+        """A cathode from a blob that predates the cached span has none to
+        snapshot before the probe; the probe must not leave its own span behind."""
+        cathode = self.cell.reference_electrode_assembly.layup.cathode
+        expected = cathode.reversible_areal_capacity
+        del cathode._reversible_areal_capacity
+        del cathode._reversible_areal_capacity_range
+
+        self.cell._calculate_all_properties()
+
+        self.assertTrue(hasattr(cathode, "_reversible_areal_capacity"))
+        self.assertAlmostEqual(cathode.reversible_areal_capacity, expected, places=10)
+
     def test_serialization(self):
         serialized = self.cell.serialize()
         deserialized = ocd.PouchCell.deserialize(serialized)
