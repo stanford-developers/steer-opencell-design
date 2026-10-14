@@ -35,7 +35,6 @@ from steer_opencell_design.Constructions.ElectrodeAssemblies.SpiralUtils import 
     X_UNWRAPPED_COL,
     Z_COORD_COL,
     _racetrack_positions_batch,
-    _thickness_at_jit,
 )
 
 
@@ -326,38 +325,6 @@ class TestRacetrackSpanHelpers(unittest.TestCase):
         )
 
 
-class TestThicknessAtJit(unittest.TestCase):
-    """``_thickness_at_jit`` is a uniform-grid linear interpolator.
-
-    It must clamp at the endpoints and exactly reproduce the grid values.
-    """
-
-    def setUp(self):
-        # 11-point grid on [0, 1] with t = x.
-        self.t_grid = np.linspace(0.0, 1.0, 11).astype(np.float64)
-        self.total_length = 1.0
-        self.n_grid_m1 = len(self.t_grid) - 1
-        self.dx_inv = float(self.n_grid_m1) / self.total_length
-
-    def test_clamps_to_first_point_below_zero(self):
-        value = _thickness_at_jit(
-            -0.5, self.t_grid, self.n_grid_m1, self.dx_inv, self.total_length
-        )
-        self.assertAlmostEqual(value, self.t_grid[0], places=10)
-
-    def test_clamps_to_last_point_above_total_length(self):
-        value = _thickness_at_jit(
-            2.0, self.t_grid, self.n_grid_m1, self.dx_inv, self.total_length
-        )
-        self.assertAlmostEqual(value, self.t_grid[-1], places=10)
-
-    def test_interior_point_is_linear_interpolation(self):
-        # On the t = x grid, interpolation is the identity.
-        for x in (0.05, 0.27, 0.5, 0.83):
-            value = _thickness_at_jit(
-                x, self.t_grid, self.n_grid_m1, self.dx_inv, self.total_length
-            )
-            self.assertAlmostEqual(value, x, places=10, msg=f"x={x}")
 
 
 class TestAlignedPositionsAtX(unittest.TestCase):

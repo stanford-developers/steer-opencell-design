@@ -94,6 +94,23 @@ class _Cell(
 ):
     """Abstract base class for complete battery cells. Provides common properties for energy, mass, cost, capacity curves, and voltage window management. Subclasses implement format-specific geometry (cylindrical, prismatic, pouch, flex-frame)."""
 
+    @classmethod
+    def _from_dict(cls, data: dict):
+        obj = super()._from_dict(data)
+        # A jelly roll saved before 1.1.0 is re-wound as it loads; the cell's
+        # stored properties (energy, mass, ...) were computed from the old
+        # geometry, so recompute them from the rebuilt roll.
+        rewound = False
+        for value in list(obj.__dict__.values()):
+            if getattr(value, "__dict__", {}).pop("_rewound_on_load", False):
+                rewound = True
+        if rewound:
+            obj._calculate_all_properties()
+            # the recompute rebuilds the cell's assembly copies; point them back
+            # at the cell as deserialization does
+            obj._restore_child_parent_refs()
+        return obj
+
     def __init__(
         self,
         reference_electrode_assembly: _ElectrodeAssembly,
@@ -769,8 +786,13 @@ class _Cell(
             cathode._areal_capacity_curve = s['cathode_areal']
         if s['cathode_reversible_areal'] is not None:
             cathode._reversible_areal_capacity = s['cathode_reversible_areal']
-        if s['cathode_reversible_areal_range'] is not None:
-            cathode._reversible_areal_capacity_range = s['cathode_reversible_areal_range']
+            if s['cathode_reversible_areal_range'] is not None:
+                cathode._reversible_areal_capacity_range = s['cathode_reversible_areal_range']
+        elif hasattr(cathode, '_reversible_areal_capacity'):
+            # a cathode from a blob that predates the attribute had none to
+            # snapshot; a read during the probe healed it from the probed curve,
+            # so heal it again from the restored one
+            cathode._calculate_reversible_areal_capacity()
 
         layup._maximum_operating_voltage = s['layup_max_v']
         layup._minimum_operating_voltage = s['layup_min_v']

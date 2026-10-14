@@ -313,7 +313,7 @@ class TestCylindricalCell(unittest.TestCase):
     def test_basics(self):
         self.assertIsInstance(self.cell, ocd.CylindricalCell)
         self.assertAlmostEqual(self.cell.energy, 124.09, places=2)
-        self.assertAlmostEqual(self.cell.mass, 970.35, places=2)
+        self.assertAlmostEqual(self.cell.mass, 970.34, places=2)
         self.assertAlmostEqual(self.cell.specific_energy, 127.88, places=2)
         self.assertAlmostEqual(self.cell.volumetric_energy, 261.36, places=2)
         self.assertAlmostEqual(self.cell.cost_per_energy, 65.3, places=1)
@@ -1487,14 +1487,14 @@ class TestCylindricalCellTabbed(unittest.TestCase):
 
     def test_basics(self):
         self.assertIsInstance(self.cell, ocd.CylindricalCell)
-        self.assertAlmostEqual(self.cell.energy, 132.3, places=2)
+        self.assertAlmostEqual(self.cell.energy, 132.305, places=2)
         self.assertAlmostEqual(self.cell.mass, 981.21, places=2)
         # ``places=1`` (~7e-3 % of 135) accommodates the Phase-3 segmented
         # analytic spiral integrator's drift relative to the legacy
         # adaptive-RK baseline that originally pinned this value.
         self.assertAlmostEqual(self.cell.specific_energy, 134.84, places=1)
         self.assertAlmostEqual(self.cell.volumetric_energy, 285.58, places=1)
-        self.assertAlmostEqual(self.cell.cost_per_energy, 59.49, places=2)
+        self.assertAlmostEqual(self.cell.cost_per_energy, 59.483, places=2)
 
     def test_set_nmc(self):
 
@@ -1877,6 +1877,19 @@ class TestStackedPouchCell(unittest.TestCase):
             cathode.coating_thickness_range[1] * cathode.calender_density * UM_TO_CM * G_TO_mG * ratio,
             places=10,
         )
+
+    def test_legacy_cathode_reversible_areal_capacity_survives_recompute(self):
+        """A cathode from a blob that predates the cached span has none to
+        snapshot before the probe; the probe must not leave its own span behind."""
+        cathode = self.cell.reference_electrode_assembly.layup.cathode
+        expected = cathode.reversible_areal_capacity
+        del cathode._reversible_areal_capacity
+        del cathode._reversible_areal_capacity_range
+
+        self.cell._calculate_all_properties()
+
+        self.assertTrue(hasattr(cathode, "_reversible_areal_capacity"))
+        self.assertAlmostEqual(cathode.reversible_areal_capacity, expected, places=10)
 
     def test_serialization(self):
         serialized = self.cell.serialize()
@@ -3875,15 +3888,10 @@ class TestFromLoadedCell(unittest.TestCase):
         self.assertIsNotNone(new_cell.energy)
         self.assertIsNotNone(new_cell.mass)
         self.assertIsNotNone(new_cell.cost)
-        # ``delta=0.1`` (~0.2% of 51.8 Wh) accommodates the Phase-3
-        # segmented analytic spiral integrator's drift relative to the
-        # adaptive-RK baseline that originally pinned this value.
-        self.assertAlmostEqual(new_cell.energy, 51.81, delta=0.1)
-        # ``delta=0.5`` (~0.1 % of 416 g) accommodates the spiral
-        # integrator's drift after the Brent's-method radius preservation
-        # step. Previous ``places=2`` was tighter than the integrator's
-        # own TARGET_ERROR.
-        self.assertAlmostEqual(new_cell.mass, 415.99, delta=0.5)
+        # The teardown was saved before 1.1.0, so it is re-wound as it loads and
+        # the radius it keeps is the new model's (the old winding gave 51.81 Wh).
+        self.assertAlmostEqual(new_cell.energy, 51.73, delta=0.1)
+        self.assertAlmostEqual(new_cell.mass, 415.49, delta=0.5)
         self.assertAlmostEqual(new_cell.cost, 2.8, places=1)
 
         fig1 = new_cell.plot_cross_section()

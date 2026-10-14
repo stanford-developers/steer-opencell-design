@@ -138,11 +138,15 @@ class TestSimpleLaminate(unittest.TestCase):
         self.assertTrue(test_case)
 
     def test_get_thickness_at_x(self):
-        self.layup.calculate_flattened_center_lines()
-        self.assertAlmostEqual(self.layup.get_thickness_at_x(0), 0.000181, places=6)
+        # Read from the exact stack profile: a layer counts up to its end, and
+        # at the end itself the stack steps to what lies beyond (the anode a-side
+        # coating ends at x = 0, the bottom separator at x = 3).
+        self.assertAlmostEqual(self.layup.get_thickness_at_x(-1e-6), 0.000181, places=6)
+        self.assertAlmostEqual(self.layup.get_thickness_at_x(0), 0.000147, places=6)
         self.assertAlmostEqual(self.layup.get_thickness_at_x(0.1), 0.000147, places=6)
         self.assertAlmostEqual(self.layup.get_thickness_at_x(2), 0.000066, places=6)
-        self.assertAlmostEqual(self.layup.get_thickness_at_x(3), 0.0000499, places=6)
+        self.assertAlmostEqual(self.layup.get_thickness_at_x(3 - 1e-6), 0.0000499, places=6)
+        self.assertAlmostEqual(self.layup.get_thickness_at_x(3), 0.000025, places=6)
         self.assertAlmostEqual(self.layup.get_thickness_at_x(15), 0, places=6)
 
     def test_voltage_limits(self):
