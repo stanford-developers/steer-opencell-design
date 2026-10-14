@@ -4589,10 +4589,11 @@ class TestPouchTabsFollowTheWidth(unittest.TestCase):
         self.assertAlmostEqual(cathode.tab_position, 70, places=9)
         self.assertAlmostEqual(anode.tab_position, 230, places=9)
         self.assertAlmostEqual(cell.encapsulation._cathode_terminal._width, 0.05, places=12)
-        # against the base recomputed here, not its stored energy: a recompute on
-        # another platform (CI's Linux) differs from the stored value by ~2e-5
+        # against the base put through the same setter path with no change: on
+        # CI's Linux a geometry setter's recompute and a full recompute reach
+        # voltage limits ~2e-5 apart (also on 1.3.1, independent of the tabs)
         reference = deepcopy(self.base)
-        reference._calculate_all_properties()
+        reference.width = self.base.width
         self.assertAlmostEqual(cell.energy, reference.energy, places=9)
 
 if __name__ == "__main__":
