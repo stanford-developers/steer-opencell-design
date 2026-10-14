@@ -106,6 +106,9 @@ class _Cell(
                 rewound = True
         if rewound:
             obj._calculate_all_properties()
+            # the recompute rebuilds the cell's assembly copies; point them back
+            # at the cell as deserialization does
+            obj._restore_child_parent_refs()
         return obj
 
     def __init__(

@@ -220,6 +220,29 @@ class TestWoundRolls(unittest.TestCase):
         self.assertIsNotNone(getattr(roll, "_winding", None))
         self.assertAlmostEqual(roll.radius, fresh.radius, places=9)
 
+    def test_a_rewound_cell_round_trips(self):
+        """A re-wound cell saves to the same bytes as that save reloaded: the
+        recompute must leave its parts linked as deserialization does."""
+        import lz4.frame
+        import msgpack
+        from steer_core.Mixins.Serializer import SerializerMixin
+
+        def strip_versions(value):
+            if isinstance(value, dict):
+                return {k: strip_versions(v) for k, v in value.items() if k != "__schema_version__"}
+            if isinstance(value, list):
+                return [strip_versions(v) for v in value]
+            return value
+
+        cell = _Cell.from_database("LFP Cylindrical Tabless Cell", table_name="cell_references")
+        blob = cell.serialize(compress=True)
+        payload = msgpack.unpackb(lz4.frame.decompress(blob[1:]), raw=False)
+        old = blob[:1] + lz4.frame.compress(
+            msgpack.packb(strip_versions(payload), use_bin_type=True)
+        )
+        rewound = SerializerMixin.deserialize(old)
+        blob = rewound.serialize(compress=True)
+        self.assertEqual(SerializerMixin.deserialize(blob).serialize(compress=True), blob)
 
 if __name__ == "__main__":
     unittest.main()
