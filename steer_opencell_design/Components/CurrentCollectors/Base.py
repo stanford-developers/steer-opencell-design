@@ -39,6 +39,9 @@ TRACE_NAME_TAB = "Tab"
 TRACE_NAME_INSULATION_MARKER = "Insulation"
 
 
+from steer_opencell_design.Utils.Ranges import DIMENSION_FLOOR_MM
+
+
 class _CurrentCollector(
     ABC, 
     CoordinateMixin,
@@ -980,7 +983,10 @@ class _CurrentCollector(
 
     @property
     def width_hard_range(self) -> Tuple[float, float]:
-        return (0, 5000)
+        """Hard width limits in mm: the foil has to keep some width (and a tabless
+        collector's tab height on top of it, see ``Tabless.width``)."""
+        offset = self.width - self.y_foil_length
+        return (DIMENSION_FLOOR_MM + offset, 5000 + offset)
 
     @material.setter
     @calculate_bulk_properties
@@ -1257,7 +1263,8 @@ class _TabbedCurrentCollector(_CurrentCollector):
 
     @property
     def coated_tab_height_hard_range(self) -> Tuple[float, float]:
-        return self.coated_tab_height_range
+        """Up to the whole tab, the limit the setter enforces."""
+        return (0, self.tab_height)
 
     @property
     def total_height(self) -> float:

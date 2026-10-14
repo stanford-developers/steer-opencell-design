@@ -44,6 +44,7 @@ from steer_opencell_design.Components.CurrentCollectors.Notched import (
 from steer_opencell_design.Components.CurrentCollectors.Tabless import (
     TablessCurrentCollector,
 )
+from steer_opencell_design.Utils.Ranges import shifted_range
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Winding import (
     ROUND_POINTS_PER_TURN,
     ROUND_POINTS_PER_TURN_HIRES,
@@ -1900,7 +1901,20 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
     @property
     def height_range(self) -> Tuple[float, float]:
-        return self.layup.width_range
+        """The roll heights (mm) the height setter reaches: it moves the layup's
+        width by the same amount, so the layup's range shifted by the tabs."""
+        return self._height_reach(self.layup.width_range)
+
+    def _height_reach(self, layup_range: Tuple[float, float]) -> Tuple[float, float]:
+        low, high = shifted_range(self.height, [(self.layup.width, layup_range)])
+        # a welded tab spans at least its overhang past the foil, however short
+        # the foil gets
+        floor = max(
+            (getattr(getattr(self.layup, electrode).current_collector, "tab_overhang", 0.0) or 0.0)
+            for electrode in ("cathode", "anode")
+        )
+        low = max(low, floor)
+        return (low, max(high, low))
 
     @property
     def height_hard_range(self) -> Tuple[float, float]:
@@ -1911,7 +1925,7 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         to. Present so a cell can read ``assembly.height_hard_range``
         generically, whichever assembly it holds.
         """
-        return self.layup.width_hard_range
+        return self._height_reach(self.layup.width_hard_range)
 
     @property
     def tape_length_driver(self) -> TapeDriver:

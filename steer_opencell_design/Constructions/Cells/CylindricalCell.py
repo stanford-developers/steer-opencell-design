@@ -507,6 +507,15 @@ class CylindricalCell(_Cell):
         self.validate_type(value, CylindricalEncapsulation, "encapsulation")
         self._encapsulation = value
 
+    @property
+    def n_electrode_assembly_range(self) -> Tuple[int, int]:
+        """Cylindrical cells hold exactly one electrode assembly."""
+        return (1, 1)
+
+    @property
+    def n_electrode_assembly_hard_range(self) -> Tuple[int, int]:
+        return (1, 1)
+
     @n_electrode_assembly.setter
     def n_electrode_assembly(self, value: int) -> None:
         """Set number of electrode assemblies with validation.

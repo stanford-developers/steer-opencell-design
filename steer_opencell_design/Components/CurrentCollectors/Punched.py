@@ -17,6 +17,7 @@ from typing import Tuple, Optional
 import numpy as np
 
 from steer_opencell_design.Components.CurrentCollectors.Base import _TabbedCurrentCollector
+from steer_opencell_design.Utils.Ranges import DIMENSION_FLOOR_MM
 
 # A punched tab keeps this clearance (m) to its foil's edges; when the foil (or the
 # other electrode's tab beside it) leaves too little room the tab is thinned, but
@@ -368,7 +369,14 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
     @property
     def width_range(self) -> Tuple[float, float]:
-        return self.x_foil_length_range
+        """Foil widths in mm: the foil range, but never narrower than the tabs need
+        (two side by side in a same-edge stack, or this one alone)."""
+        low, high = self.x_foil_length_range
+        return (max(low, self._minimum_foil_width() * M_TO_MM), high)
+
+    @property
+    def width_hard_range(self) -> Tuple[float, float]:
+        return (self._minimum_foil_width() * M_TO_MM, 5000.0)
 
     @property
     def height(self) -> float:
@@ -380,18 +388,58 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
     @property
     def height_hard_range(self) -> Tuple[float, float]:
-        return (0, 5000)
+        return (DIMENSION_FLOOR_MM, 5000.0)
 
     @property
     def tab_width_hard_range(self) -> Tuple[float, float]:
-        min = 0.01
-        max = self._x_foil_length - 0.01
-
-        return (min * M_TO_MM, max * M_TO_MM)
+        """Tab widths in mm: from TAB_MIN_WIDTH up to the room the foil (and, in a
+        same-edge stack, the other electrode's tab) leaves; the setter caps there."""
+        return (TAB_MIN_WIDTH * M_TO_MM, self._tab_width_room() * M_TO_MM)
 
     @property
     def tab_width_range(self) -> Tuple[float, float]:
         return self.tab_width_hard_range
+
+    @property
+    def tab_position_range(self) -> Tuple[float, float]:
+        return self.tab_position_hard_range
+
+    @property
+    def tab_position_hard_range(self) -> Tuple[float, float]:
+        """Tab centres in mm from the foil's left edge (see ``_tab_centre_bounds``)."""
+        low, high = self._tab_centre_bounds(self._tab_width)
+        return (low * M_TO_MM, high * M_TO_MM)
+
+    # ---- limits from the layup this collector is in -------------------------
+    def _layup(self):
+        electrode = getattr(self, "_parent", None)
+        return getattr(electrode, "_parent", None) if electrode is not None else None
+
+    def _minimum_foil_width(self) -> float:
+        """The narrowest foil (m) that holds the tabs at TAB_MIN_WIDTH."""
+        reader = getattr(self._layup(), "_minimum_foil_width", None)
+        if reader is not None:
+            return reader()
+        return TAB_MIN_WIDTH + 2 * TAB_EDGE_CLEARANCE
+
+    def _tab_width_room(self) -> float:
+        """The widest this tab may be (m), as things stand."""
+        reader = getattr(self._layup(), "_tab_width_room", None)
+        room = reader(self) if reader is not None else None
+        if room is None:
+            room = self._x_foil_length - 2 * TAB_EDGE_CLEARANCE
+        return max(room, TAB_MIN_WIDTH)
+
+    def _tab_centre_bounds(self, width: float) -> Tuple[float, float]:
+        """Where a tab of ``width`` (m) may be centred (m from the foil's left
+        edge): the edge clearances, and in a same-edge stack the gap to the other
+        electrode's tab on its own side."""
+        reader = getattr(self._layup(), "_tab_centre_bounds", None)
+        bounds = reader(self, width) if reader is not None else None
+        if bounds is None:
+            bounds = self._tab_centre_limits(width)
+        low, high = bounds
+        return (low, max(low, high))
 
     @property
     def tab_position(self) -> float:
@@ -404,11 +452,10 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
 
         self._tab_position = float(tab_position) * MM_TO_M
 
-        if self._tab_position - self._tab_width / 2 < 0:
-            self._tab_position = self._tab_width / 2
-
-        if self._tab_position + self._tab_width / 2 > self._x_foil_length:
-            self._tab_position = self._x_foil_length - self._tab_width / 2
+        # within the edge clearances (and clear of the other tab in a same-edge
+        # stack): the same bounds the range reports
+        low, high = self._tab_centre_bounds(self._tab_width)
+        self._tab_position = min(max(self._tab_position, low), high)
 
         # the user's intent, kept while a narrower foil moves or thins the tab
         self._tab_position_fraction = self._tab_position / self._x_foil_length
@@ -424,13 +471,17 @@ class PunchedCurrentCollector(_TabbedCurrentCollector):
         if new_tab_width > self._x_foil_length:
             raise ValueError("Tab width cannot be greater than the length of the current collector.")
 
+        # no wider than the room left (the edited tab yields to the other one)
+        if hasattr(self, "_tab_position"):
+            new_tab_width = min(max(new_tab_width, TAB_MIN_WIDTH), self._tab_width_room())
+
         self._tab_width = new_tab_width
         self._requested_tab_width = new_tab_width
 
-        # a wider tab still has to sit on the foil
+        # a wider tab still has to sit on the foil, clear of the other tab
         if hasattr(self, "_tab_position"):
-            half = new_tab_width / 2
-            self._tab_position = min(max(self._tab_position, half), self._x_foil_length - half)
+            low, high = self._tab_centre_bounds(new_tab_width)
+            self._tab_position = min(max(self._tab_position, low), high)
 
     @width.setter
     def width(self, width: float) -> None:

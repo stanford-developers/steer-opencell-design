@@ -2063,8 +2063,10 @@ class TestPunchedStack(unittest.TestCase):
     def test_punched_stack_basic_structure(self):
         self.assertIsInstance(self.stack, PunchedStack)
         self.assertAlmostEqual(self.stack.thickness, 7.64, 2)
-        self.assertAlmostEqual(self.stack.thickness_range[0], 0.63)
-        self.assertAlmostEqual(self.stack.thickness_range[1], 22.41, 2)
+        # the thickness at one layer, exact (it used to be rounded up to 0.01 mm,
+        # which the layer-snapping setter could not reach)
+        self.assertAlmostEqual(self.stack.thickness_range[0], 0.6216, places=4)
+        self.assertAlmostEqual(self.stack.thickness_range[1], 22.4169, places=4)
         self.assertAlmostEqual(self.stack.thickness_hard_range[1], 369.66, 2)
         self.assertEqual(len(self.stack.stack), 83)
         self.assertAlmostEqual(self.stack.pore_volume, 293.27, 2)
@@ -2146,8 +2148,10 @@ class TestPunchedStack(unittest.TestCase):
 
         self.assertIsInstance(stack_from_layup, PunchedStack)
         self.assertAlmostEqual(stack_from_layup.thickness, 7.64, 2)
-        self.assertAlmostEqual(stack_from_layup.thickness_range[0], 0.63)
-        self.assertAlmostEqual(stack_from_layup.thickness_range[1], 22.41, 2)
+        # the thickness at one layer, exact (it used to be rounded up to 0.01 mm,
+        # which the layer-snapping setter could not reach)
+        self.assertAlmostEqual(stack_from_layup.thickness_range[0], 0.6216, places=4)
+        self.assertAlmostEqual(stack_from_layup.thickness_range[1], 22.4169, places=4)
         self.assertAlmostEqual(stack_from_layup.thickness_hard_range[1], 369.66, 2)
         self.assertEqual(len(stack_from_layup.stack), 83)
 

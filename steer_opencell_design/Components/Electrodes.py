@@ -342,7 +342,7 @@ class _Electrode(
             self._reversible_areal_capacity_range = None
             return
         _capacity_per_mass_loading = self._reversible_areal_capacity / self.mass_loading
-        _thickness_min, _thickness_max = self.coating_thickness_range
+        _thickness_min, _thickness_max = self._coating_thickness_limits(hard=False)
         _mass_loading_per_thickness = self.calender_density * UM_TO_CM * G_TO_mG
         self._reversible_areal_capacity_range = (
             _thickness_min * _mass_loading_per_thickness * _capacity_per_mass_loading,
@@ -1145,13 +1145,73 @@ class _Electrode(
 
     @property
     def coating_thickness_hard_range(self) -> Tuple[float, float]:
-        """Get the hard allowable coating thickness range in µm."""
-        return (0, 200)
+        """Get the hard allowable coating thickness range in µm.
+
+        Under ``MAINTAIN_MASS_LOADING`` a thickness edit recomputes the calender
+        density, so the range also keeps that density inside its hard range.
+        """
+        return self._coating_trio_reach("coating_thickness", hard=True)
 
     @property
     def coating_thickness_range(self) -> Tuple[float, float]:
-        """Get the allowable coating thickness range in µm."""
-        return (2, 200)
+        """Get the allowable coating thickness range in µm (see the hard range)."""
+        return self._coating_trio_reach("coating_thickness", hard=False)
+
+    @staticmethod
+    def _coating_thickness_limits(hard: bool) -> Tuple[float, float]:
+        """The coating thickness's own limits in µm, before any coupling."""
+        return (0, 200) if hard else (2, 200)
+
+    def _calender_density_limits(self, hard: bool) -> Tuple[float, float]:
+        """The calender density's own limits in g/cm³, from the porosity range."""
+        porosity = self._POROSITY_HARD_LIMITS if hard else self._POROSITY_LIMITS
+        to_display = KG_TO_G / M_TO_CM**3
+        return (
+            ((1 - porosity[1] / 100) / self._formulation._specific_volume) * to_display,
+            ((1 - porosity[0] / 100) / self._formulation._specific_volume) * to_display,
+        )
+
+    def _coating_trio_reach(self, field: str, hard: bool) -> Tuple[float, float]:
+        """Range of one coating-trio field that the control mode can honour.
+
+        Setting a member of the trio (mass loading, calender density, coating
+        thickness) recomputes one other member and holds the third, per
+        ``_update_dependent_properties``. The range keeps the recomputed member
+        inside its own limits, so a value in the range never drives the
+        porosity or the thickness out of theirs. Mass loading has no limits of
+        its own: its range is the reach through whichever member it moves.
+        """
+        if self._is_anode_free:
+            return (0.0, 0.0)
+        density = self._calender_density_limits(hard)
+        thickness = self._coating_thickness_limits(hard)
+        k = UM_TO_CM * G_TO_mG  # (g/cm³)·µm -> mg/cm²
+        mode = self.control_mode
+        moves_thickness = mode != ElectrodeControlMode.MAINTAIN_COATING_THICKNESS
+
+        if field == "mass_loading":
+            if moves_thickness:  # the density is held
+                return (self.calender_density * thickness[0] * k, self.calender_density * thickness[1] * k)
+            return (density[0] * self.coating_thickness * k, density[1] * self.coating_thickness * k)
+
+        if field == "calender_density":
+            low, high = density
+            if moves_thickness:  # thickness = mass loading / density stays in its limits
+                low = max(low, self.mass_loading / (k * thickness[1]))
+                if thickness[0] > 0:
+                    high = min(high, self.mass_loading / (k * thickness[0]))
+            current = self.calender_density
+        else:
+            low, high = thickness
+            if mode == ElectrodeControlMode.MAINTAIN_MASS_LOADING:  # density = loading / thickness
+                low = max(low, self.mass_loading / (k * density[1]))
+                if density[0] > 0:
+                    high = min(high, self.mass_loading / (k * density[0]))
+            current = self.coating_thickness
+
+        if low > high:  # the held loading admits nothing in both limits
+            return (current, current)
+        return (low, high)
 
     @property
     def cost_breakdown(self) -> Dict[str, Any]:
@@ -1193,29 +1253,17 @@ class _Electrode(
 
     @property
     def calender_density_range(self) -> Tuple[float, float]:
-        """Get the allowable calender density range in g/cm³."""
-        if self._is_anode_free:
-            return (0.0, 0.0)
-        max_porosity = self.porosity_range[1] / 100
-        min_porosity = self.porosity_range[0] / 100
+        """Get the allowable calender density range in g/cm³.
 
-        min_calender_density = ((1 - max_porosity) / self._formulation._specific_volume) * (KG_TO_G / M_TO_CM**3)
-        max_calender_density = ((1 - min_porosity) / self._formulation._specific_volume) * (KG_TO_G / M_TO_CM**3)
-
-        return (min_calender_density, max_calender_density)
+        From the porosity range; where the control mode recomputes the
+        thickness from the density, also the densities that keep it in range.
+        """
+        return self._coating_trio_reach("calender_density", hard=False)
 
     @property
     def calender_density_hard_range(self) -> Tuple[float, float]:
-        """Get the hard allowable calender density range in g/cm³."""
-        if self._is_anode_free:
-            return (0.0, 0.0)
-        max_porosity = self.porosity_hard_range[1] / 100
-        min_porosity = self.porosity_hard_range[0] / 100
-
-        min_calender_density = ((1 - max_porosity) / self._formulation._specific_volume) * (KG_TO_G / M_TO_CM**3)
-        max_calender_density = ((1 - min_porosity) / self._formulation._specific_volume) * (KG_TO_G / M_TO_CM**3)
-
-        return (min_calender_density, max_calender_density)
+        """Get the hard allowable calender density range in g/cm³ (see the soft range)."""
+        return self._coating_trio_reach("calender_density", hard=True)
 
     def _get_coords_df(self, cache_key: str, raw_coords) -> pd.DataFrame:
         """Return a cached mm-unit DataFrame for the given raw coordinate array."""
@@ -1265,19 +1313,18 @@ class _Electrode(
 
     @property
     def mass_loading_range(self) -> Tuple[float, float]:
-        """Get the allowable mass loading range in mg/cm²."""
-        return (
-            self.calender_density_range[0] * self.coating_thickness_range[0] * UM_TO_CM * G_TO_mG,
-            self.calender_density_range[1] * self.coating_thickness_range[1] * UM_TO_CM * G_TO_mG,
-        )
+        """Get the allowable mass loading range in mg/cm².
+
+        The loadings reachable by moving the member the control mode recomputes
+        (the thickness, or the density under ``MAINTAIN_COATING_THICKNESS``)
+        within its own limits.
+        """
+        return self._coating_trio_reach("mass_loading", hard=False)
 
     @property
     def mass_loading_hard_range(self) -> Tuple[float, float]:
-        """Get the hard allowable mass loading range in mg/cm²."""
-        return (
-            self.calender_density_hard_range[0] * self.coating_thickness_hard_range[0] * UM_TO_CM * G_TO_mG,
-            self.calender_density_hard_range[1] * self.coating_thickness_hard_range[1] * UM_TO_CM * G_TO_mG,
-        )
+        """Get the hard allowable mass loading range in mg/cm² (see the soft range)."""
+        return self._coating_trio_reach("mass_loading", hard=True)
 
     @property
     def current_collector(self) -> _CurrentCollector:
@@ -1348,14 +1395,42 @@ class _Electrode(
         max = self._cost + (1 / self._cost) / 5
         return (min, max)
 
+    # the hard porosity limits in %: down to 0, as a fully dense (monolithic)
+    # coating, e.g. a single-crystal active material film, is a valid design
+    _POROSITY_HARD_LIMITS = (0, 80)
+    _POROSITY_LIMITS = (0, 80)
+
+    @property
+    def porosity_range(self) -> Tuple[float, float]:
+        """Get the allowable porosity range in %.
+
+        A porosity edit sets the calender density, so this is the calender
+        density range expressed as porosity.
+        """
+        return self._porosity_reach(hard=False)
+
     @property
     def porosity_hard_range(self) -> Tuple[float, float]:
-        """Get the hard allowable porosity range in %.
+        """Get the hard allowable porosity range in % (see the soft range)."""
+        return self._porosity_reach(hard=True)
 
-        Down to 0: a fully dense (monolithic) coating, e.g. a single-crystal
-        active material film, is a valid design.
-        """
-        return (0, 80)
+    def _porosity_reach(self, hard: bool) -> Tuple[float, float]:
+        if self._is_anode_free:
+            return (0.0, 0.0)
+        low, high = self._coating_trio_reach("calender_density", hard)
+        own_low, own_high = self._calender_density_limits(hard)
+        limits = self._POROSITY_HARD_LIMITS if hard else self._POROSITY_LIMITS
+        to_si = G_TO_KG / CM_TO_M**3
+        volume = self._formulation._specific_volume
+
+        def porosity(density: float) -> float:
+            return (1 - density * to_si * volume) * FRACTION_TO_PERCENT
+
+        # a density bound that is the porosity limit itself maps back exactly
+        return (
+            limits[0] if high >= own_high else porosity(high),
+            limits[1] if low <= own_low else porosity(low),
+        )
 
     # === SETTERS ===
 
@@ -1770,14 +1845,8 @@ class Anode(_Electrode):
 
         self._bottom_overhang = new_bottom_overhang * MM_TO_M
 
-    @property
-    def porosity_range(self) -> Tuple[float, float]:
-        """
-        Get the range of porosity of the electrode.
-
-        :return: Tuple containing the minimum and maximum porosity in percentage.
-        """
-        return (25, 50)
+    # the soft porosity limits in %, before any control-mode coupling
+    _POROSITY_LIMITS = (25, 50)
 
 
 class Cathode(_Electrode):
@@ -1828,14 +1897,8 @@ class Cathode(_Electrode):
 
         self._update_properties = True
 
-    @property
-    def porosity_range(self) -> Tuple[float, float]:
-        """
-        Get the range of porosity of the electrode.
-
-        :return: Tuple containing the minimum and maximum porosity in percentage.
-        """
-        return (15, 40)
+    # the soft porosity limits in %, before any control-mode coupling
+    _POROSITY_LIMITS = (15, 40)
 
 
 

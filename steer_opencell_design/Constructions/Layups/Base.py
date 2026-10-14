@@ -42,8 +42,10 @@ PLOT_PADDING_FACTOR = 0.05  # 5% padding for plot bounds
 PLOT_FALLBACK_BOUND = 100.0  # Fallback axis bounds in mm
 
 # Separator range extension constants for Laminate validation
-SEPARATOR_WIDTH_EXTENSION = 0.1  # Extension factor (10%) for separator width range
-SEPARATOR_LENGTH_EXTENSION = 1.0  # Extension factor (100%) for separator length range
+# How far (m) a separator's width / length range reaches past its electrode's foil:
+# absolute lengths, not fractions (100 mm and 1000 mm)
+SEPARATOR_WIDTH_EXTENSION = 0.1
+SEPARATOR_LENGTH_EXTENSION = 1.0
 
 # Sampling resolution for flattened center line calculations
 DEFAULT_X_SPACING = 0.004  # Default x-axis sampling spacing in meters (4mm)
@@ -714,9 +716,52 @@ class _Layup(
     @property
     def np_ratio_range(self) -> Tuple[float, float]:
         """
-        Get the n/p ratio range based on electrode capacities.
+        The n/p ratios the ``np_ratio`` setter can reach from here: the setter
+        rescales the anode (fixed cathode) or the cathode (fixed anode) mass
+        loading, or splits the coating thickness (fixed thickness), so the range
+        is the current ratio scaled by what that electrode's own range allows.
         """
-        return 0, 1.5
+        return self._np_ratio_reach(hard=False)
+
+    @property
+    def np_ratio_hard_range(self) -> Tuple[float, float]:
+        return self._np_ratio_reach(hard=True)
+
+    def _np_ratio_reach(self, hard: bool) -> Tuple[float, float]:
+        suffix = "_hard_range" if hard else "_range"
+        np_now = getattr(self, "_np_ratio", None)
+        if self._anode._is_anode_free or not np_now:
+            return (0.0, 0.0)
+        mode = self.np_ratio_control_mode
+
+        def loading_range(electrode):
+            low, high = getattr(electrode, "mass_loading" + suffix)
+            if not low or low <= 0:  # a hard range open at 0: use the soft minimum
+                low = electrode.mass_loading_range[0]
+            return low, high
+
+        if mode == NPRatioControlMode.FIXED_CATHODE:
+            low, high = loading_range(self._anode)
+            now = self._anode.mass_loading
+            return (np_now * low / now, np_now * high / now)
+        if mode == NPRatioControlMode.FIXED_ANODE:
+            low, high = loading_range(self._cathode)
+            now = self._cathode.mass_loading
+            return (np_now * now / high, np_now * now / low)
+        # fixed total thickness: R = A t_a / (C (T - t_a)), t_a within both ranges
+        t_a, t_c = self._anode.coating_thickness, self._cathode.coating_thickness
+        total = t_a + t_c
+        a_low, a_high = getattr(self._anode, "coating_thickness" + suffix)
+        c_low, c_high = getattr(self._cathode, "coating_thickness" + suffix)
+        low_a = max(a_low, total - c_high)
+        high_a = min(a_high, total - c_low)
+
+        def ratio(anode_thickness: float) -> float:
+            return np_now * (anode_thickness / t_a) * (t_c / (total - anode_thickness))
+
+        if not 0 < low_a <= high_a < total:
+            return (np_now, np_now)
+        return (ratio(low_a), ratio(high_a))
 
     @property
     def areal_capacity_curve(self) -> pd.DataFrame:
