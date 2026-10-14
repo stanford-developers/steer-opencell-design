@@ -183,7 +183,8 @@ class TestRoundJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.cost, 4.33, 2)
         # Measured with the radius setter's own geometry (tape wraps included),
         # so both ends can actually be wound; the old estimate said 8.73-30.55.
-        self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 8.89, 2)
+        # The minimum is the shortest layup: the bare foil ends + 100 mm coated.
+        self.assertAlmostEqual(self.my_jellyroll.radius_range[0], 8.34, 2)
         self.assertAlmostEqual(self.my_jellyroll.radius_range[1], 30.70, 2)
         self.assertAlmostEqual(self.my_jellyroll.mass, 655.4, 1)
 
@@ -364,6 +365,18 @@ class TestRoundJellyRoll(unittest.TestCase):
         roll = deepcopy(self.my_jellyroll)
         with self.assertRaises(ValueError):
             roll.radius = low - 0.1
+
+    def test_shortest_layup_is_the_bare_ends_plus_100_mm_coated(self):
+        layup = self.my_jellyroll.layup
+        # The layup bounds the cathode by the bare (uncoated) foil ends of either
+        # electrode, here the anode's 500 mm.
+        bare = max(
+            electrode.current_collector._calculate_total_length_with_skip_coating()
+            for electrode in (layup.cathode, layup.anode)
+        ) * M_TO_MM
+        self.assertAlmostEqual(layup.length_range[0], bare + 100.0, 6)
+        # The hard minimum is the same shortest layup, not a fixed 250 mm.
+        self.assertEqual(layup.length_hard_range[0], layup.length_range[0])
 
     def test_radius_hard_range_is_the_achievable_range(self):
         self.assertEqual(self.my_jellyroll.radius_hard_range, self.my_jellyroll.radius_range)
@@ -726,10 +739,11 @@ class TestFlatJellyRoll(unittest.TestCase):
         self.assertAlmostEqual(self.my_jellyroll.cost, 4.18, 1)
         self.assertAlmostEqual(self.my_jellyroll.interfacial_area, 23725.74, 0)
         # Measured with the setters' own geometry, so both ends can actually be
-        # wound; the old estimate said 2.91-24.37 and 104.48-125.95.
-        self.assertAlmostEqual(self.my_jellyroll.thickness_range[0], 3.04, 1)
+        # wound; the old estimate said 2.91-24.37 and 104.48-125.95. The minimum is
+        # the shortest layup: the bare foil ends + 100 mm coated.
+        self.assertAlmostEqual(self.my_jellyroll.thickness_range[0], 2.75, 1)
         self.assertAlmostEqual(self.my_jellyroll.thickness_range[1], 24.47, 1)
-        self.assertAlmostEqual(self.my_jellyroll.width_range[0], 105.65, 1)
+        self.assertAlmostEqual(self.my_jellyroll.width_range[0], 105.36, 1)
         self.assertAlmostEqual(self.my_jellyroll.width_range[1], 126.01, 1)
 
     def test_thickness_and_width_setters_reach_both_ends_of_their_ranges(self):
@@ -2395,6 +2409,30 @@ class TestRoundJellyRollWithTabWelded(unittest.TestCase):
 
     def test_type(self):
         self.assertIsInstance(self.my_jellyroll, WoundJellyRoll)
+
+    def test_shortest_layup_keeps_the_first_weld_tab(self):
+        """A layup shorter than the first weld tab drops every tab, and a
+        tab-welded roll with none cannot be built. The cathode's first tab sits at
+        100 mm and is 5 mm wide, so the shortest layup is 102.5 mm, just above the
+        100 mm coated minimum."""
+        self.assertAlmostEqual(self.layup.length_range[0], 102.5, 6)
+        self.assertEqual(self.layup.length_hard_range[0], self.layup.length_range[0])
+
+    def test_anode_tab_floor_is_shifted_by_the_anode_overhang(self):
+        """The length setter moves both foils together, so an anode whose foil is
+        40 mm longer than the laminate needs a laminate of its tab floor - 40."""
+        layup = deepcopy(self.layup)
+        layup._anode._current_collector.weld_tab_positions = [400]
+        self.assertAlmostEqual(layup.length_range[0], 400 + 2.5 - 40, 6)
+
+    def test_radius_setter_reaches_the_smallest_roll_that_keeps_its_tabs(self):
+        """Setting the radius at the bottom of its range used to fail while
+        drawing the roll's weld tabs on tab-welded collectors."""
+        low, _ = self.my_jellyroll.radius_range
+        roll = deepcopy(self.my_jellyroll)
+        roll.radius = low
+        self.assertAlmostEqual(roll.radius, low, 3)
+        self.assertTrue(roll.layup.cathode.current_collector.weld_tab_positions)
 
     def test_plots(self):
 
