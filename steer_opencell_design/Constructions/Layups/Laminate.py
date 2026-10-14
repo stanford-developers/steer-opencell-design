@@ -97,8 +97,12 @@ class Laminate(_Layup):
 
         The cathode's b side faces the mandrel. Each centre line holds the layer's
         exact segment end points, with NaN rows between segments (skip coats).
+
+        A tab-welded collector's weld tabs are a layer of their own against the
+        foil on the weld side: they sit in the skip-coat gaps, so they rest on
+        the foil and whatever lies over them rests on the tabs.
         """
-        return [
+        specs = [
             ("cathode_b_side_coating", self._cathode.get_b_side_center_line(), self._cathode._coating_thickness),
             ("cathode_current_collector", self._cathode._current_collector.get_center_line(), self._cathode._current_collector._thickness),
             ("cathode_a_side_coating", self._cathode.get_a_side_center_line(), self._cathode._coating_thickness),
@@ -108,6 +112,21 @@ class Laminate(_Layup):
             ("anode_a_side_coating", self._anode.get_a_side_center_line(), self._anode._coating_thickness),
             ("top_separator", self._top_separator.get_center_line(), self._top_separator._thickness),
         ]
+        for prefix, electrode in (("cathode", self._cathode), ("anode", self._anode)):
+            collector = electrode._current_collector
+            if not getattr(collector, "_weld_tabs", None):
+                continue
+            foil = [name for name, _, _ in specs].index(f"{prefix}_current_collector")
+            at = foil + 1 if collector._tab_weld_side == "a" else foil
+            specs.insert(
+                at,
+                (
+                    f"{prefix}_weld_tabs",
+                    collector.get_weld_tab_center_line(),
+                    collector._weld_tab._thickness,
+                ),
+            )
+        return specs
 
     def get_stack_profile(self) -> StackProfile:
         """The exact layer stack along the strip (see :mod:`StackProfile`).

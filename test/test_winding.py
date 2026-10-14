@@ -350,5 +350,91 @@ class TestWoundRolls(unittest.TestCase):
         blob = rewound.serialize(compress=True)
         self.assertEqual(SerializerMixin.deserialize(blob).serialize(compress=True), blob)
 
+
+class TestWeldTabs(unittest.TestCase):
+    """A tab-welded collector's tabs are a layer of the stack, against the foil
+    on the weld side inside their skip-coat gaps, so they are wound into the
+    roll and drawn in its cross-section."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.roll = _Cell.from_database(
+            "NMC811 Cylindrical Tabbed Cell", table_name="cell_references"
+        ).reference_electrode_assembly
+        thick = deepcopy(cls.roll)
+        for electrode in ("cathode", "anode"):
+            collector = getattr(thick.layup, electrode).current_collector
+            tab = deepcopy(collector.weld_tab)
+            tab.thickness = 150  # um, thicker than either coating
+            collector.weld_tab = tab
+            collector.propagate_changes()
+        cls.thick = thick
+
+    def test_tabs_are_a_layer_against_the_foil(self):
+        profile = self.roll.layup.get_stack_profile()
+        names = list(profile.names)
+        for electrode in ("cathode", "anode"):
+            collector = getattr(self.roll.layup, electrode).current_collector
+            self.assertEqual(collector._tab_weld_side, "a")
+            i = names.index(f"{electrode}_weld_tabs")
+            self.assertEqual(names[i - 1], f"{electrode}_current_collector")
+            self.assertEqual(names[i + 1], f"{electrode}_a_side_coating")
+            edges = sorted(
+                (t._datum[0] - t._width / 2, t._datum[0] + t._width / 2) for t in collector._weld_tabs
+            )
+            np.testing.assert_allclose(
+                profile.segments[f"{electrode}_weld_tabs"] + profile.x_origin, edges, atol=1e-12
+            )
+            # inside its skip-coat gap the stack is a tab thicker on the tab
+            tab = collector._weld_tabs[0]
+            on_tab = tab._datum[0] - profile.x_origin
+            beside = on_tab + tab._width / 2 + (collector._skip_coat_width - tab._width) / 4
+            self.assertAlmostEqual(
+                profile.thickness_at(np.array([on_tab]))[0]
+                - profile.thickness_at(np.array([beside]))[0],
+                tab._thickness,
+                places=12,
+            )
+
+    def test_a_tabless_laminate_has_no_tab_layer(self):
+        tabless = _Cell.from_database("TESLA 4680", table_name="teardowns").reference_electrode_assembly
+        self.assertFalse(any("weld_tabs" in n for n in tabless.layup.get_stack_profile().names))
+
+    def test_tab_paths_start_and_stop_at_the_tab_edges(self):
+        for electrode in ("cathode", "anode"):
+            collector = getattr(self.roll.layup, electrode).current_collector
+            path = self.roll._component_spirals[f"{electrode}_weld_tabs"]
+            segments = np.split(path, np.flatnonzero(np.isnan(path[:, 1])))
+            ends = sorted(
+                (seg[~np.isnan(seg[:, 1]), 1].min(), seg[~np.isnan(seg[:, 1]), 1].max())
+                for seg in segments
+            )
+            edges = sorted(
+                (t._datum[0] - t._width / 2, t._datum[0] + t._width / 2) for t in collector._weld_tabs
+            )
+            np.testing.assert_allclose(ends, edges, atol=1e-12)
+
+    def test_a_thick_tab_bumps_the_roll_and_everything_drapes_over_it(self):
+        self.assertGreater(self.thick.radius, self.roll.radius + 0.05)
+        winding = self.thick._winding
+        profile = winding.profile
+        below_top = np.zeros(winding.a.shape[0])
+        for c in range(len(profile.names)):
+            bottom = winding.layer_bottom(c)
+            here = ~np.isnan(bottom)
+            self.assertTrue(np.all(bottom[here] >= below_top[here] - 1e-12))
+            below_top[here] = np.maximum(below_top[here], bottom[here] + profile.layer_thickness[c])
+        sup = _support(winding)
+        self.assertTrue(np.all(winding.a >= sup - 1e-12))
+
+    def test_the_cross_section_draws_the_tabs(self):
+        names = {trace.name for trace in self.roll.plot_spiral().data}
+        self.assertIn("Cathode Weld Tabs", names)
+        self.assertIn("Anode Weld Tabs", names)
+
+    def test_objective_measures_what_the_rebuild_does(self):
+        roll = deepcopy(self.thick)
+        self.assertAlmostEqual(roll._radius_at_length(roll.layup.length), roll.radius, places=9)
+
 if __name__ == "__main__":
     unittest.main()

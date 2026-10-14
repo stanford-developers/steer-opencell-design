@@ -138,12 +138,13 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
     # (versions 1-2) bridged steps with fixed straight ramps and stepped the layers
     # inside the stack, where 1.2.0 spans them taut; 1.2.0 (version 3) paired the
     # facing coatings on the wrong sides, so its interfacial area (and capacity)
-    # is stale. Their layup is still valid, so they are re-wound when loaded.
-    _schema_version = 4
+    # is stale; before 1.3.0 (version 5) weld tabs were not wound into the roll.
+    # Their layup is still valid, so they are re-wound when loaded.
+    _schema_version = 5
 
     @classmethod
     def _migrate(cls, data: dict, version: int) -> dict:
-        if version < 4:
+        if version < 5:
             data = dict(data)
             data["_rewind_on_load"] = True
         return data
@@ -1647,6 +1648,58 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
         return min_y + anode_tab_deduction
 
+    def _weld_tab_spiral(self, electrode: str, extruded: bool) -> Optional[pd.DataFrame]:
+        spirals = self._extruded_spirals if extruded else self._component_spirals
+        spiral = spirals.get(f"{electrode}_weld_tabs")
+        if spiral is None or spiral.size == 0:
+            return None
+        return SpiralCalculator.format_np_spiral_for_df(spiral)
+
+    @property
+    def cathode_weld_tabs_spiral(self) -> Optional[pd.DataFrame]:
+        """The cathode's weld tabs' centre lines (None without weld tabs)."""
+        return self._weld_tab_spiral("cathode", extruded=False)
+
+    @property
+    def anode_weld_tabs_spiral(self) -> Optional[pd.DataFrame]:
+        """The anode's weld tabs' centre lines (None without weld tabs)."""
+        return self._weld_tab_spiral("anode", extruded=False)
+
+    @property
+    def cathode_weld_tabs_extruded_spiral(self) -> Optional[pd.DataFrame]:
+        return self._weld_tab_spiral("cathode", extruded=True)
+
+    @property
+    def anode_weld_tabs_extruded_spiral(self) -> Optional[pd.DataFrame]:
+        return self._weld_tab_spiral("anode", extruded=True)
+
+    def _weld_tab_trace(self, electrode: str, extruded: bool) -> Optional[go.Scatter]:
+        suffix = "extruded_spiral" if extruded else "spiral"
+        if getattr(self, f"{electrode}_weld_tabs_{suffix}") is None:
+            return None
+        collector = getattr(self._layup, f"_{electrode}").current_collector
+        color = collector._weld_tab._material._color
+        name = f"{electrode.capitalize()} Weld Tabs"
+        if extruded:
+            return self._format_extruded_spiral_trace(f"{electrode}_weld_tabs_{suffix}", color, name)
+        return self._format_spiral_trace(f"{electrode}_weld_tabs_{suffix}", color, name)
+
+    @property
+    def cathode_weld_tabs_spiral_trace(self) -> Optional[go.Scatter]:
+        return self._weld_tab_trace("cathode", extruded=False)
+
+    @property
+    def anode_weld_tabs_spiral_trace(self) -> Optional[go.Scatter]:
+        return self._weld_tab_trace("anode", extruded=False)
+
+    @property
+    def cathode_weld_tabs_extruded_spiral_trace(self) -> Optional[go.Scatter]:
+        return self._weld_tab_trace("cathode", extruded=True)
+
+    @property
+    def anode_weld_tabs_extruded_spiral_trace(self) -> Optional[go.Scatter]:
+        return self._weld_tab_trace("anode", extruded=True)
+
     def plot_spiral(self, layered: bool = True, **kwargs: Any) -> go.Figure:
         """Generate interactive spiral plot using Plotly.
 
@@ -1676,6 +1729,9 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
                 self.cathode_b_side_coating_extruded_spiral_trace,
                 self.top_separator_extruded_spiral_trace,
                 self.bottom_separator_extruded_spiral_trace,
+                # after the foils, so a tab shows over its skip-coat gap
+                self.cathode_weld_tabs_extruded_spiral_trace,
+                self.anode_weld_tabs_extruded_spiral_trace,
             ]
 
             line_traces = [
@@ -1687,6 +1743,8 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
                 self.cathode_a_side_coating_spiral_trace,
                 self.cathode_current_collector_spiral_trace,
                 self.cathode_b_side_coating_spiral_trace,
+                self.cathode_weld_tabs_spiral_trace,
+                self.anode_weld_tabs_spiral_trace,
             ]
 
             if (

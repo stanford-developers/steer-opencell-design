@@ -647,6 +647,24 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             new_weld_tab.datum = (x_datum, y_datum, z_datum)
             self._weld_tabs.append(new_weld_tab)
 
+    def get_weld_tab_center_line(self) -> np.ndarray:
+        """The weld tabs' x-z centre line along the strip: one two-point segment
+        per tab over its width (clipped to the foil), NaN rows between tabs."""
+        if not self._weld_tabs:
+            return np.empty((0, 2))
+        foil = self.get_center_line()
+        x_lo, x_hi = np.nanmin(foil[:, 0]), np.nanmax(foil[:, 0])
+        rows = []
+        for tab in sorted(self._weld_tabs, key=lambda t: t._datum[0]):
+            x0 = max(tab._datum[0] - tab._width / 2, x_lo)
+            x1 = min(tab._datum[0] + tab._width / 2, x_hi)
+            if x1 <= x0:
+                continue
+            if rows:
+                rows.append([np.nan, np.nan])
+            rows += [[x0, tab._datum[2]], [x1, tab._datum[2]]]
+        return np.array(rows) if rows else np.empty((0, 2))
+
     def _plot_full_view(self, side="a", aspect_ratio: float = 3, **kwargs) -> go.Figure:
         # Get the base figure from the parent class
         figure = super()._plot_full_view(side=side, aspect_ratio=aspect_ratio, **kwargs)
