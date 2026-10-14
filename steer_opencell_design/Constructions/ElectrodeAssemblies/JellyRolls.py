@@ -136,13 +136,14 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
     # Designs saved before 1.1.0 hold geometry from the old winding model (each
     # turn pitched by the strip being laid, not wound on the turn beneath); 1.1.x
     # (versions 1-2) bridged steps with fixed straight ramps and stepped the layers
-    # inside the stack, where 1.2.0 spans them taut. Their layup is still valid,
-    # so they are re-wound when loaded.
-    _schema_version = 3
+    # inside the stack, where 1.2.0 spans them taut; 1.2.0 (version 3) paired the
+    # facing coatings on the wrong sides, so its interfacial area (and capacity)
+    # is stale. Their layup is still valid, so they are re-wound when loaded.
+    _schema_version = 4
 
     @classmethod
     def _migrate(cls, data: dict, version: int) -> dict:
-        if version < 3:
+        if version < 4:
             data = dict(data)
             data["_rewind_on_load"] = True
         return data
@@ -774,37 +775,32 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         return (x_center, y_center, z_center)
 
     def _calculate_interfacial_area(self) -> None:
-        """Calculate the interfacial area between cathode and anode surfaces in a wound jelly roll.
+        """Calculate the area over which the cathode faces the anode (m²).
 
-        Computes two interfacial surfaces:
-        1. Inner surface: cathode b-side to anode a-side (first contact)
-        2. Outer surface: cathode a-side to anode b-side (after one full rotation)
+        The cathode is the inner electrode of each turn (its b side faces the
+        mandrel; see ``Laminate._stack_layer_specs``), so the coatings face each
+        other in two pairs:
 
-        Returns
-        -------
-        float
-            Total interfacial area in m²
+        1. Within a turn: the cathode's a side faces the anode's b side across
+           the bottom separator, at the same position along the strip.
+        2. Between turns: the anode's a side on one turn faces the cathode's b
+           side on the next turn out, across the top separator. Which point of
+           the next turn lies over a point of this one comes from the winding:
+           the material under sample ``m`` is sample ``m - P``.
 
-        Raises
-        ------
-        ValueError
-            If electrode coordinates cannot be calculated
+        Both are overlaps of the coated areas (length along the strip x width),
+        so skip coats, tabs, insulation and per-side bare lengths all count. The
+        area is measured along the strip, the basis the areal capacity is
+        loaded on.
         """
-        # Extract electrode coordinates
         cathode_coords = self._get_electrode_coordinates("cathode")
         anode_coords = self._get_electrode_coordinates("anode")
 
-        # Calculate inner interfacial area (first contact)
-        inner_area = self._calculate_inner_interface_area(
-            cathode_coords["b_side"], anode_coords["a_side"]
+        within = self._within_turn_interface_area(cathode_coords["a_side"], anode_coords["b_side"])
+        between = self._between_turns_interface_area(
+            anode_coords["a_side"], cathode_coords["b_side"]
         )
-
-        # Calculate outer interfacial area (after one full rotation)
-        outer_area = self._calculate_outer_interface_area(
-            cathode_coords["a_side"], anode_coords["b_side"]
-        )
-
-        self._interfacial_area = inner_area + outer_area
+        self._interfacial_area = within + between
 
     def _get_electrode_coordinates(self, electrode_type: str) -> Dict[str, np.ndarray]:
         """Extract electrode coating coordinates.
@@ -840,143 +836,61 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
 
         return {"a_side": a_side_coords, "b_side": b_side_coords}
 
-    def _calculate_inner_interface_area(
-        self, cathode_coords: np.ndarray, anode_coords: np.ndarray
-    ) -> float:
-        """Calculate interfacial area for inner surface contact.
+    def _coated_segments(self, coords: np.ndarray) -> list:
+        """A side's coated area as a list of (N, 2) polygons (empty if uncoated)."""
+        if coords.size == 0 or np.all(np.isnan(coords)):
+            return []
+        if not np.isnan(coords).any():
+            return [coords]
+        return [
+            np.column_stack(segment)
+            for segment in self._extract_coordinate_segments(coords[:, 0], coords[:, 1])
+            if len(segment[0]) >= 3
+        ]
 
-        Parameters
-        ----------
-        cathode_coords : np.ndarray
-            Cathode b-side coordinates (2D)
-        anode_coords : np.ndarray
-            Anode a-side coordinates (2D)
-
-        Returns
-        -------
-        float
-            Inner interfacial area in m²
-
-        Raises
-        ------
-        ValueError
-            If coordinates are invalid or polygons cannot be created
-        """
-        cathode_segments = []
-        anode_segments = []
-
-        if not np.isnan(cathode_coords).any():
-            cathode_segments = [cathode_coords]
-        else:
-            cathode_segments = self._extract_coordinate_segments(
-                cathode_coords[:, 0], cathode_coords[:, 1], unify_xy=True
-            )
-
-        if not np.isnan(anode_coords).any():
-            anode_segments = [anode_coords]
-        else:
-            anode_segments = self._extract_coordinate_segments(
-                anode_coords[:, 0], anode_coords[:, 1], unify_xy=True
-            )
-
-        intersection_area = 0.0
-        for c_segment in cathode_segments:
-            for a_segment in anode_segments:
-                intersection_area += self.get_coordinate_intersection(
-                    c_segment, a_segment
-                )
-
-        return intersection_area
-
-    def _calculate_outer_interface_area(
-        self, cathode_coords: np.ndarray, anode_coords: np.ndarray
-    ) -> float:
-        """Calculate interfacial area for outer surface contact after one full rotation.
-
-        Parameters
-        ----------
-        cathode_coords : np.ndarray
-            Cathode a-side coordinates (2D)
-        anode_coords : np.ndarray
-            Anode b-side coordinates (2D)
-
-        Returns
-        -------
-        float
-            Outer interfacial area in m²
-
-        Raises
-        ------
-        ValueError
-            If coordinates are invalid or shift calculation fails
-        """
-        # shift cathode coords by inner rotation amount
-        cathode_shift = self._calculate_full_rotation_shift()
-        shifted_cathode_coords = cathode_coords + np.array([cathode_shift, 0])
-
-        if not np.isnan(shifted_cathode_coords).any():
-            cathode_segments = [shifted_cathode_coords]
-        else:
-            cathode_segments = self._extract_coordinate_segments(
-                shifted_cathode_coords[:, 0],
-                shifted_cathode_coords[:, 1],
-                unify_xy=True,
-            )
-
-        if not np.isnan(anode_coords).any():
-            anode_segments = [anode_coords]
-        else:
-            anode_segments = self._extract_coordinate_segments(
-                anode_coords[:, 0], anode_coords[:, 1], unify_xy=True
-            )
-
-        intersection_area = 0.0
-        for c_segment in cathode_segments:
-            for a_segment in anode_segments:
-                intersection_area += self.get_coordinate_intersection(
-                    c_segment, a_segment
-                )
-
-        return intersection_area
-
-    def _calculate_full_rotation_shift(self) -> float:
-        """Calculate the x-direction shift after cathode completes one full rotation.
-
-        Returns
-        -------
-        float
-            Shift distance in meters
-
-        Raises
-        ------
-        KeyError
-            If cathode spiral data is not available
-        ValueError
-            If spiral data is insufficient for calculation
-        """
-        # Get cathode a-side spiral data
-        cathode_spiral = self._component_spirals["cathode_current_collector"]
-
-        # Get starting position
-        cathode_start_angle = cathode_spiral[0, THETA_COL]
-        cathode_start_x = cathode_spiral[0, X_UNWRAPPED_COL]
-
-        # Find point where cathode completes one full rotation (2π radians)
-        if type(self) == WoundJellyRoll:
-            full_rotation_angle = cathode_start_angle - TWO_PI
-        elif type(self) == FlatWoundJellyRoll:
-            full_rotation_angle = cathode_start_angle + TWO_PI
-        else:
-            raise ValueError(f"Unknown jelly roll type: {type(self)}")
-
-        theta_values = np.argsort(cathode_spiral[:, THETA_COL])
-        x_values = cathode_spiral[theta_values, X_UNWRAPPED_COL]
-
-        length_one_rotation_ahead = np.interp(
-            full_rotation_angle, cathode_spiral[theta_values, THETA_COL], x_values
+    def _overlap_area(self, coords_1: list, coords_2: list) -> float:
+        return sum(
+            self.get_coordinate_intersection(c1, c2) for c1 in coords_1 for c2 in coords_2
         )
 
-        return length_one_rotation_ahead - cathode_start_x
+    def _within_turn_interface_area(
+        self, cathode_a_side: np.ndarray, anode_b_side: np.ndarray
+    ) -> float:
+        """The cathode's a side against the anode's b side, in the same turn (m²)."""
+        return self._overlap_area(
+            self._coated_segments(cathode_a_side), self._coated_segments(anode_b_side)
+        )
+
+    def _between_turns_interface_area(
+        self, anode_a_side: np.ndarray, cathode_b_side: np.ndarray
+    ) -> float:
+        """The anode's a side against the cathode's b side on the next turn out (m²).
+
+        Each point of the anode's a side is moved to the strip position of the
+        point wound directly over it, one turn on, and the result overlapped
+        with the cathode's b side there. Positions past the last turn that has a
+        turn over it collapse onto that turn's end (no area): the outermost
+        a side faces nothing. Edges along and across the strip map exactly;
+        slanted edges (notch slopes) are moved at their ends.
+        """
+        anode = self._coated_segments(anode_a_side)
+        cathode = self._coated_segments(cathode_b_side)
+        if not anode or not cathode:
+            return 0.0
+        self._ensure_winding()
+        winding = self._winding
+        p = winding.points_per_turn
+        if winding.s.shape[0] <= p:  # less than a turn: nothing faces the a side
+            return 0.0
+        x0 = winding.profile.x_origin
+        lower = winding.s[:-p] + x0
+        upper = winding.s[p:] + x0
+        moved = []
+        for segment in anode:
+            segment = segment.copy()
+            segment[:, 0] = np.interp(segment[:, 0], lower, upper)
+            moved.append(segment)
+        return self._overlap_area(moved, cathode)
 
     def _calculate_spiral_properties(self) -> None:
         """Calculate properties derived from the spiral geometry.

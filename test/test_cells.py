@@ -312,11 +312,13 @@ class TestCylindricalCell(unittest.TestCase):
 
     def test_basics(self):
         self.assertIsInstance(self.cell, ocd.CylindricalCell)
-        self.assertAlmostEqual(self.cell.energy, 124.09, places=2)
+        # 124.09 Wh before 1.2.1, when the anode's a and b sides (different bare
+        # lengths) were paired with the wrong cathode sides: 1.1% short.
+        self.assertAlmostEqual(self.cell.energy, 125.48, places=2)
         self.assertAlmostEqual(self.cell.mass, 970.34, places=2)
-        self.assertAlmostEqual(self.cell.specific_energy, 127.88, places=2)
-        self.assertAlmostEqual(self.cell.volumetric_energy, 261.36, places=2)
-        self.assertAlmostEqual(self.cell.cost_per_energy, 65.3, places=1)
+        self.assertAlmostEqual(self.cell.specific_energy, 129.32, places=2)
+        self.assertAlmostEqual(self.cell.volumetric_energy, 264.30, places=2)
+        self.assertAlmostEqual(self.cell.cost_per_energy, 64.6, places=1)
 
     def test_going_anode_free(self):
         old_cost = self.cell.cost
@@ -1487,21 +1489,22 @@ class TestCylindricalCellTabbed(unittest.TestCase):
 
     def test_basics(self):
         self.assertIsInstance(self.cell, ocd.CylindricalCell)
-        self.assertAlmostEqual(self.cell.energy, 132.305, places=2)
+        # the weld-tab gaps now pair with the turn actually over them (1.2.1)
+        self.assertAlmostEqual(self.cell.energy, 132.274, places=2)
         self.assertAlmostEqual(self.cell.mass, 981.22, places=2)
         # ``places=1`` (~7e-3 % of 135) accommodates the Phase-3 segmented
         # analytic spiral integrator's drift relative to the legacy
         # adaptive-RK baseline that originally pinned this value.
         self.assertAlmostEqual(self.cell.specific_energy, 134.84, places=1)
-        self.assertAlmostEqual(self.cell.volumetric_energy, 285.58, places=1)
-        self.assertAlmostEqual(self.cell.cost_per_energy, 59.483, places=2)
+        self.assertAlmostEqual(self.cell.volumetric_energy, 285.52, places=1)
+        self.assertAlmostEqual(self.cell.cost_per_energy, 59.499, places=2)
 
     def test_set_nmc(self):
 
         self.assertAlmostEqual(self.cell.maximum_operating_voltage, 4.03, places=2)
         self.assertAlmostEqual(self.cell.minimum_operating_voltage, 2.27, places=2)
-        self.assertAlmostEqual(self.cell.reversible_capacity, 41.46, places=2)
-        self.assertAlmostEqual(self.cell.irreversible_capacity, 45.49, places=2)
+        self.assertAlmostEqual(self.cell.reversible_capacity, 41.453, places=2)
+        self.assertAlmostEqual(self.cell.irreversible_capacity, 45.483, places=2)
 
         fig1 = self.cell.plot_capacity_curve()
         self.assertIsNotNone(fig1)
