@@ -21,35 +21,32 @@
   improves so we never silently regress.
 
 ## Performance benchmarks
-- The variable-thickness spiral / racetrack kernels in
-  `steer_opencell_design/Constructions/ElectrodeAssemblies/SpiralUtils.py`
-  are a hot path. A standalone bench harness lives at
-  `test/perf/bench_spiral_utils.py` and is **not** picked up by `pytest`
-  (file does not start with `test_`). Run it directly:
-  - `python test/perf/bench_spiral_utils.py` — print one CSV row per case
-    with mean / p50 / p95 / min runtime and `% delta vs. baseline`.
-  - `python test/perf/bench_spiral_utils.py --update-baseline` — overwrite
-    `test/perf/BASELINE.json` with the current run (do this only after a
-    deliberate perf change, with the new numbers explained in the commit
-    body).
-  - `python test/perf/bench_spiral_utils.py --profile` — write a
-    `cProfile` dump for the slowest case.
-- The integrator has three layers, picked automatically:
-  1. **Segmented analytic** (`_segmented_analytic_spiral` /
-     `_segmented_analytic_racetrack`) — closed-form per piecewise-constant
-     thickness segment; the common case for real laminates (≈O(5) runs).
-  2. **Adaptive Bogacki-Shampine RK23** (`_rk23_*_loop`, FSAL,
-     numba-compiled) — fallback when the surface is not piecewise-constant.
-  3. **Adaptive RK4** (`_rk4_*_loop`, also numba) — kept as a reference
-     implementation for cross-checks.
-- A second harness, `test/perf/bench_jellyroll_setters.py`, times the
-  Brent-driven dimension setters that wrap the spiral kernels:
-  `WoundJellyRoll.radius`, `FlatWoundJellyRoll.thickness`, and
-  `FlatWoundJellyRoll.width`. Same CLI as the spiral bench
-  (`--update-baseline` / `--profile`); baseline lives at
-  `test/perf/BASELINE_SETTERS.json`. The setter objective avoids the
-  invariant range / total-height calculations, reuses a single layup
-  deepcopy, and warm-starts the FlatWound rotation Brent across iterations.
+- Jelly rolls are wound by one numba kernel, `_wind_lagged` in
+  `steer_opencell_design/Constructions/ElectrodeAssemblies/Winding.py`, for
+  round and flat (racetrack) mandrels alike. It winds the laminate's exact stack
+  profile (`Laminate.get_stack_profile()`) turn on turn onto a template of P
+  samples per turn, so each turn sits on the one beneath it; see that module's
+  docstring for the model. `SpiralCalculator.calculate_variable_thickness_spiral`
+  / `_racetrack` are thin wrappers over it.
+- Rolls are measured on the winding's outer envelope (the last turn's outer
+  face). The full rebuild and the dimension setters' Brent objective read the
+  same measurement, so they agree exactly; the objective winds and measures
+  only (no layer paths, extrusion or placement).
+- `test/perf/bench_spiral_utils.py` times the kernel through the wrappers, at
+  default and high resolution. It is **not** picked up by `pytest` (the file
+  does not start with `test_`). Run it directly:
+  - `python test/perf/bench_spiral_utils.py` prints one CSV row per case with
+    mean / p50 / p95 / min runtime and `% delta vs. baseline`.
+  - `python test/perf/bench_spiral_utils.py --update-baseline` overwrites
+    `test/perf/BASELINE.json` with the current run. Do this only after a
+    deliberate perf change, with the new numbers explained in the commit body.
+  - `python test/perf/bench_spiral_utils.py --profile` writes a `cProfile`
+    dump for the slowest case.
+- `test/perf/bench_jellyroll_setters.py` times the Brent-driven dimension
+  setters: `WoundJellyRoll.radius`, `FlatWoundJellyRoll.thickness` and
+  `FlatWoundJellyRoll.width`. Same CLI as the spiral bench; the baseline lives
+  at `test/perf/BASELINE_SETTERS.json`, and `--profile` prints a per-stage
+  table (stack profile, winding, measurement, layer paths, placement, tail).
 
 ## Code formatting
 - Use `black .` to format Python code.

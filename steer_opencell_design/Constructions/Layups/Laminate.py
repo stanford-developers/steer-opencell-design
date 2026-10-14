@@ -14,6 +14,10 @@ from steer_opencell_design.Components.CurrentCollectors.Base import _TapeCurrent
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
 from steer_opencell_design.Components.Separators import Separator
 from steer_opencell_design.Constructions.Layups.MonoLayers import ElectrodeOrientation
+from steer_opencell_design.Constructions.Layups.StackProfile import (
+    StackProfile,
+    build_stack_profile,
+)
 
 from steer_opencell_design.Constructions.Layups.Base import (
     _Layup,
@@ -88,6 +92,31 @@ class Laminate(_Layup):
         super()._calculate_coordinates()
         self._calculate_total_geometries()
 
+    def _stack_layer_specs(self) -> list:
+        """The laminate's layers bottom to top as ``(name, centre_line, thickness)``.
+
+        The cathode's b side faces the mandrel. Each centre line holds the layer's
+        exact segment end points, with NaN rows between segments (skip coats).
+        """
+        return [
+            ("cathode_b_side_coating", self._cathode.get_b_side_center_line(), self._cathode._coating_thickness),
+            ("cathode_current_collector", self._cathode._current_collector.get_center_line(), self._cathode._current_collector._thickness),
+            ("cathode_a_side_coating", self._cathode.get_a_side_center_line(), self._cathode._coating_thickness),
+            ("bottom_separator", self._bottom_separator.get_center_line(), self._bottom_separator._thickness),
+            ("anode_b_side_coating", self._anode.get_b_side_center_line(), self._anode._coating_thickness),
+            ("anode_current_collector", self._anode._current_collector.get_center_line(), self._anode._current_collector._thickness),
+            ("anode_a_side_coating", self._anode.get_a_side_center_line(), self._anode._coating_thickness),
+            ("top_separator", self._top_separator.get_center_line(), self._top_separator._thickness),
+        ]
+
+    def get_stack_profile(self) -> StackProfile:
+        """The exact layer stack along the strip (see :mod:`StackProfile`).
+
+        Built from each layer's own segment end points, so every layer starts and
+        stops exactly where it does on the strip; the jelly rolls wind from it.
+        """
+        return build_stack_profile(self._stack_layer_specs())
+
     def calculate_flattened_center_lines(self, x_spacing: float = DEFAULT_X_SPACING) -> dict:
         """Vectorized construction of flattened center lines for laminate layers.
 
@@ -119,16 +148,7 @@ class Laminate(_Layup):
         """
 
         # Ordered bottom->top layers (excluding baseline) using canonical names
-        layer_specs = [
-            ("cathode_b_side_coating", self._cathode.get_b_side_center_line(), self._cathode._coating_thickness),
-            ("cathode_current_collector", self._cathode._current_collector.get_center_line(), self._cathode._current_collector._thickness),
-            ("cathode_a_side_coating", self._cathode.get_a_side_center_line(), self._cathode._coating_thickness),
-            ("bottom_separator", self._bottom_separator.get_center_line(), self._bottom_separator._thickness),
-            ("anode_b_side_coating", self._anode.get_b_side_center_line(), self._anode._coating_thickness),
-            ("anode_current_collector", self._anode._current_collector.get_center_line(), self._anode._current_collector._thickness),
-            ("anode_a_side_coating", self._anode.get_a_side_center_line(), self._anode._coating_thickness),
-            ("top_separator", self._top_separator.get_center_line(), self._top_separator._thickness),
-        ]
+        layer_specs = self._stack_layer_specs()
 
         # Filter out empty arrays (components that don't exist due to bare lengths)
         valid_layer_specs = []
@@ -311,34 +331,17 @@ class Laminate(_Layup):
         return self._thickness
 
     def get_thickness_at_x(self, x_position: float) -> float:
-        """Return local laminate thickness at a given unwrapped x-position (meters).
+        """Return the laminate's stack thickness (m) at an x-position (m).
 
-        Uses precomputed top surface (baseline + cumulative layer thickness)
-        for O(log N) interpolation instead of scanning individual layers.
-        Returns THICKNESS_FALLBACK if x is outside the sampled domain or no layers present.
+        Read from the exact stack profile (:meth:`get_stack_profile`), so it steps
+        exactly where layers start and stop. Returns THICKNESS_FALLBACK outside
+        the strip.
         """
-        if not hasattr(self, "_top_surface"):
-            raise ValueError("Top surface coordinates not calculated. Call calculate_flattened_center_lines() first.")
-
-        xs = self._top_surface[:, 0]
-
-        if x_position < xs.min() or x_position > xs.max():
+        profile = self.get_stack_profile()
+        s = float(x_position) - profile.x_origin
+        if not profile.names or s < profile.edges[0] or s > profile.edges[-1]:
             return THICKNESS_FALLBACK
-
-        top_z = np.interp(x_position, xs, self._top_surface[:, 1])
-        baseline_z = getattr(self, "_baseline_z", None)
-        if baseline_z is None:
-            # fallback: derive from baseline if available
-            if (
-                hasattr(self, "_flattened_center_lines")
-                and "baseline" in self._flattened_center_lines
-                and len(self._flattened_center_lines["baseline"]) > 0
-            ):
-                baseline_z = self._flattened_center_lines["baseline"][0, 1]
-            else:
-                return THICKNESS_FALLBACK
-
-        return max(THICKNESS_FALLBACK, top_z - baseline_z)
+        return max(THICKNESS_FALLBACK, float(profile.thickness_at(np.array([s]))[0]))
 
     @property
     def length(self) -> float:
