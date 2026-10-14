@@ -750,6 +750,20 @@ class TestTabWeldedCurrentCollector(unittest.TestCase):
         fig1 = self.current_collector.plot_top_down_view()
         # fig1.show()
 
+    def test_tab_thickness_setter(self):
+        self.assertAlmostEqual(self.current_collector.tab_thickness, 20, places=9)
+        self.assertEqual(self.current_collector.tab_thickness_range, (10, 200))
+        self.assertEqual(self.current_collector.tab_thickness_hard_range, (1, 2000))
+        mass = self.current_collector.mass
+        self.current_collector.tab_thickness = 150
+        self.assertAlmostEqual(self.current_collector.tab_thickness, 150, places=9)
+        # every placed tab is a copy of the spec, so all of them follow
+        for tab in self.current_collector.weld_tabs:
+            self.assertAlmostEqual(tab._thickness, 150e-6, places=15)
+        self.assertGreater(self.current_collector.mass, mass)
+        with self.assertRaises(ValueError):
+            self.current_collector.tab_thickness = -5
+
     def test_length_setter_retains_weld_tabs(self):
         """Weld tabs that no longer fit are deactivated, not destroyed."""
         self.current_collector.length = 200
