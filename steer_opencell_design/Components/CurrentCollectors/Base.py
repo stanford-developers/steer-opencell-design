@@ -27,6 +27,11 @@ from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
 from steer_opencell_design.Materials.Other import CurrentCollectorMaterial
 
+# The shortest coated length (m) a wound collector's foil may have beyond its bare
+# ends: it sets the shortest layup, and so the smallest roll, that can be designed.
+# 100 mm (it was 200) lets a ~4680-type laminate wind down to ~5.7 mm radius.
+MINIMUM_COATED_LENGTH = 0.1
+
 # Canonical trace names, shared with consumers (e.g. Electrodes filters a
 # current-collector figure down to these traces).
 TRACE_NAME_FOIL = "Foil"
@@ -559,7 +564,7 @@ class _CurrentCollector(
         _right_b_side_bare_length = reference._current_collector._bare_lengths_b_side[1]
         _max_left = max(_left_a_side_bare_length, _left_b_side_bare_length)
         _max_right = max(_right_a_side_bare_length, _right_b_side_bare_length)
-        _minimum_length = _max_right + _max_left + 0.2
+        _minimum_length = _max_right + _max_left + MINIMUM_COATED_LENGTH
         self._x_foil_length_range = (
             _minimum_length,
             self.x_foil_length_range[1] * MM_TO_M
@@ -1438,8 +1443,8 @@ class _TapeCurrentCollector(_CurrentCollector):
                 self._x_foil_length_range[1] * M_TO_MM,
             )
         else:
-            min_length = self._calculate_total_length_with_skip_coating() * M_TO_MM
-            return (min_length + 200, 10000)
+            min_length = self._calculate_total_length_with_skip_coating()
+            return ((min_length + MINIMUM_COATED_LENGTH) * M_TO_MM, 10000)
 
     @property
     def y_foil_length_range(self) -> Tuple[float, float]:
@@ -1514,9 +1519,12 @@ class _TapeCurrentCollector(_CurrentCollector):
     @property
     def length_hard_range(self) -> Tuple[float, float]:
         """
-        Get the length range in mm.
+        Get the hard length limits in mm: from the shortest foil this collector
+        allows (the soft minimum) to 10 m. It used to start at a fixed 250 mm, above
+        the soft minimum, so a typed length could be refused that a wound radius
+        could still reach.
         """
-        return (250, 10000)
+        return (self.length_range[0], 10000)
 
     @property
     def width(self) -> float:

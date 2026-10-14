@@ -738,6 +738,29 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         """
         return [round(pos * M_TO_MM, 2) for pos in self._weld_tab_positions]
 
+    def _weld_tab_minimum_length(self) -> float:
+        """The shortest foil (m) that still carries the first requested weld tab.
+
+        A tab whose position lies beyond the foil is dropped (see
+        ``_sync_weld_tab_positions``), and a tab-welded collector with no tab left
+        cannot be built: shortening a wound layup past its first tab failed while
+        drawing the roll. So the foil must reach the first tab plus half its width.
+        """
+        requested = (
+            getattr(self, "_requested_weld_tab_positions", None)
+            or self._weld_tab_positions
+        )
+        if not requested:
+            return 0.0
+        return min(requested) + self._weld_tab._width / 2
+
+    @property
+    def x_foil_length_range(self) -> Tuple[float, float]:
+        """The foil lengths (min, max) in mm, never shorter than the first weld tab
+        needs (see ``_weld_tab_minimum_length``)."""
+        low, high = super().x_foil_length_range
+        return (max(low, self._weld_tab_minimum_length() * M_TO_MM), high)
+
     @property
     def skip_coat_width(self) -> float:
         """

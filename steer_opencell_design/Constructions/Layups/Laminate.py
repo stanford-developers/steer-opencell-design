@@ -347,13 +347,29 @@ class Laminate(_Layup):
     
     @property
     def length_range(self) -> tuple:
-        """Get the allowable length range in mm."""
-        return self._cathode._current_collector.length_range
-    
+        """The laminate lengths (min, max) in mm.
+
+        The cathode collector's range, raised where needed so every tab-welded
+        collector keeps its first weld tab: the length setter moves both foils by
+        the same amount, so an electrode whose foil is ``offset`` longer than the
+        laminate needs a laminate of its tab floor minus that offset.
+        """
+        low, high = self._cathode._current_collector.length_range
+        for electrode in (self._cathode, self._anode):
+            collector = electrode._current_collector
+            tab_floor = getattr(collector, "_weld_tab_minimum_length", None)
+            if tab_floor is None:
+                continue
+            offset = collector._x_foil_length - self._length
+            low = max(low, (tab_floor() - offset) * M_TO_MM)
+        return (low, high)
+
     @property
     def length_hard_range(self) -> tuple:
-        """Get the hard allowable length range in mm."""
-        return self._cathode._current_collector.length_hard_range
+        """The hard length limits in mm: from the shortest laminate that can be
+        built (the soft minimum) to the cathode collector's hard maximum."""
+        _, high = self._cathode._current_collector.length_hard_range
+        return (self.length_range[0], high)
 
     @property
     def width(self) -> float:
