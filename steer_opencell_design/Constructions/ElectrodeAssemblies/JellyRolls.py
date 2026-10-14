@@ -134,13 +134,14 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
     """
 
     # Designs saved before 1.1.0 hold geometry from the old winding model (each
-    # turn pitched by the strip being laid, not wound on the turn beneath). Their
+    # turn pitched by the strip being laid, not wound on the turn beneath), and
+    # 1.1.0's (version 1) ramps over steps four times steeper than 1.1.1's. Their
     # layup is still valid, so they are re-wound when loaded.
-    _schema_version = 1
+    _schema_version = 2
 
     @classmethod
     def _migrate(cls, data: dict, version: int) -> dict:
-        if version < 1:
+        if version < 2:
             data = dict(data)
             data["_rewind_on_load"] = True
         return data
