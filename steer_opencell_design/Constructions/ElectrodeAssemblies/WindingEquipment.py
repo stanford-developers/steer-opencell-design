@@ -480,7 +480,7 @@ class FlatMandrel(_Mandrel):
         )
     
     @property
-    def width_hard(self) -> Tuple[float, float]:
+    def width_hard_range(self) -> Tuple[float, float]:
         """Return the mandrel width range as a tuple (min, max) in mm."""
         return (
             self.height * 2, 

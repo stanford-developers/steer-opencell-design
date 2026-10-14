@@ -12,6 +12,8 @@ from steer_core.Decorators.General import calculate_bulk_properties, calculate_a
 from steer_core.Decorators.Coordinates import calculate_coordinates
 from steer_core.Mixins.Propagation import PropagationMixin, propagating_setter
 
+from steer_opencell_design.Utils.Ranges import DIMENSION_FLOOR_MM, shifted_range
+
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -66,10 +68,7 @@ THICKNESS_HARD_MAX = 10.0
 HEIGHT_RANGE_MIN = 10.0
 HEIGHT_RANGE_MAX = 600.0
 HEIGHT_HARD_MIN = 5.0
-HEIGHT_HARD_MAX = 500.0
-
-INTERNAL_HEIGHT_RANGE_MIN = 5.0
-INTERNAL_HEIGHT_RANGE_MAX = 500
+HEIGHT_HARD_MAX = 1000.0  # at least the soft maximum
 
 WALL_THICKNESS_RANGE_MIN = 0.1
 WALL_THICKNESS_RANGE_MAX = 3.0
@@ -433,13 +432,24 @@ class _PrismaticComponent(
     
     @property
     def thickness_range(self) -> Tuple[float, float]:
-        """Valid thickness range in mm, rounded to 2 decimal places."""
-        return (THICKNESS_RANGE_MIN, THICKNESS_RANGE_MAX)
+        """Valid thickness range in mm, capped where the owning encapsulation
+        runs out of room inside (``component_thickness_limit``)."""
+        return self._thickness_reach((THICKNESS_RANGE_MIN, THICKNESS_RANGE_MAX))
 
     @property
     def thickness_hard_range(self) -> Tuple[float, float]:
-        """Hard limits for thickness in mm, rounded to 2 decimal places."""
-        return (THICKNESS_HARD_MIN, THICKNESS_HARD_MAX)
+        """Hard limits for thickness in mm (see ``thickness_range``)."""
+        return self._thickness_reach((THICKNESS_HARD_MIN, THICKNESS_HARD_MAX))
+
+    def _thickness_reach(self, limits: Tuple[float, float]) -> Tuple[float, float]:
+        parent = self._get_parent() if hasattr(self, "_get_parent") else None
+        limit = getattr(parent, "component_thickness_limit", None)
+        cap = limit(self) if limit is not None else None
+        if cap is None:
+            return limits
+        if cap < limits[0]:
+            return (self.thickness, self.thickness)
+        return (limits[0], min(limits[1], cap))
 
     @property
     def fill_factor(self) -> float:
@@ -1114,15 +1124,38 @@ class PrismaticCanister(
         """Outer width in mm."""
         return self._width * M_TO_MM
     
+    def _inner_margins(self) -> Dict[str, float]:
+        """How far (mm) each outer dimension may shrink before the space inside
+        reaches ``DIMENSION_FLOOR_MM``: the owning encapsulation's internal
+        dimensions when attached (its lid and connectors take room too), else
+        the canister's own inner dimensions."""
+        parent = self._get_parent() if hasattr(self, "_get_parent") else None
+        margins = getattr(parent, "canister_inner_margins", None)
+        if margins is not None:
+            return margins()
+        return {
+            "width": self._inner_width * M_TO_MM - DIMENSION_FLOOR_MM,
+            "length": self._inner_length * M_TO_MM - DIMENSION_FLOOR_MM,
+            "height": self._inner_height * M_TO_MM - DIMENSION_FLOOR_MM,
+        }
+
+    def _axis_reach(self, axis: str, limits: Tuple[float, float]) -> Tuple[float, float]:
+        """An outer dimension's ``limits``, raised so the space inside survives."""
+        value = getattr(self, axis)
+        low = max(limits[0], value - self._inner_margins()[axis])
+        if low > limits[1]:
+            return (value, value)
+        return (low, limits[1])
+
     @property
     def width_range(self) -> Tuple[float, float]:
-        """Valid outer width range in mm, rounded to 2 decimal places."""
-        return (WIDTH_RANGE_MIN, WIDTH_RANGE_MAX)
+        """Valid outer width range in mm (see ``_axis_reach``)."""
+        return self._axis_reach("width", (WIDTH_RANGE_MIN, WIDTH_RANGE_MAX))
 
     @property
     def width_hard_range(self) -> Tuple[float, float]:
-        """Hard limits for outer width in mm, rounded to 2 decimal places."""
-        return (WIDTH_HARD_MIN, WIDTH_HARD_MAX)
+        """Hard limits for outer width in mm (see ``_axis_reach``)."""
+        return self._axis_reach("width", (WIDTH_HARD_MIN, WIDTH_HARD_MAX))
 
     @property
     def length(self) -> float:
@@ -1131,13 +1164,13 @@ class PrismaticCanister(
     
     @property
     def length_range(self) -> Tuple[float, float]:
-        """Valid outer length range in mm, rounded to 2 decimal places."""
-        return (LENGTH_RANGE_MIN, LENGTH_RANGE_MAX)
+        """Valid outer length range in mm (see ``_axis_reach``)."""
+        return self._axis_reach("length", (LENGTH_RANGE_MIN, LENGTH_RANGE_MAX))
     
     @property
     def length_hard_range(self) -> Tuple[float, float]:
-        """Hard limits for outer length in mm, rounded to 2 decimal places."""
-        return (LENGTH_HARD_MIN, LENGTH_HARD_MAX)
+        """Hard limits for outer length in mm (see ``_axis_reach``)."""
+        return self._axis_reach("length", (LENGTH_HARD_MIN, LENGTH_HARD_MAX))
 
     @property
     def height(self) -> float:
@@ -1146,13 +1179,13 @@ class PrismaticCanister(
     
     @property
     def height_range(self) -> Tuple[float, float]:
-        """Valid height range in mm, rounded to 2 decimal places."""
-        return (HEIGHT_RANGE_MIN, HEIGHT_RANGE_MAX)
+        """Valid height range in mm (see ``_axis_reach``)."""
+        return self._axis_reach("height", (HEIGHT_RANGE_MIN, HEIGHT_RANGE_MAX))
     
     @property
     def height_hard_range(self) -> Tuple[float, float]:
-        """Hard limits for height in mm, rounded to 2 decimal places."""
-        return (HEIGHT_HARD_MIN, HEIGHT_HARD_MAX)
+        """Hard limits for height in mm (see ``_axis_reach``)."""
+        return self._axis_reach("height", (HEIGHT_HARD_MIN, HEIGHT_HARD_MAX))
 
     @property
     def wall_thickness(self) -> float:
@@ -1161,8 +1194,15 @@ class PrismaticCanister(
     
     @property
     def wall_thickness_range(self) -> Tuple[float, float]:
-        """Valid wall thickness range in mm, rounded to 2 decimal places."""
-        return (WALL_THICKNESS_RANGE_MIN, WALL_THICKNESS_RANGE_MAX)
+        """Valid wall thickness range in mm: a thicker wall takes twice its
+        growth off the inner width and length and once off the inner height, so
+        the maximum keeps all three above ``DIMENSION_FLOOR_MM``."""
+        margins = self._inner_margins()
+        room = min(margins["width"] / 2, margins["length"] / 2, margins["height"])
+        high = min(WALL_THICKNESS_RANGE_MAX, self.wall_thickness + room)
+        if high < WALL_THICKNESS_RANGE_MIN:
+            return (self.wall_thickness, self.wall_thickness)
+        return (WALL_THICKNESS_RANGE_MIN, high)
 
     @property
     def rotated_z(self) -> bool:
@@ -2089,10 +2129,70 @@ class PrismaticEncapsulation(_Container, DatumMixin):
         """Internal height available for cell contents in mm."""
         return self._internal_height * M_TO_MM
 
+    def _canister_axis(self, field: str) -> str:
+        """The canister dimension that setting ``field`` (or its internal
+        counterpart) moves, per the connector orientation (see the setters)."""
+        longitudinal = self._connector_orientation == ConnectorOrientation.LONGITUDINAL
+        return {
+            "width": "width" if longitudinal else "height",
+            "height": "height" if longitudinal else "width",
+            "length": "length",
+        }[field]
+
+    def _dimension_reach(self, field: str, internal: bool, hard: bool) -> Tuple[float, float]:
+        """Range in mm of an outer or internal dimension: the setter moves one
+        canister dimension by the change asked, so the reach is that dimension's
+        range shifted onto this one, never below ``DIMENSION_FLOOR_MM``."""
+        axis = self._canister_axis(field)
+        suffix = "_hard_range" if hard else "_range"
+        value = getattr(self, f"internal_{field}" if internal else field)
+        # the canister's range already keeps the space inside (``canister_inner_margins``)
+        return shifted_range(
+            value,
+            ((getattr(self._canister, axis), getattr(self._canister, axis + suffix)), (value, None)),
+        )
+
+    def canister_inner_margins(self) -> Dict[str, float]:
+        """How far (mm) each canister dimension may shrink before the internal
+        dimension it moves reaches ``DIMENSION_FLOOR_MM``. Each canister axis
+        moves exactly one internal dimension, one for one (see
+        ``_calculate_internal_dimensions``); the map is the same as
+        ``_canister_axis``."""
+        return {
+            axis: getattr(self, f"internal_{self._canister_axis(axis)}") - DIMENSION_FLOOR_MM
+            for axis in ("width", "length", "height")
+        }
+
+    def component_thickness_limit(self, component) -> Optional[float]:
+        """The thickest (mm) the lid or a connector may be while the internal
+        dimension it takes room from stays above ``DIMENSION_FLOOR_MM``; None
+        for anything else.
+
+        The lid comes off the internal height (longitudinal) or width
+        (transverse). Longitudinal connectors share the room above the lid, so
+        only the thicker one counts; transverse ones sit on opposite faces and
+        both come off the internal height.
+        """
+        longitudinal = self._connector_orientation == ConnectorOrientation.LONGITUDINAL
+        connectors = (self._cathode_terminal_connector, self._anode_terminal_connector)
+        if component is self._lid_assembly:
+            internal = self.internal_height if longitudinal else self.internal_width
+            return component.thickness + internal - DIMENSION_FLOOR_MM
+        if any(component is connector for connector in connectors):
+            margin = self.internal_height - DIMENSION_FLOOR_MM
+            if longitudinal:
+                return max(connector.thickness for connector in connectors) + margin
+            return component.thickness + margin
+        return None
+
     @property
     def internal_height_range(self) -> Tuple[float, float]:
-        """Valid internal height range in mm."""
-        return (INTERNAL_HEIGHT_RANGE_MIN, INTERNAL_HEIGHT_RANGE_MAX)
+        """Valid internal height range in mm (see ``_dimension_reach``)."""
+        return self._dimension_reach("height", internal=True, hard=False)
+
+    @property
+    def internal_height_hard_range(self) -> Tuple[float, float]:
+        return self._dimension_reach("height", internal=True, hard=True)
 
     @property
     def internal_width(self) -> float:
@@ -2106,29 +2206,39 @@ class PrismaticEncapsulation(_Container, DatumMixin):
 
     @property
     def internal_width_range(self) -> Tuple[float, float]:
-        """Valid internal width range in mm, rounded to 2 decimal places."""
-        return (
-            WIDTH_RANGE_MIN + 2 * self._canister._wall_thickness * M_TO_MM, 
-            WIDTH_RANGE_MAX - 2 * self._canister._wall_thickness * M_TO_MM
-        )
-    
+        """Valid internal width range in mm (see ``_dimension_reach``)."""
+        return self._dimension_reach("width", internal=True, hard=False)
+
+    @property
+    def internal_width_hard_range(self) -> Tuple[float, float]:
+        return self._dimension_reach("width", internal=True, hard=True)
+
     @property
     def width_range(self) -> Tuple[float, float]:
-        """Valid width range in mm, rounded to 2 decimal places."""
-        return (WIDTH_RANGE_MIN, WIDTH_RANGE_MAX)
-    
+        """Valid width range in mm (see ``_dimension_reach``)."""
+        return self._dimension_reach("width", internal=False, hard=False)
+
+    @property
+    def width_hard_range(self) -> Tuple[float, float]:
+        return self._dimension_reach("width", internal=False, hard=True)
+
     @property
     def height_range(self) -> Tuple[float, float]:
-        """Valid height range in mm, rounded to 2 decimal places."""
-        return (HEIGHT_RANGE_MIN, HEIGHT_RANGE_MAX)
+        """Valid height range in mm (see ``_dimension_reach``)."""
+        return self._dimension_reach("height", internal=False, hard=False)
+
+    @property
+    def height_hard_range(self) -> Tuple[float, float]:
+        return self._dimension_reach("height", internal=False, hard=True)
 
     @property
     def internal_length_range(self) -> Tuple[float, float]:
-        """Valid internal length range in mm, rounded to 2 decimal places."""
-        return (
-            LENGTH_RANGE_MIN + 2 * self._canister._wall_thickness * M_TO_MM, 
-            LENGTH_RANGE_MAX - 2 * self._canister._wall_thickness * M_TO_MM
-        )
+        """Valid internal length range in mm (see ``_dimension_reach``)."""
+        return self._dimension_reach("length", internal=True, hard=False)
+
+    @property
+    def internal_length_hard_range(self) -> Tuple[float, float]:
+        return self._dimension_reach("length", internal=True, hard=True)
         
     @property
     def cost(self) -> float:
@@ -2190,8 +2300,12 @@ class PrismaticEncapsulation(_Container, DatumMixin):
     
     @property
     def length_range(self) -> Tuple[float, float]:
-        """Valid outer length range of the encapsulation in mm, rounded to 2 decimal places."""
-        return (LENGTH_RANGE_MIN, LENGTH_RANGE_MAX)
+        """Valid outer length range of the encapsulation in mm (see ``_dimension_reach``)."""
+        return self._dimension_reach("length", internal=False, hard=False)
+
+    @property
+    def length_hard_range(self) -> Tuple[float, float]:
+        return self._dimension_reach("length", internal=False, hard=True)
     
     @property
     def height(self) -> float:

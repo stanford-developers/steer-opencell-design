@@ -233,7 +233,8 @@ class TestPunchedCurrentCollector(unittest.TestCase):
     def test_a_wider_tab_stays_on_the_foil(self):
         cc = self.current_collector
         cc.tab_width = 60  # centred at 20, it would hang 10 mm off the left edge
-        self.assertAlmostEqual(cc.tab_position, 30, places=9)
+        # and it keeps the 1 mm edge clearance its range reports
+        self.assertAlmostEqual(cc.tab_position, 31, places=9)
 
     def test_current_collector(self):
         """

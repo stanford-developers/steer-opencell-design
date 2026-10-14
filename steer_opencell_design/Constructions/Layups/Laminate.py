@@ -14,6 +14,7 @@ from steer_opencell_design.Components.CurrentCollectors.Base import _TapeCurrent
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
 from steer_opencell_design.Components.Separators import Separator
 from steer_opencell_design.Constructions.Layups.MonoLayers import ElectrodeOrientation
+from steer_opencell_design.Utils.Ranges import shifted_range
 from steer_opencell_design.Constructions.Layups.StackProfile import (
     StackProfile,
     build_stack_profile,
@@ -400,13 +401,27 @@ class Laminate(_Layup):
 
     @property
     def width_range(self) -> tuple:
-        """Get the allowable width range in mm."""
-        return self._cathode._current_collector.width_range
-    
+        """The laminate widths (mm) the width setter reaches: it moves every part
+        by the same amount, so this is the cathode collector's range (the others'
+        ranges follow the cathode's) where every part stays positive."""
+        return self._width_reach(self._cathode._current_collector.width_range)
+
     @property
     def width_hard_range(self) -> tuple:
-        """Get the hard allowable width range in mm."""
-        return self._cathode._current_collector.width_hard_range
+        """Hard width limits in mm (see ``width_range``)."""
+        return self._width_reach(self._cathode._current_collector.width_hard_range)
+
+    def _width_reach(self, cathode_range: tuple) -> tuple:
+        parts = [(self._cathode._current_collector.width, cathode_range)]
+        parts += [
+            (part.width, None)
+            for part in (
+                self._anode._current_collector,
+                self._bottom_separator,
+                self._top_separator,
+            )
+        ]
+        return shifted_range(self.width, parts)
 
     @property
     def bottom_separator(self) -> Separator:
@@ -477,6 +492,10 @@ class Laminate(_Layup):
 
         # Validate input
         self.validate_positive_float(value, "Laminate Width")
+
+        # no narrower than every part can follow (see ``width_hard_range``)
+        low, high = self.width_hard_range
+        value = min(max(value, low), high)
         
         # get the current width
         current_width = self.width

@@ -552,30 +552,18 @@ class _Stack(_ElectrodeAssembly):
     @property
     def thickness_range(self) -> Tuple[float, float]:
         """Return the valid range for stack thicknesses in mm as a tuple (min, max)."""
-        min_n_layers, max_n_layers = self.n_layers_range
-        base, per_layer = self._compute_thickness_components()
+        """The stack thicknesses (mm) at the fewest and most layers allowed: the
+        thickness setter snaps to whole layers, so these are what it reaches."""
+        return self._thickness_reach(self.n_layers_range)
 
-        _min_thickness = base + per_layer * min_n_layers
-        _max_thickness = base + per_layer * max_n_layers
-
-        return (
-            math.ceil(_min_thickness * M_TO_MM * 100) / 100,
-            math.floor(_max_thickness * M_TO_MM * 100) / 100
-        )
-        
     @property
     def thickness_hard_range(self) -> Tuple[float, float]:
-        """Return the valid range for stack thicknesses in mm as a tuple (min, max)."""
-        min_n_layers, max_n_layers = self.n_layers_hard_range
+        """The stack thicknesses (mm) at the layer counts' hard limits."""
+        return self._thickness_reach(self.n_layers_hard_range)
+
+    def _thickness_reach(self, n_layers_range) -> Tuple[float, float]:
         base, per_layer = self._compute_thickness_components()
-
-        _min_thickness = base + per_layer * min_n_layers
-        _max_thickness = base + per_layer * max_n_layers
-
-        return (
-            math.ceil(_min_thickness * M_TO_MM * 100) / 100,
-            math.floor(_max_thickness * M_TO_MM * 100) / 100
-        )
+        return tuple((base + per_layer * n) * M_TO_MM for n in n_layers_range)
 
     def _compute_thickness_components(self) -> Tuple[float, float]:
         """Compute base thickness and per-layer thickness analytically.
@@ -596,6 +584,14 @@ class _Stack(_ElectrodeAssembly):
 
         base = sep_t + anode_t + top_sep_t
         per_layer = sep_t + cathode_t + sep_t + anode_t
+
+        # the built stack holds more than the fixed layers above (a Z-fold's
+        # separator ends); the thickness is linear in the layer count, so the
+        # base the stack actually has is what is left after its layers
+        built = getattr(self, "_thickness", None)
+        n_layers = getattr(self, "_n_layers", None)
+        if built and n_layers:
+            base = built - per_layer * n_layers
 
         return base, per_layer
 
@@ -659,19 +655,12 @@ class _Stack(_ElectrodeAssembly):
         # Validate input
         self.validate_positive_float(target_thickness, "thickness")
         
-        # Get the linear relationship parameters
+        # thickness = base + per_layer * n_layers (see _compute_thickness_components):
+        # the nearest whole number of layers, within the hard limits
+        base, per_layer = self._compute_thickness_components()
         min_n_layers, max_n_layers = self.n_layers_hard_range
-        min_thickness, max_thickness = self.thickness_hard_range
-        
-        # Linear relationship: thickness = base + slope * n_layers
-        slope = (max_n_layers - min_n_layers) / (max_thickness - min_thickness)
-        base = min_n_layers - slope * min_thickness
-
-        # Solve for n_layers: n_layers = (thickness - base) / slope
-        calculated_n_layers = slope * target_thickness + base
-
-        # set 
-        self.n_layers = calculated_n_layers
+        calculated_n_layers = (target_thickness * MM_TO_M - base) / per_layer
+        self.n_layers = min(max(round(calculated_n_layers), min_n_layers), max_n_layers)
 
     @layup.setter
     @calculate_all_properties

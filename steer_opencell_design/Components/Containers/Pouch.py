@@ -639,6 +639,10 @@ class LaminateSheet(
         self._thickness = float(thickness) * UM_TO_M
 
 
+# The narrowest terminal offered (mm).
+TERMINAL_WIDTH_MIN_MM = 1.0
+
+
 class PouchTerminal(
     CoordinateMixin,
     DatumMixin,
@@ -802,8 +806,31 @@ class PouchTerminal(
 
     @property
     def width_range(self):
-        """Width range in mm."""
-        return (0, 100)
+        """Width range in mm: up to the tab the terminal is welded to, once the cell
+        has placed it on one (a terminal is never wider than its tab)."""
+        return self._width_reach(100.0)
+
+    @property
+    def width_hard_range(self):
+        return self._width_reach(1000.0)
+
+    def _width_reach(self, default_max_mm: float):
+        limit = self._tab_width_limit_now()
+        high = limit * M_TO_MM if limit else default_max_mm
+        return (min(TERMINAL_WIDTH_MIN_MM, high), high)
+
+    def _tab_width_limit_now(self):
+        """The width (m) of the tab this terminal is welded to, read from the cell
+        it belongs to (pouch -> cell), or None outside a cell."""
+        pouch = getattr(self, "_parent", None)
+        cell = getattr(pouch, "_parent", None) if pouch is not None else None
+        electrode = (getattr(self, "_parent_attr_name", None) or "").split("_")[0]
+        reader = getattr(cell, "_terminal_tab_width", None)
+        if reader is not None and electrode in ("cathode", "anode"):
+            width = reader(electrode)
+            if width:
+                return width
+        return getattr(self, "_tab_width_limit", None)
 
     @property
     def length(self) -> float:
@@ -812,8 +839,12 @@ class PouchTerminal(
 
     @property
     def length_range(self):
-        """Length range in mm."""
-        return (0, 200)
+        """Length range in mm (how far the terminal reaches out of the pouch)."""
+        return (1.0, 200.0)
+
+    @property
+    def length_hard_range(self):
+        return (0.1, 1000.0)
 
     @property
     def thickness(self) -> float:
@@ -822,8 +853,12 @@ class PouchTerminal(
 
     @property
     def thickness_range(self):
-        """Thickness range in mm."""
-        return (0, 50)
+        """Thickness range in mm (tab-lead foils are tenths of a millimetre)."""
+        return (0.01, 5.0)
+
+    @property
+    def thickness_hard_range(self):
+        return (0.001, 50.0)
 
     @property
     def name(self) -> str:
@@ -884,6 +919,10 @@ class PouchTerminal(
         """Set width in mm."""
         self.validate_positive_float(width, "Width")
         self._width = float(width) * MM_TO_M
+        # no wider than the tab it is welded to (once it is in a cell)
+        limit = self._tab_width_limit_now()
+        if limit:
+            self._width = min(self._width, limit)
         # the cell narrows a terminal to its tab when the tab is narrower, and
         # restores this width when the tab grows back
         self._requested_width = self._width
@@ -893,6 +932,7 @@ class PouchTerminal(
         to its own width (saved designs without one keep their current width)."""
         if getattr(self, "_requested_width", None) is None:  # saved before 1.3.2
             self._requested_width = self._width
+        self._tab_width_limit = tab_width
         width = min(self._requested_width, tab_width)
         if abs(width - self._width) > 1e-12:
             self._width = width
