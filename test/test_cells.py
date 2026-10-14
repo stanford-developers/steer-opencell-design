@@ -3889,9 +3889,10 @@ class TestFromLoadedCell(unittest.TestCase):
         self.assertIsNotNone(new_cell.mass)
         self.assertIsNotNone(new_cell.cost)
         # The teardown was saved before 1.1.0, so it is re-wound as it loads and
-        # the radius it keeps is the new model's (the old winding gave 51.81 Wh).
-        self.assertAlmostEqual(new_cell.energy, 51.73, delta=0.1)
-        self.assertAlmostEqual(new_cell.mass, 415.49, delta=0.5)
+        # the radius it keeps is the new model's (the old winding gave 51.81 Wh;
+        # 1.1.0's steeper ramps 51.73 Wh / 415.49 g).
+        self.assertAlmostEqual(new_cell.energy, 51.65, delta=0.1)
+        self.assertAlmostEqual(new_cell.mass, 414.98, delta=0.5)
         self.assertAlmostEqual(new_cell.cost, 2.8, places=1)
 
         fig1 = new_cell.plot_cross_section()
