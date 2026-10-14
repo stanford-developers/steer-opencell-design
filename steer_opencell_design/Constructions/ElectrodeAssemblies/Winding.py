@@ -75,7 +75,9 @@ N_COLS = 6
 
 # Horizontal run per unit rise of the ramp a strip makes over a step in the turn
 # beneath it (a strip under tension bridges the step; it cannot fold into it).
-RAMP_RUN_PER_RISE = 4.0
+# A stiff laminate spreads a step over several millimetres: 12 bridges a 0.3 mm
+# electrode step over ~3.6 mm (1.1.0 used 4, a visible kink at each step).
+RAMP_RUN_PER_RISE = 12.0
 
 # Where across its thickness the strip's length is measured: 0 = bottom face,
 # 0.5 = mid-plane. A bent strip's length is its neutral (mid) plane's.
