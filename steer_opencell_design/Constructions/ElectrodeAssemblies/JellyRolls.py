@@ -1323,71 +1323,6 @@ class _JellyRoll(_ElectrodeAssembly, ABC):
         """Re-wind the roll after a tape change (the tape is wound with the strip)."""
         self._calculate_coordinates(**kwargs)
 
-    @abstractmethod
-    def _get_tape_geometry_parameters(self, spirals_x_z: np.ndarray) -> Dict[str, Any]:
-        """Get geometry-specific parameters for tape calculation.
-
-        Parameters
-        ----------
-        spirals_x_z : np.ndarray
-            Combined X-Z coordinates of all existing spirals
-
-        Returns
-        -------
-        Dict[str, Any]
-            Dictionary containing geometry-specific parameters needed for tape calculation
-        """
-        pass
-
-    @abstractmethod
-    def _calculate_tape_spiral(
-        self, tape_params: Dict[str, Any], **kwargs
-    ) -> np.ndarray:
-        """Calculate the tape spiral using geometry-specific method.
-
-        Parameters
-        ----------
-        tape_params : Dict[str, Any]
-            Geometry-specific parameters from _get_tape_geometry_parameters
-        **kwargs
-            Additional arguments passed to spiral calculation
-
-        Returns
-        -------
-        np.ndarray
-            Tape spiral coordinates
-        """
-        pass
-
-    @abstractmethod
-    def _build_tape_extruded_spiral(
-        self, tape_spiral: np.ndarray
-    ) -> Dict[str, np.ndarray]:
-        """Build extruded tape spiral using geometry-specific method.
-
-        Parameters
-        ----------
-        tape_spiral : np.ndarray
-            Tape spiral coordinates
-
-        Returns
-        -------
-        Dict[str, np.ndarray]
-            Dictionary with 'tape' key containing extruded spiral
-        """
-        pass
-
-    def _apply_tape_pre_centering_transforms(self, tape_params: Dict[str, Any]) -> None:
-        """Apply any geometry-specific transforms before final centering.
-
-        Default implementation does nothing. Subclasses can override for specific behavior.
-
-        Parameters
-        ----------
-        tape_params : Dict[str, Any]
-            Geometry-specific parameters
-        """
-        pass
 
     def calculate_high_resolution_roll(self, **kwargs) -> "_JellyRoll":
         """Generate high-resolution geometry for detailed analysis.
@@ -3071,7 +3006,9 @@ class WoundJellyRoll(_JellyRoll):
 
     # The achievable-range cache is recomputed by whichever engine loads a design;
     # saving it would hand a future engine this version's numbers.
-    _serializer_exclude = frozenset({"_achievable_radius_range", "_winding"})
+    _serializer_exclude = frozenset(
+        {"_achievable_radius_range", "_winding", "_rewound_on_load"}
+    )
 
     def __init__(
         self,
@@ -3194,75 +3131,6 @@ class WoundJellyRoll(_JellyRoll):
         lo, hi = self._layup_length_bracket()
         return (self._radius_at_length(lo), self._radius_at_length(hi))
 
-    def _get_tape_geometry_parameters(self, spirals_x_z: np.ndarray) -> Dict[str, Any]:
-        """Get geometry parameters for round tape calculation.
-
-        Parameters
-        ----------
-        spirals_x_z : np.ndarray
-            Combined X-Z coordinates of all existing spirals
-
-        Returns
-        -------
-        Dict[str, Any]
-            Dictionary containing radius and center for round geometry
-        """
-        radius, center = self.get_radius_of_points(spirals_x_z)
-        return {"start_radius": radius, "center": center}
-
-    def _calculate_tape_spiral(
-        self, tape_params: Dict[str, Any], **kwargs
-    ) -> np.ndarray:
-        """Calculate tape spiral using round geometry.
-
-        Parameters
-        ----------
-        tape_params : Dict[str, Any]
-            Contains start_radius and other parameters
-        **kwargs
-            Additional arguments passed to spiral calculation
-
-        Returns
-        -------
-        np.ndarray
-            Tape spiral coordinates
-        """
-        if self._tape_length_driver == TapeDriver.JELLY_ROLL_DRIVEN:
-            return SpiralCalculator.calculate_simple_spiral(
-                n_turns=self._additional_tape_wraps,
-                start_radius=tape_params["start_radius"],
-                thickness=self._tape._thickness,
-                **kwargs,
-            )
-        elif self._tape_length_driver == TapeDriver.TAPE_DRIVEN:
-            return SpiralCalculator.calculate_simple_spiral(
-                start_radius=tape_params["start_radius"],
-                thickness=self._tape._thickness,
-                target_length=self._tape._length,
-                **kwargs,
-            )
-        else:
-            raise ValueError(f"Invalid tape length driver: {self._tape_length_driver}")
-
-    def _build_tape_extruded_spiral(
-        self, tape_spiral: np.ndarray
-    ) -> Dict[str, np.ndarray]:
-        """Build extruded tape spiral for round geometry.
-
-        Parameters
-        ----------
-        tape_spiral : np.ndarray
-            Tape spiral coordinates
-
-        Returns
-        -------
-        Dict[str, np.ndarray]
-            Dictionary with 'tape' key containing extruded spiral
-        """
-        return SpiralCalculator.build_extruded_component_spirals(
-            component_spirals={"tape": tape_spiral},
-            component_thicknesses={"tape": self._tape._thickness},
-        )
 
     def _get_high_resolution_params(self) -> Dict[str, Any]:
         """Get high-resolution parameters for round geometry.
@@ -3508,7 +3376,9 @@ class FlatWoundJellyRoll(_JellyRoll):
 
     # The achievable-range cache is recomputed by whichever engine loads a design;
     # saving it would hand a future engine this version's numbers.
-    _serializer_exclude = frozenset({"_achievable_extents_range", "_winding"})
+    _serializer_exclude = frozenset(
+        {"_achievable_extents_range", "_winding", "_rewound_on_load"}
+    )
 
     def __init__(
         self,
@@ -3957,114 +3827,6 @@ class FlatWoundJellyRoll(_JellyRoll):
         if getattr(electrode, "_update_properties", False):
             electrode._calculate_all_properties()
 
-    def _get_tape_geometry_parameters(self, spirals_x_z: np.ndarray) -> Dict[str, Any]:
-        """Get geometry parameters for racetrack tape calculation.
-
-        Parameters
-        ----------
-        spirals_x_z : np.ndarray
-            Combined X-Z coordinates of all existing spirals
-
-        Returns
-        -------
-        Dict[str, Any]
-            Dictionary containing thickness, center, and racetrack parameters
-        """
-        thickness = SpiralCalculator.get_thickness_of_racetrack(spirals_x_z)
-        start_radius = thickness / 2
-        width = SpiralCalculator.get_width_of_racetrack(spirals_x_z)
-        straight_length = width - thickness
-        _, center = self.get_radius_of_points(spirals_x_z)
-
-        return {
-            "start_radius": start_radius,
-            "center": center,
-            "thickness": thickness,
-            "straight_length": straight_length,
-            "pressed_radius": self._pressed_radius,
-        }
-
-    def _calculate_tape_spiral(
-        self, tape_params: Dict[str, Any], **kwargs
-    ) -> np.ndarray:
-        """Calculate tape spiral using racetrack geometry.
-
-        Parameters
-        ----------
-        tape_params : Dict[str, Any]
-            Contains start_radius, straight_length and other parameters
-        **kwargs
-            Additional arguments passed to spiral calculation
-
-        Returns
-        -------
-        np.ndarray
-            Tape spiral coordinates
-        """
-        if self._tape_length_driver == TapeDriver.JELLY_ROLL_DRIVEN:
-            return SpiralCalculator.calculate_simple_racetrack(
-                n_turns=self._additional_tape_wraps,
-                start_radius=tape_params["start_radius"],
-                straight_length=tape_params["straight_length"],
-                thickness=self._tape._thickness,
-                **kwargs,
-            )
-
-        elif self._tape_length_driver == TapeDriver.TAPE_DRIVEN:
-            return SpiralCalculator.calculate_simple_racetrack(
-                start_radius=tape_params["start_radius"],
-                straight_length=tape_params["straight_length"],
-                thickness=self._tape._thickness,
-                target_length=self._tape._length,
-                **kwargs,
-            )
-        else:
-            raise ValueError(f"Invalid tape length driver: {self._tape_length_driver}")
-
-    def _build_tape_extruded_spiral(
-        self, tape_spiral: np.ndarray
-    ) -> Dict[str, np.ndarray]:
-        """Build extruded tape spiral for racetrack geometry.
-
-        Parameters
-        ----------
-        tape_spiral : np.ndarray
-            Tape spiral coordinates
-
-        Returns
-        -------
-        Dict[str, np.ndarray]
-            Dictionary with 'tape' key containing extruded spiral
-        """
-        return SpiralCalculator.build_extruded_component_racetracks(
-            component_spirals={"tape": tape_spiral},
-            component_thicknesses={"tape": self._tape._thickness},
-            mandrel_radius=self._pressed_radius,
-            straight_length=self._pressed_straight_length,
-        )
-
-    def _apply_tape_pre_centering_transforms(self, tape_params: Dict[str, Any]) -> None:
-        """Apply racetrack-specific transforms before final centering.
-
-        For racetrack geometry, we need to translate all spirals to account
-        for the thickness offset before applying final centering.
-
-        Parameters
-        ----------
-        tape_params : Dict[str, Any]
-            Contains thickness, center and other geometry parameters
-        """
-        center = tape_params["center"]
-        thickness = tape_params["thickness"]
-
-        center_x = center[0]
-        center_z = center[1]
-
-        self._spiral, self._component_spirals, self._extruded_spirals = (
-            self._translate_spirals_xz(
-                x_shift=-center_x, z_shift=-center_z + thickness / 2
-            )
-        )
 
     def _calculate_geometry_parameters(self) -> None:
         """Set thickness and width from the winding's measurement.

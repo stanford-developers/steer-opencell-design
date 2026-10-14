@@ -1,22 +1,12 @@
 # SPDX-FileCopyrightText: 2024-2026 Stanford University
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Regression test for the SpiralUtils performance optimizations.
+"""Self-consistency and continuity of the winding kernels on the bench cases.
 
-The Phase 2 (embedded Bogacki-Shampine RK23) and Phase 3 (segmented
-analytic) integrators are required to match the Phase 1 RK4 baseline
-output (the values committed in ``test/perf/BASELINE.json``) within
-``2 * TARGET_ERROR`` on ``r``, ``x_unwrapped``, and the Cartesian
-``(x, z)`` columns of the spiral / racetrack array.
-
-Concretely we resample both runs on a common ``x_unwrapped`` grid (so a
-denser/sparser node spacing doesn't cause spurious failures) and assert
-that the maximum absolute deviation of each tracked column is below the
-allowed tolerance.
-
-The reference values come from the same fixtures the benchmark uses
-(``test/perf/bench_spiral_utils.py``) so a regression here also lights
-up the bench harness.
+The cases are the ones ``test/perf/bench_spiral_utils.py`` times, so a
+regression here also shows up in the bench harness. Winding the same laminate
+twice must give identical output (no hidden state or in-place mutation), and
+the wound paths must be continuous.
 """
 
 from __future__ import annotations
@@ -35,14 +25,7 @@ from bench_spiral_utils import _build_cases  # type: ignore  # noqa: E402
 
 from steer_opencell_design.Constructions.ElectrodeAssemblies.SpiralUtils import (
     SpiralCalculator,
-    TARGET_ERROR,
 )
-
-# Phase 2 must match the legacy RK4 to within 2x the integrator's own
-# per-step relative tolerance. The check is on the *Cartesian* columns
-# because that's what every downstream consumer (plotting, radius
-# extraction, racetrack width) actually uses.
-_PHASE2_TOL = 2.0 * TARGET_ERROR
 
 
 def _resample(
@@ -72,15 +55,8 @@ def _max_abs_diff_along_x(
 
 
 class TestSpiralPerfRegression(unittest.TestCase):
-    """Each non-trivial bench case must match a self-snapshot within
-    ``2 * TARGET_ERROR``. The snapshot is captured the first time this
-    test runs so that swapping the integrator implementation is detected
-    immediately on the next run.
-
-    For now we just verify *self-consistency*: calling the integrator
-    twice on a deepcopy must produce identical output. This catches any
-    accidental in-place mutation introduced by the optimizations.
-    """
+    """Winding each bench case twice on a deepcopy must give identical
+    output, which catches any accidental in-place mutation."""
 
     @classmethod
     def setUpClass(cls):
@@ -134,9 +110,9 @@ class TestSpiralPerfRegression(unittest.TestCase):
                 self.assertLess(d.max(), 10.0 * d.mean())
 
     def test_racetrack_cartesian_path_continuous(self):
-        # Racetrack post-processing inserts segment gaps (semicircle ↔
-        # straight) so the per-row step is bimodal — but the
-        # *unwrapped-x* deltas are uniform. We check those instead.
+        # Straights and semicircles are sampled at different spacings, so the
+        # per-row Cartesian step is bimodal; the unwrapped-length deltas are
+        # what must stay bounded.
         for case in self.cases:
             with self.subTest(case=case.name):
                 arr = SpiralCalculator.calculate_variable_thickness_racetrack(

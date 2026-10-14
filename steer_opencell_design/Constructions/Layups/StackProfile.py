@@ -87,20 +87,14 @@ def _segments_from_center_line(coords: np.ndarray) -> List[Tuple[float, float]]:
     if coords.size == 0:
         return []
     xs = coords[:, 0]
-    segments: List[Tuple[float, float]] = []
-    start = None
-    for i, x in enumerate(xs):
-        if np.isnan(x):
-            if start is not None:
-                segment = xs[start:i]
-                segments.append((float(segment.min()), float(segment.max())))
-                start = None
-        elif start is None:
-            start = i
-    if start is not None:
-        segment = xs[start:]
-        segments.append((float(segment.min()), float(segment.max())))
-    return [(x0, x1) for x0, x1 in segments if x1 > x0]
+    valid = ~np.isnan(xs)
+    bounds = np.flatnonzero(np.diff(np.concatenate(([False], valid, [False])).astype(np.int8)))
+    if bounds.size == 0:
+        return []
+    starts = bounds[0::2]
+    lows = np.minimum.reduceat(np.where(valid, xs, np.inf), starts)
+    highs = np.maximum.reduceat(np.where(valid, xs, -np.inf), starts)
+    return [(float(x0), float(x1)) for x0, x1 in zip(lows, highs) if x1 > x0]
 
 
 def build_stack_profile(

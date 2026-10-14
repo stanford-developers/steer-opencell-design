@@ -43,6 +43,7 @@ from dataclasses import dataclass
 from typing import Callable, Dict, List, Tuple
 
 import numpy as np
+from steer_core.Constants.Universal import TWO_PI
 
 # Required so conftest's API caching is not used here (we don't import pytest).
 os.environ.setdefault("OPENCELL_ENV", "development")
@@ -60,6 +61,11 @@ from steer_opencell_design.Constructions.ElectrodeAssemblies.SpiralUtils import 
     SpiralCalculator,
 )
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Tape import Tape
+from steer_opencell_design.Constructions.ElectrodeAssemblies.Winding import (
+    RACETRACK_CURVE_POINTS_HIRES,
+    RACETRACK_STRAIGHT_SPACING_HIRES,
+    ROUND_POINTS_PER_TURN_HIRES,
+)
 from steer_opencell_design.Constructions.ElectrodeAssemblies.WindingEquipment import (
     FlatMandrel,
     RoundMandrel,
@@ -265,11 +271,11 @@ def _summary(timings_ms: List[float]) -> Dict[str, float]:
 def _run_one(case: BenchCase) -> Dict[str, Dict[str, float]]:
     """Time spiral + racetrack for a single case.
 
-    Each kernel is timed at two angular resolutions:
-    - default ``dtheta=0.5`` (used during the radius-range bracketing in
-      ``JellyRolls._calculate_radius_range``);
-    - high-res ``dtheta=0.1`` (the ``_get_high_resolution_params`` value
-      that the final winding pipeline actually uses).
+    Each winding is timed at two resolutions:
+    - default (100 samples per turn round; 48 per semicircle and 2 mm on the
+      straights for a racetrack), what every roll build uses;
+    - high resolution (360 per turn; 128 per semicircle and 0.1 mm), what
+      ``calculate_high_resolution_roll`` uses.
     """
     results: Dict[str, Dict[str, float]] = {}
 
@@ -286,7 +292,7 @@ def _run_one(case: BenchCase) -> Dict[str, Dict[str, float]]:
     spiral_hires_fn = lambda: SpiralCalculator.calculate_variable_thickness_spiral(
         laminate=lam,
         start_radius=case.round_mandrel_radius_m,
-        dtheta=0.1,
+        dtheta=TWO_PI / ROUND_POINTS_PER_TURN_HIRES,
     )
     timings, n_pts = _time_call(spiral_hires_fn)
     results["spiral_hires"] = {**_summary(timings), "n_points": n_pts}
@@ -303,7 +309,8 @@ def _run_one(case: BenchCase) -> Dict[str, Dict[str, float]]:
         laminate=lam,
         mandrel_radius=case.flat_mandrel_radius_m,
         straight_length=case.flat_straight_length_m,
-        ds_target=1e-4,
+        ds_target=RACETRACK_STRAIGHT_SPACING_HIRES,
+        curve_points=RACETRACK_CURVE_POINTS_HIRES,
     )
     timings, n_pts = _time_call(racetrack_hires_fn)
     results["racetrack_hires"] = {**_summary(timings), "n_points": n_pts}
