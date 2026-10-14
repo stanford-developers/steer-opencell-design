@@ -96,6 +96,13 @@ class PouchCell(_Cell):
         self._position_encapsulation()
         self._hot_press_encapsulation()
 
+    def _terminal_tab_width(self, electrode_name: str):
+        """The width (m) of an electrode's tab, which bounds its terminal; None
+        when the assembly has no single tab width (e.g. a wound roll's notches)."""
+        assemblies = getattr(self, "_electrode_assemblies", None) or [self._reference_electrode_assembly]
+        reader = getattr(assemblies[0], "tab_stack_width", None)
+        return reader(electrode_name) if reader is not None else None
+
     def _position_terminals(self) -> None:
         """Sit each terminal on its electrode's tab, centered across the assemblies.
 
@@ -403,9 +410,8 @@ class PouchCell(_Cell):
         which cannot supply one it never had. Report that rather than raising on
         the arithmetic.
         """
-        if self._clipped_tab_length is None:
-            return None
-        return self._clipped_tab_length * M_TO_MM
+        clipped = self._effective_clipped_tab_length()
+        return None if clipped is None else clipped * M_TO_MM
     
     @property
     def clipped_tab_length_range(self) -> Tuple[float, float]:
@@ -508,7 +514,7 @@ class PouchCell(_Cell):
     def thickness_hard_range(self) -> float:
         """Get the hard limit range for cell thickness in mm."""
         assembly_thickness_hard_range = self._reference_electrode_assembly.thickness_hard_range
-        laminate_thickness = self._encapsulation._top_laminate._thickness + self._encapsulation._bottom_laminate._thickness
+        laminate_thickness = (self._encapsulation._top_laminate._thickness + self._encapsulation._bottom_laminate._thickness) * M_TO_MM
         min_thickness = assembly_thickness_hard_range[0] * self._n_electrode_assembly + laminate_thickness
         max_thickness = assembly_thickness_hard_range[1] * self._n_electrode_assembly + laminate_thickness
         return (min_thickness, max_thickness)

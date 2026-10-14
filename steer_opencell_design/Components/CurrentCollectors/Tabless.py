@@ -256,12 +256,9 @@ class TablessCurrentCollector(NotchedCurrentCollector):
 
     @property
     def width_range(self) -> Tuple[float, float]:
-        if hasattr(self, "_y_foil_length_range") and self._y_foil_length_range is not None:
-            min_width = self.y_foil_length_range[0] + self.tab_height
-            max_width = self.y_foil_length_range[1] + self.tab_height
-            return (min_width, max_width)
-        else:
-            return (0, 300)
+        """The foil's height range plus the tab height (``width`` is both)."""
+        low, high = self.y_foil_length_range
+        return (low + self.tab_height, high + self.tab_height)
 
     @property
     def tab_height(self) -> float:

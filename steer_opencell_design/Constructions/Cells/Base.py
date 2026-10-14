@@ -71,7 +71,7 @@ from copy import deepcopy
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import re
 from scipy.optimize import brentq
 
@@ -165,12 +165,24 @@ class _Cell(
         attribute is present and non-None. Cylindrical cells do not define a
         ``_clipped_tab_length`` attribute, so this method is a no-op for them.
         """
-        clipped_tab_length = getattr(self, "_clipped_tab_length", None)
+        clipped_tab_length = self._effective_clipped_tab_length()
         if clipped_tab_length is None:
             return
 
         for assembly in self._electrode_assemblies:
             assembly._clip_current_collector_tabs(clipped_tab_length)
+
+    def _effective_clipped_tab_length(self) -> Optional[float]:
+        """The clip length (m) as built, or None when the tabs are unclipped.
+
+        The requested clip, never longer than ``clipped_tab_length_range`` allows
+        now: shortening a collector's tab shortens the clip with it, and
+        lengthening the tab again restores the requested clip.
+        """
+        clipped_tab_length = getattr(self, "_clipped_tab_length", None)
+        if clipped_tab_length is None or not hasattr(self, "clipped_tab_length_range"):
+            return clipped_tab_length
+        return min(clipped_tab_length, self.clipped_tab_length_range[1] * MM_TO_M)
 
     def _convert_to_cell_type(self, new_encapsulation: _Container) -> None:
         """Convert cell to appropriate type based on encapsulation type.

@@ -22,6 +22,16 @@ OVERHANG_MAX_DEFAULT = 20.0  # Maximum overhang for non-Laminate classes in mm
 OVERHANG_MAX_LAMINATE = 500.0  # Maximum overhang for Laminate class in mm
 
 
+def _shift_range(total: float) -> tuple:
+    """A side's range (mm) when the component keeps its size and only moves.
+
+    The two opposite sides always sum to ``total``, so one side runs from 0 to the
+    total, or from the total up to 0 when the component is the smaller of the two
+    (a negative total: then both sides lie inside the reference).
+    """
+    return (min(OVERHANG_MIN, total), max(OVERHANG_MIN, total))
+
+
 class OverhangControlMode(Enum):
     """Control modes for overhang adjustments.
     
@@ -310,7 +320,16 @@ class OverhangMixin:
         This method routes to the appropriate adjustment method based on the
         current overhang_control_mode. Validation is performed before adjustment.
         """
-        self.validate_positive_float(overhang, f"{component}_overhang_{direction}")
+        if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
+            # moving a fixed-size component: a side may be negative when the
+            # component is smaller than the one it is measured against
+            # (see ``_shift_range``)
+            if not isinstance(overhang, (int, float)) or not np.isfinite(overhang):
+                raise ValueError(
+                    f"{component}_overhang_{direction} must be a finite number. Provided: {overhang}."
+                )
+        else:
+            self.validate_positive_float(overhang, f"{component}_overhang_{direction}")
         
         if self._overhang_control_mode == OverhangControlMode.FIXED_COMPONENT:
             self._adjust_overhang_fixed_component(component, overhang, direction)
@@ -662,7 +681,7 @@ class OverhangMixin:
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
             return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
-            return (OVERHANG_MIN, self.anode_overhang_left + self.anode_overhang_right)
+            return _shift_range(self.anode_overhang_left + self.anode_overhang_right)
 
     @property
     def anode_overhang_right_range(self) -> tuple:
@@ -679,7 +698,7 @@ class OverhangMixin:
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
             return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
-            return (OVERHANG_MIN, self.anode_overhang_left + self.anode_overhang_right)
+            return _shift_range(self.anode_overhang_left + self.anode_overhang_right)
 
     @property
     def anode_overhang_bottom_range(self) -> tuple:
@@ -696,7 +715,7 @@ class OverhangMixin:
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
             return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
-            return (OVERHANG_MIN, self.anode_overhang_bottom + self.anode_overhang_top)
+            return _shift_range(self.anode_overhang_bottom + self.anode_overhang_top)
 
     @property
     def anode_overhang_top_range(self) -> tuple:
@@ -713,7 +732,7 @@ class OverhangMixin:
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
             return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
-            return (OVERHANG_MIN, self.anode_overhang_bottom + self.anode_overhang_top)
+            return _shift_range(self.anode_overhang_bottom + self.anode_overhang_top)
 
     #### BOTTOM SEPARATOR OVERHANG PROPERTY/SETTERS ####
 
@@ -859,7 +878,7 @@ class OverhangMixin:
                 return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
             max_val = (self._bottom_separator_overhang_left + self._bottom_separator_overhang_right) * M_TO_MM
-            return (OVERHANG_MIN, max_val)
+            return _shift_range(max_val)
 
     @property
     def bottom_separator_overhang_right_range(self) -> tuple:
@@ -880,7 +899,7 @@ class OverhangMixin:
                 return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
             max_val = (self._bottom_separator_overhang_left + self._bottom_separator_overhang_right) * M_TO_MM
-            return (OVERHANG_MIN, max_val)
+            return _shift_range(max_val)
 
     @property
     def bottom_separator_overhang_bottom_range(self) -> tuple:
@@ -898,7 +917,7 @@ class OverhangMixin:
             return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
             max_val = (self._bottom_separator_overhang_bottom + self._bottom_separator_overhang_top) * M_TO_MM
-            return (OVERHANG_MIN, max_val)
+            return _shift_range(max_val)
 
     @property
     def bottom_separator_overhang_top_range(self) -> tuple:
@@ -916,7 +935,7 @@ class OverhangMixin:
             return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
             max_val = (self._bottom_separator_overhang_bottom + self._bottom_separator_overhang_top) * M_TO_MM
-            return (OVERHANG_MIN, max_val)
+            return _shift_range(max_val)
 
     #### TOP SEPARATOR OVERHANG PROPERTY/SETTERS ####
 
@@ -1061,10 +1080,7 @@ class OverhangMixin:
             else:
                 return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
-            return (
-                OVERHANG_MIN,
-                self.top_separator_overhang_left + self.top_separator_overhang_right,
-            )
+            return _shift_range(self.top_separator_overhang_left + self.top_separator_overhang_right)
 
     @property
     def top_separator_overhang_right_range(self) -> tuple:
@@ -1084,10 +1100,7 @@ class OverhangMixin:
             else:
                 return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
-            return (
-                OVERHANG_MIN,
-                self.top_separator_overhang_left + self.top_separator_overhang_right,
-            )
+            return _shift_range(self.top_separator_overhang_left + self.top_separator_overhang_right)
 
     @property
     def top_separator_overhang_bottom_range(self) -> tuple:
@@ -1104,10 +1117,7 @@ class OverhangMixin:
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
             return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
-            return (
-                OVERHANG_MIN,
-                self.top_separator_overhang_bottom + self.top_separator_overhang_top,
-            )
+            return _shift_range(self.top_separator_overhang_bottom + self.top_separator_overhang_top)
 
     @property
     def top_separator_overhang_top_range(self) -> tuple:
@@ -1124,9 +1134,6 @@ class OverhangMixin:
         if self._overhang_control_mode == OverhangControlMode.FIXED_OVERHANGS:
             return (OVERHANG_MIN, OVERHANG_MAX_DEFAULT)
         else:  # FIXED_COMPONENT
-            return (
-                OVERHANG_MIN,
-                self.top_separator_overhang_bottom + self.top_separator_overhang_top,
-            )
+            return _shift_range(self.top_separator_overhang_bottom + self.top_separator_overhang_top)
         
                 

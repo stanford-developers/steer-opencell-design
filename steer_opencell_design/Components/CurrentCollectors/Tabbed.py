@@ -38,6 +38,9 @@ import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
 
+# the shortest length of a weld tab (mm) left welded to the foil past its overhang
+TAB_WELD_MIN_LENGTH = 1.0
+
 
 class WeldTab(PropagationMixin, ValidationMixin, CoordinateMixin, DatumMixin, DunderMixin, PlotterMixin, SerializerMixin):
     """
@@ -634,8 +637,14 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
     def _calculate_weld_tab_properties(self) -> None:
         # copy the weld tabs and set their datums
         self._weld_tabs = []
+        # a tab reaches no further down than the foil it is welded to: a shorter
+        # foil clips the placed tabs, and the spec (the user's tab) is kept, so a
+        # taller foil restores it
+        reach = self._y_foil_length + self._tab_overhang
         for x in self._weld_tab_positions:
             new_weld_tab = deepcopy(self._weld_tab)
+            if new_weld_tab._length > reach:
+                new_weld_tab.length = reach * M_TO_MM
             x_datum = (self._datum[0] - self._x_foil_length / 2 + x) * M_TO_MM
             y_datum = (self._datum[1] + self._y_foil_length / 2 + self._tab_overhang - new_weld_tab._length / 2) * M_TO_MM
 
@@ -789,16 +798,21 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
     @property
     def skip_coat_width_range(self) -> Tuple[float, float]:
         """
-        Get the skip coat width range in mm.
+        Get the skip coat width range in mm: at least the weld tab's width, and
+        no wider than the foil.
         """
-        return (self._weld_tabs[0].width, 100)
+        return self._skip_coat_reach(100.0)
 
     @property
     def skip_coat_width_hard_range(self) -> Tuple[float, float]:
         """
-        Get the skip coat width range in mm.
+        Get the hard skip coat width range in mm (see ``skip_coat_width_range``).
         """
-        return (self._weld_tabs[0].width, 1000)
+        return self._skip_coat_reach(1000.0)
+
+    def _skip_coat_reach(self, cap: float) -> Tuple[float, float]:
+        low = self._weld_tab.width
+        return (low, max(low, min(cap, self.x_foil_length)))
 
     @property
     def tab_weld_side(self) -> str:
@@ -823,7 +837,9 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
 
     @property
     def tab_overhang_hard_range(self) -> Tuple[float, float]:
-        return (0, self.weld_tab.length)
+        """The overhangs in mm that leave at least ``TAB_WELD_MIN_LENGTH`` of the
+        tab welded to the foil."""
+        return (0, max(0.0, self.weld_tab.length - TAB_WELD_MIN_LENGTH))
 
     @property
     def weld_tab(self) -> WeldTab:
@@ -849,9 +865,10 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
     @property
     def tab_width_range(self) -> Tuple[float, float]:
         """
-        Returns the width range of the weld tab in mm.
+        Returns the width range of the weld tab in mm: no wider than the skip
+        coat it is welded in.
         """
-        return (1, self.skip_coat_width)
+        return (min(1.0, self.skip_coat_width), self.skip_coat_width)
 
     @property
     def tab_width_hard_range(self) -> Tuple[float, float]:
@@ -860,16 +877,19 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
     @property
     def tab_length(self) -> float:
         """
-        Returns the length of the weld tab in mm.
+        Returns the length of the weld tabs in mm, as placed: no longer than the
+        foil plus the overhang (see ``_calculate_weld_tab_properties``).
         """
-        return self.weld_tab.length
+        return min(self.weld_tab.length, (self._y_foil_length + self._tab_overhang) * M_TO_MM)
 
     @property
     def tab_length_range(self) -> Tuple[float, float]:
         """
-        Returns the length range of the weld tab in mm.
+        Returns the length range of the weld tab in mm: at least
+        ``TAB_WELD_MIN_LENGTH`` welded past the overhang, and no longer than the
+        foil plus the overhang (a longer tab is placed clipped to that).
         """
-        return (self.tab_overhang, self.y_foil_length + self.tab_overhang)
+        return (self.tab_overhang + TAB_WELD_MIN_LENGTH, self.y_foil_length + self.tab_overhang)
 
     @property
     def tab_length_hard_range(self) -> Tuple[float, float]:
@@ -954,30 +974,30 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         ----------
         tab_overhang : float
             The overhang of the weld tab in mm.
+
+        The overhang is capped so at least ``TAB_WELD_MIN_LENGTH`` of the tab
+        stays welded to the foil (``tab_overhang_hard_range``).
         """
         self.validate_positive_float(tab_overhang, "tab_overhang")
+        tab_overhang = min(float(tab_overhang), self.tab_overhang_hard_range[1])
 
         # Convert to internal units (meters)
-        self._tab_overhang = float(tab_overhang) * MM_TO_M
-
-        if self._tab_overhang > self.weld_tab.length / 2:
-            raise ValueError("Tab overhang cannot be greater than half the length of the weld tab.")
+        self._tab_overhang = tab_overhang * MM_TO_M
 
     @tab_width.setter
     @calculate_all_properties
     def tab_width(self, tab_width: float) -> None:
+        """Set the weld tab width in mm, capped at the skip coat width."""
         self.validate_positive_float(tab_width, "tab_width")
-        self.weld_tab.width = tab_width
+        self.weld_tab.width = min(float(tab_width), self.skip_coat_width)
 
     @tab_length.setter
     @calculate_all_properties
     def tab_length(self, tab_length: float) -> None:
+        """Set the weld tab length in mm, at least ``TAB_WELD_MIN_LENGTH`` past
+        the overhang so the tab stays welded to the foil."""
         self.validate_positive_float(tab_length, "tab_length")
-
-        if tab_length < self.tab_overhang:
-            raise ValueError("Tab length cannot be less than the tab overhang.")
-
-        self.weld_tab.length = tab_length
+        self.weld_tab.length = max(float(tab_length), self.tab_overhang + TAB_WELD_MIN_LENGTH)
 
     @tab_thickness.setter
     @calculate_all_properties
@@ -1011,12 +1031,9 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
     @skip_coat_width.setter
     @calculate_areas
     def skip_coat_width(self, skip_coat_width: float) -> None:
+        """Set the skip coat width in mm, never narrower than the weld tab."""
         self.validate_positive_float(skip_coat_width, "skip_coat_width")
-
-        if skip_coat_width < self._weld_tab._width / 2:
-            self._skip_coat_width = self._weld_tab._width
-        else:
-            self._skip_coat_width = float(skip_coat_width) * MM_TO_M
+        self._skip_coat_width = max(float(skip_coat_width) * MM_TO_M, self._weld_tab._width)
 
         if self._skip_coat_width > self._x_foil_length:
             raise ValueError("Skip coat width cannot be greater than the length of the current collector.")

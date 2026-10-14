@@ -15,6 +15,8 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 from typing import Tuple, Dict, Any
+
+from steer_opencell_design.Utils.Ranges import DIMENSION_FLOOR_MM
 from abc import ABC, abstractmethod
 
 from steer_core import (
@@ -33,6 +35,14 @@ from steer_opencell_design.Components.Containers._mixins import (
     ExtrudedFootprintMixin,
     SchematicPlotMixin,
 )
+
+
+# The shortest internal height offered (mm): something has to fit in the can.
+INTERNAL_HEIGHT_MIN = 1.0
+
+# The smallest terminal connector radius offered (m): zero-size connectors have no
+# area to compute a mass or a resistance from.
+CONNECTOR_RADIUS_MIN = 1e-3
 
 
 class _CylindricalComponent(
@@ -176,7 +186,8 @@ class _CylindricalComponent(
         canister : CylindricalCanister
             The canister instance to use for determining radius constraints
         """
-        self._radius_range = (0.0, canister._inner_radius)
+        # a connector needs some size; it fits inside the can
+        self._radius_range = (min(CONNECTOR_RADIUS_MIN, canister._inner_radius), canister._inner_radius)
 
     def plot_bottom_up_view(self, **kwargs) -> go.Figure:
         """Generate a bottom-up view (x-z plane) plot of the component."""
@@ -265,9 +276,27 @@ class _CylindricalComponent(
             return None
         return self._radius * M_TO_MM
 
+    def _thickness_reach(self, limits: Tuple[float, float]) -> Tuple[float, float]:
+        """``limits``, capped so the owning encapsulation keeps at least
+        ``INTERNAL_HEIGHT_MIN`` of internal height: the lid and both connectors
+        all come off it."""
+        parent = self._get_parent() if hasattr(self, "_get_parent") else None
+        internal = getattr(parent, "internal_height", None)
+        if internal is None:
+            return limits
+        cap = self.thickness + internal - INTERNAL_HEIGHT_MIN
+        if cap < limits[0]:
+            return (self.thickness, self.thickness)
+        return (limits[0], min(limits[1], cap))
+
     @property
     def radius_range(self) -> Tuple[float, float]:
-        """Valid radius range in mm."""
+        """Valid radius range in mm: inside the can the component sits in, as the
+        can is now (read through the encapsulation it belongs to)."""
+        canister = getattr(getattr(self, "_parent", None), "_canister", None)
+        if canister is not None and getattr(canister, "_inner_radius", None):
+            inner = canister._inner_radius
+            return (min(CONNECTOR_RADIUS_MIN, inner) * M_TO_MM, inner * M_TO_MM)
         if not hasattr(self, '_radius_range'):
             return None
         return (
@@ -561,13 +590,14 @@ class CylindricalTerminalConnector(_CylindricalComponent):
 
     @property
     def thickness_range(self) -> Tuple[float, float]:
-        """Valid thickness range in mm, rounded to 2 decimal places."""
-        return (0.1, 5)
+        """Valid thickness range in mm, capped where the encapsulation runs out
+        of internal height (``_thickness_reach``)."""
+        return self._thickness_reach((0.1, 5))
     
     @property
     def thickness_hard_range(self) -> Tuple[float, float]:
-        """Hard limits for thickness in mm, rounded to 2 decimal places."""
-        return (0.05, 10)
+        """Hard limits for thickness in mm (see ``thickness_range``)."""
+        return self._thickness_reach((0.05, 10))
 
 
 class CylindricalLidAssembly(_CylindricalComponent):
@@ -681,13 +711,14 @@ class CylindricalLidAssembly(_CylindricalComponent):
 
     @property
     def thickness_range(self) -> Tuple[float, float]:
-        """Valid thickness range in mm, rounded to 2 decimal places."""
-        return (0.5, 10)
+        """Valid thickness range in mm, capped where the encapsulation runs out
+        of internal height (``_thickness_reach``)."""
+        return self._thickness_reach((0.5, 10))
     
     @property
     def thickness_hard_range(self) -> Tuple[float, float]:
-        """Hard limits for thickness in mm, rounded to 2 decimal places."""
-        return (0.1, 20)
+        """Hard limits for thickness in mm (see ``thickness_range``)."""
+        return self._thickness_reach((0.1, 20))
 
 
 class CylindricalCanister(
@@ -991,10 +1022,31 @@ class CylindricalCanister(
 
     @property
     def inner_radius_range(self) -> Tuple[float, float]:
-        outer_radius_min = self.outer_radius_range[0]
-        outer_radius_max = self.outer_radius_range[1]
-        wall_thickness = self.wall_thickness
-        return (outer_radius_min - wall_thickness, outer_radius_max - wall_thickness)
+        """Inner radii (mm) the setter reaches: the outer radius range less the wall."""
+        low, high = self.outer_radius_range
+        return (low - self.wall_thickness, high - self.wall_thickness)
+
+    @property
+    def inner_radius_hard_range(self) -> Tuple[float, float]:
+        low, high = self.outer_radius_hard_range
+        return (low - self.wall_thickness, high - self.wall_thickness)
+
+    def _height_margin(self) -> float:
+        """How far (mm) the can may shorten: down to the owning encapsulation's
+        ``INTERNAL_HEIGHT_MIN`` of internal height (the lid and connectors take
+        room too), else to ``DIMENSION_FLOOR_MM`` of inner height."""
+        parent = self._get_parent() if hasattr(self, "_get_parent") else None
+        internal = getattr(parent, "internal_height", None)
+        if internal is not None:
+            return internal - INTERNAL_HEIGHT_MIN
+        return self.inner_height - DIMENSION_FLOOR_MM
+
+    @staticmethod
+    def _floored(value: float, low: float, limits: Tuple[float, float]) -> Tuple[float, float]:
+        low = max(limits[0], low)
+        if low > limits[1]:
+            return (value, value)
+        return (low, limits[1])
 
     @property
     def name(self) -> str:
@@ -1011,13 +1063,13 @@ class CylindricalCanister(
     
     @property
     def outer_radius_range(self) -> Tuple[float, float]:
-        """Valid outer radius range in mm, rounded to 2 decimal places."""
-        return (5, 80)
+        """Valid outer radius range in mm, keeping ``DIMENSION_FLOOR_MM`` inside the wall."""
+        return self._floored(self.outer_radius, self.wall_thickness + DIMENSION_FLOOR_MM, (5, 80))
     
     @property
     def outer_radius_hard_range(self) -> Tuple[float, float]:
-        """Hard limits for outer radius in mm, rounded to 2 decimal places."""
-        return (1, 500)
+        """Hard limits for outer radius in mm (see ``outer_radius_range``)."""
+        return self._floored(self.outer_radius, self.wall_thickness + DIMENSION_FLOOR_MM, (1, 500))
     
     @property
     def height(self) -> float:
@@ -1026,23 +1078,24 @@ class CylindricalCanister(
     
     @property
     def height_range(self) -> Tuple[float, float]:
-        """Valid height range in mm, rounded to 2 decimal places."""
-        return (20, 500)
+        """Valid height range in mm, never shorter than ``_height_margin`` allows."""
+        return self._floored(self.height, self.height - self._height_margin(), (20, 500))
 
     @property
     def height_hard_range(self) -> Tuple[float, float]:
-        """Hard limits for height in mm, rounded to 2 decimal places."""
-        return (10, 1000)
+        """Hard limits for height in mm (see ``height_range``)."""
+        return self._floored(self.height, self.height - self._height_margin(), (10, 1000))
 
     @property
     def inner_height_range(self) -> Tuple[float, float]:
         """Valid inner height range in mm (height_range minus wall thickness)."""
-        wall_thickness_mm = self._wall_thickness * M_TO_MM
-        min_height, max_height = self.height_range
-        return (
-            min_height - wall_thickness_mm,
-            max_height - wall_thickness_mm,
-        )
+        low, high = self.height_range
+        return (low - self.wall_thickness, high - self.wall_thickness)
+
+    @property
+    def inner_height_hard_range(self) -> Tuple[float, float]:
+        low, high = self.height_hard_range
+        return (low - self.wall_thickness, high - self.wall_thickness)
 
     @property
     def wall_thickness(self) -> float:
@@ -1051,8 +1104,12 @@ class CylindricalCanister(
     
     @property
     def wall_thickness_range(self) -> Tuple[float, float]:
-        """Valid wall thickness range in mm, rounded to 2 decimal places."""
-        return (0.1, 3)
+        """Valid wall thickness range in mm, keeping ``DIMENSION_FLOOR_MM`` of
+        inner radius (the outer radius is held, so the wall grows inwards)."""
+        high = min(3, self.inner_radius - DIMENSION_FLOOR_MM + self.wall_thickness)
+        if high < 0.1:
+            return (self.wall_thickness, self.wall_thickness)
+        return (0.1, high)
 
     @name.setter
     def name(self, name: str) -> None:
@@ -1397,11 +1454,14 @@ class CylindricalEncapsulation(_Container, DatumMixin):
 
         self._lid_assembly.radius = self._canister._inner_radius * M_TO_MM
 
-        if self._cathode_terminal_connector._radius is None or self._cathode_terminal_connector._radius > self._canister._inner_radius:
-            self._cathode_terminal_connector.radius = self._canister._inner_radius * M_TO_MM * 0.9
-
-        if self._anode_terminal_connector._radius is None or self._anode_terminal_connector._radius > self._canister._inner_radius:
-            self._anode_terminal_connector.radius = self._canister._inner_radius * M_TO_MM * 0.9
+        inner = self._canister._inner_radius
+        for connector in (self._cathode_terminal_connector, self._anode_terminal_connector):
+            # the range follows the can as it is now, not as it was when set
+            connector._set_radius_range(self._canister)
+            if connector._radius is None:
+                connector.radius = inner * M_TO_MM * 0.9  # default: just inside the can
+            elif connector._radius > inner * (1 + 1e-12):
+                connector.radius = inner * M_TO_MM  # no wider than the can
         
         self._internal_height = (
             self._canister._height - \
@@ -1551,35 +1611,23 @@ class CylindricalEncapsulation(_Container, DatumMixin):
     
     @property
     def internal_height_range(self) -> Tuple[float, float]:
-        min_height = (
-            self._canister.height_range[0] - 
-            self._lid_assembly.thickness_hard_range[1] - 
-            self._anode_terminal_connector.thickness_hard_range[1] - 
-            self._cathode_terminal_connector.thickness_hard_range[1]
-        )
-        max_height = (
-            self._canister.height_range[1] - 
-            self._lid_assembly.thickness_hard_range[0] - 
-            self._anode_terminal_connector.thickness_hard_range[0] - 
-            self._cathode_terminal_connector.thickness_hard_range[0]
-        )
-        return (min_height, max_height)
+        """Internal heights (mm) the setter reaches: the canister's height range
+        less the lid and connectors as they are (the setter keeps them)."""
+        return self._internal_height_reach(self._canister.height_range)
 
     @property
     def internal_height_hard_range(self) -> Tuple[float, float]:
-        min_height = (
-            self._canister.height_hard_range[0] - 
-            self._lid_assembly.thickness_hard_range[1] - 
-            self._anode_terminal_connector.thickness_hard_range[1] - 
-            self._cathode_terminal_connector.thickness_hard_range[1]
+        return self._internal_height_reach(self._canister.height_hard_range)
+
+    def _internal_height_reach(self, canister_range: Tuple[float, float]) -> Tuple[float, float]:
+        stack = (
+            self._lid_assembly.thickness
+            + self._anode_terminal_connector.thickness
+            + self._cathode_terminal_connector.thickness
         )
-        max_height = (
-            self._canister.height_hard_range[1] - 
-            self._lid_assembly.thickness_hard_range[0] - 
-            self._anode_terminal_connector.thickness_hard_range[0] - 
-            self._cathode_terminal_connector.thickness_hard_range[0]
-        )
-        return (min_height, max_height)
+        low = max(canister_range[0] - stack, INTERNAL_HEIGHT_MIN)
+        high = max(canister_range[1] - stack, low)
+        return (low, high)
 
     @property
     def internal_radius(self) -> float:
@@ -1765,14 +1813,14 @@ class CylindricalEncapsulation(_Container, DatumMixin):
         # Validate the radius value
         self.validate_positive_float(radius, "Radius")
 
-        # get the ratio of canister to terminal connector radius
+        # keep each connector at its share of the can's inner radius
         cathode_terminal_ratio = self._cathode_terminal_connector._radius / self._canister._inner_radius
         anode_terminal_ratio = self._anode_terminal_connector._radius / self._canister._inner_radius
         
         # Update the radius of the canister
         self._canister.outer_radius = radius
-        self._cathode_terminal_connector._radius = cathode_terminal_ratio * radius
-        self._anode_terminal_connector._radius = anode_terminal_ratio * radius
+        self._cathode_terminal_connector._radius = cathode_terminal_ratio * self._canister._inner_radius
+        self._anode_terminal_connector._radius = anode_terminal_ratio * self._canister._inner_radius
 
     @diameter.setter
     def diameter(self, diameter: float) -> None:

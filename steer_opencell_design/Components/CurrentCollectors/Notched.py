@@ -642,9 +642,12 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
     @property
     def tab_spacing_range(self) -> Tuple[float, float]:
         """
-        Get the tab spacing range in mm.
+        Get the tab spacing range in mm: wider than the tab, up to 1000 mm (or
+        just past the tab, for a tab wider than that, e.g. a tabless collector's
+        continuous one).
         """
-        return (round(self.tab_width + 0.1, 2), 1000)
+        low = round(self.tab_width + 0.1, 2)
+        return (low, max(1000, low))
 
     @property
     def tab_spacing_hard_range(self) -> Tuple[float, float]:
@@ -659,10 +662,8 @@ class NotchedCurrentCollector(_TabbedCurrentCollector, _TapeCurrentCollector):
         """
         Get the tab gap range in mm.
         """
-        return (
-            0.1,  # Minimum gap
-            1000 - self.tab_width,  # Maximum gap (based on max spacing minus tab width)
-        )
+        # the gaps the spacing range allows (spacing = gap + tab width)
+        return (0.1, max(0.1, self.tab_spacing_range[1] - self.tab_width))
 
     @property
     def tab_gap_hard_range(self) -> Tuple[float, float]:

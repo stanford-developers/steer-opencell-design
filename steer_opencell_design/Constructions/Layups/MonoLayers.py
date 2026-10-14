@@ -19,7 +19,8 @@ from steer_opencell_design.Components.CurrentCollectors.Punched import (
 )
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
 from steer_opencell_design.Components.Separators import Separator
-from steer_opencell_design.Constructions.Layups.Base import _Layup, ElectrodeOrientation
+from steer_opencell_design.Constructions.Layups.Base import _Layup, ElectrodeOrientation, SEPARATOR_WIDTH_EXTENSION
+from steer_opencell_design.Utils.Ranges import shifted_range
 
 
 class MonoLayer(_Layup):
@@ -108,10 +109,10 @@ class MonoLayer(_Layup):
         super()._calculate_all_properties()
 
         # set separator width/length ranges based on anode size
-        self._top_separator._set_width_range(self._anode, extended_range=0.1)
-        self._top_separator._set_length_range(self._anode, extended_range=0.1)
-        self._bottom_separator._set_width_range(self._anode, extended_range=0.1)
-        self._bottom_separator._set_length_range(self._anode, extended_range=0.1)
+        self._top_separator._set_width_range(self._anode, extended_range=SEPARATOR_WIDTH_EXTENSION)
+        self._top_separator._set_length_range(self._anode, extended_range=SEPARATOR_WIDTH_EXTENSION)
+        self._bottom_separator._set_width_range(self._anode, extended_range=SEPARATOR_WIDTH_EXTENSION)
+        self._bottom_separator._set_length_range(self._anode, extended_range=SEPARATOR_WIDTH_EXTENSION)
 
         # Set canonical separator ranges based on anode current collector dimensions
         # For rotated separator: width -> x_foil_length, length -> y_foil_length
@@ -228,6 +229,53 @@ class MonoLayer(_Layup):
 
         for tab in tabs:
             tab["collector"]._apply_tab_fit(tab["width"], tab["x"] - tab["left"])
+
+    def _tab_frame(self, collector):
+        """The tab of ``collector`` and the other electrode's, in the layup's x:
+        (left edge, right edge, this centre, other collector, other centre)."""
+        cathode = self._cathode._current_collector
+        anode = self._anode._current_collector
+        other = anode if collector is cathode else cathode
+        left = collector._datum[0] - collector._x_foil_length / 2
+        other_left = other._datum[0] - other._x_foil_length / 2
+        return (
+            left,
+            left + collector._x_foil_length,
+            left + collector._tab_position,
+            other,
+            other_left + other._tab_position,
+        )
+
+    def _tab_width_room(self, collector) -> float:
+        """The widest the tab of ``collector`` may be (m) without crowding the other
+        electrode's tab (same edge) or leaving its foil; None outside a pair."""
+        if collector not in (self._cathode._current_collector, self._anode._current_collector):
+            return None
+        own_room = collector._x_foil_length - 2 * TAB_EDGE_CLEARANCE
+        if not self._tabs_share_an_edge():
+            return own_room
+        left, right, _, other, other_x = self._tab_frame(collector)
+        other_left = other._datum[0] - other._x_foil_length / 2
+        span = (max(right, other_left + other._x_foil_length) - TAB_EDGE_CLEARANCE) - (
+            min(left, other_left) + TAB_EDGE_CLEARANCE
+        )
+        return min(own_room, span - TAB_GAP - other._tab_width)
+
+    def _tab_centre_bounds(self, collector, width: float):
+        """Where the tab of ``collector`` (``width`` m wide) may be centred, in m
+        from its foil's left edge; None outside a pair."""
+        if collector not in (self._cathode._current_collector, self._anode._current_collector):
+            return None
+        left, right, x, other, other_x = self._tab_frame(collector)
+        low = left + TAB_EDGE_CLEARANCE + width / 2
+        high = right - TAB_EDGE_CLEARANCE - width / 2
+        if self._tabs_share_an_edge():
+            clearance = TAB_GAP + (width + other._tab_width) / 2
+            if x <= other_x:  # this tab is the left one: stay left of the other
+                high = min(high, other_x - clearance)
+            else:
+                low = max(low, other_x + clearance)
+        return (low - left, high - left)
 
     def _minimum_foil_width(self) -> float:
         """The narrowest foil (m) that still holds the tabs at TAB_MIN_WIDTH with
@@ -409,19 +457,26 @@ class MonoLayer(_Layup):
 
     @property
     def width_range(self) -> tuple:
-        """The layup width range in mm. The minimum is the width at which the tabs,
-        thinned to TAB_MIN_WIDTH, just fit with their clearances."""
-        return (
-            self._minimum_width() * M_TO_MM,
-            self.cathode.current_collector.width_range[1],
-        )
+        """The layup widths (mm) the width setter reaches: it moves every part by
+        the same amount (shifted from the cathode foil's range), and goes no
+        narrower than the tabs at TAB_MIN_WIDTH need."""
+        return self._dimension_reach("width", self._cathode._current_collector.width_range)
 
     @property
     def width_hard_range(self) -> tuple:
-        return (
-            self._minimum_width() * M_TO_MM,
-            self.cathode.current_collector.width_hard_range[1],
+        return self._dimension_reach("width", self._cathode._current_collector.width_hard_range)
+
+    def _dimension_reach(self, dimension: str, cathode_range: tuple) -> tuple:
+        cathode = self._cathode._current_collector
+        anode = self._anode._current_collector
+        low, high = shifted_range(
+            getattr(self, dimension),
+            [(getattr(cathode, dimension), cathode_range), (getattr(anode, dimension), None)],
         )
+        if dimension == "width":
+            low = max(low, self._minimum_width() * M_TO_MM)
+            high = max(high, low)
+        return (low, high)
 
     @property
     def height(self) -> float:
@@ -429,11 +484,12 @@ class MonoLayer(_Layup):
 
     @property
     def height_range(self) -> tuple:
-        return self.cathode.current_collector.height_range
+        """The layup heights (mm) the height setter reaches (see ``width_range``)."""
+        return self._dimension_reach("height", self._cathode._current_collector.height_range)
 
     @property
     def height_hard_range(self) -> tuple:
-        return self.cathode.current_collector.height_hard_range
+        return self._dimension_reach("height", self._cathode._current_collector.height_hard_range)
 
     # === Unified separator API ===
 
@@ -636,8 +692,8 @@ class ZFoldMonoLayer(MonoLayer):
         super(MonoLayer, self)._calculate_all_properties()
 
         # set separator width/length ranges based on anode size
-        self._top_separator._set_width_range(self._anode, extended_range=0.1)
-        self._bottom_separator._set_width_range(self._anode, extended_range=0.1)
+        self._top_separator._set_width_range(self._anode, extended_range=SEPARATOR_WIDTH_EXTENSION)
+        self._bottom_separator._set_width_range(self._anode, extended_range=SEPARATOR_WIDTH_EXTENSION)
 
         self._calculate_bulk_properties()
         self._constrain_separator_geometry()

@@ -110,11 +110,13 @@ class FlexFrameCell(_Cell):
         """
         from steer_opencell_design.Constructions.Layups.MonoLayers import ElectrodeOrientation
         
+        _clipped = self._effective_clipped_tab_length()
+
         # cathode get the tab position
         _current_collector = self._electrode_assemblies[0]._layup._cathode._current_collector
         _terminal = self._encapsulation._cathode_terminal
         _cathode_connector_position_x = _current_collector._tab_position - _current_collector._x_foil_length / 2
-        _cathode_connector_position_y = _current_collector._datum[1] + _current_collector._y_foil_length / 2 + self._clipped_tab_length + _terminal._length / 2
+        _cathode_connector_position_y = _current_collector._datum[1] + _current_collector._y_foil_length / 2 + _clipped + _terminal._length / 2
 
         _current_collector = self._electrode_assemblies[0]._layup._anode._current_collector
         _terminal = self._encapsulation._anode_terminal
@@ -122,9 +124,9 @@ class FlexFrameCell(_Cell):
         _anode_connector_position_y = _current_collector._datum[1]
 
         if self._reference_electrode_assembly._layup._electrode_orientation == ElectrodeOrientation.TRANSVERSE:
-            _anode_connector_position_y -= _current_collector._y_foil_length / 2 + self._clipped_tab_length + _terminal._length / 2
+            _anode_connector_position_y -= _current_collector._y_foil_length / 2 + _clipped + _terminal._length / 2
         else:
-            _anode_connector_position_y += _current_collector._y_foil_length / 2 + self._clipped_tab_length + _terminal._length / 2
+            _anode_connector_position_y += _current_collector._y_foil_length / 2 + _clipped + _terminal._length / 2
 
         # get average z position of assemblies
         assembly_z_datums = [assembly._datum[2] for assembly in self._electrode_assemblies]
@@ -245,6 +247,15 @@ class FlexFrameCell(_Cell):
         """Get the number of electrode assemblies (always 1 for flex frame)."""
         return 1
 
+    @property
+    def n_electrode_assembly_range(self) -> Tuple[int, int]:
+        """FlexFrame cells hold exactly one electrode assembly."""
+        return (1, 1)
+
+    @property
+    def n_electrode_assembly_hard_range(self) -> Tuple[int, int]:
+        return (1, 1)
+
     @n_electrode_assembly.setter
     def n_electrode_assembly(self, value: int) -> None:
         """Set number of electrode assemblies with validation."""
@@ -354,8 +365,9 @@ class FlexFrameCell(_Cell):
     
     @property
     def clipped_tab_length(self) -> float:
-        """Get clipped tab length."""
-        return self._clipped_tab_length * M_TO_MM
+        """Get clipped tab length in mm, as built (see ``_effective_clipped_tab_length``)."""
+        clipped = self._effective_clipped_tab_length()
+        return None if clipped is None else clipped * M_TO_MM
     
     @property
     def clipped_tab_length_range(self) -> Tuple[float, float]:
