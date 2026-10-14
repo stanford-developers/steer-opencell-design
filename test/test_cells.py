@@ -1927,6 +1927,15 @@ class TestStackedPouchCell(unittest.TestCase):
         # fig4.show()
         # fig5.show()
 
+    def test_narrowing_fits_each_tab_on_its_own_edge(self):
+        """Transverse: the tabs leave opposite edges, so each is fitted on its own."""
+        self.cell.width = self.cell.width * 0.4
+        layup = self.cell.reference_electrode_assembly.layup
+        for electrode in (layup.cathode, layup.anode):
+            cc = electrode.current_collector
+            self.assertGreaterEqual(cc.tab_position - cc.tab_width / 2, 1 - 1e-9)
+            self.assertLessEqual(cc.tab_position + cc.tab_width / 2, cc.width - 1 + 1e-9)
+
     def test_electrode_orientation_setter(self):
 
         fig1 = self.cell.plot_side_view()
@@ -4514,6 +4523,73 @@ class TestZFoldAssemblyGapBug(unittest.TestCase):
         )
         self._assert_assemblies_touch(dc)
 
+
+
+class TestPouchTabsFollowTheWidth(unittest.TestCase):
+    """Narrowing a stacked pouch cell moves its tabs to scale and, once they no
+    longer fit side by side, thins them (and the terminals on them) instead of
+    failing; widening it again restores them."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.base = ocd.PouchCell.from_database("NMC811 Stacked Pouch Cell", table_name="cell_references")
+
+    def _tabs(self, cell):
+        layup = cell.reference_electrode_assembly.layup
+        return layup.cathode.current_collector, layup.anode.current_collector
+
+    def _check(self, cell):
+        cathode, anode = self._tabs(cell)
+        for cc in (cathode, anode):
+            self.assertGreaterEqual(cc.tab_width, 2 - 1e-9)
+            self.assertGreaterEqual(cc.tab_position - cc.tab_width / 2, 1 - 1e-9)
+            self.assertLessEqual(cc.tab_position + cc.tab_width / 2, cc.width - 1 + 1e-9)
+        low, high = sorted((cathode, anode), key=lambda cc: cc.tab_position)
+        gap = (high.tab_position - high.tab_width / 2) - (low.tab_position + low.tab_width / 2)
+        self.assertGreaterEqual(gap, 5 - 1e-9)
+        terminals = (cell.encapsulation._cathode_terminal, cell.encapsulation._anode_terminal)
+        for terminal, cc in zip(terminals, (cathode, anode)):
+            self.assertLessEqual(terminal._width, cc._tab_width + 1e-12)
+        (c_lo, c_hi), (a_lo, a_hi) = [
+            (t._datum[0] - t._width / 2, t._datum[0] + t._width / 2) for t in terminals
+        ]
+        self.assertTrue(c_hi <= a_lo or a_hi <= c_lo)
+
+    def test_narrowing_never_fails(self):
+        cell = deepcopy(self.base)
+        for width in (248, 186, 120, 60, 30):
+            cell.width = width
+            self.assertAlmostEqual(cell.width, width, places=6)
+            self._check(cell)
+
+    def test_tabs_keep_their_share_of_the_width(self):
+        cell = deepcopy(self.base)
+        cell.width = 248  # foil 300 -> ~238 mm: still room for both 80 mm tabs
+        cathode, anode = self._tabs(cell)
+        self.assertAlmostEqual(cathode.tab_position, 70 / 300 * cathode.width, places=6)
+        self.assertAlmostEqual(anode.tab_position, 230 / 300 * anode.width, places=6)
+        self.assertAlmostEqual(cathode.tab_width, 80, places=9)
+        self.assertAlmostEqual(anode.tab_width, 80, places=9)
+
+    def test_tabs_thin_when_they_no_longer_fit_side_by_side(self):
+        cell = deepcopy(self.base)
+        cell.width = 60
+        cathode, anode = self._tabs(cell)
+        self.assertLess(cathode.tab_width, 80)
+        self.assertAlmostEqual(cathode.tab_width, anode.tab_width, places=9)
+
+    def test_the_narrowest_cell_and_back(self):
+        cell = deepcopy(self.base)
+        cell.width = 1  # below what two 2 mm tabs need: clamps to the minimum
+        self.assertAlmostEqual(cell.width, cell.width_range[0], places=6)
+        self._check(cell)
+        cell.width = self.base.width
+        cathode, anode = self._tabs(cell)
+        self.assertAlmostEqual(cathode.tab_width, 80, places=9)
+        self.assertAlmostEqual(cathode.tab_position, 70, places=9)
+        self.assertAlmostEqual(anode.tab_position, 230, places=9)
+        self.assertAlmostEqual(cell.encapsulation._cathode_terminal._width, 0.05, places=12)
+        self.assertAlmostEqual(cell.energy, self.base.energy, places=9)
 
 if __name__ == "__main__":
     unittest.main()

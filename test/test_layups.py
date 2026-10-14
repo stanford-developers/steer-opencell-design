@@ -922,6 +922,26 @@ class TestSimpleMonoLayer(unittest.TestCase):
         fig = self.monolayer.plot_top_down_view(opacity=0.2)
         # fig.show(renderer="browser")
 
+    def test_resetting_the_orientation_keeps_the_anode_tab(self):
+        """Setting the orientation the layup already has used to mirror the anode's
+        tab each time (x -> width - x)."""
+        anode = self.monolayer.anode.current_collector
+        constructed = anode.tab_position
+        # 250 given, measured from the foil's other end
+        self.assertAlmostEqual(constructed, anode.width - 250, places=9)
+        self.monolayer.electrode_orientation = ElectrodeOrientation.TRANSVERSE
+        self.monolayer.electrode_orientation = "transverse"
+        self.assertAlmostEqual(self.monolayer.anode.current_collector.tab_position, constructed, places=9)
+
+    def test_narrowing_keeps_the_tabs_on_their_foils(self):
+        layup = self.monolayer
+        layup.width = layup.width - 250
+        for electrode in (layup.cathode, layup.anode):
+            cc = electrode.current_collector
+            self.assertGreaterEqual(cc.tab_position - cc.tab_width / 2, 1 - 1e-9)
+            self.assertLessEqual(cc.tab_position + cc.tab_width / 2, cc.width - 1 + 1e-9)
+            self.assertGreaterEqual(cc.tab_width, 2 - 1e-9)
+
     def test_width_and_height_setter(self):
 
         self.assertEqual(self.monolayer.height, 326)
@@ -1405,6 +1425,15 @@ class TestZFoldMonoLayer(unittest.TestCase):
         self.assertTrue(condition)
         fig1 = self.zfoldmonolayer.plot_top_down_view()
         # fig1.show(renderer="browser")
+
+    def test_resetting_the_orientation_keeps_the_anode_tab(self):
+        anode = self.zfoldmonolayer.anode.current_collector
+        constructed = anode.tab_position
+        self.assertAlmostEqual(constructed, 250, places=9)  # a Z-fold keeps it as given
+        self.zfoldmonolayer.electrode_orientation = ElectrodeOrientation.TRANSVERSE
+        self.assertAlmostEqual(
+            self.zfoldmonolayer.anode.current_collector.tab_position, constructed, places=9
+        )
 
     def test_width_and_height_setter(self):
 

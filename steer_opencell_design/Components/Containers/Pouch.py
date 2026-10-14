@@ -884,6 +884,19 @@ class PouchTerminal(
         """Set width in mm."""
         self.validate_positive_float(width, "Width")
         self._width = float(width) * MM_TO_M
+        # the cell narrows a terminal to its tab when the tab is narrower, and
+        # restores this width when the tab grows back
+        self._requested_width = self._width
+
+    def _fit_to_tab(self, tab_width: float) -> None:
+        """Narrow the terminal (m) to a tab narrower than its own width, or return
+        to its own width (saved designs without one keep their current width)."""
+        if getattr(self, "_requested_width", None) is None:  # saved before 1.3.2
+            self._requested_width = self._width
+        width = min(self._requested_width, tab_width)
+        if abs(width - self._width) > 1e-12:
+            self._width = width
+            self._calculate_all_properties()
 
     @length.setter
     @calculate_all_properties

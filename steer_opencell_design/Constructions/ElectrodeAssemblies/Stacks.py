@@ -514,6 +514,10 @@ class _Stack(_ElectrodeAssembly):
         collector = getattr(self._layup, f"_{electrode_name}")._current_collector
         return collector._tab_position - collector._x_foil_length / 2
 
+    def tab_stack_width(self, electrode_name: str) -> float:
+        """Return the width of an electrode's tab, in meters."""
+        return getattr(self._layup, f"_{electrode_name}")._current_collector._tab_width
+
     def tab_extends_positive_y(self, electrode_name: str) -> bool:
         """Return whether an electrode's tab leaves the footprint toward +y.
 

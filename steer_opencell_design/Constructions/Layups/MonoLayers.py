@@ -11,7 +11,12 @@ from steer_core.Constants.Units import *
 from steer_core.Decorators.Coordinates import calculate_coordinates
 from steer_core.Decorators.General import calculate_bulk_properties
 
-from steer_opencell_design.Components.CurrentCollectors.Punched import PunchedCurrentCollector
+from steer_opencell_design.Components.CurrentCollectors.Punched import (
+    TAB_EDGE_CLEARANCE,
+    TAB_GAP,
+    TAB_MIN_WIDTH,
+    PunchedCurrentCollector,
+)
 from steer_opencell_design.Components.Electrodes import Anode, Cathode
 from steer_opencell_design.Components.Separators import Separator
 from steer_opencell_design.Constructions.Layups.Base import _Layup, ElectrodeOrientation
@@ -54,6 +59,9 @@ class MonoLayer(_Layup):
         name : str, optional
             Name of the monolayer (default: "MonoLayer").
         """
+        # tabs are refitted on edits, not while the layup is first built
+        self._tab_fit_armed = False
+
         # rotate the separator
         if separator._rotated_xy == False:
             separator._rotate_90_xy()
@@ -80,6 +88,7 @@ class MonoLayer(_Layup):
         # Recalculate properties now that separator is set
         self._calculate_all_properties()
         self._update_properties = True
+        self._tab_fit_armed = True
 
     def _calculate_all_properties(self):
 
@@ -90,6 +99,11 @@ class MonoLayer(_Layup):
 
         # Ensure separators have the required rotation state
         self._ensure_separator_rotation()
+
+        # an edit (a width change, a collector edit) may have left the tabs off
+        # their foils or over each other
+        if getattr(self, "_tab_fit_armed", True):
+            self._fit_tabs()
 
         super()._calculate_all_properties()
 
@@ -138,19 +152,98 @@ class MonoLayer(_Layup):
         height_diff : float  
             Change in height to apply (in mm)
         update_tab_position : bool
-            Whether to also update tab position (only for width changes)
+            Kept for callers; the tabs are refitted (``_fit_tabs``) after any width
+            change rather than shifted, so this no longer moves them.
         """
         for electrode_attr in ['anode', 'cathode']:
             electrode = getattr(self, electrode_attr)
             cc = electrode.current_collector
             if width_diff:
+                # the collector keeps its tab at its share of the new width
                 cc.width = cc.width + width_diff
-                if update_tab_position:
-                    cc.tab_position = cc.tab_position + width_diff
             if height_diff:
                 cc.height = cc.height + height_diff
             electrode.current_collector = cc
             setattr(self, electrode_attr, electrode)
+        if width_diff:
+            self._fit_tabs()
+
+    def _tabs_share_an_edge(self) -> bool:
+        """Whether the cathode and anode tabs leave the same edge (side by side)."""
+        return self._electrode_orientation != ElectrodeOrientation.TRANSVERSE
+
+    def _fit_tabs(self) -> None:
+        """Place both tabs as the user asked, as far as the foils allow.
+
+        Each tab sits at its requested share of its foil's width, at its
+        requested width, keeping TAB_EDGE_CLEARANCE to its foil's edges. When the
+        tabs leave the same edge they also keep TAB_GAP between them: if both do
+        not fit, both are thinned in proportion (to no less than TAB_MIN_WIDTH),
+        and a remaining overlap is removed by pushing them apart. Works in the
+        layup's x, so foils of different widths or offsets are handled.
+        """
+        tabs = []
+        for electrode in (self._cathode, self._anode):
+            collector = electrode._current_collector
+            width, centre = collector._fitted_tab()
+            left = collector._datum[0] - collector._x_foil_length / 2
+            tabs.append(
+                {
+                    "collector": collector,
+                    "width": width,
+                    "x": left + centre,
+                    "left": left,
+                    "right": left + collector._x_foil_length,
+                }
+            )
+
+        if self._tabs_share_an_edge():
+            low, high = sorted(tabs, key=lambda tab: tab["x"])
+            span = (high["right"] - TAB_EDGE_CLEARANCE) - (low["left"] + TAB_EDGE_CLEARANCE) - TAB_GAP
+            total = low["width"] + high["width"]
+            if total > span:
+                scale = max(span, 0.0) / total
+                for tab in (low, high):
+                    tab["width"] = max(tab["width"] * scale, TAB_MIN_WIDTH)
+
+            def limits(tab):
+                return (
+                    tab["left"] + TAB_EDGE_CLEARANCE + tab["width"] / 2,
+                    tab["right"] - TAB_EDGE_CLEARANCE - tab["width"] / 2,
+                )
+
+            for tab in (low, high):
+                lo, hi = limits(tab)
+                tab["x"] = min(max(tab["x"], lo), hi) if lo <= hi else (tab["left"] + tab["right"]) / 2
+
+            overlap = (low["x"] + low["width"] / 2 + TAB_GAP) - (high["x"] - high["width"] / 2)
+            if overlap > 0:
+                room_low = low["x"] - limits(low)[0]
+                room_high = limits(high)[1] - high["x"]
+                move_low = min(overlap / 2, max(room_low, 0.0))
+                move_high = min(overlap - move_low, max(room_high, 0.0))
+                move_low = min(overlap - move_high, max(room_low, 0.0))
+                low["x"] -= move_low
+                high["x"] += move_high
+
+        for tab in tabs:
+            tab["collector"]._apply_tab_fit(tab["width"], tab["x"] - tab["left"])
+
+    def _minimum_foil_width(self) -> float:
+        """The narrowest foil (m) that still holds the tabs at TAB_MIN_WIDTH with
+        their clearances: two side by side, or one per edge."""
+        if self._tabs_share_an_edge():
+            return 2 * TAB_MIN_WIDTH + TAB_GAP + 2 * TAB_EDGE_CLEARANCE
+        return TAB_MIN_WIDTH + 2 * TAB_EDGE_CLEARANCE
+
+    def _minimum_width(self) -> float:
+        """The narrowest layup width (m): its narrower foil at the minimum, the
+        rest of the layup following the same width change."""
+        narrowest = min(
+            self._cathode._current_collector._x_foil_length,
+            self._anode._current_collector._x_foil_length,
+        )
+        return self._width - narrowest + self._minimum_foil_width()
 
     def _update_separator_dimensions(self, width_diff: float = 0, length_diff: float = 0, include_canonical: bool = True):
         """Propagate dimension changes to separators.
@@ -316,18 +409,19 @@ class MonoLayer(_Layup):
 
     @property
     def width_range(self) -> tuple:
-        _anode_tab_width = self.anode.current_collector._tab_width
-        _cathode_tab_width = self.cathode.current_collector._tab_width
-        _max_tab_width = max(_anode_tab_width, _cathode_tab_width)
-        _min_width = _max_tab_width * 1.2
+        """The layup width range in mm. The minimum is the width at which the tabs,
+        thinned to TAB_MIN_WIDTH, just fit with their clearances."""
         return (
-            _min_width,
+            self._minimum_width() * M_TO_MM,
             self.cathode.current_collector.width_range[1],
         )
 
     @property
     def width_hard_range(self) -> tuple:
-        return self.cathode.current_collector.width_hard_range
+        return (
+            self._minimum_width() * M_TO_MM,
+            self.cathode.current_collector.width_hard_range[1],
+        )
 
     @property
     def height(self) -> float:
@@ -449,6 +543,8 @@ class MonoLayer(_Layup):
     @calculate_bulk_properties
     def width(self, value: float):
         self.validate_positive_float(value, "Laminate Width")
+        # no narrower than the tabs, at their thinnest, can fit
+        value = max(value, self._minimum_width() * M_TO_MM)
         width_diff = value - self.width
         self._update_separator_dimensions(width_diff=width_diff)
         self._update_electrode_dimensions(width_diff=width_diff)
@@ -487,6 +583,9 @@ class ZFoldMonoLayer(MonoLayer):
         name: str = "ZFoldMonoLayer",
     ):
         
+        # tabs are refitted on edits, not while the layup is first built
+        self._tab_fit_armed = False
+
         # Store canonical (do NOT rotate for Z-fold)
         self._canonical_separator = deepcopy(separator)
         # Set parent reference for propagation
@@ -516,10 +615,13 @@ class ZFoldMonoLayer(MonoLayer):
             electrode_orientation=electrode_orientation,
         )
 
-        # Electrode orientation behavior same as MonoLayer
-        self.electrode_orientation = electrode_orientation
+        # The base initializer mirrored the anode's tab once, setting the
+        # orientation; a Z-fold keeps the anode tab where it was given (setting
+        # the same orientation again used to mirror it back).
+        self._mirror_anode_tab()
         self._update_properties = True
         self._calculate_all_properties()
+        self._tab_fit_armed = True
 
     def _calculate_all_properties(self):
 
@@ -624,6 +726,8 @@ class ZFoldMonoLayer(MonoLayer):
     @calculate_bulk_properties
     def width(self, value: float):
         self.validate_positive_float(value, "Laminate Width")
+        # no narrower than the tabs, at their thinnest, can fit
+        value = max(value, self._minimum_width() * M_TO_MM)
         width_diff = value - self.width
         # ZFold: separators have constrained length, don't update them for width changes
         self._update_electrode_dimensions(width_diff=width_diff)
