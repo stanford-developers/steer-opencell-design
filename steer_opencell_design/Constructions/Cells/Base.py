@@ -786,8 +786,13 @@ class _Cell(
             cathode._areal_capacity_curve = s['cathode_areal']
         if s['cathode_reversible_areal'] is not None:
             cathode._reversible_areal_capacity = s['cathode_reversible_areal']
-        if s['cathode_reversible_areal_range'] is not None:
-            cathode._reversible_areal_capacity_range = s['cathode_reversible_areal_range']
+            if s['cathode_reversible_areal_range'] is not None:
+                cathode._reversible_areal_capacity_range = s['cathode_reversible_areal_range']
+        elif hasattr(cathode, '_reversible_areal_capacity'):
+            # a cathode from a blob that predates the attribute had none to
+            # snapshot; a read during the probe healed it from the probed curve,
+            # so heal it again from the restored one
+            cathode._calculate_reversible_areal_capacity()
 
         layup._maximum_operating_voltage = s['layup_max_v']
         layup._minimum_operating_voltage = s['layup_min_v']
