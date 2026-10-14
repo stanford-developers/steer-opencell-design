@@ -185,7 +185,8 @@ class TestRoundJellyRoll(unittest.TestCase):
     def test_interfacial_area_pairs_the_facing_coatings(self):
         """The cathode is a turn's inner electrode: its a side faces the anode's
         b side in the same turn, its b side the anode's a side a turn further in."""
-        from matplotlib.path import Path
+        import shapely
+        from shapely.geometry import Polygon
 
         roll = self.my_jellyroll
         within, between = self._interface_terms(roll)
@@ -204,10 +205,14 @@ class TestRoundJellyRoll(unittest.TestCase):
         ys = np.arange(np.nanmin(cathode_b[:, 1]) + dy / 2, np.nanmax(cathode_b[:, 1]), dy)
         gx, gy = np.meshgrid(xs, ys)
         cells = np.column_stack((gx.ravel(), gy.ravel()))
-        on_cathode = Path(cathode_b[~np.isnan(cathode_b[:, 0])]).contains_points(cells)
+        on_cathode = shapely.contains_xy(
+            Polygon(cathode_b[~np.isnan(cathode_b[:, 0])]), cells[:, 0], cells[:, 1]
+        )
         has_turn_beneath = cells[:, 0] >= upper[0]
         beneath = np.column_stack((np.interp(cells[:, 0], upper, lower), cells[:, 1]))
-        on_anode = Path(anode_a[~np.isnan(anode_a[:, 0])]).contains_points(beneath)
+        on_anode = shapely.contains_xy(
+            Polygon(anode_a[~np.isnan(anode_a[:, 0])]), beneath[:, 0], beneath[:, 1]
+        )
         grid = np.count_nonzero(on_cathode & has_turn_beneath & on_anode) * dx * dy
         self.assertAlmostEqual(between / grid, 1.0, delta=2e-3)
 
