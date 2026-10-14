@@ -4,9 +4,11 @@
 """The turn-on-turn winding (``Winding.py``) and the rolls built on it.
 
 Kernel tests wind synthetic stacks so each property can be checked exactly:
-every turn rests on the one beneath it (no gap, no overlap, apart from the
-short ramps over steps), the first turn rests on the mandrel, layers start and
-stop exactly where they do on the strip, and the strip ends at its length.
+every turn rests on the one beneath it (no gap, no overlap, apart from where it
+spans taut over a step), a span over a step touches down at the step's horizon,
+the first turn rests on the mandrel, layers drape over the layers beneath them
+instead of jumping, layers start and stop exactly where they do on the strip,
+and the strip ends at its length.
 Assembly tests check the same on reference cells, plus that the dimension
 setters' objective measures exactly what the full rebuild does.
 """
@@ -24,7 +26,6 @@ from steer_opencell_design.Constructions.ElectrodeAssemblies.JellyRolls import (
     TapeDriver,
 )
 from steer_opencell_design.Constructions.ElectrodeAssemblies.Winding import (  # noqa: E402
-    RAMP_RUN_PER_RISE,
     TapeSpec,
     racetrack_template,
     round_template,
@@ -44,13 +45,17 @@ def _segment(x0, x1):
 
 
 def _support(result):
-    """The support under every sample: the turn beneath plus its thickness."""
+    """The support under every sample: the turn beneath plus its stack top."""
     p = result.points_per_turn
-    a, tc = result.a, result.tc
-    sup = np.zeros_like(a)
-    m = np.arange(p, a.shape[0])
-    sup[p:] = a[m - p] + 0.5 * (tc[m - p] + np.minimum(tc[m - p + 1], np.inf))
+    sup = np.zeros_like(result.a)
+    sup[p:] = result.a[:-p] + result.H[:-p]
     return sup
+
+
+def _horizon_run(radius, rise):
+    """Arc (on the surface) from a step of height ``rise`` to where a taut strip
+    leaving its top touches a surface of radius ``radius``."""
+    return radius * np.arccos(radius / (radius + rise))
 
 
 class TestStackProfile(unittest.TestCase):
@@ -117,9 +122,11 @@ class TestWindingKernel(unittest.TestCase):
 
     def test_the_first_turn_rests_on_the_mandrel(self):
         p = self.round.points_per_turn
-        # the end of the first turn may ramp up onto the leading edge
-        reach = int(np.ceil(RAMP_RUN_PER_RISE * 50 * UM / (2 * np.pi * self.radius / p))) + 1
+        # the end of the first turn spans taut up onto the leading edge
+        spacing = 2 * np.pi * self.radius / p
+        reach = int(np.ceil(_horizon_run(self.radius, 50 * UM) / spacing)) + 1
         self.assertTrue(np.all(self.round.a[: p - reach] == 0.0))
+        self.assertGreater(self.round.a[p - 1], 0.0)
 
     def test_the_strip_ends_exactly_at_its_length(self):
         base = self.round.base_path()
@@ -157,6 +164,99 @@ class TestWindingKernel(unittest.TestCase):
         by_length = wind(self.profile, round_template(self.radius), TapeSpec(30 * UM, length=0.05))
         tape, _ = by_length.tape_path()
         self.assertAlmostEqual(tape[-1, 1] - tape[0, 1], 0.05, places=9)
+
+    def test_a_span_touches_down_at_the_steps_horizon(self):
+        """A layer starting on top of the stack is a step the next turn spans;
+        it leaves the surface at the horizon, closer to the step near the core."""
+        for radius in (1.5 * MM, 12 * MM):
+            profile = build_stack_profile(
+                [("base", _segment(0.0, 0.8), 50 * UM), ("top", _segment(0.4, 0.8), 200 * UM)]
+            )
+            result = wind(profile, round_template(radius))
+            p = result.points_per_turn
+            sup = _support(result)
+            corner = result.corner_f[0] + p  # where the next turn meets the step
+            i_c = int(np.ceil(corner))
+            lifted = np.flatnonzero(result.a[:i_c] > sup[:i_c] + 1e-9)
+            first = lifted[lifted > i_c - p // 2].min()
+            rho = radius + sup[i_c - 1]
+            spacing = 2 * np.pi * rho / p
+            run = (corner - first) * spacing
+            self.assertAlmostEqual(run, _horizon_run(rho, 200 * UM), delta=1.5 * spacing)
+
+    def test_a_span_over_a_step_on_a_straight_reaches_the_curve(self):
+        """On a racetrack's straight the horizon is the straight's end: the span
+        from a step up on a straight starts back on the preceding curve."""
+        profile = build_stack_profile(
+            [("base", _segment(0.0, 0.9), 50 * UM), ("top", _segment(0.5, 0.9), 200 * UM)]
+        )
+        template = racetrack_template(0.5 * MM, 30 * MM)
+        result = wind(profile, template)
+        p = result.points_per_turn
+        sup = _support(result)
+        corner = result.corner_f[0] + p
+        i_c = int(np.ceil(corner))
+        j = (i_c - 1) % p
+        self.assertEqual(abs(template.nz[j]), 1.0)  # the step lies on a straight
+        n_c = template.n_curve
+        # walk back along the straight to its start: every sample is lifted
+        k = i_c - 1
+        while abs(template.nz[k % p]) == 1.0 and template.nx[k % p] == 0.0:
+            self.assertGreater(result.a[k], sup[k] + 1e-9)
+            k -= 1
+        self.assertLess(k, i_c - 1)
+        self.assertGreaterEqual(n_c, 4)
+
+    def test_layers_drape_over_a_layer_starting_beneath_them(self):
+        """Where the cathode starts inside the anode overhang, the anode above it
+        bends over the step instead of jumping (the 1.1 paths stepped there)."""
+        profile = build_stack_profile(
+            [
+                ("cathode", _segment(0.2, 0.5), 120 * UM),
+                ("separator", _segment(0.0, 0.6), 20 * UM),
+                ("anode", _segment(0.05, 0.55), 100 * UM),
+                ("top_separator", _segment(0.0, 0.6), 20 * UM),
+            ]
+        )
+        for template in (round_template(2 * MM), racetrack_template(1 * MM, 20 * MM)):
+            result = wind(profile, template)
+            path, _ = result.layer_path("anode")
+            path = path[~np.isnan(path[:, 1])]
+            ds = np.diff(path[:, 1])
+            self.assertTrue(np.all(ds >= -1e-12))
+            # offsets above the strip's bottom face are continuous along the path
+            f = result._index_at(path[:, 1])
+            base = result._interp(result.a, f)
+            x0, z0, nx, nz = result._template_at(f)
+            height = (path[:, 3] - x0) * nx + (path[:, 4] - z0) * nz - base
+            jumps = np.abs(np.diff(height))[ds < 1e-9]
+            self.assertTrue(np.all(jumps < 1e-9))
+            # no steeper than 1:1 anywhere (the 1.1 paths jumped 120 um at no length)
+            moving = ds > 1e-9
+            self.assertTrue(np.all(np.abs(np.diff(height))[moving] <= ds[moving]))
+            # and it ends exactly at its ends
+            self.assertAlmostEqual(path[0, 1], 0.05, places=12)
+            self.assertAlmostEqual(path[-1, 1], 0.55, places=12)
+
+    def test_no_layer_sinks_into_the_layers_beneath_it(self):
+        profile = build_stack_profile(
+            [
+                ("cathode", np.array([[0.2, 0], [0.3, 0], [np.nan, np.nan], [0.32, 0], [0.5, 0]]), 120 * UM),
+                ("separator", _segment(0.0, 0.6), 20 * UM),
+                ("anode", _segment(0.05, 0.55), 100 * UM),
+                ("top_separator", _segment(0.01, 0.6), 20 * UM),
+            ]
+        )
+        for template in (round_template(2 * MM), racetrack_template(1 * MM, 20 * MM)):
+            result = wind(profile, template)
+            below_top = np.zeros(result.a.shape[0])
+            for c in range(len(profile.names)):
+                bottom = result.layer_bottom(c)
+                here = ~np.isnan(bottom)
+                self.assertTrue(np.all(bottom[here] >= below_top[here] - 1e-12))
+                below_top[here] = np.maximum(below_top[here], bottom[here] + profile.layer_thickness[c])
+            inside = result.iv < profile.thickness.shape[0]
+            np.testing.assert_allclose(result.H[inside], below_top[inside], atol=1e-12)
 
     def test_winding_is_deterministic(self):
         again = wind(deepcopy(self.profile), round_template(self.radius))

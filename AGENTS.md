@@ -21,12 +21,14 @@
   improves so we never silently regress.
 
 ## Performance benchmarks
-- Jelly rolls are wound by one numba kernel, `_wind_lagged` in
+- Jelly rolls are wound by one numba kernel, `_wind_taut` in
   `steer_opencell_design/Constructions/ElectrodeAssemblies/Winding.py`, for
   round and flat (racetrack) mandrels alike. It winds the laminate's exact stack
   profile (`Laminate.get_stack_profile()`) turn on turn onto a template of P
-  samples per turn, so each turn sits on the one beneath it; see that module's
-  docstring for the model. `SpiralCalculator.calculate_variable_thickness_spiral`
+  samples per turn, so each turn sits on the one beneath it, spanning taut (a
+  local convex hull) over steps; `_drape_window` drapes the layers inside the
+  stack the same way around each profile edge. See that module's docstring for
+  the model. `SpiralCalculator.calculate_variable_thickness_spiral`
   / `_racetrack` are thin wrappers over it.
 - Rolls are measured on the winding's outer envelope (the last turn's outer
   face). The full rebuild and the dimension setters' Brent objective read the
