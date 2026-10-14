@@ -364,9 +364,7 @@ class TestWeldTabs(unittest.TestCase):
         thick = deepcopy(cls.roll)
         for electrode in ("cathode", "anode"):
             collector = getattr(thick.layup, electrode).current_collector
-            tab = deepcopy(collector.weld_tab)
-            tab.thickness = 150  # um, thicker than either coating
-            collector.weld_tab = tab
+            collector.tab_thickness = 150  # um, thicker than either coating
             collector.propagate_changes()
         cls.thick = thick
 

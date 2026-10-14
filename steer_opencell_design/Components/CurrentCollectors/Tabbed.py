@@ -876,6 +876,24 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
         return self.tab_length_range
 
     @property
+    def tab_thickness(self) -> float:
+        """
+        Returns the thickness of the weld tab in μm.
+        """
+        return self.weld_tab.thickness
+
+    @property
+    def tab_thickness_range(self) -> Tuple[float, float]:
+        """
+        Returns the thickness range of the weld tab in μm (typical welded tabs).
+        """
+        return (10, 200)
+
+    @property
+    def tab_thickness_hard_range(self) -> Tuple[float, float]:
+        return (1, 2000)
+
+    @property
     def tab_positions_text(self) -> str:
         """
         Returns the weld tab positions as a formatted string in mm.
@@ -960,6 +978,16 @@ class TabWeldedCurrentCollector(_TapeCurrentCollector):
             raise ValueError("Tab length cannot be less than the tab overhang.")
 
         self.weld_tab.length = tab_length
+
+    @tab_thickness.setter
+    @calculate_all_properties
+    def tab_thickness(self, tab_thickness: float) -> None:
+        """
+        Set the thickness of the weld tabs in μm. Since 1.3.0 the tabs are a layer
+        of a wound roll's stack, so this changes the winding as well as the mass.
+        """
+        self.validate_positive_float(tab_thickness, "tab_thickness")
+        self.weld_tab.thickness = tab_thickness
 
     @weld_tab.setter
     @calculate_all_properties

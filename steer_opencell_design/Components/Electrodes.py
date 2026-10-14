@@ -512,7 +512,9 @@ class _Electrode(
         porosity = 1 - (self._formulation._specific_volume * self._calender_density)
 
         if porosity < 0:
-            warnings.warn(f"Negative porosity calculated for {self.name}. Clamping to 0.", UserWarning)
+            # a fully dense coating (porosity 0) lands a rounding error either side
+            if porosity < -1e-9:
+                warnings.warn(f"Negative porosity calculated for {self.name}. Clamping to 0.", UserWarning)
             porosity = 0.0
 
         self._porosity = porosity
@@ -1348,8 +1350,12 @@ class _Electrode(
 
     @property
     def porosity_hard_range(self) -> Tuple[float, float]:
-        """Get the hard allowable porosity range in %."""
-        return (10, 80)
+        """Get the hard allowable porosity range in %.
+
+        Down to 0: a fully dense (monolithic) coating, e.g. a single-crystal
+        active material film, is a valid design.
+        """
+        return (0, 80)
 
     # === SETTERS ===
 
