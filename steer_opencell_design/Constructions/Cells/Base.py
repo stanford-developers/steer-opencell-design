@@ -48,6 +48,7 @@ from steer_opencell_design.Utils.Constants import (
     COLOR_GUIDE_REVERSIBLE,
 )
 from steer_core.Utils import round_dict_recursive
+from steer_opencell_design.Utils.Outline import outline_mesh
 
 from steer_opencell_design.Materials.Electrolytes import Electrolyte
 
@@ -985,6 +986,83 @@ class _Cell(
         )
 
         return fig
+
+    # ── Simple 3D outline (for pack- and container-scale views) ─────────
+
+    #: Shape of the cell's outline: ``"box"`` or ``"cylinder"``.
+    _outline_shape = "box"
+
+    @property
+    def outline_dimensions(self) -> Optional[Tuple[float, float, float]]:
+        """Outer ``(width, height, thickness)`` of the cell in mm, in its own frame.
+
+        The bounding dimensions of :meth:`get_outline_mesh`. Each form factor maps its
+        own dimensions onto these axes (a cylinder's width and thickness are both its
+        diameter). ``None`` when the dimensions cannot be read.
+        """
+        return None
+
+    def get_outline_mesh(
+        self,
+        datum: Tuple[float, float, float] = (0.0, 0.0, 0.0),
+        orientation: str = "xyz",
+        n_sides: int = 12,
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """Triangle mesh of the cell's outer outline, for drawing many cells at once.
+
+        A box for prismatic, pouch and flex-frame cells; an ``n_sides``-sided prism
+        for cylindrical cells. The mesh is a pure function of the current outer
+        dimensions (no layer detail), cheap enough to place thousands of cells.
+
+        Args:
+            datum: World position (mm) of the outline's bounding-box centre.
+            orientation: A permutation of ``"xyz"``; its k-th letter is the world axis
+                that local axis k (0 width, 1 height, 2 thickness) points along.
+                ``"xyz"`` is this cell's own frame; ``"xzy"`` stands it upright in a
+                z-up world.
+            n_sides: Polygon sides of a cylindrical outline (at least 3).
+
+        Returns:
+            ``(x, y, z, i, j, k)``: vertex coordinates in mm and 0-based triangle
+            indices, the arguments of a plotly ``Mesh3d``. Vertex order is fixed (see
+            :mod:`steer_opencell_design.Utils.Outline`), so callers can merge copies.
+        """
+        dimensions = self.outline_dimensions
+        if dimensions is None:
+            raise NotImplementedError(
+                f"{self.__class__.__name__} does not define its outline dimensions"
+            )
+        return outline_mesh(self._outline_shape, dimensions, datum, orientation, n_sides)
+
+    @property
+    def simple_3d_trace(self) -> go.Mesh3d:
+        """The cell's outline as one ``Mesh3d`` at the origin, in its own frame (mm)."""
+        x, y, z, i, j, k = self.get_outline_mesh()
+        return go.Mesh3d(
+            x=x, y=y, z=z, i=i, j=j, k=k,
+            color=COLOR_FULL_CELL,
+            flatshading=True,
+            name=self.name,
+            hovertemplate=f"{self.name}<extra></extra>",
+        )
+
+    def plot_3d_view(self, **kwargs) -> go.Figure:
+        """A simple 3D view of the cell's outline (mm, equal axis scaling)."""
+        fig = go.Figure(self.simple_3d_trace)
+        return self.apply_plot_layout(
+            fig,
+            defaults={
+                "title": f"{self.name} Outline",
+                "scene": {
+                    "aspectmode": "data",
+                    "xaxis": {"title": "X (mm)"},
+                    "yaxis": {"title": "Y (mm)"},
+                    "zaxis": {"title": "Z (mm)"},
+                },
+                "showlegend": False,
+            },
+            overrides=kwargs,
+        )
 
     def get_materials(self) -> Dict[_Material, List[str]]:
         """Return all materials in the cell with their paths.
