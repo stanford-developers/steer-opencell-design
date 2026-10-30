@@ -14,13 +14,23 @@ from steer_core.Decorators.General import calculate_all_properties, recalculate
 from steer_core.Mixins.Propagation import propagating_setter
 from steer_core.Constants.Units import *
 
-from typing import Tuple
+from typing import Optional, Tuple
 import plotly.graph_objects as go
 import numpy as np
 
 
 class PrismaticCell(_Cell):
     """Prismatic hard-case battery cell. Supports both stacked and flat-wound jelly roll internal constructions with a rigid metal canister."""
+
+    _outline_shape = "box"
+
+    @property
+    def outline_dimensions(self) -> Optional[Tuple[float, float, float]]:
+        """Outer ``(width, height, length)`` in mm: the thickness is the length."""
+        try:
+            return (float(self.width), float(self.height), float(self.length))
+        except (AttributeError, TypeError, ValueError):
+            return None
 
     def __init__(
         self,

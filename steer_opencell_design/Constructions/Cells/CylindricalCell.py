@@ -13,13 +13,24 @@ from steer_core.Decorators.General import calculate_all_properties
 from steer_core.Constants.Units import *
 from steer_core.Mixins.Propagation import propagating_setter
 
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 import warnings
 import plotly.graph_objects as go
 
 
 class CylindricalCell(_Cell):
     """Complete cylindrical battery cell (e.g., 18650, 21700, 4680 format). Combines a wound jelly roll with a cylindrical canister encapsulation and electrolyte."""
+
+    _outline_shape = "cylinder"
+
+    @property
+    def outline_dimensions(self) -> Optional[Tuple[float, float, float]]:
+        """``(diameter, height, diameter)`` in mm: the axis is the cell's height."""
+        try:
+            diameter = float(self.diameter)
+            return (diameter, float(self.height), diameter)
+        except (AttributeError, TypeError, ValueError):
+            return None
 
     def __init__(
         self,
