@@ -24,6 +24,16 @@ import numpy as np
 class PouchCell(_Cell):
     """Pouch (soft-pack) battery cell. Combines stacked electrode assemblies with laminate film encapsulation, terminals, and electrolyte."""
 
+    _outline_shape = "box"
+
+    @property
+    def outline_dimensions(self) -> Optional[Tuple[float, float, float]]:
+        """Outer ``(width, height, thickness)`` in mm (tabs excluded)."""
+        try:
+            return (float(self.width), float(self.height), float(self.thickness))
+        except (AttributeError, TypeError, ValueError):
+            return None
+
     def __init__(
         self,
         reference_electrode_assembly: ZFoldStack | PunchedStack | FlatWoundJellyRoll,
